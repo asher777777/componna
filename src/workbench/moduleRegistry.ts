@@ -5,6 +5,7 @@ import { MediaGalleryHubStandaloneView } from '../modules/media-gallery-hub';
 import { FlowPlayerEngineStandaloneView } from '../modules/flow-player-engine';
 import { TemplateStandaloneView } from '../modules/_template';
 import { PageBuilderStandaloneView } from '../modules/page-builder';
+import { CrmAnalyticsStandaloneView } from '../modules/crm-analytics';
 
 export interface ModuleDefinition {
   id: string;
@@ -16,6 +17,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'crm-analytics',
+    name: 'אנליטיקה ודוחות CRM (Analytics)',
+    description: 'לוח בקרה מתקדם, גרפים אינטראקטיביים, פילוח קהילות ותגיות, וטבלה דינמית עם ייצוא לאקסל',
+    component: CrmAnalyticsStandaloneView,
+    route: '/crm-analytics',
+    collectionPrefix: 'mod_crm_',
+  },
   {
     id: 'page-builder',
     name: 'יוצר העמודים והאתרים (Page Builder)',
