@@ -1,0 +1,12 @@
+﻿rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /{allPaths=**} {
+      // Public read for fast video streaming & media previews
+      allow read: if true;
+      // Allow authenticated or dev direct uploads
+      allow write: if true;
+    }
+  }
+}
