@@ -1,4 +1,4 @@
-﻿import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { 
   Search, Download, Columns, ArrowUpDown, ArrowUp, ArrowDown, 
   Edit2, Check, X, Filter, ChevronLeft, ChevronRight, FileSpreadsheet 
@@ -12,6 +12,7 @@ interface Props {
   selectedColumnIds: string[];
   onToggleColumn: (colId: string) => void;
   onUpdateField?: (contactId: string, field: string, value: any) => Promise<boolean>;
+  onSelectContact?: (contact: Contact) => void;
   loading?: boolean;
 }
 
@@ -21,6 +22,7 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
   selectedColumnIds,
   onToggleColumn,
   onUpdateField,
+  onSelectContact,
   loading,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -228,7 +230,15 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
                         ) : (
                           <div className="flex items-center justify-between gap-2">
                             <span>
-                              {Array.isArray(val) ? (
+                              {col.id === 'conta_name' ? (
+                                <button
+                                  type="button"
+                                  onClick={() => onSelectContact?.(contact)}
+                                  className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5"
+                                >
+                                  {val || 'ללא שם'}
+                                </button>
+                              ) : Array.isArray(val) ? (
                                 <div className="flex flex-wrap gap-1">
                                   {val.map((t, ti) => (
                                     <span key={ti} className="px-1.5 py-0.5 text-[10px] rounded bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400">

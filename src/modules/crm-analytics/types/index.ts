@@ -34,6 +34,17 @@ export interface PaymentRecord {
   receiptLink?: string;
 }
 
+export interface AIInteraction {
+  date: string;
+  summary: string;
+  sentiment?: 'positive' | 'neutral' | 'negative' | 'urgent';
+  nextBestAction?: string;
+  draftMessage?: string;
+  inputTokens?: number;
+  outputTokens?: number;
+  cost?: number;
+}
+
 export interface Contact {
   id?: string;
   ownerId?: string;
@@ -93,6 +104,16 @@ export interface Contact {
   campaign_title?: string;
   campaign_amount?: number;
   campaign_role?: string;
+  campaign_target_goal?: number;
+  campaign_total_raised?: number;
+  ambassador_page_url?: string;
+
+  // AI Insights
+  ai_sentiment_score?: number; // 0 - 100
+  ai_lead_temperature?: 'hot' | 'warm' | 'cold';
+  ai_summary?: string;
+  ai_next_best_action?: string;
+  ai_interactions?: AIInteraction[];
 
   // Timestamps
   createdAt?: string;
@@ -166,4 +187,30 @@ export interface SavedAnalyticsView {
     leadSource?: string;
     formName?: string;
   };
+}
+
+export type DatabaseProviderType = 'firestore' | 'supabase' | 'rest_api' | 'mock_dataset';
+
+export interface DatabaseConnectionProfile {
+  id: string;
+  name: string;
+  provider: DatabaseProviderType;
+  isActive: boolean;
+  createdAt: string;
+  config: {
+    // Firestore
+    projectId?: string;
+    apiKey?: string;
+    authDomain?: string;
+    collectionName?: string;
+    // Supabase / SQL
+    supabaseUrl?: string;
+    supabaseAnonKey?: string;
+    tableName?: string;
+    // REST API
+    apiUrl?: string;
+    bearerToken?: string;
+    method?: 'GET' | 'POST';
+  };
+  fieldMappings?: Record<string, string>;
 }

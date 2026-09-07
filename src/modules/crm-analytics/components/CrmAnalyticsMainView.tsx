@@ -1,13 +1,16 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
-  TrendingUp, BarChart2, Filter, RefreshCw, Layers 
+  TrendingUp, BarChart2, Filter, RefreshCw, Layers, Plus, Database 
 } from 'lucide-react';
 import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
+import { Contact, DatabaseConnectionProfile } from '../types';
 import { AnalyticsSummaryCards } from './AnalyticsSummaryCards';
 import { AnalyticsChartsView } from './AnalyticsChartsView';
 import { DynamicAnalyticsTable } from './DynamicAnalyticsTable';
 import { AdvancedFilterDrawer } from './AdvancedFilterDrawer';
 import { SavedViewsBar } from './SavedViewsBar';
+import { Contact360Modal } from './Contact360Modal';
+import { DatabaseConnectorModal } from './DatabaseConnectorModal';
 
 export const CrmAnalyticsMainView: React.FC = () => {
   const {
@@ -31,6 +34,12 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
 
+  // Modal states
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [activeDbProfile, setActiveDbProfile] = useState<DatabaseConnectionProfile | null>(null);
+
   const toggleColumn = (colId: string) => {
     setSelectedColumns(prev => 
       prev.includes(colId) ? prev.filter(id => id !== colId) : [...prev, colId]
@@ -50,6 +59,38 @@ export const CrmAnalyticsMainView: React.FC = () => {
     setFilter(prev => ({ ...prev, community: prev.community === comm ? undefined : comm }));
   };
 
+  const handleOpenNewContact = () => {
+    setSelectedContact({
+      status: 'active',
+      conta_name: '',
+      conta_phone: '',
+      email: '',
+      tags: [],
+    });
+    setIsContactModalOpen(true);
+  };
+
+  const handleOpenContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setIsContactModalOpen(true);
+  };
+
+  const handleSaveContact = async (updated: Contact) => {
+    if (updated.id) {
+      Object.keys(updated).forEach(async key => {
+        if (key !== 'id') {
+          await updateField(updated.id!, key, (updated as any)[key]);
+        }
+      });
+    }
+    return true;
+  };
+
+  const handleApplyDbProfile = (profile: DatabaseConnectionProfile) => {
+    setActiveDbProfile(profile);
+    refresh();
+  };
+
   return (
     <div className="flex flex-col gap-5 p-4 md:p-6 max-w-7xl mx-auto w-full text-right" dir="rtl">
       {/* Top Header Bar */}
@@ -60,11 +101,29 @@ export const CrmAnalyticsMainView: React.FC = () => {
             <span>לוח אנליטיקה ודוחות CRM</span>
           </h1>
           <p className="text-xs text-gray-500 mt-1">
-            תובנות ביצועים, פילוח קהילות, מעקב הכנסות וטבלה דינמית מבוססת Firestore
+            תובנות ביצועים, פרופיל לקוח 360 AI, פילוח קהילות, וחיבור למסדי נתונים
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Add Contact Button */}
+          <button
+            onClick={handleOpenNewContact}
+            className="px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1.5 shadow transition"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>איש קשר חדש</span>
+          </button>
+
+          {/* Database Connector Hub */}
+          <button
+            onClick={() => setIsDbModalOpen(true)}
+            className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+          >
+            <Database className="w-3.5 h-3.5 text-indigo-500" />
+            <span>חיבור מסד נתונים (DB)</span>
+          </button>
+
           {/* Toggle Charts */}
           <button
             onClick={() => setShowCharts(!showCharts)}
@@ -146,7 +205,24 @@ export const CrmAnalyticsMainView: React.FC = () => {
         selectedColumnIds={selectedColumns}
         onToggleColumn={toggleColumn}
         onUpdateField={updateField}
+        onSelectContact={handleOpenContact}
         loading={loading}
+      />
+
+      {/* Contact 360 & AI Copilot Modal */}
+      <Contact360Modal
+        isOpen={isContactModalOpen}
+        onClose={() => setIsContactModalOpen(false)}
+        contact={selectedContact}
+        onSave={handleSaveContact}
+        customFields={data?.customFields || []}
+      />
+
+      {/* Database Connector Hub Modal */}
+      <DatabaseConnectorModal
+        isOpen={isDbModalOpen}
+        onClose={() => setIsDbModalOpen(false)}
+        onApplyProfile={handleApplyDbProfile}
       />
     </div>
   );
