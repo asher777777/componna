@@ -4,7 +4,7 @@ import { MediaItem, MediaType } from '../types';
 
 export class FirebaseStorageMediaService {
   public static getStorageInstance(app: FirebaseApp) {
-    const bucket = app.options.storageBucket || 'aioffice-1426f.firebasestorage.app';
+    const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
     return getStorage(app, bucket.startsWith('gs://') ? bucket : `gs://${bucket}`);
   }
 
@@ -38,7 +38,7 @@ export class FirebaseStorageMediaService {
           },
           (error) => {
             console.warn('[FirebaseStorageMediaService] Upload warning:', error);
-            const bucket = app.options.storageBucket || 'aioffice-1426f.firebasestorage.app';
+            const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
             const encodedPath = encodeURIComponent(storagePath);
             resolve(`https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`);
           },
@@ -47,7 +47,7 @@ export class FirebaseStorageMediaService {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
               resolve(downloadUrl);
             } catch (err) {
-              const bucket = app.options.storageBucket || 'aioffice-1426f.firebasestorage.app';
+              const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
               const encodedPath = encodeURIComponent(storagePath);
               resolve(`https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`);
             }
@@ -66,7 +66,7 @@ export class FirebaseStorageMediaService {
   public static async fetchStorageFiles(app: FirebaseApp): Promise<MediaItem[]> {
     const items: MediaItem[] = [];
     const scannedCleanNames = new Set<string>();
-    const bucket = app.options.storageBucket || 'aioffice-1426f.firebasestorage.app';
+    const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
 
     const registerItem = (fullName: string, downloadUrl: string, sizeBytes: number, createdAt: number) => {
       const cleanName = fullName.replace(/^\d+_/, '');

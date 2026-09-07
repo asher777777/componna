@@ -6,13 +6,13 @@ import { DEFAULT_CAMPAIGN_CONFIG } from './config';
 import { ensureAnonymousAuth } from '../../services/firebaseAuth';
 
 const FALLBACK_FIREBASE_CONFIG = {
-  apiKey: 'AIzaSyD3c5Xw3ybrPg68BlmO3g9KwGaiqssmqws',
-  authDomain: 'aioffice-1426f.firebaseapp.com',
-  projectId: 'aioffice-1426f',
-  storageBucket: 'aioffice-1426f.firebasestorage.app',
-  messagingSenderId: '485069254738',
-  appId: '1:485069254738:web:839cab90b6a4d201a7af8b',
-  measurementId: 'G-31LX81VN8B',
+  apiKey: 'AIzaSyC011dhtJddDjLmTQ2HCvgVA0DPN8rKFwQ',
+  authDomain: 'glowmanage.firebaseapp.com',
+  projectId: 'glowmanage',
+  storageBucket: 'glowmanage.firebasestorage.app',
+  messagingSenderId: '174552708887',
+  appId: '1:174552708887:web:70b91e3994c66db0336952',
+  measurementId: 'G-FCJ0889DPN',
 };
 
 export const FlowPlayerEngineStandaloneView: React.FC = () => {
