@@ -1,5 +1,14 @@
 {
   "projects": {
     "default": "glowmanage"
+  },
+  "targets": {
+    "glowmanage": {
+      "hosting": {
+        "compona": [
+          "compona"
+        ]
+      }
+    }
   }
 }

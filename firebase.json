@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "compona",
     "public": "dist",
     "ignore": [
       "firebase.json",
