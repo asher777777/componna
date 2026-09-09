@@ -3,7 +3,7 @@ import {
   X, Database, Check, RefreshCw, ShieldCheck, 
   ExternalLink, Sparkles, Server, Globe, Key, AlertCircle,
   FileJson, UploadCloud, Copy, RotateCcw, FolderSync, Bot,
-  MessageSquare, Send, Cpu, KeyRound
+  MessageSquare, Send, Cpu, KeyRound, Film
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../../../core/connection/aiJsonParser';
@@ -53,7 +53,9 @@ export const DatabaseConnectorModal: React.FC = () => {
 
   // API Keys state
   const [googleAiApiKey, setGoogleAiApiKey] = useState(apiKeys.googleAiApiKey || '');
-  const [geminiModel, setGeminiModel] = useState(apiKeys.geminiModel || 'gemini-1.5-flash');
+  const [geminiModel, setGeminiModel] = useState(apiKeys.geminiModel || 'gemini-3.8-flash');
+  const [geminiImageModel, setGeminiImageModel] = useState(apiKeys.geminiImageModel || 'gemini-3.1-flash-image');
+  const [geminiVideoModel, setGeminiVideoModel] = useState(apiKeys.geminiVideoModel || 'veo-3.1-generate-preview');
   const [heygenApiKey, setHeygenApiKey] = useState(apiKeys.heygenApiKey || '');
   const [elevenLabsApiKey, setElevenLabsApiKey] = useState(apiKeys.elevenLabsApiKey || '');
   const [openaiApiKey, setOpenaiApiKey] = useState(apiKeys.openaiApiKey || '');
@@ -82,7 +84,9 @@ export const DatabaseConnectorModal: React.FC = () => {
 
   useEffect(() => {
     setGoogleAiApiKey(apiKeys.googleAiApiKey || '');
-    setGeminiModel(apiKeys.geminiModel || 'gemini-1.5-flash');
+    setGeminiModel(apiKeys.geminiModel || 'gemini-3.8-flash');
+    setGeminiImageModel(apiKeys.geminiImageModel || 'gemini-3.1-flash-image');
+    setGeminiVideoModel(apiKeys.geminiVideoModel || 'veo-3.1-generate-preview');
     setHeygenApiKey(apiKeys.heygenApiKey || '');
     setElevenLabsApiKey(apiKeys.elevenLabsApiKey || '');
     setOpenaiApiKey(apiKeys.openaiApiKey || '');
@@ -214,6 +218,8 @@ export const DatabaseConnectorModal: React.FC = () => {
     await updateApiKeys({
       googleAiApiKey: googleAiApiKey.trim(),
       geminiModel: geminiModel.trim(),
+      geminiImageModel: geminiImageModel.trim(),
+      geminiVideoModel: geminiVideoModel.trim(),
       heygenApiKey: heygenApiKey.trim(),
       elevenLabsApiKey: elevenLabsApiKey.trim(),
       openaiApiKey: openaiApiKey.trim(),
@@ -542,32 +548,96 @@ export const DatabaseConnectorModal: React.FC = () => {
                 </div>
               </div>
 
+              {/* API Key Input */}
+              <div>
+                <label className="block text-slate-400 mb-1 font-medium">Google Gemini API Key *</label>
+                <input
+                  type="password"
+                  value={googleAiApiKey}
+                  onChange={(e) => setGoogleAiApiKey(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                  dir="ltr"
+                />
+              </div>
+
+              {/* 3 Dedicated Categorized Model Selectors */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="sm:col-span-2">
-                  <label className="block text-slate-400 mb-1 font-medium">Google Gemini API Key *</label>
-                  <input
-                    type="password"
-                    value={googleAiApiKey}
-                    onChange={(e) => setGoogleAiApiKey(e.target.value)}
-                    placeholder="AIzaSy..."
-                    className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
-                    dir="ltr"
-                  />
-                </div>
+                
+                {/* 1. Text & Multimodal Model */}
                 <div>
-                  <label className="block text-slate-400 mb-1 font-medium">מודל AI פעיל (Default Model)</label>
+                  <label className="block text-slate-400 mb-1 font-medium flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>מודל שפה, תסריטים ו-PDF</span>
+                  </label>
                   <select
                     value={geminiModel}
                     onChange={(e) => setGeminiModel(e.target.value)}
                     className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white text-xs focus:border-indigo-500"
                     dir="ltr"
                   >
-                    <option value="gemini-1.5-flash">gemini-1.5-flash (מומלץ ומהיר)</option>
-                    <option value="gemini-1.5-pro">gemini-1.5-pro (חזק ומעמיק)</option>
-                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
-                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                    <optgroup label="⚡ Gemini 3.x Flash Models (New Stable)">
+                      <option value="gemini-3.8-flash">gemini-3.8-flash (הכי אינטליגנטי ומתקדם לסוכנים)</option>
+                      <option value="gemini-3.7-flash">gemini-3.7-flash (קידוד וסוכנים רב-שלביים)</option>
+                      <option value="gemini-3.6-flash">gemini-3.6-flash (מאוזן ומהיר)</option>
+                      <option value="gemini-3.5-flash">gemini-3.5-flash (מהיר וקלאסי)</option>
+                      <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (אולטרה חסכוני ומהיר)</option>
+                      <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (קל משקל לתפוקה גבוהה)</option>
+                    </optgroup>
+                    <optgroup label="🧠 Pro & Reasoning Models">
+                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (מחשבה עמוקה ופתרון מורכב)</option>
+                      <option value="gemini-2.5-pro">gemini-2.5-pro (פרו רב-מודאלי עם 2M טוקנים)</option>
+                      <option value="gemini-2.5-flash">gemini-2.5-flash (היברידי עם Thinking Budget)</option>
+                      <option value="gemini-2.5-flash-lite">gemini-2.5-flash-lite</option>
+                    </optgroup>
                   </select>
                 </div>
+
+                {/* 2. Image Generation Model (🍌 Nano Banana / Imagen) */}
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium flex items-center gap-1">
+                    <span>🍌</span>
+                    <span>מודל יצירת תמונות</span>
+                  </label>
+                  <select
+                    value={geminiImageModel}
+                    onChange={(e) => setGeminiImageModel(e.target.value)}
+                    className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white text-xs focus:border-indigo-500"
+                    dir="ltr"
+                  >
+                    <optgroup label="🍌 Nano Banana Models">
+                      <option value="gemini-3.1-flash-image">gemini-3.1-flash-image (Nano Banana 2 - מהיר)</option>
+                      <option value="gemini-3.1-flash-lite-image">gemini-3.1-flash-lite-image (Nano Banana 2 Lite)</option>
+                      <option value="gemini-3-pro-image">gemini-3-pro-image (Nano Banana Pro - פוטוריאליסטי)</option>
+                    </optgroup>
+                    <optgroup label="🎨 Imagen Models">
+                      <option value="imagen-3.0-generate-002">imagen-3.0-generate-002 (Imagen 3)</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                {/* 3. Video Generation Model (🎬 Veo & Omni) */}
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium flex items-center gap-1">
+                    <Film className="w-3.5 h-3.5 text-pink-400" />
+                    <span>מודל יצירת וידאו</span>
+                  </label>
+                  <select
+                    value={geminiVideoModel}
+                    onChange={(e) => setGeminiVideoModel(e.target.value)}
+                    className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white text-xs focus:border-indigo-500"
+                    dir="ltr"
+                  >
+                    <optgroup label="🎬 Veo Video Models">
+                      <option value="veo-3.1-generate-preview">veo-3.1-generate-preview (Veo 3.1 - 1080p סינמטי)</option>
+                      <option value="veo-3.1-lite-generate-preview">veo-3.1-lite-generate-preview (Veo 3.1 Lite - מהיר)</option>
+                    </optgroup>
+                    <optgroup label="⚡ Omni Video Models">
+                      <option value="gemini-omni-1.1-flash">gemini-omni-1.1-flash (Gemini Omni Flash)</option>
+                    </optgroup>
+                  </select>
+                </div>
+
               </div>
 
               {/* AI Key Live Verification */}

@@ -28,6 +28,8 @@ export interface SystemCollectionsConfig {
 export interface SystemApiKeysConfig {
   googleAiApiKey?: string;
   geminiModel?: string;
+  geminiImageModel?: string;
+  geminiVideoModel?: string;
   heygenApiKey?: string;
   elevenLabsApiKey?: string;
   openaiApiKey?: string;
@@ -66,7 +68,9 @@ const APIKEYS_KEY = 'comona_system_apikeys_config';
 
 export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   googleAiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
-  geminiModel: 'gemini-1.5-flash',
+  geminiModel: 'gemini-3.8-flash',
+  geminiImageModel: 'gemini-3.1-flash-image',
+  geminiVideoModel: 'veo-3.1-generate-preview',
   heygenApiKey: import.meta.env.VITE_HEYGEN_API_KEY || '',
   elevenLabsApiKey: import.meta.env.VITE_ELEVENLABS_API_KEY || '',
   openaiApiKey: '',
