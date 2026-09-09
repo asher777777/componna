@@ -4,6 +4,7 @@ export * from './context/MediaGalleryContext';
 export * from './services/imageConverterService';
 export * from './services/firestoreMediaService';
 export * from './services/firebaseStorageMediaService';
+export * from './services/mediaIndexedDbService';
 export * from './components/MediaUploader';
 export * from './components/MediaGalleryGrid';
 export * from './components/MediaPreviewModal';

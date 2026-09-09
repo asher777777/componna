@@ -11,6 +11,7 @@ import {
 import { resolveMediaCollections, INITIAL_SERVER_MEDIA } from '../config';
 import { FirestoreMediaService } from '../services/firestoreMediaService';
 import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
+import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { ensureAnonymousAuth } from '../../../services/firebaseAuth';
 
 interface MediaGalleryContextValue {
@@ -43,14 +44,31 @@ interface MediaGalleryContextValue {
 const MediaGalleryContext = createContext<MediaGalleryContextValue | null>(null);
 
 export const MediaGalleryProvider: React.FC<{
-  config?: MediaGalleryModuleConfig;
+  config: MediaGalleryModuleConfig;
   children: React.ReactNode;
 }> = ({ config, children }) => {
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>(() => config?.initialItems || INITIAL_SERVER_MEDIA);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const {
+    firebaseApp,
+    db,
+    customCollections,
+    collectionPrefix,
+    allowedTypes,
+    maxSelectCount = 1,
+    selectionMode = false,
+    onSelectMedia,
+    onClosePicker,
+  } = config;
+
+  const collections = useMemo(
+    () => resolveMediaCollections(collectionPrefix, customCollections),
+    [collectionPrefix, customCollections]
+  );
+
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
   const [converterItem, setConverterItem] = useState<MediaItem | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const [filters, setFilters] = useState<MediaFilterOptions>({
     searchQuery: '',
@@ -58,25 +76,19 @@ export const MediaGalleryProvider: React.FC<{
     sortBy: 'date_desc',
   });
 
-  const firebaseApp = config?.firebaseApp;
-  const db = config?.db;
-  const collections = useMemo(
-    () => resolveMediaCollections(config?.collectionPrefix, config?.customCollections),
-    [config?.collectionPrefix, config?.customCollections]
-  );
-
-  // Load dynamically from Server (Firebase Storage + Firestore JSON collections) on mount
+  // Load all media sources directly from Server Cloud Storage + IndexedDB + Firestore
   useEffect(() => {
     let isMounted = true;
 
     const loadServerSources = async () => {
+      setIsLoading(true);
       try {
         const mergedMap = new Map<string, MediaItem>();
 
         const normalizeItem = (rawItem: MediaItem): MediaItem => {
           let type = rawItem.type;
-          const name = rawItem.name || '';
           if (!type || type === 'other') {
+            const name = (rawItem.name || '').toLowerCase();
             if (name.match(/\.(mp4|webm|mov|avi|mkv|m4v)$/i) || rawItem.mimeType?.startsWith('video/')) {
               type = 'video';
             } else if (name.match(/\.(png|jpg|jpeg|webp|gif|svg|avif)$/i) || rawItem.mimeType?.startsWith('image/')) {
@@ -105,7 +117,17 @@ export const MediaGalleryProvider: React.FC<{
         // 1. Start with initial confirmed server media
         INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
 
-        // 2. Fetch all files directly from Firebase Storage bucket
+        // 2. Load from local IndexedDB (instant zero-latency cache)
+        try {
+          const idbItems = await MediaIndexedDbService.getAllMedia();
+          idbItems.forEach((it) => {
+            if (it && it.url) addDeduplicated(it);
+          });
+        } catch (idbErr) {
+          console.warn('[MediaGallery] IndexedDB load notice:', idbErr);
+        }
+
+        // 3. Fetch all files directly from Firebase Storage bucket
         if (firebaseApp) {
           try {
             await ensureAnonymousAuth(firebaseApp);
@@ -121,7 +143,7 @@ export const MediaGalleryProvider: React.FC<{
           }
         }
 
-        // 3. Fetch remote items from Firestore (both active collections & global sdo_media_items)
+        // 4. Fetch remote items from Firestore (both active collections & global sdo_media_items)
         if (db) {
           try {
             const remoteItems = await FirestoreMediaService.fetchMediaItems(db, collections);
@@ -129,7 +151,6 @@ export const MediaGalleryProvider: React.FC<{
               if (item.url) addDeduplicated(item);
             });
 
-            // Also check default sdo_media_items if different
             if (collections.mediaItems !== 'sdo_media_items') {
               const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
                 mediaItems: 'sdo_media_items',
@@ -148,6 +169,9 @@ export const MediaGalleryProvider: React.FC<{
 
         const finalMerged = Array.from(mergedMap.values()).sort((a, b) => b.createdAt - a.createdAt);
         setMediaItems(finalMerged);
+        
+        // Sync to IndexedDB
+        finalMerged.forEach(item => MediaIndexedDbService.saveMedia(item).catch(() => {}));
       } catch (err) {
         console.warn('[MediaGallery] Failed to load server media sources:', err);
       } finally {
@@ -157,14 +181,32 @@ export const MediaGalleryProvider: React.FC<{
 
     loadServerSources();
 
+    // Listen for cross-module media additions (e.g. from Interactive Player Studio)
+    const handleMediaUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<MediaItem>;
+      if (customEvent.detail) {
+        setMediaItems((prev) => {
+          const newItem = customEvent.detail;
+          const filtered = prev.filter(
+            (it) => it.id !== newItem.id && it.name.toLowerCase().trim() !== newItem.name.toLowerCase().trim()
+          );
+          return [newItem, ...filtered];
+        });
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sdo_media_updated', handleMediaUpdated);
+    }
+
     return () => {
       isMounted = false;
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('sdo_media_updated', handleMediaUpdated);
+      }
     };
   }, [firebaseApp, db, collections]);
 
-  /**
-   * Upload exclusively to Server (Cloud Storage + Firestore JSON)
-   */
   const addMediaItems = async (
     newItems: MediaItem[],
     files?: (File | Blob)[],

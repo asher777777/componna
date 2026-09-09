@@ -56,9 +56,7 @@ export const PlayerMachineProvider: React.FC<{
       setCurrentNodeId(initialId);
       const getSafeUrl = (node?: FlowNodeState | null) => {
         if (!node) return '';
-        const url = node.videoUrl;
-        if (url && !url.startsWith('blob:')) return url;
-        return node.fallbackVideoUrl || '';
+        return node.videoUrl || node.fallbackVideoUrl || '';
       };
 
       const initialUrl = getSafeUrl(initialCampaign.states[initialId]);
@@ -82,8 +80,7 @@ export const PlayerMachineProvider: React.FC<{
   const getInitialNodeUrl = () => {
     const node = initialCampaign.states[currentNodeId];
     if (!node) return '';
-    if (node.videoUrl && !node.videoUrl.startsWith('blob:')) return node.videoUrl;
-    return node.fallbackVideoUrl || '';
+    return node.videoUrl || node.fallbackVideoUrl || '';
   };
 
   const [activeVideoSlot, setActiveVideoSlot] = useState<0 | 1>(0);
@@ -131,9 +128,7 @@ export const PlayerMachineProvider: React.FC<{
 
       const prevNodeId = currentNodeId;
       const nextSlot = activeVideoSlot === 0 ? 1 : 0;
-      const safeTargetUrl = targetNode.videoUrl && !targetNode.videoUrl.startsWith('blob:')
-        ? targetNode.videoUrl
-        : targetNode.fallbackVideoUrl || '';
+      const safeTargetUrl = targetNode.videoUrl || targetNode.fallbackVideoUrl || '';
 
       setVideoUrls((prev) => {
         const updated: [string, string] = [...prev];

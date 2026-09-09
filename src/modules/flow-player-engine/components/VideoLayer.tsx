@@ -68,11 +68,8 @@ export const VideoLayer: React.FC = () => {
     incomingVideo.muted = !isSoundActive;
     incomingVideo.loop = isLooping;
 
-    // Determine target URL with fallback
-    let targetSrc = currentUrl;
-    if (!targetSrc || targetSrc.startsWith('blob:')) {
-      targetSrc = currentNode?.fallbackVideoUrl || '';
-    }
+    // Determine target URL with fallback if empty
+    let targetSrc = currentUrl || currentNode?.fallbackVideoUrl || '';
 
     // Load new src if changed
     if (targetSrc && incomingVideo.src !== targetSrc) {

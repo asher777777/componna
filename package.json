@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "new-module": "node scripts/create-module.js"
+    "new-module": "node scripts/create-module.js",
+    "export-client": "node scripts/export-client-platform.js"
   },
   "dependencies": {
     "clsx": "^2.1.1",

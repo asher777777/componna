@@ -30,6 +30,7 @@ import {
   MediaPickerModal,
   FirebaseStorageMediaService,
   FirestoreMediaService as GalleryFirestoreService,
+  MediaIndexedDbService,
   MediaItem,
 } from '../../media-gallery-hub';
 
@@ -79,43 +80,60 @@ export const CampaignStudioModal: React.FC<{
     handleUpdateNode(nodeId, { videoUrl: objectUrl });
 
     // 2. Upload to Firebase Storage and persist in Media Gallery
-    if (firebaseApp) {
-      setUploadingNodeId(nodeId);
-      setUploadProgress(0);
-      try {
-        const downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+    setUploadingNodeId(nodeId);
+    setUploadProgress(15);
+    try {
+      let downloadUrl = objectUrl;
+      if (firebaseApp) {
+        downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
           firebaseApp,
           file,
           file.name,
           (pct) => setUploadProgress(pct)
         );
-
-        // Update node with persistent cloud URL
-        handleUpdateNode(nodeId, { videoUrl: downloadUrl });
-
-        // Save into Media Gallery collection so it appears in the gallery everywhere!
-        if (db) {
-          const mediaItem: MediaItem = {
-            id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
-            name: file.name,
-            type: 'video',
-            mimeType: file.type || 'video/mp4',
-            url: downloadUrl,
-            sizeBytes: file.size,
-            createdAt: Date.now(),
-            tags: ['flow_player', 'upload', 'וידאו'],
-          };
-          await GalleryFirestoreService.saveMediaItem(
-            db,
-            { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
-            mediaItem
-          );
-        }
-      } catch (uploadErr) {
-        console.warn('[CampaignStudioModal] Cloud upload notice:', uploadErr);
-      } finally {
-        setUploadingNodeId(null);
+      } else {
+        const localItem: MediaItem = {
+          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+          name: file.name,
+          type: 'video',
+          mimeType: file.type || 'video/mp4',
+          url: objectUrl,
+          sizeBytes: file.size,
+          createdAt: Date.now(),
+          tags: ['flow_player', 'upload', 'וידאו'],
+        };
+        await MediaIndexedDbService.saveMedia(localItem, file);
       }
+
+      // Update node with persistent URL
+      handleUpdateNode(nodeId, { videoUrl: downloadUrl });
+      setUploadProgress(100);
+
+      // Save into Media Gallery collection so it appears in the gallery everywhere!
+      if (db) {
+        const mediaItem: MediaItem = {
+          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+          name: file.name,
+          type: 'video',
+          mimeType: file.type || 'video/mp4',
+          url: downloadUrl,
+          sizeBytes: file.size,
+          createdAt: Date.now(),
+          tags: ['flow_player', 'upload', 'וידאו'],
+        };
+        GalleryFirestoreService.saveMediaItem(
+          db,
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+          mediaItem
+        ).catch(() => {});
+      }
+    } catch (uploadErr) {
+      console.warn('[CampaignStudioModal] Cloud upload notice:', uploadErr);
+    } finally {
+      setTimeout(() => {
+        setUploadingNodeId(null);
+        setUploadProgress(0);
+      }, 600);
     }
   };
 
@@ -176,38 +194,52 @@ export const CampaignStudioModal: React.FC<{
     handleUpdateCard(cardIndex, { imageUrl: objectUrl });
 
     // 2. Upload to Firebase Storage and persist in Media Gallery
-    if (firebaseApp) {
-      setUploadingCardIndex(cardIndex);
-      try {
-        const downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+    setUploadingCardIndex(cardIndex);
+    try {
+      let downloadUrl = objectUrl;
+      if (firebaseApp) {
+        downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
           firebaseApp,
           file,
           file.name
         );
-        handleUpdateCard(cardIndex, { imageUrl: downloadUrl });
-
-        if (db) {
-          const mediaItem: MediaItem = {
-            id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
-            name: file.name,
-            type: 'image',
-            mimeType: file.type || 'image/jpeg',
-            url: downloadUrl,
-            sizeBytes: file.size,
-            createdAt: Date.now(),
-            tags: ['flow_player', 'card', 'תמונה'],
-          };
-          await GalleryFirestoreService.saveMediaItem(
-            db,
-            { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
-            mediaItem
-          );
-        }
-      } catch (uploadErr) {
-        console.warn('[CampaignStudioModal] Card image upload notice:', uploadErr);
-      } finally {
-        setUploadingCardIndex(null);
+      } else {
+        const localItem: MediaItem = {
+          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+          name: file.name,
+          type: 'image',
+          mimeType: file.type || 'image/jpeg',
+          url: objectUrl,
+          sizeBytes: file.size,
+          createdAt: Date.now(),
+          tags: ['flow_player', 'card', 'תמונה'],
+        };
+        await MediaIndexedDbService.saveMedia(localItem, file);
       }
+
+      handleUpdateCard(cardIndex, { imageUrl: downloadUrl });
+
+      if (db) {
+        const mediaItem: MediaItem = {
+          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+          name: file.name,
+          type: 'image',
+          mimeType: file.type || 'image/jpeg',
+          url: downloadUrl,
+          sizeBytes: file.size,
+          createdAt: Date.now(),
+          tags: ['flow_player', 'card', 'תמונה'],
+        };
+        GalleryFirestoreService.saveMediaItem(
+          db,
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+          mediaItem
+        ).catch(() => {});
+      }
+    } catch (uploadErr) {
+      console.warn('[CampaignStudioModal] Card image upload notice:', uploadErr);
+    } finally {
+      setUploadingCardIndex(null);
     }
   };
 
@@ -992,9 +1024,11 @@ export const CampaignStudioModal: React.FC<{
                 {currentNode.videoUrl && (
                   <div className="mt-3 relative rounded-xl overflow-hidden bg-black max-h-48 flex items-center justify-center border border-slate-800">
                     <video
+                      key={currentNode.videoUrl}
                       src={currentNode.videoUrl}
                       controls
-                      className="max-h-48 object-contain"
+                      playsInline
+                      className="max-h-48 object-contain w-full"
                     />
                   </div>
                 )}

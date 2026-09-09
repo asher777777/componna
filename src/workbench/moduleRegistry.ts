@@ -6,6 +6,7 @@ import { FlowPlayerEngineStandaloneView } from '../modules/flow-player-engine';
 import { TemplateStandaloneView } from '../modules/_template';
 import { PageBuilderStandaloneView } from '../modules/page-builder';
 import { CrmAnalyticsStandaloneView } from '../modules/crm-analytics';
+import { ClientReceiverPlatformStandaloneView } from '../modules/client-receiver-platform';
 
 export interface ModuleDefinition {
   id: string;
@@ -17,6 +18,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'client-platform',
+    name: 'פלטפורמת מקלט לקוח (Client Platform Shell)',
+    description: 'שלד לקוח מלא עם אימות, טבלת סימון והפעלה של רכיבים, סלאגים מותאמים וניווט דינמי',
+    component: ClientReceiverPlatformStandaloneView,
+    route: '/client-platform',
+    collectionPrefix: 'client_',
+  },
   {
     id: 'crm-analytics',
     name: 'אנליטיקה ודוחות CRM (Analytics)',
