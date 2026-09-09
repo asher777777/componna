@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from 'react';
+import { VolumeX } from 'lucide-react';
 import { usePlayerMachine } from '../context/PlayerMachineContext';
 
 export const VideoLayer: React.FC = () => {
@@ -20,6 +21,7 @@ export const VideoLayer: React.FC = () => {
   const [visibleSlot, setVisibleSlot] = useState<0 | 1>(activeVideoSlot);
   const [hasVideoError0, setHasVideoError0] = useState<boolean>(false);
   const [hasVideoError1, setHasVideoError1] = useState<boolean>(false);
+  const [needsUserUnmute, setNeedsUserUnmute] = useState<boolean>(false);
 
   // Determine loop setting from node trigger config
   const isLooping = currentNode?.loopUntilTrigger ?? currentNode?.loop ?? true;
@@ -37,8 +39,12 @@ export const VideoLayer: React.FC = () => {
     const urls = new Set<string>();
     if (campaign?.states) {
       Object.values(campaign.states).forEach((node) => {
-        if (node.videoUrl) urls.add(node.videoUrl);
-        if (node.fallbackVideoUrl) urls.add(node.fallbackVideoUrl);
+        if (node.videoUrl && !node.videoUrl.startsWith('blob:') && (node.videoUrl.startsWith('http://') || node.videoUrl.startsWith('https://'))) {
+          urls.add(node.videoUrl);
+        }
+        if (node.fallbackVideoUrl && !node.fallbackVideoUrl.startsWith('blob:') && (node.fallbackVideoUrl.startsWith('http://') || node.fallbackVideoUrl.startsWith('https://'))) {
+          urls.add(node.fallbackVideoUrl);
+        }
       });
     }
     return Array.from(urls);
@@ -62,20 +68,41 @@ export const VideoLayer: React.FC = () => {
     incomingVideo.muted = !isSoundActive;
     incomingVideo.loop = isLooping;
 
+    // Determine target URL with fallback
+    let targetSrc = currentUrl;
+    if (!targetSrc || targetSrc.startsWith('blob:')) {
+      targetSrc = currentNode?.fallbackVideoUrl || '';
+    }
+
     // Load new src if changed
-    if (currentUrl && incomingVideo.src !== currentUrl) {
-      incomingVideo.src = currentUrl;
+    if (targetSrc && incomingVideo.src !== targetSrc) {
+      incomingVideo.src = targetSrc;
       incomingVideo.load();
     }
 
     // Switch visible slot immediately on transition
     setVisibleSlot(incomingSlot);
 
-    if (shouldPlay && currentUrl) {
+    if (shouldPlay && targetSrc) {
       const playPromise = incomingVideo.play();
       if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          if (err.name !== 'AbortError') {
+        playPromise.catch((err: any) => {
+          const errStr = String(err?.message || err?.name || err);
+          const isNotAllowed = err?.name === 'NotAllowedError' || errStr.includes('NotAllowedError') || errStr.includes('interact');
+          const isAbort = err?.name === 'AbortError' || errStr.includes('AbortError');
+          const isNotSupported = err?.name === 'NotSupportedError' || errStr.includes('NotSupportedError');
+
+          if (isNotAllowed) {
+            console.info('[VideoLayer] Autoplay with audio restricted by browser. Playing muted.');
+            incomingVideo.muted = true;
+            setNeedsUserUnmute(true);
+            incomingVideo.play().catch(() => {});
+          } else if (isNotSupported && currentNode?.fallbackVideoUrl && incomingVideo.src !== currentNode.fallbackVideoUrl) {
+            console.info('[VideoLayer] Video source not supported, switching to fallback.');
+            incomingVideo.src = currentNode.fallbackVideoUrl;
+            incomingVideo.load();
+            incomingVideo.play().catch(() => {});
+          } else if (!isAbort) {
             console.warn('[VideoLayer] Video auto-play policy notice:', err);
           }
         });
@@ -94,7 +121,7 @@ export const VideoLayer: React.FC = () => {
       }, 350);
       return () => clearTimeout(timer);
     }
-  }, [activeVideoSlot, currentUrl, shouldPlay, isSoundActive, isLooping]);
+  }, [activeVideoSlot, currentUrl, shouldPlay, isSoundActive, isLooping, currentNode]);
 
   // Sync mute state changes dynamically
   useEffect(() => {
@@ -124,20 +151,65 @@ export const VideoLayer: React.FC = () => {
     }
   };
 
-  const hasAnyVideo = Boolean(videoUrls[0] || videoUrls[1] || currentUrl);
+  const handleVideoError = (slot: 0 | 1) => {
+    if (slot === 0) setHasVideoError0(true);
+    else setHasVideoError1(true);
+
+    const fallback = currentNode?.fallbackVideoUrl;
+    const vid = slot === 0 ? video0Ref.current : video1Ref.current;
+    if (vid && fallback && vid.src !== fallback) {
+      console.info(`[VideoLayer] Video slot ${slot} failed, recovering with fallback URL.`);
+      vid.src = fallback;
+      vid.load();
+      if (shouldPlay) {
+        vid.play().catch(() => {});
+      }
+    }
+  };
+
+  const handleUserUnmute = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNeedsUserUnmute(false);
+    const activeVideo = activeVideoSlot === 0 ? video0Ref.current : video1Ref.current;
+    if (activeVideo) {
+      activeVideo.muted = false;
+      activeVideo.play().catch(() => {});
+    }
+  };
+
+  const hasAnyVideo = Boolean(videoUrls[0] || videoUrls[1] || currentUrl || currentNode?.fallbackVideoUrl);
 
   return (
-    <div className="absolute inset-0 z-0 bg-slate-950 overflow-hidden flex items-center justify-center select-none">
+    <div
+      onClick={() => {
+        if (needsUserUnmute) {
+          handleUserUnmute({ stopPropagation: () => {} } as any);
+        }
+      }}
+      className="absolute inset-0 z-0 bg-slate-950 overflow-hidden flex items-center justify-center select-none cursor-pointer"
+    >
+      {/* Floating Unmute Button when Browser restricts audio autoplay */}
+      {needsUserUnmute && (
+        <button
+          type="button"
+          onClick={handleUserUnmute}
+          className="absolute top-4 left-4 z-40 bg-black/85 hover:bg-black text-amber-300 border border-amber-400/60 px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 shadow-xl animate-pulse cursor-pointer backdrop-blur transition-transform active:scale-95"
+          dir="rtl"
+        >
+          <VolumeX className="w-3.5 h-3.5 text-amber-400" />
+          <span>לחץ להפעלת סאונד 🔊</span>
+        </button>
+      )}
       {/* Video Slot 0 */}
       <video
         ref={video0Ref}
-        src={videoUrls[0] || ''}
+        src={videoUrls[0] || undefined}
         playsInline
         preload="auto"
         muted={!isSoundActive}
         loop={isLooping}
         onEnded={() => handleEnded(0)}
-        onError={() => setHasVideoError0(true)}
+        onError={() => handleVideoError(0)}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${
           visibleSlot === 0
             ? 'opacity-100 z-20 pointer-events-auto'
@@ -148,13 +220,13 @@ export const VideoLayer: React.FC = () => {
       {/* Video Slot 1 */}
       <video
         ref={video1Ref}
-        src={videoUrls[1] || ''}
+        src={videoUrls[1] || undefined}
         playsInline
         preload="auto"
         muted={!isSoundActive}
         loop={isLooping}
         onEnded={() => handleEnded(1)}
-        onError={() => setHasVideoError1(true)}
+        onError={() => handleVideoError(1)}
         className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-300 ease-out ${
           visibleSlot === 1
             ? 'opacity-100 z-20 pointer-events-auto'

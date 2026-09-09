@@ -54,7 +54,14 @@ export const PlayerMachineProvider: React.FC<{
       setCampaign(initialCampaign);
       const initialId = initialCampaign.initialNodeId || Object.keys(initialCampaign.states)[0] || 'node_intro';
       setCurrentNodeId(initialId);
-      const initialUrl = initialCampaign.states[initialId]?.videoUrl || '';
+      const getSafeUrl = (node?: FlowNodeState | null) => {
+        if (!node) return '';
+        const url = node.videoUrl;
+        if (url && !url.startsWith('blob:')) return url;
+        return node.fallbackVideoUrl || '';
+      };
+
+      const initialUrl = getSafeUrl(initialCampaign.states[initialId]);
       setVideoUrls([initialUrl, initialUrl]);
     }
   }, [initialCampaign]);
@@ -72,10 +79,17 @@ export const PlayerMachineProvider: React.FC<{
   const [events, setEvents] = useState<SessionTelemetryEvent[]>([]);
 
   // Dual video slot tracking
+  const getInitialNodeUrl = () => {
+    const node = initialCampaign.states[currentNodeId];
+    if (!node) return '';
+    if (node.videoUrl && !node.videoUrl.startsWith('blob:')) return node.videoUrl;
+    return node.fallbackVideoUrl || '';
+  };
+
   const [activeVideoSlot, setActiveVideoSlot] = useState<0 | 1>(0);
   const [videoUrls, setVideoUrls] = useState<[string, string]>([
-    initialCampaign.states[currentNodeId]?.videoUrl || '',
-    initialCampaign.states[currentNodeId]?.videoUrl || '',
+    getInitialNodeUrl(),
+    getInitialNodeUrl(),
   ]);
 
   const currentNode = campaign.states[currentNodeId] || null;
@@ -117,10 +131,13 @@ export const PlayerMachineProvider: React.FC<{
 
       const prevNodeId = currentNodeId;
       const nextSlot = activeVideoSlot === 0 ? 1 : 0;
+      const safeTargetUrl = targetNode.videoUrl && !targetNode.videoUrl.startsWith('blob:')
+        ? targetNode.videoUrl
+        : targetNode.fallbackVideoUrl || '';
 
       setVideoUrls((prev) => {
         const updated: [string, string] = [...prev];
-        updated[nextSlot] = targetNode.videoUrl || '';
+        updated[nextSlot] = safeTargetUrl;
         return updated;
       });
       setActiveVideoSlot(nextSlot);

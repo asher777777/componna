@@ -185,6 +185,15 @@ export async function ensureAnonymousAuth(app?: FirebaseApp): Promise<User | nul
     const cred = await signInAnonymously(auth);
     return cred.user;
   } catch (err: any) {
+    const errorCode = err?.code || '';
+    // If anonymous sign-in is disabled or restricted in Firebase Console, degrade gracefully
+    if (
+      errorCode === 'auth/admin-restricted-operation' ||
+      errorCode === 'auth/operation-not-allowed' ||
+      errorCode === 'auth/configuration-not-found'
+    ) {
+      return null;
+    }
     console.warn('[FirebaseAuth] Anonymous sign-in notice:', err?.message || err);
     return null;
   }

@@ -297,6 +297,11 @@ export const CampaignStudioModal: React.FC<{
   };
 
   const handleSaveAndApply = async () => {
+    if (uploadingNodeId) {
+      alert('העלאת קובץ הווידאו לענן עדיין בעיצומה. אנא המתן לסיום ההעלאה כדי שהסרטון יישמר לצמיתות.');
+      return;
+    }
+
     const targetNodeToRun = selectedNodeId || editingCampaign.initialNodeId || Object.keys(editingCampaign.states)[0];
 
     // 1. Update live React state machine immediately with the selected node

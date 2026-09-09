@@ -1,0 +1,21 @@
+﻿[
+  {
+    "origin": [
+      "https://compona.web.app",
+      "https://compona.firebaseapp.com",
+      "http://localhost:5173",
+      "http://localhost:3000",
+      "*"
+    ],
+    "method": ["GET", "POST", "PUT", "DELETE", "HEAD", "OPTIONS"],
+    "responseHeader": [
+      "Content-Type",
+      "Authorization",
+      "Content-Length",
+      "User-Agent",
+      "x-goog-resumable",
+      "Access-Control-Allow-Origin"
+    ],
+    "maxAgeSeconds": 3600
+  }
+]

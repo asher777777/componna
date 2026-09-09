@@ -33,6 +33,14 @@ function cleanUndefinedFields<T extends Record<string, any>>(obj: T): T {
   return cleaned;
 }
 
+function sanitizeVideoUrl(url: string | undefined, fallback: string | undefined): string {
+  if (!url) return fallback || '';
+  if (url.startsWith('blob:')) {
+    return fallback || '';
+  }
+  return url;
+}
+
 export class FirestoreService {
   /**
    * Fetch campaign configuration by slug / ID with fallback to latest modified document & localStorage
@@ -44,6 +52,21 @@ export class FirestoreService {
   ): Promise<CampaignConfig | null> {
     const slug = (campaignSlugOrId || 'sales_rep_interactive_01').trim();
 
+    // Helper to sanitize any campaign states loaded from cache or db
+    const sanitizeCampaignStates = (camp: CampaignConfig): CampaignConfig => {
+      if (!camp || !camp.states) return camp;
+      const cleanStates: Record<string, FlowNodeState> = {};
+      Object.entries(camp.states).forEach(([k, node]) => {
+        const fallback = node.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[k]?.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[k]?.videoUrl || '';
+        cleanStates[k] = {
+          ...node,
+          videoUrl: sanitizeVideoUrl(node.videoUrl, fallback),
+          fallbackVideoUrl: node.fallbackVideoUrl && !node.fallbackVideoUrl.startsWith('blob:') ? node.fallbackVideoUrl : fallback,
+        };
+      });
+      return { ...camp, states: cleanStates };
+    };
+
     // 1. First check LocalStorage for instant zero-latency retrieval
     let localCached: CampaignConfig | null = null;
     try {
@@ -51,7 +74,7 @@ export class FirestoreService {
         localStorage.getItem(`sdo_player_camp_${slug}`) ||
         localStorage.getItem('sdo_player_camp_latest');
       if (stored) {
-        localCached = JSON.parse(stored);
+        localCached = sanitizeCampaignStates(JSON.parse(stored));
       }
     } catch {}
 
@@ -95,14 +118,19 @@ export class FirestoreService {
           const nodeId = scene.nodeId || sceneDocSnap.id;
           const mainNodeState = mainData.states ? mainData.states[nodeId] : undefined;
 
-          const finalVideoUrl = scene.mediaAssets?.videoUrl || mainNodeState?.videoUrl || '';
+          const defaultFallback = DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.videoUrl || '';
+          const rawFallback = scene.mediaAssets?.fallbackVideoUrl || mainNodeState?.fallbackVideoUrl || defaultFallback;
+          const fallback = rawFallback && !rawFallback.startsWith('blob:') ? rawFallback : defaultFallback;
+
+          const rawVideoUrl = scene.mediaAssets?.videoUrl || mainNodeState?.videoUrl || '';
+          const finalVideoUrl = sanitizeVideoUrl(rawVideoUrl, fallback);
 
           const nodeState: FlowNodeState = {
             id: nodeId,
             name: scene.name || mainNodeState?.name || nodeId,
             description: scene.description || mainNodeState?.description,
             videoUrl: finalVideoUrl,
-            fallbackVideoUrl: scene.mediaAssets?.fallbackVideoUrl || mainNodeState?.fallbackVideoUrl,
+            fallbackVideoUrl: fallback,
             autoPlay: scene.triggers?.autoPlay ?? mainNodeState?.autoPlay ?? true,
             loopUntilTrigger: scene.triggers?.loopUntilTrigger ?? mainNodeState?.loopUntilTrigger ?? true,
             loop: scene.triggers?.loopUntilTrigger ?? mainNodeState?.loop ?? true,
@@ -126,13 +154,13 @@ export class FirestoreService {
         console.warn('[FirestoreService] Subcollection query notice:', subCollErr);
       }
 
-      const mergedCampaign: CampaignConfig = {
+      const mergedCampaign: CampaignConfig = sanitizeCampaignStates({
         ...mainData,
         id: activeSlug,
         slug: activeSlug,
         states: reconstructedStates,
         updatedAt: mainData.updatedAt || Date.now(),
-      };
+      });
 
       // Keep localStorage in sync with newest remote data
       try {
@@ -160,10 +188,26 @@ export class FirestoreService {
   ): Promise<void> {
     const slug = (campaign.slug || campaign.id || 'sales_rep_interactive_01').trim();
 
+    // Sanitize any blob URLs before persisting to avoid saving dead session references
+    const sanitizedStates: Record<string, FlowNodeState> = {};
+    Object.entries(campaign.states || {}).forEach(([nodeId, node]) => {
+      const fallback = node.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.videoUrl || '';
+      sanitizedStates[nodeId] = {
+        ...node,
+        videoUrl: sanitizeVideoUrl(node.videoUrl, fallback),
+        fallbackVideoUrl: node.fallbackVideoUrl && !node.fallbackVideoUrl.startsWith('blob:') ? node.fallbackVideoUrl : fallback,
+      };
+    });
+
+    const sanitizedCampaign: CampaignConfig = {
+      ...campaign,
+      states: sanitizedStates,
+    };
+
     // 1. Immediately backup locally so no data is ever lost
     try {
-      localStorage.setItem(`sdo_player_camp_${slug}`, JSON.stringify(campaign));
-      localStorage.setItem('sdo_player_camp_latest', JSON.stringify(campaign));
+      localStorage.setItem(`sdo_player_camp_${slug}`, JSON.stringify(sanitizedCampaign));
+      localStorage.setItem('sdo_player_camp_latest', JSON.stringify(sanitizedCampaign));
     } catch {}
 
     // 2. If no db instance or offline, local save is already completed
@@ -176,7 +220,7 @@ export class FirestoreService {
       const mainDocRef = doc(db, collections.campaignConfigs, slug);
 
       const nodesSummary: Record<string, { name: string; hasVideo: boolean; overlaysCount: number }> = {};
-      Object.entries(campaign.states || {}).forEach(([nodeId, node]) => {
+      Object.entries(sanitizedCampaign.states || {}).forEach(([nodeId, node]) => {
         nodesSummary[nodeId] = {
           name: node.name,
           hasVideo: !!node.videoUrl,
@@ -187,31 +231,31 @@ export class FirestoreService {
       const mainPayload = cleanUndefinedFields({
         id: slug,
         slug: slug,
-        name: campaign.name,
-        presenterId: campaign.presenterId || 'presenter_elena_vance_san_francisco_01',
-        initialNodeId: campaign.initialNodeId || Object.keys(campaign.states || {})[0] || 'node_intro',
-        formsApiEndpoint: campaign.formsApiEndpoint,
-        settings: campaign.settings,
-        states: campaign.states,
+        name: sanitizedCampaign.name,
+        presenterId: sanitizedCampaign.presenterId || 'presenter_elena_vance_san_francisco_01',
+        initialNodeId: sanitizedCampaign.initialNodeId || Object.keys(sanitizedCampaign.states || {})[0] || 'node_intro',
+        formsApiEndpoint: sanitizedCampaign.formsApiEndpoint,
+        settings: sanitizedCampaign.settings,
+        states: sanitizedCampaign.states,
         nodesSummary,
-        isPublished: !!campaign.isPublished,
-        publishedAt: campaign.publishedAt,
+        isPublished: !!sanitizedCampaign.isPublished,
+        publishedAt: sanitizedCampaign.publishedAt,
         updatedAt: Date.now(),
-        createdAt: campaign.createdAt || Date.now(),
+        createdAt: sanitizedCampaign.createdAt || Date.now(),
       });
 
       await setDoc(mainDocRef, mainPayload, { merge: true });
 
       // Save each scene/node in the subcollection `scenes/{nodeId}`
-      if (campaign.states) {
-        for (const [nodeId, node] of Object.entries(campaign.states)) {
+      if (sanitizedCampaign.states) {
+        for (const [nodeId, node] of Object.entries(sanitizedCampaign.states)) {
           const sceneDocRef = doc(db, collections.campaignConfigs, slug, 'scenes', nodeId);
 
           const cardImages: string[] = [];
           node.overlays?.forEach((ov) => {
-            if (ov.imageUrl) cardImages.push(ov.imageUrl);
+            if (ov.imageUrl && !ov.imageUrl.startsWith('blob:')) cardImages.push(ov.imageUrl);
             ov.carouselItems?.forEach((c) => {
-              if (c.imageUrl) cardImages.push(c.imageUrl);
+              if (c.imageUrl && !c.imageUrl.startsWith('blob:')) cardImages.push(c.imageUrl);
             });
           });
 
@@ -240,7 +284,7 @@ export class FirestoreService {
               overlays: node.overlays || [],
             },
             formApiConfig: {
-              apiEndpoint: node.formsApiEndpoint || campaign.formsApiEndpoint,
+              apiEndpoint: node.formsApiEndpoint || sanitizedCampaign.formsApiEndpoint,
             },
             updatedAt: Date.now(),
           };
