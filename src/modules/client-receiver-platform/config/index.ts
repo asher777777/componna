@@ -1,4 +1,4 @@
-﻿export interface MasterModuleMetadata {
+export interface MasterModuleMetadata {
   id: string;
   defaultTitle: string;
   defaultSlug: string;
@@ -13,6 +13,28 @@
 }
 
 export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
+  {
+    id: 'video-producer-studio',
+    defaultTitle: 'סטודיו וידאו ואווטאר (HeyGen & Studio)',
+    defaultSlug: '/video-producer',
+    description: 'אשף תסריטים ב-Gemini, הפקת סרטוני אווטאר עם HeyGen v3, ציר סצנות, טלפרומפטר וסנכרון מלא לגלריית המדיה',
+    iconName: 'Film',
+    requiredKeys: [
+      { key: 'heygenApiKey', label: 'מפתח HeyGen API', description: 'להפקת סרטוני אווטאר והנפשה', isSecret: true },
+      { key: 'geminiApiKey', label: 'מפתח Google Gemini API', description: 'למחולל התסריטים ועיבוד טקסט חכם', isSecret: true }
+    ]
+  },
+  {
+    id: 'db-connector-hub',
+    defaultTitle: 'מרכז חיבור וסנכרון DB (Universal Connector)',
+    defaultSlug: '/db-connector',
+    description: 'סנכרון מרכזי של כלל המודולים למסד נתונים Firebase ו-Storage יחיד, פענוח חכם של מפתח JSON ב-Gemini',
+    iconName: 'Cpu',
+    requiredKeys: [
+      { key: 'projectId', label: 'Firebase Project ID', description: 'מזהה פרויקט Firebase', isSecret: false },
+      { key: 'apiKey', label: 'Firebase Web API Key', description: 'מפתח Web API של Firebase', isSecret: true }
+    ]
+  },
   {
     id: 'crm-analytics',
     defaultTitle: 'אנליטיקה ו-CRM',
@@ -35,13 +57,13 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     ]
   },
   {
-    id: 'media-gallery-hub',
-    defaultTitle: 'מנהל מדיה וגלריה',
-    defaultSlug: '/media-gallery',
-    description: 'העלאת תמונות וסרטונים, המרת פורמטים וניהול אחסון ענן',
-    iconName: 'Image',
+    id: 'auth-portal',
+    defaultTitle: 'פורטל אימות וכניסה למערכת',
+    defaultSlug: '/auth-portal',
+    description: 'מערכת התחברות ורישום משתמשים, אימות Google, אימות אנונימי וניהול פרופילים ב-Firestore',
+    iconName: 'Shield',
     requiredKeys: [
-      { key: 'storageBucket', label: 'Cloud Storage Bucket', description: 'שם דלי האחסון לקבצים', isSecret: false }
+      { key: 'authDomain', label: 'Auth Domain', description: 'דומיין אימות של Firebase', isSecret: false }
     ]
   },
   {
@@ -55,11 +77,29 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     ]
   },
   {
+    id: 'media-gallery-hub',
+    defaultTitle: 'מנהל מדיה וגלריה',
+    defaultSlug: '/media-gallery',
+    description: 'העלאת תמונות וסרטונים, המרת פורמטים וניהול אחסון ענן',
+    iconName: 'Image',
+    requiredKeys: [
+      { key: 'storageBucket', label: 'Cloud Storage Bucket', description: 'שם דלי האחסון לקבצים', isSecret: false }
+    ]
+  },
+  {
     id: 'db-collections-hub',
     defaultTitle: 'סייר קולקציות ומאגר נתונים',
     defaultSlug: '/db-explorer',
     description: 'סייר ועורך מסמכי Firestore ישיר בזמן אמת',
     iconName: 'Database',
+    requiredKeys: []
+  },
+  {
+    id: 'template',
+    defaultTitle: 'מודול תבנית בסיסי',
+    defaultSlug: '/template',
+    description: 'תבנית שלד מלאה עם 10 שכבות להעתקה ובדיקה',
+    iconName: 'Layers',
     requiredKeys: []
   }
 ];
@@ -70,6 +110,24 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
   logoUrl: '',
   primaryColor: '#6366f1',
   modules: {
+    'video-producer-studio': {
+      moduleId: 'video-producer-studio',
+      isEnabled: true,
+      customSlug: '/video-producer',
+      customTitle: 'סטודיו וידאו ואווטאר',
+      requiredRole: 'editor' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'sdo_video_'
+    },
+    'db-connector-hub': {
+      moduleId: 'db-connector-hub',
+      isEnabled: true,
+      customSlug: '/db-connector',
+      customTitle: 'סנכרון DB מרכזי',
+      requiredRole: 'admin' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: ''
+    },
     'crm-analytics': {
       moduleId: 'crm-analytics',
       isEnabled: true,
@@ -88,14 +146,50 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
       thirdPartyKeys: {},
       collectionPrefix: 'mod_pagebuilder_'
     },
+    'auth-portal': {
+      moduleId: 'auth-portal',
+      isEnabled: false,
+      customSlug: '/auth',
+      customTitle: 'פורטל כניסה',
+      requiredRole: 'viewer' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'mod_auth_'
+    },
+    'flow-player-engine': {
+      moduleId: 'flow-player-engine',
+      isEnabled: true,
+      customSlug: '/flow-player',
+      customTitle: 'נגן וידאו אינטראקטיבי',
+      requiredRole: 'viewer' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'sdo_player_'
+    },
     'media-gallery-hub': {
       moduleId: 'media-gallery-hub',
-      isEnabled: false,
+      isEnabled: true,
       customSlug: '/media',
       customTitle: 'גלריית מדיה',
       requiredRole: 'editor' as const,
       thirdPartyKeys: {},
       collectionPrefix: 'sdo_media_'
+    },
+    'db-collections-hub': {
+      moduleId: 'db-collections-hub',
+      isEnabled: false,
+      customSlug: '/db-explorer',
+      customTitle: 'סייר קולקציות',
+      requiredRole: 'admin' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: ''
+    },
+    'template': {
+      moduleId: 'template',
+      isEnabled: false,
+      customSlug: '/template',
+      customTitle: 'מודול תבנית',
+      requiredRole: 'viewer' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'mod_template_'
     }
   },
   updatedAt: new Date().toISOString()

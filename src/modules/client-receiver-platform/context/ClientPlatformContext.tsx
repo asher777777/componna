@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   ClientPlatformSettings, 
   ClientUserSession, 
@@ -36,7 +36,17 @@ export const ClientPlatformProvider: React.FC<{ children: React.ReactNode }> = (
   const [settings, setSettings] = useState<ClientPlatformSettings>(() => {
     try {
       const saved = localStorage.getItem('client_platform_settings');
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          ...DEFAULT_CLIENT_PLATFORM_SETTINGS,
+          ...parsed,
+          modules: {
+            ...DEFAULT_CLIENT_PLATFORM_SETTINGS.modules,
+            ...(parsed.modules || {}),
+          },
+        };
+      }
     } catch {}
     return DEFAULT_CLIENT_PLATFORM_SETTINGS;
   });

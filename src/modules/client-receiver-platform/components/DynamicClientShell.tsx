@@ -1,18 +1,23 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Sliders, TrendingUp, Layout, Image, PlayCircle, 
-  Database, LogOut, User, Menu, X, Shield, ChevronLeft 
+  Database, LogOut, User, Menu, X, Shield, ChevronLeft,
+  Film, Cpu, Layers 
 } from 'lucide-react';
 import { useClientPlatform } from '../context/ClientPlatformContext';
 import { ComponentRegistryTable } from './ComponentRegistryTable';
 import { MASTER_AVAILABLE_MODULES } from '../config';
 
 // Import standalone views of our modules
+import { VideoProducerStudioView } from '../../video-producer-studio';
+import { DbConnectorHubStandaloneView } from '../../db-connector-hub';
 import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
 import { PageBuilderStandaloneView } from '../../page-builder';
-import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
+import { AuthPortalStandaloneView } from '../../auth-portal';
 import { FlowPlayerEngineStandaloneView } from '../../flow-player-engine';
+import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { DbCollectionsHubStandaloneView } from '../../db-collections-hub';
+import { TemplateStandaloneView } from '../../_template';
 
 export const DynamicClientShell: React.FC = () => {
   const { session, logout, settings, activeRoute, setActiveRoute } = useClientPlatform();
@@ -25,11 +30,15 @@ export const DynamicClientShell: React.FC = () => {
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
+      case 'Film': return Film;
+      case 'Cpu': return Cpu;
       case 'TrendingUp': return TrendingUp;
       case 'Layout': return Layout;
-      case 'Image': return Image;
+      case 'Shield': return Shield;
       case 'PlayCircle': return PlayCircle;
+      case 'Image': return Image;
       case 'Database': return Database;
+      case 'Layers': return Layers;
       default: return Sliders;
     }
   };
@@ -38,16 +47,24 @@ export const DynamicClientShell: React.FC = () => {
     switch (activeRoute) {
       case 'control_panel':
         return <ComponentRegistryTable />;
+      case 'video-producer-studio':
+        return <VideoProducerStudioView />;
+      case 'db-connector-hub':
+        return <DbConnectorHubStandaloneView />;
       case 'crm-analytics':
         return <CrmAnalyticsStandaloneView />;
       case 'page-builder':
         return <PageBuilderStandaloneView />;
-      case 'media-gallery-hub':
-        return <MediaGalleryHubStandaloneView />;
+      case 'auth-portal':
+        return <AuthPortalStandaloneView />;
       case 'flow-player-engine':
         return <FlowPlayerEngineStandaloneView />;
+      case 'media-gallery-hub':
+        return <MediaGalleryHubStandaloneView />;
       case 'db-collections-hub':
         return <DbCollectionsHubStandaloneView />;
+      case 'template':
+        return <TemplateStandaloneView />;
       default:
         return <ComponentRegistryTable />;
     }

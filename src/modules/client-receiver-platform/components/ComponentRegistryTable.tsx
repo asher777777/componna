@@ -1,7 +1,8 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   Check, Settings, Key, Globe, Shield, ExternalLink, 
-  Layers, Sparkles, Sliders 
+  Layers, Sparkles, Sliders, Film, Cpu, TrendingUp, Layout,
+  PlayCircle, Image, Database
 } from 'lucide-react';
 import { MASTER_AVAILABLE_MODULES, MasterModuleMetadata } from '../config';
 import { useClientPlatform } from '../context/ClientPlatformContext';
@@ -10,6 +11,21 @@ import { ModuleConfigModal } from './ModuleConfigModal';
 export const ComponentRegistryTable: React.FC = () => {
   const { settings, toggleModule, updateModuleConfig, setActiveRoute } = useClientPlatform();
   const [editingModule, setEditingModule] = useState<MasterModuleMetadata | null>(null);
+
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Film': return Film;
+      case 'Cpu': return Cpu;
+      case 'TrendingUp': return TrendingUp;
+      case 'Layout': return Layout;
+      case 'Shield': return Shield;
+      case 'PlayCircle': return PlayCircle;
+      case 'Image': return Image;
+      case 'Database': return Database;
+      case 'Layers': return Layers;
+      default: return Sliders;
+    }
+  };
 
   return (
     <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-4 md:p-6 shadow-sm space-y-4 text-right" dir="rtl">
@@ -27,7 +43,7 @@ export const ComponentRegistryTable: React.FC = () => {
         </div>
 
         <div className="px-3 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 rounded-full text-xs font-semibold">
-          {Object.values(settings.modules).filter(m => m.isEnabled).length} רכיבים פעילים
+          {Object.values(settings.modules).filter(m => m.isEnabled).length} רכיבים פעילים מתוך {MASTER_AVAILABLE_MODULES.length}
         </div>
       </div>
 
@@ -53,6 +69,7 @@ export const ComponentRegistryTable: React.FC = () => {
               const title = modConfig?.customTitle || module.defaultTitle;
               const hasKeys = module.requiredKeys.length > 0;
               const keysSetCount = Object.keys(modConfig?.thirdPartyKeys || {}).length;
+              const Icon = getIcon(module.iconName);
 
               return (
                 <tr key={module.id} className={`hover:bg-gray-50/80 dark:hover:bg-gray-800/40 transition ${
@@ -70,8 +87,15 @@ export const ComponentRegistryTable: React.FC = () => {
 
                   {/* Module Info */}
                   <td className="p-3">
-                    <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5">{module.description}</p>
+                    <div className="flex items-center gap-2">
+                      <div className={`p-1.5 rounded-lg ${isEnabled ? 'bg-indigo-100 dark:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400' : 'bg-gray-100 dark:bg-gray-800 text-gray-400'}`}>
+                        <Icon className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="font-bold text-gray-900 dark:text-white text-sm">{title}</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{module.description}</p>
+                      </div>
+                    </div>
                   </td>
 
                   {/* Slug */}
