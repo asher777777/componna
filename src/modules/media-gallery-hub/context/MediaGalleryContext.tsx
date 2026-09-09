@@ -100,11 +100,26 @@ export const MediaGalleryProvider: React.FC<{
           return { ...rawItem, type };
         };
 
+        // Filter out deleted items from local tombstone list
+        let deletedSet = new Set<string>();
+        try {
+          const stored = localStorage.getItem('sdo_media_deleted_ids');
+          if (stored) {
+            deletedSet = new Set(JSON.parse(stored).map((x: string) => x.toLowerCase().trim()));
+          }
+        } catch {}
+
         const addDeduplicated = (rawItem: MediaItem) => {
           if (!rawItem) return;
           const item = normalizeItem(rawItem);
           const key = item.id || item.url || (item.name ? item.name.toLowerCase().trim() : '');
           if (!key) return;
+
+          const nameKey = (item.name || '').toLowerCase().trim();
+          const idKey = (item.id || '').toLowerCase().trim();
+          if (deletedSet.has(nameKey) || deletedSet.has(idKey)) {
+            return;
+          }
 
           const existing = mergedMap.get(key);
           if (!existing) {
@@ -195,14 +210,24 @@ export const MediaGalleryProvider: React.FC<{
       }
     };
 
+    const handleMediaDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ ids: string[] }>;
+      if (customEvent.detail?.ids) {
+        const deletedIds = new Set(customEvent.detail.ids);
+        setMediaItems((prev) => prev.filter((it) => !deletedIds.has(it.id)));
+      }
+    };
+
     if (typeof window !== 'undefined') {
       window.addEventListener('sdo_media_updated', handleMediaUpdated);
+      window.addEventListener('sdo_media_deleted', handleMediaDeleted);
     }
 
     return () => {
       isMounted = false;
       if (typeof window !== 'undefined') {
         window.removeEventListener('sdo_media_updated', handleMediaUpdated);
+        window.removeEventListener('sdo_media_deleted', handleMediaDeleted);
       }
     };
   }, [firebaseApp, db, collections]);
@@ -223,7 +248,7 @@ export const MediaGalleryProvider: React.FC<{
       return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
     });
 
-    // 2. Upload each file directly to Firebase Cloud Storage and save JSON to Firestore
+    // 2. Upload each file directly to Firebase Cloud Storage and save JSON to Firestore & IndexedDB
     const uploadPromises = newItems.map(async (initialItem, index) => {
       const file = files ? files[index] : undefined;
       let finalItem = { ...initialItem };
@@ -246,14 +271,22 @@ export const MediaGalleryProvider: React.FC<{
       if (db) {
         try {
           await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
+          if (collections.mediaItems !== 'sdo_media_items') {
+            await FirestoreMediaService.saveMediaItem(db, { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }, finalItem);
+          }
         } catch (fsErr) {
           console.warn('[MediaGallery] Firestore save notice:', fsErr);
         }
       }
 
+      // Save locally to IndexedDB
+      if (file) {
+        MediaIndexedDbService.saveMedia(finalItem, file).catch(() => {});
+      }
+
       if (onProgress) onProgress(index, 100);
 
-      // Update state with confirmed permanent Cloud Storage URL
+      // Update state with confirmed permanent URL
       setMediaItems((prev) =>
         prev.map((it) =>
           it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() ? finalItem : it
@@ -269,21 +302,44 @@ export const MediaGalleryProvider: React.FC<{
   const deleteMediaItems = async (ids: string[]) => {
     const toDelete = mediaItems.filter((i) => ids.includes(i.id));
     const deleteNames = new Set(toDelete.map((i) => i.name.toLowerCase().trim()));
+    const deleteIds = new Set(ids);
 
-    setMediaItems((prev) => prev.filter((item) => !ids.includes(item.id) && !deleteNames.has(item.name.toLowerCase().trim())));
+    // Save tombstone in LocalStorage so deleted items are NEVER resurrected on page reload
+    try {
+      const existingDeleted = JSON.parse(localStorage.getItem('sdo_media_deleted_ids') || '[]');
+      const updatedDeleted = Array.from(new Set([...existingDeleted, ...ids, ...toDelete.map(i => i.name), ...toDelete.map(i => i.id)]));
+      localStorage.setItem('sdo_media_deleted_ids', JSON.stringify(updatedDeleted));
+    } catch {}
+
+    // Update UI immediately
+    setMediaItems((prev) => prev.filter((item) => !deleteIds.has(item.id) && !deleteNames.has(item.name.toLowerCase().trim())));
     setSelectedIds([]);
 
     for (const item of toDelete) {
+      // 1. Delete from IndexedDB & LocalStorage cache
+      await MediaIndexedDbService.deleteMedia(item.id);
+
+      // 2. Delete from Firestore (both current and default sdo_media_items)
       if (db) {
         try {
           await FirestoreMediaService.deleteMediaItem(db, collections, item.id);
+          if (collections.mediaItems !== 'sdo_media_items') {
+            await FirestoreMediaService.deleteMediaItem(db, { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }, item.id);
+          }
         } catch (e) {}
       }
+
+      // 3. Delete from Firebase Cloud Storage and sdo_media_vault
       if (firebaseApp) {
         try {
-          await FirebaseStorageMediaService.deleteStorageFile(firebaseApp, item.name);
+          await FirebaseStorageMediaService.deleteStorageFile(firebaseApp, item);
         } catch (e) {}
       }
+    }
+
+    // Broadcast delete event across windows and modules
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sdo_media_deleted', { detail: { ids } }));
     }
   };
 
