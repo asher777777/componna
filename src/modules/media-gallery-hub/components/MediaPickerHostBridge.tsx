@@ -62,23 +62,14 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
     }
   };
 
-  const allowedTypes: MediaType[] | undefined = options?.accept
-    ? options.accept.includes('video')
-      ? ['video']
-      : options.accept.includes('image')
-      ? ['image']
-      : options.accept.includes('audio')
-      ? ['audio']
-      : undefined
-    : undefined;
-
+  // Allow all media types in picker so user can view/select images, videos and audio freely
   return (
     <>
       {isOpen && (
         <MediaPickerModal
           isOpen={true}
           onClose={handleClose}
-          allowedTypes={allowedTypes}
+          allowedTypes={undefined}
           maxSelectCount={options?.multiple ? options.maxFiles || 10 : 1}
           onSelectMedia={handleSelect}
           firebaseApp={firebaseApp}
