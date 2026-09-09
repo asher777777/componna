@@ -6,6 +6,12 @@ export type SceneRoleType =
   | 'lead_closing' 
   | 'custom';
 
+export type OutputDeliverablePreference = 
+  | 'script_prompts' 
+  | 'script_tts' 
+  | 'script_images' 
+  | 'full_production';
+
 export interface InteractiveActionItem {
   id: string;
   label: string;
@@ -25,6 +31,22 @@ export interface InteractiveCardItem {
   price?: string;
   ctaLabel?: string;
   targetSceneId?: string;
+}
+
+export interface ProjectOverview {
+  concept: string;
+  characterBible: string;
+  visualGuide: string;
+  narrativeArc: string;
+  toneAndStyle: string;
+  targetKpi?: string;
+  bananaConsistencySeed?: string;
+}
+
+export interface ChatMessageContext {
+  role: 'user' | 'model' | 'system';
+  content: string;
+  timestamp: string;
 }
 
 export interface VideoScene {
@@ -68,6 +90,18 @@ export interface VideoProject {
   aspectRatio: '16:9' | '9:16' | '1:1';
   targetAudience?: string;
   marketingHook?: string;
+  productionType?: string;
+  visualStyle?: string;
+  ttsLanguage?: string;
+  outputPreference?: OutputDeliverablePreference;
+  referenceImageUrl?: string;
+  documentUrl?: string;
+  referencePdfBase64?: string;
+  referencePdfName?: string;
+  clarificationAnswers?: { question: string; answer: string }[];
+  projectOverview?: ProjectOverview;
+  conversationId?: string;
+  conversationHistory?: ChatMessageContext[];
   scenes: VideoScene[];
   globalBgmUrl?: string;
   globalBgmVolume?: number;
@@ -83,6 +117,19 @@ export interface VideoProject {
   campaignSlug?: string;
   leadFormEmail?: string;
   salesPhone?: string;
+}
+
+export interface ClarificationQuestionItem {
+  id: string;
+  question: string;
+  hint?: string;
+  suggestedAnswer?: string;
+}
+
+export interface ClarificationResult {
+  questions: ClarificationQuestionItem[];
+  analysisSummary: string;
+  conversationId: string;
 }
 
 export interface HeyGenAvatar {

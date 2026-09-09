@@ -4,13 +4,15 @@ import {
   Play, Plus, Trash2, Wand2, Sparkles, User, Mic, Image as ImageIcon,
   Video, RefreshCw, CheckCircle2, AlertCircle, Save, ExternalLink,
   ChevronRight, ChevronLeft, Volume2, Film, PlayCircle, MessageSquare,
-  Layers, Send, Smartphone, ArrowUpRight, HelpCircle, PhoneCall
+  Layers, Send, Smartphone, ArrowUpRight, HelpCircle, PhoneCall,
+  Info, ShieldCheck, Copy, Check, Palette, Target
 } from 'lucide-react';
 import { useVideoStudio } from '../context/VideoStudioContext';
 import { VideoPreviewPlayer } from './VideoPreviewPlayer';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
 import { SceneRoleType, InteractiveActionItem, InteractiveCardItem } from '../types';
+import { PRODUCTION_TYPES_CATALOG, VISUAL_STYLES_CATALOG } from '../config/catalogs';
 
 export const SceneTimelineEditor: React.FC = () => {
   const navigate = useNavigate();
@@ -22,11 +24,13 @@ export const SceneTimelineEditor: React.FC = () => {
     updateCurrentScene,
     addScene,
     deleteScene,
+    addNextSceneWithAI,
     saveCurrentProject,
     openAvatarModal,
     openTeleprompter,
     renderHeyGenScene,
     exportProjectToFlowPlayer,
+    isGeneratingScript,
     isRenderingScene,
     renderingSceneId,
     avatars
@@ -39,7 +43,15 @@ export const SceneTimelineEditor: React.FC = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'script' | 'interactive'>('script');
+  const [activeSubTab, setActiveSubTab] = useState<'script' | 'interactive' | 'visualPrompt'>('script');
+  
+  // AI Continuity state
+  const [isAiAddOpen, setIsAiAddOpen] = useState(false);
+  const [customAiInstruction, setCustomAiInstruction] = useState('');
+  
+  // Project Overview Modal
+  const [isOverviewModalOpen, setIsOverviewModalOpen] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   if (!activeProject || !activeScene) {
     return (
@@ -51,6 +63,14 @@ export const SceneTimelineEditor: React.FC = () => {
   }
 
   const selectedAvatar = avatars.find(a => a.avatar_id === activeScene.avatarId) || avatars[0];
+  const prodTypeObj = PRODUCTION_TYPES_CATALOG.find(p => p.id === activeProject.productionType);
+  const visualStyleObj = VISUAL_STYLES_CATALOG.find(s => s.id === activeProject.visualStyle);
+
+  const handleCopyText = (text: string, fieldKey: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldKey);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -68,6 +88,21 @@ export const SceneTimelineEditor: React.FC = () => {
       setRenderError(err?.message || 'שגיאה בשיגור הקמפיין לנגן');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleAddNextSceneAI = async () => {
+    if (activeProject.scenes.length >= 20) {
+      setRenderError('הגעת למגבלה המקסימלית של 20 סצנות לפרויקט.');
+      return;
+    }
+    setRenderError(null);
+    try {
+      await addNextSceneWithAI(customAiInstruction.trim() || undefined);
+      setCustomAiInstruction('');
+      setIsAiAddOpen(false);
+    } catch (err: any) {
+      setRenderError(err?.message || 'שגיאה ביצירת הסצנה הבאה ב-AI');
     }
   };
 
@@ -111,10 +146,25 @@ export const SceneTimelineEditor: React.FC = () => {
             <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
               {activeProject.aspectRatio}
             </span>
+            {activeProject.productionType && (
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                {prodTypeObj?.name || activeProject.productionType}
+              </span>
+            )}
           </h2>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Project Overview & Character Bible Button */}
+          <button
+            onClick={() => setIsOverviewModalOpen(true)}
+            className="px-3 py-2 bg-purple-950/60 hover:bg-purple-900/60 text-purple-200 border border-purple-500/40 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+            title="צפה באפיון הפרויקט, עוגן בננה פרו ותנ״ך הדמות"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-pink-400" />
+            <span>אפיון & עוגן בננה פרו</span>
+          </button>
+
           <button
             onClick={handleLaunchToFlowPlayer}
             disabled={isExporting}
@@ -143,16 +193,68 @@ export const SceneTimelineEditor: React.FC = () => {
         <div className="w-full md:w-80 bg-slate-900/90 border-l border-slate-800 flex flex-col overflow-hidden">
           <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
             <span className="text-xs font-bold text-slate-300">
-              ציר סצנות ({activeProject.scenes.length})
+              ציר סצנות ({activeProject.scenes.length}/20)
             </span>
-            <button
-              onClick={addScene}
-              className="p-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded-lg text-xs flex items-center gap-1 font-medium transition cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              <span>סצנה חדשה</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setIsAiAddOpen(!isAiAddOpen)}
+                className="p-1.5 bg-gradient-to-r from-purple-600/30 to-pink-600/30 hover:from-purple-600/50 hover:to-pink-600/50 text-pink-300 border border-pink-500/30 rounded-lg text-xs flex items-center gap-1 font-semibold transition cursor-pointer"
+                title="הוסף סצנה המשכית חכמה עם Gemini AI ושימור שיחה"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-pink-400 animate-pulse" />
+                <span>+ סצנת AI</span>
+              </button>
+              
+              <button
+                onClick={addScene}
+                disabled={activeProject.scenes.length >= 20}
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs flex items-center gap-1 font-medium transition cursor-pointer disabled:opacity-30"
+                title="הוסף סצנה ריקה ידנית"
+              >
+                <Plus className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
+
+          {/* AI Next Scene Prompt Drawer */}
+          {isAiAddOpen && (
+            <div className="p-3 bg-purple-950/50 border-b border-purple-500/30 space-y-2 animate-fadeIn">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-pink-300 flex items-center gap-1">
+                  <Wand2 className="w-3.5 h-3.5 text-pink-400" />
+                  <span>הוספת סצנה {activeProject.scenes.length + 1} עם Gemini</span>
+                </span>
+                <span className="text-[9px] text-slate-400 font-mono">
+                  {activeProject.conversationId ? 'מזהה שיחה שמור' : 'שיחה חדשה'}
+                </span>
+              </div>
+              <input
+                type="text"
+                value={customAiInstruction}
+                onChange={(e) => setCustomAiInstruction(e.target.value)}
+                placeholder="הוראות מותאמות (למשל: סצנת טיפול בהתנגדות מחיר)..."
+                className="w-full p-2 bg-slate-950 border border-purple-500/40 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-400"
+              />
+              <div className="flex items-center justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setIsAiAddOpen(false)}
+                  className="px-2.5 py-1 text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAddNextSceneAI}
+                  disabled={isGeneratingScript}
+                  className="px-3 py-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold text-xs rounded-xl flex items-center gap-1 shadow cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3 h-3 ${isGeneratingScript ? 'animate-spin' : ''}`} />
+                  <span>{isGeneratingScript ? 'יוצר...' : 'ייצר סצנה ב-AI'}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 p-3 overflow-y-auto space-y-2">
             {activeProject.scenes.map((scene, idx) => {
@@ -230,7 +332,7 @@ export const SceneTimelineEditor: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
             <div className="flex items-center gap-3 flex-1 min-w-[240px]">
               <span className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-300 text-xs font-mono font-bold">
-                סצנה {activeScene.sceneNumber}
+                סצנה {activeScene.sceneNumber} מתוך {activeProject.scenes.length}
               </span>
               <input
                 type="text"
@@ -284,7 +386,19 @@ export const SceneTimelineEditor: React.FC = () => {
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>שכבות אינטראקטיביות, הסברים ומכירות</span>
+              <span>שכבות אינטראקטיביות והסברים</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('visualPrompt')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeSubTab === 'visualPrompt'
+                  ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Palette className="w-3.5 h-3.5" />
+              <span>פרומפט בננה פרו (Imagen 3)</span>
             </button>
           </div>
 
@@ -293,7 +407,7 @@ export const SceneTimelineEditor: React.FC = () => {
             {/* Left/Middle Column: Content Editor (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
               
-              {activeSubTab === 'script' ? (
+              {activeSubTab === 'script' && (
                 <>
                   {/* Dialogue Script Card */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
@@ -392,7 +506,9 @@ export const SceneTimelineEditor: React.FC = () => {
                     </button>
                   </div>
                 </>
-              ) : (
+              )}
+
+              {activeSubTab === 'interactive' && (
                 /* Interactive Overlays & Sales Flow Sub-Tab */
                 <div className="space-y-4">
                   {/* Role Selector */}
@@ -617,6 +733,52 @@ export const SceneTimelineEditor: React.FC = () => {
                 </div>
               )}
 
+              {activeSubTab === 'visualPrompt' && (
+                /* Visual Prompt & Banana Pro Consistency Sub-Tab */
+                <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-4">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Palette className="w-4 h-4 text-pink-400" />
+                      <span>פרומפט ויזואלי לתמונה / וידאו (Imagen 3 / Nano Banana Pro)</span>
+                    </label>
+                    <button
+                      onClick={() => handleCopyText(activeScene.visualPrompt, 'visualPrompt')}
+                      className="px-2.5 py-1 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[11px] rounded-lg flex items-center gap-1 font-semibold transition cursor-pointer"
+                    >
+                      {copiedField === 'visualPrompt' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedField === 'visualPrompt' ? 'הועתק!' : 'העתק פרומפט'}</span>
+                    </button>
+                  </div>
+
+                  <textarea
+                    rows={5}
+                    value={activeScene.visualPrompt}
+                    onChange={(e) => updateCurrentScene(activeScene.id, { visualPrompt: e.target.value })}
+                    placeholder="פרומפט ויזואלי מפורט ליצירת תמונת הרקע או הוידאו..."
+                    className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-pink-200 text-xs font-mono focus:border-pink-500 focus:outline-none leading-relaxed"
+                  />
+
+                  {activeScene.characterDescription && (
+                    <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
+                      <span className="text-[10px] text-indigo-400 font-bold block">תיאור ופעולת האווטאר בסצנה:</span>
+                      <p className="text-xs text-slate-300">{activeScene.characterDescription}</p>
+                    </div>
+                  )}
+
+                  {activeProject.projectOverview?.bananaConsistencySeed && (
+                    <div className="p-3 bg-pink-950/20 rounded-xl border border-pink-500/30 space-y-1">
+                      <span className="text-[10px] text-pink-300 font-bold block flex items-center gap-1">
+                        <ShieldCheck className="w-3.5 h-3.5 text-pink-400" />
+                        <span>עוגן עקביות בננה פרו (Banana Pro Consistency Seed):</span>
+                      </span>
+                      <p className="text-[11px] text-slate-300 font-mono">
+                        {activeProject.projectOverview.bananaConsistencySeed}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
 
             {/* Right Column: Scene & Video Preview Player (5 cols) */}
@@ -629,6 +791,130 @@ export const SceneTimelineEditor: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Project Overview & Character Bible Modal */}
+      {isOverviewModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scaleUp">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
+                  <ShieldCheck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">אפיון פרויקט, עוגן בננה פרו ותנ״ך דמות</h3>
+                  <p className="text-[11px] text-slate-400">
+                    מזהה שיחה: <span className="font-mono text-purple-300">{activeProject.conversationId || 'ללא מזהה'}</span>
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setIsOverviewModalOpen(false)}
+                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Content */}
+            <div className="p-6 overflow-y-auto space-y-4 text-xs">
+              {/* Concept */}
+              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                <span className="text-[11px] font-bold text-purple-400 flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>קונספט וחזון הפרויקט:</span>
+                </span>
+                <p className="text-slate-200 leading-relaxed">
+                  {activeProject.projectOverview?.concept || activeProject.description || 'טרם הוגדר אפיון מפורט.'}
+                </p>
+              </div>
+
+              {/* Consistency Seed */}
+              {activeProject.projectOverview?.bananaConsistencySeed && (
+                <div className="p-3.5 bg-pink-950/30 rounded-2xl border border-pink-500/40 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-pink-300 flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-pink-400" />
+                      <span>עוגן עקביות בננה פרו (Banana Pro Consistency Seed):</span>
+                    </span>
+                    <button
+                      onClick={() => handleCopyText(activeProject.projectOverview?.bananaConsistencySeed || '', 'seed')}
+                      className="px-2 py-0.5 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 rounded text-[10px] flex items-center gap-1 cursor-pointer font-semibold"
+                    >
+                      {copiedField === 'seed' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedField === 'seed' ? 'הועתק' : 'העתק עוגן'}</span>
+                    </button>
+                  </div>
+                  <p className="text-slate-300 font-mono text-[11px] leading-relaxed bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                    {activeProject.projectOverview.bananaConsistencySeed}
+                  </p>
+                </div>
+              )}
+
+              {/* Character Bible */}
+              {activeProject.projectOverview?.characterBible && (
+                <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-[11px] font-bold text-indigo-400 flex items-center gap-1.5">
+                    <User className="w-3.5 h-3.5" />
+                    <span>תנ״ך הדמות והפרזנטור (Character Bible):</span>
+                  </span>
+                  <p className="text-slate-300 font-mono text-[11px] leading-relaxed">
+                    {activeProject.projectOverview.characterBible}
+                  </p>
+                </div>
+              )}
+
+              {/* Visual Guide */}
+              {activeProject.projectOverview?.visualGuide && (
+                <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                  <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
+                    <Palette className="w-3.5 h-3.5" />
+                    <span>מדריך שפה ויזואלית, צבעים ותאורה:</span>
+                  </span>
+                  <p className="text-slate-300 font-mono text-[11px] leading-relaxed">
+                    {activeProject.projectOverview.visualGuide}
+                  </p>
+                </div>
+              )}
+
+              {/* Target KPI & Narrative Arc */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {activeProject.projectOverview?.targetKpi && (
+                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
+                      <Target className="w-3 h-3" />
+                      <span>יעד המרה ראשי (KPI):</span>
+                    </span>
+                    <p className="text-slate-300 text-[11px]">{activeProject.projectOverview.targetKpi}</p>
+                  </div>
+                )}
+
+                {activeProject.projectOverview?.toneAndStyle && (
+                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                    <span className="text-[10px] font-bold text-purple-400 flex items-center gap-1">
+                      <Volume2 className="w-3.5 h-3.5" />
+                      <span>טון ושפת דיבור:</span>
+                    </span>
+                    <p className="text-slate-300 text-[11px]">{activeProject.projectOverview.toneAndStyle}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-end">
+              <button
+                onClick={() => setIsOverviewModalOpen(false)}
+                className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl cursor-pointer"
+              >
+                סגור
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

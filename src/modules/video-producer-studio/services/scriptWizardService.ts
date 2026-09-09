@@ -1,50 +1,119 @@
-import { VideoScene, VideoProject } from '../types';
+import { 
+  VideoScene, 
+  VideoProject, 
+  ProjectOverview, 
+  ChatMessageContext, 
+  OutputDeliverablePreference,
+  ClarificationQuestionItem,
+  ClarificationResult
+} from '../types';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
+import { VISUAL_STYLES_CATALOG, PRODUCTION_TYPES_CATALOG, TTS_LANGUAGES } from '../config/catalogs';
 
 export interface ScriptGenerationParams {
   topic: string;
   targetAudience: string;
   marketingHook: string;
   sceneCount?: number;
-  tone?: 'professional' | 'energetic' | 'conversational' | 'dramatic' | 'humorous';
+  productionType?: string;
+  visualStyle?: string;
+  ttsLanguage?: string;
+  outputPreference?: OutputDeliverablePreference;
+  referenceImageBase64?: string; // Multimodal image data (data:image/... or base64)
+  referencePdfBase64?: string;   // Multimodal PDF data (data:application/pdf;base64,... or base64)
+  referencePdfName?: string;
+  documentUrl?: string;          // Link to Google Sheets / Docs / Notion / URL
+  clarificationAnswers?: { question: string; answer: string }[];
+  tone?: string;
   aspectRatio?: '16:9' | '9:16' | '1:1';
+  conversationId?: string;
+  conversationHistory?: ChatMessageContext[];
 }
 
 export interface ScriptGenerationResult {
   project: Partial<VideoProject>;
   scenes: VideoScene[];
   costReport: TokenUsageReport;
+  conversationId: string;
+  conversationHistory: ChatMessageContext[];
 }
 
-export async function generateStoryboardWithAI(
+export interface ClarificationServiceResult {
+  result: ClarificationResult;
+  costReport: TokenUsageReport;
+}
+
+/**
+ * Step 1: Generate 2-3 sharp guiding questions from Gemini to refine project scope
+ */
+export async function generateClarificationQuestionsWithAI(
   apiKey: string,
   modelName: string = 'gemini-1.5-flash',
   params: ScriptGenerationParams
-): Promise<ScriptGenerationResult> {
-  const sceneCount = params.sceneCount || 4;
-  const prompt = `You are a world-class Video Director and Marketing Producer.
-Create a structured video storyboard with exactly ${sceneCount} scenes for:
-- Topic / Product: ${params.topic}
-- Target Audience: ${params.targetAudience}
-- Marketing Hook / Goal: ${params.marketingHook}
-- Tone: ${params.tone || 'engaging and persuasive'}
-- Aspect Ratio: ${params.aspectRatio || '16:9'}
+): Promise<ClarificationServiceResult> {
+  const prodType = PRODUCTION_TYPES_CATALOG.find(p => p.id === params.productionType) || PRODUCTION_TYPES_CATALOG[0];
+  const visualStyle = VISUAL_STYLES_CATALOG.find(s => s.id === params.visualStyle) || VISUAL_STYLES_CATALOG[0];
+  const langObj = TTS_LANGUAGES.find(l => l.code === params.ttsLanguage) || TTS_LANGUAGES[0];
 
-Return ONLY a JSON object with this exact schema:
+  const conversationId = params.conversationId || `conv_clarify_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+  const promptText = `You are an elite Hollywood Video Director and Strategic CRO Marketing Consultant.
+The user wants to create a video production project.
+Analyze their initial inputs and materials, and return 2 to 3 sharp, focused clarification questions in Hebrew to guide and refine the script quality, unique selling proposition, primary customer objection, and call to action.
+
+INITIAL BRIEF:
+- Topic / Concept: ${params.topic}
+- Target Audience: ${params.targetAudience}
+- Marketing Goal / Hook: ${params.marketingHook}
+- Production Type: ${prodType.name}
+- Visual Style: ${visualStyle.name}
+- Desired Language: ${langObj.name}
+${params.documentUrl ? `- Reference Document / Google Sheet / Web URL: ${params.documentUrl}` : ''}
+${params.referencePdfBase64 ? `- Attached PDF document is provided for context.` : ''}
+${params.referenceImageBase64 ? `- Attached reference image is provided for visual context.` : ''}
+
+Return ONLY a valid JSON object matching this exact schema:
 {
-  "title": "Creative project title in Hebrew",
-  "description": "Brief project description in Hebrew",
-  "scenes": [
+  "analysisSummary": "משפט אחד קצר בעברית המסכם את ניתוח הבריף והפוטנציאל השיווקי",
+  "questions": [
     {
-      "sceneNumber": 1,
-      "title": "Scene title (e.g. הוק פתיחה)",
-      "dialogueScript": "The exact script spoken by the presenter / avatar in fluent Hebrew",
-      "visualPrompt": "Detailed English prompt for image/video generation describing the background setting, lighting, atmosphere",
-      "characterDescription": "Avatar style, expression, and clothing",
-      "durationSeconds": 5
+      "id": "q1",
+      "question": "שאלה מנחה חדה וממוקדת בעברית",
+      "hint": "רמז קצר או דוגמה לתשובה",
+      "suggestedAnswer": "הצעת תשובה ראשונית שהמשתמש יכול לאמץ בלחיצה"
     }
   ]
 }`;
+
+  const parts: any[] = [{ text: promptText }];
+
+  // Attach reference image if provided
+  if (params.referenceImageBase64) {
+    const cleanImg = params.referenceImageBase64.includes(',') 
+      ? params.referenceImageBase64.split(',')[1] 
+      : params.referenceImageBase64;
+    const mimeMatch = params.referenceImageBase64.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    parts.push({
+      inlineData: {
+        mimeType: mimeType,
+        data: cleanImg
+      }
+    });
+  }
+
+  // Attach PDF document if provided
+  if (params.referencePdfBase64) {
+    const cleanPdf = params.referencePdfBase64.includes(',') 
+      ? params.referencePdfBase64.split(',')[1] 
+      : params.referencePdfBase64;
+    parts.push({
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: cleanPdf
+      }
+    });
+  }
 
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`,
@@ -52,7 +121,7 @@ Return ONLY a JSON object with this exact schema:
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
+        contents: [{ parts }],
         generationConfig: {
           responseMimeType: 'application/json',
           temperature: 0.7
@@ -63,24 +132,19 @@ Return ONLY a JSON object with this exact schema:
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini Script Wizard error (${res.status})`);
+    throw new Error(err?.error?.message || `Gemini API Error (${res.status}): ${res.statusText}`);
   }
 
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
-    throw new Error('No script generated by Gemini.');
+    throw new Error('No clarification questions returned from Gemini.');
   }
 
-  let parsed: any;
-  try {
-    parsed = JSON.parse(text);
-  } catch (e) {
-    throw new Error('Failed to parse AI script output JSON.');
-  }
+  const parsed = JSON.parse(text);
 
   const promptTokens = data.usageMetadata?.promptTokenCount || 450;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 600;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 350;
 
   const costReport = calculateGeminiCost({
     model: modelName,
@@ -88,123 +152,273 @@ Return ONLY a JSON object with this exact schema:
     candidatesTokens
   });
 
-  const scenes: VideoScene[] = (parsed.scenes || []).map((s: any, idx: number) => ({
-    id: `scene_${Date.now()}_${idx + 1}`,
-    sceneNumber: s.sceneNumber || idx + 1,
-    title: s.title || `סצנה ${idx + 1}`,
-    dialogueScript: s.dialogueScript || '',
-    visualPrompt: s.visualPrompt || '',
-    characterDescription: s.characterDescription || '',
-    durationSeconds: s.durationSeconds || 5,
-    avatarId: 'Wayne_20240711',
-    avatarPose: 'half_body',
-    voiceId: '077ab11b14f04ce0b49b5f67b5f59629',
-    transition: 'fade',
-    heygenStatus: 'pending',
-    sceneRole: idx === 0 ? 'welcome_hook' : idx === 1 ? 'feature_explainer' : idx === 2 ? 'sales_pitch' : 'lead_closing'
-  }));
-
   return {
-    project: {
-      title: parsed.title || params.topic,
-      description: parsed.description || '',
-      aspectRatio: params.aspectRatio || '16:9',
-      targetAudience: params.targetAudience,
-      marketingHook: params.marketingHook,
-      status: 'scripted',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+    result: {
+      questions: parsed.questions || [],
+      analysisSummary: parsed.analysisSummary || '',
+      conversationId
     },
-    scenes,
     costReport
   };
 }
 
 /**
- * Generates an Interactive Landing Page & Sales Funnel with scenes, interactive overlays,
- * transitions, explanation cards, and sales conversation hooks.
+ * Step 2: Main AI Studio Storyboard & Project Architect Engine
  */
-export async function generateInteractiveSalesFunnel(
+export async function generateStoryboardWithAI(
   apiKey: string,
   modelName: string = 'gemini-1.5-flash',
   params: ScriptGenerationParams
 ): Promise<ScriptGenerationResult> {
-  const prompt = `You are a world-class Conversion Rate Optimization (CRO) expert, Video Director, and Sales Funnel Architect.
-Create an Interactive Video Landing Page & Sales Funnel with 4 interconnected scenes in fluent Hebrew for:
-- Product / Service: ${params.topic}
+  const sceneCount = Math.min(Math.max(params.sceneCount || 4, 1), 20);
+  const prodType = PRODUCTION_TYPES_CATALOG.find(p => p.id === params.productionType) || PRODUCTION_TYPES_CATALOG[0];
+  const visualStyle = VISUAL_STYLES_CATALOG.find(v => v.id === params.visualStyle) || VISUAL_STYLES_CATALOG[0];
+  const langObj = TTS_LANGUAGES.find(l => l.code === params.ttsLanguage) || TTS_LANGUAGES[0];
+
+  const conversationId = params.conversationId || `conv_studio_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+
+  const clarificationBlock = params.clarificationAnswers && params.clarificationAnswers.length > 0
+    ? `CLARIFIED USER ANSWERS & GUIDANCE (CRITICAL CONTEXT):
+${params.clarificationAnswers.map((a, i) => `  ${i + 1}. שאלה: ${a.question}
+     תשובה: ${a.answer}`).join('\n')}`
+    : '';
+
+  const promptText = `You are an elite Hollywood Video Director, AI Media Architect, and CRO Conversion Specialist.
+You must construct a cohesive, ultra-high-converting, multi-scene video production project.
+
+PROJECT SPECIFICATIONS:
+- Production Type: ${prodType.name} (${prodType.description})
+- Visual & Cinematic Style: ${visualStyle.name} (${visualStyle.description})
+- Visual Prompt Style Prefix: "${visualStyle.visualPromptPrefix}"
+- Topic / Product: ${params.topic}
 - Target Audience: ${params.targetAudience}
-- Main Offer / Pitch: ${params.marketingHook}
-- Tone: ${params.tone || 'persuasive, consultative, trustworthy'}
+- Marketing Hook / Value Proposition: ${params.marketingHook}
+- Exact Scene Count: ${sceneCount} scenes
+- TTS / Narration Language: ${langObj.name} (Code: ${langObj.code})
 - Aspect Ratio: ${params.aspectRatio || '16:9'}
+- Output Deliverables Focus: ${params.outputPreference || 'full_production'}
+${params.documentUrl ? `- Reference Document / Google Sheet / Web URL: ${params.documentUrl}` : ''}
+${params.referenceImageBase64 ? '- An attached reference image is provided. Analyze its branding, character, or product visually and strictly maintain consistency across all scenes.' : ''}
+${params.referencePdfBase64 ? '- An attached PDF document is provided. Extract and integrate its key value points into the script.' : ''}
 
-Structure the 4 scenes as:
-1. Scene 1 (welcome_hook): Catchy welcome, qualifying question, and 2-3 quick choices ("אני רוצה לראות הדגמה", "כמה זה עולה?", "למי זה מתאים?")
-2. Scene 2 (feature_explainer): Deep-dive product explanation with 2-3 feature cards (title, explanation, badge)
-3. Scene 3 (sales_pitch & objection handling): Social proof, ROI calculation, voice questions examples, and exclusive offer
-4. Scene 4 (lead_closing): Direct call to action, lead capture form fields, and instant WhatsApp chat hook
+${clarificationBlock}
 
-Return ONLY a JSON object with this exact schema:
+NANO BANANA PRO CONSISTENCY MANDATE:
+You must define a unified "[BANANA_PRO_CONSISTENCY_SEED]" in the character bible and visual guide.
+Every single scene's "visualPrompt" MUST begin with the exact visual style prefix followed by the consistent character/scene tags so that Imagen 3 / Nano Banana Pro renders 100% consistent visuals across all ${sceneCount} scenes.
+
+Return ONLY a valid JSON object matching this exact schema:
 {
-  "title": "Creative Hebrew Landing Page Title",
-  "description": "Hebrew summary of the sales funnel",
+  "projectOverview": {
+    "concept": "Concise concept vision in Hebrew",
+    "characterBible": "Detailed character description, wardrobe, hair, expression and token tag [CHAR_ID] in English for Banana Pro consistency",
+    "visualGuide": "Color palette, camera lenses, lighting style, and environmental setting in English",
+    "narrativeArc": "Brief description of the story / funnel progression in Hebrew",
+    "toneAndStyle": "Tone, pacing, voice personality in Hebrew",
+    "targetKpi": "Primary conversion / audience goal in Hebrew",
+    "bananaConsistencySeed": "Standardized prompt anchor text for all scenes"
+  },
+  "title": "Creative Hebrew project title",
+  "description": "Engaging project summary in Hebrew",
   "scenes": [
     {
       "sceneNumber": 1,
       "sceneRole": "welcome_hook",
-      "title": "Scene title in Hebrew",
-      "dialogueScript": "Script spoken by avatar in Hebrew (warm, engaging, inviting interaction)",
-      "visualPrompt": "Detailed English prompt for video generation",
+      "title": "Hebrew scene title",
+      "dialogueScript": "The script spoken by presenter / avatar in ${langObj.name}. Ensure it flows naturally and fits ~5-15 seconds.",
+      "visualPrompt": "${visualStyle.visualPromptPrefix}, [BANANA_PRO_CONSISTENCY_SEED], detailed scene specific action, shot angle, lighting",
+      "characterDescription": "Avatar expression, posture, and action",
+      "durationSeconds": 6,
       "interactiveActions": [
-        { "label": "🚀 בוא נתחיל בהדגמה", "variant": "primary" },
-        { "label": "💡 מה היתרונות?", "variant": "secondary" }
+        { "label": "Action button text in Hebrew", "variant": "primary" }
       ],
-      "voicePromptExamples": ["רוצה לראות הדגמה", "הסבר לי", "המשך"]
-    },
-    {
-      "sceneNumber": 2,
-      "sceneRole": "feature_explainer",
-      "title": "הסבר והדגמת יכולות",
-      "dialogueScript": "Script explaining key features and value in Hebrew",
-      "visualPrompt": "Detailed English prompt for background",
       "interactiveCards": [
-        { "title": "יתרון מוביל 1", "description": "פירוט קצר על הערך ללקוח", "badge": "⭐ בלעדי" },
-        { "title": "יתרון מוביל 2", "description": "פירוט נוסף שמניע לרכישה", "badge": "🚀 מהיר" }
+        { "title": "Card title in Hebrew", "description": "Card explanation in Hebrew", "badge": "⭐ תגית" }
       ],
-      "interactiveActions": [
-        { "label": "שאל שאלת מכירה", "variant": "primary" },
-        { "label": "מעבר להצעת מחיר", "variant": "gold" }
-      ]
-    },
-    {
-      "sceneNumber": 3,
-      "sceneRole": "sales_pitch",
-      "title": "שיחת מכירה והצעה מיוחדת",
-      "dialogueScript": "Avatar addressing objections and presenting special offer in Hebrew",
-      "visualPrompt": "Detailed English prompt",
-      "interactiveCards": [
-        { "title": "חבילת פרימיום מיוחדת", "description": "כולל את כל השירותים עם אחריות מלאה", "price": "החל מ-₪990", "badge": "🔥 30% הנחה" }
-      ],
-      "interactiveActions": [
-        { "label": "סגור עסקה עכשיו", "variant": "gold" }
-      ],
-      "enableVoiceTrigger": true
-    },
-    {
-      "sceneNumber": 4,
-      "sceneRole": "lead_closing",
-      "title": "סגירת ליד ויצירת קשר",
-      "dialogueScript": "Final closing pitch asking for contact info in Hebrew",
-      "visualPrompt": "Detailed English prompt",
-      "formFields": [
-        { "key": "fullName", "label": "שם מלא", "placeholder": "ישראל ישראלי", "type": "text" },
-        { "key": "phone", "label": "טלפון נייד", "placeholder": "050-0000000", "type": "tel" },
-        { "key": "email", "label": "אימייל", "placeholder": "name@example.com", "type": "email" }
-      ],
-      "whatsappMessage": "היי, הגעתי מעמוד הנחיתה ואני מעוניין בפרטים נוספים!",
-      "interactiveActions": [
-        { "label": "פתח שיחת WhatsApp מיידית", "variant": "gold", "actionType": "open_whatsapp" }
-      ]
+      "voicePromptExamples": ["דוגמה לפקודה קולית"]
     }
+  ]
+}`;
+
+  const parts: any[] = [{ text: promptText }];
+
+  // If user uploaded a reference image, attach it as inlineData
+  if (params.referenceImageBase64) {
+    const cleanImg = params.referenceImageBase64.includes(',') 
+      ? params.referenceImageBase64.split(',')[1] 
+      : params.referenceImageBase64;
+    const mimeMatch = params.referenceImageBase64.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    parts.push({
+      inlineData: {
+        mimeType: mimeType,
+        data: cleanImg
+      }
+    });
+  }
+
+  // If user uploaded a PDF document, attach it as inlineData
+  if (params.referencePdfBase64) {
+    const cleanPdf = params.referencePdfBase64.includes(',') 
+      ? params.referencePdfBase64.split(',')[1] 
+      : params.referencePdfBase64;
+    parts.push({
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: cleanPdf
+      }
+    });
+  }
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.7
+        }
+      })
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini API Error (${res.status}): ${res.statusText}`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('No storyboard content generated by Gemini.');
+  }
+
+  const parsed = JSON.parse(text);
+
+  const promptTokens = data.usageMetadata?.promptTokenCount || 600;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 1200;
+
+  const costReport = calculateGeminiCost({
+    model: modelName,
+    promptTokens,
+    candidatesTokens
+  });
+
+  const rawScenes = parsed.scenes || [];
+  const defaultAvatar = 'Wayne_20240711';
+  const defaultVoice = '077ab11b14f04ce0b49b5f67b5f59629';
+
+  const scenes: VideoScene[] = rawScenes.map((s: any, idx: number) => {
+    const sceneId = `scene_${Date.now()}_${idx + 1}`;
+    return {
+      id: sceneId,
+      sceneNumber: s.sceneNumber || idx + 1,
+      sceneRole: s.sceneRole || (idx === 0 ? 'welcome_hook' : idx === rawScenes.length - 1 ? 'lead_closing' : 'feature_explainer'),
+      title: s.title || `סצנה ${idx + 1}`,
+      dialogueScript: s.dialogueScript || '',
+      visualPrompt: s.visualPrompt || `${visualStyle.visualPromptPrefix}, Scene ${idx + 1}`,
+      characterDescription: s.characterDescription || parsed.projectOverview?.characterBible || '',
+      durationSeconds: s.durationSeconds || 6,
+      avatarId: defaultAvatar,
+      avatarPose: 'half_body',
+      voiceId: defaultVoice,
+      transition: 'fade',
+      heygenStatus: 'pending',
+      interactiveActions: (s.interactiveActions || []).map((act: any, aIdx: number) => ({
+        id: `act_${sceneId}_${aIdx}`,
+        label: act.label || 'המשך',
+        targetSceneId: sceneId,
+        variant: act.variant || 'primary'
+      })),
+      interactiveCards: (s.interactiveCards || []).map((card: any, cIdx: number) => ({
+        id: `card_${sceneId}_${cIdx}`,
+        title: card.title || '',
+        description: card.description || '',
+        badge: card.badge
+      })),
+      voicePromptExamples: s.voicePromptExamples || [],
+      autoTransitionOnEnd: true
+    };
+  });
+
+  // Link actions sequentially
+  scenes.forEach((scn, idx) => {
+    const nextScn = scenes[idx + 1] || scenes[0];
+    if (scn.interactiveActions && scn.interactiveActions.length > 0) {
+      scn.interactiveActions[0].targetSceneId = nextScn.id;
+    }
+  });
+
+  const conversationHistory: ChatMessageContext[] = [
+    {
+      role: 'user',
+      content: `Generate Storyboard Brief: Topic="${params.topic}", Audience="${params.targetAudience}", Hook="${params.marketingHook}", Style="${visualStyle.name}", Scenes=${sceneCount}`,
+      timestamp: new Date().toISOString()
+    },
+    {
+      role: 'model',
+      content: JSON.stringify({ title: parsed.title, scenesCount: scenes.length }),
+      timestamp: new Date().toISOString()
+    }
+  ];
+
+  return {
+    project: {
+      title: parsed.title,
+      description: parsed.description,
+      aspectRatio: params.aspectRatio || '16:9',
+      projectOverview: parsed.projectOverview
+    },
+    scenes,
+    costReport,
+    conversationId,
+    conversationHistory
+  };
+}
+
+/**
+ * Generate Scene N+1 for established project continuing the conversation
+ */
+export async function generateNextSceneWithAI(
+  apiKey: string,
+  modelName: string = 'gemini-1.5-flash',
+  project: VideoProject,
+  customSceneInstruction?: string
+): Promise<{ scene: VideoScene; costReport: TokenUsageReport; updatedHistory: ChatMessageContext[] }> {
+  const nextSceneNumber = project.scenes.length + 1;
+  const overview = project.projectOverview;
+  const visualStyle = VISUAL_STYLES_CATALOG.find(v => v.id === project.visualStyle) || VISUAL_STYLES_CATALOG[0];
+
+  const prompt = `You are continuing an established video production.
+PROJECT OVERVIEW & BIBLE:
+- Title: ${project.title}
+- Concept: ${overview?.concept || project.description}
+- Character Bible (Maintain Strict Consistency): ${overview?.characterBible || 'Consistent avatar'}
+- Visual Guide: ${overview?.visualGuide || visualStyle.visualPromptPrefix}
+- Consistency Seed: ${overview?.bananaConsistencySeed || visualStyle.visualPromptPrefix}
+- Current Scenes Count: ${project.scenes.length}
+- Target Language: ${project.ttsLanguage || 'he-IL'}
+
+USER INSTRUCTION FOR NEXT SCENE ${nextSceneNumber}:
+${customSceneInstruction || 'Create the next natural progression scene in the storyboard / funnel.'}
+
+Return ONLY a JSON object with this exact schema:
+{
+  "sceneNumber": ${nextSceneNumber},
+  "sceneRole": "feature_explainer",
+  "title": "Hebrew scene title",
+  "dialogueScript": "Spoken script in ${project.ttsLanguage || 'he-IL'}",
+  "visualPrompt": "${overview?.bananaConsistencySeed || visualStyle.visualPromptPrefix}, specific action for scene ${nextSceneNumber}",
+  "characterDescription": "${overview?.characterBible || 'Consistent character'}",
+  "durationSeconds": 6,
+  "interactiveActions": [
+    { "label": "המשך", "variant": "primary" }
+  ],
+  "interactiveCards": [
+    { "title": "כרטיס הסבר", "description": "פירוט" }
   ]
 }`;
 
@@ -225,19 +439,19 @@ Return ONLY a JSON object with this exact schema:
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini Sales Funnel Wizard error (${res.status})`);
+    throw new Error(err?.error?.message || `Gemini Next Scene error (${res.status})`);
   }
 
   const data = await res.json();
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
-    throw new Error('No sales funnel script generated by Gemini.');
+    throw new Error('No scene generated by Gemini.');
   }
 
   const parsed = JSON.parse(text);
 
-  const promptTokens = data.usageMetadata?.promptTokenCount || 650;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 950;
+  const promptTokens = data.usageMetadata?.promptTokenCount || 400;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 500;
 
   const costReport = calculateGeminiCost({
     model: modelName,
@@ -245,63 +459,50 @@ Return ONLY a JSON object with this exact schema:
     candidatesTokens
   });
 
-  const baseTimestamp = Date.now();
-  const sceneIds = (parsed.scenes || []).map((_: any, idx: number) => `scene_${baseTimestamp}_${idx + 1}`);
+  const newSceneId = `scene_${Date.now()}_${nextSceneNumber}`;
 
-  const scenes: VideoScene[] = (parsed.scenes || []).map((s: any, idx: number) => {
-    const id = sceneIds[idx];
-    const nextSceneId = sceneIds[idx + 1] || id;
-
-    return {
-      id,
-      sceneNumber: s.sceneNumber || idx + 1,
-      sceneRole: s.sceneRole || (idx === 0 ? 'welcome_hook' : idx === 1 ? 'feature_explainer' : idx === 2 ? 'sales_pitch' : 'lead_closing'),
-      title: s.title || `סצנה ${idx + 1}`,
-      dialogueScript: s.dialogueScript || '',
-      visualPrompt: s.visualPrompt || '',
-      characterDescription: s.characterDescription || '',
-      durationSeconds: s.durationSeconds || 6,
-      avatarId: 'Wayne_20240711',
-      avatarPose: 'half_body',
-      voiceId: '077ab11b14f04ce0b49b5f67b5f59629',
-      transition: 'fade',
-      heygenStatus: 'pending',
-      interactiveActions: (s.interactiveActions || []).map((act: any, aIdx: number) => ({
-        id: `act_${id}_${aIdx}`,
-        label: act.label || 'המשך',
-        targetSceneId: nextSceneId,
-        variant: act.variant || 'primary',
-        actionType: act.actionType || 'navigate'
-      })),
-      interactiveCards: (s.interactiveCards || []).map((card: any, cIdx: number) => ({
-        id: `card_${id}_${cIdx}`,
-        title: card.title || '',
-        description: card.description || '',
-        badge: card.badge,
-        price: card.price,
-        targetSceneId: nextSceneId
-      })),
-      formFields: s.formFields,
-      whatsappMessage: s.whatsappMessage,
-      enableVoiceTrigger: !!s.enableVoiceTrigger,
-      voicePromptExamples: s.voicePromptExamples,
-      autoTransitionOnEnd: false
-    };
-  });
-
-  return {
-    project: {
-      title: parsed.title || params.topic,
-      description: parsed.description || '',
-      aspectRatio: params.aspectRatio || '16:9',
-      targetAudience: params.targetAudience,
-      marketingHook: params.marketingHook,
-      isInteractiveCampaign: true,
-      status: 'scripted',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    },
-    scenes,
-    costReport
+  const scene: VideoScene = {
+    id: newSceneId,
+    sceneNumber: nextSceneNumber,
+    sceneRole: parsed.sceneRole || 'feature_explainer',
+    title: parsed.title || `סצנה ${nextSceneNumber}`,
+    dialogueScript: parsed.dialogueScript || '',
+    visualPrompt: parsed.visualPrompt || '',
+    characterDescription: parsed.characterDescription || overview?.characterBible || '',
+    durationSeconds: parsed.durationSeconds || 6,
+    avatarId: project.scenes[0]?.avatarId || 'Wayne_20240711',
+    avatarPose: 'half_body',
+    voiceId: project.scenes[0]?.voiceId || '077ab11b14f04ce0b49b5f67b5f59629',
+    transition: 'fade',
+    heygenStatus: 'pending',
+    interactiveActions: (parsed.interactiveActions || []).map((act: any, aIdx: number) => ({
+      id: `act_${newSceneId}_${aIdx}`,
+      label: act.label || 'המשך',
+      targetSceneId: newSceneId,
+      variant: act.variant || 'primary'
+    })),
+    interactiveCards: (parsed.interactiveCards || []).map((card: any, cIdx: number) => ({
+      id: `card_${newSceneId}_${cIdx}`,
+      title: card.title || '',
+      description: card.description || '',
+      badge: card.badge
+    })),
+    autoTransitionOnEnd: true
   };
+
+  const updatedHistory: ChatMessageContext[] = [
+    ...(project.conversationHistory || []),
+    {
+      role: 'user',
+      content: `Add Scene ${nextSceneNumber}: ${customSceneInstruction || 'Next scene'}`,
+      timestamp: new Date().toISOString()
+    },
+    {
+      role: 'model',
+      content: JSON.stringify({ sceneNumber: nextSceneNumber, title: scene.title }),
+      timestamp: new Date().toISOString()
+    }
+  ];
+
+  return { scene, costReport, updatedHistory };
 }
