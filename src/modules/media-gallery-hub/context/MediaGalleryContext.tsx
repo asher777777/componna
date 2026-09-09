@@ -13,6 +13,7 @@ import { FirestoreMediaService } from '../services/firestoreMediaService';
 import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { ensureAnonymousAuth } from '../../../services/firebaseAuth';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 interface MediaGalleryContextValue {
   mediaItems: MediaItem[];
@@ -292,6 +293,15 @@ export const MediaGalleryProvider: React.FC<{
           it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() ? finalItem : it
         )
       );
+
+      // Broadcast via global EventBus to all listening modules
+      if (finalItem.url) {
+        eventBus.emit('media:uploaded', {
+          url: finalItem.url,
+          fileName: finalItem.name,
+          type: finalItem.type,
+        });
+      }
 
       return finalItem;
     });

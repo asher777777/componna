@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ContactSectionConfig } from '../../types/sectionConfigs';
 import { Phone, Mail, MapPin, MessageCircle, Send, CheckCircle2 } from 'lucide-react';
+import { eventBus } from '../../../../core/bridge/EventBus';
 
 export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ config }) => {
   const {
@@ -16,6 +17,30 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
   } = config;
 
   const [submitted, setSubmitted] = useState(false);
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSubmitted(true);
+
+    // Emit live lead event to EventBus / CRM module
+    eventBus.emit('crm:lead:created', {
+      conta_name: formData.name,
+      conta_phone: formData.phone,
+      email: formData.email || undefined,
+      source: 'page-builder:contact-section',
+      metadata: {
+        message: formData.message,
+        pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      },
+    });
+
+    eventBus.emit('form:submitted', {
+      formId: 'page-builder-contact',
+      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
+      data: formData,
+    });
+  };
 
   return (
     <section
@@ -106,10 +131,7 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                 </div>
               ) : (
                 <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setSubmitted(true);
-                  }}
+                  onSubmit={handleSubmit}
                   className="flex flex-col gap-4"
                 >
                   <h3 className="text-xl font-bold text-white mb-2">טופס פנייה ישיר</h3>
@@ -119,6 +141,8 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                       <input
                         type="text"
                         required
+                        value={formData.name}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, name: e.target.value }))}
                         placeholder="ישראל ישראלי"
                         className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
                       />
@@ -128,6 +152,8 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                       <input
                         type="tel"
                         required
+                        value={formData.phone}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, phone: e.target.value }))}
                         placeholder="050-0000000"
                         className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
                       />
@@ -138,6 +164,8 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                     <label className="block text-xs font-semibold text-slate-300 mb-1">אימייל</label>
                     <input
                       type="email"
+                      value={formData.email}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, email: e.target.value }))}
                       placeholder="name@example.com"
                       className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
                       dir="ltr"
@@ -149,6 +177,8 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                     <textarea
                       rows={3}
                       required
+                      value={formData.message}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, message: e.target.value }))}
                       placeholder="כתבו לנו כאן..."
                       className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 resize-none"
                     />

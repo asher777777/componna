@@ -22,6 +22,9 @@ import {
   ensureAnonymousAuth,
 } from '../../../services/firebaseAuth';
 import { FirestoreUserService } from '../services/firestoreUserService';
+import { eventBus } from '../../../core/bridge/EventBus';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { AuthSessionContract } from '../../../core/contracts';
 
 interface AuthPortalContextValue {
   firebaseApp?: FirebaseApp;
@@ -86,17 +89,32 @@ export const AuthPortalProvider: React.FC<{
     error: null,
   });
 
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
+
   const clearMessages = useCallback(() => {
     setErrorMsg(null);
     setSuccessMsg(null);
   }, []);
 
-  // Listen to Auth state and sync with Firestore profile
+  // Listen to Auth state and sync with Firestore profile & Host Capabilities & EventBus
   useEffect(() => {
     if (!firebaseApp) return;
 
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
       setAuthState(state);
+      
+      const sessionContract: AuthSessionContract = {
+        uid: state.uid || '',
+        email: state.email || '',
+        displayName: state.displayName || '',
+        role: state.role || 'viewer',
+        isAuthenticated: !!state.isAuthenticated,
+      };
+
+      // Broadcast globally across all listening modules
+      eventBus.emit('auth:state_changed', sessionContract);
+      registerCapability('auth-session', sessionContract);
+
       if (state.user) {
         if (db) {
           const profile = await FirestoreUserService.syncUserProfile(db, collections, state.user);
@@ -110,8 +128,11 @@ export const AuthPortalProvider: React.FC<{
       }
     });
 
-    return () => unsub();
-  }, [firebaseApp, db, collections]);
+    return () => {
+      unsub();
+      unregisterCapability('auth-session');
+    };
+  }, [firebaseApp, db, collections, registerCapability, unregisterCapability]);
 
   const handleEmailLogin = async (email: string, pass: string): Promise<User> => {
     setIsLoading(true);

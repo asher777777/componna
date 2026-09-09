@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { usePlayerMachine } from '../context/PlayerMachineContext';
 import { OverlayItem, OverlayAction } from '../types';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 export const UiOverlayManager: React.FC = () => {
   const {
@@ -106,6 +107,13 @@ export const UiOverlayManager: React.FC = () => {
       },
     });
 
+    // Broadcast interaction to host and sibling modules
+    eventBus.emit('player:interaction', {
+      videoId: campaign.slug || campaign.id,
+      eventType: action.id,
+      timestamp: Date.now(),
+    });
+
     transitionTo(action.targetNodeId, 'node_transition', {
       trigger: 'overlay_click',
       actionId: action.id,
@@ -122,6 +130,25 @@ export const UiOverlayManager: React.FC = () => {
         overlayId: overlay.id,
         formData,
       },
+    });
+
+    // Broadcast live lead to CRM Analytics module & EventBus
+    eventBus.emit('crm:lead:created', {
+      conta_name: formData.name || formData.fullName || 'ליד מנגן הווידאו',
+      conta_phone: formData.phone || formData.tel || '',
+      email: formData.email || undefined,
+      source: `flow-player-engine:${campaign.slug || campaign.id}`,
+      metadata: {
+        ...formData,
+        nodeId: currentNode?.id,
+        nodeName: currentNode?.name,
+      },
+    });
+
+    eventBus.emit('player:interaction', {
+      videoId: campaign.slug || campaign.id,
+      eventType: 'form_submit',
+      timestamp: Date.now(),
     });
 
     const targetEndpoint = currentNode?.formsApiEndpoint || campaign.formsApiEndpoint;

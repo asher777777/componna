@@ -1,4 +1,4 @@
-﻿import { CoreEventMap } from '../contracts';
+import { CoreEventMap } from '../contracts';
 
 type EventCallback<T> = (data: T) => void;
 
@@ -41,6 +41,13 @@ class TypedEventBus {
         }
       });
     }
+  }
+
+  /**
+   * Alias for publish
+   */
+  emit<K extends keyof CoreEventMap>(topic: K, data: CoreEventMap[K]): void {
+    this.publish(topic, data);
   }
 
   /**

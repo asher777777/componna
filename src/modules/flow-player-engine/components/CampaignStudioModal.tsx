@@ -26,13 +26,9 @@ import { usePlayerMachine } from '../context/PlayerMachineContext';
 import { useFlowPlayerModule } from '../context/ModuleContext';
 import { FirestoreService } from '../services/firestoreService';
 import { FlowNodeState, CampaignConfig, CarouselCardItem, OverlayItem } from '../types';
-import {
-  MediaPickerModal,
-  FirebaseStorageMediaService,
-  FirestoreMediaService as GalleryFirestoreService,
-  MediaIndexedDbService,
-  MediaItem,
-} from '../../media-gallery-hub';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../core/contracts';
 import { PREMIUM_ICONS, PremiumVectorIcon } from '../utils/premiumIcons';
 
 const COMMON_ICONS = ['💰', '📞', '🎙️', '🔄', '🚀', '🎁', '⭐', '💡', '🏷️', '🛍️', 'ℹ️', '🔥'];
@@ -46,6 +42,7 @@ export const CampaignStudioModal: React.FC<{
   const { firebaseApp, db, collections } = useFlowPlayerModule();
 
   const [editingCampaign, setEditingCampaign] = useState<CampaignConfig>(() => JSON.parse(JSON.stringify(campaign)));
+  const { getCapability } = useHostCapabilities();
   const [selectedNodeId, setSelectedNodeId] = useState<string>(
     initialNodeId || currentNodeId || campaign.initialNodeId || Object.keys(campaign.states)[0] || ''
   );
@@ -54,11 +51,6 @@ export const CampaignStudioModal: React.FC<{
   const [uploadingNodeId, setUploadingNodeId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null);
-  const [mediaPickerTarget, setMediaPickerTarget] = useState<{
-    type: 'video' | 'image';
-    nodeId?: string;
-    cardIndex?: number;
-  } | null>(null);
 
   // Sync editing state whenever modal opens
   useEffect(() => {
@@ -72,6 +64,65 @@ export const CampaignStudioModal: React.FC<{
 
   const currentNode = editingCampaign.states[selectedNodeId] || null;
 
+  const handlePickFromGallery = async (type: 'video' | 'image', nodeId?: string, cardIndex?: number) => {
+    const picker = getCapability<MediaPickerContract>('media-picker');
+    if (picker) {
+      const res = await picker.openPicker({ accept: type === 'video' ? 'video/*' : 'image/*' });
+      if (res) {
+        const url = Array.isArray(res) ? res[0] : res;
+        if (type === 'video' && nodeId) {
+          handleUpdateNode(nodeId, {
+            videoUrl: url,
+            fallbackVideoUrl: url,
+          });
+        } else if (type === 'image' && cardIndex !== undefined) {
+          handleUpdateCard(cardIndex, { imageUrl: url });
+        }
+      }
+    } else {
+      const promptUrl = window.prompt(type === 'video' ? 'הזן קישור ישיר לסרטון וידאו (URL):' : 'הזן קישור ישיר לתמונה (URL):');
+      if (promptUrl) {
+        if (type === 'video' && nodeId) {
+          handleUpdateNode(nodeId, {
+            videoUrl: promptUrl,
+            fallbackVideoUrl: promptUrl,
+          });
+        } else if (type === 'image' && cardIndex !== undefined) {
+          handleUpdateCard(cardIndex, { imageUrl: promptUrl });
+        }
+      }
+    }
+  };
+
+  const uploadStorageBlob = async (
+    file: File | Blob,
+    fileName: string,
+    onProgress?: (pct: number) => void
+  ): Promise<string> => {
+    if (!firebaseApp) {
+      return URL.createObjectURL(file);
+    }
+    const storage = getStorage(firebaseApp);
+    const storagePath = `flow_player/${Date.now()}_${fileName.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
+    const storageRef = ref(storage, storagePath);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise((resolve, reject) => {
+      uploadTask.on(
+        'state_changed',
+        (snapshot) => {
+          const progress = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          if (onProgress) onProgress(progress);
+        },
+        (error) => reject(error),
+        async () => {
+          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
+          resolve(downloadUrl);
+        }
+      );
+    });
+  };
+
   const handleVideoFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, nodeId: string) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,20 +131,6 @@ export const CampaignStudioModal: React.FC<{
     const objectUrl = URL.createObjectURL(file);
     const mediaId = `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
 
-    const localItem: MediaItem = {
-      id: mediaId,
-      name: file.name,
-      type: 'video',
-      mimeType: file.type || 'video/mp4',
-      url: objectUrl,
-      sizeBytes: file.size,
-      createdAt: Date.now(),
-      tags: ['flow_player', 'upload', 'וידאו'],
-    };
-
-    // Always immediately save to IndexedDB so it's safely persisted locally
-    await MediaIndexedDbService.saveMedia(localItem, file);
-
     handleUpdateNode(nodeId, {
       videoUrl: objectUrl,
       fallbackVideoUrl: objectUrl,
@@ -101,19 +138,11 @@ export const CampaignStudioModal: React.FC<{
       mediaName: file.name,
     });
 
-    // 2. Upload to Firebase Storage and persist in Firestore Media Gallery
+    // 2. Upload to Firebase Storage
     setUploadingNodeId(nodeId);
     setUploadProgress(15);
     try {
-      let downloadUrl = objectUrl;
-      if (firebaseApp) {
-        downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
-          firebaseApp,
-          file,
-          file.name,
-          (pct) => setUploadProgress(pct)
-        );
-      }
+      const downloadUrl = await uploadStorageBlob(file, file.name, (pct) => setUploadProgress(pct));
 
       // Update node with persistent URL
       handleUpdateNode(nodeId, {
@@ -123,25 +152,6 @@ export const CampaignStudioModal: React.FC<{
         mediaName: file.name,
       });
       setUploadProgress(100);
-
-      // Save into Media Gallery collection so it appears in the gallery everywhere!
-      if (db) {
-        const mediaItem: MediaItem = {
-          id: mediaId,
-          name: file.name,
-          type: 'video',
-          mimeType: file.type || 'video/mp4',
-          url: downloadUrl,
-          sizeBytes: file.size,
-          createdAt: Date.now(),
-          tags: ['flow_player', 'upload', 'וידאו'],
-        };
-        GalleryFirestoreService.saveMediaItem(
-          db,
-          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
-          mediaItem
-        ).catch(() => {});
-      }
     } catch (uploadErr) {
       console.warn('[CampaignStudioModal] Cloud upload notice:', uploadErr);
     } finally {
@@ -208,49 +218,11 @@ export const CampaignStudioModal: React.FC<{
     const objectUrl = URL.createObjectURL(file);
     handleUpdateCard(cardIndex, { imageUrl: objectUrl });
 
-    // 2. Upload to Firebase Storage and persist in Media Gallery
+    // 2. Upload to Firebase Storage
     setUploadingCardIndex(cardIndex);
     try {
-      let downloadUrl = objectUrl;
-      if (firebaseApp) {
-        downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
-          firebaseApp,
-          file,
-          file.name
-        );
-      } else {
-        const localItem: MediaItem = {
-          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
-          name: file.name,
-          type: 'image',
-          mimeType: file.type || 'image/jpeg',
-          url: objectUrl,
-          sizeBytes: file.size,
-          createdAt: Date.now(),
-          tags: ['flow_player', 'card', 'תמונה'],
-        };
-        await MediaIndexedDbService.saveMedia(localItem, file);
-      }
-
+      const downloadUrl = await uploadStorageBlob(file, file.name);
       handleUpdateCard(cardIndex, { imageUrl: downloadUrl });
-
-      if (db) {
-        const mediaItem: MediaItem = {
-          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
-          name: file.name,
-          type: 'image',
-          mimeType: file.type || 'image/jpeg',
-          url: downloadUrl,
-          sizeBytes: file.size,
-          createdAt: Date.now(),
-          tags: ['flow_player', 'card', 'תמונה'],
-        };
-        GalleryFirestoreService.saveMediaItem(
-          db,
-          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
-          mediaItem
-        ).catch(() => {});
-      }
     } catch (uploadErr) {
       console.warn('[CampaignStudioModal] Card image upload notice:', uploadErr);
     } finally {
@@ -948,7 +920,7 @@ export const CampaignStudioModal: React.FC<{
                                 </label>
                                 <button
                                   type="button"
-                                  onClick={() => setMediaPickerTarget({ type: 'image', cardIndex })}
+                                  onClick={() => handlePickFromGallery('image', undefined, cardIndex)}
                                   className="cursor-pointer px-2.5 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 text-[11px] flex items-center space-x-1 rtl:space-x-reverse border border-indigo-700/60 transition-colors"
                                   title="בחר תמונה מגלריית המדיה"
                                 >
@@ -1024,7 +996,7 @@ export const CampaignStudioModal: React.FC<{
 
                   <button
                     type="button"
-                    onClick={() => setMediaPickerTarget({ type: 'video', nodeId: currentNode.id })}
+                    onClick={() => handlePickFromGallery('video', currentNode.id)}
                     className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-yellow-400 font-bold text-xs flex items-center justify-center space-x-2 rtl:space-x-reverse border border-yellow-500/40 shadow transition-all cursor-pointer"
                   >
                     <Sparkles className="w-4 h-4" />
@@ -1108,37 +1080,6 @@ export const CampaignStudioModal: React.FC<{
             </button>
           </div>
         </div>
-
-        {/* Media Gallery Picker Modal */}
-        {mediaPickerTarget && (
-          <MediaPickerModal
-            isOpen={true}
-            onClose={() => setMediaPickerTarget(null)}
-            allowedTypes={[mediaPickerTarget.type]}
-            maxSelectCount={1}
-            title={mediaPickerTarget.type === 'video' ? 'בחר סרטון וידאו מגלריית המדיה' : 'בחר תמונה מגלריית המדיה'}
-            onSelectMedia={(items) => {
-              if (items.length > 0) {
-                const picked = items[0];
-                if (mediaPickerTarget.type === 'video' && mediaPickerTarget.nodeId) {
-                  handleUpdateNode(mediaPickerTarget.nodeId, {
-                    videoUrl: picked.url,
-                    fallbackVideoUrl: picked.url,
-                    mediaId: picked.id,
-                    mediaName: picked.name,
-                  });
-                } else if (mediaPickerTarget.type === 'image' && mediaPickerTarget.cardIndex !== undefined) {
-                  handleUpdateCard(mediaPickerTarget.cardIndex, { imageUrl: picked.url });
-                }
-              }
-              setMediaPickerTarget(null);
-            }}
-            firebaseApp={firebaseApp}
-            db={db}
-            collectionPrefix="sdo_media_"
-            customCollections={{ mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }}
-          />
-        )}
       </div>
     </div>
   );

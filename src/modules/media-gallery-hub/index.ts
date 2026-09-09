@@ -10,5 +10,6 @@ export * from './components/MediaGalleryGrid';
 export * from './components/MediaPreviewModal';
 export * from './components/ImageConverterModal';
 export * from './components/MediaPickerModal';
+export * from './components/MediaPickerHostBridge';
 export * from './components/BulkActionBar';
 export { MediaGalleryHubStandaloneView as default, MediaGalleryHubStandaloneView } from './StandaloneView';

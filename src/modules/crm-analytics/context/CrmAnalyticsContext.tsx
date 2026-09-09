@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { FirebaseApp } from 'firebase/app';
 import { 
   Contact, 
@@ -17,6 +17,9 @@ import {
   fetchLiveCrmAnalytics, 
   updateContactField 
 } from '../services/crmAnalyticsService';
+import { eventBus } from '../../../core/bridge/EventBus';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { LeadCaptureContract, LeadPayload } from '../../../core/contracts';
 
 interface CrmAnalyticsContextValue {
   data: CRMAnalyticsData | null;
@@ -74,6 +77,42 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
 
   useEffect(() => {
     refresh();
+  }, [refresh]);
+
+  // Listen to Global EventBus for leads captured across other modules (e.g. PageBuilder, FlowPlayer)
+  useEffect(() => {
+    const unsubLead = eventBus.subscribe('crm:lead:created', (payload: LeadPayload) => {
+      console.log('[CRM] Received lead from EventBus:', payload);
+      setData(prev => {
+        if (!prev) return null;
+        const newContact: Contact = {
+          id: `lead_${Date.now()}`,
+          status: 'active',
+          conta_name: payload.conta_name,
+          conta_phone: payload.conta_phone,
+          email: payload.email,
+          lead_source: payload.source || 'אירוע חיצוני (EventBus)',
+          tags: payload.tags || ['ליד חדש'],
+          community: payload.community,
+          createdAt: new Date().toISOString(),
+        };
+        return {
+          ...prev,
+          totalContacts: prev.totalContacts + 1,
+          contacts: [newContact, ...prev.contacts],
+        };
+      });
+    });
+
+    const unsubForm = eventBus.subscribe('form:submitted', (payload) => {
+      console.log('[CRM] Received form submission from EventBus:', payload);
+      refresh();
+    });
+
+    return () => {
+      unsubLead();
+      unsubForm();
+    };
   }, [refresh]);
 
   // Merge core columns with custom fields from dataset

@@ -15,7 +15,6 @@ import {
   SessionTelemetryEvent,
 } from '../types';
 import { DEFAULT_CAMPAIGN_CONFIG } from '../config';
-import { MediaIndexedDbService } from '../../media-gallery-hub/services/mediaIndexedDbService';
 
 /**
  * Remove undefined values to prevent Firestore serialization errors
@@ -78,7 +77,7 @@ export class FirestoreService {
 
       if (!snapshot || !snapshot.exists()) {
         if (localCached) {
-          return await MediaIndexedDbService.rehydrateCampaignMedia(localCached);
+          return localCached;
         }
         console.warn(`[FirestoreService] Campaign "${slug}" not found in Firestore.`);
         return null;
@@ -149,13 +148,11 @@ export class FirestoreService {
         localStorage.setItem('sdo_player_camp_latest', JSON.stringify(mergedCampaign));
       } catch {}
 
-      // Rehydrate media URLs from persistent local IndexedDB
-      const rehydrated = await MediaIndexedDbService.rehydrateCampaignMedia(mergedCampaign);
-      return rehydrated;
+      return mergedCampaign;
     } catch (err) {
       console.warn('[FirestoreService] Firestore fetch fallback to local cache:', err);
       if (localCached) {
-        return await MediaIndexedDbService.rehydrateCampaignMedia(localCached);
+        return localCached;
       }
       return null;
     }

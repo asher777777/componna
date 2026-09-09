@@ -1,6 +1,3 @@
-import { DEFAULT_CAMPAIGN_CONFIG } from '../../flow-player-engine/config';
-import { INITIAL_SERVER_MEDIA } from '../../media-gallery-hub/config';
-
 export interface SeedDataMap {
   [collectionName: string]: {
     id: string;
@@ -12,10 +9,24 @@ export interface SeedDataMap {
 export const PROJECT_SEED_DATA: SeedDataMap = {
   sdo_player_campaign_configs: [
     {
-      id: DEFAULT_CAMPAIGN_CONFIG.id,
-      name: DEFAULT_CAMPAIGN_CONFIG.name,
+      id: 'sales_rep_interactive_01',
+      name: 'קמפיין נציגת מכירות אינטראקטיבית - הדגמה',
       data: {
-        ...DEFAULT_CAMPAIGN_CONFIG,
+        id: 'sales_rep_interactive_01',
+        name: 'קמפיין נציגת מכירות אינטראקטיבית - הדגמה',
+        slug: 'sales_rep_interactive_01',
+        initialNodeId: 'node_intro',
+        states: {
+          node_intro: {
+            id: 'node_intro',
+            name: 'פתיח - הצגת המערכת',
+            description: 'סרטון פתיחה המציג את סוכן ה-AI האינטראקטיבי',
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+            autoPlay: true,
+            loopUntilTrigger: true,
+            soundEnabled: true,
+          },
+        },
         createdAt: Date.now(),
         updatedAt: Date.now(),
         status: 'published',
@@ -40,14 +51,23 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
       },
     },
   ],
-  sdo_media_items: INITIAL_SERVER_MEDIA.map((item) => ({
-    id: item.id,
-    name: item.name,
-    data: {
-      ...item,
-      updatedAt: Date.now(),
+  sdo_media_items: [
+    {
+      id: 'media_intro_video_01',
+      name: 'סרטון הדגמה ראשי.mp4',
+      data: {
+        id: 'media_intro_video_01',
+        name: 'סרטון הדגמה ראשי.mp4',
+        type: 'video',
+        mimeType: 'video/mp4',
+        url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+        sizeBytes: 15400000,
+        createdAt: Date.now() - 3600000,
+        tags: ['demo', 'video'],
+        updatedAt: Date.now(),
+      },
     },
-  })),
+  ],
   sdo_media_folders: [
     {
       id: 'folder_videos_01',

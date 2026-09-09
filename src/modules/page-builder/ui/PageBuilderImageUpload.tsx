@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
-import { Image as ImageIcon, Upload, Link, Sparkles, X, Check } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { Image as ImageIcon, Upload, Link, Sparkles, X, Check, Layers, FolderOpen } from 'lucide-react';
 import { PageBuilderButton } from './PageBuilderButton';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../core/contracts';
 
 interface PageBuilderImageUploadProps {
   label?: string;
@@ -26,10 +28,27 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   onChange,
   className,
 }) => {
-  const [tab, setTab] = useState<'url' | 'samples' | 'ai'>('url');
+  const { getCapability } = useHostCapabilities();
+  const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const [tab, setTab] = useState<'url' | 'samples' | 'ai' | 'gallery'>('url');
   const [urlInput, setUrlInput] = useState(value || '');
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+
+  const handleOpenMediaGallery = async () => {
+    if (mediaPicker) {
+      const selected = await mediaPicker.openPicker({ accept: 'image/*' });
+      if (selected) {
+        const finalUrl = Array.isArray(selected) ? selected[0] : selected;
+        onChange(finalUrl);
+        setUrlInput(finalUrl);
+      }
+    } else {
+      fileInputRef.current?.click();
+    }
+  };
 
   const handleApplyUrl = () => {
     onChange(urlInput);
@@ -99,6 +118,16 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
             </button>
             <button
               type="button"
+              onClick={handleOpenMediaGallery}
+              className={clsx(
+                'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 text-slate-400 hover:text-white hover:bg-slate-800'
+              )}
+            >
+              <FolderOpen className="w-3.5 h-3.5 text-yellow-400" />
+              <span>{mediaPicker ? 'גלריית מדיה' : 'העלאת קובץ'}</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setTab('samples')}
               className={clsx(
                 'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5',
@@ -118,6 +147,20 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
               <Sparkles className="w-3.5 h-3.5 text-amber-300" /> יצירה ב-AI
             </button>
           </div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                const localUrl = URL.createObjectURL(file);
+                onChange(localUrl);
+                setUrlInput(localUrl);
+              }
+            }}
+          />
 
           {tab === 'url' && (
             <div className="flex items-center gap-2">
