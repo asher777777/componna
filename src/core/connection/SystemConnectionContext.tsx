@@ -28,6 +28,8 @@ export interface SystemCollectionsConfig {
 export interface SystemApiKeysConfig {
   googleAiApiKey?: string;
   geminiModel?: string;
+  heygenApiKey?: string;
+  elevenLabsApiKey?: string;
   openaiApiKey?: string;
   whatsappApiToken?: string;
   greenApiInstanceId?: string;
@@ -50,6 +52,7 @@ export interface SystemConnectionContextValue {
   updateConfig: (newConfig: Partial<SystemFirebaseConfig>, newCollections?: Partial<SystemCollectionsConfig>) => Promise<void>;
   updateApiKeys: (newKeys: Partial<SystemApiKeysConfig>) => Promise<void>;
   testGoogleAiKey: (keyToTest?: string) => Promise<{ success: boolean; error?: string }>;
+  testHeyGenKey: (keyToTest?: string) => Promise<{ success: boolean; error?: string }>;
   testConnection: (customConfig?: SystemFirebaseConfig) => Promise<{ success: boolean; latency?: number; error?: string }>;
   resetToDefaults: () => void;
   openConnectorModal: () => void;
@@ -64,6 +67,8 @@ const APIKEYS_KEY = 'comona_system_apikeys_config';
 export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   googleAiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
   geminiModel: 'gemini-1.5-flash',
+  heygenApiKey: import.meta.env.VITE_HEYGEN_API_KEY || '',
+  elevenLabsApiKey: import.meta.env.VITE_ELEVENLABS_API_KEY || '',
   openaiApiKey: '',
   whatsappApiToken: '',
   greenApiInstanceId: '',
@@ -243,6 +248,38 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     [apiKeys.googleAiApiKey]
   );
 
+  // Test HeyGen API Key
+  const testHeyGenKey = useCallback(
+    async (keyToTest?: string): Promise<{ success: boolean; error?: string }> => {
+      const key = keyToTest || apiKeys.heygenApiKey || (import.meta.env.VITE_HEYGEN_API_KEY as string);
+      if (!key || key.trim().length === 0) {
+        return { success: false, error: 'לא הוזן מפתח HeyGen API Key' };
+      }
+
+      try {
+        const res = await fetch('https://api.heygen.com/v2/avatars', {
+          headers: {
+            'X-Api-Key': key.trim(),
+            'Accept': 'application/json'
+          }
+        });
+
+        if (res.ok) {
+          return { success: true };
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          return {
+            success: false,
+            error: errJson?.error || errJson?.message || `שגיאה באימות HeyGen (${res.status} ${res.statusText})`,
+          };
+        }
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'שגיאת רשת בבדיקת מפתח HeyGen' };
+      }
+    },
+    [apiKeys.heygenApiKey]
+  );
+
   const updateConfig = useCallback(
     async (newConfig: Partial<SystemFirebaseConfig>, newCollections?: Partial<SystemCollectionsConfig>) => {
       const updatedConfig = { ...config, ...newConfig };
@@ -308,6 +345,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         updateConfig,
         updateApiKeys,
         testGoogleAiKey,
+        testHeyGenKey,
         testConnection,
         resetToDefaults,
         openConnectorModal,

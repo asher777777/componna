@@ -16,6 +16,7 @@ export const DatabaseConnectorModal: React.FC = () => {
     updateConfig, 
     updateApiKeys,
     testGoogleAiKey,
+    testHeyGenKey,
     testConnection, 
     resetToDefaults, 
     isConnectorModalOpen, 
@@ -53,6 +54,8 @@ export const DatabaseConnectorModal: React.FC = () => {
   // API Keys state
   const [googleAiApiKey, setGoogleAiApiKey] = useState(apiKeys.googleAiApiKey || '');
   const [geminiModel, setGeminiModel] = useState(apiKeys.geminiModel || 'gemini-1.5-flash');
+  const [heygenApiKey, setHeygenApiKey] = useState(apiKeys.heygenApiKey || '');
+  const [elevenLabsApiKey, setElevenLabsApiKey] = useState(apiKeys.elevenLabsApiKey || '');
   const [openaiApiKey, setOpenaiApiKey] = useState(apiKeys.openaiApiKey || '');
   const [greenApiInstanceId, setGreenApiInstanceId] = useState(apiKeys.greenApiInstanceId || '');
   const [greenApiToken, setGreenApiToken] = useState(apiKeys.greenApiToken || '');
@@ -62,6 +65,8 @@ export const DatabaseConnectorModal: React.FC = () => {
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string; latency?: number } | null>(null);
   const [isTestingAi, setIsTestingAi] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; msg: string } | null>(null);
+  const [isTestingHeygen, setIsTestingHeygen] = useState(false);
+  const [heygenTestResult, setHeygenTestResult] = useState<{ success: boolean; msg: string } | null>(null);
 
   // Sync state with active config
   useEffect(() => {
@@ -78,6 +83,8 @@ export const DatabaseConnectorModal: React.FC = () => {
   useEffect(() => {
     setGoogleAiApiKey(apiKeys.googleAiApiKey || '');
     setGeminiModel(apiKeys.geminiModel || 'gemini-1.5-flash');
+    setHeygenApiKey(apiKeys.heygenApiKey || '');
+    setElevenLabsApiKey(apiKeys.elevenLabsApiKey || '');
     setOpenaiApiKey(apiKeys.openaiApiKey || '');
     setGreenApiInstanceId(apiKeys.greenApiInstanceId || '');
     setGreenApiToken(apiKeys.greenApiToken || '');
@@ -167,6 +174,24 @@ export const DatabaseConnectorModal: React.FC = () => {
     }
   };
 
+  const handleTestHeyGen = async () => {
+    setIsTestingHeygen(true);
+    setHeygenTestResult(null);
+    const res = await testHeyGenKey(heygenApiKey);
+    setIsTestingHeygen(false);
+    if (res.success) {
+      setHeygenTestResult({
+        success: true,
+        msg: 'מפתח HeyGen API v3 אומת בהצלחה! סטודיו הוידאו והאווטארים מסונכרן ומוכן.',
+      });
+    } else {
+      setHeygenTestResult({
+        success: false,
+        msg: res.error || 'אימות מפתח HeyGen נכשל',
+      });
+    }
+  };
+
   const handleSaveAndSyncAll = async () => {
     await updateConfig(
       {
@@ -189,6 +214,8 @@ export const DatabaseConnectorModal: React.FC = () => {
     await updateApiKeys({
       googleAiApiKey: googleAiApiKey.trim(),
       geminiModel: geminiModel.trim(),
+      heygenApiKey: heygenApiKey.trim(),
+      elevenLabsApiKey: elevenLabsApiKey.trim(),
       openaiApiKey: openaiApiKey.trim(),
       greenApiInstanceId: greenApiInstanceId.trim(),
       greenApiToken: greenApiToken.trim(),
@@ -563,6 +590,68 @@ export const DatabaseConnectorModal: React.FC = () => {
                     <span>{aiTestResult.msg}</span>
                   </div>
                 )}
+              </div>
+
+              {/* HeyGen & Video Studio Section */}
+              <div className="border-t border-slate-800/80 pt-3">
+                <div className="flex items-center justify-between pb-2">
+                  <div>
+                    <h3 className="font-bold text-white flex items-center gap-2">
+                      <Cpu className="w-4 h-4 text-purple-400" />
+                      <span>הפקת וידאו ואווטארים (HeyGen API v3 & Studio)</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      משמש ליצירת אווטארים מדברים, וידאו שיווקי וסנכרון סצנות לגלריית המדיה
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium">HeyGen API Key *</label>
+                    <input
+                      type="password"
+                      value={heygenApiKey}
+                      onChange={(e) => setHeygenApiKey(e.target.value)}
+                      placeholder="N2UzMT..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium">ElevenLabs API Key (אופציונלי לקולות)</label>
+                    <input
+                      type="password"
+                      value={elevenLabsApiKey}
+                      onChange={(e) => setElevenLabsApiKey(e.target.value)}
+                      placeholder="sk_..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                {/* HeyGen Key Live Verification */}
+                <div className="p-3 mt-3 bg-slate-900/90 border border-slate-800 rounded-xl flex flex-wrap items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={handleTestHeyGen}
+                    disabled={isTestingHeygen}
+                    className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 font-medium rounded-lg flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Cpu className={`w-3.5 h-3.5 ${isTestingHeygen ? 'animate-spin text-purple-400' : 'text-purple-400'}`} />
+                    <span>{isTestingHeygen ? 'מאמת מפתח HeyGen...' : 'בדוק תקינות מפתח HeyGen API'}</span>
+                  </button>
+
+                  {heygenTestResult && (
+                    <div className={`flex items-center gap-1.5 text-[11px] font-medium ${
+                      heygenTestResult.success ? 'text-emerald-400' : 'text-rose-400'
+                    }`}>
+                      {heygenTestResult.success ? <Check className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                      <span>{heygenTestResult.msg}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="border-t border-slate-800/80 pt-3">

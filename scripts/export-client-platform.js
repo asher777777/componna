@@ -50,6 +50,8 @@ const clientConfig = {
   apiKeysConfig: {
     googleAiApiKey: process.env.VITE_GEMINI_API_KEY || '',
     geminiModel: 'gemini-1.5-flash',
+    heygenApiKey: process.env.VITE_HEYGEN_API_KEY || '',
+    elevenLabsApiKey: process.env.VITE_ELEVENLABS_API_KEY || '',
     openaiApiKey: process.env.OPENAI_API_KEY || '',
     greenApiInstanceId: process.env.GREEN_API_INSTANCE_ID || '',
     greenApiToken: process.env.GREEN_API_TOKEN || '',

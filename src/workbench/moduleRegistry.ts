@@ -8,6 +8,7 @@ import { PageBuilderStandaloneView } from '../modules/page-builder';
 import { CrmAnalyticsStandaloneView } from '../modules/crm-analytics';
 import { ClientReceiverPlatformStandaloneView } from '../modules/client-receiver-platform';
 import { DbConnectorHubStandaloneView } from '../modules/db-connector-hub';
+import { VideoProducerStudioView } from '../modules/video-producer-studio';
 
 export interface ModuleDefinition {
   id: string;
@@ -19,6 +20,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'video-producer-studio',
+    name: 'סטודיו וידאו ואווטאר (SDO Video Producer & HeyGen)',
+    description: 'אשף תסריטים ב-Gemini, הפקת סרטוני אווטאר עם HeyGen v3, ציר סצנות, טלפרומפטר וסנכרון מלא לגלריית המדיה',
+    component: VideoProducerStudioView,
+    route: '/video-producer',
+    collectionPrefix: 'sdo_video_',
+  },
   {
     id: 'db-connector-hub',
     name: 'מרכז חיבור וסנכרון DB (Universal Connector)',
