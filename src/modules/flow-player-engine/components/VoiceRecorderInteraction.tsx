@@ -230,33 +230,16 @@ export const VoiceRecorderInteraction: React.FC = () => {
               : 'bg-black/90 text-amber-400 hover:bg-black hover:border-amber-300 hover:shadow-[0_0_35px_rgba(251,191,36,0.7)]'
           }`}
         >
-          {currentNode?.micIcon ? (
-            <PremiumVectorIcon
-              iconKey={currentNode.micIcon}
-              className={isCenter ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-7 h-7 sm:w-8 sm:h-8'}
-              isGold={!isVoiceListening}
-            />
-          ) : isScreenCenterTrigger ? (
-            <ArrowRight className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} text-amber-400 drop-shadow-md transform rtl:rotate-180`} />
-          ) : isVoiceListening ? (
+          {isVoiceListening ? (
             <MicOff className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} animate-pulse text-red-900`} />
           ) : (
-            <Mic className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]`} />
+            <PremiumVectorIcon
+              iconKey={currentNode?.micIcon || 'mic'}
+              className={isCenter ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-7 h-7 sm:w-8 sm:h-8'}
+              isGold={true}
+            />
           )}
         </button>
-
-        {/* Subtitle helper badge */}
-        {isCenter && !showTextInput && (
-          <span className="mt-2.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-500/60 text-[11px] font-bold text-amber-300 shadow-xl animate-pulse flex items-center space-x-1.5 rtl:space-x-reverse">
-            {isScreenCenterTrigger ? (
-              <span>🎯 לחץ כאן להמשך ➔</span>
-            ) : currentNode?.micActionType === 'navigate_to_node' ? (
-              <span>לחץ להפעלת אינטראקציה</span>
-            ) : (
-              <span>לחץ לדיבור</span>
-            )}
-          </span>
-        )}
       </div>
     </div>
   );

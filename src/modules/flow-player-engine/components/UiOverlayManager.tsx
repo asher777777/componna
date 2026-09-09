@@ -13,6 +13,7 @@ import {
 import { usePlayerMachine } from '../context/PlayerMachineContext';
 import { OverlayItem, OverlayAction } from '../types';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { PremiumVectorIcon } from '../utils/premiumIcons';
 
 export const UiOverlayManager: React.FC = () => {
   const {
@@ -198,21 +199,6 @@ export const UiOverlayManager: React.FC = () => {
           ))}
       </div>
 
-      {/* 2. Center Round Play/Pause Button */}
-      <div className="w-full flex justify-center my-auto -mt-6 z-10">
-        <button
-          type="button"
-          onClick={togglePlay}
-          className="pointer-events-auto w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-black/50 hover:bg-black/75 backdrop-blur-md border border-white/25 flex items-center justify-center text-white shadow-2xl transition-all transform hover:scale-110 active:scale-95 cursor-pointer group"
-          title={isPlaying ? 'השהה סרטון' : 'נגן סרטון'}
-        >
-          {isPlaying ? (
-            <Pause className="w-6 h-6 fill-white opacity-90 group-hover:opacity-100" />
-          ) : (
-            <Play className="w-6 h-6 fill-white ml-0.5 opacity-90 group-hover:opacity-100" />
-          )}
-        </button>
-      </div>
 
       {/* 3. Capsule Question & Interaction Widget (Appears ONLY when overlays are configured on this node) */}
       {hasOverlays && (
@@ -278,7 +264,7 @@ export const UiOverlayManager: React.FC = () => {
                 <div className="flex items-center gap-1.5">
                   <div className="w-11 h-11 rounded-full bg-amber-400/15 border border-amber-400/40 flex items-center justify-center text-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.3)]">
                     {activeIcon ? (
-                      <span className="text-xl">{activeIcon}</span>
+                      <PremiumVectorIcon iconKey={activeIcon} className="w-6 h-6 text-amber-400" />
                     ) : (
                       <User className="w-6 h-6 fill-amber-400 text-amber-400" />
                     )}

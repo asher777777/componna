@@ -5,13 +5,17 @@ import { MediaPickerModal } from './MediaPickerModal';
 import { MediaItem, MediaType } from '../types';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 export interface MediaPickerHostBridgeProps {
   firebaseApp?: FirebaseApp;
   db?: Firestore;
 }
 
-export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ firebaseApp, db }) => {
+export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ firebaseApp: propFirebaseApp, db: propDb }) => {
+  const systemConn = useSystemConnection();
+  const firebaseApp = propFirebaseApp || systemConn.firebaseApp;
+  const db = propDb || systemConn.db;
   const { registerCapability, unregisterCapability } = useHostCapabilities();
   const [isOpen, setIsOpen] = useState(false);
   const [options, setOptions] = useState<MediaPickerOptions | undefined>();

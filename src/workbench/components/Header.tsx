@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { REGISTERED_MODULES } from '../moduleRegistry';
 import { Terminal, Copy } from 'lucide-react';
 import { UserMenuButton } from '../../components/Auth';
+import { DatabaseConnectionBadge, DatabaseConnectorModal } from '../../modules/db-connector-hub';
 
 export const Header: React.FC = () => {
   const location = useLocation();
@@ -29,6 +30,9 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-3">
+        {/* Global Database Connection Badge & Modal */}
+        <DatabaseConnectionBadge />
+
         {/* User Login & Profile Button */}
         <UserMenuButton />
 
@@ -38,10 +42,13 @@ export const Header: React.FC = () => {
           title="העתק פקודת יצירת מודול חדש"
         >
           <Terminal className="w-3.5 h-3.5 text-indigo-400" />
-          <span>יצירת מודול חדש ב-CLI</span>
+          <span>יצירת מודול ב-CLI</span>
           <Copy className="w-3 h-3 text-slate-400" />
         </button>
       </div>
+
+      <DatabaseConnectorModal />
     </header>
   );
 };
+

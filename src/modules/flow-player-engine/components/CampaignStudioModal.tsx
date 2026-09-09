@@ -30,8 +30,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
 import { PREMIUM_ICONS, PremiumVectorIcon } from '../utils/premiumIcons';
-
-const COMMON_ICONS = ['💰', '📞', '🎙️', '🔄', '🚀', '🎁', '⭐', '💡', '🏷️', '🛍️', 'ℹ️', '🔥'];
+import { IconPickerModal } from './IconPickerModal';
 
 export const CampaignStudioModal: React.FC<{
   isOpen: boolean;
@@ -51,6 +50,17 @@ export const CampaignStudioModal: React.FC<{
   const [uploadingNodeId, setUploadingNodeId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadingCardIndex, setUploadingCardIndex] = useState<number | null>(null);
+
+  // Icon Picker Modal State
+  const [iconPickerConfig, setIconPickerConfig] = useState<{
+    isOpen: boolean;
+    onSelect: (iconId: string) => void;
+    selectedIconId?: string;
+    title?: string;
+  }>({
+    isOpen: false,
+    onSelect: () => {},
+  });
 
   // Sync editing state whenever modal opens
   useEffect(() => {
@@ -576,9 +586,9 @@ export const CampaignStudioModal: React.FC<{
                         <PremiumVectorIcon iconKey={currentNode.micIcon || 'mic'} className="w-4 h-4" />
                       </div>
 
-                      {/* Luxury Vector Icons Grid */}
+                      {/* Luxury Vector Icons Grid + Full Library Button */}
                       <div className="flex items-center gap-1.5 flex-wrap max-w-sm">
-                        {PREMIUM_ICONS.map((item) => {
+                        {PREMIUM_ICONS.slice(0, 10).map((item) => {
                           const isSelected = (currentNode.micIcon || 'mic') === item.id || (currentNode.micIcon && item.aliases.includes(currentNode.micIcon));
                           const IconComp = item.icon;
                           return (
@@ -597,6 +607,23 @@ export const CampaignStudioModal: React.FC<{
                             </button>
                           );
                         })}
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setIconPickerConfig({
+                              isOpen: true,
+                              title: `בחר אייקון לכפתור המיקרופון / טריגר (${currentNode.name})`,
+                              selectedIconId: currentNode.micIcon,
+                              onSelect: (selectedId) => handleUpdateNode(currentNode.id, { micIcon: selectedId }),
+                            })
+                          }
+                          className="px-2 py-1 rounded-lg bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-600/60 text-[10px] font-bold text-indigo-300 flex items-center gap-1 shadow-sm transition hover:scale-105 active:scale-95 cursor-pointer"
+                          title="פתח ספריית אייקונים מלאה"
+                        >
+                          <Sparkles className="w-3 h-3 text-indigo-400" />
+                          <span>ספרייה מלאה</span>
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -865,30 +892,52 @@ export const CampaignStudioModal: React.FC<{
                             </div>
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center pt-1">
-                            {/* אייקון / אימוג'י */}
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-start pt-1">
+                            {/* אייקון וקטורי יוקרתי לכרטיסייה */}
                             <div>
-                              <label className="block text-[11px] text-slate-400 mb-1">אייקון / אימוג'י</label>
-                              <div className="flex items-center gap-1.5">
-                                <input
-                                  type="text"
-                                  value={card.icon || ''}
-                                  onChange={(e) => handleUpdateCard(cardIndex, { icon: e.target.value })}
-                                  placeholder="⭐"
-                                  className="w-12 text-center bg-slate-950 border border-slate-700 rounded-lg py-1 text-sm text-white focus:border-yellow-500"
-                                />
-                                <div className="flex gap-1 flex-wrap">
-                                  {COMMON_ICONS.slice(0, 5).map((ic) => (
-                                    <button
-                                      key={ic}
-                                      type="button"
-                                      onClick={() => handleUpdateCard(cardIndex, { icon: ic })}
-                                      className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-xs flex items-center justify-center transition-colors cursor-pointer"
-                                    >
-                                      {ic}
-                                    </button>
-                                  ))}
+                              <label className="block text-[11px] text-slate-300 font-semibold mb-1">אייקון כרטיסייה</label>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {/* Active Icon Preview */}
+                                <div className="w-8 h-8 rounded-xl bg-slate-950 border border-amber-400/80 flex items-center justify-center shadow-[0_0_10px_rgba(251,191,36,0.3)] flex-shrink-0">
+                                  <PremiumVectorIcon iconKey={card.icon || 'coins'} className="w-4 h-4" />
                                 </div>
+
+                                {/* Quick Presets */}
+                                {['coins', 'dollar', 'sparkles', 'rocket', 'gift', 'tag', 'crown'].map((icId) => {
+                                  const isSel = (card.icon || 'coins') === icId;
+                                  return (
+                                    <button
+                                      key={icId}
+                                      type="button"
+                                      onClick={() => handleUpdateCard(cardIndex, { icon: icId })}
+                                      className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer transform hover:scale-110 active:scale-95 ${
+                                        isSel
+                                          ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_8px_rgba(251,191,36,0.5)]'
+                                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-amber-300 hover:border-slate-700'
+                                      }`}
+                                    >
+                                      <PremiumVectorIcon iconKey={icId} className="w-3.5 h-3.5" isGold={isSel} />
+                                    </button>
+                                  );
+                                })}
+
+                                {/* Full Library Modal Button */}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setIconPickerConfig({
+                                      isOpen: true,
+                                      title: `בחר אייקון לכרטיסייה ${cardIndex + 1} (${card.title || 'ללא כותרת'})`,
+                                      selectedIconId: card.icon,
+                                      onSelect: (selectedId) => handleUpdateCard(cardIndex, { icon: selectedId }),
+                                    })
+                                  }
+                                  className="px-2 py-1 rounded-lg bg-indigo-950/90 hover:bg-indigo-900 border border-indigo-600/60 text-[10px] font-bold text-indigo-300 flex items-center gap-1 shadow-sm transition hover:scale-105 active:scale-95 cursor-pointer"
+                                  title="פתח ספריית אייקונים מלאה"
+                                >
+                                  <Sparkles className="w-3 h-3 text-indigo-400" />
+                                  <span>ספרייה מלאה</span>
+                                </button>
                               </div>
                             </div>
 
@@ -1081,6 +1130,15 @@ export const CampaignStudioModal: React.FC<{
           </div>
         </div>
       </div>
+
+      {/* Full Luxury Vector Icon Picker Modal */}
+      <IconPickerModal
+        isOpen={iconPickerConfig.isOpen}
+        onClose={() => setIconPickerConfig((prev) => ({ ...prev, isOpen: false }))}
+        onSelectIcon={iconPickerConfig.onSelect}
+        selectedIconId={iconPickerConfig.selectedIconId}
+        title={iconPickerConfig.title}
+      />
     </div>
   );
 };

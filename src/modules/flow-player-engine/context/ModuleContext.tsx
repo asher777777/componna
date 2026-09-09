@@ -3,6 +3,7 @@ import { FirebaseApp } from 'firebase/app';
 import { getFirestore, Firestore } from 'firebase/firestore';
 import { FlowPlayerModuleConfig, FlowPlayerCollectionsConfig } from '../types';
 import { resolveCollections } from '../config';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 interface ModuleContextValue {
   firebaseApp?: FirebaseApp;
@@ -21,22 +22,26 @@ export const FlowPlayerModuleProvider: React.FC<{
   config: FlowPlayerModuleConfig;
   children: React.ReactNode;
 }> = ({ config, children }) => {
+  const systemConn = useSystemConnection();
+  const firebaseApp = config.firebaseApp || systemConn.firebaseApp;
+  const rawDb = config.db || systemConn.db;
+
   const db = useMemo(() => {
-    if (config.db) {
-      return config.db;
+    if (rawDb) {
+      return rawDb;
     }
-    if (config.firebaseApp) {
+    if (firebaseApp) {
       try {
         if (config.databaseId && config.databaseId !== '(default)' && config.databaseId !== 'aioffice') {
-          return getFirestore(config.firebaseApp, config.databaseId);
+          return getFirestore(firebaseApp, config.databaseId);
         }
-        return getFirestore(config.firebaseApp);
+        return getFirestore(firebaseApp);
       } catch {
-        return getFirestore(config.firebaseApp);
+        return getFirestore(firebaseApp);
       }
     }
     return undefined;
-  }, [config.firebaseApp, config.db, config.databaseId]);
+  }, [firebaseApp, rawDb, config.databaseId]);
 
   const collections = useMemo(() => {
     return resolveCollections(config.collectionPrefix, config.customCollections);

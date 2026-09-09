@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env node
+#!/usr/bin/env node
 
 /**
  * Client Platform Exporter CLI
@@ -21,23 +21,37 @@ const modulesArg = getArg('modules', 'crm-analytics,page-builder');
 const selectedModules = modulesArg.split(',').map(m => m.trim()).filter(Boolean);
 const outDir = getArg('out', path.join(process.cwd(), 'dist-clients', clientSlug));
 
+// Ensure mandatory core module db-connector-hub is always included
+if (!selectedModules.includes('db-connector-hub')) {
+  selectedModules.unshift('db-connector-hub');
+}
+
 console.log('🚀 מתחיל בייצוא פלטפורמת לקוח חדשה...');
 console.log(`👤 מזהה לקוח: ${clientSlug}`);
-console.log(`📦 רכיבים נבחרים: ${selectedModules.join(', ')}`);
+console.log(`📦 רכיבים נבחרים (כולל Core DB Connector): ${selectedModules.join(', ')}`);
 console.log(`📂 תיקיית יעד: ${outDir}\n`);
 
 // Ensure directory exists
 fs.mkdirSync(outDir, { recursive: true });
 
-// 1. Generate client.config.json
+// 1. Generate client.config.json with universal DB sync configuration
 const clientConfig = {
   clientId: clientSlug,
   clientName: `פרויקט לקוח ${clientSlug}`,
   createdAt: new Date().toISOString(),
+  databaseConfig: {
+    projectId: process.env.VITE_FIREBASE_PROJECT_ID || 'glowmanage',
+    apiKey: process.env.VITE_FIREBASE_API_KEY || 'AIzaSyC011dhtJddDjLmTQ2HCvgVA0DPN8rKFwQ',
+    authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN || 'glowmanage.firebaseapp.com',
+    storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'glowmanage.firebasestorage.app',
+    databaseId: process.env.VITE_FIREBASE_DATABASE_ID || '(default)',
+    collectionPrefix: `client_${clientSlug}_`,
+  },
   activeModules: selectedModules.map(m => ({
     id: m,
     slug: `/${m}`,
-    isEnabled: true
+    isEnabled: true,
+    isCore: m === 'db-connector-hub' || m === 'client-platform',
   }))
 };
 
@@ -46,7 +60,7 @@ fs.writeFileSync(
   JSON.stringify(clientConfig, null, 2),
   'utf8'
 );
-console.log('✓ נוצר קובץ client.config.json בהצלחה');
+console.log('✓ נוצר קובץ client.config.json בהצלחה (עם הגדרות סנכרון DB מלאות)');
 
 // 2. Generate client package.json
 const clientPackageJson = {

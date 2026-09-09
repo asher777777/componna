@@ -7,6 +7,7 @@ import { TemplateStandaloneView } from '../modules/_template';
 import { PageBuilderStandaloneView } from '../modules/page-builder';
 import { CrmAnalyticsStandaloneView } from '../modules/crm-analytics';
 import { ClientReceiverPlatformStandaloneView } from '../modules/client-receiver-platform';
+import { DbConnectorHubStandaloneView } from '../modules/db-connector-hub';
 
 export interface ModuleDefinition {
   id: string;
@@ -18,6 +19,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'db-connector-hub',
+    name: 'מרכז חיבור וסנכרון DB (Universal Connector)',
+    description: 'סנכרון מרכזי של כלל המודולים למסד נתונים Firebase ו-Storage יחיד, פענוח חכם של מפתח JSON ב-Gemini',
+    component: DbConnectorHubStandaloneView,
+    route: '/db-connector',
+    collectionPrefix: '',
+  },
   {
     id: 'client-platform',
     name: 'פלטפורמת מקלט לקוח (Client Platform Shell)',

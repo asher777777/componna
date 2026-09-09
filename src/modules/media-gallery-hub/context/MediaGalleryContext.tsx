@@ -14,6 +14,7 @@ import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaSer
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { ensureAnonymousAuth } from '../../../services/firebaseAuth';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 interface MediaGalleryContextValue {
   mediaItems: MediaItem[];
@@ -48,9 +49,11 @@ export const MediaGalleryProvider: React.FC<{
   config: MediaGalleryModuleConfig;
   children: React.ReactNode;
 }> = ({ config, children }) => {
+  const systemConn = useSystemConnection();
+  const firebaseApp = config.firebaseApp || systemConn.firebaseApp;
+  const db = config.db || systemConn.db;
+
   const {
-    firebaseApp,
-    db,
     customCollections,
     collectionPrefix,
     allowedTypes,
