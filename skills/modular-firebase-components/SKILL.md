@@ -26,3 +26,11 @@ description: Standards and architecture guidelines for creating isolated, portab
 
 5. **Style & Asset Isolation**
    - Uses Tailwind CSS with proper class scoping.
+
+6. **Centralized API Keys & Integrations Declaration (Rule 6)**
+   - Any component or module requiring third-party API credentials, tokens, or AI services (such as Google Gemini API, OpenAI, WhatsApp / Green API, Webhooks) MUST NOT prompt for or store keys in an isolated manner.
+   - All modules declare their required keys in `SystemApiKeysConfig` (`src/core/connection/SystemConnectionContext.tsx`) and consume them via `useSystemConnection().apiKeys` or receive them injected via `ModuleProvider`.
+   - The user configures, inspects, and validates all API keys centrally inside the **Universal DB Connector Hub UI** (`src/modules/db-connector-hub`).
+
+7. **Mandatory Core DB Connector on Export (Rule 7)**
+   - When generating or exporting a client application, `db-connector-hub` is mandatory and automatically included as a core module, ensuring the client platform has full database sync, storage bucket configuration, and AI API keys ready out-of-the-box.

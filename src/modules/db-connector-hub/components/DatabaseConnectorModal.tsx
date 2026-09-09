@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, Database, Check, RefreshCw, ShieldCheck, 
   ExternalLink, Sparkles, Server, Globe, Key, AlertCircle,
-  FileJson, UploadCloud, Copy, RotateCcw, FolderSync
+  FileJson, UploadCloud, Copy, RotateCcw, FolderSync, Bot,
+  MessageSquare, Send, Cpu, KeyRound
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../../../core/connection/aiJsonParser';
@@ -11,7 +12,10 @@ export const DatabaseConnectorModal: React.FC = () => {
   const { 
     config, 
     collections, 
+    apiKeys,
     updateConfig, 
+    updateApiKeys,
+    testGoogleAiKey,
     testConnection, 
     resetToDefaults, 
     isConnectorModalOpen, 
@@ -23,7 +27,7 @@ export const DatabaseConnectorModal: React.FC = () => {
 
   if (!isConnectorModalOpen) return null;
 
-  const [activeTab, setActiveTab] = useState<'smart_json' | 'manual_config' | 'collections'>('smart_json');
+  const [activeTab, setActiveTab] = useState<'smart_json' | 'manual_config' | 'collections' | 'api_keys'>('smart_json');
   
   // Smart JSON State
   const [jsonInput, setJsonInput] = useState('');
@@ -46,8 +50,18 @@ export const DatabaseConnectorModal: React.FC = () => {
   const [playerCampaignsCol, setPlayerCampaignsCol] = useState(collections.playerCampaigns || 'sdo_player_campaign_configs');
   const [contactsCol, setContactsCol] = useState(collections.contacts || 'contacts');
 
+  // API Keys state
+  const [googleAiApiKey, setGoogleAiApiKey] = useState(apiKeys.googleAiApiKey || '');
+  const [geminiModel, setGeminiModel] = useState(apiKeys.geminiModel || 'gemini-1.5-flash');
+  const [openaiApiKey, setOpenaiApiKey] = useState(apiKeys.openaiApiKey || '');
+  const [greenApiInstanceId, setGreenApiInstanceId] = useState(apiKeys.greenApiInstanceId || '');
+  const [greenApiToken, setGreenApiToken] = useState(apiKeys.greenApiToken || '');
+  const [customWebhookUrl, setCustomWebhookUrl] = useState(apiKeys.customWebhookUrl || '');
+
   // Test state
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string; latency?: number } | null>(null);
+  const [isTestingAi, setIsTestingAi] = useState(false);
+  const [aiTestResult, setAiTestResult] = useState<{ success: boolean; msg: string } | null>(null);
 
   // Sync state with active config
   useEffect(() => {
@@ -60,6 +74,15 @@ export const DatabaseConnectorModal: React.FC = () => {
     setAppId(config.appId || '');
     setHostingUrl(config.projectId ? `https://${config.projectId}.web.app` : '');
   }, [config]);
+
+  useEffect(() => {
+    setGoogleAiApiKey(apiKeys.googleAiApiKey || '');
+    setGeminiModel(apiKeys.geminiModel || 'gemini-1.5-flash');
+    setOpenaiApiKey(apiKeys.openaiApiKey || '');
+    setGreenApiInstanceId(apiKeys.greenApiInstanceId || '');
+    setGreenApiToken(apiKeys.greenApiToken || '');
+    setCustomWebhookUrl(apiKeys.customWebhookUrl || '');
+  }, [apiKeys]);
 
   const handleParseJson = async () => {
     if (!jsonInput.trim()) {
@@ -126,6 +149,24 @@ export const DatabaseConnectorModal: React.FC = () => {
     }
   };
 
+  const handleTestGoogleAi = async () => {
+    setIsTestingAi(true);
+    setAiTestResult(null);
+    const res = await testGoogleAiKey(googleAiApiKey);
+    setIsTestingAi(false);
+    if (res.success) {
+      setAiTestResult({
+        success: true,
+        msg: 'מפתח Google Gemini API אומת בהצלחה ומוכן לשימוש בכל המודולים!',
+      });
+    } else {
+      setAiTestResult({
+        success: false,
+        msg: res.error || 'אימות מפתח Google AI נכשל',
+      });
+    }
+  };
+
   const handleSaveAndSyncAll = async () => {
     await updateConfig(
       {
@@ -144,6 +185,15 @@ export const DatabaseConnectorModal: React.FC = () => {
         contacts: contactsCol.trim(),
       }
     );
+
+    await updateApiKeys({
+      googleAiApiKey: googleAiApiKey.trim(),
+      geminiModel: geminiModel.trim(),
+      openaiApiKey: openaiApiKey.trim(),
+      greenApiInstanceId: greenApiInstanceId.trim(),
+      greenApiToken: greenApiToken.trim(),
+      customWebhookUrl: customWebhookUrl.trim(),
+    });
 
     // Run verification ping
     await handleTestPing();
@@ -216,6 +266,17 @@ export const DatabaseConnectorModal: React.FC = () => {
           >
             <FolderSync className="w-4 h-4" />
             <span>מיפוי קולקציות גלובלי</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('api_keys')}
+            className={`py-3 px-4 font-semibold border-b-2 flex items-center gap-2 transition cursor-pointer ${
+              activeTab === 'api_keys'
+                ? 'border-indigo-500 text-indigo-400 bg-indigo-500/10'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <KeyRound className="w-4 h-4" />
+            <span>מפתחות API והרשאות שירות (AI & Integrations)</span>
           </button>
         </div>
 
@@ -434,6 +495,130 @@ export const DatabaseConnectorModal: React.FC = () => {
                     className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500"
                     dir="ltr"
                   />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 4: API Keys & Integrations */}
+          {activeTab === 'api_keys' && (
+            <div className="p-4 bg-slate-950/80 rounded-2xl border border-slate-800 space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+                <div>
+                  <h3 className="font-bold text-white flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-400" />
+                    <span>שירותי בינה מלאכותית (Google AI & Gemini)</span>
+                  </h3>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    מוגדרים באופן גלובלי ומועברים לכל המודולים (זיהוי קבצים, יצירת תסריטים, אנליטיקה ו-CRM)
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2">
+                  <label className="block text-slate-400 mb-1 font-medium">Google Gemini API Key *</label>
+                  <input
+                    type="password"
+                    value={googleAiApiKey}
+                    onChange={(e) => setGoogleAiApiKey(e.target.value)}
+                    placeholder="AIzaSy..."
+                    className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 mb-1 font-medium">מודל AI פעיל (Default Model)</label>
+                  <select
+                    value={geminiModel}
+                    onChange={(e) => setGeminiModel(e.target.value)}
+                    className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white text-xs focus:border-indigo-500"
+                    dir="ltr"
+                  >
+                    <option value="gemini-1.5-flash">gemini-1.5-flash (מומלץ ומהיר)</option>
+                    <option value="gemini-1.5-pro">gemini-1.5-pro (חזק ומעמיק)</option>
+                    <option value="gemini-2.0-flash">gemini-2.0-flash</option>
+                    <option value="gemini-2.5-pro">gemini-2.5-pro</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* AI Key Live Verification */}
+              <div className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl flex flex-wrap items-center justify-between gap-2">
+                <button
+                  type="button"
+                  onClick={handleTestGoogleAi}
+                  disabled={isTestingAi}
+                  className="px-3 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-medium rounded-lg flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 ${isTestingAi ? 'animate-spin text-amber-400' : 'text-indigo-400'}`} />
+                  <span>{isTestingAi ? 'מאמת מפתח Google AI...' : 'בדוק תקינות מפתח Google AI'}</span>
+                </button>
+
+                {aiTestResult && (
+                  <div className={`flex items-center gap-1.5 text-[11px] font-medium ${
+                    aiTestResult.success ? 'text-emerald-400' : 'text-rose-400'
+                  }`}>
+                    {aiTestResult.success ? <Check className="w-3.5 h-3.5" /> : <AlertCircle className="w-3.5 h-3.5" />}
+                    <span>{aiTestResult.msg}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-slate-800/80 pt-3">
+                <h3 className="font-bold text-white mb-2 flex items-center gap-2">
+                  <Key className="w-4 h-4 text-indigo-400" />
+                  <span>אינטגרציות נוספות (OpenAI, WhatsApp, Webhooks)</span>
+                </h3>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium">OpenAI API Key</label>
+                    <input
+                      type="password"
+                      value={openaiApiKey}
+                      onChange={(e) => setOpenaiApiKey(e.target.value)}
+                      placeholder="sk-..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium">Custom Webhook Endpoint</label>
+                    <input
+                      type="url"
+                      value={customWebhookUrl}
+                      onChange={(e) => setCustomWebhookUrl(e.target.value)}
+                      placeholder="https://hook.eu2.make.com/..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium">Green API (WhatsApp) Instance ID</label>
+                    <input
+                      type="text"
+                      value={greenApiInstanceId}
+                      onChange={(e) => setGreenApiInstanceId(e.target.value)}
+                      placeholder="110182..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium">Green API (WhatsApp) Token</label>
+                    <input
+                      type="password"
+                      value={greenApiToken}
+                      onChange={(e) => setGreenApiToken(e.target.value)}
+                      placeholder="d7a1..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-indigo-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

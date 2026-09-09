@@ -34,7 +34,7 @@ console.log(`📂 תיקיית יעד: ${outDir}\n`);
 // Ensure directory exists
 fs.mkdirSync(outDir, { recursive: true });
 
-// 1. Generate client.config.json with universal DB sync configuration
+// 1. Generate client.config.json with universal DB sync configuration & API keys
 const clientConfig = {
   clientId: clientSlug,
   clientName: `פרויקט לקוח ${clientSlug}`,
@@ -46,6 +46,14 @@ const clientConfig = {
     storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET || 'glowmanage.firebasestorage.app',
     databaseId: process.env.VITE_FIREBASE_DATABASE_ID || '(default)',
     collectionPrefix: `client_${clientSlug}_`,
+  },
+  apiKeysConfig: {
+    googleAiApiKey: process.env.VITE_GEMINI_API_KEY || '',
+    geminiModel: 'gemini-1.5-flash',
+    openaiApiKey: process.env.OPENAI_API_KEY || '',
+    greenApiInstanceId: process.env.GREEN_API_INSTANCE_ID || '',
+    greenApiToken: process.env.GREEN_API_TOKEN || '',
+    customWebhookUrl: process.env.CUSTOM_WEBHOOK_URL || '',
   },
   activeModules: selectedModules.map(m => ({
     id: m,
@@ -60,7 +68,7 @@ fs.writeFileSync(
   JSON.stringify(clientConfig, null, 2),
   'utf8'
 );
-console.log('✓ נוצר קובץ client.config.json בהצלחה (עם הגדרות סנכרון DB מלאות)');
+console.log('✓ נוצר קובץ client.config.json בהצלחה (עם הגדרות סנכרון DB ומפתחות API)');
 
 // 2. Generate client package.json
 const clientPackageJson = {

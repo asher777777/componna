@@ -25,9 +25,21 @@ export interface SystemCollectionsConfig {
   [key: string]: string;
 }
 
+export interface SystemApiKeysConfig {
+  googleAiApiKey?: string;
+  geminiModel?: string;
+  openaiApiKey?: string;
+  whatsappApiToken?: string;
+  greenApiInstanceId?: string;
+  greenApiToken?: string;
+  customWebhookUrl?: string;
+  [key: string]: string | undefined;
+}
+
 export interface SystemConnectionContextValue {
   config: SystemFirebaseConfig;
   collections: SystemCollectionsConfig;
+  apiKeys: SystemApiKeysConfig;
   firebaseApp?: FirebaseApp;
   db?: Firestore;
   storage?: FirebaseStorage;
@@ -36,6 +48,8 @@ export interface SystemConnectionContextValue {
   lastPingLatency?: number;
   lastPingError?: string;
   updateConfig: (newConfig: Partial<SystemFirebaseConfig>, newCollections?: Partial<SystemCollectionsConfig>) => Promise<void>;
+  updateApiKeys: (newKeys: Partial<SystemApiKeysConfig>) => Promise<void>;
+  testGoogleAiKey: (keyToTest?: string) => Promise<{ success: boolean; error?: string }>;
   testConnection: (customConfig?: SystemFirebaseConfig) => Promise<{ success: boolean; latency?: number; error?: string }>;
   resetToDefaults: () => void;
   openConnectorModal: () => void;
@@ -45,6 +59,17 @@ export interface SystemConnectionContextValue {
 
 const STORAGE_KEY = 'comona_system_connection_config';
 const COLLECTIONS_KEY = 'comona_system_collections_config';
+const APIKEYS_KEY = 'comona_system_apikeys_config';
+
+export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
+  googleAiApiKey: import.meta.env.VITE_GEMINI_API_KEY || '',
+  geminiModel: 'gemini-1.5-flash',
+  openaiApiKey: '',
+  whatsappApiToken: '',
+  greenApiInstanceId: '',
+  greenApiToken: '',
+  customWebhookUrl: '',
+};
 
 export const DEFAULT_FIREBASE_CONFIG: SystemFirebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyC011dhtJddDjLmTQ2HCvgVA0DPN8rKFwQ',
@@ -83,6 +108,14 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       if (saved) return { ...DEFAULT_SYSTEM_COLLECTIONS, ...JSON.parse(saved) };
     } catch {}
     return DEFAULT_SYSTEM_COLLECTIONS;
+  });
+
+  const [apiKeys, setApiKeys] = useState<SystemApiKeysConfig>(() => {
+    try {
+      const saved = localStorage.getItem(APIKEYS_KEY);
+      if (saved) return { ...DEFAULT_API_KEYS, ...JSON.parse(saved) };
+    } catch {}
+    return DEFAULT_API_KEYS;
   });
 
   const [isConnectorModalOpen, setIsConnectorModalOpen] = useState(false);
@@ -182,6 +215,34 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     [firebaseApp, collections.mediaItems]
   );
 
+  // Test Google AI / Gemini API Key
+  const testGoogleAiKey = useCallback(
+    async (keyToTest?: string): Promise<{ success: boolean; error?: string }> => {
+      const key = keyToTest || apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+      if (!key || key.trim().length === 0) {
+        return { success: false, error: 'לא הוזן מפתח Google AI / Gemini API Key' };
+      }
+
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${key.trim()}`
+        );
+        if (res.ok) {
+          return { success: true };
+        } else {
+          const errJson = await res.json().catch(() => ({}));
+          return {
+            success: false,
+            error: errJson?.error?.message || `שגיאה באימות Google API (${res.status} ${res.statusText})`,
+          };
+        }
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'שגיאת רשת בבדיקת מפתח Gemini' };
+      }
+    },
+    [apiKeys.googleAiApiKey]
+  );
+
   const updateConfig = useCallback(
     async (newConfig: Partial<SystemFirebaseConfig>, newCollections?: Partial<SystemCollectionsConfig>) => {
       const updatedConfig = { ...config, ...newConfig };
@@ -206,12 +267,25 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     [config, collections]
   );
 
+  const updateApiKeys = useCallback(
+    async (newKeys: Partial<SystemApiKeysConfig>) => {
+      const updated = { ...apiKeys, ...newKeys };
+      setApiKeys(updated);
+      try {
+        localStorage.setItem(APIKEYS_KEY, JSON.stringify(updated));
+      } catch {}
+    },
+    [apiKeys]
+  );
+
   const resetToDefaults = useCallback(() => {
     setConfig(DEFAULT_FIREBASE_CONFIG);
     setCollections(DEFAULT_SYSTEM_COLLECTIONS);
+    setApiKeys(DEFAULT_API_KEYS);
     try {
       localStorage.removeItem(STORAGE_KEY);
       localStorage.removeItem(COLLECTIONS_KEY);
+      localStorage.removeItem(APIKEYS_KEY);
     } catch {}
   }, []);
 
@@ -223,6 +297,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       value={{
         config,
         collections,
+        apiKeys,
         firebaseApp,
         db,
         storage,
@@ -231,6 +306,8 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         lastPingLatency,
         lastPingError,
         updateConfig,
+        updateApiKeys,
+        testGoogleAiKey,
         testConnection,
         resetToDefaults,
         openConnectorModal,
