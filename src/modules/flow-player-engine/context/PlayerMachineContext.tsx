@@ -225,7 +225,7 @@ export const PlayerMachineProvider: React.FC<{
     setCurrentNodeId(targetId);
     setHistory((prev) => [...prev, targetId]);
 
-    const targetUrl = newCampaign.states[targetId]?.videoUrl || '';
+    const targetUrl = newCampaign.states[targetId]?.videoUrl || newCampaign.states[targetId]?.fallbackVideoUrl || '';
     const nextSlot = activeVideoSlot === 0 ? 1 : 0;
     setVideoUrls((prev) => {
       const updated: [string, string] = [...prev];

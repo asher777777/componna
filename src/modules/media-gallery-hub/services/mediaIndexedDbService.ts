@@ -1,4 +1,4 @@
-﻿import { MediaItem } from '../types';
+import { MediaItem } from '../types';
 
 const DB_NAME = 'ComonaMediaVaultDB';
 const DB_VERSION = 1;
@@ -41,11 +41,25 @@ export class MediaIndexedDbService {
    */
   public static async saveMedia(item: MediaItem, fileOrBlob?: Blob | File): Promise<void> {
     try {
+      // 0. Remove from deleted tombstones list so new uploads are never blocked
+      try {
+        const stored = localStorage.getItem('sdo_media_deleted_ids');
+        if (stored) {
+          const deletedArr: string[] = JSON.parse(stored);
+          const nameLower = (item.name || '').toLowerCase().trim();
+          const idLower = (item.id || '').toLowerCase().trim();
+          const filtered = deletedArr.filter(
+            (d) => d.toLowerCase().trim() !== nameLower && d.toLowerCase().trim() !== idLower
+          );
+          localStorage.setItem('sdo_media_deleted_ids', JSON.stringify(filtered));
+        }
+      } catch {}
+
       // 1. Backup metadata to LocalStorage
       try {
         const existingRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
         const existing: MediaItem[] = existingRaw ? JSON.parse(existingRaw) : [];
-        const filtered = existing.filter((i) => i.id !== item.id);
+        const filtered = existing.filter((i) => i.id !== item.id && i.name.toLowerCase().trim() !== item.name.toLowerCase().trim());
         filtered.unshift(item);
         // keep up to 100 metadata items in localstorage
         localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered.slice(0, 100)));
@@ -63,11 +77,13 @@ export class MediaIndexedDbService {
 
       if (fileOrBlob) {
         blobsStore.put({ id: item.id, blob: fileOrBlob, name: item.name, mimeType: item.mimeType });
+        blobsStore.put({ id: item.name.toLowerCase().trim(), blob: fileOrBlob, name: item.name, mimeType: item.mimeType });
       } else if (item.url && item.url.startsWith('blob:')) {
         try {
           const resp = await fetch(item.url);
           const blob = await resp.blob();
           blobsStore.put({ id: item.id, blob, name: item.name, mimeType: item.mimeType });
+          blobsStore.put({ id: item.name.toLowerCase().trim(), blob, name: item.name, mimeType: item.mimeType });
         } catch (e) {
           console.warn('[MediaIndexedDb] Could not extract blob from url:', e);
         }
@@ -113,18 +129,29 @@ export class MediaIndexedDbService {
         } catch (e) {}
       }
 
-      // Re-create fresh Object URLs for each local item if it has a stored Blob
-      const reconstructed: MediaItem[] = items.map((item) => {
-        const storedBlob = blobsMap.get(item.id);
-        if (storedBlob) {
-          const freshObjectUrl = URL.createObjectURL(storedBlob);
-          return {
-            ...item,
-            url: freshObjectUrl,
-          };
+      // Check deleted tombstone set
+      let deletedSet = new Set<string>();
+      try {
+        const stored = localStorage.getItem('sdo_media_deleted_ids');
+        if (stored) {
+          deletedSet = new Set(JSON.parse(stored).map((x: string) => x.toLowerCase().trim()));
         }
-        return item;
-      });
+      } catch {}
+
+      // Re-create fresh Object URLs for each local item if it has a stored Blob
+      const reconstructed: MediaItem[] = items
+        .filter((item) => !deletedSet.has(item.id.toLowerCase().trim()) && !deletedSet.has(item.name.toLowerCase().trim()))
+        .map((item) => {
+          const storedBlob = blobsMap.get(item.id) || blobsMap.get(item.name.toLowerCase().trim());
+          if (storedBlob) {
+            const freshObjectUrl = URL.createObjectURL(storedBlob);
+            return {
+              ...item,
+              url: freshObjectUrl,
+            };
+          }
+          return item;
+        });
 
       return reconstructed;
     } catch (error) {
@@ -148,7 +175,12 @@ export class MediaIndexedDbService {
         const existingRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
         if (existingRaw) {
           const existing: MediaItem[] = JSON.parse(existingRaw);
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(existing.filter((i) => i.id !== id)));
+          const target = existing.find((i) => i.id === id);
+          const targetName = target ? target.name.toLowerCase().trim() : '';
+          localStorage.setItem(
+            LOCAL_STORAGE_KEY,
+            JSON.stringify(existing.filter((i) => i.id !== id && i.name.toLowerCase().trim() !== targetName))
+          );
         }
       } catch (e) {}
 
@@ -165,5 +197,142 @@ export class MediaIndexedDbService {
     } catch (error) {
       console.warn('[MediaIndexedDb] Failed to delete media from IndexedDB:', error);
     }
+  }
+
+  /**
+   * Get an active Object URL for a given media ID, name, or key from IndexedDB
+   */
+  public static async getBlobUrl(key: string): Promise<string | null> {
+    if (!key) return null;
+    try {
+      const db = await this.openDB();
+      const tx = db.transaction([STORE_BLOBS], 'readonly');
+      const blobsStore = tx.objectStore(STORE_BLOBS);
+
+      const cleanKey = key.trim();
+      const lowerKey = cleanKey.toLowerCase();
+
+      return new Promise<string | null>((resolve) => {
+        const req = blobsStore.get(cleanKey);
+        req.onsuccess = () => {
+          if (req.result?.blob) {
+            resolve(URL.createObjectURL(req.result.blob));
+            return;
+          }
+          // Try lower case
+          const req2 = blobsStore.get(lowerKey);
+          req2.onsuccess = () => {
+            if (req2.result?.blob) {
+              resolve(URL.createObjectURL(req2.result.blob));
+            } else {
+              resolve(null);
+            }
+          };
+          req2.onerror = () => resolve(null);
+        };
+        req.onerror = () => resolve(null);
+      });
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Rehydrate any ephemeral/blob media URLs in a campaign from persistent IndexedDB Blobs
+   */
+  public static async rehydrateCampaignMedia<T extends { states?: Record<string, any> }>(
+    campaign: T
+  ): Promise<T> {
+    if (!campaign || !campaign.states || typeof window === 'undefined') {
+      return campaign;
+    }
+
+    try {
+      const allMedia = await this.getAllMedia();
+      if (!allMedia || allMedia.length === 0) {
+        return campaign;
+      }
+
+      const mediaMap = new Map<string, string>();
+      allMedia.forEach((item) => {
+        if (item.url) {
+          mediaMap.set(item.id.toLowerCase().trim(), item.url);
+          mediaMap.set(item.name.toLowerCase().trim(), item.url);
+        }
+      });
+
+      const updatedStates = { ...campaign.states };
+      let hasChanges = false;
+
+      for (const [nodeId, node] of Object.entries(updatedStates)) {
+        if (!node) continue;
+        let freshVideoUrl = node.videoUrl;
+
+        // If videoUrl is missing, or is a dead session blob, or matches mediaId/mediaName
+        const isBlob = node.videoUrl && node.videoUrl.startsWith('blob:');
+        const mediaId = (node.mediaId || '').toLowerCase().trim();
+        const mediaName = (node.mediaName || '').toLowerCase().trim();
+        const nodeName = (node.name || '').toLowerCase().trim();
+
+        if (isBlob || !freshVideoUrl || mediaId || mediaName) {
+          const resolvedUrl =
+            (mediaId && mediaMap.get(mediaId)) ||
+            (mediaName && mediaMap.get(mediaName)) ||
+            (nodeName && mediaMap.get(nodeName));
+
+          if (resolvedUrl) {
+            freshVideoUrl = resolvedUrl;
+            hasChanges = true;
+          } else if (isBlob) {
+            // Try matching any video from stored media if single video exists
+            const videoMedia = allMedia.filter((m) => m.type === 'video');
+            if (videoMedia.length === 1 && videoMedia[0].url) {
+              freshVideoUrl = videoMedia[0].url;
+              hasChanges = true;
+            }
+          }
+        }
+
+        // Rehydrate carousel cards images if any
+        let updatedOverlays = node.overlays;
+        if (node.overlays && Array.isArray(node.overlays)) {
+          updatedOverlays = node.overlays.map((ov: any) => {
+            if (ov.type === 'carousel' && Array.isArray(ov.carouselItems)) {
+              const updatedCards = ov.carouselItems.map((card: any) => {
+                if (card.imageUrl && card.imageUrl.startsWith('blob:')) {
+                  const cardTitle = (card.title || '').toLowerCase().trim();
+                  const resolvedImg = mediaMap.get(cardTitle);
+                  if (resolvedImg) {
+                    hasChanges = true;
+                    return { ...card, imageUrl: resolvedImg };
+                  }
+                }
+                return card;
+              });
+              return { ...ov, carouselItems: updatedCards };
+            }
+            return ov;
+          });
+        }
+
+        updatedStates[nodeId] = {
+          ...node,
+          videoUrl: freshVideoUrl || node.videoUrl,
+          fallbackVideoUrl: freshVideoUrl || node.fallbackVideoUrl,
+          overlays: updatedOverlays,
+        };
+      }
+
+      if (hasChanges) {
+        return {
+          ...campaign,
+          states: updatedStates,
+        };
+      }
+    } catch (e) {
+      console.warn('[MediaIndexedDb] Rehydrate campaign media notice:', e);
+    }
+
+    return campaign;
   }
 }

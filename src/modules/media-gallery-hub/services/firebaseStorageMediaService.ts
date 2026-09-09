@@ -28,6 +28,7 @@ export class FirebaseStorageMediaService {
     const timeStamp = Date.now();
     const storagePath = `sdo_media_vault/${timeStamp}_${safeName}`;
     const directUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
+    const workingLocalUrl = URL.createObjectURL(file);
 
     let mediaType: MediaType = 'other';
     if (safeName.match(/\.(mp4|webm|mov|avi|mkv)$/i)) mediaType = 'video';
@@ -39,11 +40,25 @@ export class FirebaseStorageMediaService {
       name: safeName,
       type: mediaType,
       mimeType: file.type || (mediaType === 'video' ? 'video/mp4' : mediaType === 'image' ? 'image/jpeg' : 'audio/mp3'),
-      url: directUrl,
+      url: workingLocalUrl,
       sizeBytes: file.size || 1992294,
       createdAt: timeStamp,
       tags: ['flow_player', 'firebase_storage', mediaType],
     };
+
+    // 0. Remove from deleted tombstones list so new uploads are never blocked
+    try {
+      const stored = localStorage.getItem('sdo_media_deleted_ids');
+      if (stored) {
+        const deletedArr: string[] = JSON.parse(stored);
+        const nameLower = safeName.toLowerCase().trim();
+        const idLower = localMediaItem.id.toLowerCase().trim();
+        const filtered = deletedArr.filter(
+          (d) => d.toLowerCase().trim() !== nameLower && d.toLowerCase().trim() !== idLower
+        );
+        localStorage.setItem('sdo_media_deleted_ids', JSON.stringify(filtered));
+      }
+    } catch {}
 
     // 1. Immediately backup to local IndexedDB & notify progress
     if (onProgress) onProgress(15);
@@ -93,7 +108,7 @@ export class FirebaseStorageMediaService {
         isResolved = true;
         if (onProgress) onProgress(100);
 
-        // Update IndexedDB record with confirmed final URL
+        // Update IndexedDB record with confirmed URL
         MediaIndexedDbService.saveMedia({ ...localMediaItem, url: finalUrl }, file).catch(() => {});
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: { ...localMediaItem, url: finalUrl } }));
@@ -101,10 +116,10 @@ export class FirebaseStorageMediaService {
         resolve(finalUrl);
       };
 
-      // Safety timeout: if cloud storage stalls or CORS blocks it, resolve smoothly with direct/local URL within 6s
+      // Safety timeout: if cloud storage stalls or CORS blocks it, resolve smoothly with local working URL
       const safetyTimeout = setTimeout(() => {
-        finish(directUrl);
-      }, 6000);
+        finish(workingLocalUrl);
+      }, 5000);
 
       try {
         const storage = this.getStorageInstance(app);
@@ -122,7 +137,7 @@ export class FirebaseStorageMediaService {
           (error) => {
             clearTimeout(safetyTimeout);
             console.warn('[FirebaseStorageMediaService] Cloud storage direct fallback:', error?.message || error);
-            finish(directUrl);
+            finish(workingLocalUrl);
           },
           async () => {
             clearTimeout(safetyTimeout);
@@ -130,14 +145,14 @@ export class FirebaseStorageMediaService {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
               finish(downloadUrl);
             } catch {
-              finish(directUrl);
+              finish(workingLocalUrl);
             }
           }
         );
       } catch (err) {
         clearTimeout(safetyTimeout);
         console.warn('[FirebaseStorageMediaService] Storage upload fallback exception:', err);
-        finish(directUrl);
+        finish(workingLocalUrl);
       }
     });
   }

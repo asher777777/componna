@@ -15,6 +15,7 @@ import {
   SessionTelemetryEvent,
 } from '../types';
 import { DEFAULT_CAMPAIGN_CONFIG } from '../config';
+import { MediaIndexedDbService } from '../../media-gallery-hub/services/mediaIndexedDbService';
 
 /**
  * Remove undefined values to prevent Firestore serialization errors
@@ -33,14 +34,6 @@ function cleanUndefinedFields<T extends Record<string, any>>(obj: T): T {
   return cleaned;
 }
 
-function sanitizeVideoUrl(url: string | undefined, fallback: string | undefined): string {
-  if (!url) return fallback || '';
-  if (url.startsWith('blob:')) {
-    return fallback || '';
-  }
-  return url;
-}
-
 export class FirestoreService {
   /**
    * Fetch campaign configuration by slug / ID with fallback to latest modified document & localStorage
@@ -52,21 +45,6 @@ export class FirestoreService {
   ): Promise<CampaignConfig | null> {
     const slug = (campaignSlugOrId || 'sales_rep_interactive_01').trim();
 
-    // Helper to sanitize any campaign states loaded from cache or db
-    const sanitizeCampaignStates = (camp: CampaignConfig): CampaignConfig => {
-      if (!camp || !camp.states) return camp;
-      const cleanStates: Record<string, FlowNodeState> = {};
-      Object.entries(camp.states).forEach(([k, node]) => {
-        const fallback = node.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[k]?.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[k]?.videoUrl || '';
-        cleanStates[k] = {
-          ...node,
-          videoUrl: sanitizeVideoUrl(node.videoUrl, fallback),
-          fallbackVideoUrl: node.fallbackVideoUrl && !node.fallbackVideoUrl.startsWith('blob:') ? node.fallbackVideoUrl : fallback,
-        };
-      });
-      return { ...camp, states: cleanStates };
-    };
-
     // 1. First check LocalStorage for instant zero-latency retrieval
     let localCached: CampaignConfig | null = null;
     try {
@@ -74,7 +52,7 @@ export class FirestoreService {
         localStorage.getItem(`sdo_player_camp_${slug}`) ||
         localStorage.getItem('sdo_player_camp_latest');
       if (stored) {
-        localCached = sanitizeCampaignStates(JSON.parse(stored));
+        localCached = JSON.parse(stored);
       }
     } catch {}
 
@@ -99,7 +77,9 @@ export class FirestoreService {
       }
 
       if (!snapshot || !snapshot.exists()) {
-        if (localCached) return localCached;
+        if (localCached) {
+          return await MediaIndexedDbService.rehydrateCampaignMedia(localCached);
+        }
         console.warn(`[FirestoreService] Campaign "${slug}" not found in Firestore.`);
         return null;
       }
@@ -120,17 +100,18 @@ export class FirestoreService {
 
           const defaultFallback = DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.videoUrl || '';
           const rawFallback = scene.mediaAssets?.fallbackVideoUrl || mainNodeState?.fallbackVideoUrl || defaultFallback;
-          const fallback = rawFallback && !rawFallback.startsWith('blob:') ? rawFallback : defaultFallback;
-
           const rawVideoUrl = scene.mediaAssets?.videoUrl || mainNodeState?.videoUrl || '';
-          const finalVideoUrl = sanitizeVideoUrl(rawVideoUrl, fallback);
+          const mediaId = scene.mediaAssets?.mediaId || mainNodeState?.mediaId;
+          const mediaName = scene.mediaAssets?.mediaName || mainNodeState?.mediaName;
 
           const nodeState: FlowNodeState = {
             id: nodeId,
             name: scene.name || mainNodeState?.name || nodeId,
             description: scene.description || mainNodeState?.description,
-            videoUrl: finalVideoUrl,
-            fallbackVideoUrl: fallback,
+            videoUrl: rawVideoUrl || rawFallback,
+            fallbackVideoUrl: rawFallback,
+            mediaId: mediaId,
+            mediaName: mediaName,
             autoPlay: scene.triggers?.autoPlay ?? mainNodeState?.autoPlay ?? true,
             loopUntilTrigger: scene.triggers?.loopUntilTrigger ?? mainNodeState?.loopUntilTrigger ?? true,
             loop: scene.triggers?.loopUntilTrigger ?? mainNodeState?.loop ?? true,
@@ -154,13 +135,13 @@ export class FirestoreService {
         console.warn('[FirestoreService] Subcollection query notice:', subCollErr);
       }
 
-      const mergedCampaign: CampaignConfig = sanitizeCampaignStates({
+      const mergedCampaign: CampaignConfig = {
         ...mainData,
         id: activeSlug,
         slug: activeSlug,
         states: reconstructedStates,
         updatedAt: mainData.updatedAt || Date.now(),
-      });
+      };
 
       // Keep localStorage in sync with newest remote data
       try {
@@ -168,16 +149,18 @@ export class FirestoreService {
         localStorage.setItem('sdo_player_camp_latest', JSON.stringify(mergedCampaign));
       } catch {}
 
-      return mergedCampaign;
+      // Rehydrate media URLs from persistent local IndexedDB
+      const rehydrated = await MediaIndexedDbService.rehydrateCampaignMedia(mergedCampaign);
+      return rehydrated;
     } catch (err) {
       console.warn('[FirestoreService] Firestore fetch fallback to local cache:', err);
-      return localCached;
+      if (localCached) {
+        return await MediaIndexedDbService.rehydrateCampaignMedia(localCached);
+      }
+      return null;
     }
   }
 
-  /**
-   * Save entire Campaign JSON document under unique Slug and save each Scene in subcollection
-   */
   /**
    * Save entire Campaign JSON document under unique Slug and save each Scene in subcollection
    */
@@ -188,14 +171,15 @@ export class FirestoreService {
   ): Promise<void> {
     const slug = (campaign.slug || campaign.id || 'sales_rep_interactive_01').trim();
 
-    // Sanitize any blob URLs before persisting to avoid saving dead session references
     const sanitizedStates: Record<string, FlowNodeState> = {};
     Object.entries(campaign.states || {}).forEach(([nodeId, node]) => {
       const fallback = node.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.fallbackVideoUrl || DEFAULT_CAMPAIGN_CONFIG.states[nodeId]?.videoUrl || '';
       sanitizedStates[nodeId] = {
         ...node,
-        videoUrl: sanitizeVideoUrl(node.videoUrl, fallback),
-        fallbackVideoUrl: node.fallbackVideoUrl && !node.fallbackVideoUrl.startsWith('blob:') ? node.fallbackVideoUrl : fallback,
+        videoUrl: node.videoUrl || fallback,
+        fallbackVideoUrl: node.fallbackVideoUrl || fallback,
+        mediaId: node.mediaId,
+        mediaName: node.mediaName,
       };
     });
 
@@ -253,9 +237,9 @@ export class FirestoreService {
 
           const cardImages: string[] = [];
           node.overlays?.forEach((ov) => {
-            if (ov.imageUrl && !ov.imageUrl.startsWith('blob:')) cardImages.push(ov.imageUrl);
+            if (ov.imageUrl) cardImages.push(ov.imageUrl);
             ov.carouselItems?.forEach((c) => {
-              if (c.imageUrl && !c.imageUrl.startsWith('blob:')) cardImages.push(c.imageUrl);
+              if (c.imageUrl) cardImages.push(c.imageUrl);
             });
           });
 
@@ -267,6 +251,8 @@ export class FirestoreService {
             mediaAssets: {
               videoUrl: node.videoUrl || '',
               fallbackVideoUrl: node.fallbackVideoUrl,
+              mediaId: node.mediaId,
+              mediaName: node.mediaName,
               cardImages,
             },
             triggers: {
@@ -279,12 +265,13 @@ export class FirestoreService {
               autoTransitionOnEnd: node.autoTransitionOnEnd ?? false,
               autoTransitionTarget: node.autoTransitionTarget,
               autoTransitionDelaySec: node.autoTransitionDelaySec,
+              allowedIntents: node.allowedIntents,
             },
             cardsAndOverlays: {
               overlays: node.overlays || [],
             },
             formApiConfig: {
-              apiEndpoint: node.formsApiEndpoint || sanitizedCampaign.formsApiEndpoint,
+              apiEndpoint: node.formsApiEndpoint,
             },
             updatedAt: Date.now(),
           };

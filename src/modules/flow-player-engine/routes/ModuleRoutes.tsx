@@ -29,23 +29,21 @@ const CampaignPlayerView: React.FC = () => {
     async function loadCampaign() {
       const targetId = campaignId || config.campaignId || DEFAULT_CAMPAIGN_CONFIG.id;
 
-      if (db) {
-        try {
-          const timeoutPromise = new Promise<null>((resolve) =>
-            setTimeout(() => resolve(null), 2500)
-          );
-          const loadPromise = FirestoreService.getCampaignConfig(db, collections, targetId);
-          const loaded = await Promise.race([loadPromise, timeoutPromise]);
-          if (loaded && isMounted) {
-            setCampaign(loaded);
-            return;
-          }
-        } catch (err) {
-          console.warn(
-            '[ModuleRoutes] Failed to fetch campaign from Firestore, using default config:',
-            err
-          );
+      try {
+        const timeoutPromise = new Promise<null>((resolve) =>
+          setTimeout(() => resolve(null), 3000)
+        );
+        const loadPromise = FirestoreService.getCampaignConfig(db as any, collections, targetId);
+        const loaded = await Promise.race([loadPromise, timeoutPromise]);
+        if (loaded && isMounted) {
+          setCampaign(loaded);
+          return;
         }
+      } catch (err) {
+        console.warn(
+          '[ModuleRoutes] Failed to fetch campaign, fallback to default config:',
+          err
+        );
       }
     }
 

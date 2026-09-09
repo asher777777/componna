@@ -44,6 +44,8 @@ export interface FlowNodeState {
   description?: string;
   videoUrl?: string;
   fallbackVideoUrl?: string;
+  mediaId?: string;
+  mediaName?: string;
 
   // Triggers & Playback Configurations
   autoPlay?: boolean; // א. הפעלה אוטומטית או לא
@@ -53,6 +55,7 @@ export interface FlowNodeState {
   autoTransitionOnEnd?: boolean; // ג. העבר אוטומטית לצומת הבא בסיום הווידאו
   autoTransitionDelaySec?: number; // ג. העבר אוטומטית לאחר X שניות
   autoTransitionTarget?: string; // ג. צומת היעד למעבר אוטומטי
+  formsApiEndpoint?: string; // כתובת ה-API עבור INPUT מטפסים
 
   overlays?: OverlayItem[];
   allowedIntents?: Record<string, string>; // intentName -> targetNodeId
@@ -61,7 +64,6 @@ export interface FlowNodeState {
   micActionType?: 'open_text_input' | 'navigate_to_node';
   clickMicTargetNodeId?: string;
   micIcon?: string;
-  formsApiEndpoint?: string; // כתובת ה-API עבור INPUT מטפסים
 }
 
 export interface SceneDocument {
@@ -72,6 +74,8 @@ export interface SceneDocument {
   mediaAssets: {
     videoUrl?: string;
     fallbackVideoUrl?: string;
+    mediaId?: string;
+    mediaName?: string;
     thumbnailUrl?: string;
     cardImages?: string[];
   };

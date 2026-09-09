@@ -3,6 +3,7 @@ import { Mic, MicOff, Send, Sparkles, Loader2, ArrowRight } from 'lucide-react';
 import { usePlayerMachine } from '../context/PlayerMachineContext';
 import { useFlowPlayerModule } from '../context/ModuleContext';
 import { FunctionsApi } from '../api/functionsApi';
+import { PremiumVectorIcon } from '../utils/premiumIcons';
 
 export const VoiceRecorderInteraction: React.FC = () => {
   const {
@@ -210,40 +211,43 @@ export const VoiceRecorderInteraction: React.FC = () => {
         </form>
       )}
 
-      {/* כפתור טריגר זהב אינטראקטיבי / מיקרופון */}
-      <div className="pointer-events-auto relative flex flex-col items-center group">
+      {/* כפתור מיקרופון עגול מלוטש שחור-זהב */}
+      <div className="pointer-events-auto relative flex flex-col items-center group mb-2">
         {/* Pulsing Aura Rings */}
-        <span className="absolute w-20 h-20 rounded-full bg-yellow-500/25 animate-ping pointer-events-none" />
-        <span className="absolute w-24 h-24 rounded-full bg-amber-400/20 animate-pulse pointer-events-none" />
+        <span className="absolute w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-amber-400/20 animate-ping pointer-events-none" />
+        <span className="absolute w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-yellow-500/15 animate-pulse pointer-events-none" />
 
         <button
+          type="button"
           onClick={handleMicClick}
           disabled={isProcessingIntent}
           title={isScreenCenterTrigger || currentNode?.micActionType === 'navigate_to_node' ? 'לחץ למעבר לצומת הבא' : 'לחץ לדיבור או הקלדה'}
-          className={`relative rounded-full flex items-center justify-center transition-all transform hover:scale-110 active:scale-95 cursor-pointer shadow-[0_0_35px_rgba(234,179,8,0.75)] border-2 border-yellow-200/90 ${
+          className={`relative rounded-full flex items-center justify-center transition-all transform hover:scale-110 active:scale-95 cursor-pointer shadow-[0_0_25px_rgba(251,191,36,0.4)] border-2 border-amber-400 ${
             isCenter ? 'w-20 h-20 sm:w-24 sm:h-24' : 'w-14 h-14 sm:w-16 sm:h-16'
           } ${
             isVoiceListening
-              ? 'bg-gradient-to-tr from-amber-500 via-yellow-300 to-amber-600 text-black ring-4 ring-yellow-400/60'
-              : 'bg-gradient-to-tr from-amber-600 via-yellow-400 to-amber-300 text-slate-950 ring-2 ring-yellow-400/40 hover:shadow-[0_0_45px_rgba(234,179,8,0.95)]'
+              ? 'bg-amber-400 text-slate-950 ring-4 ring-amber-400/60'
+              : 'bg-black/90 text-amber-400 hover:bg-black hover:border-amber-300 hover:shadow-[0_0_35px_rgba(251,191,36,0.7)]'
           }`}
         >
           {currentNode?.micIcon ? (
-            <span className={`${isCenter ? 'text-3xl sm:text-4xl' : 'text-xl sm:text-2xl'} select-none drop-shadow-md`}>
-              {currentNode.micIcon}
-            </span>
+            <PremiumVectorIcon
+              iconKey={currentNode.micIcon}
+              className={isCenter ? 'w-10 h-10 sm:w-12 sm:h-12' : 'w-7 h-7 sm:w-8 sm:h-8'}
+              isGold={!isVoiceListening}
+            />
           ) : isScreenCenterTrigger ? (
-            <ArrowRight className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} text-slate-950 drop-shadow-md transform rtl:rotate-180`} />
+            <ArrowRight className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} text-amber-400 drop-shadow-md transform rtl:rotate-180`} />
           ) : isVoiceListening ? (
-            <MicOff className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} animate-pulse text-red-950`} />
+            <MicOff className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} animate-pulse text-red-900`} />
           ) : (
-            <Mic className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} text-slate-950 drop-shadow-md`} />
+            <Mic className={`${isCenter ? 'w-9 h-9 sm:w-10 sm:h-10' : 'w-6 h-6 sm:w-7 sm:h-7'} text-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]`} />
           )}
         </button>
 
         {/* Subtitle helper badge */}
         {isCenter && !showTextInput && (
-          <span className="mt-2.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-yellow-500/60 text-[11px] font-bold text-yellow-300 shadow-xl animate-pulse flex items-center space-x-1.5 rtl:space-x-reverse">
+          <span className="mt-2.5 px-3.5 py-1.5 rounded-full bg-black/80 backdrop-blur-md border border-amber-500/60 text-[11px] font-bold text-amber-300 shadow-xl animate-pulse flex items-center space-x-1.5 rtl:space-x-reverse">
             {isScreenCenterTrigger ? (
               <span>🎯 לחץ כאן להמשך ➔</span>
             ) : currentNode?.micActionType === 'navigate_to_node' ? (

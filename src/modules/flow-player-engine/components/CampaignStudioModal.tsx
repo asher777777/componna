@@ -33,6 +33,7 @@ import {
   MediaIndexedDbService,
   MediaItem,
 } from '../../media-gallery-hub';
+import { PREMIUM_ICONS, PremiumVectorIcon } from '../utils/premiumIcons';
 
 const COMMON_ICONS = ['💰', '📞', '🎙️', '🔄', '🚀', '🎁', '⭐', '💡', '🏷️', '🛍️', 'ℹ️', '🔥'];
 
@@ -77,9 +78,30 @@ export const CampaignStudioModal: React.FC<{
 
     // 1. Create local object URL for instant preview & playback
     const objectUrl = URL.createObjectURL(file);
-    handleUpdateNode(nodeId, { videoUrl: objectUrl });
+    const mediaId = `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`;
 
-    // 2. Upload to Firebase Storage and persist in Media Gallery
+    const localItem: MediaItem = {
+      id: mediaId,
+      name: file.name,
+      type: 'video',
+      mimeType: file.type || 'video/mp4',
+      url: objectUrl,
+      sizeBytes: file.size,
+      createdAt: Date.now(),
+      tags: ['flow_player', 'upload', 'וידאו'],
+    };
+
+    // Always immediately save to IndexedDB so it's safely persisted locally
+    await MediaIndexedDbService.saveMedia(localItem, file);
+
+    handleUpdateNode(nodeId, {
+      videoUrl: objectUrl,
+      fallbackVideoUrl: objectUrl,
+      mediaId: mediaId,
+      mediaName: file.name,
+    });
+
+    // 2. Upload to Firebase Storage and persist in Firestore Media Gallery
     setUploadingNodeId(nodeId);
     setUploadProgress(15);
     try {
@@ -91,28 +113,21 @@ export const CampaignStudioModal: React.FC<{
           file.name,
           (pct) => setUploadProgress(pct)
         );
-      } else {
-        const localItem: MediaItem = {
-          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
-          name: file.name,
-          type: 'video',
-          mimeType: file.type || 'video/mp4',
-          url: objectUrl,
-          sizeBytes: file.size,
-          createdAt: Date.now(),
-          tags: ['flow_player', 'upload', 'וידאו'],
-        };
-        await MediaIndexedDbService.saveMedia(localItem, file);
       }
 
       // Update node with persistent URL
-      handleUpdateNode(nodeId, { videoUrl: downloadUrl });
+      handleUpdateNode(nodeId, {
+        videoUrl: downloadUrl,
+        fallbackVideoUrl: downloadUrl,
+        mediaId: mediaId,
+        mediaName: file.name,
+      });
       setUploadProgress(100);
 
       // Save into Media Gallery collection so it appears in the gallery everywhere!
       if (db) {
         const mediaItem: MediaItem = {
-          id: `storage_${Date.now()}_${file.name.replace(/[^a-zA-Z0-9_.-]/g, '_')}`,
+          id: mediaId,
           name: file.name,
           type: 'video',
           mimeType: file.type || 'video/mp4',
@@ -342,15 +357,13 @@ export const CampaignStudioModal: React.FC<{
     // 2. Close modal immediately
     onClose();
 
-    // 3. Persist to Firestore asynchronously in background without blocking UI
-    if (db) {
-      try {
-        const savePromise = FirestoreService.saveCampaignConfig(db, collections, editingCampaign);
-        const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 4000));
-        await Promise.race([savePromise, timeoutPromise]);
-      } catch (err) {
-        console.warn('[Studio] Background Firestore save notice:', err);
-      }
+    // 3. Persist to Firestore and LocalStorage asynchronously in background without blocking UI
+    try {
+      const savePromise = FirestoreService.saveCampaignConfig(db as any, collections, editingCampaign);
+      const timeoutPromise = new Promise((resolve) => setTimeout(resolve, 4000));
+      await Promise.race([savePromise, timeoutPromise]);
+    } catch (err) {
+      console.warn('[Studio] Background Firestore save notice:', err);
     }
   };
 
@@ -582,27 +595,36 @@ export const CampaignStudioModal: React.FC<{
                       <span>הגדרות וטריגר לחיצה על מיקרופון:</span>
                     </div>
 
-                    {/* בחירת אייקון לכפתור המיקרופון */}
-                    <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                      <span className="text-[11px] text-slate-400">אייקון הכפתור:</span>
-                      <input
-                        type="text"
-                        value={currentNode.micIcon || ''}
-                        onChange={(e) => handleUpdateNode(currentNode.id, { micIcon: e.target.value })}
-                        placeholder="🎙️"
-                        className="w-10 text-center bg-slate-950 border border-slate-700 rounded-lg py-0.5 text-xs text-white focus:border-yellow-500"
-                      />
-                      <div className="flex gap-1">
-                        {['🎙️', '🎤', '💬', '⚡', '🎧', '🤖'].map((ic) => (
-                          <button
-                            key={ic}
-                            type="button"
-                            onClick={() => handleUpdateNode(currentNode.id, { micIcon: ic })}
-                            className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-xs flex items-center justify-center transition-colors cursor-pointer"
-                          >
-                            {ic}
-                          </button>
-                        ))}
+                    {/* בחירת אייקון וקטורי יוקרתי לכפתור המיקרופון */}
+                    <div className="flex items-center gap-2 rtl:space-x-reverse flex-wrap">
+                      <span className="text-[11px] text-slate-300 font-semibold">אייקון הכפתור:</span>
+
+                      {/* Active Icon Preview Badge */}
+                      <div className="w-8 h-8 rounded-xl bg-slate-950 border border-amber-400/80 flex items-center justify-center shadow-[0_0_10px_rgba(251,191,36,0.3)] flex-shrink-0">
+                        <PremiumVectorIcon iconKey={currentNode.micIcon || 'mic'} className="w-4 h-4" />
+                      </div>
+
+                      {/* Luxury Vector Icons Grid */}
+                      <div className="flex items-center gap-1.5 flex-wrap max-w-sm">
+                        {PREMIUM_ICONS.map((item) => {
+                          const isSelected = (currentNode.micIcon || 'mic') === item.id || (currentNode.micIcon && item.aliases.includes(currentNode.micIcon));
+                          const IconComp = item.icon;
+                          return (
+                            <button
+                              key={item.id}
+                              type="button"
+                              onClick={() => handleUpdateNode(currentNode.id, { micIcon: item.id })}
+                              title={item.label}
+                              className={`w-7 h-7 rounded-lg border transition-all flex items-center justify-center cursor-pointer transform hover:scale-115 active:scale-95 ${
+                                isSelected
+                                  ? 'bg-amber-500/25 border-amber-400 text-amber-300 shadow-[0_0_10px_rgba(251,191,36,0.5)]'
+                                  : 'bg-slate-950/90 border-slate-800 text-slate-400 hover:text-amber-300 hover:border-slate-700'
+                              }`}
+                            >
+                              <IconComp className="w-4 h-4" />
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
@@ -1099,7 +1121,12 @@ export const CampaignStudioModal: React.FC<{
               if (items.length > 0) {
                 const picked = items[0];
                 if (mediaPickerTarget.type === 'video' && mediaPickerTarget.nodeId) {
-                  handleUpdateNode(mediaPickerTarget.nodeId, { videoUrl: picked.url });
+                  handleUpdateNode(mediaPickerTarget.nodeId, {
+                    videoUrl: picked.url,
+                    fallbackVideoUrl: picked.url,
+                    mediaId: picked.id,
+                    mediaName: picked.name,
+                  });
                 } else if (mediaPickerTarget.type === 'image' && mediaPickerTarget.cardIndex !== undefined) {
                   handleUpdateCard(mediaPickerTarget.cardIndex, { imageUrl: picked.url });
                 }
