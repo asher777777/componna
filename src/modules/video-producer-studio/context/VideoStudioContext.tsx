@@ -2,7 +2,9 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { VideoProject, VideoScene, HeyGenAvatar, HeyGenVoice } from '../types';
 import { fetchAllProjects, saveProject, deleteProject, syncRenderedVideoToMediaGallery } from '../services/videoProjectStore';
 import { fetchHeyGenAvatars, fetchHeyGenVoices, generateHeyGenSceneVideo, pollHeyGenVideoStatus } from '../services/heygenService';
-import { generateStoryboardWithAI, ScriptGenerationParams } from '../services/scriptWizardService';
+import { generateStoryboardWithAI, generateInteractiveSalesFunnel, ScriptGenerationParams } from '../services/scriptWizardService';
+import { exportVideoProjectToFlowPlayer, convertVideoProjectToCampaign } from '../services/videoStudioFlowBridge';
+import { CampaignConfig } from '../../flow-player-engine/types';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { TokenUsageReport } from '../../../core/ai';
 
@@ -18,6 +20,8 @@ interface VideoStudioContextValue {
   setActiveProject: (p: VideoProject | null) => void;
   setActiveSceneId: (id: string | null) => void;
   createProjectFromWizard: (params: ScriptGenerationParams) => Promise<TokenUsageReport>;
+  createInteractiveFunnelFromWizard: (params: ScriptGenerationParams) => Promise<TokenUsageReport>;
+  exportProjectToFlowPlayer: (projectToExport?: VideoProject) => Promise<CampaignConfig>;
   updateCurrentScene: (sceneId: string, updates: Partial<VideoScene>) => void;
   addScene: () => void;
   deleteScene: (sceneId: string) => void;
@@ -114,6 +118,55 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     } finally {
       setIsGeneratingScript(false);
     }
+  };
+
+  const createInteractiveFunnelFromWizard = async (params: ScriptGenerationParams): Promise<TokenUsageReport> => {
+    const geminiKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+    if (!geminiKey) {
+      openConnectorModal();
+      throw new Error('נא להגדיר תחילה מפתח Google Gemini API Key במרכז הסנכרון.');
+    }
+
+    setIsGeneratingScript(true);
+    try {
+      const res = await generateInteractiveSalesFunnel(geminiKey, apiKeys.geminiModel || 'gemini-1.5-flash', params);
+      const newProj: VideoProject = {
+        id: `proj_flow_${Date.now()}`,
+        title: res.project.title || params.topic,
+        description: res.project.description || '',
+        aspectRatio: res.project.aspectRatio || '16:9',
+        targetAudience: params.targetAudience,
+        marketingHook: params.marketingHook,
+        isInteractiveCampaign: true,
+        scenes: res.scenes,
+        status: 'scripted',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      await saveProject(newProj, db);
+      setActiveProject(newProj);
+      setActiveSceneId(newProj.scenes[0]?.id || null);
+      setLastCostReport(res.costReport);
+
+      // Auto-export initial campaign to Flow Player
+      await exportVideoProjectToFlowPlayer(newProj, db);
+
+      setTab('editor');
+      await loadProjects();
+      return res.costReport;
+    } finally {
+      setIsGeneratingScript(false);
+    }
+  };
+
+  const exportProjectToFlowPlayer = async (projectToExport?: VideoProject): Promise<CampaignConfig> => {
+    const target = projectToExport || activeProject;
+    if (!target) {
+      throw new Error('לא נבחר פרויקט לייצוא.');
+    }
+    const campaign = await exportVideoProjectToFlowPlayer(target, db);
+    return campaign;
   };
 
   const updateCurrentScene = (sceneId: string, updates: Partial<VideoScene>) => {
@@ -290,6 +343,8 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         setActiveProject,
         setActiveSceneId,
         createProjectFromWizard,
+        createInteractiveFunnelFromWizard,
+        exportProjectToFlowPlayer,
         updateCurrentScene,
         addScene,
         deleteScene,

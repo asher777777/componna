@@ -100,7 +100,8 @@ Return ONLY a JSON object with this exact schema:
     avatarPose: 'half_body',
     voiceId: '077ab11b14f04ce0b49b5f67b5f59629',
     transition: 'fade',
-    heygenStatus: 'pending'
+    heygenStatus: 'pending',
+    sceneRole: idx === 0 ? 'welcome_hook' : idx === 1 ? 'feature_explainer' : idx === 2 ? 'sales_pitch' : 'lead_closing'
   }));
 
   return {
@@ -110,6 +111,192 @@ Return ONLY a JSON object with this exact schema:
       aspectRatio: params.aspectRatio || '16:9',
       targetAudience: params.targetAudience,
       marketingHook: params.marketingHook,
+      status: 'scripted',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    scenes,
+    costReport
+  };
+}
+
+/**
+ * Generates an Interactive Landing Page & Sales Funnel with scenes, interactive overlays,
+ * transitions, explanation cards, and sales conversation hooks.
+ */
+export async function generateInteractiveSalesFunnel(
+  apiKey: string,
+  modelName: string = 'gemini-1.5-flash',
+  params: ScriptGenerationParams
+): Promise<ScriptGenerationResult> {
+  const prompt = `You are a world-class Conversion Rate Optimization (CRO) expert, Video Director, and Sales Funnel Architect.
+Create an Interactive Video Landing Page & Sales Funnel with 4 interconnected scenes in fluent Hebrew for:
+- Product / Service: ${params.topic}
+- Target Audience: ${params.targetAudience}
+- Main Offer / Pitch: ${params.marketingHook}
+- Tone: ${params.tone || 'persuasive, consultative, trustworthy'}
+- Aspect Ratio: ${params.aspectRatio || '16:9'}
+
+Structure the 4 scenes as:
+1. Scene 1 (welcome_hook): Catchy welcome, qualifying question, and 2-3 quick choices ("אני רוצה לראות הדגמה", "כמה זה עולה?", "למי זה מתאים?")
+2. Scene 2 (feature_explainer): Deep-dive product explanation with 2-3 feature cards (title, explanation, badge)
+3. Scene 3 (sales_pitch & objection handling): Social proof, ROI calculation, voice questions examples, and exclusive offer
+4. Scene 4 (lead_closing): Direct call to action, lead capture form fields, and instant WhatsApp chat hook
+
+Return ONLY a JSON object with this exact schema:
+{
+  "title": "Creative Hebrew Landing Page Title",
+  "description": "Hebrew summary of the sales funnel",
+  "scenes": [
+    {
+      "sceneNumber": 1,
+      "sceneRole": "welcome_hook",
+      "title": "Scene title in Hebrew",
+      "dialogueScript": "Script spoken by avatar in Hebrew (warm, engaging, inviting interaction)",
+      "visualPrompt": "Detailed English prompt for video generation",
+      "interactiveActions": [
+        { "label": "🚀 בוא נתחיל בהדגמה", "variant": "primary" },
+        { "label": "💡 מה היתרונות?", "variant": "secondary" }
+      ],
+      "voicePromptExamples": ["רוצה לראות הדגמה", "הסבר לי", "המשך"]
+    },
+    {
+      "sceneNumber": 2,
+      "sceneRole": "feature_explainer",
+      "title": "הסבר והדגמת יכולות",
+      "dialogueScript": "Script explaining key features and value in Hebrew",
+      "visualPrompt": "Detailed English prompt for background",
+      "interactiveCards": [
+        { "title": "יתרון מוביל 1", "description": "פירוט קצר על הערך ללקוח", "badge": "⭐ בלעדי" },
+        { "title": "יתרון מוביל 2", "description": "פירוט נוסף שמניע לרכישה", "badge": "🚀 מהיר" }
+      ],
+      "interactiveActions": [
+        { "label": "שאל שאלת מכירה", "variant": "primary" },
+        { "label": "מעבר להצעת מחיר", "variant": "gold" }
+      ]
+    },
+    {
+      "sceneNumber": 3,
+      "sceneRole": "sales_pitch",
+      "title": "שיחת מכירה והצעה מיוחדת",
+      "dialogueScript": "Avatar addressing objections and presenting special offer in Hebrew",
+      "visualPrompt": "Detailed English prompt",
+      "interactiveCards": [
+        { "title": "חבילת פרימיום מיוחדת", "description": "כולל את כל השירותים עם אחריות מלאה", "price": "החל מ-₪990", "badge": "🔥 30% הנחה" }
+      ],
+      "interactiveActions": [
+        { "label": "סגור עסקה עכשיו", "variant": "gold" }
+      ],
+      "enableVoiceTrigger": true
+    },
+    {
+      "sceneNumber": 4,
+      "sceneRole": "lead_closing",
+      "title": "סגירת ליד ויצירת קשר",
+      "dialogueScript": "Final closing pitch asking for contact info in Hebrew",
+      "visualPrompt": "Detailed English prompt",
+      "formFields": [
+        { "key": "fullName", "label": "שם מלא", "placeholder": "ישראל ישראלי", "type": "text" },
+        { "key": "phone", "label": "טלפון נייד", "placeholder": "050-0000000", "type": "tel" },
+        { "key": "email", "label": "אימייל", "placeholder": "name@example.com", "type": "email" }
+      ],
+      "whatsappMessage": "היי, הגעתי מעמוד הנחיתה ואני מעוניין בפרטים נוספים!",
+      "interactiveActions": [
+        { "label": "פתח שיחת WhatsApp מיידית", "variant": "gold", "actionType": "open_whatsapp" }
+      ]
+    }
+  ]
+}`;
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          temperature: 0.7
+        }
+      })
+    }
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err?.error?.message || `Gemini Sales Funnel Wizard error (${res.status})`);
+  }
+
+  const data = await res.json();
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('No sales funnel script generated by Gemini.');
+  }
+
+  const parsed = JSON.parse(text);
+
+  const promptTokens = data.usageMetadata?.promptTokenCount || 650;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 950;
+
+  const costReport = calculateGeminiCost({
+    model: modelName,
+    promptTokens,
+    candidatesTokens
+  });
+
+  const baseTimestamp = Date.now();
+  const sceneIds = (parsed.scenes || []).map((_: any, idx: number) => `scene_${baseTimestamp}_${idx + 1}`);
+
+  const scenes: VideoScene[] = (parsed.scenes || []).map((s: any, idx: number) => {
+    const id = sceneIds[idx];
+    const nextSceneId = sceneIds[idx + 1] || id;
+
+    return {
+      id,
+      sceneNumber: s.sceneNumber || idx + 1,
+      sceneRole: s.sceneRole || (idx === 0 ? 'welcome_hook' : idx === 1 ? 'feature_explainer' : idx === 2 ? 'sales_pitch' : 'lead_closing'),
+      title: s.title || `סצנה ${idx + 1}`,
+      dialogueScript: s.dialogueScript || '',
+      visualPrompt: s.visualPrompt || '',
+      characterDescription: s.characterDescription || '',
+      durationSeconds: s.durationSeconds || 6,
+      avatarId: 'Wayne_20240711',
+      avatarPose: 'half_body',
+      voiceId: '077ab11b14f04ce0b49b5f67b5f59629',
+      transition: 'fade',
+      heygenStatus: 'pending',
+      interactiveActions: (s.interactiveActions || []).map((act: any, aIdx: number) => ({
+        id: `act_${id}_${aIdx}`,
+        label: act.label || 'המשך',
+        targetSceneId: nextSceneId,
+        variant: act.variant || 'primary',
+        actionType: act.actionType || 'navigate'
+      })),
+      interactiveCards: (s.interactiveCards || []).map((card: any, cIdx: number) => ({
+        id: `card_${id}_${cIdx}`,
+        title: card.title || '',
+        description: card.description || '',
+        badge: card.badge,
+        price: card.price,
+        targetSceneId: nextSceneId
+      })),
+      formFields: s.formFields,
+      whatsappMessage: s.whatsappMessage,
+      enableVoiceTrigger: !!s.enableVoiceTrigger,
+      voicePromptExamples: s.voicePromptExamples,
+      autoTransitionOnEnd: false
+    };
+  });
+
+  return {
+    project: {
+      title: parsed.title || params.topic,
+      description: parsed.description || '',
+      aspectRatio: params.aspectRatio || '16:9',
+      targetAudience: params.targetAudience,
+      marketingHook: params.marketingHook,
+      isInteractiveCampaign: true,
       status: 'scripted',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()

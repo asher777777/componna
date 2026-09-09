@@ -7,8 +7,9 @@ import { useFlowPlayerModule } from '../context/ModuleContext';
 import { FirestoreService } from '../services/firestoreService';
 import { DEFAULT_CAMPAIGN_CONFIG } from '../config';
 import { CampaignConfig } from '../types';
-import { Loader2, PlayCircle, FolderKanban, Plus } from 'lucide-react';
+import { Loader2, PlayCircle, FolderKanban, Plus, Globe, Sparkles } from 'lucide-react';
 import { NewProjectModal } from '../components/NewProjectModal';
+import { InteractiveLandingPageView } from '../components/InteractiveLandingPageView';
 
 const CampaignPlayerView: React.FC = () => {
   const { campaignId } = useParams<{ campaignId?: string }>();
@@ -19,7 +20,7 @@ const CampaignPlayerView: React.FC = () => {
   const [campaign, setCampaign] = useState<CampaignConfig>(
     () => config.initialCampaign || DEFAULT_CAMPAIGN_CONFIG
   );
-  const [activeTab, setActiveTab] = useState<'player' | 'projects'>('player');
+  const [activeTab, setActiveTab] = useState<'player' | 'landing' | 'projects'>('player');
   const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(false);
 
@@ -79,7 +80,7 @@ const CampaignPlayerView: React.FC = () => {
       {!isLive && (
         <div className="w-full max-w-5xl px-4 pt-3 pb-1 flex items-center justify-between flex-wrap gap-2">
           {/* Main Tabs Segmented Control */}
-          <div className="flex items-center bg-slate-950/90 border border-slate-800 rounded-2xl p-1 shadow-md">
+          <div className="flex items-center bg-slate-950/90 border border-slate-800 rounded-2xl p-1 shadow-md gap-1">
             <button
               onClick={() => setActiveTab('player')}
               className={`flex items-center space-x-2 rtl:space-x-reverse px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -93,6 +94,18 @@ const CampaignPlayerView: React.FC = () => {
             </button>
 
             <button
+              onClick={() => setActiveTab('landing')}
+              className={`flex items-center space-x-2 rtl:space-x-reverse px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'landing'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-black shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Globe className="w-4 h-4" />
+              <span>עמוד נחיתה ומכירות (Landing Page)</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('projects')}
               className={`flex items-center space-x-2 rtl:space-x-reverse px-4 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'projects'
@@ -101,7 +114,7 @@ const CampaignPlayerView: React.FC = () => {
               }`}
             >
               <FolderKanban className="w-4 h-4" />
-              <span>כל הפרויקטים (Projects Hub)</span>
+              <span>כל הפרויקטים</span>
             </button>
           </div>
 
@@ -116,7 +129,7 @@ const CampaignPlayerView: React.FC = () => {
         </div>
       )}
 
-      {/* Tab 1: Interactive Player */}
+      {/* Tab 1: Interactive Player Canvas */}
       {activeTab === 'player' && (
         <PlayerMachineProvider
           key={`${campaign.id}_${campaign.slug || ''}_${campaign.updatedAt || '0'}`}
@@ -129,7 +142,19 @@ const CampaignPlayerView: React.FC = () => {
         </PlayerMachineProvider>
       )}
 
-      {/* Tab 2: Projects Hub */}
+      {/* Tab 2: Interactive Landing Page Experience */}
+      {activeTab === 'landing' && (
+        <PlayerMachineProvider
+          key={`landing_${campaign.id}_${campaign.slug || ''}_${campaign.updatedAt || '0'}`}
+          initialCampaign={campaign}
+        >
+          <InteractiveLandingPageView
+            onSwitchToFocusMode={() => setActiveTab('player')}
+          />
+        </PlayerMachineProvider>
+      )}
+
+      {/* Tab 3: Projects Hub */}
       {activeTab === 'projects' && (
         <ProjectsHubView
           onSelectProject={handleSelectProjectFromHub}

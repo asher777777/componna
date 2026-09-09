@@ -3,8 +3,9 @@ import { Sparkles, Wand2, ArrowLeft, Film, Clock, Users, Target, Volume2 } from 
 import { useVideoStudio } from '../context/VideoStudioContext';
 
 export const BrainstormWizardView: React.FC = () => {
-  const { createProjectFromWizard, isGeneratingScript } = useVideoStudio();
+  const { createProjectFromWizard, createInteractiveFunnelFromWizard, isGeneratingScript } = useVideoStudio();
 
+  const [mode, setMode] = useState<'funnel' | 'classic'>('funnel');
   const [topic, setTopic] = useState('');
   const [targetAudience, setTargetAudience] = useState('בעלי עסקים ויזמים');
   const [marketingHook, setMarketingHook] = useState('להגדיל את המכירות ב-30% בעזרת סרטוני וידאו מותאמים אישית');
@@ -21,14 +22,25 @@ export const BrainstormWizardView: React.FC = () => {
     }
     setErrorMsg(null);
     try {
-      await createProjectFromWizard({
-        topic,
-        targetAudience,
-        marketingHook,
-        sceneCount,
-        tone,
-        aspectRatio
-      });
+      if (mode === 'funnel') {
+        await createInteractiveFunnelFromWizard({
+          topic,
+          targetAudience,
+          marketingHook,
+          sceneCount: 4,
+          tone,
+          aspectRatio
+        });
+      } else {
+        await createProjectFromWizard({
+          topic,
+          targetAudience,
+          marketingHook,
+          sceneCount,
+          tone,
+          aspectRatio
+        });
+      }
     } catch (err: any) {
       setErrorMsg(err?.message || 'שגיאה ביצירת התסריט');
     }
@@ -65,6 +77,55 @@ export const BrainstormWizardView: React.FC = () => {
 
       {/* Wizard Form */}
       <form onSubmit={handleGenerate} className="p-6 bg-slate-900/80 border border-slate-800 rounded-3xl space-y-5 shadow-xl">
+        
+        {/* Mode Selector Tabs */}
+        <div>
+          <label className="block text-xs font-bold text-slate-300 mb-2">
+            בחר סוג הפקה:
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setMode('funnel')}
+              className={`p-3.5 rounded-2xl border text-right transition cursor-pointer flex items-start gap-3 ${
+                mode === 'funnel'
+                  ? 'bg-purple-950/60 border-purple-500 text-white shadow-lg shadow-purple-950/50'
+                  : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:bg-slate-800/40'
+              }`}
+            >
+              <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-xs text-white">עמוד נחיתה ומשפך מכירות אינטראקטיבי</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  מייצר 4 סצנות מתואמות עם מעברים, שכבות הסבר (Cards), כפתורי שיחת מכירה, טופס לידים וחיבור WhatsApp
+                </p>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setMode('classic')}
+              className={`p-3.5 rounded-2xl border text-right transition cursor-pointer flex items-start gap-3 ${
+                mode === 'classic'
+                  ? 'bg-purple-950/60 border-purple-500 text-white shadow-lg shadow-purple-950/50'
+                  : 'bg-slate-950/50 border-slate-800 text-slate-400 hover:bg-slate-800/40'
+              }`}
+            >
+              <div className="p-2 rounded-xl bg-indigo-500/20 text-indigo-400 shrink-0">
+                <Film className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-bold text-xs text-white">סרטון שיווקי קלאסי (Linear Video)</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  סטוריבורד רציף של סצנות להפקה מהירה לרשתות החברתיות, יוטיוב וקמפיינים ממומנים
+                </p>
+              </div>
+            </button>
+          </div>
+        </div>
+
         <div>
           <label className="block text-sm font-bold text-slate-200 mb-2">
             💡 על מה הסרטון? (נושא, מוצר, שירות או רעיון שיווקי) *
@@ -73,7 +134,7 @@ export const BrainstormWizardView: React.FC = () => {
             rows={3}
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="למשל: השקת מוצר חדש לניהול משימות שחוסך 5 שעות עבודה בשבוע..."
+            placeholder="למשל: מערכת CRM חכמה עם סוכן AI שסוגר פגישות מכירה בוואטסאפ תוך 60 שניות..."
             className="w-full p-3.5 rounded-2xl bg-slate-950 border border-slate-700 text-slate-100 placeholder-slate-500 text-sm focus:border-purple-500 focus:outline-none transition"
             required
           />

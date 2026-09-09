@@ -12,9 +12,11 @@ import {
   Check,
 } from 'lucide-react';
 import { PROJECT_TEMPLATES, ProjectTemplate } from '../config/templates';
-import { CampaignConfig, AspectRatioType } from '../types';
+import { CampaignConfig, AspectRatioType, FlowNodeState } from '../types';
 import { FirestoreService } from '../services/firestoreService';
 import { useFlowPlayerModule } from '../context/ModuleContext';
+import { Film } from 'lucide-react';
+import { collection, getDocs } from 'firebase/firestore';
 
 interface NewProjectModalProps {
   isOpen: boolean;
@@ -29,6 +31,9 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 }) => {
   const { db, collections } = useFlowPlayerModule();
 
+  const [activeSourceTab, setActiveSourceTab] = useState<'templates' | 'video_studio'>('templates');
+  const [studioProjects, setStudioProjects] = useState<any[]>([]);
+  const [selectedStudioProjectId, setSelectedStudioProjectId] = useState<string>('');
   const [projectName, setProjectName] = useState<string>('פרויקט אינטראקטיבי חדש');
   const [slug, setSlug] = useState<string>(() => `flow_project_${Date.now().toString().slice(-4)}`);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('sales_rep');
@@ -42,8 +47,27 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       setSelectedTemplateId('sales_rep');
       setAspectRatio('9:16');
       setIsCreating(false);
+
+      // Load studio projects from local storage and firestore
+      const loadStudioProjects = async () => {
+        try {
+          const local = localStorage.getItem('comona_video_studio_projects');
+          const localList = local ? JSON.parse(local) : [];
+          if (db) {
+            const snap = await getDocs(collection(db, 'sdo_video_projects'));
+            const fsList: any[] = [];
+            snap.forEach(d => fsList.push({ id: d.id, ...d.data() }));
+            setStudioProjects(fsList.length > 0 ? fsList : localList);
+          } else {
+            setStudioProjects(localList);
+          }
+        } catch (err) {
+          console.warn('[NewProjectModal] Failed to load video studio projects:', err);
+        }
+      };
+      loadStudioProjects();
     }
-  }, [isOpen]);
+  }, [isOpen, db]);
 
   if (!isOpen) return null;
 
@@ -75,6 +99,104 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
     setIsCreating(true);
     try {
+      if (activeSourceTab === 'video_studio' && selectedStudioProjectId) {
+        const sp = studioProjects.find((p) => p.id === selectedStudioProjectId);
+        if (sp && sp.scenes?.length > 0) {
+          const initialId = sp.scenes[0]?.id || 'scene_1';
+          const states: Record<string, FlowNodeState> = {};
+
+          sp.scenes.forEach((scn: any, idx: number) => {
+            const nextScn = sp.scenes[idx + 1];
+            const overlays: any[] = [];
+
+            if (scn.interactiveCards && scn.interactiveCards.length > 0) {
+              overlays.push({
+                id: `card_${scn.id}`,
+                type: 'info_card',
+                position: 'top',
+                title: scn.interactiveCards[0].title,
+                subtitle: scn.interactiveCards[0].description,
+                badge: scn.interactiveCards[0].badge,
+              });
+            }
+
+            if (scn.interactiveActions && scn.interactiveActions.length > 0) {
+              overlays.push({
+                id: `act_${scn.id}`,
+                type: 'quick_replies',
+                position: 'bottom',
+                actions: scn.interactiveActions.map((a: any) => ({
+                  id: a.id,
+                  label: a.label,
+                  targetNodeId: a.targetSceneId || nextScn?.id || scn.id,
+                  variant: a.variant || 'primary',
+                })),
+              });
+            } else if (nextScn) {
+              overlays.push({
+                id: `act_${scn.id}`,
+                type: 'quick_replies',
+                position: 'bottom',
+                actions: [
+                  {
+                    id: `next_${scn.id}`,
+                    label: idx === 0 ? '🚀 בוא נתחיל בהדגמה' : 'המשך לסצנה הבאה',
+                    targetNodeId: nextScn.id,
+                    variant: 'primary',
+                  },
+                ],
+              });
+            }
+
+            const videoSrc =
+              scn.renderedVideoUrl ||
+              (scn.backgroundType === 'video' ? scn.backgroundMediaUrl : undefined) ||
+              'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4';
+
+            states[scn.id] = {
+              id: scn.id,
+              name: scn.title,
+              description: scn.dialogueScript,
+              videoUrl: videoSrc,
+              fallbackVideoUrl: scn.backgroundMediaUrl || videoSrc,
+              autoPlay: true,
+              soundEnabled: true,
+              loop: false,
+              autoTransitionOnEnd: scn.autoTransitionOnEnd ?? (idx < sp.scenes.length - 1),
+              autoTransitionDelaySec: scn.autoTransitionDelaySec || 0,
+              autoTransitionTarget: scn.autoTransitionTargetSceneId || nextScn?.id || '',
+              overlays,
+              micPosition: scn.enableVoiceTrigger ? 'bottom' : 'hidden',
+              micActionType: 'open_text_input',
+            };
+          });
+
+          const newCampaign: CampaignConfig = {
+            id: safeSlug,
+            slug: safeSlug,
+            name: safeName || sp.title,
+            presenterId: sp.scenes[0]?.avatarId || 'avatar_wayne',
+            initialNodeId: initialId,
+            states,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            isPublished: true,
+            settings: {
+              defaultAspectRatio: aspectRatio,
+              autoPlay: true,
+              primaryColor: '#EAB308',
+              enableVoice: true,
+              language: 'he-IL',
+            },
+          };
+
+          await FirestoreService.saveCampaignConfig(db as any, collections, newCampaign);
+          onProjectCreated(newCampaign);
+          onClose();
+          return;
+        }
+      }
+
       const template =
         PROJECT_TEMPLATES.find((t) => t.id === selectedTemplateId) || PROJECT_TEMPLATES[0];
 
@@ -147,7 +269,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-white">יצירת פרויקט אינטראקטיבי חדש</h2>
-              <p className="text-xs text-slate-400">בחר תבנית והגדר את פרטי הקמפיין</p>
+              <p className="text-xs text-slate-400">בחר מקור, תבנית או פרויקט מסטודיו הווידאו</p>
             </div>
           </div>
 
@@ -161,6 +283,34 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
 
         {/* Body */}
         <div className="p-6 overflow-y-auto space-y-5">
+          {/* Source Tabs */}
+          <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800 gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveSourceTab('templates')}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
+                activeSourceTab === 'templates'
+                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              תבניות מוכנות (Templates)
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveSourceTab('video_studio')}
+              className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
+                activeSourceTab === 'video_studio'
+                  ? 'bg-purple-600 text-white shadow'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>ייבא מסטודיו הווידאו ({studioProjects.length})</span>
+            </button>
+          </div>
+
           {/* Project Details */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -240,59 +390,118 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
             </div>
           </div>
 
-          {/* Template Selector */}
-          <div>
-            <label className="block text-xs font-bold text-slate-200 mb-2">
-              בחר תבנית התחלתית
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {PROJECT_TEMPLATES.map((tmpl) => {
-                const isSelected = selectedTemplateId === tmpl.id;
-                return (
-                  <div
-                    key={tmpl.id}
-                    onClick={() => setSelectedTemplateId(tmpl.id)}
-                    className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
-                      isSelected
-                        ? 'bg-yellow-500/10 border-yellow-500 shadow-md ring-1 ring-yellow-500/50'
-                        : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-950'
-                    }`}
-                  >
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                          <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800">
-                            {getTemplateIcon(tmpl.icon)}
+          {/* Source Selection Content */}
+          {activeSourceTab === 'templates' ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-2">
+                בחר תבנית התחלתית
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {PROJECT_TEMPLATES.map((tmpl) => {
+                  const isSelected = selectedTemplateId === tmpl.id;
+                  return (
+                    <div
+                      key={tmpl.id}
+                      onClick={() => setSelectedTemplateId(tmpl.id)}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-yellow-500/10 border-yellow-500 shadow-md ring-1 ring-yellow-500/50'
+                          : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-950'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+                            <div className="p-1.5 rounded-lg bg-slate-900 border border-slate-800">
+                              {getTemplateIcon(tmpl.icon)}
+                            </div>
+                            <span className="font-bold text-xs text-white">{tmpl.name}</span>
                           </div>
-                          <span className="font-bold text-xs text-white">{tmpl.name}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">
+                            {tmpl.badge}
+                          </span>
                         </div>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 font-medium">
-                          {tmpl.badge}
-                        </span>
+                        <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
+                          {tmpl.description}
+                        </p>
                       </div>
-                      <p className="text-[11px] text-slate-400 line-clamp-2 leading-relaxed">
-                        {tmpl.description}
-                      </p>
-                    </div>
 
-                    <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
-                      <span className="text-slate-500">
-                        {Object.keys(tmpl.config.states || {}).length} צמתים / סצנות
-                      </span>
-                      {isSelected ? (
-                        <span className="flex items-center text-yellow-400 font-bold gap-1">
-                          <Check className="w-3.5 h-3.5" />
-                          <span>נבחר</span>
+                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+                        <span className="text-slate-500">
+                          {Object.keys(tmpl.config.states || {}).length} צמתים / סצנות
                         </span>
-                      ) : (
-                        <span className="text-slate-500">לחץ לבחירה</span>
-                      )}
+                        {isSelected ? (
+                          <span className="flex items-center text-yellow-400 font-bold gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>נבחר</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">לחץ לבחירה</span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div>
+              <label className="block text-xs font-bold text-slate-200 mb-2">
+                בחר פרויקט מסטודיו הווידאו לייבוא מיידי:
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-56 overflow-y-auto">
+                {studioProjects.map((proj) => {
+                  const isSelected = selectedStudioProjectId === proj.id;
+                  return (
+                    <div
+                      key={proj.id}
+                      onClick={() => {
+                        setSelectedStudioProjectId(proj.id);
+                        handleNameChange(proj.title);
+                      }}
+                      className={`p-3.5 rounded-2xl border cursor-pointer transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? 'bg-purple-950/40 border-purple-500 shadow-md ring-1 ring-purple-500/50'
+                          : 'bg-slate-950/60 border-slate-800/80 hover:border-slate-700 hover:bg-slate-950'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-xs text-white line-clamp-1">{proj.title}</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 font-medium">
+                            {proj.scenes?.length || 0} סצנות
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 line-clamp-2">
+                          {proj.description || 'ללא תיאור'}
+                        </p>
+                      </div>
+
+                      <div className="mt-3 flex items-center justify-between pt-2 border-t border-slate-800/60 text-[10px]">
+                        <span className="text-slate-500">
+                          {proj.aspectRatio || '16:9'}
+                        </span>
+                        {isSelected ? (
+                          <span className="flex items-center text-purple-400 font-bold gap-1">
+                            <Check className="w-3.5 h-3.5" />
+                            <span>נבחר לייבוא</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">לחץ לייבוא</span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {studioProjects.length === 0 && (
+                  <div className="col-span-2 p-6 text-center text-xs text-slate-500 border border-dashed border-slate-800 rounded-2xl">
+                    לא נמצאו פרויקטים בסטודיו הווידאו. צור תחילה פרויקט באשף הסטודיו.
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}

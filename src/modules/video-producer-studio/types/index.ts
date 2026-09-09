@@ -1,3 +1,32 @@
+export type SceneRoleType = 
+  | 'welcome_hook' 
+  | 'feature_explainer' 
+  | 'sales_pitch' 
+  | 'objection_handler' 
+  | 'lead_closing' 
+  | 'custom';
+
+export interface InteractiveActionItem {
+  id: string;
+  label: string;
+  targetSceneId: string;
+  variant?: 'primary' | 'secondary' | 'outline' | 'gold' | 'danger';
+  icon?: string;
+  actionType?: 'navigate' | 'open_whatsapp' | 'open_lead_form' | 'open_url';
+  externalUrl?: string;
+}
+
+export interface InteractiveCardItem {
+  id: string;
+  title: string;
+  description?: string;
+  badge?: string;
+  imageUrl?: string;
+  price?: string;
+  ctaLabel?: string;
+  targetSceneId?: string;
+}
+
 export interface VideoScene {
   id: string;
   sceneNumber: number;
@@ -17,6 +46,19 @@ export interface VideoScene {
   durationSeconds?: number;
   musicBgmVolume?: number;
   transition?: 'none' | 'fade' | 'slide_left' | 'wipe';
+
+  // Interactive Flow & Sales Engine
+  sceneRole?: SceneRoleType;
+  interactiveActions?: InteractiveActionItem[];
+  interactiveCards?: InteractiveCardItem[];
+  formFields?: { key: string; label: string; placeholder?: string; type: 'text' | 'email' | 'tel' }[];
+  whatsappNumber?: string;
+  whatsappMessage?: string;
+  autoTransitionOnEnd?: boolean;
+  autoTransitionDelaySec?: number;
+  autoTransitionTargetSceneId?: string;
+  enableVoiceTrigger?: boolean;
+  voicePromptExamples?: string[];
 }
 
 export interface VideoProject {
@@ -35,6 +77,12 @@ export interface VideoProject {
   createdAt: string;
   updatedAt: string;
   finalVideoUrl?: string;
+
+  // Interactive Campaign Settings
+  isInteractiveCampaign?: boolean;
+  campaignSlug?: string;
+  leadFormEmail?: string;
+  salesPhone?: string;
 }
 
 export interface HeyGenAvatar {
