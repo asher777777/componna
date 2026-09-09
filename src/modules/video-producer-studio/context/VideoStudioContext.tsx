@@ -1,13 +1,27 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { VideoProject, VideoScene, HeyGenAvatar, HeyGenVoice, ClarificationResult } from '../types';
-import { fetchAllProjects, saveProject, deleteProject, syncRenderedVideoToMediaGallery } from '../services/videoProjectStore';
-import { fetchHeyGenAvatars, fetchHeyGenVoices, generateHeyGenSceneVideo, pollHeyGenVideoStatus } from '../services/heygenService';
+import { 
+  fetchAllProjects, 
+  saveProject, 
+  deleteProject, 
+  syncAssetToMediaGallery, 
+  syncRenderedVideoToMediaGallery 
+} from '../services/videoProjectStore';
+import { 
+  fetchHeyGenAvatars, 
+  fetchHeyGenVoices, 
+  generateHeyGenSceneVideo, 
+  pollHeyGenVideoStatus 
+} from '../services/heygenService';
 import { 
   generateStoryboardWithAI, 
   generateNextSceneWithAI, 
   generateClarificationQuestionsWithAI,
   ScriptGenerationParams 
 } from '../services/scriptWizardService';
+import { generateImagen3Image } from '../services/imagenService';
+import { generateVeoSceneVideo } from '../services/veoService';
+import { synthesizeGoogleSpeechAudio } from '../services/googleTtsService';
 import { exportVideoProjectToFlowPlayer, convertVideoProjectToCampaign } from '../services/videoStudioFlowBridge';
 import { CampaignConfig } from '../../flow-player-engine/types';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -40,6 +54,15 @@ interface VideoStudioContextValue {
   isRenderingScene: boolean;
   renderingSceneId: string | null;
   renderHeyGenScene: (sceneId: string) => Promise<void>;
+  
+  // Media Generation Actions
+  generateBananaProImage: (sceneId: string, promptOverride?: string) => Promise<string>;
+  generateVeoVideo: (sceneId: string, promptOverride?: string) => Promise<string>;
+  generateGoogleTtsAudio: (sceneId: string, textOverride?: string) => Promise<string>;
+  isGeneratingMedia: boolean;
+  isGeneratingAudio: boolean;
+  generatingMediaSceneId: string | null;
+
   lastCostReport: TokenUsageReport | null;
   
   // Modals
@@ -67,6 +90,11 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isGeneratingScript, setIsGeneratingScript] = useState(false);
   const [isRenderingScene, setIsRenderingScene] = useState(false);
   const [renderingSceneId, setRenderingSceneId] = useState<string | null>(null);
+  
+  const [isGeneratingMedia, setIsGeneratingMedia] = useState(false);
+  const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
+  const [generatingMediaSceneId, setGeneratingMediaSceneId] = useState<string | null>(null);
+  
   const [lastCostReport, setLastCostReport] = useState<TokenUsageReport | null>(null);
 
   // Modals state
@@ -206,12 +234,20 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       title: `סצנה ${nextNum}`,
       dialogueScript: 'טקסט קריינות עבור הסצנה...',
       visualPrompt: 'Cinematic corporate studio with soft ambient lighting',
-      durationSeconds: 5,
+      durationSeconds: 6,
       avatarId: 'Wayne_20240711',
       avatarPose: 'half_body',
       voiceId: '077ab11b14f04ce0b49b5f67b5f59629',
       transition: 'fade',
-      heygenStatus: 'pending'
+      heygenStatus: 'pending',
+      subtitleText: 'טקסט קריינות עבור הסצנה...',
+      subtitleStyle: 'glow',
+      subtitleAnimation: 'word',
+      subtitleFontSize: 28,
+      subtitleColor: '#FFFFFF',
+      subtitleBgColor: '#000000',
+      subtitleBgOpacity: 0.8,
+      subtitlePosition: 'bottom'
     };
 
     const updated = {
@@ -288,6 +324,157 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await loadProjects();
   };
 
+  // 1. Generate Banana Pro (Google Imagen 3) Image
+  const generateBananaProImage = async (sceneId: string, promptOverride?: string): Promise<string> => {
+    if (!activeProject) throw new Error('אין פרויקט פעיל.');
+    const scene = activeProject.scenes.find(s => s.id === sceneId);
+    if (!scene) throw new Error('סצנה לא נמצאה.');
+
+    const googleKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+    if (!googleKey) {
+      openConnectorModal();
+      throw new Error('נא להגדיר מפתח Google API Key במרכז הסנכרון ליצירת תמונות Imagen 3.');
+    }
+
+    setIsGeneratingMedia(true);
+    setGeneratingMediaSceneId(sceneId);
+
+    try {
+      const promptToUse = promptOverride || scene.visualPrompt || activeProject.title;
+      const res = await generateImagen3Image(googleKey, {
+        prompt: promptToUse,
+        aspectRatio: activeProject.aspectRatio
+      });
+
+      updateCurrentScene(sceneId, {
+        backgroundMediaUrl: res.imageUrl,
+        backgroundType: 'image'
+      });
+
+      // Automatically sync generated image to Media Gallery
+      await syncAssetToMediaGallery(db, {
+        url: res.imageUrl,
+        title: `${activeProject.title} - ${scene.title}`,
+        projectId: activeProject.id,
+        sceneId: scene.id,
+        sceneNumber: scene.sceneNumber,
+        assetType: 'image',
+        generator: 'imagen3_banana_pro',
+        mimeType: res.mimeType,
+        tags: [activeProject.visualStyle || 'banana_pro']
+      });
+
+      return res.imageUrl;
+    } finally {
+      setIsGeneratingMedia(false);
+      setGeneratingMediaSceneId(null);
+    }
+  };
+
+  // 2. Generate Google Veo Scene Video
+  const generateVeoVideo = async (sceneId: string, promptOverride?: string): Promise<string> => {
+    if (!activeProject) throw new Error('אין פרויקט פעיל.');
+    const scene = activeProject.scenes.find(s => s.id === sceneId);
+    if (!scene) throw new Error('סצנה לא נמצאה.');
+
+    const googleKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+    if (!googleKey) {
+      openConnectorModal();
+      throw new Error('נא להגדיר מפתח Google API Key במרכז הסנכרון ליצירת וידאו עם Veo.');
+    }
+
+    setIsGeneratingMedia(true);
+    setGeneratingMediaSceneId(sceneId);
+
+    try {
+      const promptToUse = promptOverride || scene.visualPrompt || activeProject.title;
+      const res = await generateVeoSceneVideo(googleKey, {
+        prompt: promptToUse,
+        aspectRatio: activeProject.aspectRatio,
+        durationSeconds: scene.durationSeconds || 6
+      });
+
+      updateCurrentScene(sceneId, {
+        backgroundMediaUrl: res.videoUrl,
+        backgroundType: 'video'
+      });
+
+      // Automatically sync generated video to Media Gallery
+      await syncAssetToMediaGallery(db, {
+        url: res.videoUrl,
+        title: `${activeProject.title} - ${scene.title}`,
+        projectId: activeProject.id,
+        sceneId: scene.id,
+        sceneNumber: scene.sceneNumber,
+        assetType: 'video',
+        generator: 'google_veo',
+        mimeType: 'video/mp4',
+        tags: ['veo', 'google_ai_video']
+      });
+
+      return res.videoUrl;
+    } finally {
+      setIsGeneratingMedia(false);
+      setGeneratingMediaSceneId(null);
+    }
+  };
+
+  // 3. Generate Google Cloud TTS Audio
+  const generateGoogleTtsAudio = async (sceneId: string, textOverride?: string): Promise<string> => {
+    if (!activeProject) throw new Error('אין פרויקט פעיל.');
+    const scene = activeProject.scenes.find(s => s.id === sceneId);
+    if (!scene) throw new Error('סצנה לא נמצאה.');
+
+    const googleKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+    if (!googleKey) {
+      openConnectorModal();
+      throw new Error('נא להגדיר מפתח Google API Key במרכז הסנכרון לדיבוב קולי.');
+    }
+
+    const textToSpeak = textOverride || scene.dialogueScript;
+    if (!textToSpeak.trim()) {
+      throw new Error('טקסט הקריינות ריק.');
+    }
+
+    setIsGeneratingAudio(true);
+    setGeneratingMediaSceneId(sceneId);
+
+    try {
+      const res = await synthesizeGoogleSpeechAudio(googleKey, {
+        text: textToSpeak,
+        voiceName: scene.googleTtsVoiceName || (activeProject.ttsLanguage === 'en-US' ? 'en-US-Journey-F' : 'he-IL-Wavenet-B'),
+        languageCode: scene.googleTtsLanguageCode || activeProject.ttsLanguage || 'he-IL',
+        speakingRate: scene.googleTtsSsmlRate ? parseFloat(scene.googleTtsSsmlRate) : 1.0,
+        pitch: scene.googleTtsSsmlPitch ? parseFloat(scene.googleTtsSsmlPitch) : 0.0,
+        emphasis: (scene.googleTtsSsmlEmphasis as any) || 'none'
+      });
+
+      updateCurrentScene(sceneId, {
+        renderedAudioUrl: res.audioUrl,
+        durationSeconds: Math.max(res.durationEstimateSec, scene.durationSeconds || 6)
+      });
+
+      // Automatically sync generated audio to Media Gallery
+      await syncAssetToMediaGallery(db, {
+        url: res.audioUrl,
+        title: `${activeProject.title} - ${scene.title}`,
+        projectId: activeProject.id,
+        sceneId: scene.id,
+        sceneNumber: scene.sceneNumber,
+        assetType: 'audio',
+        generator: 'google_tts',
+        mimeType: 'audio/mp3',
+        tags: [scene.googleTtsVoiceName || 'he-IL-Wavenet-B', 'google_tts']
+      });
+
+      return res.audioUrl;
+    } finally {
+      setIsGeneratingAudio(false);
+      setGeneratingMediaSceneId(null);
+    }
+  };
+
+  // 4. Render HeyGen Scene Video (supports both studio avatar and photo avatar)
   const renderHeyGenScene = async (sceneId: string) => {
     if (!activeProject) return;
     const scene = activeProject.scenes.find(s => s.id === sceneId);
@@ -310,7 +497,9 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         scriptText: scene.dialogueScript,
         voiceId: scene.voiceId,
         aspectRatio: activeProject.aspectRatio,
-        backgroundMediaUrl: scene.backgroundMediaUrl
+        backgroundMediaUrl: scene.backgroundMediaUrl,
+        customAvatarImageUrl: scene.customAvatarImageUrl,
+        isPhotoAvatar: scene.isPhotoAvatar
       });
 
       updateCurrentScene(sceneId, { heygenJobId: videoJobId });
@@ -330,13 +519,15 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
             });
 
             // Automatically sync rendered video into Media Gallery Hub!
-            await syncRenderedVideoToMediaGallery(db, {
-              videoUrl: statusResult.video_url,
+            await syncAssetToMediaGallery(db, {
+              url: statusResult.video_url,
               title: `${activeProject.title} - ${scene.title}`,
               projectId: activeProject.id,
               sceneId: scene.id,
-              aspectRatio: activeProject.aspectRatio,
-              avatarName: scene.avatarId
+              sceneNumber: scene.sceneNumber,
+              assetType: 'video',
+              generator: scene.isPhotoAvatar ? 'heygen_photo_avatar' : 'heygen_avatar',
+              tags: [scene.avatarId || 'Wayne', 'heygen']
             });
 
             setIsRenderingScene(false);
@@ -409,6 +600,12 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isRenderingScene,
         renderingSceneId,
         renderHeyGenScene,
+        generateBananaProImage,
+        generateVeoVideo,
+        generateGoogleTtsAudio,
+        isGeneratingMedia,
+        isGeneratingAudio,
+        generatingMediaSceneId,
         lastCostReport,
         isAvatarModalOpen,
         openAvatarModal,

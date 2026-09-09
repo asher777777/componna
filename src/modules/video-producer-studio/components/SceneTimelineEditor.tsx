@@ -4,14 +4,15 @@ import {
   Play, Plus, Trash2, Wand2, Sparkles, User, Mic, Image as ImageIcon,
   Video, RefreshCw, CheckCircle2, AlertCircle, Save, ExternalLink,
   ChevronRight, ChevronLeft, Volume2, Film, PlayCircle, MessageSquare,
-  Layers, Send, Smartphone, ArrowUpRight, HelpCircle, PhoneCall,
-  Info, ShieldCheck, Copy, Check, Palette, Target
+  Send, Smartphone, ArrowUpRight, HelpCircle, PhoneCall,
+  Info, ShieldCheck, Copy, Check, Palette, Target, Download, Sliders, Type, Play as PlayIcon
 } from 'lucide-react';
 import { useVideoStudio } from '../context/VideoStudioContext';
 import { VideoPreviewPlayer } from './VideoPreviewPlayer';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
-import { SceneRoleType, InteractiveActionItem, InteractiveCardItem } from '../types';
+import { GOOGLE_TTS_VOICES } from '../services/googleTtsService';
+import { generateSrtContent, generateVttContent, downloadSubtitleFile } from '../services/subtitleService';
 import { PRODUCTION_TYPES_CATALOG, VISUAL_STYLES_CATALOG } from '../config/catalogs';
 
 export const SceneTimelineEditor: React.FC = () => {
@@ -30,20 +31,28 @@ export const SceneTimelineEditor: React.FC = () => {
     openTeleprompter,
     renderHeyGenScene,
     exportProjectToFlowPlayer,
+    generateBananaProImage,
+    generateVeoVideo,
+    generateGoogleTtsAudio,
     isGeneratingScript,
     isRenderingScene,
     renderingSceneId,
+    isGeneratingMedia,
+    isGeneratingAudio,
+    generatingMediaSceneId,
     avatars
   } = useVideoStudio();
 
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const photoAvatarInputRef = useRef<HTMLInputElement>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [renderError, setRenderError] = useState<string | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'script' | 'interactive' | 'visualPrompt'>('script');
+  const [renderSuccess, setRenderSuccess] = useState<string | null>(null);
+  const [activeSubTab, setActiveSubTab] = useState<'script' | 'media' | 'tts' | 'subtitles'>('script');
   
   // AI Continuity state
   const [isAiAddOpen, setIsAiAddOpen] = useState(false);
@@ -52,6 +61,9 @@ export const SceneTimelineEditor: React.FC = () => {
   // Project Overview Modal
   const [isOverviewModalOpen, setIsOverviewModalOpen] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  
+  // Audio demo playing state
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
 
   if (!activeProject || !activeScene) {
     return (
@@ -65,6 +77,9 @@ export const SceneTimelineEditor: React.FC = () => {
   const selectedAvatar = avatars.find(a => a.avatar_id === activeScene.avatarId) || avatars[0];
   const prodTypeObj = PRODUCTION_TYPES_CATALOG.find(p => p.id === activeProject.productionType);
   const visualStyleObj = VISUAL_STYLES_CATALOG.find(s => s.id === activeProject.visualStyle);
+
+  const currentRate = parseFloat(String(activeScene.googleTtsSsmlRate || 1.0)) || 1.0;
+  const currentPitch = parseFloat(String(activeScene.googleTtsSsmlPitch || 0)) || 0;
 
   const handleCopyText = (text: string, fieldKey: string) => {
     navigator.clipboard.writeText(text);
@@ -126,17 +141,160 @@ export const SceneTimelineEditor: React.FC = () => {
     }
   };
 
-  const handleRender = async () => {
+  const handlePickPhotoAvatarMedia = async () => {
+    if (mediaPicker) {
+      const selected = await mediaPicker.openPicker({
+        accept: 'image/*',
+        multiple: false
+      });
+      if (selected) {
+        const url = Array.isArray(selected) ? selected[0] : selected;
+        if (typeof url === 'string') {
+          updateCurrentScene(activeScene.id, {
+            customAvatarImageUrl: url,
+            isPhotoAvatar: true
+          });
+        }
+      }
+    } else {
+      photoAvatarInputRef.current?.click();
+    }
+  };
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>, field: 'background' | 'avatar') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        if (field === 'background') {
+          updateCurrentScene(activeScene.id, {
+            backgroundMediaUrl: dataUrl,
+            backgroundType: file.type.startsWith('video/') ? 'video' : 'image'
+          });
+        } else {
+          updateCurrentScene(activeScene.id, {
+            customAvatarImageUrl: dataUrl,
+            isPhotoAvatar: true
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRenderHeyGen = async () => {
     setRenderError(null);
+    setRenderSuccess(null);
     try {
       await renderHeyGenScene(activeScene.id);
+      setRenderSuccess('הפקת וידאו HeyGen החלה בהצלחה! הסרטון יסונכרן אוטומטית לגלריה.');
     } catch (err: any) {
       setRenderError(err?.message || 'שגיאה ביצירת הוידאו');
     }
   };
 
+  const handleGenerateBananaPro = async () => {
+    setRenderError(null);
+    setRenderSuccess(null);
+    try {
+      const prompt = activeScene.visualPrompt || activeScene.dialogueScript;
+      if (!prompt) {
+        setRenderError('נא להזין פרומפט ויזואלי לפני יצירת תמונה בבננה פרו.');
+        return;
+      }
+      await generateBananaProImage(activeScene.id, prompt);
+      setRenderSuccess('תמונת בננה פרו (Imagen 3) נוצרה בהצלחה וסונכרנה לגלריית המדיה!');
+    } catch (err: any) {
+      setRenderError(err?.message || 'שגיאה ביצירת תמונה עם בננה פרו');
+    }
+  };
+
+  const handleGenerateVeo = async () => {
+    setRenderError(null);
+    setRenderSuccess(null);
+    try {
+      const prompt = activeScene.visualPrompt || activeScene.dialogueScript;
+      if (!prompt) {
+        setRenderError('נא להזין פרומפט ויזואלי לפני יצירת וידאו ב-Veo.');
+        return;
+      }
+      await generateVeoVideo(activeScene.id, prompt);
+      setRenderSuccess('סרטון Google Veo נוצר בהצלחה וסונכרן לגלריית המדיה!');
+    } catch (err: any) {
+      setRenderError(err?.message || 'שגיאה ביצירת וידאו עם Google Veo');
+    }
+  };
+
+  const handleGenerateGoogleTts = async () => {
+    setRenderError(null);
+    setRenderSuccess(null);
+    try {
+      const text = activeScene.dialogueScript;
+      if (!text.trim()) {
+        setRenderError('נא להזין טקסט קריינות בתסריט לפני הפקת שמע ב-Google TTS.');
+        return;
+      }
+      await generateGoogleTtsAudio(activeScene.id, text);
+      setRenderSuccess('הקריינות הופקה בהצלחה עם Google Cloud TTS וסונכרנה לגלריית המדיה!');
+    } catch (err: any) {
+      setRenderError(err?.message || 'שגיאה בהפקת קריינות Google TTS');
+    }
+  };
+
+  const handlePlayVoiceDemo = (voice: typeof GOOGLE_TTS_VOICES[0]) => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      if (playingVoiceId === voice.id) {
+        setPlayingVoiceId(null);
+        return;
+      }
+      const utterance = new SpeechSynthesisUtterance(voice.sampleText);
+      utterance.lang = voice.languageCode;
+      utterance.rate = 1.0;
+      utterance.onend = () => setPlayingVoiceId(null);
+      utterance.onerror = () => setPlayingVoiceId(null);
+      setPlayingVoiceId(voice.id);
+      window.speechSynthesis.speak(utterance);
+    } else {
+      alert(voice.sampleText);
+    }
+  };
+
+  const handleDownloadSubtitles = (format: 'srt' | 'vtt') => {
+    const text = activeScene.subtitleText || activeScene.dialogueScript;
+    if (!text.trim()) {
+      alert('אין טקסט כתוביות בסצנה זו.');
+      return;
+    }
+    const duration = activeScene.durationSeconds || 6;
+    if (format === 'srt') {
+      const srt = generateSrtContent(text, duration);
+      downloadSubtitleFile(`scene_${activeScene.sceneNumber}_subtitles.srt`, srt);
+    } else {
+      const vtt = generateVttContent(text, duration);
+      downloadSubtitleFile(`scene_${activeScene.sceneNumber}_subtitles.vtt`, vtt, 'text/vtt;charset=utf-8');
+    }
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] overflow-hidden" dir="rtl">
+      {/* Hidden file inputs */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*,video/*"
+        className="hidden"
+        onChange={(e) => handleFileUpload(e, 'background')}
+      />
+      <input
+        ref={photoAvatarInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => handleFileUpload(e, 'avatar')}
+      />
+
       {/* Top Project Bar */}
       <div className="px-6 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -259,16 +417,6 @@ export const SceneTimelineEditor: React.FC = () => {
           <div className="flex-1 p-3 overflow-y-auto space-y-2">
             {activeProject.scenes.map((scene, idx) => {
               const isSelected = scene.id === activeScene.id;
-              const roleLabels: Record<string, string> = {
-                welcome_hook: 'פתיח והוק',
-                feature_explainer: 'הסברים והדגמה',
-                sales_pitch: 'שיחת מכירה',
-                objection_handler: 'התנגדויות',
-                lead_closing: 'סגירה ולידים',
-                custom: 'סצנה'
-              };
-              const roleLabel = scene.sceneRole ? roleLabels[scene.sceneRole] : undefined;
-
               return (
                 <div
                   key={scene.id}
@@ -287,30 +435,32 @@ export const SceneTimelineEditor: React.FC = () => {
                       <span>{scene.title}</span>
                     </span>
 
-                    {scene.renderedVideoUrl ? (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" />
-                        <span>מוכן</span>
-                      </span>
-                    ) : scene.heygenStatus === 'processing' ? (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-semibold flex items-center gap-1">
-                        <RefreshCw className="w-3 h-3 animate-spin" />
-                        <span>מרנדר</span>
-                      </span>
-                    ) : (
-                      <span className="text-[10px] text-slate-500 font-mono">טיוטה</span>
-                    )}
+                    <div className="flex items-center gap-1">
+                      {scene.renderedVideoUrl ? (
+                        <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          <span>וידאו</span>
+                        </span>
+                      ) : scene.heygenStatus === 'processing' ? (
+                        <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[10px] font-semibold flex items-center gap-1">
+                          <RefreshCw className="w-3 h-3 animate-spin" />
+                          <span>מרנדר</span>
+                        </span>
+                      ) : null}
+
+                      {scene.renderedAudioUrl && (
+                        <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 text-[10px] font-semibold flex items-center gap-1">
+                          <Volume2 className="w-3 h-3" />
+                          <span>TTS</span>
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-[11px] text-slate-400">
                     <p className="line-clamp-1 flex-1">
                       {scene.dialogueScript || 'ללא טקסט קריינות'}
                     </p>
-                    {roleLabel && (
-                      <span className="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[9px] font-medium shrink-0 mr-1">
-                        {roleLabel}
-                      </span>
-                    )}
                   </div>
                 </div>
               );
@@ -323,8 +473,15 @@ export const SceneTimelineEditor: React.FC = () => {
           
           {renderError && (
             <div className="p-3.5 bg-rose-500/20 border border-rose-500/40 rounded-2xl text-rose-200 text-xs flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 text-rose-400" />
+              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{renderError}</span>
+            </div>
+          )}
+
+          {renderSuccess && (
+            <div className="p-3.5 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-emerald-200 text-xs flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>{renderSuccess}</span>
             </div>
           )}
 
@@ -363,42 +520,54 @@ export const SceneTimelineEditor: React.FC = () => {
             </div>
           </div>
 
-          {/* Subtabs Segmented Control */}
-          <div className="flex items-center bg-slate-900/90 border border-slate-800 rounded-2xl p-1 shadow-md w-fit">
+          {/* 4 Specialized Tabs: Script & Avatar, AI Media (Banana Pro & Veo), Google TTS, Subtitles */}
+          <div className="flex items-center flex-wrap gap-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl p-1.5 shadow-md w-fit">
             <button
               onClick={() => setActiveSubTab('script')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'script'
                   ? 'bg-purple-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Volume2 className="w-3.5 h-3.5" />
-              <span>תסריט, אווטאר ומדיה</span>
+              <User className="w-3.5 h-3.5" />
+              <span>תסריט ואווטאר (HeyGen)</span>
             </button>
 
             <button
-              onClick={() => setActiveSubTab('interactive')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeSubTab === 'interactive'
-                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>שכבות אינטראקטיביות והסברים</span>
-            </button>
-
-            <button
-              onClick={() => setActiveSubTab('visualPrompt')}
-              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
-                activeSubTab === 'visualPrompt'
+              onClick={() => setActiveSubTab('media')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeSubTab === 'media'
                   ? 'bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <Palette className="w-3.5 h-3.5" />
-              <span>פרומפט בננה פרו (Imagen 3)</span>
+              <Sparkles className="w-3.5 h-3.5 text-pink-300" />
+              <span>מדיה AI (בננה פרו & Veo)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('tts')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeSubTab === 'tts'
+                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
+              <span>קריינות Google TTS & קולות</span>
+            </button>
+
+            <button
+              onClick={() => setActiveSubTab('subtitles')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+                activeSubTab === 'subtitles'
+                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <Type className="w-3.5 h-3.5 text-amber-900" />
+              <span>מנוע כתוביות (Subtitles)</span>
             </button>
           </div>
 
@@ -407,6 +576,7 @@ export const SceneTimelineEditor: React.FC = () => {
             {/* Left/Middle Column: Content Editor (7 cols) */}
             <div className="lg:col-span-7 space-y-4">
               
+              {/* TAB 1: SCRIPT & AVATAR (HEYGEN & PHOTO AVATARS) */}
               {activeSubTab === 'script' && (
                 <>
                   {/* Dialogue Script Card */}
@@ -430,70 +600,120 @@ export const SceneTimelineEditor: React.FC = () => {
                     />
                   </div>
 
-                  {/* Avatar Selector Card */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={selectedAvatar?.preview_image_url || 'https://files2.heygen.ai/avatar/v3/9b867c2957b4458bb64058b8d0034ea3/full/preview_target.webp'}
-                        alt={selectedAvatar?.avatar_name}
-                        className="w-12 h-12 rounded-xl object-cover bg-slate-800 border border-purple-500/40"
-                      />
-                      <div>
-                        <span className="text-[10px] text-purple-400 font-semibold block">אווטאר AI נבחר (HeyGen)</span>
-                        <p className="text-xs font-bold text-white">{selectedAvatar?.avatar_name || 'Wayne'}</p>
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => openAvatarModal(activeScene.id)}
-                      className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
-                    >
-                      <User className="w-3.5 h-3.5" />
-                      <span>החלף אווטאר וקול</span>
-                    </button>
-                  </div>
-
-                  {/* Background Media Picker */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
+                  {/* Avatar Type Mode Toggle: Studio Avatar vs Photo Avatar */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>רקע הסצנה (מסונכרן לגלריית המדיה)</span>
+                        <User className="w-3.5 h-3.5 text-purple-400" />
+                        <span>הגדרת אווטאר ל-HeyGen</span>
                       </label>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      {activeScene.backgroundMediaUrl ? (
-                        <img
-                          src={activeScene.backgroundMediaUrl}
-                          alt="Background"
-                          className="w-20 h-14 rounded-xl object-cover border border-slate-700 bg-slate-950"
-                        />
-                      ) : (
-                        <div className="w-20 h-14 rounded-xl border border-dashed border-slate-700 bg-slate-950 flex items-center justify-center text-slate-600">
-                          <ImageIcon className="w-5 h-5" />
-                        </div>
-                      )}
-
-                      <div className="flex-1 space-y-1.5">
+                      <div className="flex items-center gap-2 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px]">
                         <button
-                          onClick={handlePickBackgroundMedia}
-                          className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                          type="button"
+                          onClick={() => updateCurrentScene(activeScene.id, { isPhotoAvatar: false })}
+                          className={`px-2.5 py-1 rounded-lg transition font-medium cursor-pointer ${
+                            !activeScene.isPhotoAvatar
+                              ? 'bg-purple-600 text-white'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
                         >
-                          <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
-                          <span>{activeScene.backgroundMediaUrl ? 'החלף מדיה מהגלריה' : 'בחר תמונה/וידאו מהגלריה'}</span>
+                          אווטאר סטודיו
                         </button>
-                        <p className="text-[10px] text-slate-500">
-                          בוחר ישירות מתוך גלריית המדיה של המערכת (Storage & Firestore)
-                        </p>
+                        <button
+                          type="button"
+                          onClick={() => updateCurrentScene(activeScene.id, { isPhotoAvatar: true })}
+                          className={`px-2.5 py-1 rounded-lg transition font-medium cursor-pointer ${
+                            activeScene.isPhotoAvatar
+                              ? 'bg-pink-600 text-white'
+                              : 'text-slate-400 hover:text-white'
+                          }`}
+                        >
+                          תמונת אווטאר (Photo Avatar)
+                        </button>
                       </div>
                     </div>
+
+                    {!activeScene.isPhotoAvatar ? (
+                      /* Studio Avatar Selector */
+                      <div className="flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800">
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={selectedAvatar?.preview_image_url || 'https://files2.heygen.ai/avatar/v3/9b867c2957b4458bb64058b8d0034ea3/full/preview_target.webp'}
+                            alt={selectedAvatar?.avatar_name}
+                            className="w-12 h-12 rounded-xl object-cover bg-slate-800 border border-purple-500/40"
+                          />
+                          <div>
+                            <span className="text-[10px] text-purple-400 font-semibold block">אווטאר סטודיו HeyGen נבחר</span>
+                            <p className="text-xs font-bold text-white">{selectedAvatar?.avatar_name || 'Wayne'}</p>
+                          </div>
+                        </div>
+
+                        <button
+                          onClick={() => openAvatarModal(activeScene.id)}
+                          className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                        >
+                          <User className="w-3.5 h-3.5" />
+                          <span>בחר מקטלוג האווטארים</span>
+                        </button>
+                      </div>
+                    ) : (
+                      /* Custom Photo Avatar Section */
+                      <div className="p-3 bg-slate-950 rounded-xl border border-pink-500/30 space-y-3">
+                        <div className="flex items-center gap-3">
+                          {activeScene.customAvatarImageUrl ? (
+                            <img
+                              src={activeScene.customAvatarImageUrl}
+                              alt="Photo Avatar"
+                              className="w-14 h-14 rounded-xl object-cover border-2 border-pink-500 bg-slate-900 shadow-md"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded-xl border-2 border-dashed border-pink-500/40 bg-pink-950/20 flex items-center justify-center text-pink-400">
+                              <User className="w-6 h-6" />
+                            </div>
+                          )}
+
+                          <div className="flex-1 space-y-1.5">
+                            <span className="text-[11px] font-bold text-pink-300 block">
+                              תמונת פורטרט מותאמת אישית (Talking Photo Avatar)
+                            </span>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={handlePickPhotoAvatarMedia}
+                                className="px-3 py-1 bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/40 text-pink-200 text-xs font-semibold rounded-lg flex items-center gap-1 transition cursor-pointer"
+                              >
+                                <ImageIcon className="w-3.5 h-3.5 text-pink-400" />
+                                <span>{activeScene.customAvatarImageUrl ? 'החלף תמונה' : 'בחר תמונה / העלה'}</span>
+                              </button>
+                              {activeScene.customAvatarImageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateCurrentScene(activeScene.id, { customAvatarImageUrl: undefined })}
+                                  className="p-1 text-slate-500 hover:text-rose-400"
+                                  title="הסר תמונה"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <input
+                          type="text"
+                          value={activeScene.customAvatarImageUrl || ''}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { customAvatarImageUrl: e.target.value, isPhotoAvatar: true })}
+                          placeholder="או הדבק קישור URL ישיר לתמונת הפורטרט..."
+                          className="w-full p-2 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-500"
+                        />
+                      </div>
+                    )}
                   </div>
 
-                  {/* Render Action Button */}
+                  {/* Render HeyGen Action Button */}
                   <div className="pt-2">
                     <button
-                      onClick={handleRender}
+                      onClick={handleRenderHeyGen}
                       disabled={isRenderingScene || !activeScene.dialogueScript.trim()}
                       className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-purple-600/30 transition cursor-pointer disabled:opacity-50 text-xs"
                     >
@@ -501,270 +721,142 @@ export const SceneTimelineEditor: React.FC = () => {
                       <span>
                         {isRenderingScene && renderingSceneId === activeScene.id
                           ? 'מייצר וידאו עם HeyGen v3 ומסנכרן לגלריה...'
-                          : 'הפק סרטון אווטאר לסצנה זו (HeyGen AI)'}
+                          : activeScene.isPhotoAvatar
+                            ? 'הפק סרטון Talking Photo (תמונה מדברת) עם HeyGen'
+                            : 'הפק סרטון אווטאר סטודיו עם HeyGen AI'}
                       </span>
                     </button>
                   </div>
                 </>
               )}
 
-              {activeSubTab === 'interactive' && (
-                /* Interactive Overlays & Sales Flow Sub-Tab */
+              {/* TAB 2: AI MEDIA (BANANA PRO & GOOGLE VEO) */}
+              {activeSubTab === 'media' && (
                 <div className="space-y-4">
-                  {/* Role Selector */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2">
-                    <label className="text-xs font-bold text-slate-200 block">
-                      תפקיד הסצנה במשפך (Scene Role):
-                    </label>
-                    <select
-                      value={activeScene.sceneRole || 'welcome_hook'}
-                      onChange={(e) => updateCurrentScene(activeScene.id, { sceneRole: e.target.value as SceneRoleType })}
-                      className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-yellow-500"
-                    >
-                      <option value="welcome_hook">🎯 פתיח והוק שיווקי (Hook & Welcome)</option>
-                      <option value="feature_explainer">💡 הסברים והדגמת המוצר (Feature Explainer)</option>
-                      <option value="sales_pitch">🔥 שיחת מכירה והצעה בלעדית (Sales Pitch)</option>
-                      <option value="objection_handler">🛡️ טיפול בהתנגדויות ושאלות נפוצות (Objection Handler)</option>
-                      <option value="lead_closing">🤝 סגירת עסקה, טופס לידים ו-WhatsApp (Lead Closing)</option>
-                    </select>
-                  </div>
-
-                  {/* Interactive Actions (מעברים וכפתורי תגובה מהירה) */}
+                  {/* Visual Prompt Card */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <Send className="w-3.5 h-3.5 text-yellow-400" />
-                        <span>כפתורי מענה ומעברים (Interactive Actions / CTAs)</span>
+                        <Palette className="w-4 h-4 text-pink-400" />
+                        <span>פרומפט ויזואלי לתמונה ווידאו (Visual Prompt)</span>
                       </label>
                       <button
-                        type="button"
-                        onClick={() => {
-                          const current = activeScene.interactiveActions || [];
-                          const nextScn = activeProject.scenes.find(s => s.id !== activeScene.id)?.id || activeScene.id;
-                          updateCurrentScene(activeScene.id, {
-                            interactiveActions: [
-                              ...current,
-                              {
-                                id: `act_${Date.now()}`,
-                                label: 'כפתור פעולה חדש',
-                                targetSceneId: nextScn,
-                                variant: 'primary'
-                              }
-                            ]
-                          });
-                        }}
-                        className="p-1 px-2.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-[10px] font-bold rounded-lg transition"
+                        onClick={() => handleCopyText(activeScene.visualPrompt, 'visualPrompt')}
+                        className="px-2.5 py-1 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[11px] rounded-lg flex items-center gap-1 font-semibold transition cursor-pointer"
                       >
-                        + הוסף כפתור
+                        {copiedField === 'visualPrompt' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                        <span>{copiedField === 'visualPrompt' ? 'הועתק!' : 'העתק פרומפט'}</span>
                       </button>
                     </div>
 
-                    <div className="space-y-2">
-                      {(activeScene.interactiveActions || []).map((act, aIdx) => (
-                        <div key={act.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex flex-wrap items-center gap-2">
-                          <input
-                            type="text"
-                            value={act.label}
-                            onChange={(e) => {
-                              const list = [...(activeScene.interactiveActions || [])];
-                              list[aIdx] = { ...list[aIdx], label: e.target.value };
-                              updateCurrentScene(activeScene.id, { interactiveActions: list });
-                            }}
-                            placeholder="טקסט הכפתור..."
-                            className="flex-1 min-w-[140px] p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white"
-                          />
+                    <textarea
+                      rows={4}
+                      value={activeScene.visualPrompt}
+                      onChange={(e) => updateCurrentScene(activeScene.id, { visualPrompt: e.target.value })}
+                      placeholder="פרומפט ויזואלי מפורט ליצירת תמונת הרקע או הוידאו..."
+                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-pink-200 text-xs font-mono focus:border-pink-500 focus:outline-none leading-relaxed"
+                    />
 
-                          <select
-                            value={act.targetSceneId}
-                            onChange={(e) => {
-                              const list = [...(activeScene.interactiveActions || [])];
-                              list[aIdx] = { ...list[aIdx], targetSceneId: e.target.value };
-                              updateCurrentScene(activeScene.id, { interactiveActions: list });
-                            }}
-                            className="p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
-                          >
-                            <option value="">בחר סצנת יעד...</option>
-                            {activeProject.scenes.map(s => (
-                              <option key={s.id} value={s.id}>
-                                סצנה {s.sceneNumber}: {s.title}
-                              </option>
-                            ))}
-                          </select>
+                    {/* AI Generation Action Buttons */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <button
+                        type="button"
+                        onClick={handleGenerateBananaPro}
+                        disabled={isGeneratingMedia}
+                        className="py-3 px-4 bg-gradient-to-r from-pink-600 via-rose-600 to-pink-600 hover:from-pink-500 hover:to-rose-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-600/20 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Sparkles className={`w-4 h-4 ${isGeneratingMedia && generatingMediaSceneId === activeScene.id ? 'animate-spin' : ''}`} />
+                        <span>
+                          {isGeneratingMedia && generatingMediaSceneId === activeScene.id
+                            ? 'יוצר תמונה בבננה פרו...'
+                            : '🚀 צור תמונה עם בננה פרו (Imagen 3)'}
+                        </span>
+                      </button>
 
+                      <button
+                        type="button"
+                        onClick={handleGenerateVeo}
+                        disabled={isGeneratingMedia}
+                        className="py-3 px-4 bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Video className={`w-4 h-4 ${isGeneratingMedia && generatingMediaSceneId === activeScene.id ? 'animate-spin' : ''}`} />
+                        <span>
+                          {isGeneratingMedia && generatingMediaSceneId === activeScene.id
+                            ? 'יוצר וידאו ב-Veo...'
+                            : '🎬 הפק וידאו עם Google Veo'}
+                        </span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Background Media Picker & Current Media Display */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                        <span>רקע הסצנה הנבחר (מסונכרן לגלריית המדיה)</span>
+                      </label>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {activeScene.backgroundMediaUrl ? (
+                        <div className="relative group">
+                          {activeScene.backgroundType === 'video' ? (
+                            <video
+                              src={activeScene.backgroundMediaUrl}
+                              className="w-24 h-16 rounded-xl object-cover border border-slate-700 bg-slate-950"
+                              muted
+                            />
+                          ) : (
+                            <img
+                              src={activeScene.backgroundMediaUrl}
+                              alt="Background"
+                              className="w-24 h-16 rounded-xl object-cover border border-slate-700 bg-slate-950"
+                            />
+                          )}
+                        </div>
+                      ) : (
+                        <div className="w-24 h-16 rounded-xl border border-dashed border-slate-700 bg-slate-950 flex items-center justify-center text-slate-600">
+                          <ImageIcon className="w-5 h-5" />
+                        </div>
+                      )}
+
+                      <div className="flex-1 space-y-2">
+                        <div className="flex items-center gap-2">
                           <button
                             type="button"
-                            onClick={() => {
-                              const filtered = (activeScene.interactiveActions || []).filter((_, i) => i !== aIdx);
-                              updateCurrentScene(activeScene.id, { interactiveActions: filtered });
-                            }}
-                            className="p-1.5 text-slate-500 hover:text-rose-400"
+                            onClick={handlePickBackgroundMedia}
+                            className="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>{activeScene.backgroundMediaUrl ? 'החלף מדיה מהגלריה' : 'בחר תמונה/וידאו מהגלריה'}</span>
                           </button>
-                        </div>
-                      ))}
-
-                      {(!activeScene.interactiveActions || activeScene.interactiveActions.length === 0) && (
-                        <p className="text-[11px] text-slate-500 text-center py-2 border border-dashed border-slate-800 rounded-xl">
-                          אין כפתורי מענה מותאמים אישית. הנגן ישתמש במעבר אוטומטי או ברירת מחדל לסצנה הבאה.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Interactive Cards (הסברים, כרטיסי מידע ומוצרים) */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                        <Layers className="w-3.5 h-3.5 text-indigo-400" />
-                        <span>כרטיסי הסבר והדגמת מוצר (Info & Product Cards)</span>
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const current = activeScene.interactiveCards || [];
-                          updateCurrentScene(activeScene.id, {
-                            interactiveCards: [
-                              ...current,
-                              {
-                                id: `card_${Date.now()}`,
-                                title: 'כותרת הסבר / מוצר',
-                                description: 'תיאור קצר של התכונה או היתרון המרכזי',
-                                badge: 'חדש'
-                              }
-                            ]
-                          });
-                        }}
-                        className="p-1 px-2.5 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 text-[10px] font-bold rounded-lg transition"
-                      >
-                        + הוסף כרטיס הסבר
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {(activeScene.interactiveCards || []).map((card, cIdx) => (
-                        <div key={card.id} className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="text"
-                              value={card.title}
-                              onChange={(e) => {
-                                const list = [...(activeScene.interactiveCards || [])];
-                                list[cIdx] = { ...list[cIdx], title: e.target.value };
-                                updateCurrentScene(activeScene.id, { interactiveCards: list });
-                              }}
-                              placeholder="כותרת הכרטיס..."
-                              className="flex-1 p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white"
-                            />
-                            <input
-                              type="text"
-                              value={card.badge || ''}
-                              onChange={(e) => {
-                                const list = [...(activeScene.interactiveCards || [])];
-                                list[cIdx] = { ...list[cIdx], badge: e.target.value };
-                                updateCurrentScene(activeScene.id, { interactiveCards: list });
-                              }}
-                              placeholder="תגית (למשל: ⭐ בלעדי)..."
-                              className="w-28 p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-yellow-300"
-                            />
+                          {activeScene.backgroundMediaUrl && (
                             <button
                               type="button"
-                              onClick={() => {
-                                const filtered = (activeScene.interactiveCards || []).filter((_, i) => i !== cIdx);
-                                updateCurrentScene(activeScene.id, { interactiveCards: filtered });
-                              }}
+                              onClick={() => updateCurrentScene(activeScene.id, { backgroundMediaUrl: undefined })}
                               className="p-1.5 text-slate-500 hover:text-rose-400"
+                              title="נקה מדיה"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
-                          </div>
-                          <input
-                            type="text"
-                            value={card.description || ''}
-                            onChange={(e) => {
-                              const list = [...(activeScene.interactiveCards || [])];
-                              list[cIdx] = { ...list[cIdx], description: e.target.value };
-                              updateCurrentScene(activeScene.id, { interactiveCards: list });
-                            }}
-                            placeholder="תיאור ההסבר..."
-                            className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-300"
-                          />
+                          )}
                         </div>
-                      ))}
-
-                      {(!activeScene.interactiveCards || activeScene.interactiveCards.length === 0) && (
-                        <p className="text-[11px] text-slate-500 text-center py-2 border border-dashed border-slate-800 rounded-xl">
-                          אין כרטיסי הסבר בסצנה זו.
-                        </p>
-                      )}
+                        <input
+                          type="text"
+                          value={activeScene.backgroundMediaUrl || ''}
+                          onChange={(e) => updateCurrentScene(activeScene.id, {
+                            backgroundMediaUrl: e.target.value,
+                            backgroundType: e.target.value.endsWith('.mp4') ? 'video' : 'image'
+                          })}
+                          placeholder="או הדבק קישור URL ישיר לתמונה / וידאו..."
+                          className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500"
+                        />
+                      </div>
                     </div>
                   </div>
 
-                  {/* Auto Transitions & Voice Trigger */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <label className="text-xs font-bold text-slate-200 block">
-                      הגדרות מעבר אוטומטי ואינטראקציה קולית:
-                    </label>
-
-                    <div className="flex items-center justify-between text-xs text-slate-300">
-                      <span className="flex items-center gap-1.5">
-                        <Mic className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>אפשר דיאלוג ופקודות קוליות בסצנה זו</span>
-                      </span>
-                      <input
-                        type="checkbox"
-                        checked={!!activeScene.enableVoiceTrigger}
-                        onChange={(e) => updateCurrentScene(activeScene.id, { enableVoiceTrigger: e.target.checked })}
-                        className="w-4 h-4 rounded text-yellow-500 focus:ring-yellow-400 cursor-pointer"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between text-xs text-slate-300">
-                      <span>העבר אוטומטית לסצנה הבאה בסיום הווידאו</span>
-                      <input
-                        type="checkbox"
-                        checked={activeScene.autoTransitionOnEnd !== false}
-                        onChange={(e) => updateCurrentScene(activeScene.id, { autoTransitionOnEnd: e.target.checked })}
-                        className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-
-                </div>
-              )}
-
-              {activeSubTab === 'visualPrompt' && (
-                /* Visual Prompt & Banana Pro Consistency Sub-Tab */
-                <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                      <Palette className="w-4 h-4 text-pink-400" />
-                      <span>פרומפט ויזואלי לתמונה / וידאו (Imagen 3 / Nano Banana Pro)</span>
-                    </label>
-                    <button
-                      onClick={() => handleCopyText(activeScene.visualPrompt, 'visualPrompt')}
-                      className="px-2.5 py-1 bg-pink-500/20 hover:bg-pink-500/30 text-pink-300 text-[11px] rounded-lg flex items-center gap-1 font-semibold transition cursor-pointer"
-                    >
-                      {copiedField === 'visualPrompt' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                      <span>{copiedField === 'visualPrompt' ? 'הועתק!' : 'העתק פרומפט'}</span>
-                    </button>
-                  </div>
-
-                  <textarea
-                    rows={5}
-                    value={activeScene.visualPrompt}
-                    onChange={(e) => updateCurrentScene(activeScene.id, { visualPrompt: e.target.value })}
-                    placeholder="פרומפט ויזואלי מפורט ליצירת תמונת הרקע או הוידאו..."
-                    className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-pink-200 text-xs font-mono focus:border-pink-500 focus:outline-none leading-relaxed"
-                  />
-
-                  {activeScene.characterDescription && (
-                    <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-                      <span className="text-[10px] text-indigo-400 font-bold block">תיאור ופעולת האווטאר בסצנה:</span>
-                      <p className="text-xs text-slate-300">{activeScene.characterDescription}</p>
-                    </div>
-                  )}
-
+                  {/* Consistency Seed Info */}
                   {activeProject.projectOverview?.bananaConsistencySeed && (
                     <div className="p-3 bg-pink-950/20 rounded-xl border border-pink-500/30 space-y-1">
                       <span className="text-[10px] text-pink-300 font-bold block flex items-center gap-1">
@@ -776,6 +868,315 @@ export const SceneTimelineEditor: React.FC = () => {
                       </p>
                     </div>
                   )}
+                </div>
+              )}
+
+              {/* TAB 3: GOOGLE CLOUD TTS STUDIO & VOICES */}
+              {activeSubTab === 'tts' && (
+                <div className="space-y-4">
+                  {/* Voice Selector & Audio Demo Buttons */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Mic className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>קטלוג קולות Google Cloud TTS (עברית & בינלאומי)</span>
+                      </label>
+                      <span className="text-[10px] text-cyan-400 font-mono">
+                        {GOOGLE_TTS_VOICES.length} קולות זמינים
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto p-1">
+                      {GOOGLE_TTS_VOICES.map((v) => {
+                        const isSelected = (activeScene.googleTtsVoiceName || 'he-IL-Wavenet-B') === v.id;
+                        const isPlaying = playingVoiceId === v.id;
+                        return (
+                          <div
+                            key={v.id}
+                            onClick={() => updateCurrentScene(activeScene.id, {
+                              googleTtsVoiceName: v.id,
+                              googleTtsLanguageCode: v.languageCode
+                            })}
+                            className={`p-2.5 rounded-xl border transition cursor-pointer flex flex-col justify-between gap-1.5 ${
+                              isSelected
+                                ? 'bg-cyan-950/50 border-cyan-500 shadow-md shadow-cyan-950/40'
+                                : 'bg-slate-950 border-slate-800 hover:bg-slate-800/40'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-xs text-white flex items-center gap-1">
+                                <span>{v.name}</span>
+                              </span>
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
+                                {v.badge}
+                              </span>
+                            </div>
+
+                            <p className="text-[10px] text-slate-400 line-clamp-1">{v.description}</p>
+
+                            <div className="flex items-center justify-between pt-1 border-t border-slate-800/60">
+                              <span className="text-[9px] text-slate-500 font-mono">{v.languageName}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePlayVoiceDemo(v);
+                                }}
+                                className={`px-2 py-0.5 rounded text-[10px] flex items-center gap-1 font-semibold transition cursor-pointer ${
+                                  isPlaying
+                                    ? 'bg-amber-500 text-black'
+                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+                                }`}
+                              >
+                                <PlayIcon className="w-2.5 h-2.5" />
+                                <span>{isPlaying ? 'עצור' : 'השמע דמו'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* SSML Controls: Speaking Rate, Pitch, Emphasis */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>הגדרות מתקדמות & תגיות SSML</span>
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Speaking Rate */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">מהירות דיבור</span>
+                          <span className="text-cyan-300 font-mono font-bold">
+                            {currentRate.toFixed(2)}x
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="1.75"
+                          step="0.05"
+                          value={currentRate}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { googleTtsSsmlRate: e.target.value })}
+                          className="w-full accent-cyan-500 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Pitch */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">גובה צליל (Pitch)</span>
+                          <span className="text-cyan-300 font-mono font-bold">
+                            {currentPitch}st
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="-10"
+                          max="10"
+                          step="1"
+                          value={currentPitch}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { googleTtsSsmlPitch: e.target.value })}
+                          className="w-full accent-cyan-500 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Emphasis */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <label className="text-xs text-slate-400 block">רמת הדגשה (Emphasis)</label>
+                        <select
+                          value={activeScene.googleTtsSsmlEmphasis || 'none'}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { googleTtsSsmlEmphasis: e.target.value as any })}
+                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                        >
+                          <option value="none">ללא הדגשה (None)</option>
+                          <option value="moderate">מתונה (Moderate)</option>
+                          <option value="strong">חזקה (Strong)</option>
+                          <option value="reduced">מופחתת (Reduced)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Render Google TTS Action Button & Active Audio Player */}
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleGenerateGoogleTts}
+                      disabled={isGeneratingAudio || !activeScene.dialogueScript.trim()}
+                      className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 transition cursor-pointer disabled:opacity-50"
+                    >
+                      <Volume2 className={`w-4 h-4 ${isGeneratingAudio && generatingMediaSceneId === activeScene.id ? 'animate-spin' : ''}`} />
+                      <span>
+                        {isGeneratingAudio && generatingMediaSceneId === activeScene.id
+                          ? 'מפיק קובץ שמע עם Google Cloud TTS...'
+                          : '🎙️ הפק קריינות עם Google Cloud TTS (וסנכרן לגלריה)'}
+                      </span>
+                    </button>
+
+                    {activeScene.renderedAudioUrl && (
+                      <div className="p-3 bg-slate-950 rounded-xl border border-cyan-500/40 flex items-center justify-between gap-3">
+                        <span className="text-xs font-bold text-cyan-300 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <span>קריינות מוכנה להשמעה</span>
+                        </span>
+                        <audio src={activeScene.renderedAudioUrl} controls className="h-8 max-w-[240px]" />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: SUBTITLES ENGINE & STYLES */}
+              {activeSubTab === 'subtitles' && (
+                <div className="space-y-4">
+                  {/* Subtitle Text Input */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Type className="w-3.5 h-3.5 text-yellow-400" />
+                        <span>טקסט הכתוביות (Subtitle Content)</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => updateCurrentScene(activeScene.id, { subtitleText: activeScene.dialogueScript })}
+                        className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-[10px] font-bold rounded-lg transition"
+                      >
+                        ⚡ שעתק מטקסט התסריט
+                      </button>
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      value={activeScene.subtitleText || ''}
+                      onChange={(e) => updateCurrentScene(activeScene.id, { subtitleText: e.target.value })}
+                      placeholder={activeScene.dialogueScript || 'הזן טקסט כתוביות ייעודי לסצנה...'}
+                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-yellow-500 focus:outline-none leading-relaxed"
+                    />
+                  </div>
+
+                  {/* 6 Subtitle Style Presets */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                    <label className="text-xs font-bold text-slate-200 block">
+                      בחר סגנון כתוביות (Style Presets):
+                    </label>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { id: 'glow', label: 'זוהר ניאון', desc: 'צללית זוהרת מודרנית', color: 'text-cyan-300' },
+                        { id: 'outline', label: 'קו מתאר (Outline)', desc: 'סגנון קולנועי מודגש', color: 'text-white' },
+                        { id: 'boxed', label: 'תיבה שחורה (Boxed)', desc: 'רקע כהה לקריאות מקסימלית', color: 'text-yellow-300' },
+                        { id: 'tiktok', label: 'טיקטוק / רילס', desc: 'טקסט צהוב עז על רקע שחור', color: 'text-amber-400' },
+                        { id: 'karaoke', label: 'קריוקי דינמי', desc: 'הדגשת מילים בזמן דיבור', color: 'text-pink-400' },
+                        { id: 'minimal', label: 'מינימליסטי', desc: 'עדין ונקי ללא רקע', color: 'text-slate-300' },
+                      ].map((style) => {
+                        const isSelected = (activeScene.subtitleStyle || 'boxed') === style.id;
+                        return (
+                          <button
+                            key={style.id}
+                            type="button"
+                            onClick={() => updateCurrentScene(activeScene.id, { subtitleStyle: style.id as any })}
+                            className={`p-2.5 rounded-xl border text-right transition cursor-pointer ${
+                              isSelected
+                                ? 'bg-yellow-500/20 border-yellow-500 shadow-md shadow-yellow-500/20'
+                                : 'bg-slate-950 border-slate-800 hover:bg-slate-800/40'
+                            }`}
+                          >
+                            <span className={`font-bold text-xs block ${style.color}`}>{style.label}</span>
+                            <span className="text-[10px] text-slate-400">{style.desc}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Subtitle Animation, Size & Position Controls */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                    <label className="text-xs font-bold text-slate-200 block">
+                      התאמת אנימציה, גודל ומיקום:
+                    </label>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {/* Animation */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <label className="text-xs text-slate-400 block">אנימציה</label>
+                        <select
+                          value={activeScene.subtitleAnimation || 'pop'}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { subtitleAnimation: e.target.value as any })}
+                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                        >
+                          <option value="pop">קפיצה קלה (Pop)</option>
+                          <option value="fade">עמעום (Fade)</option>
+                          <option value="word">מילה במילה (Word)</option>
+                          <option value="line">שורה אחר שורה (Line)</option>
+                        </select>
+                      </div>
+
+                      {/* Font Size */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">גודל גופן</span>
+                          <span className="text-yellow-400 font-mono font-bold">
+                            {activeScene.subtitleFontSize || 18}px
+                          </span>
+                        </div>
+                        <input
+                          type="range"
+                          min="12"
+                          max="32"
+                          step="2"
+                          value={activeScene.subtitleFontSize || 18}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { subtitleFontSize: parseInt(e.target.value) })}
+                          className="w-full accent-yellow-500 cursor-pointer"
+                        />
+                      </div>
+
+                      {/* Position */}
+                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                        <label className="text-xs text-slate-400 block">מיקום על המסך</label>
+                        <select
+                          value={activeScene.subtitlePosition || 'bottom'}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { subtitlePosition: e.target.value as any })}
+                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                        >
+                          <option value="bottom">למטה (Bottom)</option>
+                          <option value="center">במרכז (Center)</option>
+                          <option value="top">למעלה (Top)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subtitle Downloads (SRT / VTT) */}
+                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex items-center justify-between gap-3">
+                    <div>
+                      <span className="text-xs font-bold text-slate-200 block">ייצוא קבצי כתוביות</span>
+                      <span className="text-[10px] text-slate-400">תואם ליוטיוב, טיקטוק, פרימייר ונגני וידאו</span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSubtitles('srt')}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-yellow-400" />
+                        <span>הורד SRT</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDownloadSubtitles('vtt')}
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                      >
+                        <Download className="w-3.5 h-3.5 text-amber-400" />
+                        <span>הורד VTT</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
 

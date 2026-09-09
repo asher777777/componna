@@ -69,6 +69,28 @@ export interface VideoScene {
   musicBgmVolume?: number;
   transition?: 'none' | 'fade' | 'slide_left' | 'wipe';
 
+  // Photo Avatar & Custom Image Avatar
+  customAvatarImageUrl?: string;
+  isPhotoAvatar?: boolean;
+
+  // Google Cloud TTS Settings
+  googleTtsVoiceName?: string;
+  googleTtsLanguageCode?: string;
+  googleTtsSsmlRate?: string;
+  googleTtsSsmlPitch?: string;
+  googleTtsSsmlVolume?: string;
+  googleTtsSsmlEmphasis?: string;
+
+  // Subtitles & Captions Engine
+  subtitleText?: string;
+  subtitleStyle?: 'glow' | 'outline' | 'boxed' | 'minimal' | 'tiktok' | 'karaoke';
+  subtitleAnimation?: 'word' | 'line' | 'pop' | 'fade' | 'none';
+  subtitleFontSize?: number;
+  subtitleColor?: string;
+  subtitleBgColor?: string;
+  subtitleBgOpacity?: number;
+  subtitlePosition?: 'bottom' | 'center' | 'top';
+
   // Interactive Flow & Sales Engine
   sceneRole?: SceneRoleType;
   interactiveActions?: InteractiveActionItem[];

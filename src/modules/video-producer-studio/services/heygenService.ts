@@ -102,6 +102,8 @@ export async function generateHeyGenSceneVideo(
     voiceId?: string;
     aspectRatio?: '16:9' | '9:16' | '1:1';
     backgroundMediaUrl?: string;
+    customAvatarImageUrl?: string;
+    isPhotoAvatar?: boolean;
   }
 ): Promise<string> {
   if (!apiKey) {
@@ -115,14 +117,22 @@ export async function generateHeyGenSceneVideo(
   };
   const dimension = dimensionMap[params.aspectRatio || '16:9'];
 
+  const characterConfig = params.isPhotoAvatar && params.customAvatarImageUrl
+    ? {
+        type: 'talking_photo',
+        talking_photo_id: params.avatarId || 'talking_photo_custom',
+        talking_photo_url: params.customAvatarImageUrl
+      }
+    : {
+        type: 'avatar',
+        avatar_id: params.avatarId || 'Wayne_20240711',
+        avatar_style: 'normal'
+      };
+
   const payload = {
     video_inputs: [
       {
-        character: {
-          type: 'avatar',
-          avatar_id: params.avatarId,
-          avatar_style: 'normal'
-        },
+        character: characterConfig,
         voice: {
           type: 'text',
           input_text: params.scriptText,

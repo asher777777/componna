@@ -72,8 +72,91 @@ export async function deleteProject(projectId: string, db?: Firestore): Promise<
 }
 
 /**
- * Synchronizes a rendered scene/video asset directly into `sdo_media_items`
- * so that it immediately becomes visible in Media Gallery Hub!
+ * Generic sync for any Image, Video, or Audio asset to Media Gallery Hub
+ */
+export async function syncAssetToMediaGallery(
+  db: Firestore | undefined,
+  params: {
+    url: string;
+    title: string;
+    projectId: string;
+    sceneId: string;
+    sceneNumber?: number;
+    assetType: 'image' | 'video' | 'audio';
+    generator: 'imagen3_banana_pro' | 'google_veo' | 'heygen_avatar' | 'heygen_photo_avatar' | 'google_tts';
+    mimeType?: string;
+    tags?: string[];
+  }
+): Promise<void> {
+  if (!params.url) return;
+
+  const typeLabels = {
+    image: 'תמונת AI (Banana Pro)',
+    video: params.generator === 'google_veo' ? 'סרטון AI (Google Veo)' : 'אווטאר AI (HeyGen)',
+    audio: 'קריינות AI (Google TTS)'
+  };
+
+  const folderIds = {
+    image: 'banana_pro_images',
+    video: 'ai_videos',
+    audio: 'google_tts_audios'
+  };
+
+  const folderNames = {
+    image: 'תמונות ורקעים AI (Banana Pro)',
+    video: 'הפקות וידאו ואווטאר (SDO Studio)',
+    audio: 'קריינות ודיבוב קולי (Google TTS)'
+  };
+
+  const mediaId = `media_${params.generator}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+  const mediaDoc = {
+    id: mediaId,
+    name: `${params.title} - ${typeLabels[params.assetType]}`,
+    url: params.url,
+    type: params.assetType,
+    mimeType: params.mimeType || (params.assetType === 'image' ? 'image/jpeg' : params.assetType === 'audio' ? 'audio/mp3' : 'video/mp4'),
+    folderId: folderIds[params.assetType],
+    folderName: folderNames[params.assetType],
+    tags: [
+      params.generator,
+      params.assetType,
+      'sdo_studio',
+      params.projectId,
+      `scene_${params.sceneNumber || 1}`,
+      ...(params.tags || [])
+    ],
+    metadata: {
+      projectId: params.projectId,
+      sceneId: params.sceneId,
+      sceneNumber: params.sceneNumber,
+      generator: params.generator,
+      source: 'sdo_video_producer'
+    },
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  // Sync to local cache
+  try {
+    const local = localStorage.getItem('comona_media_gallery_items');
+    const list = local ? JSON.parse(local) : [];
+    list.unshift(mediaDoc);
+    localStorage.setItem('comona_media_gallery_items', JSON.stringify(list));
+  } catch {}
+
+  // Sync to Firestore
+  if (db) {
+    try {
+      await setDoc(doc(db, MEDIA_ITEMS_COLLECTION, mediaId), mediaDoc, { merge: true });
+      console.log(`[VideoStudio] Synced ${params.assetType} asset to media gallery (${MEDIA_ITEMS_COLLECTION}):`, mediaId);
+    } catch (err) {
+      console.warn('[VideoStudio] Firestore Media gallery sync notice:', err);
+    }
+  }
+}
+
+/**
+ * Backward compatibility wrapper
  */
 export async function syncRenderedVideoToMediaGallery(
   db: Firestore | undefined,
@@ -86,33 +169,13 @@ export async function syncRenderedVideoToMediaGallery(
     avatarName?: string;
   }
 ): Promise<void> {
-  if (!db || !params.videoUrl) return;
-
-  try {
-    const mediaId = `media_heygen_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-    const mediaDoc = {
-      id: mediaId,
-      name: `${params.title} (HeyGen Avatar)`,
-      url: params.videoUrl,
-      type: 'video',
-      mimeType: 'video/mp4',
-      folderId: 'heygen_creations',
-      folderName: 'הפקות וידאו ואווטאר (SDO Studio)',
-      tags: ['heygen', 'ai_avatar', 'video_producer', params.projectId],
-      metadata: {
-        projectId: params.projectId,
-        sceneId: params.sceneId,
-        avatar: params.avatarName || 'AI Presenter',
-        aspectRatio: params.aspectRatio || '16:9',
-        source: 'sdo_video_producer'
-      },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    await setDoc(doc(db, MEDIA_ITEMS_COLLECTION, mediaId), mediaDoc, { merge: true });
-    console.log(`[VideoStudio] Synced video asset to media gallery (${MEDIA_ITEMS_COLLECTION}):`, mediaId);
-  } catch (err) {
-    console.warn('[VideoStudio] Media gallery sync notice:', err);
-  }
+  return syncAssetToMediaGallery(db, {
+    url: params.videoUrl,
+    title: params.title,
+    projectId: params.projectId,
+    sceneId: params.sceneId,
+    assetType: 'video',
+    generator: 'heygen_avatar',
+    tags: [params.avatarName || 'AI Presenter']
+  });
 }
