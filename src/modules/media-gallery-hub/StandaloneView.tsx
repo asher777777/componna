@@ -9,6 +9,8 @@ import {
   X,
   HardDrive,
   SlidersHorizontal,
+  Sun,
+  Moon,
 } from 'lucide-react';
 import { MediaGalleryProvider } from './context/MediaGalleryContext';
 import { MediaDriveSidebar } from './components/MediaDriveSidebar';
@@ -21,20 +23,41 @@ import { FolderManagerModal } from './components/FolderManagerModal';
 import { MoveToFolderModal } from './components/MoveToFolderModal';
 import { BulkActionBar } from './components/BulkActionBar';
 
+import { useMediaGallery } from './context/MediaGalleryContext';
+
 const MediaGalleryHubContent: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { isSidebarOpen, setIsSidebarOpen, theme, toggleTheme } = useMediaGallery();
+  const isLight = theme === 'light';
 
   return (
-    <div className="flex flex-col h-screen max-h-screen overflow-hidden bg-slate-950 text-slate-100 font-sans selection:bg-yellow-500 selection:text-black" dir="rtl">
+    <div
+      className={`flex flex-col h-screen max-h-screen overflow-hidden font-sans selection:bg-yellow-500 selection:text-black transition-colors duration-200 ${
+        isLight
+          ? 'bg-slate-100 text-slate-900'
+          : 'bg-slate-950 text-slate-100'
+      }`}
+      dir="rtl"
+    >
       {/* 1. Ultra-Sleek Top Bar (Only 52px height) */}
-      <header className="h-14 px-4 bg-slate-900/95 border-b border-slate-800 flex items-center justify-between flex-shrink-0 z-20">
+      <header
+        className={`h-14 px-4 border-b flex items-center justify-between flex-shrink-0 z-20 transition-colors ${
+          isLight
+            ? 'bg-white/95 border-slate-200 text-slate-800 shadow-sm'
+            : 'bg-slate-900/95 border-slate-800 text-white'
+        }`}
+      >
         {/* Logo & Drive Title */}
         <div className="flex items-center space-x-3 rtl:space-x-reverse">
           {/* Mobile hamburger */}
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+            className={`md:hidden p-1.5 rounded-lg transition-colors cursor-pointer ${
+              isLight
+                ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
           >
             {isMobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
@@ -44,18 +67,73 @@ const MediaGalleryHubContent: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <h1 className="text-sm sm:text-base font-black text-white">Drive Vault</h1>
-            <span className="bg-yellow-500/20 text-yellow-300 text-[10px] font-bold px-2 py-0.5 rounded-full border border-yellow-500/40 hidden sm:inline-block">
+            <h1 className={`text-sm sm:text-base font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              Drive Vault
+            </h1>
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-full border hidden sm:inline-block ${
+                isLight
+                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+              }`}
+            >
               Universal Storage
             </span>
           </div>
         </div>
 
-        {/* Top Right Status & Quick Info */}
-        <div className="flex items-center space-x-3 rtl:space-x-reverse text-xs">
-          <div className="hidden sm:flex items-center space-x-2 rtl:space-x-reverse text-slate-400 text-[11px] bg-slate-950 px-3 py-1.5 rounded-full border border-slate-800">
+        {/* Top Right Controls & Status */}
+        <div className="flex items-center space-x-2.5 rtl:space-x-reverse text-xs">
+          {/* Day / Night Mode Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className={`p-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+            }`}
+            title={isLight ? 'מעבר למצב לילה כהה' : 'מעבר למצב יום מואר'}
+          >
+            {isLight ? (
+              <>
+                <Moon className="w-4 h-4 text-indigo-600" />
+                <span className="hidden sm:inline font-bold">מצב לילה</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-4 h-4 text-amber-400" />
+                <span className="hidden sm:inline font-bold">מצב יום</span>
+              </>
+            )}
+          </button>
+
+          {/* Sidebar visibility toggle */}
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-colors cursor-pointer ${
+              isSidebarOpen
+                ? isLight
+                  ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow'
+            }`}
+            title={isSidebarOpen ? 'הסתר סרגל ניווט' : 'הצג סרגל ניווט'}
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">{isSidebarOpen ? 'הסתר סרגל' : 'הצג סרגל'}</span>
+          </button>
+
+          <div
+            className={`hidden sm:flex items-center space-x-2 rtl:space-x-reverse text-[11px] px-3 py-1.5 rounded-full border ${
+              isLight
+                ? 'bg-slate-100 text-slate-600 border-slate-300'
+                : 'bg-slate-950 text-slate-400 border-slate-800'
+            }`}
+          >
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>Cloud Vault Sync</span>
+            <span>Cloud Sync</span>
           </div>
         </div>
       </header>
@@ -69,7 +147,11 @@ const MediaGalleryHubContent: React.FC = () => {
         />
 
         {/* Center Explorer Main View */}
-        <main className="flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 custom-scrollbar bg-slate-950">
+        <main
+          className={`flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 custom-scrollbar transition-colors ${
+            isLight ? 'bg-slate-100/70' : 'bg-slate-950'
+          }`}
+        >
           {/* Uploader (Floating overlay & collapsible tray) */}
           <MediaUploader />
 

@@ -94,12 +94,18 @@ interface MediaGalleryContextValue {
   ) => Promise<void>;
   deleteMediaItems: (ids: string[]) => Promise<void>;
   updateMediaItem: (id: string, updates: Partial<MediaItem>) => Promise<void>;
+  renameMediaItem: (id: string, newName: string) => Promise<void>;
   
   // Folder Operations
   createFolder: (name: string, color?: string, icon?: string, parentId?: string | null) => Promise<MediaFolder>;
   updateFolder: (id: string, updates: Partial<MediaFolder>) => Promise<void>;
   deleteFolder: (id: string, deleteContents?: boolean) => Promise<void>;
   moveItemsToFolder: (itemIds: string[], targetFolderId: string | null) => Promise<void>;
+
+  // Theme support
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  toggleTheme: () => void;
 
   // Folder Modals UI state
   isFolderModalOpen: boolean;
@@ -112,6 +118,8 @@ interface MediaGalleryContextValue {
   setItemsToMove: (ids: string[]) => void;
 
   // Modern UI states
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
   isInspectorOpen: boolean;
   setIsInspectorOpen: (open: boolean) => void;
   isUploaderOpen: boolean;
@@ -171,9 +179,31 @@ export const MediaGalleryProvider: React.FC<{
   const [itemsToMove, setItemsToMove] = useState<string[]>([]);
 
   // Modern UI states
-  const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
   const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
   const [focusedItem, setFocusedItem] = useState<MediaItem | null>(null);
+
+  // Theme Support (Day / Night Mode)
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('sdo_media_theme');
+      return saved === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const setTheme = (newTheme: 'dark' | 'light') => {
+    setThemeState(newTheme);
+    try {
+      localStorage.setItem('sdo_media_theme', newTheme);
+    } catch {}
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
 
   const totalStorageBytes = useMemo(() => {
     return mediaItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
@@ -569,8 +599,54 @@ export const MediaGalleryProvider: React.FC<{
       prev.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: Date.now() } : item))
     );
 
+    if (focusedItem?.id === id) {
+      setFocusedItem((prev) => (prev ? { ...prev, ...updates, updatedAt: Date.now() } : null));
+    }
+
     if (db) {
       await FirestoreMediaService.updateMediaMetadata(db, collections, id, updates);
+    }
+  };
+
+  const renameMediaItem = async (id: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+
+    const targetItem = mediaItems.find((i) => i.id === id);
+    if (!targetItem) return;
+
+    let finalName = trimmed;
+    const origExt = targetItem.name.includes('.') ? targetItem.name.split('.').pop() : '';
+    if (origExt && !finalName.includes('.')) {
+      finalName = `${finalName}.${origExt}`;
+    }
+
+    const { type, mimeType } = FileCompressionService.detectFileType(finalName, targetItem.mimeType);
+
+    const updates: Partial<MediaItem> = {
+      name: finalName,
+      type: targetItem.type && targetItem.type !== 'other' ? targetItem.type : type,
+      mimeType: targetItem.mimeType || mimeType,
+      updatedAt: Date.now(),
+    };
+
+    setMediaItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+
+    if (focusedItem?.id === id) {
+      setFocusedItem((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+
+    const updatedItem = { ...targetItem, ...updates };
+    await MediaIndexedDbService.saveMedia(updatedItem);
+
+    if (db) {
+      try {
+        await FirestoreMediaService.updateMediaMetadata(db, collections, id, updates);
+      } catch (e) {
+        console.warn('[MediaGallery] Rename in Firestore error:', e);
+      }
     }
   };
 
@@ -772,6 +848,11 @@ export const MediaGalleryProvider: React.FC<{
         addMediaItems,
         deleteMediaItems,
         updateMediaItem,
+        renameMediaItem,
+
+        theme,
+        setTheme,
+        toggleTheme,
 
         createFolder,
         updateFolder,
@@ -787,6 +868,8 @@ export const MediaGalleryProvider: React.FC<{
         itemsToMove,
         setItemsToMove,
 
+        isSidebarOpen,
+        setIsSidebarOpen,
         isInspectorOpen,
         setIsInspectorOpen,
         isUploaderOpen,

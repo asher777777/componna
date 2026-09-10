@@ -6,6 +6,7 @@ export interface ImagenGenerateParams {
   prompt: string;
   aspectRatio?: '16:9' | '9:16' | '1:1';
   sampleCount?: number;
+  referenceImageBase64?: string;
 }
 
 /**
@@ -21,10 +22,46 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
+ * Loads an image from URL into a Base64 JPEG data URL using HTMLImageElement & Canvas.
+ * Solves CORS restrictions and enables seamless offline saving.
+ */
+function loadImageToDataUrl(url: string, targetWidth: number, targetHeight: number): Promise<string> {
+  return new Promise((resolve) => {
+    if (typeof document === 'undefined') {
+      resolve('');
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth || targetWidth;
+        canvas.height = img.naturalHeight || targetHeight;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.92);
+          resolve(dataUrl);
+          return;
+        }
+      } catch (err) {
+        console.warn('[Canvas draw error]:', err);
+      }
+      resolve('');
+    };
+    img.onerror = () => resolve('');
+    img.src = url;
+    setTimeout(() => resolve(''), 18000);
+  });
+}
+
+/**
  * Generates a real, high-resolution photorealistic AI image matching the prompt.
- * 1. Attempts Google Imagen 3 API (imagen-3.0-generate-002:predict).
- * 2. If Google API key lacks predict quota, utilizes the Flux Photorealistic AI Engine.
- * 3. Falls back to stylized canvas in case of complete network offline.
+ * 1. Attempts Google Gemini Image Models (gemini-3.1-flash-image, gemini-3-pro-image, gemini-2.0-flash-exp).
+ * 2. Attempts Google Imagen 3 API (imagen-3.0-generate-002:predict).
+ * 3. Utilizes the Flux.1 Photorealistic AI Engine with multi-mirror support.
+ * 4. Falls back to stylized cinematic canvas only in extreme offline failure.
  */
 export async function generateImagen3Image(
   apiKey: string,
@@ -43,11 +80,62 @@ export async function generateImagen3Image(
     height = 1024;
   }
 
-  // 1. Try Google Imagen 3 API endpoints if an API key is provided
-  if (apiKey) {
+  // 1. Try Google Gemini Image Generation Endpoints (Nano Banana 2 / Pro / Imagen 3)
+  if (apiKey && apiKey.trim()) {
+    const trimmedKey = apiKey.trim();
+
+    // A. Try Google Gemini generateContent with Image modalities (gemini-3.1-flash-image / gemini-3-pro-image)
+    const geminiImageModels = ['gemini-3.1-flash-image', 'gemini-3-pro-image', 'gemini-2.0-flash-exp'];
+    for (const modelName of geminiImageModels) {
+      try {
+        const parts: any[] = [];
+        if (params.referenceImageBase64) {
+          const cleanRef = params.referenceImageBase64.replace(/^data:image\/\w+;base64,/, '');
+          parts.push({
+            inlineData: {
+              mimeType: 'image/jpeg',
+              data: cleanRef
+            }
+          });
+        }
+        parts.push({ text: cleanPrompt });
+
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${trimmedKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts }],
+              generationConfig: {
+                responseModalities: ['IMAGE', 'TEXT']
+              }
+            })
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          const candidateParts = data?.candidates?.[0]?.content?.parts || [];
+          const imagePart = candidateParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
+          if (imagePart?.inlineData?.data) {
+            const mime = imagePart.inlineData.mimeType || 'image/jpeg';
+            return {
+              imageUrl: `data:${mime};base64,${imagePart.inlineData.data}`,
+              base64Data: imagePart.inlineData.data,
+              mimeType: mime
+            };
+          }
+        }
+      } catch (geminiErr) {
+        console.warn(`[Gemini Image ${modelName} notice]:`, geminiErr);
+      }
+    }
+
+    // B. Try Google Imagen 3 predict endpoints
     const imagenEndpoints = [
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey.trim()}`,
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey.trim()}`
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${trimmedKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${trimmedKey}`
     ];
 
     for (const endpoint of imagenEndpoints) {
@@ -56,7 +144,7 @@ export async function generateImagen3Image(
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey.trim()
+            'x-goog-api-key': trimmedKey
           },
           body: JSON.stringify({
             instances: [
@@ -89,67 +177,55 @@ export async function generateImagen3Image(
     }
   }
 
-  // 2. High-Definition Photorealistic AI Image Engine (Flux / SDXL Synthesis)
+  // 2. High-Definition Photorealistic AI Image Engine (Flux.1 / SDXL Synthesis)
   try {
-    const seed = Math.floor(Math.random() * 1000000);
-    const encodedPrompt = encodeURIComponent(cleanPrompt);
-    const fluxUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}&enhance=true`;
+    const seed = Math.floor(Math.random() * 10000000);
+    // Enrich prompt with photorealistic quality anchors
+    const enrichedPrompt = `cinematic 8k photorealistic photo, studio lighting, masterpiece, high details, ${cleanPrompt}`;
+    const encodedPrompt = encodeURIComponent(enrichedPrompt);
 
-    let dataUrl = '';
+    const fluxMirrors = [
+      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}&enhance=true`,
+      `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=turbo&nologo=true&seed=${seed}`,
+      `https://image.pollinations.ai/prompt/${encodeURIComponent(cleanPrompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`
+    ];
 
-    // Direct fetch attempt
-    try {
-      const imgRes = await fetch(fluxUrl);
-      if (imgRes.ok) {
-        const blob = await imgRes.blob();
-        if (blob && blob.size > 1000) {
-          dataUrl = await blobToBase64(blob);
-        }
-      }
-    } catch {
-      // Direct fetch was restricted or CORS; fallback to Image element load
-    }
-
-    // Canvas Image Element attempt if direct fetch didn't return dataUrl
-    if (!dataUrl && typeof document !== 'undefined') {
-      dataUrl = await new Promise<string>((resolve) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.onload = () => {
-          try {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth || width;
-            canvas.height = img.naturalHeight || height;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.drawImage(img, 0, 0);
-              resolve(canvas.toDataURL('image/jpeg', 0.92));
-              return;
-            }
-          } catch {
-            // ignore
+    for (const mirrorUrl of fluxMirrors) {
+      try {
+        // Method A: Direct Fetch
+        const imgRes = await fetch(mirrorUrl);
+        if (imgRes.ok) {
+          const blob = await imgRes.blob();
+          if (blob && blob.size > 1500) {
+            const dataUrl = await blobToBase64(blob);
+            const cleanB64 = dataUrl.split(',')[1] || '';
+            return {
+              imageUrl: dataUrl,
+              base64Data: cleanB64,
+              mimeType: blob.type || 'image/jpeg'
+            };
           }
-          resolve('');
-        };
-        img.onerror = () => resolve('');
-        img.src = fluxUrl;
-        setTimeout(() => resolve(''), 15000);
-      });
-    }
+        }
+      } catch {
+        // Fallback to Image Element loader
+      }
 
-    if (dataUrl) {
-      const cleanB64 = dataUrl.split(',')[1] || '';
-      return {
-        imageUrl: dataUrl,
-        base64Data: cleanB64,
-        mimeType: 'image/jpeg'
-      };
+      // Method B: HTMLImageElement + Canvas
+      const dataUrl = await loadImageToDataUrl(mirrorUrl, width, height);
+      if (dataUrl && dataUrl.startsWith('data:image')) {
+        const cleanB64 = dataUrl.split(',')[1] || '';
+        return {
+          imageUrl: dataUrl,
+          base64Data: cleanB64,
+          mimeType: 'image/jpeg'
+        };
+      }
     }
   } catch (fluxErr) {
     console.warn('[Flux AI Image Generation notice]:', fluxErr);
   }
 
-  // 3. Fallback: Procedural Canvas Card (for offline / extreme failure)
+  // 3. Fallback: Procedural Canvas Card (for extreme offline failure)
   const canvasImage = createProceduralCinematicImage(cleanPrompt, aspectRatio);
   const cleanBase64 = canvasImage.split(',')[1] || '';
   

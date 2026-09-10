@@ -403,17 +403,13 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     await loadProjects();
   };
 
-  // 1. Generate Banana Pro (Google Imagen 3) Image
+  // 1. Generate Banana Pro (Google Imagen 3 / Gemini Image / Flux) Image
   const generateBananaProImage = async (sceneId: string, promptOverride?: string): Promise<string> => {
     if (!activeProject) throw new Error('אין פרויקט פעיל.');
     const scene = activeProject.scenes.find(s => s.id === sceneId);
     if (!scene) throw new Error('סצנה לא נמצאה.');
 
-    const googleKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
-    if (!googleKey) {
-      openConnectorModal();
-      throw new Error('נא להגדיר מפתח Google API Key במרכז הסנכרון ליצירת תמונות Imagen 3.');
-    }
+    const googleKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
 
     setIsGeneratingMedia(true);
     setGeneratingMediaSceneId(sceneId);
@@ -422,7 +418,8 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const promptToUse = promptOverride || scene.visualPrompt || activeProject.title;
       const res = await generateImagen3Image(googleKey, {
         prompt: promptToUse,
-        aspectRatio: activeProject.aspectRatio
+        aspectRatio: activeProject.aspectRatio,
+        referenceImageBase64: activeProject.referenceImageUrl
       });
 
       updateCurrentScene(sceneId, {
