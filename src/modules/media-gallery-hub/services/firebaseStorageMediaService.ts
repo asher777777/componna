@@ -3,6 +3,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL, listAll, deleteO
 import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from 'firebase/firestore';
 import { MediaItem, MediaType } from '../types';
 import { MediaIndexedDbService } from './mediaIndexedDbService';
+import { FileCompressionService } from './fileCompressionService';
 
 export class FirebaseStorageMediaService {
   public static getStorageInstance(app: FirebaseApp) {
@@ -30,20 +31,17 @@ export class FirebaseStorageMediaService {
     const directUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
     const workingLocalUrl = URL.createObjectURL(file);
 
-    let mediaType: MediaType = 'other';
-    if (safeName.match(/\.(mp4|webm|mov|avi|mkv)$/i)) mediaType = 'video';
-    else if (safeName.match(/\.(png|jpg|jpeg|webp|gif|svg|avif)$/i)) mediaType = 'image';
-    else if (safeName.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/i)) mediaType = 'audio';
+    const { type: mediaType, mimeType } = FileCompressionService.detectFileType(safeName, file.type);
 
     const localMediaItem: MediaItem = {
       id: `storage_${timeStamp}_${safeName.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
       name: safeName,
       type: mediaType,
-      mimeType: file.type || (mediaType === 'video' ? 'video/mp4' : mediaType === 'image' ? 'image/jpeg' : 'audio/mp3'),
+      mimeType: file.type || mimeType,
       url: workingLocalUrl,
       sizeBytes: file.size || 1992294,
       createdAt: timeStamp,
-      tags: ['flow_player', 'firebase_storage', mediaType],
+      tags: ['firebase_storage', mediaType],
     };
 
     // 0. Remove from deleted tombstones list so new uploads are never blocked
@@ -186,16 +184,13 @@ export class FirebaseStorageMediaService {
       }
       scannedCleanNames.add(cleanName.toLowerCase());
 
-      let type: MediaType = 'other';
-      if (cleanName.match(/\.(mp4|webm|mov|avi|mkv)$/i)) type = 'video';
-      else if (cleanName.match(/\.(png|jpg|jpeg|webp|gif|svg|avif)$/i)) type = 'image';
-      else if (cleanName.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/i)) type = 'audio';
+      const { type, mimeType } = FileCompressionService.detectFileType(cleanName);
 
       items.push({
         id: `storage_${fullName.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
         name: cleanName,
         type,
-        mimeType: type === 'video' ? 'video/mp4' : type === 'image' ? 'image/jpeg' : 'audio/mp3',
+        mimeType,
         url: downloadUrl,
         sizeBytes: sizeBytes || 1992294,
         createdAt: createdAt || Date.now(),

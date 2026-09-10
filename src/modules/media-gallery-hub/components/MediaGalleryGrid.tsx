@@ -1,10 +1,12 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import {
   Search,
-  Filter,
   FileVideo,
   Image as ImageIcon,
   Music,
+  FileText,
+  Archive,
+  Code2,
   Download,
   Play,
   Sparkles,
@@ -15,15 +17,27 @@ import {
   Eye,
   Grid,
   List as ListIcon,
-  Plus,
+  Folder,
+  FolderPlus,
+  ChevronLeft,
+  Home,
+  FolderInput,
+  FolderEdit,
+  Layers,
+  FileCode,
+  FileSpreadsheet,
 } from 'lucide-react';
-import { useMediaGallery } from '../context/MediaGalleryContext';
-import { ImageConverterService } from '../services/imageConverterService';
-import { MediaItem, MediaType } from '../types';
+import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
+import { FileCompressionService } from '../services/fileCompressionService';
+import { MediaItem, MediaType, MediaFolder } from '../types';
 
 export const MediaGalleryGrid: React.FC = () => {
   const {
     filteredItems,
+    mediaItems,
+    folders,
+    activeFolderId,
+    setActiveFolderId,
     filters,
     setFilters,
     selectedIds,
@@ -33,10 +47,16 @@ export const MediaGalleryGrid: React.FC = () => {
     deleteMediaItems,
     selectionMode,
     onSelectMedia,
-    maxSelectCount,
+    setIsFolderModalOpen,
+    setEditingFolder,
+    deleteFolder,
+    setIsMoveModalOpen,
+    setItemsToMove,
   } = useMediaGallery();
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+
+  const activeFolder = folders.find((f) => f.id === activeFolderId);
 
   const handleQuickPick = (item: MediaItem) => {
     if (selectionMode && onSelectMedia) {
@@ -48,7 +68,7 @@ export const MediaGalleryGrid: React.FC = () => {
 
   const handleDownloadSingle = (e: React.MouseEvent, item: MediaItem) => {
     e.stopPropagation();
-    ImageConverterService.downloadMedia(item.url, item.name);
+    FileCompressionService.downloadMedia(item.url, item.name);
   };
 
   const handleDeleteSingle = async (e: React.MouseEvent, item: MediaItem) => {
@@ -63,24 +83,199 @@ export const MediaGalleryGrid: React.FC = () => {
     setConverterItem(item);
   };
 
+  const handleMoveSingle = (e: React.MouseEvent, item: MediaItem) => {
+    e.stopPropagation();
+    setItemsToMove([item.id]);
+    setIsMoveModalOpen(true);
+  };
+
+  const handleEditFolder = (e: React.MouseEvent, folder: MediaFolder) => {
+    e.stopPropagation();
+    setEditingFolder(folder);
+    setIsFolderModalOpen(true);
+  };
+
+  const handleDeleteFolder = async (e: React.MouseEvent, folder: MediaFolder) => {
+    e.stopPropagation();
+    const count = folder.itemCount || 0;
+    const msg = count > 0
+      ? `התיקייה "${folder.name}" מכילה ${count} קבצים. האם למחוק את התיקייה בלבד (הקבצים יישמרו בשורש)?`
+      : `האם למחוק את התיקייה "${folder.name}"?`;
+    
+    if (confirm(msg)) {
+      await deleteFolder(folder.id, false);
+    }
+  };
+
+  // Helper to render type icons
+  const renderFileTypeIcon = (type: MediaType, className: string = 'w-4 h-4') => {
+    switch (type) {
+      case 'video':
+        return <FileVideo className={`${className} text-indigo-400`} />;
+      case 'image':
+        return <ImageIcon className={`${className} text-emerald-400`} />;
+      case 'audio':
+        return <Music className={`${className} text-amber-400`} />;
+      case 'document':
+        return <FileText className={`${className} text-blue-400`} />;
+      case 'archive':
+        return <Archive className={`${className} text-purple-400`} />;
+      case 'code':
+        return <Code2 className={`${className} text-pink-400`} />;
+      default:
+        return <HardDrive className={`${className} text-slate-400`} />;
+    }
+  };
+
   return (
-    <div className="space-y-5" dir="rtl">
-      {/* Search & Filter Toolbar */}
+    <div className="space-y-6" dir="rtl">
+      {/* 1. Breadcrumbs & Folder Bar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 p-4 rounded-3xl shadow-lg">
+        {/* Breadcrumb Navigation */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse text-xs sm:text-sm font-bold text-slate-300">
+          <button
+            type="button"
+            onClick={() => setActiveFolderId(null)}
+            className={`flex items-center space-x-1.5 rtl:space-x-reverse px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+              activeFolderId === null
+                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40'
+                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            <Home className="w-4 h-4" />
+            <span>כל הקבצים (מאגר ראשי)</span>
+          </button>
+
+          {activeFolder && (
+            <>
+              <ChevronLeft className="w-4 h-4 text-slate-600 rtl:rotate-180" />
+              <div
+                className="flex items-center space-x-1.5 rtl:space-x-reverse px-3 py-1.5 rounded-xl border bg-slate-800/90 text-white"
+                style={{ borderColor: activeFolder.color || '#eab308' }}
+              >
+                <Folder className="w-4 h-4" style={{ color: activeFolder.color || '#eab308' }} />
+                <span>{activeFolder.name}</span>
+                <span className="text-[10px] text-slate-400 font-normal">
+                  ({activeFolder.itemCount || 0} קבצים)
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* New Folder Button */}
+        <button
+          type="button"
+          onClick={() => {
+            setEditingFolder(null);
+            setIsFolderModalOpen(true);
+          }}
+          className="px-4 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-yellow-400 hover:text-yellow-300 border border-slate-700 font-bold text-xs flex items-center space-x-2 rtl:space-x-reverse transition-all shadow-md active:scale-95 cursor-pointer"
+        >
+          <FolderPlus className="w-4 h-4" />
+          <span>תיקייה חדשה</span>
+        </button>
+      </div>
+
+      {/* 2. Folders Grid (Only displayed when in root or showing all folders) */}
+      {!activeFolderId && folders.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-1">
+            <span className="flex items-center space-x-1.5 rtl:space-x-reverse">
+              <Folder className="w-4 h-4 text-yellow-400" />
+              <span>תיקיות אחסון ({folders.length})</span>
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+            {folders.map((folder) => {
+              const folderColor = folder.color || '#eab308';
+
+              return (
+                <div
+                  key={folder.id}
+                  onClick={() => setActiveFolderId(folder.id)}
+                  className="group relative bg-slate-900/80 border border-slate-800 hover:border-yellow-500/60 p-3.5 rounded-2xl cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg flex flex-col justify-between"
+                >
+                  <div className="flex items-start justify-between">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:scale-105"
+                      style={{ backgroundColor: `${folderColor}20`, borderColor: folderColor, borderWidth: 1 }}
+                    >
+                      <Folder className="w-5 h-5" style={{ color: folderColor }} />
+                    </div>
+
+                    <div className="flex items-center space-x-1 rtl:space-x-reverse opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        onClick={(e) => handleEditFolder(e, folder)}
+                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
+                        title="ערוך תיקייה"
+                      >
+                        <FolderEdit className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteFolder(e, folder)}
+                        className="p-1 rounded-lg hover:bg-red-950/60 text-slate-400 hover:text-red-400"
+                        title="מחק תיקייה"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-3">
+                    <h5 className="font-bold text-xs text-white truncate group-hover:text-yellow-300 transition-colors">
+                      {folder.name}
+                    </h5>
+                    <div className="text-[10px] text-slate-400 mt-0.5">
+                      {folder.itemCount || 0} קבצים
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* 3. Search, Component Source, and File Type Filter Toolbar */}
       <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-lg space-y-4">
-        {/* Top row: Search input + View mode toggle */}
-        <div className="flex flex-col sm:flex-row items-center gap-3">
-          <div className="relative flex-1 w-full">
+        {/* Top row: Search input + Component Filter + View mode toggle */}
+        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
             <input
               type="text"
-              placeholder="חפש לפי שם קובץ, תגית או סוג..."
+              placeholder="חפש לפי שם קובץ, תגית, סוג או רכיב יוצר..."
               value={filters.searchQuery}
               onChange={(e) => setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))}
               className="w-full bg-slate-950 border border-slate-700 rounded-2xl pr-10 pl-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 transition-colors"
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
+          {/* Component Source Filter Dropdown */}
+          <div className="flex items-center gap-2">
+            <div className="flex items-center space-x-2 rtl:space-x-reverse bg-slate-950 border border-slate-700 rounded-2xl px-3 py-1.5 text-xs text-white">
+              <Layers className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+              <span className="text-slate-400 whitespace-nowrap">מיון לפי רכיב:</span>
+              <select
+                value={filters.sourceModuleFilter || 'all'}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, sourceModuleFilter: e.target.value }))
+                }
+                className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
+              >
+                {Object.values(KNOWN_MODULE_SOURCES).map((src) => (
+                  <option key={src.id} value={src.id} className="bg-slate-900 text-white">
+                    {src.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {/* Sort Dropdown */}
             <select
               value={filters.sortBy}
@@ -119,13 +314,16 @@ export const MediaGalleryGrid: React.FC = () => {
           </div>
         </div>
 
-        {/* Bottom row: Type Tabs */}
+        {/* Bottom row: Type Tabs (All file types supported) */}
         <div className="flex items-center space-x-2 rtl:space-x-reverse overflow-x-auto pb-1">
           {[
-            { id: 'all', label: 'הכל', icon: null, count: null },
-            { id: 'video', label: 'סרטונים', icon: FileVideo, count: null },
-            { id: 'image', label: 'תמונות', icon: ImageIcon, count: null },
-            { id: 'audio', label: 'שמע וקול', icon: Music, count: null },
+            { id: 'all', label: 'כל הקבצים', icon: null },
+            { id: 'video', label: 'וידאו', icon: FileVideo },
+            { id: 'image', label: 'תמונות', icon: ImageIcon },
+            { id: 'audio', label: 'שמע וקול', icon: Music },
+            { id: 'document', label: 'מסמכים', icon: FileText },
+            { id: 'archive', label: 'ארכיונים', icon: Archive },
+            { id: 'code', label: 'קוד ונתונים', icon: Code2 },
           ].map((tab) => {
             const isSelected = filters.typeFilter === tab.id;
             const Icon = tab.icon;
@@ -135,7 +333,7 @@ export const MediaGalleryGrid: React.FC = () => {
                 key={tab.id}
                 type="button"
                 onClick={() => setFilters((prev) => ({ ...prev, typeFilter: tab.id as any }))}
-                className={`px-4 py-2 rounded-2xl text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all whitespace-nowrap cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all whitespace-nowrap cursor-pointer ${
                   isSelected
                     ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.35)]'
                     : 'bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white'
@@ -149,15 +347,15 @@ export const MediaGalleryGrid: React.FC = () => {
         </div>
       </div>
 
-      {/* Media Items Container */}
+      {/* 4. Media Items Grid / List View */}
       {filteredItems.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
           <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-3xl mx-auto">
             📂
           </div>
-          <h4 className="text-base font-bold text-white">לא נמצאו קבצי מדיה</h4>
+          <h4 className="text-base font-bold text-white">לא נמצאו קבצים בתצוגה זו</h4>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            גרור קבצים לתיבת ההעלאה למעלה או נסה לשנות את הסינון או מילות החיפוש.
+            גרור קבצים לתיבת ההעלאה למעלה או שנה את הסינון והתיקייה הנוכחית.
           </p>
         </div>
       ) : viewMode === 'grid' ? (
@@ -178,6 +376,7 @@ export const MediaGalleryGrid: React.FC = () => {
               >
                 {/* Media Preview Box */}
                 <div className="relative w-full h-44 bg-black/80 flex items-center justify-center overflow-hidden">
+                  {/* VIDEO */}
                   {item.type === 'video' && (
                     <>
                       <video
@@ -195,6 +394,7 @@ export const MediaGalleryGrid: React.FC = () => {
                     </>
                   )}
 
+                  {/* IMAGE */}
                   {item.type === 'image' && (
                     <>
                       <img
@@ -208,12 +408,53 @@ export const MediaGalleryGrid: React.FC = () => {
                     </>
                   )}
 
+                  {/* AUDIO */}
                   {item.type === 'audio' && (
                     <div className="flex flex-col items-center justify-center text-yellow-400 p-4 space-y-2">
-                      <div className="w-12 h-12 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center animate-pulse">
-                        <Music className="w-6 h-6" />
+                      <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center shadow-inner animate-pulse">
+                        <Music className="w-7 h-7" />
                       </div>
-                      <span className="text-[11px] text-slate-300 font-medium">קובץ שמע</span>
+                      <span className="text-[11px] text-slate-300 font-bold">קובץ שמע</span>
+                    </div>
+                  )}
+
+                  {/* DOCUMENT */}
+                  {item.type === 'document' && (
+                    <div className="flex flex-col items-center justify-center text-blue-400 p-4 space-y-2">
+                      <div className="w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center shadow-inner">
+                        <FileText className="w-7 h-7" />
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-bold">מסמך</span>
+                    </div>
+                  )}
+
+                  {/* ARCHIVE */}
+                  {item.type === 'archive' && (
+                    <div className="flex flex-col items-center justify-center text-purple-400 p-4 space-y-2">
+                      <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center shadow-inner">
+                        <Archive className="w-7 h-7" />
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-bold">ארכיון דחוס</span>
+                    </div>
+                  )}
+
+                  {/* CODE / DATA */}
+                  {item.type === 'code' && (
+                    <div className="flex flex-col items-center justify-center text-pink-400 p-4 space-y-2">
+                      <div className="w-14 h-14 rounded-2xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center shadow-inner">
+                        <Code2 className="w-7 h-7" />
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-bold">קובץ קוד / נתונים</span>
+                    </div>
+                  )}
+
+                  {/* OTHER */}
+                  {item.type === 'other' && (
+                    <div className="flex flex-col items-center justify-center text-slate-400 p-4 space-y-2">
+                      <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center shadow-inner">
+                        <HardDrive className="w-7 h-7" />
+                      </div>
+                      <span className="text-[11px] text-slate-300 font-bold">קובץ בינארי</span>
                     </div>
                   )}
 
@@ -232,23 +473,43 @@ export const MediaGalleryGrid: React.FC = () => {
                   >
                     {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
                   </button>
+
+                  {/* Source Module Badge on top-left */}
+                  {item.sourceModuleLabel && (
+                    <span className="absolute top-3 left-3 bg-slate-950/85 backdrop-blur-md text-[9px] text-yellow-300 font-bold px-2 py-0.5 rounded-lg border border-slate-700 shadow flex items-center space-x-1 rtl:space-x-reverse max-w-[130px] truncate">
+                      <Layers className="w-2.5 h-2.5 flex-shrink-0" />
+                      <span className="truncate">{item.sourceModuleLabel}</span>
+                    </span>
+                  )}
                 </div>
 
                 {/* Card Content & Details */}
                 <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
                   <div>
-                    <h4 className="font-bold text-xs sm:text-sm text-white truncate group-hover:text-yellow-300 transition-colors" title={item.name}>
+                    <h4
+                      className="font-bold text-xs sm:text-sm text-white truncate group-hover:text-yellow-300 transition-colors"
+                      title={item.name}
+                    >
                       {item.name}
                     </h4>
 
                     <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
                       <span className="flex items-center space-x-1 rtl:space-x-reverse">
                         <HardDrive className="w-3 h-3 text-slate-500" />
-                        <span>{ImageConverterService.formatBytes(item.sizeBytes)}</span>
+                        <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
                       </span>
                       <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
                     </div>
 
+                    {/* Folder Badge if item belongs to a folder */}
+                    {item.folderName && (
+                      <div className="mt-1.5 flex items-center space-x-1 rtl:space-x-reverse text-[10px] text-yellow-400">
+                        <Folder className="w-3 h-3" />
+                        <span className="truncate">{item.folderName}</span>
+                      </div>
+                    )}
+
+                    {/* Tags */}
                     {item.tags && item.tags.length > 0 && (
                       <div className="flex items-center gap-1 mt-2 flex-wrap">
                         {item.tags.slice(0, 3).map((tag) => (
@@ -266,17 +527,29 @@ export const MediaGalleryGrid: React.FC = () => {
                   {/* Quick Action Buttons */}
                   <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
                     <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                      {item.type === 'image' && (
+                      {/* Convert / Compress Button */}
+                      {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
                         <button
                           type="button"
                           onClick={(e) => handleConvertSingle(e, item)}
                           className="p-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/40 text-xs transition-colors cursor-pointer"
-                          title="המר תמונה"
+                          title="המרה ודחיסה"
                         >
                           <Sparkles className="w-3.5 h-3.5" />
                         </button>
                       )}
 
+                      {/* Move to folder */}
+                      <button
+                        type="button"
+                        onClick={(e) => handleMoveSingle(e, item)}
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-slate-700 text-xs transition-colors cursor-pointer"
+                        title="העבר לתיקייה"
+                      >
+                        <FolderInput className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Download */}
                       <button
                         type="button"
                         onClick={(e) => handleDownloadSingle(e, item)}
@@ -286,6 +559,7 @@ export const MediaGalleryGrid: React.FC = () => {
                         <Download className="w-3.5 h-3.5" />
                       </button>
 
+                      {/* Delete */}
                       <button
                         type="button"
                         onClick={(e) => handleDeleteSingle(e, item)}
@@ -302,7 +576,7 @@ export const MediaGalleryGrid: React.FC = () => {
                       className="text-[11px] font-bold text-yellow-400 hover:text-yellow-300 flex items-center space-x-1 rtl:space-x-reverse"
                     >
                       <Eye className="w-3 h-3" />
-                      <span>{selectionMode ? 'בחר קובץ' : 'צפה'}</span>
+                      <span>{selectionMode ? 'בחר' : 'צפה'}</span>
                     </button>
                   </div>
                 </div>
@@ -341,35 +615,54 @@ export const MediaGalleryGrid: React.FC = () => {
                   </button>
 
                   <div className="w-10 h-10 rounded-xl bg-black overflow-hidden flex items-center justify-center flex-shrink-0 border border-slate-800">
-                    {item.type === 'video' ? (
-                      <FileVideo className="w-5 h-5 text-indigo-400" />
-                    ) : item.type === 'image' ? (
+                    {item.type === 'image' ? (
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
-                      <Music className="w-5 h-5 text-amber-400" />
+                      renderFileTypeIcon(item.type, 'w-5 h-5')
                     )}
                   </div>
 
                   <div className="truncate">
                     <div className="font-bold text-xs text-white truncate">{item.name}</div>
-                    <div className="text-[10px] text-slate-400">
-                      {ImageConverterService.formatBytes(item.sizeBytes)} •{' '}
-                      {new Date(item.createdAt).toLocaleDateString('he-IL')}
+                    <div className="text-[10px] text-slate-400 flex items-center gap-2 flex-wrap">
+                      <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
+                      <span>•</span>
+                      <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
+                      {item.sourceModuleLabel && (
+                        <>
+                          <span>•</span>
+                          <span className="text-yellow-400 font-medium">{item.sourceModuleLabel}</span>
+                        </>
+                      )}
+                      {item.folderName && (
+                        <>
+                          <span>•</span>
+                          <span className="text-indigo-400">📁 {item.folderName}</span>
+                        </>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="flex items-center space-x-2 rtl:space-x-reverse flex-shrink-0">
-                  {item.type === 'image' && (
+                  {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
                     <button
                       type="button"
                       onClick={(e) => handleConvertSingle(e, item)}
                       className="p-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 text-xs cursor-pointer"
-                      title="המר תמונה"
+                      title="המרה ודחיסה"
                     >
                       <Sparkles className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={(e) => handleMoveSingle(e, item)}
+                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-yellow-400 text-xs cursor-pointer"
+                    title="העבר לתיקייה"
+                  >
+                    <FolderInput className="w-3.5 h-3.5" />
+                  </button>
                   <button
                     type="button"
                     onClick={(e) => handleDownloadSingle(e, item)}

@@ -4,6 +4,14 @@ import { VideoProject, VideoScene } from '../types';
 const PROJECTS_COLLECTION = 'sdo_video_projects';
 const MEDIA_ITEMS_COLLECTION = 'sdo_media_items';
 
+/**
+ * Strips all undefined properties recursively so Firestore setDoc never rejects the payload
+ */
+function cleanForFirestore<T>(data: T): T {
+  if (data === undefined || data === null) return data;
+  return JSON.parse(JSON.stringify(data));
+}
+
 export async function fetchAllProjects(db?: Firestore): Promise<VideoProject[]> {
   if (!db) {
     const local = localStorage.getItem('comona_video_studio_projects');
@@ -31,13 +39,15 @@ export async function saveProject(project: VideoProject, db?: Firestore): Promis
     updatedAt: new Date().toISOString()
   };
 
+  const cleanPayload = cleanForFirestore(updated);
+
   // Save to local cache
   try {
     const local = localStorage.getItem('comona_video_studio_projects');
     const list: VideoProject[] = local ? JSON.parse(local) : [];
     const idx = list.findIndex(p => p.id === project.id);
-    if (idx >= 0) list[idx] = updated;
-    else list.unshift(updated);
+    if (idx >= 0) list[idx] = cleanPayload;
+    else list.unshift(cleanPayload);
     localStorage.setItem('comona_video_studio_projects', JSON.stringify(list));
   } catch {}
 
@@ -45,7 +55,7 @@ export async function saveProject(project: VideoProject, db?: Firestore): Promis
   if (db) {
     try {
       const ref = doc(db, PROJECTS_COLLECTION, project.id);
-      await setDoc(ref, updated, { merge: true });
+      await setDoc(ref, cleanPayload, { merge: true });
     } catch (err) {
       console.warn('[VideoProjectStore] Firestore save notice:', err);
     }
@@ -136,46 +146,41 @@ export async function syncAssetToMediaGallery(
     updatedAt: new Date().toISOString()
   };
 
+  const cleanDoc = cleanForFirestore(mediaDoc);
+
   // Sync to local cache
   try {
     const local = localStorage.getItem('comona_media_gallery_items');
     const list = local ? JSON.parse(local) : [];
-    list.unshift(mediaDoc);
+    list.unshift(cleanDoc);
     localStorage.setItem('comona_media_gallery_items', JSON.stringify(list));
   } catch {}
 
   // Sync to Firestore
   if (db) {
     try {
-      await setDoc(doc(db, MEDIA_ITEMS_COLLECTION, mediaId), mediaDoc, { merge: true });
-      console.log(`[VideoStudio] Synced ${params.assetType} asset to media gallery (${MEDIA_ITEMS_COLLECTION}):`, mediaId);
+      await setDoc(doc(db, MEDIA_ITEMS_COLLECTION, mediaId), cleanDoc, { merge: true });
     } catch (err) {
-      console.warn('[VideoStudio] Firestore Media gallery sync notice:', err);
+      console.warn('[VideoProjectStore] Media Gallery save notice:', err);
     }
   }
 }
 
-/**
- * Backward compatibility wrapper
- */
 export async function syncRenderedVideoToMediaGallery(
   db: Firestore | undefined,
-  params: {
-    videoUrl: string;
-    title: string;
-    projectId: string;
-    sceneId: string;
-    aspectRatio?: string;
-    avatarName?: string;
-  }
+  projectId: string,
+  scene: VideoScene,
+  videoUrl: string
 ): Promise<void> {
   return syncAssetToMediaGallery(db, {
-    url: params.videoUrl,
-    title: params.title,
-    projectId: params.projectId,
-    sceneId: params.sceneId,
+    url: videoUrl,
+    title: `סצנה ${scene.sceneNumber}: ${scene.title}`,
+    projectId,
+    sceneId: scene.id,
+    sceneNumber: scene.sceneNumber,
     assetType: 'video',
-    generator: 'heygen_avatar',
-    tags: [params.avatarName || 'AI Presenter']
+    generator: scene.isPhotoAvatar ? 'heygen_photo_avatar' : 'heygen_avatar',
+    mimeType: 'video/mp4',
+    tags: [scene.avatarId || 'Wayne', 'heygen']
   });
 }

@@ -8,6 +8,8 @@ import { MediaGalleryGrid } from './components/MediaGalleryGrid';
 import { MediaPreviewModal } from './components/MediaPreviewModal';
 import { ImageConverterModal } from './components/ImageConverterModal';
 import { BulkActionBar } from './components/BulkActionBar';
+import { FolderManagerModal } from './components/FolderManagerModal';
+import { MoveToFolderModal } from './components/MoveToFolderModal';
 import { ensureAnonymousAuth } from '../../services/firebaseAuth';
 
 export const MediaGalleryHubStandaloneView: React.FC = () => {
@@ -34,12 +36,6 @@ export const MediaGalleryHubStandaloneView: React.FC = () => {
       return undefined;
     }
   }, []);
-
-  useEffect(() => {
-    if (firebaseApp) {
-      ensureAnonymousAuth(firebaseApp);
-    }
-  }, [firebaseApp]);
 
   const db = useMemo(() => {
     if (!firebaseApp) return undefined;
@@ -72,32 +68,34 @@ export const MediaGalleryHubStandaloneView: React.FC = () => {
               </div>
               <div>
                 <div className="flex items-center space-x-2 rtl:space-x-reverse">
-                  <h1 className="text-xl sm:text-2xl font-black text-white">מנהל מדיה וגלריה אוניברסלי</h1>
+                  <h1 className="text-xl sm:text-2xl font-black text-white">מנהל מדיה, קבצים ותיקיות אחסון</h1>
                   <span className="bg-yellow-500/20 text-yellow-300 text-[10px] font-bold px-2.5 py-0.5 rounded-full border border-yellow-500/40">
-                    Media Vault v1.0
+                    Drive Vault v2.0
                   </span>
                 </div>
                 <p className="text-xs text-slate-400 mt-1">
-                  העלאה מרובה, גלריית סרטונים, תמונות וקבצי קול, המרת פורמטים והורדה מרוכזת
+                  אחסון לכל סוגי הקבצים והמשקלים, מערכת תיקיות מלאה, מיון אוטומטי לפי רכיב יוצר, המרה ודחיסה
                 </p>
               </div>
             </div>
 
             <div className="flex items-center space-x-2 rtl:space-x-reverse text-xs text-slate-400">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>{db ? 'מחובר ל-Firestore (sdo_media_items)' : 'מצב מקומי Standalone'}</span>
+              <span>{db ? 'מחובר ל-Cloud Vault (sdo_media_items / folders)' : 'מצב מקומי Standalone'}</span>
             </div>
           </div>
 
           {/* Section 1: Upload Dropzone */}
           <MediaUploader />
 
-          {/* Section 2: Media Gallery */}
+          {/* Section 2: Media Gallery & Folders */}
           <MediaGalleryGrid />
 
           {/* Modals & Bulk Actions */}
           <MediaPreviewModal />
           <ImageConverterModal />
+          <FolderManagerModal />
+          <MoveToFolderModal />
           <BulkActionBar />
         </div>
       </MediaGalleryProvider>

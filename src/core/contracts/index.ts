@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Global Core Contracts (חוזים וממשקים משותפים)
  * All modules must import only contracts from this file, never implementation from sibling modules.
  */
@@ -41,7 +41,7 @@ export interface AuthSessionContract {
 
 export interface CoreEventMap {
   'crm:lead:created': LeadPayload;
-  'media:uploaded': { url: string; fileName: string; type: string };
+  'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };
   'auth:state_changed': AuthSessionContract;
   'form:submitted': { formId: string; pageUrl: string; data: Record<string, any> };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };

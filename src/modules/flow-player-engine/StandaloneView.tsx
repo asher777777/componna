@@ -49,11 +49,6 @@ export const FlowPlayerEngineStandaloneView: React.FC = () => {
   const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
   const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 
-  useEffect(() => {
-    if (firebaseApp) {
-      ensureAnonymousAuth(firebaseApp);
-    }
-  }, [firebaseApp]);
 
   return (
     <FlowPlayerModuleProvider

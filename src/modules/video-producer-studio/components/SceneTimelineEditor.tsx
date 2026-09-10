@@ -5,7 +5,7 @@ import {
   Video, RefreshCw, CheckCircle2, AlertCircle, Save, ExternalLink,
   ChevronRight, ChevronLeft, Volume2, Film, PlayCircle, MessageSquare,
   Send, Smartphone, ArrowUpRight, HelpCircle, PhoneCall,
-  Info, ShieldCheck, Copy, Check, Palette, Target, Download, Sliders, Type, Play as PlayIcon
+  Info, ShieldCheck, Copy, Check, Palette, Target, Download, Sliders, Type, Play as PlayIcon, Edit3
 } from 'lucide-react';
 import { useVideoStudio } from '../context/VideoStudioContext';
 import { VideoPreviewPlayer } from './VideoPreviewPlayer';
@@ -40,6 +40,7 @@ export const SceneTimelineEditor: React.FC = () => {
     isGeneratingMedia,
     isGeneratingAudio,
     generatingMediaSceneId,
+    setTab,
     avatars
   } = useVideoStudio();
 
@@ -313,6 +314,16 @@ export const SceneTimelineEditor: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* View Stages & Edit Prompt Button */}
+          <button
+            onClick={() => setTab('wizard')}
+            className="px-3 py-2 bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-200 border border-indigo-500/40 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+            title="צפה בכל שלבי הפרויקט, הפרומפטים והשאלות המנחות ושלח תיקונים ל-Gemini"
+          >
+            <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
+            <span>שלבי הפקה & עריכת פרומפט</span>
+          </button>
+
           {/* Project Overview & Character Bible Button */}
           <button
             onClick={() => setIsOverviewModalOpen(true)}

@@ -44,6 +44,24 @@ export interface ClarificationServiceResult {
 }
 
 /**
+ * Resolves any custom / UI model alias into a valid, live Google AI Studio API model
+ */
+function getValidGeminiModel(requestedModel?: string): string {
+  if (!requestedModel) return 'gemini-1.5-flash';
+  const clean = requestedModel.toLowerCase();
+  if (clean.includes('1.5-pro') || clean.includes('pro-preview') || clean.includes('3.1-pro') || clean.includes('2.5-pro')) {
+    return 'gemini-1.5-pro';
+  }
+  if (clean.includes('2.0-flash-lite')) {
+    return 'gemini-2.0-flash-lite';
+  }
+  if (clean.includes('2.0-flash') && !clean.includes('exp')) {
+    return 'gemini-2.0-flash';
+  }
+  return 'gemini-1.5-flash';
+}
+
+/**
  * Step 1: Generate 2-3 sharp guiding questions from Gemini to refine project scope
  */
 export async function generateClarificationQuestionsWithAI(
@@ -56,6 +74,7 @@ export async function generateClarificationQuestionsWithAI(
   const langObj = TTS_LANGUAGES.find(l => l.code === params.ttsLanguage) || TTS_LANGUAGES[0];
 
   const conversationId = params.conversationId || `conv_clarify_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const liveModel = getValidGeminiModel(modelName);
 
   const promptText = `You are an elite Hollywood Video Director and Strategic CRO Marketing Consultant.
 The user wants to create a video production project.
@@ -116,7 +135,7 @@ Return ONLY a valid JSON object matching this exact schema:
   }
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey.trim()}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -176,6 +195,7 @@ export async function generateStoryboardWithAI(
   const langObj = TTS_LANGUAGES.find(l => l.code === params.ttsLanguage) || TTS_LANGUAGES[0];
 
   const conversationId = params.conversationId || `conv_studio_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+  const liveModel = getValidGeminiModel(modelName);
 
   const clarificationBlock = params.clarificationAnswers && params.clarificationAnswers.length > 0
     ? `CLARIFIED USER ANSWERS & GUIDANCE (CRITICAL CONTEXT):
@@ -203,12 +223,17 @@ ${params.referencePdfBase64 ? '- An attached PDF document is provided. Extract a
 
 ${clarificationBlock}
 
+PROJECT TITLE MANDATE:
+Generate a compelling, descriptive, and high-converting Hebrew project title for the "title" field that accurately captures the campaign (e.g. "המהפכה השיווקית של [שם הנושא] - סרטון תדמית ומכירה").
+
 NANO BANANA PRO CONSISTENCY MANDATE:
 You must define a unified "[BANANA_PRO_CONSISTENCY_SEED]" in the character bible and visual guide.
 Every single scene's "visualPrompt" MUST begin with the exact visual style prefix followed by the consistent character/scene tags so that Imagen 3 / Nano Banana Pro renders 100% consistent visuals across all ${sceneCount} scenes.
 
 Return ONLY a valid JSON object matching this exact schema:
 {
+  "title": "כותרת קליטה, מקצועית וממוקדת בעברית לפרויקט",
+  "description": "Engaging project summary in Hebrew",
   "projectOverview": {
     "concept": "Concise concept vision in Hebrew",
     "characterBible": "Detailed character description, wardrobe, hair, expression and token tag [CHAR_ID] in English for Banana Pro consistency",
@@ -218,8 +243,6 @@ Return ONLY a valid JSON object matching this exact schema:
     "targetKpi": "Primary conversion / audience goal in Hebrew",
     "bananaConsistencySeed": "Standardized prompt anchor text for all scenes"
   },
-  "title": "Creative Hebrew project title",
-  "description": "Engaging project summary in Hebrew",
   "scenes": [
     {
       "sceneNumber": 1,
@@ -271,7 +294,7 @@ Return ONLY a valid JSON object matching this exact schema:
   }
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey.trim()}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -352,6 +375,10 @@ Return ONLY a valid JSON object matching this exact schema:
     }
   });
 
+  const finalProjectTitle = parsed.title?.trim()
+    ? parsed.title.trim().replace(/^["']|["']$/g, '')
+    : (params.topic ? `${params.topic} - ${params.marketingHook || 'הפקת וידאו'}` : `פרויקט וידאו חדש - ${new Date().toLocaleDateString('he-IL')}`);
+
   const conversationHistory: ChatMessageContext[] = [
     {
       role: 'user',
@@ -360,15 +387,15 @@ Return ONLY a valid JSON object matching this exact schema:
     },
     {
       role: 'model',
-      content: JSON.stringify({ title: parsed.title, scenesCount: scenes.length }),
+      content: JSON.stringify({ title: finalProjectTitle, scenesCount: scenes.length }),
       timestamp: new Date().toISOString()
     }
   ];
 
   return {
     project: {
-      title: parsed.title,
-      description: parsed.description,
+      title: finalProjectTitle,
+      description: parsed.description || params.topic,
       aspectRatio: params.aspectRatio || '16:9',
       projectOverview: parsed.projectOverview
     },
@@ -391,6 +418,7 @@ export async function generateNextSceneWithAI(
   const nextSceneNumber = project.scenes.length + 1;
   const overview = project.projectOverview;
   const visualStyle = VISUAL_STYLES_CATALOG.find(v => v.id === project.visualStyle) || VISUAL_STYLES_CATALOG[0];
+  const liveModel = getValidGeminiModel(modelName);
 
   const prompt = `You are continuing an established video production.
 PROJECT OVERVIEW & BIBLE:
@@ -423,7 +451,7 @@ Return ONLY a JSON object with this exact schema:
 }`;
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey.trim()}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

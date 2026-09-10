@@ -1,12 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { X, Sparkles, Download, Save, Check, RefreshCw, Layers } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  Download,
+  Save,
+  Check,
+  RefreshCw,
+  Layers,
+  Archive,
+  FileCode,
+  FileSpreadsheet,
+} from 'lucide-react';
 import { useMediaGallery } from '../context/MediaGalleryContext';
-import { ImageConverterService } from '../services/imageConverterService';
+import { FileCompressionService } from '../services/fileCompressionService';
 import { ImageConversionOptions, MediaItem } from '../types';
 
 export const ImageConverterModal: React.FC = () => {
   const { converterItem, setConverterItem, addMediaItems } = useMediaGallery();
 
+  // Mode: 'image' | 'json_csv' | 'zip'
+  const [conversionType, setConversionType] = useState<'image' | 'json_csv' | 'zip'>('image');
+
+  // Image conversion states
   const [targetFormat, setTargetFormat] = useState<'image/png' | 'image/jpeg' | 'image/webp'>('image/webp');
   const [quality, setQuality] = useState<number>(0.85);
   const [maxWidth, setMaxWidth] = useState<string>('');
@@ -18,21 +33,44 @@ export const ImageConverterModal: React.FC = () => {
     objectUrl: string;
     sizeBytes: number;
   } | null>(null);
+
+  // Data conversion states (JSON <-> CSV)
+  const [dataResultText, setDataResultText] = useState<string>('');
+  const [dataTargetFormat, setDataTargetFormat] = useState<'csv' | 'json'>('csv');
+
+  // Zip states
+  const [zipBlob, setZipBlob] = useState<Blob | null>(null);
+
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
   useEffect(() => {
     if (!converterItem) {
       setConvertedResult(null);
+      setDataResultText('');
+      setZipBlob(null);
       return;
     }
 
-    handleConvertPreview();
+    if (converterItem.type === 'image') {
+      setConversionType('image');
+      handleConvertPreview();
+    } else if (
+      converterItem.type === 'code' ||
+      converterItem.name.endsWith('.json') ||
+      converterItem.name.endsWith('.csv')
+    ) {
+      setConversionType('json_csv');
+      handleDataConvertPreview();
+    } else {
+      setConversionType('zip');
+      handleCreateZipPreview();
+    }
   }, [converterItem, targetFormat, quality, maxWidth, maxHeight]);
 
   if (!converterItem) return null;
 
   const handleConvertPreview = async () => {
-    if (!converterItem) return;
+    if (!converterItem || converterItem.type !== 'image') return;
     setIsProcessing(true);
     try {
       const options: ImageConversionOptions = {
@@ -43,7 +81,7 @@ export const ImageConverterModal: React.FC = () => {
         preserveAspectRatio: true,
       };
 
-      const res = await ImageConverterService.convertImage(converterItem.url, options);
+      const res = await FileCompressionService.convertAndCompressImage(converterItem.url, options);
       setConvertedResult(res);
     } catch (err) {
       console.warn('[ImageConverter] Conversion preview error:', err);
@@ -52,32 +90,130 @@ export const ImageConverterModal: React.FC = () => {
     }
   };
 
-  const handleDownloadConverted = () => {
-    if (!convertedResult) return;
-    const ext = targetFormat.split('/')[1];
-    const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
-    const newFileName = `${baseName}_converted.${ext}`;
-    ImageConverterService.downloadMedia(convertedResult.objectUrl, newFileName);
+  const handleDataConvertPreview = async () => {
+    if (!converterItem) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(converterItem.url);
+      const rawText = await res.text();
+
+      if (converterItem.name.toLowerCase().endsWith('.json') || dataTargetFormat === 'csv') {
+        const csv = FileCompressionService.jsonToCsv(rawText);
+        setDataResultText(csv);
+        setDataTargetFormat('csv');
+      } else {
+        const json = FileCompressionService.csvToJson(rawText);
+        setDataResultText(json);
+        setDataTargetFormat('json');
+      }
+    } catch (err) {
+      console.warn('[DataConverter] Error converting data format:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCreateZipPreview = async () => {
+    if (!converterItem) return;
+    setIsProcessing(true);
+    try {
+      const res = await fetch(converterItem.url);
+      const blob = await res.blob();
+      const zip = await FileCompressionService.createZipArchive([
+        {
+          name: converterItem.name,
+          data: blob,
+        },
+      ]);
+      setZipBlob(zip);
+    } catch (err) {
+      console.warn('[ZipConverter] Error generating zip archive:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleDownload = () => {
+    if (conversionType === 'image' && convertedResult) {
+      const ext = targetFormat.split('/')[1];
+      const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
+      const newFileName = `${baseName}_compressed.${ext}`;
+      FileCompressionService.downloadMedia(convertedResult.objectUrl, newFileName);
+    } else if (conversionType === 'json_csv' && dataResultText) {
+      const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
+      const newFileName = `${baseName}_converted.${dataTargetFormat}`;
+      const blob = new Blob([dataResultText], { type: dataTargetFormat === 'csv' ? 'text/csv' : 'application/json' });
+      FileCompressionService.downloadMedia(blob, newFileName);
+    } else if (conversionType === 'zip' && zipBlob) {
+      const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
+      FileCompressionService.downloadMedia(zipBlob, `${baseName}.zip`);
+    }
   };
 
   const handleSaveToGallery = async () => {
-    if (!convertedResult) return;
-    const ext = targetFormat.split('/')[1];
-    const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
-    const newFileName = `${baseName}_${ext.toUpperCase()}.${ext}`;
+    if (conversionType === 'image' && convertedResult) {
+      const ext = targetFormat.split('/')[1];
+      const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
+      const newFileName = `${baseName}_${ext.toUpperCase()}.${ext}`;
 
-    const newItem: MediaItem = {
-      id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      name: newFileName,
-      type: 'image',
-      mimeType: targetFormat,
-      url: convertedResult.objectUrl,
-      sizeBytes: convertedResult.sizeBytes,
-      createdAt: Date.now(),
-      tags: [...(converterItem.tags || []), 'converted', ext],
-    };
+      const newItem: MediaItem = {
+        id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        name: newFileName,
+        type: 'image',
+        mimeType: targetFormat,
+        url: convertedResult.objectUrl,
+        sizeBytes: convertedResult.sizeBytes,
+        createdAt: Date.now(),
+        folderId: converterItem.folderId,
+        sourceModule: converterItem.sourceModule,
+        sourceModuleLabel: converterItem.sourceModuleLabel,
+        tags: [...(converterItem.tags || []), 'converted', ext],
+      };
 
-    await addMediaItems([newItem], [convertedResult.blob]);
+      await addMediaItems([newItem], [convertedResult.blob]);
+    } else if (conversionType === 'json_csv' && dataResultText) {
+      const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
+      const newFileName = `${baseName}_converted.${dataTargetFormat}`;
+      const blob = new Blob([dataResultText], { type: dataTargetFormat === 'csv' ? 'text/csv' : 'application/json' });
+      const objectUrl = URL.createObjectURL(blob);
+
+      const newItem: MediaItem = {
+        id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        name: newFileName,
+        type: 'code',
+        mimeType: dataTargetFormat === 'csv' ? 'text/csv' : 'application/json',
+        url: objectUrl,
+        sizeBytes: blob.size,
+        createdAt: Date.now(),
+        folderId: converterItem.folderId,
+        sourceModule: converterItem.sourceModule,
+        sourceModuleLabel: converterItem.sourceModuleLabel,
+        tags: [...(converterItem.tags || []), 'converted', dataTargetFormat],
+      };
+
+      await addMediaItems([newItem], [blob]);
+    } else if (conversionType === 'zip' && zipBlob) {
+      const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
+      const newFileName = `${baseName}.zip`;
+      const objectUrl = URL.createObjectURL(zipBlob);
+
+      const newItem: MediaItem = {
+        id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        name: newFileName,
+        type: 'archive',
+        mimeType: 'application/zip',
+        url: objectUrl,
+        sizeBytes: zipBlob.size,
+        createdAt: Date.now(),
+        folderId: converterItem.folderId,
+        sourceModule: converterItem.sourceModule,
+        sourceModuleLabel: converterItem.sourceModuleLabel,
+        tags: [...(converterItem.tags || []), 'zip', 'archive'],
+      };
+
+      await addMediaItems([newItem], [zipBlob]);
+    }
+
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);
@@ -95,7 +231,7 @@ export const ImageConverterModal: React.FC = () => {
       className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/85 backdrop-blur-md animate-fade-in text-slate-100"
       dir="rtl"
     >
-      <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden">
+      <div className="bg-slate-900 border border-slate-700 w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scale-up">
         {/* Header */}
         <div className="p-4 sm:p-5 bg-slate-800/80 border-b border-slate-700/80 flex items-center justify-between">
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
@@ -103,8 +239,12 @@ export const ImageConverterModal: React.FC = () => {
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white">ממיר תמונות ודוחס איכות</h2>
-              <p className="text-xs text-slate-400">המרת פורמט (WEBP, PNG, JPG), שינוי רזולוציה ודחיסה מיידית</p>
+              <h2 className="text-base sm:text-lg font-bold text-white">
+                מרכז המרה, כיווץ ודחיסת קבצים
+              </h2>
+              <p className="text-xs text-slate-400">
+                דחיסת איכות תמונות, שינוי פורמט, המרת מסמכי JSON/CSV ואריזת ZIP
+              </p>
             </div>
           </div>
 
@@ -120,126 +260,245 @@ export const ImageConverterModal: React.FC = () => {
         <div className="flex-1 flex flex-col md:flex-row overflow-y-auto">
           {/* Controls Sidebar */}
           <div className="w-full md:w-80 p-5 bg-slate-950/70 border-b md:border-b-0 md:border-l border-slate-800 space-y-5">
-            {/* Format Selection */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-2">פורמט יעד:</label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { label: 'WEBP (מומלץ)', val: 'image/webp' },
-                  { label: 'JPG', val: 'image/jpeg' },
-                  { label: 'PNG', val: 'image/png' },
-                ].map((f) => (
-                  <button
-                    key={f.val}
-                    type="button"
-                    onClick={() => setTargetFormat(f.val as any)}
-                    className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                      targetFormat === f.val
-                        ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.4)]'
-                        : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
-                    }`}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
+            {/* Mode selection tabs */}
+            <div className="flex rounded-xl bg-slate-900 p-1 border border-slate-800">
+              <button
+                type="button"
+                onClick={() => setConversionType('image')}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                  conversionType === 'image' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                תמונה
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConversionType('json_csv');
+                  handleDataConvertPreview();
+                }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                  conversionType === 'json_csv' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                JSON/CSV
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setConversionType('zip');
+                  handleCreateZipPreview();
+                }}
+                className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${
+                  conversionType === 'zip' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
+                }`}
+              >
+                אריזת ZIP
+              </button>
             </div>
 
-            {/* Quality Slider (for JPG & WEBP) */}
-            {targetFormat !== 'image/png' && (
-              <div>
-                <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
-                  <span>איכות דחיסה:</span>
-                  <span className="text-yellow-400 font-mono font-bold">{Math.round(quality * 100)}%</span>
+            {/* IMAGE CONTROLS */}
+            {conversionType === 'image' && (
+              <>
+                {/* Format Selection */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-2">פורמט יעד:</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: 'WEBP (מומלץ)', val: 'image/webp' },
+                      { label: 'JPG', val: 'image/jpeg' },
+                      { label: 'PNG', val: 'image/png' },
+                    ].map((f) => (
+                      <button
+                        key={f.val}
+                        type="button"
+                        onClick={() => setTargetFormat(f.val as any)}
+                        className={`py-2 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          targetFormat === f.val
+                            ? 'bg-yellow-500 text-black border-yellow-400 shadow-[0_0_12px_rgba(234,179,8,0.4)]'
+                            : 'bg-slate-900 text-slate-300 border-slate-700 hover:bg-slate-800'
+                        }`}
+                      >
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="1.0"
-                  step="0.05"
-                  value={quality}
-                  onChange={(e) => setQuality(parseFloat(e.target.value))}
-                  className="w-full accent-yellow-500 cursor-pointer"
-                />
+
+                {/* Quality Slider */}
+                {targetFormat !== 'image/png' && (
+                  <div>
+                    <div className="flex items-center justify-between text-xs font-semibold text-slate-300 mb-1.5">
+                      <span>איכות דחיסה:</span>
+                      <span className="text-yellow-400 font-mono font-bold">{Math.round(quality * 100)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="1.0"
+                      step="0.05"
+                      value={quality}
+                      onChange={(e) => setQuality(parseFloat(e.target.value))}
+                      className="w-full accent-yellow-500 cursor-pointer"
+                    />
+                  </div>
+                )}
+
+                {/* Resize Dimensions */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-2">שינוי רזולוציה (אופציונלי):</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <span className="block text-[11px] text-slate-400 mb-1">רוחב מקסימלי (px)</span>
+                      <input
+                        type="number"
+                        placeholder="ללא"
+                        value={maxWidth}
+                        onChange={(e) => setMaxWidth(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-yellow-500"
+                      />
+                    </div>
+                    <div>
+                      <span className="block text-[11px] text-slate-400 mb-1">גובה מקסימלי (px)</span>
+                      <input
+                        type="number"
+                        placeholder="ללא"
+                        value={maxHeight}
+                        onChange={(e) => setMaxHeight(e.target.value)}
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-yellow-500"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Comparison Stats */}
+                <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
+                  <div className="font-bold text-slate-300 flex items-center space-x-1.5 rtl:space-x-reverse">
+                    <Layers className="w-4 h-4 text-yellow-400" />
+                    <span>השוואת נפח:</span>
+                  </div>
+                  <div className="flex justify-between text-slate-400">
+                    <span>גודל מקורי:</span>
+                    <span className="font-mono text-white">
+                      {FileCompressionService.formatBytes(converterItem.sizeBytes)}
+                    </span>
+                  </div>
+                  {convertedResult && (
+                    <>
+                      <div className="flex justify-between text-slate-400">
+                        <span>גודל מומר ({formatExt}):</span>
+                        <span className="font-mono text-emerald-400 font-bold">
+                          {FileCompressionService.formatBytes(convertedResult.sizeBytes)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between pt-1 border-t border-slate-800 text-[11px]">
+                        <span>חיסכון בנפח:</span>
+                        <span
+                          className={`font-bold ${sizeDiffPercent < 0 ? 'text-emerald-400' : 'text-amber-400'}`}
+                        >
+                          {sizeDiffPercent < 0 ? `${Math.abs(sizeDiffPercent)}%- חיסכון` : `${sizeDiffPercent}%+`}
+                        </span>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+
+            {/* DATA CONTROLS */}
+            {conversionType === 'json_csv' && (
+              <div className="space-y-4">
+                <div className="text-xs text-slate-300 font-bold">המרה בין פורמטי נתונים:</div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDataTargetFormat('csv');
+                      handleDataConvertPreview();
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      dataTargetFormat === 'csv'
+                        ? 'bg-yellow-500 text-black border-yellow-400'
+                        : 'bg-slate-900 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    ייצוא ל-CSV
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDataTargetFormat('json');
+                      handleDataConvertPreview();
+                    }}
+                    className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                      dataTargetFormat === 'json'
+                        ? 'bg-yellow-500 text-black border-yellow-400'
+                        : 'bg-slate-900 text-slate-300 border-slate-700'
+                    }`}
+                  >
+                    ייצוא ל-JSON
+                  </button>
+                </div>
               </div>
             )}
 
-            {/* Resize Dimensions */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-2">שינוי רזולוציה (אופציונלי):</label>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <span className="block text-[11px] text-slate-400 mb-1">רוחב מקסימלי (px)</span>
-                  <input
-                    type="number"
-                    placeholder="ללא"
-                    value={maxWidth}
-                    onChange={(e) => setMaxWidth(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-yellow-500"
-                  />
-                </div>
-                <div>
-                  <span className="block text-[11px] text-slate-400 mb-1">גובה מקסימלי (px)</span>
-                  <input
-                    type="number"
-                    placeholder="ללא"
-                    value={maxHeight}
-                    onChange={(e) => setMaxHeight(e.target.value)}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:border-yellow-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Comparison Stats */}
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-4 space-y-2 text-xs">
-              <div className="font-bold text-slate-300 flex items-center space-x-1.5 rtl:space-x-reverse">
-                <Layers className="w-4 h-4 text-yellow-400" />
-                <span>השוואת גודל:</span>
-              </div>
-              <div className="flex justify-between text-slate-400">
-                <span>גודל מקורי:</span>
-                <span className="font-mono text-white">{ImageConverterService.formatBytes(converterItem.sizeBytes)}</span>
-              </div>
-              {convertedResult && (
-                <>
-                  <div className="flex justify-between text-slate-400">
-                    <span>גודל מומר ({formatExt}):</span>
-                    <span className="font-mono text-emerald-400 font-bold">
-                      {ImageConverterService.formatBytes(convertedResult.sizeBytes)}
+            {/* ZIP CONTROLS */}
+            {conversionType === 'zip' && (
+              <div className="space-y-4">
+                <div className="text-xs text-slate-300 font-bold">אריזה דחוסה לקובץ ZIP:</div>
+                <p className="text-[11px] text-slate-400">
+                  יוצר ארכיון ZIP תקני של הקובץ ישירות בדפדפן, מוכן לשיתוף או הורדה מהירה.
+                </p>
+                {zipBlob && (
+                  <div className="bg-slate-900 p-3 rounded-xl border border-slate-800 text-xs">
+                    <span className="text-slate-400">גודל ארכיון: </span>
+                    <span className="text-emerald-400 font-mono font-bold">
+                      {FileCompressionService.formatBytes(zipBlob.size)}
                     </span>
                   </div>
-                  <div className="flex justify-between pt-1 border-t border-slate-800 text-[11px]">
-                    <span>חיסכון בנפח:</span>
-                    <span className={`font-bold ${sizeDiffPercent < 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
-                      {sizeDiffPercent < 0 ? `${Math.abs(sizeDiffPercent)}%- חיסכון` : `${sizeDiffPercent}%+`}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Preview Area */}
-          <div className="flex-1 bg-black/90 p-5 flex flex-col items-center justify-center min-h-[300px] relative">
+          <div className="flex-1 bg-black/90 p-5 flex flex-col items-center justify-center min-h-[300px] relative overflow-auto">
             {isProcessing && (
               <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-10">
                 <RefreshCw className="w-8 h-8 text-yellow-400 animate-spin" />
               </div>
             )}
 
-            {convertedResult ? (
-              <img
-                src={convertedResult.objectUrl}
-                alt="Converted Preview"
-                className="max-w-full max-h-[45vh] rounded-2xl object-contain shadow-2xl border border-slate-800"
-              />
-            ) : (
-              <img
-                src={converterItem.url}
-                alt="Original Preview"
-                className="max-w-full max-h-[45vh] rounded-2xl object-contain shadow-2xl"
-              />
+            {conversionType === 'image' && (
+              convertedResult ? (
+                <img
+                  src={convertedResult.objectUrl}
+                  alt="Converted Preview"
+                  className="max-w-full max-h-[45vh] rounded-2xl object-contain shadow-2xl border border-slate-800"
+                />
+              ) : (
+                <img
+                  src={converterItem.url}
+                  alt="Original Preview"
+                  className="max-w-full max-h-[45vh] rounded-2xl object-contain shadow-2xl"
+                />
+              )
+            )}
+
+            {conversionType === 'json_csv' && (
+              <div className="w-full h-full max-h-[45vh] bg-slate-950 rounded-2xl p-4 border border-slate-800 text-left font-mono text-xs text-emerald-400 overflow-auto" dir="ltr">
+                <pre className="whitespace-pre-wrap">{dataResultText || 'מעבד נתונים...'}</pre>
+              </div>
+            )}
+
+            {conversionType === 'zip' && (
+              <div className="flex flex-col items-center justify-center space-y-3 p-6 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-400">
+                  <Archive className="w-8 h-8" />
+                </div>
+                <div className="text-white font-bold text-sm">{converterItem.name}.zip</div>
+                <div className="text-xs text-slate-400">ארכיון ZIP מוכן להורדה או שמירה</div>
+              </div>
             )}
           </div>
         </div>
@@ -255,17 +514,17 @@ export const ImageConverterModal: React.FC = () => {
 
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
             <button
-              onClick={handleDownloadConverted}
-              disabled={!convertedResult || isProcessing}
+              onClick={handleDownload}
+              disabled={isProcessing}
               className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs flex items-center space-x-1.5 rtl:space-x-reverse border border-slate-700 transition-all cursor-pointer"
             >
               <Download className="w-4 h-4 text-yellow-400" />
-              <span>הורד קובץ מומר</span>
+              <span>הורד קובץ מומר / דחוס</span>
             </button>
 
             <button
               onClick={handleSaveToGallery}
-              disabled={!convertedResult || isProcessing}
+              disabled={isProcessing}
               className={`px-5 py-2.5 rounded-xl text-xs font-bold text-black flex items-center space-x-2 rtl:space-x-reverse shadow-lg transition-all active:scale-95 cursor-pointer ${
                 saveSuccess
                   ? 'bg-emerald-500 text-white'
@@ -280,7 +539,7 @@ export const ImageConverterModal: React.FC = () => {
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  <span>שמור תמונה בגלריה</span>
+                  <span>שמור במאגר המדיה</span>
                 </>
               )}
             </button>

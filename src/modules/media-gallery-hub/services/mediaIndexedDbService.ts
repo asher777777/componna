@@ -1,10 +1,12 @@
-import { MediaItem } from '../types';
+import { MediaItem, MediaFolder } from '../types';
 
 const DB_NAME = 'ComonaMediaVaultDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 const STORE_ITEMS = 'media_items';
 const STORE_BLOBS = 'media_blobs';
+const STORE_FOLDERS = 'media_folders';
 const LOCAL_STORAGE_KEY = 'sdo_media_vault_items';
+const LOCAL_STORAGE_FOLDERS_KEY = 'sdo_media_vault_folders';
 
 export class MediaIndexedDbService {
   private static openDB(): Promise<IDBDatabase> {
@@ -23,6 +25,9 @@ export class MediaIndexedDbService {
         }
         if (!db.objectStoreNames.contains(STORE_BLOBS)) {
           db.createObjectStore(STORE_BLOBS, { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains(STORE_FOLDERS)) {
+          db.createObjectStore(STORE_FOLDERS, { keyPath: 'id' });
         }
       };
 
@@ -334,5 +339,80 @@ export class MediaIndexedDbService {
     }
 
     return campaign;
+  }
+
+  /**
+   * Folder Operations in IndexedDB & LocalStorage
+   */
+  public static async saveFolder(folder: MediaFolder): Promise<void> {
+    try {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_FOLDERS_KEY);
+        const folders: MediaFolder[] = raw ? JSON.parse(raw) : [];
+        const filtered = folders.filter((f) => f.id !== folder.id);
+        filtered.unshift(folder);
+        localStorage.setItem(LOCAL_STORAGE_FOLDERS_KEY, JSON.stringify(filtered));
+      } catch {}
+
+      const db = await this.openDB();
+      if (db.objectStoreNames.contains(STORE_FOLDERS)) {
+        const tx = db.transaction([STORE_FOLDERS], 'readwrite');
+        tx.objectStore(STORE_FOLDERS).put(folder);
+        await new Promise<void>((res) => {
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+      }
+    } catch (err) {
+      console.warn('[MediaIndexedDb] Save folder error:', err);
+    }
+  }
+
+  public static async getFolders(): Promise<MediaFolder[]> {
+    try {
+      const db = await this.openDB();
+      if (db.objectStoreNames.contains(STORE_FOLDERS)) {
+        const tx = db.transaction([STORE_FOLDERS], 'readonly');
+        const req = tx.objectStore(STORE_FOLDERS).getAll();
+        await new Promise<void>((res) => {
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+        if (req.result && req.result.length > 0) {
+          return req.result;
+        }
+      }
+    } catch {}
+
+    try {
+      const raw = localStorage.getItem(LOCAL_STORAGE_FOLDERS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  public static async deleteFolder(folderId: string): Promise<void> {
+    try {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_FOLDERS_KEY);
+        if (raw) {
+          const folders: MediaFolder[] = JSON.parse(raw);
+          localStorage.setItem(LOCAL_STORAGE_FOLDERS_KEY, JSON.stringify(folders.filter((f) => f.id !== folderId)));
+        }
+      } catch {}
+
+      const db = await this.openDB();
+      if (db.objectStoreNames.contains(STORE_FOLDERS)) {
+        const tx = db.transaction([STORE_FOLDERS], 'readwrite');
+        tx.objectStore(STORE_FOLDERS).delete(folderId);
+        await new Promise<void>((res) => {
+          tx.oncomplete = () => res();
+          tx.onerror = () => res();
+        });
+      }
+    } catch (err) {
+      console.warn('[MediaIndexedDb] Delete folder error:', err);
+    }
   }
 }

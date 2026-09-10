@@ -1,15 +1,28 @@
 import React from 'react';
-import { Film, Plus, Trash2, Calendar, Layout, Sparkles, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { Film, Plus, Trash2, Calendar, Layout, Sparkles, ArrowLeft, CheckCircle2, Edit3, PlayCircle } from 'lucide-react';
 import { useVideoStudio } from '../context/VideoStudioContext';
 import { VideoProject } from '../types';
 
 export const ProjectListView: React.FC = () => {
-  const { projects, setActiveProject, setActiveSceneId, setTab, deleteCurrentProject } = useVideoStudio();
+  const { 
+    projects, 
+    setActiveProject, 
+    setActiveSceneId, 
+    startNewProject,
+    setTab, 
+    deleteCurrentProject 
+  } = useVideoStudio();
 
-  const handleOpenProject = (project: VideoProject) => {
+  const handleOpenEditor = (project: VideoProject) => {
     setActiveProject(project);
     setActiveSceneId(project.scenes[0]?.id || null);
     setTab('editor');
+  };
+
+  const handleOpenStagesReview = (project: VideoProject) => {
+    setActiveProject(project);
+    setActiveSceneId(project.scenes[0]?.id || null);
+    setTab('wizard');
   };
 
   return (
@@ -22,28 +35,28 @@ export const ProjectListView: React.FC = () => {
             <span>פרויקטי וידאו ואווטאר (SDO Projects)</span>
           </h1>
           <p className="text-xs text-slate-400 mt-0.5">
-            כלל הפרויקטים, הסטוריבורדים והפקות ה-AI השמורות במערכת
+            כלל הפרויקטים, הסטוריבורדים והפקות ה-AI השמורות במערכת עם היסטוריית שלבים מלאה
           </p>
         </div>
 
         <button
-          onClick={() => setTab('wizard')}
+          onClick={startNewProject}
           className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-purple-600/30 transition cursor-pointer"
         >
           <Plus className="w-4 h-4" />
-          <span>פרויקט וידאו חדש (AI Wizard)</span>
+          <span>+ פרויקט וידאו חדש (AI Wizard)</span>
         </button>
       </div>
 
       {projects.length === 0 ? (
         <div className="p-12 bg-slate-900/60 border border-slate-800 rounded-3xl text-center space-y-3">
           <Film className="w-12 h-12 text-slate-600 mx-auto" />
-          <h3 className="text-sm font-bold text-slate-300">עדיין אין פרויקטי וידאו</h3>
+          <h3 className="text-sm font-bold text-slate-300">עדיין אין פרויקטי וידאו שמורים</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
             צור את פרויקט הוידאו הראשון שלך באמצעות אשף ה-AI, בחר אווטאר והפק סרטון מרהיב.
           </p>
           <button
-            onClick={() => setTab('wizard')}
+            onClick={startNewProject}
             className="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-semibold rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
           >
             <Sparkles className="w-4 h-4" />
@@ -53,7 +66,9 @@ export const ProjectListView: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {projects.map((proj) => {
-            const completedScenes = proj.scenes.filter(s => s.renderedVideoUrl).length;
+            const completedScenes = proj.scenes?.filter(s => s.renderedVideoUrl).length || 0;
+            const totalScenes = proj.scenes?.length || 0;
+
             return (
               <div
                 key={proj.id}
@@ -77,11 +92,22 @@ export const ProjectListView: React.FC = () => {
                   <p className="text-xs text-slate-400 line-clamp-2">
                     {proj.description || proj.marketingHook || 'ללא תיאור'}
                   </p>
+
+                  <div className="flex items-center gap-1.5 pt-1">
+                    <span className="text-[10px] font-medium text-slate-400 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
+                      {totalScenes} סצנות
+                    </span>
+                    {proj.conversationId && (
+                      <span className="text-[10px] font-mono text-pink-400 bg-pink-950/30 px-2 py-0.5 rounded-lg border border-pink-500/30">
+                        שיחה פעילה
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border-t border-slate-800/80 pt-3 flex items-center justify-between text-xs">
                   <span className="text-slate-400 text-[11px]">
-                    {completedScenes}/{proj.scenes.length} סצנות רונדרו
+                    {completedScenes}/{totalScenes} רונדרו
                   </span>
 
                   <div className="flex items-center gap-1.5">
@@ -94,7 +120,16 @@ export const ProjectListView: React.FC = () => {
                     </button>
 
                     <button
-                      onClick={() => handleOpenProject(proj)}
+                      onClick={() => handleOpenStagesReview(proj)}
+                      className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1 transition cursor-pointer border border-slate-700"
+                      title="צפה בכל שלבי הפרויקט, הפרומפטים והשאלות המנחות ושלח תיקונים"
+                    >
+                      <Edit3 className="w-3 h-3 text-indigo-400" />
+                      <span>שלבים & פרומפט</span>
+                    </button>
+
+                    <button
+                      onClick={() => handleOpenEditor(proj)}
                       className="px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 font-semibold rounded-xl flex items-center gap-1 transition cursor-pointer"
                     >
                       <span>פתח עורך</span>

@@ -1,27 +1,37 @@
-﻿import React, { useState, useRef } from 'react';
-import { UploadCloud, FileVideo, Image as ImageIcon, Music, CheckCircle2, AlertCircle } from 'lucide-react';
-import { useMediaGallery } from '../context/MediaGalleryContext';
+import React, { useState, useRef } from 'react';
+import {
+  UploadCloud,
+  FileVideo,
+  Image as ImageIcon,
+  Music,
+  FileText,
+  Archive,
+  Code2,
+  CheckCircle2,
+  AlertCircle,
+  Folder,
+  Layers,
+  Sparkles,
+} from 'lucide-react';
+import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
+import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaItem, MediaType, MediaUploadProgress } from '../types';
 
 export const MediaUploader: React.FC = () => {
-  const { addMediaItems } = useMediaGallery();
+  const { addMediaItems, folders, activeFolderId, setActiveFolderId } = useMediaGallery();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [uploadQueue, setUploadQueue] = useState<MediaUploadProgress[]>([]);
   const [tagsInput, setTagsInput] = useState<string>('');
+  const [targetFolderId, setTargetFolderId] = useState<string>(activeFolderId || '');
+  const [selectedSourceModule, setSelectedSourceModule] = useState<string>('media-gallery-hub');
 
-  const detectMediaType = (file: File): { type: MediaType; mimeType: string } => {
-    if (file.type.startsWith('video/')) return { type: 'video', mimeType: file.type || 'video/mp4' };
-    if (file.type.startsWith('image/')) return { type: 'image', mimeType: file.type || 'image/png' };
-    if (file.type.startsWith('audio/')) return { type: 'audio', mimeType: file.type || 'audio/mp3' };
-
-    const ext = file.name.split('.').pop()?.toLowerCase();
-    if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext || '')) return { type: 'video', mimeType: 'video/mp4' };
-    if (['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif'].includes(ext || '')) return { type: 'image', mimeType: 'image/png' };
-    if (['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac'].includes(ext || '')) return { type: 'audio', mimeType: 'audio/mp3' };
-
-    return { type: 'other', mimeType: file.type || 'application/octet-stream' };
-  };
+  // Keep targetFolderId in sync with activeFolderId if activeFolderId changes
+  React.useEffect(() => {
+    if (activeFolderId) {
+      setTargetFolderId(activeFolderId);
+    }
+  }, [activeFolderId]);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -35,29 +45,36 @@ export const MediaUploader: React.FC = () => {
     const initialQueue: MediaUploadProgress[] = fileArray.map((f, idx) => ({
       id: `queue_${Date.now()}_${idx}`,
       fileName: f.name,
-      type: detectMediaType(f).type,
+      type: FileCompressionService.detectFileType(f.name, f.type).type,
       progressPercent: 5,
       status: 'uploading',
     }));
 
     setUploadQueue((prev) => [...initialQueue, ...prev]);
 
+    const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
     const createdItems: MediaItem[] = [];
 
     for (let i = 0; i < fileArray.length; i++) {
       const file = fileArray[i];
-      const { type, mimeType } = detectMediaType(file);
+      const { type, mimeType } = FileCompressionService.detectFileType(file.name, file.type);
       const objectUrl = URL.createObjectURL(file);
+
+      const sourceInfo = KNOWN_MODULE_SOURCES[selectedSourceModule] || KNOWN_MODULE_SOURCES['media-gallery-hub'];
 
       const newItem: MediaItem = {
         id: `media_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         name: file.name,
         type,
-        mimeType,
+        mimeType: file.type || mimeType,
         url: objectUrl,
         sizeBytes: file.size,
         createdAt: Date.now() - i,
-        tags: tags.length > 0 ? tags : [type],
+        tags: tags.length > 0 ? tags : [type, selectedSourceModule],
+        folderId: targetFolderId ? targetFolderId : null,
+        folderName: targetFolder ? targetFolder.name : undefined,
+        sourceModule: selectedSourceModule,
+        sourceModuleLabel: sourceInfo.name,
       };
 
       createdItems.push(newItem);
@@ -118,7 +135,7 @@ export const MediaUploader: React.FC = () => {
           ref={fileInputRef}
           type="file"
           multiple
-          accept="video/*,image/*,audio/*"
+          accept="*/*"
           onChange={(e) => handleFiles(e.target.files)}
           className="hidden"
         />
@@ -128,47 +145,99 @@ export const MediaUploader: React.FC = () => {
         </div>
 
         <h3 className="text-base sm:text-lg font-bold text-white mb-1">
-          גרור ושחרר קבצי וידאו, תמונות או שמע לכאן
+          גרור ושחרר קבצים מכל סוג ובכל גודל לכאן
         </h3>
-        <p className="text-xs text-slate-400 max-w-md mb-4">
-          או לחץ לבחירת קבצים מרובים מהמחשב (MP4, WebM, PNG, JPG, WEBP, MP3, WAV ועוד)
+        <p className="text-xs text-slate-400 max-w-lg mb-4">
+          וידאו, תמונות, שמע, מסמכי PDF ו-Office, ארכיוני ZIP, קבצי קוד ונתונים ללא הגבלת משקל
         </p>
 
-        {/* Formats badges */}
+        {/* All Supported Formats Badges */}
         <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-300">
-          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
             <FileVideo className="w-3.5 h-3.5 text-indigo-400" />
-            <span>סרטונים (MP4, WebM)</span>
+            <span>וידאו (MP4, WebM, MOV)</span>
           </span>
-          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
             <ImageIcon className="w-3.5 h-3.5 text-emerald-400" />
-            <span>תמונות (PNG, JPG, WEBP)</span>
+            <span>תמונות (PNG, JPG, WEBP, SVG)</span>
           </span>
-          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-3 py-1 rounded-full border border-slate-700">
+          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
             <Music className="w-3.5 h-3.5 text-amber-400" />
-            <span>שמע (MP3, WAV)</span>
+            <span>שמע (MP3, WAV, AAC)</span>
+          </span>
+          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
+            <FileText className="w-3.5 h-3.5 text-blue-400" />
+            <span>מסמכים (PDF, DOCX, XLSX)</span>
+          </span>
+          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
+            <Archive className="w-3.5 h-3.5 text-purple-400" />
+            <span>ארכיונים (ZIP, RAR, TAR)</span>
+          </span>
+          <span className="flex items-center space-x-1 rtl:space-x-reverse bg-slate-800/80 px-2.5 py-1 rounded-full border border-slate-700">
+            <Code2 className="w-3.5 h-3.5 text-pink-400" />
+            <span>קוד ונתונים (JSON, CSV, JS)</span>
           </span>
         </div>
       </div>
 
-      {/* Optional Tagging Input */}
-      <div className="flex items-center gap-3 bg-slate-900/80 border border-slate-800 rounded-2xl p-3">
-        <span className="text-xs text-slate-400 whitespace-nowrap">תגיות להעלאה:</span>
-        <input
-          type="text"
-          placeholder="הזן תגיות מופרדות בפסיקים (למשל: סרטון ראשי, נציג, סתיו 2026)"
-          value={tagsInput}
-          onChange={(e) => setTagsInput(e.target.value)}
-          className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
-        />
+      {/* Upload Settings Bar (Folder selection, Source Component, Tags) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-slate-900/80 border border-slate-800 rounded-2xl p-3 text-xs">
+        {/* Destination Folder */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
+          <Folder className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+          <span className="text-slate-400 whitespace-nowrap">תיקיית יעד:</span>
+          <select
+            value={targetFolderId}
+            onChange={(e) => setTargetFolderId(e.target.value)}
+            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-yellow-500 truncate cursor-pointer"
+          >
+            <option value="">📁 תיקייה ראשית (Root)</option>
+            {folders.map((f) => (
+              <option key={f.id} value={f.id}>
+                📂 {f.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Source Component */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
+          <Layers className="w-4 h-4 text-indigo-400 flex-shrink-0" />
+          <span className="text-slate-400 whitespace-nowrap">רכיב מקור:</span>
+          <select
+            value={selectedSourceModule}
+            onChange={(e) => setSelectedSourceModule(e.target.value)}
+            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-2.5 py-1.5 text-white focus:outline-none focus:border-yellow-500 truncate cursor-pointer"
+          >
+            {Object.values(KNOWN_MODULE_SOURCES)
+              .filter((s) => s.id !== 'all')
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+          </select>
+        </div>
+
+        {/* Optional Tagging Input */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
+          <span className="text-slate-400 whitespace-nowrap">תגיות:</span>
+          <input
+            type="text"
+            placeholder="תגיות מופרדות בפסיק..."
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            className="flex-1 bg-slate-950 border border-slate-700 rounded-xl px-3 py-1.5 text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500"
+          />
+        </div>
       </div>
 
-      {/* Upload Progress Queue with Live Progress Bars */}
+      {/* Upload Progress Queue */}
       {uploadQueue.length > 0 && (
         <div className="space-y-3 bg-slate-950/90 border border-slate-800 rounded-2xl p-4 animate-fade-in shadow-xl">
           <div className="flex items-center justify-between text-xs font-bold text-slate-200">
             <span>מעלה קבצים במקביל ({uploadQueue.length})</span>
-            <span className="text-[11px] text-yellow-400">העלאה מהירה לענן</span>
+            <span className="text-[11px] text-yellow-400">אחסון מאובטח ב-Cloud Storage</span>
           </div>
 
           <div className="space-y-2.5 max-h-60 overflow-y-auto">

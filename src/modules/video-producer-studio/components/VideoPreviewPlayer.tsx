@@ -67,18 +67,30 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
   };
 
   const toggleAudio = () => {
-    if (!audioRef.current) return;
     if (isPlayingAudio) {
-      audioRef.current.pause();
+      if (audioRef.current) audioRef.current.pause();
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
       setIsPlayingAudio(false);
     } else {
-      audioRef.current.play();
+      if (audioRef.current) {
+        audioRef.current.play().catch(() => {});
+      }
+      if ('speechSynthesis' in window && scene.dialogueScript) {
+        window.speechSynthesis.cancel();
+        const utt = new SpeechSynthesisUtterance(scene.dialogueScript);
+        utt.lang = scene.googleTtsLanguageCode || 'he-IL';
+        utt.rate = scene.googleTtsSsmlRate ? parseFloat(scene.googleTtsSsmlRate) : 1.0;
+        utt.onend = () => setIsPlayingAudio(false);
+        utt.onerror = () => setIsPlayingAudio(false);
+        window.speechSynthesis.speak(utt);
+      }
       setIsPlayingAudio(true);
     }
   };
 
   useEffect(() => {
     setIsPlayingAudio(false);
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }, [scene.id]);
 
   return (
@@ -97,7 +109,7 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
           ) : scene.renderedAudioUrl ? (
             <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-semibold flex items-center gap-1">
               <Volume2 className="w-3 h-3" />
-              <span>שמע TTS מוכן</span>
+              <span>שמע קריינות מוכן</span>
             </span>
           ) : (
             <span className="text-[10px] text-slate-500 font-mono">טיוטת תצוגה</span>
@@ -188,12 +200,12 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
             <button
               onClick={toggleAudio}
               className="p-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white transition cursor-pointer"
-              title={isPlayingAudio ? 'השהה שמע' : 'נגן שמע'}
+              title={isPlayingAudio ? 'השהה שמע' : 'נגן קריינות'}
             >
               {isPlayingAudio ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
             </button>
             <span className="text-[11px] text-cyan-200 font-medium">
-              קריינות TTS ({scene.googleTtsVoiceName || 'he-IL'})
+              קריינות קולית ({scene.googleTtsVoiceName || 'עברית'})
             </span>
           </div>
           <span className="text-[10px] text-slate-500 font-mono">

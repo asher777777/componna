@@ -3,6 +3,7 @@ import { Firestore } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import {
   MediaItem,
+  MediaFolder,
   MediaType,
   MediaFilterOptions,
   MediaGalleryCollectionsConfig,
@@ -12,13 +13,69 @@ import { resolveMediaCollections, INITIAL_SERVER_MEDIA } from '../config';
 import { FirestoreMediaService } from '../services/firestoreMediaService';
 import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
-import { ensureAnonymousAuth } from '../../../services/firebaseAuth';
+import { FileCompressionService } from '../services/fileCompressionService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+
+export interface ModuleSourceInfo {
+  id: string;
+  name: string;
+  shortLabel: string;
+  icon: string;
+  color: string;
+}
+
+export const KNOWN_MODULE_SOURCES: Record<string, ModuleSourceInfo> = {
+  'all': {
+    id: 'all',
+    name: 'כל הרכיבים והמודולים',
+    shortLabel: 'הכל',
+    icon: 'Layers',
+    color: '#eab308',
+  },
+  'video-producer-studio': {
+    id: 'video-producer-studio',
+    name: 'סטודיו וידאו ואווטאר (HeyGen & Veo)',
+    shortLabel: 'סטודיו וידאו',
+    icon: 'Video',
+    color: '#8b5cf6',
+  },
+  'flow-player-engine': {
+    id: 'flow-player-engine',
+    name: 'מנוע נגן זרימה אינטראקטיבי',
+    shortLabel: 'נגן זרימה',
+    icon: 'PlayCircle',
+    color: '#3b82f6',
+  },
+  'page-builder': {
+    id: 'page-builder',
+    name: 'יוצר העמודים והאתרים',
+    shortLabel: 'בונה עמודים',
+    icon: 'Layout',
+    color: '#10b981',
+  },
+  'crm-analytics': {
+    id: 'crm-analytics',
+    name: 'אנליטיקה ודוחות CRM',
+    shortLabel: 'אנליטיקה',
+    icon: 'BarChart3',
+    color: '#f97316',
+  },
+  'media-gallery-hub': {
+    id: 'media-gallery-hub',
+    name: 'העלאה ישירה במאגר המדיה',
+    shortLabel: 'מאגר מדיה',
+    icon: 'HardDrive',
+    color: '#eab308',
+  },
+};
 
 interface MediaGalleryContextValue {
   mediaItems: MediaItem[];
   filteredItems: MediaItem[];
+  folders: MediaFolder[];
+  activeFolderId: string | null;
+  setActiveFolderId: (id: string | null) => void;
   filters: MediaFilterOptions;
   setFilters: React.Dispatch<React.SetStateAction<MediaFilterOptions>>;
   selectedIds: string[];
@@ -30,9 +87,30 @@ interface MediaGalleryContextValue {
   converterItem: MediaItem | null;
   setConverterItem: (item: MediaItem | null) => void;
   isLoading: boolean;
-  addMediaItems: (items: MediaItem[], files?: (File | Blob)[], onProgress?: (fileIndex: number, pct: number) => void) => Promise<void>;
+  addMediaItems: (
+    items: MediaItem[],
+    files?: (File | Blob)[],
+    onProgress?: (fileIndex: number, pct: number) => void
+  ) => Promise<void>;
   deleteMediaItems: (ids: string[]) => Promise<void>;
   updateMediaItem: (id: string, updates: Partial<MediaItem>) => Promise<void>;
+  
+  // Folder Operations
+  createFolder: (name: string, color?: string, icon?: string, parentId?: string | null) => Promise<MediaFolder>;
+  updateFolder: (id: string, updates: Partial<MediaFolder>) => Promise<void>;
+  deleteFolder: (id: string, deleteContents?: boolean) => Promise<void>;
+  moveItemsToFolder: (itemIds: string[], targetFolderId: string | null) => Promise<void>;
+
+  // Folder Modals UI state
+  isFolderModalOpen: boolean;
+  setIsFolderModalOpen: (open: boolean) => void;
+  editingFolder: MediaFolder | null;
+  setEditingFolder: (folder: MediaFolder | null) => void;
+  isMoveModalOpen: boolean;
+  setIsMoveModalOpen: (open: boolean) => void;
+  itemsToMove: string[];
+  setItemsToMove: (ids: string[]) => void;
+
   firebaseApp?: FirebaseApp;
   db?: Firestore;
   collections?: MediaGalleryCollectionsConfig;
@@ -59,6 +137,7 @@ export const MediaGalleryProvider: React.FC<{
     allowedTypes,
     maxSelectCount = 1,
     selectionMode = false,
+    defaultFolderId = null,
     onSelectMedia,
     onClosePicker,
   } = config;
@@ -69,18 +148,85 @@ export const MediaGalleryProvider: React.FC<{
   );
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [folders, setFolders] = useState<MediaFolder[]>([]);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(defaultFolderId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
   const [converterItem, setConverterItem] = useState<MediaItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Folder Modal state
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState<boolean>(false);
+  const [editingFolder, setEditingFolder] = useState<MediaFolder | null>(null);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState<boolean>(false);
+  const [itemsToMove, setItemsToMove] = useState<string[]>([]);
+
   const [filters, setFilters] = useState<MediaFilterOptions>({
     searchQuery: '',
     typeFilter: 'all',
     sortBy: 'date_desc',
+    sourceModuleFilter: 'all',
+    folderId: defaultFolderId,
   });
 
-  // Load all media sources directly from Server Cloud Storage + IndexedDB + Firestore
+  // Automatically detect sourceModule & human readable label
+  const detectSourceModule = (item: Partial<MediaItem>): { sourceModule: string; sourceModuleLabel: string } => {
+    if (item.sourceModule && KNKNOWN_SOURCE(item.sourceModule)) {
+      return {
+        sourceModule: item.sourceModule,
+        sourceModuleLabel: KNOWN_MODULE_SOURCES[item.sourceModule]?.name || item.sourceModuleLabel || item.sourceModule,
+      };
+    }
+
+    const tags = (item.tags || []).map((t) => t.toLowerCase().trim());
+    const metadata = item.metadata || {};
+
+    if (
+      tags.includes('heygen') ||
+      tags.includes('sdo_studio') ||
+      tags.includes('banana_pro') ||
+      tags.includes('google_veo') ||
+      tags.includes('google_tts') ||
+      metadata.source === 'sdo_video_producer'
+    ) {
+      return {
+        sourceModule: 'video-producer-studio',
+        sourceModuleLabel: 'סטודיו וידאו ואווטאר (HeyGen & Veo)',
+      };
+    }
+
+    if (tags.includes('flow_player') || tags.includes('interactive_flow') || tags.includes('sdo_player')) {
+      return {
+        sourceModule: 'flow-player-engine',
+        sourceModuleLabel: 'מנוע נגן זרימה אינטראקטיבי',
+      };
+    }
+
+    if (tags.includes('page_builder') || tags.includes('pagebuilder')) {
+      return {
+        sourceModule: 'page-builder',
+        sourceModuleLabel: 'יוצר העמודים והאתרים',
+      };
+    }
+
+    if (tags.includes('crm') || tags.includes('analytics')) {
+      return {
+        sourceModule: 'crm-analytics',
+        sourceModuleLabel: 'אנליטיקה ודוחות CRM',
+      };
+    }
+
+    return {
+      sourceModule: 'media-gallery-hub',
+      sourceModuleLabel: 'העלאה ישירה במאגר המדיה',
+    };
+  };
+
+  function KNKNOWN_SOURCE(source: string) {
+    return Boolean(KNOWN_MODULE_SOURCES[source]);
+  }
+
+  // Load all media sources directly from Server Cloud Storage + IndexedDB + Firestore + Folders
   useEffect(() => {
     let isMounted = true;
 
@@ -90,18 +236,17 @@ export const MediaGalleryProvider: React.FC<{
         const mergedMap = new Map<string, MediaItem>();
 
         const normalizeItem = (rawItem: MediaItem): MediaItem => {
-          let type = rawItem.type;
-          if (!type || type === 'other') {
-            const name = (rawItem.name || '').toLowerCase();
-            if (name.match(/\.(mp4|webm|mov|avi|mkv|m4v)$/i) || rawItem.mimeType?.startsWith('video/')) {
-              type = 'video';
-            } else if (name.match(/\.(png|jpg|jpeg|webp|gif|svg|avif)$/i) || rawItem.mimeType?.startsWith('image/')) {
-              type = 'image';
-            } else if (name.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/i) || rawItem.mimeType?.startsWith('audio/')) {
-              type = 'audio';
-            }
-          }
-          return { ...rawItem, type };
+          const { type, mimeType } = FileCompressionService.detectFileType(rawItem.name || '', rawItem.mimeType);
+          const itemType = rawItem.type && rawItem.type !== 'other' ? rawItem.type : type;
+          const { sourceModule, sourceModuleLabel } = detectSourceModule(rawItem);
+
+          return {
+            ...rawItem,
+            type: itemType,
+            mimeType: rawItem.mimeType || mimeType,
+            sourceModule: rawItem.sourceModule || sourceModule,
+            sourceModuleLabel: rawItem.sourceModuleLabel || sourceModuleLabel,
+          };
         };
 
         // Filter out deleted items from local tombstone list
@@ -133,7 +278,7 @@ export const MediaGalleryProvider: React.FC<{
           }
         };
 
-        // 1. Start with initial confirmed server media
+        // 1. Initial confirmed server media
         INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
 
         // 2. Load from local IndexedDB (instant zero-latency cache)
@@ -149,7 +294,6 @@ export const MediaGalleryProvider: React.FC<{
         // 3. Fetch all files directly from Firebase Storage bucket
         if (firebaseApp) {
           try {
-            await ensureAnonymousAuth(firebaseApp);
             const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp);
             storageItems.forEach((item) => {
               addDeduplicated(item);
@@ -184,13 +328,28 @@ export const MediaGalleryProvider: React.FC<{
           }
         }
 
+        // 5. Load Folders (Firestore + IndexedDB + LocalStorage)
+        let loadedFolders: MediaFolder[] = [];
+        try {
+          if (db) {
+            loadedFolders = await FirestoreMediaService.fetchFolders(db, collections);
+          }
+          if (loadedFolders.length === 0) {
+            loadedFolders = await MediaIndexedDbService.getFolders();
+          }
+        } catch (fErr) {
+          console.warn('[MediaGallery] Folder loading notice:', fErr);
+          loadedFolders = await MediaIndexedDbService.getFolders();
+        }
+
         if (!isMounted) return;
 
         const finalMerged = Array.from(mergedMap.values()).sort((a, b) => b.createdAt - a.createdAt);
         setMediaItems(finalMerged);
-        
+        setFolders(loadedFolders);
+
         // Sync to IndexedDB
-        finalMerged.forEach(item => MediaIndexedDbService.saveMedia(item).catch(() => {}));
+        finalMerged.forEach((item) => MediaIndexedDbService.saveMedia(item).catch(() => {}));
       } catch (err) {
         console.warn('[MediaGallery] Failed to load server media sources:', err);
       } finally {
@@ -200,7 +359,7 @@ export const MediaGalleryProvider: React.FC<{
 
     loadServerSources();
 
-    // Listen for cross-module media additions (e.g. from Interactive Player Studio)
+    // Cross-module media update listener
     const handleMediaUpdated = (e: Event) => {
       const customEvent = e as CustomEvent<MediaItem>;
       if (customEvent.detail) {
@@ -236,15 +395,39 @@ export const MediaGalleryProvider: React.FC<{
     };
   }, [firebaseApp, db, collections]);
 
+  // Recalculate folder item counts
+  const foldersWithCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    mediaItems.forEach((item) => {
+      if (item.folderId) {
+        counts.set(item.folderId, (counts.get(item.folderId) || 0) + 1);
+      }
+    });
+    return folders.map((f) => ({
+      ...f,
+      itemCount: counts.get(f.id) || 0,
+    }));
+  }, [folders, mediaItems]);
+
   const addMediaItems = async (
     newItems: MediaItem[],
     files?: (File | Blob)[],
     onProgress?: (fileIndex: number, pct: number) => void
   ) => {
     // 1. Optimistic Immediate Update in UI
+    const enrichedItems = newItems.map((item) => {
+      const { sourceModule, sourceModuleLabel } = detectSourceModule(item);
+      return {
+        ...item,
+        folderId: item.folderId !== undefined ? item.folderId : activeFolderId,
+        sourceModule: item.sourceModule || sourceModule,
+        sourceModuleLabel: item.sourceModuleLabel || sourceModuleLabel,
+      };
+    });
+
     setMediaItems((prev) => {
       const map = new Map<string, MediaItem>();
-      newItems.forEach((it) => map.set(it.name.toLowerCase().trim(), it));
+      enrichedItems.forEach((it) => map.set(it.name.toLowerCase().trim(), it));
       prev.forEach((it) => {
         const k = it.name.toLowerCase().trim();
         if (!map.has(k)) map.set(k, it);
@@ -253,7 +436,7 @@ export const MediaGalleryProvider: React.FC<{
     });
 
     // 2. Upload each file directly to Firebase Cloud Storage and save JSON to Firestore & IndexedDB
-    const uploadPromises = newItems.map(async (initialItem, index) => {
+    const uploadPromises = enrichedItems.map(async (initialItem, index) => {
       const file = files ? files[index] : undefined;
       let finalItem = { ...initialItem };
 
@@ -276,7 +459,11 @@ export const MediaGalleryProvider: React.FC<{
         try {
           await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
           if (collections.mediaItems !== 'sdo_media_items') {
-            await FirestoreMediaService.saveMediaItem(db, { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }, finalItem);
+            await FirestoreMediaService.saveMediaItem(
+              db,
+              { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+              finalItem
+            );
           }
         } catch (fsErr) {
           console.warn('[MediaGallery] Firestore save notice:', fsErr);
@@ -292,17 +479,16 @@ export const MediaGalleryProvider: React.FC<{
 
       // Update state with confirmed permanent URL
       setMediaItems((prev) =>
-        prev.map((it) =>
-          it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() ? finalItem : it
-        )
+        prev.map((it) => (it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() ? finalItem : it))
       );
 
-      // Broadcast via global EventBus to all listening modules
+      // Broadcast via global EventBus
       if (finalItem.url) {
         eventBus.emit('media:uploaded', {
           url: finalItem.url,
           fileName: finalItem.name,
           type: finalItem.type,
+          sourceModule: finalItem.sourceModule,
         });
       }
 
@@ -317,32 +503,37 @@ export const MediaGalleryProvider: React.FC<{
     const deleteNames = new Set(toDelete.map((i) => i.name.toLowerCase().trim()));
     const deleteIds = new Set(ids);
 
-    // Save tombstone in LocalStorage so deleted items are NEVER resurrected on page reload
+    // Save tombstone in LocalStorage
     try {
       const existingDeleted = JSON.parse(localStorage.getItem('sdo_media_deleted_ids') || '[]');
-      const updatedDeleted = Array.from(new Set([...existingDeleted, ...ids, ...toDelete.map(i => i.name), ...toDelete.map(i => i.id)]));
+      const updatedDeleted = Array.from(
+        new Set([...existingDeleted, ...ids, ...toDelete.map((i) => i.name), ...toDelete.map((i) => i.id)])
+      );
       localStorage.setItem('sdo_media_deleted_ids', JSON.stringify(updatedDeleted));
     } catch {}
 
     // Update UI immediately
-    setMediaItems((prev) => prev.filter((item) => !deleteIds.has(item.id) && !deleteNames.has(item.name.toLowerCase().trim())));
+    setMediaItems((prev) =>
+      prev.filter((item) => !deleteIds.has(item.id) && !deleteNames.has(item.name.toLowerCase().trim()))
+    );
     setSelectedIds([]);
 
     for (const item of toDelete) {
-      // 1. Delete from IndexedDB & LocalStorage cache
       await MediaIndexedDbService.deleteMedia(item.id);
 
-      // 2. Delete from Firestore (both current and default sdo_media_items)
       if (db) {
         try {
           await FirestoreMediaService.deleteMediaItem(db, collections, item.id);
           if (collections.mediaItems !== 'sdo_media_items') {
-            await FirestoreMediaService.deleteMediaItem(db, { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }, item.id);
+            await FirestoreMediaService.deleteMediaItem(
+              db,
+              { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+              item.id
+            );
           }
         } catch (e) {}
       }
 
-      // 3. Delete from Firebase Cloud Storage and sdo_media_vault
       if (firebaseApp) {
         try {
           await FirebaseStorageMediaService.deleteStorageFile(firebaseApp, item);
@@ -350,7 +541,6 @@ export const MediaGalleryProvider: React.FC<{
       }
     }
 
-    // Broadcast delete event across windows and modules
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('sdo_media_deleted', { detail: { ids } }));
     }
@@ -363,6 +553,118 @@ export const MediaGalleryProvider: React.FC<{
 
     if (db) {
       await FirestoreMediaService.updateMediaMetadata(db, collections, id, updates);
+    }
+  };
+
+  // --- Folder Management Methods ---
+
+  const createFolder = async (
+    name: string,
+    color: string = '#eab308',
+    icon: string = 'Folder',
+    parentId: string | null = null
+  ): Promise<MediaFolder> => {
+    const newFolder: MediaFolder = {
+      id: `folder_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      name: name.trim(),
+      color,
+      icon,
+      parentId,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      itemCount: 0,
+    };
+
+    setFolders((prev) => [newFolder, ...prev]);
+    await MediaIndexedDbService.saveFolder(newFolder);
+
+    if (db) {
+      try {
+        await FirestoreMediaService.saveFolder(db, collections, newFolder);
+      } catch (e) {
+        console.warn('[MediaGallery] Error saving folder to Firestore:', e);
+      }
+    }
+
+    return newFolder;
+  };
+
+  const updateFolder = async (id: string, updates: Partial<MediaFolder>) => {
+    setFolders((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...updates, updatedAt: Date.now() } : f))
+    );
+
+    const folderToUpdate = folders.find((f) => f.id === id);
+    if (folderToUpdate) {
+      const updated = { ...folderToUpdate, ...updates, updatedAt: Date.now() };
+      await MediaIndexedDbService.saveFolder(updated);
+      if (db) {
+        try {
+          await FirestoreMediaService.saveFolder(db, collections, updated);
+        } catch (e) {}
+      }
+    }
+  };
+
+  const deleteFolder = async (id: string, deleteContents: boolean = false) => {
+    const folder = folders.find((f) => f.id === id);
+    if (!folder) return;
+
+    if (deleteContents) {
+      const itemsInFolder = mediaItems.filter((i) => i.folderId === id);
+      if (itemsInFolder.length > 0) {
+        await deleteMediaItems(itemsInFolder.map((i) => i.id));
+      }
+    } else {
+      // Unlink items from folder, move back to root
+      setMediaItems((prev) =>
+        prev.map((item) => (item.folderId === id ? { ...item, folderId: null, folderName: undefined } : item))
+      );
+      if (db) {
+        const itemsToUnlink = mediaItems.filter((i) => i.folderId === id);
+        for (const it of itemsToUnlink) {
+          FirestoreMediaService.updateMediaMetadata(db, collections, it.id, { folderId: null }).catch(() => {});
+        }
+      }
+    }
+
+    setFolders((prev) => prev.filter((f) => f.id !== id));
+    if (activeFolderId === id) {
+      setActiveFolderId(null);
+    }
+
+    await MediaIndexedDbService.deleteFolder(id);
+    if (db) {
+      try {
+        await FirestoreMediaService.deleteFolder(db, collections, id);
+      } catch (e) {}
+    }
+  };
+
+  const moveItemsToFolder = async (itemIds: string[], targetFolderId: string | null) => {
+    const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
+    const folderName = targetFolder ? targetFolder.name : undefined;
+
+    setMediaItems((prev) =>
+      prev.map((item) =>
+        itemIds.includes(item.id)
+          ? { ...item, folderId: targetFolderId, folderName, updatedAt: Date.now() }
+          : item
+      )
+    );
+
+    for (const id of itemIds) {
+      const item = mediaItems.find((i) => i.id === id);
+      if (item) {
+        const updated = { ...item, folderId: targetFolderId, folderName, updatedAt: Date.now() };
+        MediaIndexedDbService.saveMedia(updated).catch(() => {});
+        if (db) {
+          FirestoreMediaService.updateMediaMetadata(db, collections, id, {
+            folderId: targetFolderId,
+            updatedAt: Date.now(),
+          }).catch(() => {});
+        }
+      }
     }
   };
 
@@ -390,19 +692,33 @@ export const MediaGalleryProvider: React.FC<{
   const filteredItems = useMemo(() => {
     return mediaItems
       .filter((item) => {
+        // Allowed Types
         if (config?.allowedTypes && config.allowedTypes.length > 0) {
           if (!config.allowedTypes.includes(item.type)) return false;
         }
 
+        // Folder Filtering: if activeFolderId is set, show only items in this folder
+        if (activeFolderId) {
+          if (item.folderId !== activeFolderId) return false;
+        }
+
+        // Type Filter Tab
         if (filters.typeFilter !== 'all' && item.type !== filters.typeFilter) {
           return false;
         }
 
+        // Source Module Filter
+        if (filters.sourceModuleFilter && filters.sourceModuleFilter !== 'all') {
+          if (item.sourceModule !== filters.sourceModuleFilter) return false;
+        }
+
+        // Search Query
         if (filters.searchQuery.trim()) {
           const q = filters.searchQuery.toLowerCase();
           const matchesName = item.name.toLowerCase().includes(q);
           const matchesTags = item.tags?.some((t) => t.toLowerCase().includes(q));
-          if (!matchesName && !matchesTags) return false;
+          const matchesSource = item.sourceModuleLabel?.toLowerCase().includes(q);
+          if (!matchesName && !matchesTags && !matchesSource) return false;
         }
 
         return true;
@@ -414,13 +730,16 @@ export const MediaGalleryProvider: React.FC<{
         if (filters.sortBy === 'name_asc') return a.name.localeCompare(b.name, 'he');
         return 0;
       });
-  }, [mediaItems, filters, config?.allowedTypes]);
+  }, [mediaItems, filters, activeFolderId, config?.allowedTypes]);
 
   return (
     <MediaGalleryContext.Provider
       value={{
         mediaItems,
         filteredItems,
+        folders: foldersWithCounts,
+        activeFolderId,
+        setActiveFolderId,
         filters,
         setFilters,
         selectedIds,
@@ -435,6 +754,21 @@ export const MediaGalleryProvider: React.FC<{
         addMediaItems,
         deleteMediaItems,
         updateMediaItem,
+
+        createFolder,
+        updateFolder,
+        deleteFolder,
+        moveItemsToFolder,
+
+        isFolderModalOpen,
+        setIsFolderModalOpen,
+        editingFolder,
+        setEditingFolder,
+        isMoveModalOpen,
+        setIsMoveModalOpen,
+        itemsToMove,
+        setItemsToMove,
+
         firebaseApp,
         db,
         collections,

@@ -1,7 +1,19 @@
-﻿import { FirebaseApp } from 'firebase/app';
+import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 
-export type MediaType = 'video' | 'image' | 'audio' | 'other';
+export type MediaType = 'video' | 'image' | 'audio' | 'document' | 'archive' | 'code' | 'other';
+
+export interface MediaFolder {
+  id: string;
+  name: string;
+  parentId?: string | null;
+  color?: string;
+  icon?: string;
+  sourceModule?: string;
+  createdAt: number;
+  updatedAt?: number;
+  itemCount?: number;
+}
 
 export interface MediaItem {
   id: string;
@@ -18,8 +30,12 @@ export interface MediaItem {
   updatedAt?: number;
   tags?: string[];
   description?: string;
-  folderId?: string;
+  folderId?: string | null;
+  folderName?: string;
+  sourceModule?: string; // Module ID where file was created/uploaded e.g. 'video-producer-studio'
+  sourceModuleLabel?: string; // Hebrew human-readable name e.g. 'סטודיו וידאו ואווטאר'
   isFavorite?: boolean;
+  metadata?: Record<string, any>;
 }
 
 export interface MediaUploadProgress {
@@ -44,6 +60,8 @@ export interface MediaFilterOptions {
   typeFilter: 'all' | MediaType;
   sortBy: 'date_desc' | 'date_asc' | 'size_desc' | 'name_asc';
   selectedTag?: string;
+  folderId?: string | null; // null/undefined means root or all depending on view
+  sourceModuleFilter?: 'all' | string;
 }
 
 export interface MediaGalleryCollectionsConfig {
@@ -61,6 +79,7 @@ export interface MediaGalleryModuleConfig {
   selectionMode?: boolean; // When opened as a picker
   allowedTypes?: MediaType[];
   maxSelectCount?: number;
+  defaultFolderId?: string;
   onSelectMedia?: (items: MediaItem[]) => void;
   onClosePicker?: () => void;
 }

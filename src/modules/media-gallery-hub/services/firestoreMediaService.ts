@@ -9,7 +9,7 @@ import {
   query,
   orderBy,
 } from 'firebase/firestore';
-import { MediaItem, MediaGalleryCollectionsConfig } from '../types';
+import { MediaItem, MediaFolder, MediaGalleryCollectionsConfig } from '../types';
 import { resolveMediaCollections } from '../config';
 
 export class FirestoreMediaService {
@@ -93,5 +93,51 @@ export class FirestoreMediaService {
       updatedAt: Date.now(),
     });
     await updateDoc(docRef, sanitized);
+  }
+
+  // --- FOLDER MANAGEMENT ---
+
+  static async fetchFolders(
+    db: Firestore,
+    collections?: MediaGalleryCollectionsConfig
+  ): Promise<MediaFolder[]> {
+    const collNames = resolveMediaCollections(undefined, collections);
+    try {
+      const collRef = collection(db, collNames.folders);
+      const snapshot = await getDocs(collRef);
+      const folders: MediaFolder[] = [];
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() as MediaFolder;
+        folders.push({ ...data, id: docSnap.id });
+      });
+      return folders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (err) {
+      console.warn('[FirestoreMediaService] Error fetching folders:', err);
+      return [];
+    }
+  }
+
+  static async saveFolder(
+    db: Firestore,
+    collections: MediaGalleryCollectionsConfig | undefined,
+    folder: MediaFolder
+  ): Promise<void> {
+    const collNames = resolveMediaCollections(undefined, collections);
+    const docRef = doc(db, collNames.folders, folder.id);
+    const sanitized = this.cleanUndefinedFields({
+      ...folder,
+      updatedAt: Date.now(),
+    });
+    await setDoc(docRef, sanitized, { merge: true });
+  }
+
+  static async deleteFolder(
+    db: Firestore,
+    collections: MediaGalleryCollectionsConfig | undefined,
+    folderId: string
+  ): Promise<void> {
+    const collNames = resolveMediaCollections(undefined, collections);
+    const docRef = doc(db, collNames.folders, folderId);
+    await deleteDoc(docRef);
   }
 }

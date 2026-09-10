@@ -7,7 +7,7 @@ import { MediaPickerHostBridge } from './modules/media-gallery-hub';
 
 export const App: React.FC = () => {
   return (
-    <BrowserRouter>
+    <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <SystemConnectionProvider>
         <HostCapabilitiesProvider>
           <WorkbenchApp />

@@ -38,8 +38,10 @@ interface VideoStudioContextValue {
   activeScene: VideoScene | null;
   setActiveProject: (p: VideoProject | null) => void;
   setActiveSceneId: (id: string | null) => void;
+  startNewProject: () => void;
   generateClarificationQuestions: (params: ScriptGenerationParams) => Promise<ClarificationResult>;
   createProjectFromWizard: (params: ScriptGenerationParams) => Promise<TokenUsageReport>;
+  reGenerateProjectWithAI: (params: ScriptGenerationParams) => Promise<TokenUsageReport>;
   createInteractiveFunnelFromWizard: (params: ScriptGenerationParams) => Promise<TokenUsageReport>;
   addNextSceneWithAI: (customInstruction?: string) => Promise<TokenUsageReport>;
   exportProjectToFlowPlayer: (projectToExport?: VideoProject) => Promise<CampaignConfig>;
@@ -120,6 +122,12 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   const activeScene = activeProject?.scenes.find(s => s.id === activeSceneId) || activeProject?.scenes[0] || null;
 
+  const startNewProject = () => {
+    setActiveProject(null);
+    setActiveSceneId(null);
+    setTab('wizard');
+  };
+
   const generateClarificationQuestions = async (params: ScriptGenerationParams): Promise<ClarificationResult> => {
     const geminiKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
     if (!geminiKey) {
@@ -152,10 +160,15 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-1.5-flash', params);
       const isInteractive = params.productionType === 'landing_funnel' || params.outputPreference === 'full_production';
+      
+      const cleanTitle = (res.project.title && res.project.title.trim().length > 1)
+        ? res.project.title.trim().replace(/^["']|["']$/g, '')
+        : (params.topic ? `${params.topic} - ${params.marketingHook || 'הפקת וידאו'}` : `פרויקט וידאו חדש - ${new Date().toLocaleDateString('he-IL')}`);
+
       const newProj: VideoProject = {
         id: `proj_${Date.now()}`,
-        title: res.project.title || params.topic,
-        description: res.project.description || '',
+        title: cleanTitle,
+        description: res.project.description || params.topic || '',
         aspectRatio: res.project.aspectRatio || params.aspectRatio || '16:9',
         targetAudience: params.targetAudience,
         marketingHook: params.marketingHook,
@@ -177,7 +190,13 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         updatedAt: new Date().toISOString()
       };
 
+      // 1. Automatically save to DB and local storage
       await saveProject(newProj, db);
+
+      // 2. Immediately update projects state so it shows in the list
+      setProjects(prev => [newProj, ...prev.filter(p => p.id !== newProj.id)]);
+
+      // 3. Set active project and initial scene
       setActiveProject(newProj);
       setActiveSceneId(newProj.scenes[0]?.id || null);
       setLastCostReport(res.costReport);
@@ -187,8 +206,68 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         await exportVideoProjectToFlowPlayer(newProj, db).catch(e => console.warn('Auto-export notice:', e));
       }
 
+      // 4. Automatically switch view to the Editor
       setTab('editor');
       await loadProjects();
+      return res.costReport;
+    } finally {
+      setIsGeneratingScript(false);
+    }
+  };
+
+  const reGenerateProjectWithAI = async (params: ScriptGenerationParams): Promise<TokenUsageReport> => {
+    if (!activeProject) {
+      return createProjectFromWizard(params);
+    }
+
+    const geminiKey = apiKeys.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+    if (!geminiKey) {
+      openConnectorModal();
+      throw new Error('נא להגדיר תחילה מפתח Google Gemini API Key במרכז הסנכרון.');
+    }
+
+    setIsGeneratingScript(true);
+    try {
+      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-1.5-flash', {
+        ...params,
+        conversationId: activeProject.conversationId || params.conversationId,
+        conversationHistory: activeProject.conversationHistory
+      });
+
+      const cleanTitle = (res.project.title && res.project.title.trim().length > 1)
+        ? res.project.title.trim().replace(/^["']|["']$/g, '')
+        : (params.topic ? `${params.topic} - ${params.marketingHook || 'הפקת וידאו'}` : activeProject.title);
+
+      const updatedProj: VideoProject = {
+        ...activeProject,
+        title: cleanTitle,
+        description: res.project.description || params.topic || activeProject.description,
+        aspectRatio: res.project.aspectRatio || params.aspectRatio || activeProject.aspectRatio,
+        targetAudience: params.targetAudience || activeProject.targetAudience,
+        marketingHook: params.marketingHook || activeProject.marketingHook,
+        productionType: params.productionType || activeProject.productionType,
+        visualStyle: params.visualStyle || activeProject.visualStyle,
+        ttsLanguage: params.ttsLanguage || activeProject.ttsLanguage,
+        outputPreference: params.outputPreference || activeProject.outputPreference,
+        referenceImageUrl: params.referenceImageBase64 ? '(attached_reference_image)' : activeProject.referenceImageUrl,
+        referencePdfName: params.referencePdfName || activeProject.referencePdfName,
+        documentUrl: params.documentUrl || activeProject.documentUrl,
+        clarificationAnswers: params.clarificationAnswers || activeProject.clarificationAnswers,
+        projectOverview: res.project.projectOverview || activeProject.projectOverview,
+        scenes: res.scenes,
+        conversationHistory: res.conversationHistory,
+        updatedAt: new Date().toISOString()
+      };
+
+      // Save to Firestore and LocalStorage
+      await saveProject(updatedProj, db);
+      setProjects(prev => prev.map(p => p.id === updatedProj.id ? updatedProj : p));
+      setActiveProject(updatedProj);
+      setActiveSceneId(updatedProj.scenes[0]?.id || null);
+      setLastCostReport(res.costReport);
+      
+      await loadProjects();
+      setTab('editor');
       return res.costReport;
     } finally {
       setIsGeneratingScript(false);
@@ -584,8 +663,10 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         activeScene,
         setActiveProject,
         setActiveSceneId,
+        startNewProject,
         generateClarificationQuestions,
         createProjectFromWizard,
+        reGenerateProjectWithAI,
         createInteractiveFunnelFromWizard,
         addNextSceneWithAI,
         exportProjectToFlowPlayer,

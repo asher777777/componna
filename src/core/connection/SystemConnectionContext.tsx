@@ -152,12 +152,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, [config]);
 
-  // Authenticate anonymously
-  useEffect(() => {
-    if (firebaseApp) {
-      ensureAnonymousAuth(firebaseApp);
-    }
-  }, [firebaseApp]);
 
   // Firestore DB instance
   const db = useMemo<Firestore | undefined>(() => {
