@@ -1,5 +1,7 @@
 import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
 import { VideoProject, VideoScene } from '../types';
+import { MediaIndexedDbService } from '../../media-gallery-hub/services/mediaIndexedDbService';
+import { MediaItem } from '../../media-gallery-hub/types';
 
 const PROJECTS_COLLECTION = 'sdo_video_projects';
 const MEDIA_ITEMS_COLLECTION = 'sdo_media_items';
@@ -102,10 +104,10 @@ export async function syncAssetToMediaGallery(
 ): Promise<void> {
   if (!params.url) return;
 
-  const typeLabels = {
-    image: 'תמונת AI (Banana Pro)',
-    video: params.generator === 'google_veo' ? 'סרטון AI (Google Veo)' : 'אווטאר AI (HeyGen)',
-    audio: 'קריינות AI'
+  const typeExtensions = {
+    image: 'jpg',
+    video: 'mp4',
+    audio: 'wav'
   };
 
   const folderIds = {
@@ -122,19 +124,31 @@ export async function syncAssetToMediaGallery(
 
   const narration = params.scriptText || params.subtitleText;
   const audioDisplayName = narration 
-    ? (narration.length > 80 ? `${narration.slice(0, 80)}...` : narration)
+    ? (narration.length > 60 ? `${narration.slice(0, 60)}...` : narration)
     : params.title;
 
-  const mediaId = `media_${params.generator}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-  const mediaDoc = {
+  const ext = typeExtensions[params.assetType];
+  const baseTitle = params.title ? params.title.replace(/\.[a-zA-Z0-9]+$/, '') : 'Asset';
+  const itemName = params.assetType === 'audio' 
+    ? `${audioDisplayName}.${ext}` 
+    : `${baseTitle}.${ext}`;
+
+  const nowMs = Date.now();
+  const mediaId = `media_${params.generator}_${nowMs}_${Math.random().toString(36).substr(2, 5)}`;
+  
+  const mediaDoc: MediaItem = {
     id: mediaId,
-    name: params.assetType === 'audio' ? audioDisplayName : `${params.title} - ${typeLabels[params.assetType]}`,
+    name: itemName,
     url: params.url,
+    thumbnailUrl: params.assetType === 'image' ? params.url : undefined,
     type: params.assetType,
     mimeType: params.mimeType || (params.assetType === 'image' ? 'image/jpeg' : params.assetType === 'audio' ? 'audio/wav' : 'video/mp4'),
+    sizeBytes: params.url.startsWith('data:') ? Math.round(params.url.length * 0.75) : 512 * 1024,
     folderId: folderIds[params.assetType],
     folderName: folderNames[params.assetType],
     description: narration || params.title,
+    sourceModule: 'video-producer-studio',
+    sourceModuleLabel: 'סטודיו וידאו ואווטאר (HeyGen & Veo)',
     tags: [
       params.generator,
       params.assetType,
@@ -152,13 +166,20 @@ export async function syncAssetToMediaGallery(
       generator: params.generator,
       source: 'sdo_video_producer'
     },
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
+    createdAt: nowMs,
+    updatedAt: nowMs
   };
 
   const cleanDoc = cleanForFirestore(mediaDoc);
 
-  // Sync to local cache
+  // 1. Sync to local IndexedDB (zero latency)
+  try {
+    await MediaIndexedDbService.saveMedia(cleanDoc);
+  } catch (idbErr) {
+    console.warn('[VideoProjectStore] IndexedDB save notice:', idbErr);
+  }
+
+  // 2. Sync to local cache
   try {
     const local = localStorage.getItem('comona_media_gallery_items');
     const list = local ? JSON.parse(local) : [];
@@ -166,13 +187,18 @@ export async function syncAssetToMediaGallery(
     localStorage.setItem('comona_media_gallery_items', JSON.stringify(list));
   } catch {}
 
-  // Sync to Firestore
+  // 3. Sync to Firestore (sdo_media_items)
   if (db) {
     try {
       await setDoc(doc(db, MEDIA_ITEMS_COLLECTION, mediaId), cleanDoc, { merge: true });
     } catch (err) {
-      console.warn('[VideoProjectStore] Media Gallery save notice:', err);
+      console.warn('[VideoProjectStore] Media Gallery Firestore save notice:', err);
     }
+  }
+
+  // 4. Dispatch instant cross-module event to live gallery views
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: cleanDoc }));
   }
 }
 

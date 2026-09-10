@@ -335,7 +335,27 @@ export const MediaGalleryProvider: React.FC<{
         // 1. Initial confirmed server media
         INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
 
-        // 2. Load from local IndexedDB (instant zero-latency cache)
+        // 2. Load from localStorage caches (comona_media_gallery_items & sdo_media_vault_items)
+        try {
+          const rawStudioItems = localStorage.getItem('comona_media_gallery_items');
+          if (rawStudioItems) {
+            const parsed = JSON.parse(rawStudioItems);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(addDeduplicated);
+            }
+          }
+          const rawVaultItems = localStorage.getItem('sdo_media_vault_items');
+          if (rawVaultItems) {
+            const parsed = JSON.parse(rawVaultItems);
+            if (Array.isArray(parsed)) {
+              parsed.forEach(addDeduplicated);
+            }
+          }
+        } catch (lsErr) {
+          console.warn('[MediaGallery] LocalStorage items load notice:', lsErr);
+        }
+
+        // 3. Load from local IndexedDB (instant zero-latency cache)
         try {
           const idbItems = await MediaIndexedDbService.getAllMedia();
           idbItems.forEach((it) => {
@@ -345,7 +365,7 @@ export const MediaGalleryProvider: React.FC<{
           console.warn('[MediaGallery] IndexedDB load notice:', idbErr);
         }
 
-        // 3. Fetch all files directly from Firebase Storage bucket
+        // 4. Fetch all files directly from Firebase Storage bucket
         if (firebaseApp) {
           try {
             const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp);
