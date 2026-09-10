@@ -31,6 +31,9 @@ import {
   Info,
   Pencil,
   Check,
+  RefreshCw,
+  Loader2,
+  Video,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -103,9 +106,12 @@ export const MediaGalleryGrid: React.FC = () => {
     setIsInspectorOpen,
     focusedItem,
     setFocusedItem,
+    isSyncingHeyGen,
+    syncHeyGenVideos,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
+  const [syncStatusMsg, setSyncStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>('grid');
 
   // Inline rename state
@@ -149,6 +155,18 @@ export const MediaGalleryGrid: React.FC = () => {
       e.preventDefault();
       cancelRename(e);
     }
+  };
+
+  const handleSyncHeyGen = async () => {
+    const res = await syncHeyGenVideos();
+    if (res.error) {
+      setSyncStatusMsg({ text: res.error, type: 'error' });
+    } else if (res.count > 0) {
+      setSyncStatusMsg({ text: `סונכרנו בהצלחה ${res.count} סרטונים מחשבון HeyGen!`, type: 'success' });
+    } else {
+      setSyncStatusMsg({ text: 'לא נמצאו סרטונים חדשים ב-HeyGen.', type: 'success' });
+    }
+    setTimeout(() => setSyncStatusMsg(null), 5000);
   };
 
   // Focus item and open in inspector on click; double click to open full preview modal
@@ -487,6 +505,30 @@ export const MediaGalleryGrid: React.FC = () => {
             <Info className="w-4 h-4" />
           </button>
 
+          {/* HeyGen Cloud Sync Button */}
+          <button
+            type="button"
+            onClick={handleSyncHeyGen}
+            disabled={isSyncingHeyGen}
+            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 rtl:space-x-reverse ${
+              isSyncingHeyGen
+                ? 'opacity-70 cursor-not-allowed bg-purple-500/20 border-purple-500/40 text-purple-300'
+                : isLight
+                ? 'bg-purple-50 hover:bg-purple-100 text-purple-800 border-purple-300 shadow-sm hover:shadow'
+                : 'bg-purple-950/60 hover:bg-purple-900/80 text-purple-300 border-purple-800/60 shadow'
+            }`}
+            title="משוך וסנכרן סרטונים מחשבון HeyGen באמצעות API"
+          >
+            {isSyncingHeyGen ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-500" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5 text-purple-500" />
+            )}
+            <span className="hidden sm:inline">
+              {isSyncingHeyGen ? 'מסנכרן HeyGen...' : 'סנכרון HeyGen'}
+            </span>
+          </button>
+
           {/* Quick Upload Button */}
           <button
             type="button"
@@ -498,6 +540,37 @@ export const MediaGalleryGrid: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Sync Status Banner */}
+      {syncStatusMsg && (
+        <div
+          className={`p-2.5 px-4 rounded-xl border text-xs flex items-center justify-between shadow-sm animate-fade-in ${
+            syncStatusMsg.type === 'error'
+              ? isLight
+                ? 'bg-red-50 border-red-200 text-red-800'
+                : 'bg-red-950/60 border-red-800 text-red-300'
+              : isLight
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+              : 'bg-emerald-950/60 border-emerald-800 text-emerald-300'
+          }`}
+        >
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            {syncStatusMsg.type === 'error' ? (
+              <X className="w-4 h-4 text-red-500 flex-shrink-0" />
+            ) : (
+              <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" />
+            )}
+            <span>{syncStatusMsg.text}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSyncStatusMsg(null)}
+            className="p-1 hover:opacity-75 rounded-md text-inherit"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       {/* 2. Folders Bar (Pills shelf inside current location) */}
       {!activeFolderId && folders.length > 0 && (
@@ -790,14 +863,28 @@ export const MediaGalleryGrid: React.FC = () => {
                 {/* Media Thumbnail Box */}
                 <div
                   className={`relative w-full flex items-center justify-center overflow-hidden ${
-                    isLight ? 'bg-slate-100' : 'bg-black/80'
+                    isLight ? 'bg-slate-100' : 'bg-slate-950'
                   } ${viewMode === 'dense' ? 'h-28' : 'h-36'}`}
                 >
                   {item.type === 'video' && (
                     <>
-                      <video src={item.url} className="w-full h-full object-cover" />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow">
+                      {item.thumbnailUrl ? (
+                        <img
+                          src={item.thumbnailUrl}
+                          alt={item.name}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <video
+                          src={`${item.url}#t=0.001`}
+                          preload="metadata"
+                          muted
+                          playsInline
+                          className="w-full h-full object-cover pointer-events-none"
+                        />
+                      )}
+                      <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                        <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
                           <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
                         </div>
                       </div>
@@ -805,12 +892,22 @@ export const MediaGalleryGrid: React.FC = () => {
                   )}
 
                   {item.type === 'image' && (
-                    <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                    <img
+                      src={item.thumbnailUrl || item.url}
+                      alt={item.name}
+                      loading="lazy"
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        const target = e.currentTarget;
+                        target.style.opacity = '0.5';
+                      }}
+                    />
                   )}
 
                   {item.type === 'audio' && (
                     <div className="flex flex-col items-center justify-center text-amber-500 space-y-1">
-                      <Music className="w-7 h-7 animate-pulse" />
+                      <Music className="w-8 h-8 animate-pulse" />
+                      <span className="text-[10px] font-mono opacity-75">Audio Track</span>
                     </div>
                   )}
 

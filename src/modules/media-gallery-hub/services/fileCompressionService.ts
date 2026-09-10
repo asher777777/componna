@@ -283,23 +283,39 @@ export class FileCompressionService {
   public static detectFileType(fileName: string, mimeType?: string): { type: MediaType; mimeType: string } {
     const ext = fileName.split('.').pop()?.toLowerCase() || '';
     const mime = (mimeType || '').toLowerCase();
+    const urlLower = (fileName || '').toLowerCase();
 
-    // 1. Video
-    if (['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', '3gp', 'wmv', 'flv'].includes(ext) || mime.startsWith('video/')) {
-      return { type: 'video', mimeType: mime || 'video/mp4' };
+    // 1. Video (check extension, mime, or video streaming providers like heygen)
+    if (
+      ['mp4', 'webm', 'mov', 'avi', 'mkv', 'm4v', '3gp', 'wmv', 'flv'].includes(ext) ||
+      mime.startsWith('video/') ||
+      urlLower.includes('.mp4') ||
+      urlLower.includes('heygen.ai/video') ||
+      urlLower.includes('/video/')
+    ) {
+      return { type: 'video', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'video/mp4' };
     }
 
     // 2. Image
     if (
       ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'bmp', 'ico', 'tiff', 'heic'].includes(ext) ||
-      mime.startsWith('image/')
+      mime.startsWith('image/') ||
+      urlLower.includes('.jpg') ||
+      urlLower.includes('.png') ||
+      urlLower.includes('.webp') ||
+      urlLower.includes('heygen.ai/avatar')
     ) {
-      return { type: 'image', mimeType: mime || 'image/png' };
+      return { type: 'image', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'image/png' };
     }
 
     // 3. Audio
-    if (['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'wma', 'opus', 'mid'].includes(ext) || mime.startsWith('audio/')) {
-      return { type: 'audio', mimeType: mime || 'audio/mp3' };
+    if (
+      ['mp3', 'wav', 'ogg', 'aac', 'm4a', 'flac', 'wma', 'opus', 'mid'].includes(ext) ||
+      mime.startsWith('audio/') ||
+      urlLower.includes('.mp3') ||
+      urlLower.includes('.wav')
+    ) {
+      return { type: 'audio', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'audio/mp3' };
     }
 
     // 4. Document
@@ -311,12 +327,17 @@ export class FileCompressionService {
       mime.includes('presentation') ||
       mime.includes('officedocument')
     ) {
-      return { type: 'document', mimeType: mime || 'application/pdf' };
+      return { type: 'document', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'application/pdf' };
     }
 
     // 5. Archive / Compressed
-    if (['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso'].includes(ext) || mime.includes('zip') || mime.includes('tar') || mime.includes('compressed')) {
-      return { type: 'archive', mimeType: mime || 'application/zip' };
+    if (
+      ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso'].includes(ext) ||
+      mime.includes('zip') ||
+      mime.includes('tar') ||
+      mime.includes('compressed')
+    ) {
+      return { type: 'archive', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'application/zip' };
     }
 
     // 6. Code / Data
@@ -327,7 +348,7 @@ export class FileCompressionService {
       mime.includes('xml') ||
       mime.includes('text/')
     ) {
-      return { type: 'code', mimeType: mime || 'text/plain' };
+      return { type: 'code', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'text/plain' };
     }
 
     return { type: 'other', mimeType: mime || 'application/octet-stream' };

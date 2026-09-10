@@ -224,9 +224,9 @@ export const MediaFileInspector: React.FC = () => {
       {/* File Name & MIME with Edit Support */}
       <div className="space-y-1.5">
         {isEditingName ? (
-          <div className="space-y-1.5">
-            <div className="text-[11px] font-bold text-slate-400">עריכת שם קובץ:</div>
-            <div className="flex items-center space-x-1 rtl:space-x-reverse">
+          <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-2xl border border-amber-500/50">
+            <div className="text-[11px] font-bold text-slate-500">עריכת שם קובץ:</div>
+            <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
               <input
                 ref={nameInputRef}
                 type="text"
@@ -235,15 +235,15 @@ export const MediaFileInspector: React.FC = () => {
                 onKeyDown={handleKeyDownRename}
                 className={`w-full text-xs px-2.5 py-1.5 rounded-xl border focus:outline-none ${
                   isLight
-                    ? 'bg-slate-50 border-amber-500 text-slate-900'
-                    : 'bg-slate-950 border-yellow-500 text-white'
+                    ? 'bg-white border-amber-500 text-slate-900'
+                    : 'bg-slate-900 border-yellow-500 text-white'
                 }`}
                 dir="auto"
               />
               <button
                 type="button"
                 onClick={handleSaveRename}
-                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm"
+                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm flex-shrink-0"
                 title="שמור שם חדש"
               >
                 <Check className="w-3.5 h-3.5" />
@@ -251,7 +251,7 @@ export const MediaFileInspector: React.FC = () => {
               <button
                 type="button"
                 onClick={handleCancelRename}
-                className="p-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white shadow-sm"
+                className="p-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white shadow-sm flex-shrink-0"
                 title="בטל"
               >
                 <X className="w-3.5 h-3.5" />
@@ -259,15 +259,15 @@ export const MediaFileInspector: React.FC = () => {
             </div>
           </div>
         ) : (
-          <div className="flex items-start justify-between gap-1 group/name">
-            <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl border border-slate-200/40 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/30 group/name">
+            <div className="min-w-0 flex-1 overflow-hidden">
               {renderBidiFileName(focusedItem.name)}
             </div>
             <button
               type="button"
               onClick={handleStartRename}
-              className={`p-1.5 rounded-lg transition-colors cursor-pointer opacity-70 group-hover/name:opacity-100 ${
-                isLight ? 'hover:bg-slate-100 text-slate-600 hover:text-amber-600' : 'hover:bg-slate-800 text-slate-400 hover:text-yellow-400'
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer flex-shrink-0 ${
+                isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-yellow-400'
               }`}
               title="שנה שם קובץ"
             >
@@ -276,7 +276,7 @@ export const MediaFileInspector: React.FC = () => {
           </div>
         )}
 
-        <div className={`text-[11px] font-mono truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+        <div className={`text-[11px] font-mono truncate px-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} dir="ltr">
           {focusedItem.mimeType}
         </div>
       </div>
@@ -295,7 +295,7 @@ export const MediaFileInspector: React.FC = () => {
             <HardDrive className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-yellow-400'}`} />
             <span>נפח קובץ:</span>
           </span>
-          <span className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+          <span dir="ltr" className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
             {FileCompressionService.formatBytes(focusedItem.sizeBytes)}
           </span>
         </div>
@@ -306,7 +306,7 @@ export const MediaFileInspector: React.FC = () => {
             <Calendar className="w-3.5 h-3.5" />
             <span>תאריך יצירה:</span>
           </span>
-          <span className={isLight ? 'text-slate-800' : 'text-slate-200'}>
+          <span dir="ltr" className={`font-mono ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
             {new Date(focusedItem.createdAt).toLocaleDateString('he-IL')}
           </span>
         </div>
@@ -342,11 +342,12 @@ export const MediaFileInspector: React.FC = () => {
       {focusedItem.tags && focusedItem.tags.length > 0 && (
         <div className="space-y-1.5">
           <div className={`text-[11px] font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>תגיות:</div>
-          <div className="flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1.5">
             {focusedItem.tags.map((tag) => (
               <span
                 key={tag}
-                className={`text-[10px] px-2 py-0.5 rounded-lg border ${
+                dir="ltr"
+                className={`text-[10px] px-2 py-0.5 rounded-lg border font-mono font-medium ${
                   isLight
                     ? 'bg-slate-100 text-slate-700 border-slate-300'
                     : 'bg-slate-950 text-slate-300 border-slate-800'

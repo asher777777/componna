@@ -14,6 +14,7 @@ import { FirestoreMediaService } from '../services/firestoreMediaService';
 import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { FileCompressionService } from '../services/fileCompressionService';
+import { HeyGenSyncService } from '../services/heygenSyncService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
@@ -128,6 +129,10 @@ interface MediaGalleryContextValue {
   focusedItem: MediaItem | null;
   setFocusedItem: (item: MediaItem | null) => void;
 
+  // HeyGen Cloud Sync
+  isSyncingHeyGen: boolean;
+  syncHeyGenVideos: (customApiKey?: string) => Promise<{ count: number; error?: string }>;
+
   firebaseApp?: FirebaseApp;
   db?: Firestore;
   collections?: MediaGalleryCollectionsConfig;
@@ -183,6 +188,7 @@ export const MediaGalleryProvider: React.FC<{
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
   const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
   const [focusedItem, setFocusedItem] = useState<MediaItem | null>(null);
+  const [isSyncingHeyGen, setIsSyncingHeyGen] = useState<boolean>(false);
 
   // Theme Support (Day / Night Mode)
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
@@ -762,6 +768,70 @@ export const MediaGalleryProvider: React.FC<{
     }
   };
 
+  /**
+   * Sync videos from HeyGen Cloud API via GET
+   */
+  const syncHeyGenVideos = async (customApiKey?: string): Promise<{ count: number; error?: string }> => {
+    let key = (customApiKey || '').trim();
+    if (!key) {
+      key = (systemConn?.apiKeys?.heygenApiKey || '').trim();
+    }
+    if (!key && typeof window !== 'undefined') {
+      try {
+        const savedApiKeys = JSON.parse(localStorage.getItem('comona_system_apikeys_config') || '{}');
+        key = (savedApiKeys?.heygenApiKey || '').trim();
+      } catch {}
+    }
+    if (!key) {
+      key = (import.meta.env.VITE_HEYGEN_API_KEY || '').trim();
+    }
+
+    if (!key) {
+      return {
+        count: 0,
+        error: 'לא נמצא מפתח HeyGen API. אנא הזן מפתח בהגדרות המערכת או בחיבור.',
+      };
+    }
+
+    setIsSyncingHeyGen(true);
+    try {
+      const fetchedVideos = await HeyGenSyncService.fetchVideosFromHeyGen(key);
+      if (fetchedVideos.length === 0) {
+        setIsSyncingHeyGen(false);
+        return { count: 0 };
+      }
+
+      // Merge fetched videos with existing items (avoid duplicates by id or url)
+      setMediaItems((prev) => {
+        const existingIds = new Set(prev.map((i) => i.id));
+        const existingUrls = new Set(prev.map((i) => i.url.toLowerCase()));
+
+        const newItems = fetchedVideos.filter(
+          (v) => !existingIds.has(v.id) && !existingUrls.has(v.url.toLowerCase())
+        );
+
+        // Save new synced videos to IndexedDB and Firestore
+        for (const item of newItems) {
+          MediaIndexedDbService.saveMedia(item).catch(() => {});
+          if (db) {
+            FirestoreMediaService.saveMediaItem(db, collections, item).catch(() => {});
+          }
+        }
+
+        return [...newItems, ...prev];
+      });
+
+      setIsSyncingHeyGen(false);
+      return { count: fetchedVideos.length };
+    } catch (err: any) {
+      setIsSyncingHeyGen(false);
+      return {
+        count: 0,
+        error: err.message || 'שגיאה בסנכרון סרטוני HeyGen',
+      };
+    }
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       if (prev.includes(id)) {
@@ -877,6 +947,9 @@ export const MediaGalleryProvider: React.FC<{
         totalStorageBytes,
         focusedItem,
         setFocusedItem,
+
+        isSyncingHeyGen,
+        syncHeyGenVideos,
 
         firebaseApp,
         db,

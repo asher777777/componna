@@ -95,6 +95,8 @@ export async function syncAssetToMediaGallery(
     assetType: 'image' | 'video' | 'audio';
     generator: 'imagen3_banana_pro' | 'google_veo' | 'heygen_avatar' | 'heygen_photo_avatar' | 'google_tts';
     mimeType?: string;
+    scriptText?: string;
+    subtitleText?: string;
     tags?: string[];
   }
 ): Promise<void> {
@@ -103,7 +105,7 @@ export async function syncAssetToMediaGallery(
   const typeLabels = {
     image: 'תמונת AI (Banana Pro)',
     video: params.generator === 'google_veo' ? 'סרטון AI (Google Veo)' : 'אווטאר AI (HeyGen)',
-    audio: 'קריינות AI (Google TTS)'
+    audio: 'קריינות AI'
   };
 
   const folderIds = {
@@ -118,15 +120,21 @@ export async function syncAssetToMediaGallery(
     audio: 'קריינות ודיבוב קולי (Google TTS)'
   };
 
+  const narration = params.scriptText || params.subtitleText;
+  const audioDisplayName = narration 
+    ? (narration.length > 80 ? `${narration.slice(0, 80)}...` : narration)
+    : params.title;
+
   const mediaId = `media_${params.generator}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
   const mediaDoc = {
     id: mediaId,
-    name: `${params.title} - ${typeLabels[params.assetType]}`,
+    name: params.assetType === 'audio' ? audioDisplayName : `${params.title} - ${typeLabels[params.assetType]}`,
     url: params.url,
     type: params.assetType,
-    mimeType: params.mimeType || (params.assetType === 'image' ? 'image/jpeg' : params.assetType === 'audio' ? 'audio/mp3' : 'video/mp4'),
+    mimeType: params.mimeType || (params.assetType === 'image' ? 'image/jpeg' : params.assetType === 'audio' ? 'audio/wav' : 'video/mp4'),
     folderId: folderIds[params.assetType],
     folderName: folderNames[params.assetType],
+    description: narration || params.title,
     tags: [
       params.generator,
       params.assetType,
@@ -139,6 +147,8 @@ export async function syncAssetToMediaGallery(
       projectId: params.projectId,
       sceneId: params.sceneId,
       sceneNumber: params.sceneNumber,
+      scriptText: narration,
+      subtitleText: narration,
       generator: params.generator,
       source: 'sdo_video_producer'
     },

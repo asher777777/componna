@@ -18,6 +18,8 @@ import {
   X,
   ChevronLeft,
   SlidersHorizontal,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -42,6 +44,8 @@ export const MediaDriveSidebar: React.FC<{
     setIsSidebarOpen,
     theme,
     db,
+    isSyncingHeyGen,
+    syncHeyGenVideos,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
@@ -371,12 +375,13 @@ export const MediaDriveSidebar: React.FC<{
                   ? mediaItems.length
                   : mediaItems.filter((i) => i.sourceModule === src.id).length;
 
+                const isHeyGenSource = src.id === 'video-producer-studio';
+
                 return (
-                  <button
+                  <div
                     key={src.id}
-                    type="button"
                     onClick={() => handleSelectComponent(src.id)}
-                    className={`w-full p-2 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer ${
+                    className={`w-full p-2 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer group ${
                       isSelected
                         ? isLight
                           ? 'bg-slate-200 text-slate-900 font-bold border-r-4 border-amber-500 shadow-sm'
@@ -393,8 +398,35 @@ export const MediaDriveSidebar: React.FC<{
                       />
                       <span className="truncate">{src.name}</span>
                     </div>
-                    <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>{count}</span>
-                  </button>
+
+                    <div className="flex items-center space-x-1.5 rtl:space-x-reverse flex-shrink-0">
+                      {isHeyGenSource && (
+                        <button
+                          type="button"
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            await syncHeyGenVideos();
+                          }}
+                          disabled={isSyncingHeyGen}
+                          className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                            isSyncingHeyGen
+                              ? 'text-purple-400 animate-spin'
+                              : isLight
+                              ? 'text-purple-600 hover:text-purple-800 hover:bg-purple-100'
+                              : 'text-purple-400 hover:text-purple-300 hover:bg-purple-950'
+                          }`}
+                          title="סנכרן סרטונים מ-HeyGen עכשיו"
+                        >
+                          {isSyncingHeyGen ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <RefreshCw className="w-3 h-3" />
+                          )}
+                        </button>
+                      )}
+                      <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>{count}</span>
+                    </div>
+                  </div>
                 );
               })}
             </div>

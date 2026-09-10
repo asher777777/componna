@@ -105,6 +105,77 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
       },
     },
   ],
+  sdo_video_projects: [
+    {
+      id: 'proj_ai_assistant_intro',
+      name: 'סרטון תדמית והצגת עוזר AI אינטראקטיבי',
+      data: {
+        id: 'proj_ai_assistant_intro',
+        title: 'סרטון תדמית והצגת עוזר AI אינטראקטיבי',
+        productionType: 'marketing_promo',
+        visualStyle: 'cinematic_photorealistic',
+        aspectRatio: '16:9',
+        targetAudience: 'בעלי עסקים ומנהלי שיווק',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
+  mod_pagebuilder_pages: [
+    {
+      id: 'landing_page_main',
+      name: 'דף נחיתה ראשי - Comona Hub',
+      data: {
+        id: 'landing_page_main',
+        title: 'דף נחיתה ראשי - Comona Hub',
+        slug: 'home',
+        status: 'published',
+        blocksCount: 5,
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
+  mod_crm_leads: [
+    {
+      id: 'lead_demo_01',
+      name: 'יוסי כהן - מנהל טכנולוגיות',
+      data: {
+        id: 'lead_demo_01',
+        fullName: 'יוסי כהן',
+        company: 'טק סולושנס בע״מ',
+        email: 'yossi@techsolutions.demo',
+        phone: '050-1234567',
+        status: 'new',
+        createdAt: new Date().toISOString(),
+      },
+    },
+  ],
+  client_platform_configs: [
+    {
+      id: 'client_default_shell',
+      name: 'קונפיגורציית לקוח ראשית',
+      data: {
+        id: 'client_default_shell',
+        brandName: 'Comona Client Platform',
+        themeColor: '#6366f1',
+        activeModules: ['video-producer', 'media-gallery-hub', 'flow-player-engine'],
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
+  users: [
+    {
+      id: 'admin_master_user',
+      name: 'מנהל מערכת ראשי',
+      data: {
+        id: 'admin_master_user',
+        email: 'admin@comona.io',
+        displayName: 'מנהל מערכת',
+        role: 'super_admin',
+        createdAt: new Date().toISOString(),
+      },
+    },
+  ],
   settings: [
     {
       id: 'global_config',

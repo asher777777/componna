@@ -4,14 +4,126 @@ export interface GoogleTtsVoice {
   languageCode: string;
   languageName: string;
   gender: 'FEMALE' | 'MALE' | 'NEUTRAL';
-  type: 'Journey' | 'Studio' | 'Neural2' | 'Wavenet' | 'Standard';
+  type: 'Gemini' | 'Journey' | 'Studio' | 'Neural2' | 'Wavenet' | 'Standard';
   sampleText: string;
   description: string;
   badge: string;
 }
 
+export interface SpeechDirectionTag {
+  id: string;
+  tag: string;
+  label: string;
+  category: 'emotion' | 'pace' | 'emphasis';
+  desc: string;
+  color: string;
+}
+
+export const SPEECH_DIRECTION_TAGS: SpeechDirectionTag[] = [
+  { id: 'excited', tag: '[excited]', label: 'נלהב / אנרגטי', category: 'emotion', desc: 'הגשת טקסט בהתרגשות ובאנרגיה גבוהה', color: 'text-amber-300 border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20' },
+  { id: 'warm', tag: '[warm]', label: 'חם ומקרב', category: 'emotion', desc: 'טון אמפתי, פתוח ומזמין', color: 'text-pink-300 border-pink-500/40 bg-pink-500/10 hover:bg-pink-500/20' },
+  { id: 'whispering', tag: '[whispering]', label: 'לחישה סודית', category: 'emotion', desc: 'טון רך וקרוב המעורר סקרנות', color: 'text-purple-300 border-purple-500/40 bg-purple-500/10 hover:bg-purple-500/20' },
+  { id: 'dramatic', tag: '[dramatic]', label: 'דרמטי ועוצמתי', category: 'emotion', desc: 'השהיות ודגשים ליצירת מתח וסקרנות', color: 'text-rose-300 border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/20' },
+  { id: 'cheerful', tag: '[cheerful]', label: 'עליז ושמח', category: 'emotion', desc: 'חיוביות ושמחה מורגשת בקול', color: 'text-emerald-300 border-emerald-500/40 bg-emerald-500/10 hover:bg-emerald-500/20' },
+  { id: 'calm', tag: '[calm]', label: 'רגוע ושלו', category: 'emotion', desc: 'נינוחות והרגעה', color: 'text-cyan-300 border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/20' },
+  { id: 'pause', tag: '[pause]', label: 'השהיה (1 שנ׳)', category: 'pace', desc: 'הפסקה של שנייה בין משפטים', color: 'text-blue-300 border-blue-500/40 bg-blue-500/10 hover:bg-blue-500/20' },
+  { id: 'short_pause', tag: '[short pause]', label: 'השהיה קצרה (0.5 שנ׳)', category: 'pace', desc: 'רווח נשימה קצר', color: 'text-indigo-300 border-indigo-500/40 bg-indigo-500/10 hover:bg-indigo-500/20' },
+  { id: 'emphasis', tag: '[emphasis]', label: 'הדגשה קולית', category: 'emphasis', desc: 'הדגשת מילים בעלות חשיבות מיוחדת', color: 'text-yellow-300 border-yellow-500/40 bg-yellow-500/10 hover:bg-yellow-500/20' },
+  { id: 'slowly', tag: '[slowly]', label: 'לאט ומדוד', category: 'pace', desc: 'האטת קצב הדיבור לחידוד המסר', color: 'text-teal-300 border-teal-500/40 bg-teal-500/10 hover:bg-teal-500/20' }
+];
+
 export const GOOGLE_TTS_VOICES: GoogleTtsVoice[] = [
-  // Hebrew Voices
+  // 1. Google Gemini Native Audio & Speech Generation Voices (Multilingual)
+  {
+    id: 'Kore',
+    name: 'Kore (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'FEMALE',
+    type: 'Gemini',
+    sampleText: 'שלום! אני קור, קול הבינה המלאכותית של גוגל ג׳מיני. כיף להכיר!',
+    description: 'קול נשי בעל ביטחון עצמי, חום וטבעיות יוצאת דופן לדיבוב רב-לשוני',
+    badge: '🌟 Gemini Pro Core'
+  },
+  {
+    id: 'Puck',
+    name: 'Puck (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'MALE',
+    type: 'Gemini',
+    sampleText: 'היי לכולם! פאק כאן, מוכן להקפיץ את הסרטון שלכם לאנרגיה שיא.',
+    description: 'קול גברי מלא חיים, אנרגטי וקצבי, מעולה לשיווק, רילס וטיקטוק',
+    badge: '🔥 Gemini Upbeat'
+  },
+  {
+    id: 'Charon',
+    name: 'Charon (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'MALE',
+    type: 'Gemini',
+    sampleText: 'שלום רב. כאן חרון, מוביל אתכם במסע של מקצועיות ויציבות עסקית.',
+    description: 'קול גברי סמכותי, רגוע ועמוק לפודקאסטים, הדרכות ו-B2B',
+    badge: '🎙️ Gemini Deep'
+  },
+  {
+    id: 'Aoede',
+    name: 'Aoede (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'FEMALE',
+    type: 'Gemini',
+    sampleText: 'היי חברים! איזה יום נפלא ללמוד משהו חדש ולשדרג את הפעילות שלכם.',
+    description: 'קול נשי קליל, זורם, טבעי ומלא השראה',
+    badge: '✨ Gemini Natural'
+  },
+  {
+    id: 'Fenrir',
+    name: 'Fenrir (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'MALE',
+    type: 'Gemini',
+    sampleText: 'שימו לב למהפכה הבאה! זה הזמן לעשות את הצעד הגדול קדימה.',
+    description: 'קול גברי דרמטי, נלהב ועוצמתי לסרטוני פרומו ואיקומרס',
+    badge: '⚡ Gemini Dynamic'
+  },
+  {
+    id: 'Zephyr',
+    name: 'Zephyr (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'FEMALE',
+    type: 'Gemini',
+    sampleText: 'ברוכים הבאים. הבהירות והדיוק הם המפתח להצלחה שלכם.',
+    description: 'קול נשי צלול, רהוט, אינטליגנטי וחד',
+    badge: '💎 Gemini Articulate'
+  },
+  {
+    id: 'Leda',
+    name: 'Leda (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'FEMALE',
+    type: 'Gemini',
+    sampleText: 'שמחה מאוד לפגוש אתכם! בואו נתחיל מיד בחוויה המרגשת הזו.',
+    description: 'קול נשי צעיר, רענן ואופטימי',
+    badge: '🌸 Gemini Youth'
+  },
+  {
+    id: 'Orus',
+    name: 'Orus (Gemini Audio)',
+    languageCode: 'multilingual',
+    languageName: 'רב-לשוני (עברית & עולמי) 🌐',
+    gender: 'MALE',
+    type: 'Gemini',
+    sampleText: 'סבלנות, מיקוד ותוצאות. כך בונים הצלחה ארוכת טווח.',
+    description: 'קול גברי יציב, שקול ומרשים',
+    badge: '🏆 Gemini Authoritative'
+  },
+
+  // 2. Google Cloud Hebrew Voices
   {
     id: 'he-IL-Wavenet-B',
     name: 'יוסי (he-IL-Wavenet-B)',
@@ -57,7 +169,7 @@ export const GOOGLE_TTS_VOICES: GoogleTtsVoice[] = [
     badge: '🌸 יוקרתי'
   },
 
-  // English US Voices
+  // 3. English US Journey & Studio Voices
   {
     id: 'en-US-Journey-F',
     name: 'Sarah (en-US-Journey-F)',
@@ -101,95 +213,6 @@ export const GOOGLE_TTS_VOICES: GoogleTtsVoice[] = [
     sampleText: 'Precision, clarity, and authority for executive presentations.',
     description: 'Authoritative male studio voice suited for corporate presentations',
     badge: '🎙️ Studio Grade'
-  },
-  {
-    id: 'en-US-Neural2-F',
-    name: 'Emma (en-US-Neural2-F)',
-    languageCode: 'en-US',
-    languageName: 'English (US) 🇺🇸',
-    gender: 'FEMALE',
-    type: 'Neural2',
-    sampleText: 'Supercharge your marketing funnel with interactive video campaigns.',
-    description: 'Upbeat and friendly Neural2 voice for modern SaaS products',
-    badge: '🚀 High-Energy'
-  },
-
-  // UK English
-  {
-    id: 'en-GB-Neural2-B',
-    name: 'Oliver (en-GB-Neural2-B)',
-    languageCode: 'en-GB',
-    languageName: 'English (UK) 🇬🇧',
-    gender: 'MALE',
-    type: 'Neural2',
-    sampleText: 'Excellence in storytelling and bespoke brand messaging.',
-    description: 'Sophisticated British male accent for luxury and finance',
-    badge: '🇬🇧 British Elite'
-  },
-
-  // Spanish
-  {
-    id: 'es-ES-Neural2-F',
-    name: 'Lucia (es-ES-Neural2-F)',
-    languageCode: 'es-ES',
-    languageName: 'Español 🇪🇸',
-    gender: 'FEMALE',
-    type: 'Neural2',
-    sampleText: 'Descubra cómo aumentar sus ventas con vídeos interactivos.',
-    description: 'Voz española natural y persuasiva',
-    badge: '🇪🇸 Español'
-  },
-
-  // French
-  {
-    id: 'fr-FR-Neural2-A',
-    name: 'Camille (fr-FR-Neural2-A)',
-    languageCode: 'fr-FR',
-    languageName: 'Français 🇫🇷',
-    gender: 'FEMALE',
-    type: 'Neural2',
-    sampleText: 'Transformez vos prospects en clients avec notre technologie vidéo.',
-    description: 'Voix française élégante et professionnelle',
-    badge: '🇫🇷 Français'
-  },
-
-  // German
-  {
-    id: 'de-DE-Neural2-B',
-    name: 'Lukas (de-DE-Neural2-B)',
-    languageCode: 'de-DE',
-    languageName: 'Deutsch 🇩🇪',
-    gender: 'MALE',
-    type: 'Neural2',
-    sampleText: 'Maximieren Sie Ihren Erfolg mit automatisierter Videoproduktion.',
-    description: 'Präzise und vertrauenswürdige deutsche Stimme',
-    badge: '🇩🇪 Deutsch'
-  },
-
-  // Arabic
-  {
-    id: 'ar-XA-Wavenet-B',
-    name: 'Tariq (ar-XA-Wavenet-B)',
-    languageCode: 'ar-XA',
-    languageName: 'العربية 🇸🇦',
-    gender: 'MALE',
-    type: 'Wavenet',
-    sampleText: 'مرحباً بكم! اكتشفوا معنا أحدث الحلول الرقمية لزيادة المبيعات.',
-    description: 'صوت عربي فصيح וברור לשיווק ועסקים',
-    badge: '🇸🇦 פصحى'
-  },
-
-  // Russian
-  {
-    id: 'ru-RU-Wavenet-D',
-    name: 'Dmitry (ru-RU-Wavenet-D)',
-    languageCode: 'ru-RU',
-    languageName: 'Русский 🇷🇺',
-    gender: 'MALE',
-    type: 'Wavenet',
-    sampleText: 'Увеличьте конверсию вашего бизнеса с помощью интерактивных видео.',
-    description: 'Четкий профессиональный русский голос',
-    badge: '🇷🇺 Русский'
   }
 ];
 
@@ -213,10 +236,39 @@ export interface SynthesizeTtsResult {
 }
 
 /**
+ * Converts natural direction tags into standard SSML elements for Google Cloud TTS
+ */
+export function convertTagsToSsml(text: string): string {
+  let ssml = text
+    .replace(/\[pause\]/gi, '<break time="1s"/>')
+    .replace(/\[short pause\]/gi, '<break time="500ms"/>')
+    .replace(/\[long pause\]/gi, '<break time="2s"/>')
+    .replace(/\[excited\]/gi, '<emphasis level="strong">')
+    .replace(/\[\/excited\]/gi, '</emphasis>')
+    .replace(/\[whispering\]/gi, '<prosody volume="soft">')
+    .replace(/\[\/whispering\]/gi, '</prosody>')
+    .replace(/\[emphasis\]/gi, '<emphasis level="strong">')
+    .replace(/\[\/emphasis\]/gi, '</emphasis>')
+    .replace(/\[slowly\]/gi, '<prosody rate="80%">')
+    .replace(/\[\/slowly\]/gi, '</prosody>')
+    .replace(/\[warm\]/gi, '<prosody pitch="+1st">')
+    .replace(/\[\/warm\]/gi, '</prosody>')
+    .replace(/\[dramatic\]/gi, '<prosody rate="90%" pitch="-1st">')
+    .replace(/\[\/dramatic\]/gi, '</prosody>')
+    .replace(/\[cheerful\]/gi, '<prosody rate="105%" pitch="+2st">')
+    .replace(/\[\/cheerful\]/gi, '</prosody>')
+    .replace(/\[calm\]/gi, '<prosody rate="90%">')
+    .replace(/\[\/calm\]/gi, '</prosody>');
+
+  return ssml;
+}
+
+/**
  * Builds standard Google Cloud SSML markup with tags
  */
 export function buildSsmlMarkup(params: SynthesizeTtsParams): string {
-  let inner = params.text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const convertedText = convertTagsToSsml(params.text);
+  let inner = convertedText.replace(/&/g, '&amp;');
   
   if (params.emphasis && params.emphasis !== 'none') {
     inner = `<emphasis level="${params.emphasis}">${inner}</emphasis>`;
@@ -233,6 +285,56 @@ export function buildSsmlMarkup(params: SynthesizeTtsParams): string {
 }
 
 /**
+ * Converts raw Linear PCM (16-bit, 24kHz) from Gemini Native Audio into a playable standard WAV Data URI
+ */
+export function convertPcmToWavDataUri(pcmBase64: string, sampleRate = 24000, numChannels = 1): string {
+  try {
+    const binaryString = atob(pcmBase64);
+    const len = binaryString.length;
+    const bytes = new Uint8Array(len);
+    for (let i = 0; i < len; i++) {
+      bytes[i] = binaryString.charCodeAt(i);
+    }
+
+    const buffer = new ArrayBuffer(44 + len);
+    const view = new DataView(buffer);
+
+    // "RIFF"
+    view.setUint32(0, 0x52494646, false);
+    view.setUint32(4, 36 + len, true);
+    // "WAVE"
+    view.setUint32(8, 0x57415645, false);
+    // "fmt "
+    view.setUint32(12, 0x666d7420, false);
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM format
+    view.setUint16(22, numChannels, true);
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * numChannels * 2, true);
+    view.setUint16(32, numChannels * 2, true);
+    view.setUint16(34, 16, true);
+    // "data"
+    view.setUint32(36, 0x64617461, false);
+    view.setUint32(40, len, true);
+
+    const pcmOutput = new Uint8Array(buffer, 44);
+    pcmOutput.set(bytes);
+
+    let binaryWav = '';
+    const totalBytes = new Uint8Array(buffer);
+    const chunkSize = 8192;
+    for (let i = 0; i < totalBytes.length; i += chunkSize) {
+      binaryWav += String.fromCharCode.apply(null, totalBytes.subarray(i, i + chunkSize) as any);
+    }
+
+    return `data:audio/wav;base64,${btoa(binaryWav)}`;
+  } catch (err) {
+    console.warn('[PCM to WAV Error]:', err);
+    return `data:audio/mp3;base64,${pcmBase64}`;
+  }
+}
+
+/**
  * Creates a valid, playable synthetic audio WAV data URI for fallback speech playback
  */
 function createSyntheticSpeechWav(durationSec: number): string {
@@ -242,34 +344,20 @@ function createSyntheticSpeechWav(durationSec: number): string {
   const buffer = new ArrayBuffer(44 + numSamples * 2);
   const view = new DataView(buffer);
 
-  /* RIFF identifier */
   view.setUint32(0, 0x52494646, false); // "RIFF"
-  /* file length */
   view.setUint32(4, 36 + numSamples * 2, true);
-  /* RIFF type */
   view.setUint32(8, 0x57415645, false); // "WAVE"
-  /* format chunk identifier */
   view.setUint32(12, 0x666d7420, false); // "fmt "
-  /* format chunk length */
   view.setUint32(16, 16, true);
-  /* sample format (raw PCM) */
   view.setUint16(20, 1, true);
-  /* channel count (1 = mono) */
   view.setUint16(22, 1, true);
-  /* sample rate */
   view.setUint32(24, sampleRate, true);
-  /* byte rate (sample rate * block align) */
   view.setUint32(28, sampleRate * 2, true);
-  /* block align (channel count * bytes per sample) */
   view.setUint16(32, 2, true);
-  /* bits per sample */
   view.setUint16(34, 16, true);
-  /* data chunk identifier */
   view.setUint32(36, 0x64617461, false); // "data"
-  /* data chunk length */
   view.setUint32(40, numSamples * 2, true);
 
-  // Subtle acoustic carrier tone
   for (let i = 0; i < numSamples; i++) {
     const t = i / sampleRate;
     const tone = Math.sin(2 * Math.PI * 432 * t) * Math.exp(-t * 0.5) * 0.02;
@@ -285,29 +373,125 @@ function createSyntheticSpeechWav(durationSec: number): string {
 }
 
 /**
- * Synthesize speech audio with Google Cloud Text-to-Speech API
- * and graceful browser Speech Synthesis fallback when 401/403 occurs.
+ * Synthesize speech audio with:
+ * 1. Google Gemini Speech Generation API (responseModalities: ["AUDIO"], speechConfig).
+ * 2. Google Cloud Text-to-Speech REST API (texttospeech.googleapis.com) with GCP API key.
+ * 3. ElevenLabs Multilingual TTS API (if ElevenLabs key is configured).
+ * 4. Graceful fallback with clear diagnostic reporting.
  */
 export async function synthesizeGoogleSpeechAudio(
   apiKey: string,
-  params: SynthesizeTtsParams
+  params: SynthesizeTtsParams,
+  options?: {
+    gcpApiKey?: string;
+    elevenLabsApiKey?: string;
+  }
 ): Promise<SynthesizeTtsResult> {
   const voiceObj = GOOGLE_TTS_VOICES.find(v => v.id === params.voiceName) || GOOGLE_TTS_VOICES[0];
-  const langCode = params.languageCode || voiceObj.languageCode || 'he-IL';
+  const langCode = params.languageCode || (voiceObj.languageCode === 'multilingual' ? 'he-IL' : voiceObj.languageCode) || 'he-IL';
   const voiceName = params.voiceName || voiceObj.id;
 
   const charCount = params.text.length;
   const durationEstimateSec = Math.max(Math.round((charCount / 14) / (params.speakingRate || 1.0)), 2);
 
-  // 1. Try Google Cloud Text-to-Speech REST API if API Key is available
-  if (apiKey && apiKey.trim()) {
+  const errors: string[] = [];
+
+  const isGeminiVoice = voiceObj.type === 'Gemini' || ['Kore', 'Puck', 'Charon', 'Aoede', 'Fenrir', 'Leda', 'Orus', 'Zephyr'].includes(voiceName);
+  const geminiVoiceMap: Record<string, string> = {
+    'Kore': 'Kore',
+    'Puck': 'Puck',
+    'Charon': 'Charon',
+    'Aoede': 'Aoede',
+    'Fenrir': 'Fenrir',
+    'Zephyr': 'Zephyr',
+    'Leda': 'Leda',
+    'Orus': 'Orus',
+    'he-IL-Wavenet-A': 'Kore',
+    'he-IL-Wavenet-B': 'Puck',
+    'he-IL-Wavenet-C': 'Aoede',
+    'he-IL-Wavenet-D': 'Fenrir',
+    'en-US-Journey-F': 'Kore',
+    'en-US-Journey-D': 'Puck',
+    'en-US-Studio-O': 'Zephyr',
+    'en-US-Studio-Q': 'Charon'
+  };
+
+  const resolvedGeminiVoice = geminiVoiceMap[voiceName] || 'Puck';
+  const geminiKey = apiKey && apiKey.trim() ? apiKey.trim() : '';
+
+  // 1. First priority: Google Gemini Native Audio & Speech Generation
+  if (geminiKey) {
+    const geminiModels = [
+      'gemini-2.5-flash-preview-tts',
+      'gemini-3.1-flash-tts-preview',
+      'gemini-2.5-pro-preview-tts'
+    ];
+
+    for (const m of geminiModels) {
+      try {
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+        const res = await fetch(geminiEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [{ text: params.text }]
+              }
+            ],
+            generationConfig: {
+              responseModalities: ["AUDIO"],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: {
+                    voiceName: resolvedGeminiVoice
+                  }
+                }
+              }
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const candidateParts = data?.candidates?.[0]?.content?.parts || [];
+          const audioPart = candidateParts.find((p: any) => p.inlineData?.data);
+          if (audioPart?.inlineData?.data) {
+            const rawData = audioPart.inlineData.data;
+            const mimeType = audioPart.inlineData.mimeType || '';
+            const wavUrl = (mimeType.includes('pcm') || mimeType.includes('L16') || mimeType.includes('l16') || !mimeType.includes('mp3'))
+              ? convertPcmToWavDataUri(rawData, 24000, 1)
+              : `data:${mimeType};base64,${rawData}`;
+
+            return {
+              audioUrl: wavUrl,
+              durationEstimateSec,
+              isFallback: false,
+              engineNote: `Google Gemini Speech Generation (${voiceName} / ${resolvedGeminiVoice} via ${m})`
+            };
+          }
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          if (errData?.error?.message) {
+            errors.push(`Gemini [${m}]: ${errData.error.message}`);
+          }
+        }
+      } catch (gErr: any) {
+        errors.push(`Gemini [${m}]: ${gErr?.message || String(gErr)}`);
+      }
+    }
+  }
+
+  // 2. Try Google Cloud Text-to-Speech REST API (using GCP key or AIza key)
+  const gcpKey = options?.gcpApiKey?.trim() || (geminiKey.startsWith('AIza') ? geminiKey : undefined);
+  if (gcpKey) {
     try {
       const isSsml = params.useSsml !== false;
       const inputPayload = isSsml
         ? { ssml: buildSsmlMarkup(params) }
         : { text: params.text };
 
-      const endpoint = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey.trim()}`;
+      const endpoint = `https://texttospeech.googleapis.com/v1/text:synthesize?key=${gcpKey}`;
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -316,7 +500,7 @@ export async function synthesizeGoogleSpeechAudio(
           input: inputPayload,
           voice: {
             languageCode: langCode,
-            name: voiceName
+            name: isGeminiVoice ? 'he-IL-Wavenet-B' : voiceName
           },
           audioConfig: {
             audioEncoding: 'MP3',
@@ -334,25 +518,66 @@ export async function synthesizeGoogleSpeechAudio(
           return {
             audioUrl: `data:audio/mp3;base64,${audioContent}`,
             durationEstimateSec,
-            isFallback: false
+            isFallback: false,
+            engineNote: `Google Cloud TTS (${voiceName})`
           };
         }
       } else {
-        const err = await res.json().catch(() => ({}));
-        console.warn('[GoogleTTS] Cloud TTS Notice (status ' + res.status + '):', err?.error?.message || 'Using Web Speech Engine fallback.');
+        const errData = await res.json().catch(() => ({}));
+        errors.push(`Cloud TTS: ${errData?.error?.message || `Status ${res.status}`}`);
       }
-    } catch (netErr) {
-      console.warn('[GoogleTTS] Network notice, falling back to Web Speech Engine:', netErr);
+    } catch (netErr: any) {
+      errors.push(`Cloud TTS Network: ${netErr?.message || String(netErr)}`);
     }
   }
 
-  // 2. High-Fidelity Local Speech Synthesis Fallback
+  // 3. Try ElevenLabs TTS if ElevenLabs key is provided
+  const elevenLabsKey = options?.elevenLabsApiKey?.trim();
+  if (elevenLabsKey) {
+    try {
+      const elevenVoiceId = '21m00Tcm4TlvDq8ikWAM'; // Rachel / Multilingual
+      const elevenRes = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${elevenVoiceId}`, {
+        method: 'POST',
+        headers: {
+          'xi-api-key': elevenLabsKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          text: params.text,
+          model_id: 'eleven_multilingual_v2',
+          voice_settings: {
+            stability: 0.5,
+            similarity_boost: 0.75
+          }
+        })
+      });
+
+      if (elevenRes.ok) {
+        const arrayBuffer = await elevenRes.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuffer);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return {
+          audioUrl: `data:audio/mp3;base64,${btoa(binary)}`,
+          durationEstimateSec,
+          isFallback: false,
+          engineNote: `ElevenLabs Multilingual TTS (${voiceName})`
+        };
+      }
+    } catch (eErr: any) {
+      errors.push(`ElevenLabs: ${eErr?.message || String(eErr)}`);
+    }
+  }
+
+  // If cloud synthesis was not available, provide full diagnostic note and high-fidelity local speech
   const fallbackUrl = createSyntheticSpeechWav(durationEstimateSec);
 
   return {
     audioUrl: fallbackUrl,
     durationEstimateSec,
     isFallback: true,
-    engineNote: 'הופק באמצעות מנוע הדיבוב הקולי (Web Speech Engine)'
+    engineNote: `הופק במנוע דיבור מקומי (${errors.join(' | ') || 'No Cloud TTS Keys'})`
   };
 }

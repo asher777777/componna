@@ -226,6 +226,9 @@ ${clarificationBlock}
 PROJECT TITLE MANDATE:
 Generate a compelling, descriptive, and high-converting Hebrew project title for the "title" field that accurately captures the campaign (e.g. "המהפכה השיווקית של [שם הנושא] - סרטון תדמית ומכירה").
 
+GOOGLE SPEECH & AUDIO DIRECTION MANDATE:
+According to Google AI Studio Speech Generation standards, every scene's "dialogueScript" MUST naturally incorporate speech direction and timing tags like [excited], [warm], [pause], [emphasis], [dramatic], [whispering], [cheerful] to instruct the TTS voice model on cadence, emotion, and dramatic pauses.
+
 NANO BANANA PRO CONSISTENCY MANDATE:
 You must define a unified "[BANANA_PRO_CONSISTENCY_SEED]" in the character bible and visual guide.
 Every single scene's "visualPrompt" MUST begin with the exact visual style prefix followed by the consistent character/scene tags so that Imagen 3 / Nano Banana Pro renders 100% consistent visuals across all ${sceneCount} scenes.
@@ -248,7 +251,7 @@ Return ONLY a valid JSON object matching this exact schema:
       "sceneNumber": 1,
       "sceneRole": "welcome_hook",
       "title": "Hebrew scene title",
-      "dialogueScript": "The script spoken by presenter / avatar in ${langObj.name}. Ensure it flows naturally and fits ~5-15 seconds.",
+      "dialogueScript": "[warm] טקסט הקריינות של הפרזנטור [pause] כולל תגיות הדרכה קוליות [emphasis] להגשה מקצועית.",
       "visualPrompt": "${visualStyle.visualPromptPrefix}, [BANANA_PRO_CONSISTENCY_SEED], detailed scene specific action, shot angle, lighting",
       "characterDescription": "Avatar expression, posture, and action",
       "durationSeconds": 6,

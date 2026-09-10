@@ -9,7 +9,16 @@ export interface FirebaseCredentialsConfig {
   databaseId?: string;
 }
 
-export type CollectionCategory = 'flow_player' | 'media' | 'system' | 'custom';
+export type CollectionCategory =
+  | 'video_studio'
+  | 'flow_player'
+  | 'media'
+  | 'page_builder'
+  | 'crm'
+  | 'client_platform'
+  | 'auth'
+  | 'system'
+  | 'custom';
 
 export interface CollectionMetadata {
   id: string;

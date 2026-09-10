@@ -80,7 +80,7 @@ interface VideoStudioContextValue {
 const VideoStudioContext = createContext<VideoStudioContextValue | null>(null);
 
 export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { db, apiKeys, openConnectorModal } = useSystemConnection();
+  const { db, config, apiKeys, openConnectorModal } = useSystemConnection();
   const [tab, setTab] = useState<StudioTab>('wizard');
   const [projects, setProjects] = useState<VideoProject[]>([]);
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
@@ -516,14 +516,21 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setGeneratingMediaSceneId(sceneId);
 
     try {
-      const res = await synthesizeGoogleSpeechAudio(googleKey, {
-        text: textToSpeak,
-        voiceName: scene.googleTtsVoiceName || (activeProject.ttsLanguage === 'en-US' ? 'en-US-Journey-F' : 'he-IL-Wavenet-B'),
-        languageCode: scene.googleTtsLanguageCode || activeProject.ttsLanguage || 'he-IL',
-        speakingRate: scene.googleTtsSsmlRate ? parseFloat(scene.googleTtsSsmlRate) : 1.0,
-        pitch: scene.googleTtsSsmlPitch ? parseFloat(scene.googleTtsSsmlPitch) : 0.0,
-        emphasis: (scene.googleTtsSsmlEmphasis as any) || 'none'
-      });
+      const res = await synthesizeGoogleSpeechAudio(
+        googleKey,
+        {
+          text: textToSpeak,
+          voiceName: scene.googleTtsVoiceName || (activeProject.ttsLanguage === 'en-US' ? 'en-US-Journey-F' : 'he-IL-Wavenet-B'),
+          languageCode: scene.googleTtsLanguageCode || activeProject.ttsLanguage || 'he-IL',
+          speakingRate: scene.googleTtsSsmlRate ? parseFloat(scene.googleTtsSsmlRate) : 1.0,
+          pitch: scene.googleTtsSsmlPitch ? parseFloat(scene.googleTtsSsmlPitch) : 0.0,
+          emphasis: (scene.googleTtsSsmlEmphasis as any) || 'none'
+        },
+        {
+          gcpApiKey: config?.apiKey,
+          elevenLabsApiKey: apiKeys?.elevenLabsApiKey
+        }
+      );
 
       updateCurrentScene(sceneId, {
         renderedAudioUrl: res.audioUrl,
@@ -539,7 +546,9 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         sceneNumber: scene.sceneNumber,
         assetType: 'audio',
         generator: 'google_tts',
-        mimeType: 'audio/mp3',
+        mimeType: 'audio/wav',
+        scriptText: textToSpeak || scene.dialogueScript,
+        subtitleText: scene.subtitleText || textToSpeak || scene.dialogueScript,
         tags: [scene.googleTtsVoiceName || 'he-IL-Wavenet-B', 'google_tts']
       });
 
@@ -568,14 +577,26 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       updateCurrentScene(sceneId, { heygenStatus: 'processing' });
 
+      // Automatically ensure TTS Audio is generated if not yet rendered
+      let sceneAudioUrl = scene.renderedAudioUrl;
+      if (!sceneAudioUrl && scene.dialogueScript?.trim()) {
+        try {
+          sceneAudioUrl = await generateGoogleTtsAudio(sceneId, scene.dialogueScript);
+        } catch (ttsGenErr) {
+          console.warn('[VideoStudio] Auto TTS generation before HeyGen warning:', ttsGenErr);
+        }
+      }
+
       const videoJobId = await generateHeyGenSceneVideo(heygenKey, {
         avatarId: scene.avatarId || 'Wayne_20240711',
         scriptText: scene.dialogueScript,
         voiceId: scene.voiceId,
         aspectRatio: activeProject.aspectRatio,
         backgroundMediaUrl: scene.backgroundMediaUrl,
-        customAvatarImageUrl: scene.customAvatarImageUrl,
-        isPhotoAvatar: scene.isPhotoAvatar
+        customAvatarImageUrl: scene.customAvatarImageUrl || scene.backgroundMediaUrl,
+        imageUrl: scene.customAvatarImageUrl || scene.backgroundMediaUrl,
+        audioUrl: sceneAudioUrl || scene.renderedAudioUrl,
+        isPhotoAvatar: true
       });
 
       updateCurrentScene(sceneId, { heygenJobId: videoJobId });

@@ -288,14 +288,28 @@ export const MediaPreviewModal: React.FC = () => {
 
           {/* AUDIO */}
           {previewItem.type === 'audio' && (
-            <div className="flex flex-col items-center justify-center space-y-6 w-full max-w-md p-6 bg-slate-900/90 border border-yellow-500/30 rounded-3xl shadow-2xl">
-              <div className="w-20 h-20 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-yellow-400 animate-pulse shadow-inner">
-                <Music className="w-10 h-10" />
+            <div className="flex flex-col items-center justify-center space-y-4 w-full max-w-lg p-6 bg-slate-900/90 border border-yellow-500/30 rounded-3xl shadow-2xl">
+              <div className="w-16 h-16 rounded-full bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center text-yellow-400 animate-pulse shadow-inner">
+                <Music className="w-8 h-8" />
               </div>
-              <div className="text-center">
+              <div className="text-center w-full">
                 <div className="font-bold text-white text-base">{previewItem.name}</div>
-                <div className="text-xs text-slate-400 mt-1">קובץ שמע וקול</div>
+                <div className="text-xs text-slate-400 mt-0.5">קובץ שמע וקול</div>
               </div>
+
+              {/* Spoken Subtitle / Narration Box */}
+              {(previewItem.metadata?.subtitleText || previewItem.metadata?.scriptText || previewItem.description) && (
+                <div className="w-full bg-slate-950/80 border border-yellow-500/30 rounded-2xl p-4 text-right shadow-inner" dir="rtl">
+                  <div className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
+                    <span>💬</span>
+                    <span>כתוביות ותמליל הקריינות:</span>
+                  </div>
+                  <p className="text-sm text-slate-200 leading-relaxed font-medium select-text whitespace-pre-wrap">
+                    {previewItem.metadata?.subtitleText || previewItem.metadata?.scriptText || previewItem.description}
+                  </p>
+                </div>
+              )}
+
               <audio src={previewItem.url} controls autoPlay className="w-full" />
             </div>
           )}

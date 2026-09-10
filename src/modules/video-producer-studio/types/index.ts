@@ -65,6 +65,7 @@ export interface VideoScene {
   renderedAudioUrl?: string;
   heygenJobId?: string;
   heygenStatus?: 'pending' | 'processing' | 'completed' | 'failed';
+  videoProvider?: 'heygen' | 'veo';
   durationSeconds?: number;
   musicBgmVolume?: number;
   transition?: 'none' | 'fade' | 'slide_left' | 'wipe';
