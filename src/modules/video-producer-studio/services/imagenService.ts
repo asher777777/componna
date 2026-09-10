@@ -1,5 +1,5 @@
 /**
- * Google Imagen 3 (Nano Banana Pro) Image Generation Service
+ * Google Imagen 3 & Banana Pro Photorealistic AI Image Generation Service
  */
 
 export interface ImagenGenerateParams {
@@ -9,66 +9,147 @@ export interface ImagenGenerateParams {
 }
 
 /**
- * Generates an image using Google Imagen 3 API, with automatic fallback
- * to procedural high-res cinematic canvas rendering if the API key lacks predict quota.
+ * Helper to convert a Blob into a base64 Data URL
+ */
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Generates a real, high-resolution photorealistic AI image matching the prompt.
+ * 1. Attempts Google Imagen 3 API (imagen-3.0-generate-002:predict).
+ * 2. If Google API key lacks predict quota, utilizes the Flux Photorealistic AI Engine.
+ * 3. Falls back to stylized canvas in case of complete network offline.
  */
 export async function generateImagen3Image(
   apiKey: string,
   params: ImagenGenerateParams
 ): Promise<{ imageUrl: string; base64Data: string; mimeType: string }> {
-  if (!apiKey) {
-    throw new Error('נא להגדיר מפתח Google API Key במרכז הסנכרון.');
-  }
-
   const cleanPrompt = params.prompt.trim();
   const aspectRatio = params.aspectRatio || '16:9';
 
-  // 1. Try Google Imagen 3 endpoints
-  const imagenEndpoints = [
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey.trim()}`,
-    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey.trim()}`
-  ];
+  let width = 1280;
+  let height = 720;
+  if (aspectRatio === '9:16') {
+    width = 720;
+    height = 1280;
+  } else if (aspectRatio === '1:1') {
+    width = 1024;
+    height = 1024;
+  }
 
-  for (const endpoint of imagenEndpoints) {
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instances: [
-            { prompt: cleanPrompt }
-          ],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: aspectRatio,
-            personGeneration: 'ALLOW_ADULT',
-            outputMimeType: 'image/jpeg'
+  // 1. Try Google Imagen 3 API endpoints if an API key is provided
+  if (apiKey) {
+    const imagenEndpoints = [
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey.trim()}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${apiKey.trim()}`
+    ];
+
+    for (const endpoint of imagenEndpoints) {
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey.trim()
+          },
+          body: JSON.stringify({
+            instances: [
+              { prompt: cleanPrompt }
+            ],
+            parameters: {
+              sampleCount: 1,
+              aspectRatio: aspectRatio,
+              personGeneration: 'ALLOW_ADULT',
+              outputMimeType: 'image/jpeg'
+            }
+          })
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
+          const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
+          if (b64) {
+            return {
+              imageUrl: `data:${mime};base64,${b64}`,
+              base64Data: b64,
+              mimeType: mime
+            };
           }
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-        const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
-        if (b64) {
-          return {
-            imageUrl: `data:${mime};base64,${b64}`,
-            base64Data: b64,
-            mimeType: mime
-          };
         }
-      } else {
-        const errText = await res.text().catch(() => '');
-        console.warn(`[Imagen 3 predict ${endpoint}] Failed status ${res.status}:`, errText);
+      } catch (err) {
+        console.warn(`[Google Imagen 3 direct call notice]`, err);
       }
-    } catch (err) {
-      console.warn(`[Imagen 3 predict ${endpoint}] Network/fetch error:`, err);
     }
   }
 
-  // 2. Resilient High-Definition Visual Renderer (Canvas Engine)
-  // Used when the specific Google AI Studio key does not have Imagen predict permissions enabled
+  // 2. High-Definition Photorealistic AI Image Engine (Flux / SDXL Synthesis)
+  try {
+    const seed = Math.floor(Math.random() * 1000000);
+    const encodedPrompt = encodeURIComponent(cleanPrompt);
+    const fluxUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&model=flux&nologo=true&seed=${seed}&enhance=true`;
+
+    let dataUrl = '';
+
+    // Direct fetch attempt
+    try {
+      const imgRes = await fetch(fluxUrl);
+      if (imgRes.ok) {
+        const blob = await imgRes.blob();
+        if (blob && blob.size > 1000) {
+          dataUrl = await blobToBase64(blob);
+        }
+      }
+    } catch {
+      // Direct fetch was restricted or CORS; fallback to Image element load
+    }
+
+    // Canvas Image Element attempt if direct fetch didn't return dataUrl
+    if (!dataUrl && typeof document !== 'undefined') {
+      dataUrl = await new Promise<string>((resolve) => {
+        const img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = () => {
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth || width;
+            canvas.height = img.naturalHeight || height;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0);
+              resolve(canvas.toDataURL('image/jpeg', 0.92));
+              return;
+            }
+          } catch {
+            // ignore
+          }
+          resolve('');
+        };
+        img.onerror = () => resolve('');
+        img.src = fluxUrl;
+        setTimeout(() => resolve(''), 15000);
+      });
+    }
+
+    if (dataUrl) {
+      const cleanB64 = dataUrl.split(',')[1] || '';
+      return {
+        imageUrl: dataUrl,
+        base64Data: cleanB64,
+        mimeType: 'image/jpeg'
+      };
+    }
+  } catch (fluxErr) {
+    console.warn('[Flux AI Image Generation notice]:', fluxErr);
+  }
+
+  // 3. Fallback: Procedural Canvas Card (for offline / extreme failure)
   const canvasImage = createProceduralCinematicImage(cleanPrompt, aspectRatio);
   const cleanBase64 = canvasImage.split(',')[1] || '';
   
@@ -84,7 +165,6 @@ export async function generateImagen3Image(
  */
 function createProceduralCinematicImage(prompt: string, aspectRatio: '16:9' | '9:16' | '1:1'): string {
   if (typeof document === 'undefined') {
-    // Return minimal 1x1 placeholder in SSR environment
     return 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   }
 
@@ -109,38 +189,21 @@ function createProceduralCinematicImage(prompt: string, aspectRatio: '16:9' | '9
 
   // Deep cinematic gradient background
   const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, '#0f172a'); // slate-900
-  gradient.addColorStop(0.5, '#1e1b4b'); // indigo-950
-  gradient.addColorStop(1, '#090d16'); // dark
+  gradient.addColorStop(0, '#0f172a');
+  gradient.addColorStop(0.5, '#1e1b4b');
+  gradient.addColorStop(1, '#090d16');
   ctx.fillStyle = gradient;
   ctx.fillRect(0, 0, width, height);
 
   // Soft ambient glowing orb
   const orbGrad = ctx.createRadialGradient(width * 0.5, height * 0.4, 50, width * 0.5, height * 0.4, width * 0.6);
-  orbGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)'); // purple glow
-  orbGrad.addColorStop(0.5, 'rgba(236, 72, 153, 0.15)'); // pink glow
+  orbGrad.addColorStop(0, 'rgba(168, 85, 247, 0.25)');
+  orbGrad.addColorStop(0.5, 'rgba(236, 72, 153, 0.15)');
   orbGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
   ctx.fillStyle = orbGrad;
   ctx.fillRect(0, 0, width, height);
 
-  // Grid / Cyber subtle lines
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
-  ctx.lineWidth = 1;
-  const step = 60;
-  for (let x = 0; x < width; x += step) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-    ctx.stroke();
-  }
-  for (let y = 0; y < height; y += step) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
-    ctx.stroke();
-  }
-
-  // Outer subtle border
+  // Outer border
   ctx.strokeStyle = 'rgba(168, 85, 247, 0.3)';
   ctx.lineWidth = 4;
   ctx.strokeRect(20, 20, width - 40, height - 40);
@@ -177,7 +240,6 @@ function createProceduralCinematicImage(prompt: string, aspectRatio: '16:9' | '9
   ctx.font = 'bold 22px sans-serif';
   ctx.textAlign = 'center';
   
-  // Wrap text
   const words = prompt.split(' ');
   let line = '';
   let y = boxY + 60;

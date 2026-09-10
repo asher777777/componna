@@ -111,6 +111,15 @@ interface MediaGalleryContextValue {
   itemsToMove: string[];
   setItemsToMove: (ids: string[]) => void;
 
+  // Modern UI states
+  isInspectorOpen: boolean;
+  setIsInspectorOpen: (open: boolean) => void;
+  isUploaderOpen: boolean;
+  setIsUploaderOpen: (open: boolean) => void;
+  totalStorageBytes: number;
+  focusedItem: MediaItem | null;
+  setFocusedItem: (item: MediaItem | null) => void;
+
   firebaseApp?: FirebaseApp;
   db?: Firestore;
   collections?: MediaGalleryCollectionsConfig;
@@ -160,6 +169,15 @@ export const MediaGalleryProvider: React.FC<{
   const [editingFolder, setEditingFolder] = useState<MediaFolder | null>(null);
   const [isMoveModalOpen, setIsMoveModalOpen] = useState<boolean>(false);
   const [itemsToMove, setItemsToMove] = useState<string[]>([]);
+
+  // Modern UI states
+  const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(true);
+  const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
+  const [focusedItem, setFocusedItem] = useState<MediaItem | null>(null);
+
+  const totalStorageBytes = useMemo(() => {
+    return mediaItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+  }, [mediaItems]);
 
   const [filters, setFilters] = useState<MediaFilterOptions>({
     searchQuery: '',
@@ -768,6 +786,14 @@ export const MediaGalleryProvider: React.FC<{
         setIsMoveModalOpen,
         itemsToMove,
         setItemsToMove,
+
+        isInspectorOpen,
+        setIsInspectorOpen,
+        isUploaderOpen,
+        setIsUploaderOpen,
+        totalStorageBytes,
+        focusedItem,
+        setFocusedItem,
 
         firebaseApp,
         db,

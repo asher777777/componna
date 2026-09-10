@@ -17,6 +17,7 @@ import {
   Eye,
   Grid,
   List as ListIcon,
+  LayoutGrid,
   Folder,
   FolderPlus,
   ChevronLeft,
@@ -24,8 +25,10 @@ import {
   FolderInput,
   FolderEdit,
   Layers,
-  FileCode,
-  FileSpreadsheet,
+  UploadCloud,
+  SlidersHorizontal,
+  X,
+  Info,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -52,13 +55,27 @@ export const MediaGalleryGrid: React.FC = () => {
     deleteFolder,
     setIsMoveModalOpen,
     setItemsToMove,
+    isUploaderOpen,
+    setIsUploaderOpen,
+    isInspectorOpen,
+    setIsInspectorOpen,
+    focusedItem,
+    setFocusedItem,
   } = useMediaGallery();
 
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>('grid');
 
   const activeFolder = folders.find((f) => f.id === activeFolderId);
 
-  const handleQuickPick = (item: MediaItem) => {
+  // Focus item and open in inspector on click; double click to open full preview modal
+  const handleItemClick = (item: MediaItem) => {
+    setFocusedItem(item);
+    if (!isInspectorOpen) {
+      setIsInspectorOpen(true);
+    }
+  };
+
+  const handleItemDoubleClick = (item: MediaItem) => {
     if (selectionMode && onSelectMedia) {
       onSelectMedia([item]);
     } else {
@@ -75,6 +92,9 @@ export const MediaGalleryGrid: React.FC = () => {
     e.stopPropagation();
     if (confirm(`האם למחוק את "${item.name}"?`)) {
       await deleteMediaItems([item.id]);
+      if (focusedItem?.id === item.id) {
+        setFocusedItem(null);
+      }
     }
   };
 
@@ -99,15 +119,13 @@ export const MediaGalleryGrid: React.FC = () => {
     e.stopPropagation();
     const count = folder.itemCount || 0;
     const msg = count > 0
-      ? `התיקייה "${folder.name}" מכילה ${count} קבצים. האם למחוק את התיקייה בלבד (הקבצים יישמרו בשורש)?`
+      ? `התיקייה "${folder.name}" מכילה ${count} קבצים. למחוק את התיקייה בלבד (הקבצים יישמרו)?`
       : `האם למחוק את התיקייה "${folder.name}"?`;
-    
     if (confirm(msg)) {
       await deleteFolder(folder.id, false);
     }
   };
 
-  // Helper to render type icons
   const renderFileTypeIcon = (type: MediaType, className: string = 'w-4 h-4') => {
     switch (type) {
       case 'video':
@@ -128,66 +146,147 @@ export const MediaGalleryGrid: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6" dir="rtl">
-      {/* 1. Breadcrumbs & Folder Bar */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 p-4 rounded-3xl shadow-lg">
-        {/* Breadcrumb Navigation */}
-        <div className="flex items-center space-x-2 rtl:space-x-reverse text-xs sm:text-sm font-bold text-slate-300">
+    <div className="flex-1 flex flex-col min-w-0 space-y-4" dir="rtl">
+      {/* 1. Ultra-Compact Modern Action Bar */}
+      <div className="bg-slate-900/90 border border-slate-800 p-3 rounded-2xl shadow-md flex flex-wrap items-center justify-between gap-3">
+        {/* Breadcrumb Path */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
           <button
             type="button"
             onClick={() => setActiveFolderId(null)}
-            className={`flex items-center space-x-1.5 rtl:space-x-reverse px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+            className={`flex items-center space-x-1 rtl:space-x-reverse px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
               activeFolderId === null
-                ? 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/40'
-                : 'hover:bg-slate-800 text-slate-400 hover:text-white'
+                ? 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800'
             }`}
           >
-            <Home className="w-4 h-4" />
-            <span>כל הקבצים (מאגר ראשי)</span>
+            <Home className="w-3.5 h-3.5" />
+            <span>מאגר ראשי</span>
           </button>
 
           {activeFolder && (
             <>
-              <ChevronLeft className="w-4 h-4 text-slate-600 rtl:rotate-180" />
+              <ChevronLeft className="w-3.5 h-3.5 text-slate-600 rtl:rotate-180 flex-shrink-0" />
               <div
-                className="flex items-center space-x-1.5 rtl:space-x-reverse px-3 py-1.5 rounded-xl border bg-slate-800/90 text-white"
-                style={{ borderColor: activeFolder.color || '#eab308' }}
+                className="flex items-center space-x-1.5 rtl:space-x-reverse px-2.5 py-1.5 rounded-xl border text-xs font-bold text-white shadow-sm"
+                style={{ backgroundColor: `${activeFolder.color || '#eab308'}15`, borderColor: activeFolder.color || '#eab308' }}
               >
-                <Folder className="w-4 h-4" style={{ color: activeFolder.color || '#eab308' }} />
-                <span>{activeFolder.name}</span>
-                <span className="text-[10px] text-slate-400 font-normal">
-                  ({activeFolder.itemCount || 0} קבצים)
+                <Folder className="w-3.5 h-3.5" style={{ color: activeFolder.color || '#eab308' }} />
+                <span className="truncate max-w-[150px]">{activeFolder.name}</span>
+                <span className="text-[10px] text-slate-400 font-mono font-normal">
+                  ({activeFolder.itemCount || 0})
                 </span>
               </div>
             </>
           )}
+
+          <span className="text-[11px] text-slate-500 hidden sm:inline-block font-mono">
+            • {filteredItems.length} פריטים
+          </span>
         </div>
 
-        {/* New Folder Button */}
-        <button
-          type="button"
-          onClick={() => {
-            setEditingFolder(null);
-            setIsFolderModalOpen(true);
-          }}
-          className="px-4 py-2 rounded-2xl bg-slate-800 hover:bg-slate-700 text-yellow-400 hover:text-yellow-300 border border-slate-700 font-bold text-xs flex items-center space-x-2 rtl:space-x-reverse transition-all shadow-md active:scale-95 cursor-pointer"
-        >
-          <FolderPlus className="w-4 h-4" />
-          <span>תיקייה חדשה</span>
-        </button>
-      </div>
+        {/* Center Search */}
+        <div className="relative flex-1 min-w-[180px] max-w-sm">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="חיפוש מהיר בקבצים ותגיות..."
+            value={filters.searchQuery}
+            onChange={(e) => setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))}
+            className="w-full bg-slate-950 border border-slate-700/80 rounded-xl pr-9 pl-7 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 transition-colors"
+          />
+          {filters.searchQuery && (
+            <button
+              onClick={() => setFilters((prev) => ({ ...prev, searchQuery: '' }))}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
 
-      {/* 2. Folders Grid (Only displayed when in root or showing all folders) */}
-      {!activeFolderId && folders.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-1">
-            <span className="flex items-center space-x-1.5 rtl:space-x-reverse">
-              <Folder className="w-4 h-4 text-yellow-400" />
-              <span>תיקיות אחסון ({folders.length})</span>
-            </span>
+        {/* Right Controls: Sort, Density, Inspector, +Upload */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse">
+          {/* Sort Dropdown */}
+          <select
+            value={filters.sortBy}
+            onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as any }))}
+            className="bg-slate-950 border border-slate-700/80 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-yellow-500 cursor-pointer"
+          >
+            <option value="date_desc">📅 החדשים</option>
+            <option value="date_asc">📅 הישנים</option>
+            <option value="size_desc">💾 הגדולים</option>
+            <option value="name_asc">🔤 לפי שם</option>
+          </select>
+
+          {/* View Mode Toggle */}
+          <div className="flex bg-slate-950 p-0.5 rounded-xl border border-slate-800">
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'grid' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
+              }`}
+              title="תצוגת רשת רגילה"
+            >
+              <Grid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('dense')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'dense' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
+              }`}
+              title="תצוגת רשת צפופה"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('list')}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+                viewMode === 'list' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
+              }`}
+              title="תצוגת רשימה"
+            >
+              <ListIcon className="w-3.5 h-3.5" />
+            </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          {/* Inspector Toggle Button */}
+          <button
+            type="button"
+            onClick={() => setIsInspectorOpen(!isInspectorOpen)}
+            className={`p-1.5 rounded-xl border transition-colors cursor-pointer ${
+              isInspectorOpen
+                ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+            }`}
+            title={isInspectorOpen ? 'הסתר פאנל פרטים' : 'הצג פאנל פרטים'}
+          >
+            <Info className="w-4 h-4" />
+          </button>
+
+          {/* Quick Upload Button */}
+          <button
+            type="button"
+            onClick={() => setIsUploaderOpen(!isUploaderOpen)}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black font-bold text-xs flex items-center space-x-1.5 rtl:space-x-reverse shadow-md transition-all active:scale-95 cursor-pointer"
+          >
+            <UploadCloud className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">העלאת קבצים</span>
+          </button>
+        </div>
+      </div>
+
+      {/* 2. Folders Bar (Pills shelf inside current location) */}
+      {!activeFolderId && folders.length > 0 && (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 px-1">
+            <span>תיקיות במאגר ({folders.length})</span>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
             {folders.map((folder) => {
               const folderColor = folder.color || '#eab308';
 
@@ -195,43 +294,41 @@ export const MediaGalleryGrid: React.FC = () => {
                 <div
                   key={folder.id}
                   onClick={() => setActiveFolderId(folder.id)}
-                  className="group relative bg-slate-900/80 border border-slate-800 hover:border-yellow-500/60 p-3.5 rounded-2xl cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg flex flex-col justify-between"
+                  className="group flex-shrink-0 bg-slate-900/90 border border-slate-800 hover:border-yellow-500/60 p-2.5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md flex items-center space-x-2.5 rtl:space-x-reverse"
                 >
-                  <div className="flex items-start justify-between">
-                    <div
-                      className="w-10 h-10 rounded-xl flex items-center justify-center shadow-md transition-transform group-hover:scale-105"
-                      style={{ backgroundColor: `${folderColor}20`, borderColor: folderColor, borderWidth: 1 }}
-                    >
-                      <Folder className="w-5 h-5" style={{ color: folderColor }} />
-                    </div>
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shadow-sm"
+                    style={{ backgroundColor: `${folderColor}20`, borderColor: folderColor, borderWidth: 1 }}
+                  >
+                    <Folder className="w-4 h-4" style={{ color: folderColor }} />
+                  </div>
 
-                    <div className="flex items-center space-x-1 rtl:space-x-reverse opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        type="button"
-                        onClick={(e) => handleEditFolder(e, folder)}
-                        className="p-1 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white"
-                        title="ערוך תיקייה"
-                      >
-                        <FolderEdit className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteFolder(e, folder)}
-                        className="p-1 rounded-lg hover:bg-red-950/60 text-slate-400 hover:text-red-400"
-                        title="מחק תיקייה"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                  <div className="min-w-0 pr-1">
+                    <div className="font-bold text-xs text-white truncate max-w-[130px] group-hover:text-yellow-300 transition-colors">
+                      {folder.name}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      {folder.itemCount || 0} קבצים
                     </div>
                   </div>
 
-                  <div className="mt-3">
-                    <h5 className="font-bold text-xs text-white truncate group-hover:text-yellow-300 transition-colors">
-                      {folder.name}
-                    </h5>
-                    <div className="text-[10px] text-slate-400 mt-0.5">
-                      {folder.itemCount || 0} קבצים
-                    </div>
+                  <div className="opacity-0 group-hover:opacity-100 flex items-center space-x-0.5 rtl:space-x-reverse transition-opacity">
+                    <button
+                      type="button"
+                      onClick={(e) => handleEditFolder(e, folder)}
+                      className="p-1 hover:text-yellow-400 text-slate-400 rounded"
+                      title="ערוך"
+                    >
+                      <FolderEdit className="w-3 h-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteFolder(e, folder)}
+                      className="p-1 hover:text-red-400 text-slate-400 rounded"
+                      title="מחק"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
                   </div>
                 </div>
               );
@@ -240,365 +337,45 @@ export const MediaGalleryGrid: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Search, Component Source, and File Type Filter Toolbar */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-3xl p-4 sm:p-5 shadow-lg space-y-4">
-        {/* Top row: Search input + Component Filter + View mode toggle */}
-        <div className="flex flex-col lg:flex-row items-stretch lg:items-center gap-3">
-          {/* Search */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="חפש לפי שם קובץ, תגית, סוג או רכיב יוצר..."
-              value={filters.searchQuery}
-              onChange={(e) => setFilters((prev) => ({ ...prev, searchQuery: e.target.value }))}
-              className="w-full bg-slate-950 border border-slate-700 rounded-2xl pr-10 pl-4 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-yellow-500 transition-colors"
-            />
-          </div>
-
-          {/* Component Source Filter Dropdown */}
-          <div className="flex items-center gap-2">
-            <div className="flex items-center space-x-2 rtl:space-x-reverse bg-slate-950 border border-slate-700 rounded-2xl px-3 py-1.5 text-xs text-white">
-              <Layers className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-              <span className="text-slate-400 whitespace-nowrap">מיון לפי רכיב:</span>
-              <select
-                value={filters.sourceModuleFilter || 'all'}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, sourceModuleFilter: e.target.value }))
-                }
-                className="bg-transparent text-white font-bold focus:outline-none cursor-pointer"
-              >
-                {Object.values(KNOWN_MODULE_SOURCES).map((src) => (
-                  <option key={src.id} value={src.id} className="bg-slate-900 text-white">
-                    {src.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Sort Dropdown */}
-            <select
-              value={filters.sortBy}
-              onChange={(e) => setFilters((prev) => ({ ...prev, sortBy: e.target.value as any }))}
-              className="bg-slate-950 border border-slate-700 rounded-2xl px-3 py-2 text-xs text-white focus:outline-none focus:border-yellow-500 cursor-pointer"
-            >
-              <option value="date_desc">📅 החדשים ביותר</option>
-              <option value="date_asc">📅 הישנים ביותר</option>
-              <option value="size_desc">💾 הקבצים הגדולים</option>
-              <option value="name_asc">🔤 לפי שם (א-ת)</option>
-            </select>
-
-            {/* View Mode Toggle */}
-            <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setViewMode('grid')}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'grid' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
-                }`}
-                title="תצוגת רשת"
-              >
-                <Grid className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
-                  viewMode === 'list' ? 'bg-yellow-500 text-black shadow' : 'text-slate-400 hover:text-white'
-                }`}
-                title="תצוגת רשימה"
-              >
-                <ListIcon className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom row: Type Tabs (All file types supported) */}
-        <div className="flex items-center space-x-2 rtl:space-x-reverse overflow-x-auto pb-1">
-          {[
-            { id: 'all', label: 'כל הקבצים', icon: null },
-            { id: 'video', label: 'וידאו', icon: FileVideo },
-            { id: 'image', label: 'תמונות', icon: ImageIcon },
-            { id: 'audio', label: 'שמע וקול', icon: Music },
-            { id: 'document', label: 'מסמכים', icon: FileText },
-            { id: 'archive', label: 'ארכיונים', icon: Archive },
-            { id: 'code', label: 'קוד ונתונים', icon: Code2 },
-          ].map((tab) => {
-            const isSelected = filters.typeFilter === tab.id;
-            const Icon = tab.icon;
-
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setFilters((prev) => ({ ...prev, typeFilter: tab.id as any }))}
-                className={`px-3.5 py-1.5 rounded-2xl text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all whitespace-nowrap cursor-pointer ${
-                  isSelected
-                    ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.35)]'
-                    : 'bg-slate-950 text-slate-300 border border-slate-800 hover:bg-slate-800 hover:text-white'
-                }`}
-              >
-                {Icon && <Icon className="w-3.5 h-3.5" />}
-                <span>{tab.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 4. Media Items Grid / List View */}
+      {/* 3. Files Container */}
       {filteredItems.length === 0 ? (
         <div className="p-12 text-center bg-slate-900/40 border border-slate-800 rounded-3xl space-y-3">
-          <div className="w-16 h-16 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-3xl mx-auto">
+          <div className="w-14 h-14 rounded-full bg-slate-800/80 border border-slate-700 flex items-center justify-center text-2xl mx-auto">
             📂
           </div>
-          <h4 className="text-base font-bold text-white">לא נמצאו קבצים בתצוגה זו</h4>
+          <h4 className="text-sm font-bold text-white">לא נמצאו קבצים במיקום זה</h4>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
-            גרור קבצים לתיבת ההעלאה למעלה או שנה את הסינון והתיקייה הנוכחית.
+            גרור קבצים לכל מקום בחלון או לחץ על כפתור "העלאת קבצים" למעלה.
           </p>
         </div>
-      ) : viewMode === 'grid' ? (
-        /* GRID VIEW */
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filteredItems.map((item) => {
-            const isSelected = selectedIds.includes(item.id);
-
-            return (
-              <div
-                key={item.id}
-                onClick={() => handleQuickPick(item)}
-                className={`group relative bg-slate-900/90 rounded-3xl border overflow-hidden shadow-lg transition-all duration-300 transform hover:-translate-y-1 hover:shadow-2xl cursor-pointer flex flex-col justify-between ${
-                  isSelected
-                    ? 'border-yellow-500 ring-2 ring-yellow-500/50 bg-yellow-500/5'
-                    : 'border-slate-800 hover:border-yellow-500/50'
-                }`}
-              >
-                {/* Media Preview Box */}
-                <div className="relative w-full h-44 bg-black/80 flex items-center justify-center overflow-hidden">
-                  {/* VIDEO */}
-                  {item.type === 'video' && (
-                    <>
-                      <video
-                        src={item.url}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-                        <div className="w-10 h-10 rounded-full bg-yellow-500/90 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                          <Play className="w-4 h-4 mr-0.5 fill-black" />
-                        </div>
-                      </div>
-                      <span className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-md text-[10px] text-yellow-300 font-bold px-2 py-0.5 rounded-full border border-yellow-500/30">
-                        🎬 וידאו
-                      </span>
-                    </>
-                  )}
-
-                  {/* IMAGE */}
-                  {item.type === 'image' && (
-                    <>
-                      <img
-                        src={item.url}
-                        alt={item.name}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                      <span className="absolute bottom-2 left-2 bg-black/80 backdrop-blur-md text-[10px] text-emerald-300 font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
-                        🖼️ תמונה
-                      </span>
-                    </>
-                  )}
-
-                  {/* AUDIO */}
-                  {item.type === 'audio' && (
-                    <div className="flex flex-col items-center justify-center text-yellow-400 p-4 space-y-2">
-                      <div className="w-14 h-14 rounded-2xl bg-yellow-500/20 border border-yellow-500/40 flex items-center justify-center shadow-inner animate-pulse">
-                        <Music className="w-7 h-7" />
-                      </div>
-                      <span className="text-[11px] text-slate-300 font-bold">קובץ שמע</span>
-                    </div>
-                  )}
-
-                  {/* DOCUMENT */}
-                  {item.type === 'document' && (
-                    <div className="flex flex-col items-center justify-center text-blue-400 p-4 space-y-2">
-                      <div className="w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center shadow-inner">
-                        <FileText className="w-7 h-7" />
-                      </div>
-                      <span className="text-[11px] text-slate-300 font-bold">מסמך</span>
-                    </div>
-                  )}
-
-                  {/* ARCHIVE */}
-                  {item.type === 'archive' && (
-                    <div className="flex flex-col items-center justify-center text-purple-400 p-4 space-y-2">
-                      <div className="w-14 h-14 rounded-2xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center shadow-inner">
-                        <Archive className="w-7 h-7" />
-                      </div>
-                      <span className="text-[11px] text-slate-300 font-bold">ארכיון דחוס</span>
-                    </div>
-                  )}
-
-                  {/* CODE / DATA */}
-                  {item.type === 'code' && (
-                    <div className="flex flex-col items-center justify-center text-pink-400 p-4 space-y-2">
-                      <div className="w-14 h-14 rounded-2xl bg-pink-500/20 border border-pink-500/40 flex items-center justify-center shadow-inner">
-                        <Code2 className="w-7 h-7" />
-                      </div>
-                      <span className="text-[11px] text-slate-300 font-bold">קובץ קוד / נתונים</span>
-                    </div>
-                  )}
-
-                  {/* OTHER */}
-                  {item.type === 'other' && (
-                    <div className="flex flex-col items-center justify-center text-slate-400 p-4 space-y-2">
-                      <div className="w-14 h-14 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center shadow-inner">
-                        <HardDrive className="w-7 h-7" />
-                      </div>
-                      <span className="text-[11px] text-slate-300 font-bold">קובץ בינארי</span>
-                    </div>
-                  )}
-
-                  {/* Multi-Select Checkbox overlay */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelect(item.id);
-                    }}
-                    className={`absolute top-3 right-3 w-7 h-7 rounded-xl flex items-center justify-center transition-all shadow-md cursor-pointer ${
-                      isSelected
-                        ? 'bg-yellow-500 text-black'
-                        : 'bg-black/70 text-slate-400 hover:text-white border border-slate-700'
-                    }`}
-                  >
-                    {isSelected ? <CheckSquare className="w-4 h-4" /> : <Square className="w-4 h-4" />}
-                  </button>
-
-                  {/* Source Module Badge on top-left */}
-                  {item.sourceModuleLabel && (
-                    <span className="absolute top-3 left-3 bg-slate-950/85 backdrop-blur-md text-[9px] text-yellow-300 font-bold px-2 py-0.5 rounded-lg border border-slate-700 shadow flex items-center space-x-1 rtl:space-x-reverse max-w-[130px] truncate">
-                      <Layers className="w-2.5 h-2.5 flex-shrink-0" />
-                      <span className="truncate">{item.sourceModuleLabel}</span>
-                    </span>
-                  )}
-                </div>
-
-                {/* Card Content & Details */}
-                <div className="p-4 space-y-3 flex-1 flex flex-col justify-between">
-                  <div>
-                    <h4
-                      className="font-bold text-xs sm:text-sm text-white truncate group-hover:text-yellow-300 transition-colors"
-                      title={item.name}
-                    >
-                      {item.name}
-                    </h4>
-
-                    <div className="flex items-center justify-between mt-1 text-[11px] text-slate-400">
-                      <span className="flex items-center space-x-1 rtl:space-x-reverse">
-                        <HardDrive className="w-3 h-3 text-slate-500" />
-                        <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
-                      </span>
-                      <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
-                    </div>
-
-                    {/* Folder Badge if item belongs to a folder */}
-                    {item.folderName && (
-                      <div className="mt-1.5 flex items-center space-x-1 rtl:space-x-reverse text-[10px] text-yellow-400">
-                        <Folder className="w-3 h-3" />
-                        <span className="truncate">{item.folderName}</span>
-                      </div>
-                    )}
-
-                    {/* Tags */}
-                    {item.tags && item.tags.length > 0 && (
-                      <div className="flex items-center gap-1 mt-2 flex-wrap">
-                        {item.tags.slice(0, 3).map((tag) => (
-                          <span
-                            key={tag}
-                            className="bg-slate-950 text-slate-300 text-[9px] px-2 py-0.5 rounded-md border border-slate-800"
-                          >
-                            #{tag}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Quick Action Buttons */}
-                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                    <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                      {/* Convert / Compress Button */}
-                      {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleConvertSingle(e, item)}
-                          className="p-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 border border-indigo-800/40 text-xs transition-colors cursor-pointer"
-                          title="המרה ודחיסה"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-
-                      {/* Move to folder */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleMoveSingle(e, item)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-yellow-400 border border-slate-700 text-xs transition-colors cursor-pointer"
-                        title="העבר לתיקייה"
-                      >
-                        <FolderInput className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Download */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadSingle(e, item)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs transition-colors cursor-pointer"
-                        title="הורד קובץ"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Delete */}
-                      <button
-                        type="button"
-                        onClick={(e) => handleDeleteSingle(e, item)}
-                        className="p-1.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/40 text-xs transition-colors cursor-pointer"
-                        title="מחק קובץ"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => handleQuickPick(item)}
-                      className="text-[11px] font-bold text-yellow-400 hover:text-yellow-300 flex items-center space-x-1 rtl:space-x-reverse"
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span>{selectionMode ? 'בחר' : 'צפה'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
+      ) : viewMode === 'list' ? (
         /* LIST VIEW */
-        <div className="bg-slate-900/90 border border-slate-800 rounded-3xl overflow-hidden shadow-lg divide-y divide-slate-800/80">
+        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-lg divide-y divide-slate-800/80 text-xs">
+          <div className="p-2.5 bg-slate-950/80 text-[11px] font-bold text-slate-400 grid grid-cols-12 gap-2">
+            <span className="col-span-6 sm:col-span-5 flex items-center space-x-2 rtl:space-x-reverse">
+              <span>שם קובץ</span>
+            </span>
+            <span className="col-span-2 hidden sm:block">רכיב יוצר</span>
+            <span className="col-span-2">נפח</span>
+            <span className="col-span-2 hidden md:block">תאריך</span>
+            <span className="col-span-4 sm:col-span-3 md:col-span-1 text-left">פעולות</span>
+          </div>
+
           {filteredItems.map((item) => {
             const isSelected = selectedIds.includes(item.id);
+            const isFocused = focusedItem?.id === item.id;
 
             return (
               <div
                 key={item.id}
-                onClick={() => handleQuickPick(item)}
-                className={`p-3 sm:p-4 flex items-center justify-between gap-4 hover:bg-slate-800/50 transition-colors cursor-pointer ${
-                  isSelected ? 'bg-yellow-500/10' : ''
+                onClick={() => handleItemClick(item)}
+                onDoubleClick={() => handleItemDoubleClick(item)}
+                className={`p-2.5 grid grid-cols-12 gap-2 items-center hover:bg-slate-800/60 transition-colors cursor-pointer ${
+                  isFocused ? 'bg-yellow-500/15 border-r-4 border-yellow-500' : isSelected ? 'bg-yellow-500/10' : ''
                 }`}
               >
-                <div className="flex items-center space-x-3 rtl:space-x-reverse min-w-0">
+                {/* Name & Icon */}
+                <div className="col-span-6 sm:col-span-5 flex items-center space-x-2.5 rtl:space-x-reverse min-w-0">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -608,77 +385,219 @@ export const MediaGalleryGrid: React.FC = () => {
                     className="text-slate-400 hover:text-white cursor-pointer"
                   >
                     {isSelected ? (
-                      <CheckSquare className="w-4 h-4 text-yellow-400" />
+                      <CheckSquare className="w-3.5 h-3.5 text-yellow-400" />
                     ) : (
-                      <Square className="w-4 h-4" />
+                      <Square className="w-3.5 h-3.5" />
                     )}
                   </button>
 
-                  <div className="w-10 h-10 rounded-xl bg-black overflow-hidden flex items-center justify-center flex-shrink-0 border border-slate-800">
+                  <div className="w-7 h-7 rounded-lg bg-black overflow-hidden flex items-center justify-center flex-shrink-0 border border-slate-800">
                     {item.type === 'image' ? (
                       <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
                     ) : (
-                      renderFileTypeIcon(item.type, 'w-5 h-5')
+                      renderFileTypeIcon(item.type, 'w-4 h-4')
                     )}
                   </div>
 
-                  <div className="truncate">
-                    <div className="font-bold text-xs text-white truncate">{item.name}</div>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-2 flex-wrap">
-                      <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
-                      <span>•</span>
-                      <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
-                      {item.sourceModuleLabel && (
-                        <>
-                          <span>•</span>
-                          <span className="text-yellow-400 font-medium">{item.sourceModuleLabel}</span>
-                        </>
-                      )}
-                      {item.folderName && (
-                        <>
-                          <span>•</span>
-                          <span className="text-indigo-400">📁 {item.folderName}</span>
-                        </>
-                      )}
-                    </div>
+                  <div className="truncate font-bold text-slate-100 group-hover:text-yellow-300">
+                    {item.name}
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2 rtl:space-x-reverse flex-shrink-0">
-                  {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleConvertSingle(e, item)}
-                      className="p-1.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 text-xs cursor-pointer"
-                      title="המרה ודחיסה"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => handleMoveSingle(e, item)}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-yellow-400 text-xs cursor-pointer"
-                    title="העבר לתיקייה"
-                  >
-                    <FolderInput className="w-3.5 h-3.5" />
-                  </button>
+                {/* Component */}
+                <div className="col-span-2 hidden sm:block truncate text-slate-400 text-[11px]">
+                  {item.sourceModuleLabel || '-'}
+                </div>
+
+                {/* Size */}
+                <div className="col-span-2 font-mono text-slate-400 text-[11px]">
+                  {FileCompressionService.formatBytes(item.sizeBytes)}
+                </div>
+
+                {/* Date */}
+                <div className="col-span-2 hidden md:block text-slate-500 text-[11px]">
+                  {new Date(item.createdAt).toLocaleDateString('he-IL')}
+                </div>
+
+                {/* Actions */}
+                <div className="col-span-4 sm:col-span-3 md:col-span-1 flex items-center space-x-1 rtl:space-x-reverse justify-end">
                   <button
                     type="button"
                     onClick={(e) => handleDownloadSingle(e, item)}
-                    className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs cursor-pointer"
-                    title="הורד קובץ"
+                    className="p-1 rounded-lg hover:bg-slate-700 text-slate-300"
+                    title="הורד"
                   >
                     <Download className="w-3.5 h-3.5" />
                   </button>
                   <button
                     type="button"
                     onClick={(e) => handleDeleteSingle(e, item)}
-                    className="p-1.5 rounded-lg text-red-400 hover:bg-red-950/40 text-xs cursor-pointer"
+                    className="p-1 rounded-lg hover:bg-red-950 text-slate-400 hover:text-red-400"
                     title="מחק"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        /* GRID & DENSE VIEW */
+        <div
+          className={`grid gap-3 ${
+            viewMode === 'dense'
+              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+              : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4'
+          }`}
+        >
+          {filteredItems.map((item) => {
+            const isSelected = selectedIds.includes(item.id);
+            const isFocused = focusedItem?.id === item.id;
+
+            return (
+              <div
+                key={item.id}
+                onClick={() => handleItemClick(item)}
+                onDoubleClick={() => handleItemDoubleClick(item)}
+                className={`group relative bg-slate-900/90 rounded-2xl border overflow-hidden shadow transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+                  isFocused
+                    ? 'border-yellow-500 ring-2 ring-yellow-500/50 bg-yellow-500/5 shadow-lg'
+                    : isSelected
+                    ? 'border-yellow-500 bg-yellow-500/5'
+                    : 'border-slate-800 hover:border-yellow-500/50 hover:shadow-md'
+                }`}
+              >
+                {/* Media Thumbnail Box */}
+                <div
+                  className={`relative w-full bg-black/80 flex items-center justify-center overflow-hidden ${
+                    viewMode === 'dense' ? 'h-28' : 'h-36'
+                  }`}
+                >
+                  {item.type === 'video' && (
+                    <>
+                      <video src={item.url} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                        <div className="w-8 h-8 rounded-full bg-yellow-500/90 text-black flex items-center justify-center shadow">
+                          <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {item.type === 'image' && (
+                    <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
+                  )}
+
+                  {item.type === 'audio' && (
+                    <div className="flex flex-col items-center justify-center text-yellow-400 space-y-1">
+                      <Music className="w-7 h-7 animate-pulse" />
+                    </div>
+                  )}
+
+                  {item.type === 'document' && (
+                    <div className="flex flex-col items-center justify-center text-blue-400 space-y-1">
+                      <FileText className="w-7 h-7" />
+                    </div>
+                  )}
+
+                  {item.type === 'archive' && (
+                    <div className="flex flex-col items-center justify-center text-purple-400 space-y-1">
+                      <Archive className="w-7 h-7" />
+                    </div>
+                  )}
+
+                  {item.type === 'code' && (
+                    <div className="flex flex-col items-center justify-center text-pink-400 space-y-1">
+                      <Code2 className="w-7 h-7" />
+                    </div>
+                  )}
+
+                  {item.type === 'other' && (
+                    <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
+                      <HardDrive className="w-7 h-7" />
+                    </div>
+                  )}
+
+                  {/* Top Right Checkbox */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleSelect(item.id);
+                    }}
+                    className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition-all shadow cursor-pointer ${
+                      isSelected
+                        ? 'bg-yellow-500 text-black'
+                        : 'bg-black/60 text-slate-400 hover:text-white border border-slate-700'
+                    }`}
+                  >
+                    {isSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+                  </button>
+
+                  {/* Top Left Component Badge */}
+                  {item.sourceModuleLabel && (
+                    <span className="absolute top-2 left-2 bg-black/80 backdrop-blur-md text-[9px] text-yellow-300 font-bold px-2 py-0.5 rounded-md border border-slate-800 truncate max-w-[100px]">
+                      {item.sourceModuleLabel}
+                    </span>
+                  )}
+                </div>
+
+                {/* Card Bottom Details */}
+                <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
+                  <div>
+                    <h5 className="font-bold text-xs text-white truncate group-hover:text-yellow-300 transition-colors" title={item.name}>
+                      {item.name}
+                    </h5>
+                    <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 font-mono">
+                      <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
+                      <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
+                    </div>
+                  </div>
+
+                  {/* Quick Action Buttons on Card */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
+                    <div className="flex items-center space-x-1 rtl:space-x-reverse">
+                      {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleConvertSingle(e, item)}
+                          className="p-1 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300 text-xs"
+                          title="המרה ודחיסה"
+                        >
+                          <Sparkles className="w-3 h-3" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => handleMoveSingle(e, item)}
+                        className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs"
+                        title="העבר לתיקייה"
+                      >
+                        <FolderInput className="w-3 h-3" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDownloadSingle(e, item)}
+                        className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs"
+                        title="הורד קובץ"
+                      >
+                        <Download className="w-3 h-3" />
+                      </button>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleItemDoubleClick(item);
+                      }}
+                      className="text-[10px] font-bold text-yellow-400 hover:text-yellow-300 flex items-center space-x-1 rtl:space-x-reverse"
+                    >
+                      <Eye className="w-3 h-3" />
+                      <span>{selectionMode ? 'בחר' : 'צפה'}</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             );
