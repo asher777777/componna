@@ -139,7 +139,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const res = await generateClarificationQuestionsWithAI(
         geminiKey,
-        apiKeys.geminiModel || 'gemini-1.5-flash',
+        apiKeys.geminiModel || 'gemini-3.6-flash',
         params
       );
       setLastCostReport(res.costReport);
@@ -158,7 +158,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setIsGeneratingScript(true);
     try {
-      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-1.5-flash', params);
+      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', params);
       const isInteractive = params.productionType === 'landing_funnel' || params.outputPreference === 'full_production';
       
       const cleanTitle = (res.project.title && res.project.title.trim().length > 1)
@@ -228,7 +228,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setIsGeneratingScript(true);
     try {
-      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-1.5-flash', {
+      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', {
         ...params,
         conversationId: activeProject.conversationId || params.conversationId,
         conversationHistory: activeProject.conversationHistory
@@ -363,7 +363,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const res = await generateNextSceneWithAI(
         geminiKey,
-        apiKeys.geminiModel || 'gemini-1.5-flash',
+        apiKeys.geminiModel || 'gemini-3.6-flash',
         activeProject,
         customInstruction
       );

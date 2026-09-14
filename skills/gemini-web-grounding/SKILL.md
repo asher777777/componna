@@ -40,7 +40,7 @@ import { GoogleGenAI } from '@google/genai';
 export interface GroundingOptions {
   query: string;
   systemInstruction?: string;
-  model?: 'gemini-2.5-flash' | 'gemini-3.8-flash' | 'gemini-2.5-pro';
+  model?: 'gemini-3.6-flash' | 'gemini-3.8-flash' | 'gemini-3.7-flash' | 'gemini-3.1-pro-preview';
   temperature?: number;
 }
 
@@ -66,7 +66,7 @@ export async function searchWithGeminiGrounding(
   apiKey: string,
   options: GroundingOptions
 ): Promise<GroundingResult> {
-  const model = options.model || 'gemini-2.5-flash';
+  const model = options.model || 'gemini-3.6-flash';
   const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({

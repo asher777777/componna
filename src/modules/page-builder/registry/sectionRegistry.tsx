@@ -36,6 +36,8 @@ import { CommunityEditor } from '../sections/community/CommunityEditor';
 import { LivePostsGridEditor } from '../sections/livePosts/LivePostsGridEditor';
 import { LandingEditor } from '../sections/landing/LandingEditor';
 import { ContactEditor } from '../sections/contact/ContactEditor';
+import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
+import { SmartFormEditor } from '../sections/smartForm/SmartFormEditor';
 
 // Icons
 import {
@@ -55,7 +57,9 @@ import {
   Calendar,
   Send,
   Phone,
+  Sparkles,
 } from 'lucide-react';
+
 
 export interface SectionDefinition {
   type: SectionType;
@@ -419,4 +423,23 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+  smartForm: {
+    type: 'smartForm',
+    name: 'טופס חכם רב-שלבי (Smart Form)',
+    category: 'contact',
+    description: 'טופס יוקרתי שלב-אחר-שלב מבוסס AI עם אייקונים וחיבור ישיר לאנליטיקה ול-CRM',
+    icon: Sparkles,
+    viewComponent: SmartFormSection as any,
+    editorComponent: SmartFormEditor as any,
+    defaultConfig: {
+      type: 'smartForm',
+      visible: true,
+      anchorId: 'smartForm',
+      sectionTitle: 'שאלון התאמה והצטרפות',
+      sectionSubtitle: 'מלאו את השאלון הקצר שלב אחר שלב לקבלת מענה אישי',
+      containerWidth: 'md',
+      backgroundColor: 'transparent',
+    },
+  },
 };
+

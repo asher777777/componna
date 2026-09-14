@@ -38,7 +38,7 @@ export interface DocumentAnalysisOptions {
   fileBase64: string;
   mimeType: 'application/pdf' | 'image/png' | 'image/jpeg' | 'image/webp';
   prompt: string;
-  model?: 'gemini-2.5-flash' | 'gemini-3.8-flash' | 'gemini-2.5-pro';
+  model?: 'gemini-3.6-flash' | 'gemini-3.8-flash' | 'gemini-3.7-flash' | 'gemini-3.1-pro-preview';
   responseSchema?: Schema; // Enforce structured JSON schema
 }
 
@@ -57,7 +57,7 @@ export async function analyzeDocumentWithGemini<T = any>(
   apiKey: string,
   options: DocumentAnalysisOptions
 ): Promise<DocumentAnalysisResult<T>> {
-  const model = options.model || 'gemini-2.5-flash';
+  const model = options.model || 'gemini-3.6-flash';
   const ai = new GoogleGenAI({ apiKey });
 
   const response = await ai.models.generateContent({

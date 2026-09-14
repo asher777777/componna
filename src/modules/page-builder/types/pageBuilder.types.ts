@@ -14,7 +14,8 @@ export type SectionType =
   | 'community'
   | 'livePosts'
   | 'landingSection'
-  | 'contact';
+  | 'contact'
+  | 'smartForm';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

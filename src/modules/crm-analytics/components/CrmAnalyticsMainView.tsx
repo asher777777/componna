@@ -11,6 +11,10 @@ import { AdvancedFilterDrawer } from './AdvancedFilterDrawer';
 import { SavedViewsBar } from './SavedViewsBar';
 import { Contact360Modal } from './Contact360Modal';
 import { DatabaseConnectorModal } from './DatabaseConnectorModal';
+import { FormSubmissionsTable } from '../../smart-form-builder/components/analytics/FormSubmissionsTable';
+import { subscribeSmartForms } from '../../smart-form-builder/services/formStorageService';
+import { SmartFormDefinition } from '../../smart-form-builder/types';
+import { FileText, Users } from 'lucide-react';
 
 export const CrmAnalyticsMainView: React.FC = () => {
   const {
@@ -30,9 +34,24 @@ export const CrmAnalyticsMainView: React.FC = () => {
     updateField,
   } = useCrmAnalyticsContext();
 
+  const [mainTab, setMainTab] = useState<'contacts' | 'forms'>('contacts');
+  const [smartForms, setSmartForms] = useState<SmartFormDefinition[]>([]);
+  const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [showCharts, setShowCharts] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
+
+  // Subscribe to smart forms
+  React.useEffect(() => {
+    const unsub = subscribeSmartForms((formsList) => {
+      setSmartForms(formsList);
+      if (formsList.length > 0 && !selectedFormId) {
+        setSelectedFormId(formsList[0].id);
+      }
+    });
+    return () => unsub();
+  }, []);
+
 
   // Modal states
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -162,52 +181,121 @@ export const CrmAnalyticsMainView: React.FC = () => {
         </div>
       </div>
 
-      {/* Saved Views Bar */}
-      <SavedViewsBar
-        views={savedViews}
-        activeViewId={activeViewId}
-        onSelectView={loadView}
-        onSaveView={saveCurrentView}
-        onDeleteView={deleteView}
-      />
+      {/* Tab Switcher: Contacts CRM vs Smart Forms */}
+      <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-xl gap-1">
+        <button
+          onClick={() => setMainTab('contacts')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition ${
+            mainTab === 'contacts'
+              ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>אנשי קשר ולידים ({data?.contacts?.length || 0})</span>
+        </button>
+        <button
+          onClick={() => setMainTab('forms')}
+          className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition ${
+            mainTab === 'forms'
+              ? 'bg-white dark:bg-gray-800 text-amber-600 dark:text-amber-400 shadow-sm'
+              : 'text-gray-500 hover:text-gray-700'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          <span>טבלאות טפסים חכמים ({smartForms.length})</span>
+        </button>
+      </div>
 
-      {/* Advanced Filter Drawer */}
-      {showFilters && (
-        <AdvancedFilterDrawer
-          filter={filter}
-          onChangeFilter={setFilter}
-          data={data}
-          onReset={handleResetFilters}
-        />
+      {mainTab === 'contacts' ? (
+        <>
+          {/* Saved Views Bar */}
+          <SavedViewsBar
+            views={savedViews}
+            activeViewId={activeViewId}
+            onSelectView={loadView}
+            onSaveView={saveCurrentView}
+            onDeleteView={deleteView}
+          />
+
+          {/* Advanced Filter Drawer */}
+          {showFilters && (
+            <AdvancedFilterDrawer
+              filter={filter}
+              onChangeFilter={setFilter}
+              data={data}
+              onReset={handleResetFilters}
+            />
+          )}
+
+          {/* KPI Cards */}
+          <AnalyticsSummaryCards
+            data={data}
+            loading={loading}
+            onMetricClick={setActiveMetric}
+            activeMetric={activeMetric}
+          />
+
+          {/* Visual Charts */}
+          {showCharts && data && (
+            <AnalyticsChartsView
+              data={data}
+              onTagClick={handleTagClick}
+              onCommunityClick={handleCommunityClick}
+            />
+          )}
+
+          {/* Dynamic Data Table */}
+          <DynamicAnalyticsTable
+            contacts={data?.contacts || []}
+            columns={availableColumns}
+            selectedColumnIds={selectedColumns}
+            onToggleColumn={toggleColumn}
+            onUpdateField={updateField}
+            onSelectContact={handleOpenContact}
+            loading={loading}
+          />
+        </>
+      ) : (
+        /* Smart Form Submissions Dedicated View */
+        <div className="space-y-4">
+          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">בחר טופס לצפייה בטבלת ההגשות:</span>
+              <select
+                value={selectedFormId}
+                onChange={(e) => setSelectedFormId(e.target.value)}
+                className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-white"
+              >
+                {smartForms.length === 0 ? (
+                  <option value="">לא נמצאו טפסים במערכת</option>
+                ) : (
+                  smartForms.map((sf) => (
+                    <option key={sf.id} value={sf.id}>
+                      {sf.title} ({sf.steps?.length || 0} שאלות)
+                    </option>
+                  ))
+                )}
+              </select>
+            </div>
+
+            {selectedFormId && (
+              <span className="text-xs text-gray-400 font-mono">
+                קולקציה: `mod_forms/{selectedFormId}/submissions`
+              </span>
+            )}
+          </div>
+
+          {smartForms.find((f) => f.id === selectedFormId) ? (
+            <FormSubmissionsTable form={smartForms.find((f) => f.id === selectedFormId)!} />
+          ) : (
+            <div className="p-12 text-center text-gray-400">
+              בחר טופס מהתפריט למעלה לצפייה בטבלת ההגשות והאנליטיקה שלו.
+            </div>
+          )}
+        </div>
       )}
 
-      {/* KPI Cards */}
-      <AnalyticsSummaryCards
-        data={data}
-        loading={loading}
-        onMetricClick={setActiveMetric}
-        activeMetric={activeMetric}
-      />
-
-      {/* Visual Charts */}
-      {showCharts && data && (
-        <AnalyticsChartsView
-          data={data}
-          onTagClick={handleTagClick}
-          onCommunityClick={handleCommunityClick}
-        />
-      )}
-
-      {/* Dynamic Data Table */}
-      <DynamicAnalyticsTable
-        contacts={data?.contacts || []}
-        columns={availableColumns}
-        selectedColumnIds={selectedColumns}
-        onToggleColumn={toggleColumn}
-        onUpdateField={updateField}
-        onSelectContact={handleOpenContact}
-        loading={loading}
-      />
 
       {/* Contact 360 & AI Copilot Modal */}
       <Contact360Modal

@@ -1,4 +1,4 @@
-﻿import { Contact, AIInteraction } from '../types';
+import { Contact, AIInteraction } from '../types';
 
 export interface AIJsonCredentialsResult {
   sdkType: 'admin_sdk' | 'client_sdk' | 'unknown';
@@ -117,7 +117,7 @@ ${rawJsonString}
 }
 `;
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -10,6 +10,8 @@ import { ClientReceiverPlatformStandaloneView } from '../modules/client-receiver
 import { DbConnectorHubStandaloneView } from '../modules/db-connector-hub';
 import { VideoProducerStudioView } from '../modules/video-producer-studio';
 
+import { SmartFormBuilderStandaloneView } from '../modules/smart-form-builder';
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -20,6 +22,15 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'smart-form-builder',
+    name: 'בונה הטפסים החכם (Smart Form Builder)',
+    description: 'מחולל טפסים רב-שלביים יוקרתיים ב-AI, שלב-אחר-שלב, תת-קולקציות וחיבור ישיר לאנליטיקה ול-CRM',
+    component: SmartFormBuilderStandaloneView,
+    route: '/smart-forms',
+    collectionPrefix: 'mod_forms',
+  },
+
   {
     id: 'video-producer-studio',
     name: 'סטודיו וידאו ואווטאר (SDO Video Producer & HeyGen)',

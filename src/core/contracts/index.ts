@@ -44,5 +44,14 @@ export interface CoreEventMap {
   'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };
   'auth:state_changed': AuthSessionContract;
   'form:submitted': { formId: string; pageUrl: string; data: Record<string, any> };
+  'smart_form:submitted': {
+    formId: string;
+    formTitle: string;
+    submissionId: string;
+    data: Record<string, any>;
+    leadPayload?: LeadPayload;
+    submittedAt: string;
+  };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
 }
+
