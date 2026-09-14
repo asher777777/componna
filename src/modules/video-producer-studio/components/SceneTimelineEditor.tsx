@@ -857,24 +857,38 @@ export const SceneTimelineEditor: React.FC = () => {
                               <button
                                 type="button"
                                 onClick={() => updateCurrentScene(activeScene.id, { backgroundMediaUrl: undefined, customAvatarImageUrl: undefined })}
-                                className="p-1.5 text-slate-500 hover:text-rose-400"
+                                className="p-1.5 text-slate-500 hover:text-rose-400 cursor-pointer"
                                 title="נקה תמונה"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             )}
                           </div>
-                          <input
-                            type="text"
-                            value={activeScene.backgroundMediaUrl || activeScene.customAvatarImageUrl || ''}
-                            onChange={(e) => updateCurrentScene(activeScene.id, {
-                              backgroundMediaUrl: e.target.value,
-                              customAvatarImageUrl: e.target.value,
-                              backgroundType: 'image'
-                            })}
-                            placeholder="או הדבק קישור URL ישיר לתמונה..."
-                            className="w-full p-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500"
-                          />
+
+                          {/* Clean representation of Base64 / URL */}
+                          {(activeScene.backgroundMediaUrl || activeScene.customAvatarImageUrl)?.startsWith('data:') ? (
+                            <div className="flex items-center justify-between p-2 bg-slate-900/90 border border-emerald-500/30 rounded-xl text-xs">
+                              <span className="text-emerald-400 font-semibold flex items-center gap-1.5 truncate">
+                                <Sparkles className="w-3.5 h-3.5 text-pink-400 shrink-0" />
+                                <span>תמונת בננה פרו (Base64) שמורה ומוכנה להפקה</span>
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
+                                Image Data
+                              </span>
+                            </div>
+                          ) : (
+                            <input
+                              type="text"
+                              value={activeScene.backgroundMediaUrl || activeScene.customAvatarImageUrl || ''}
+                              onChange={(e) => updateCurrentScene(activeScene.id, {
+                                backgroundMediaUrl: e.target.value,
+                                customAvatarImageUrl: e.target.value,
+                                backgroundType: 'image'
+                              })}
+                              placeholder="או הדבק קישור URL ישיר לתמונה (https://...)..."
+                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 transition"
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1043,6 +1057,21 @@ export const SceneTimelineEditor: React.FC = () => {
                             <audio src={activeScene.renderedAudioUrl} controls className="h-6 max-w-[200px]" />
                           </div>
                         )}
+
+                        <div className="flex items-center justify-between gap-2 p-2 bg-purple-950/30 border border-purple-500/20 rounded-lg text-xs">
+                          <span className="text-purple-300 flex items-center gap-1.5">
+                            <Mic className="w-3.5 h-3.5 text-purple-400" />
+                            <span>הגדרות קול ואווטאר HeyGen:</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => openAvatarModal(activeScene.id)}
+                            className="px-2.5 py-1 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Sliders className="w-3 h-3" />
+                            <span>בחר קול / אווטאר</span>
+                          </button>
+                        </div>
                       </div>
                     )}
 

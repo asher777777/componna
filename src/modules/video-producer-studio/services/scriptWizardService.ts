@@ -335,7 +335,7 @@ Return ONLY a valid JSON object matching this exact schema:
 
   const rawScenes = parsed.scenes || [];
   const defaultAvatar = 'Wayne_20240711';
-  const defaultVoice = '077ab11b14f04ce0b49b5f67b5f59629';
+  const defaultVoice = '1bd001e7e50f421d891986aad5158bc8';
 
   const scenes: VideoScene[] = rawScenes.map((s: any, idx: number) => {
     const sceneId = `scene_${Date.now()}_${idx + 1}`;
@@ -503,7 +503,7 @@ Return ONLY a JSON object with this exact schema:
     durationSeconds: parsed.durationSeconds || 6,
     avatarId: project.scenes[0]?.avatarId || 'Wayne_20240711',
     avatarPose: 'half_body',
-    voiceId: project.scenes[0]?.voiceId || '077ab11b14f04ce0b49b5f67b5f59629',
+    voiceId: project.scenes[0]?.voiceId || '1bd001e7e50f421d891986aad5158bc8',
     transition: 'fade',
     heygenStatus: 'pending',
     interactiveActions: (parsed.interactiveActions || []).map((act: any, aIdx: number) => ({

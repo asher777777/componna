@@ -316,7 +316,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       durationSeconds: 6,
       avatarId: 'Wayne_20240711',
       avatarPose: 'half_body',
-      voiceId: '077ab11b14f04ce0b49b5f67b5f59629',
+      voiceId: '1bd001e7e50f421d891986aad5158bc8',
       transition: 'fade',
       heygenStatus: 'pending',
       subtitleText: 'טקסט קריינות עבור הסצנה...',

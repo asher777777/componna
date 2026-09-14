@@ -34,11 +34,46 @@ export const DEFAULT_AVATARS: HeyGenAvatar[] = [
 ];
 
 export const DEFAULT_VOICES: HeyGenVoice[] = [
-  { voice_id: '077ab11b14f04ce0b49b5f67b5f59629', name: 'Alon (Hebrew Natural)', language: 'Hebrew', gender: 'male' },
+  { voice_id: '1bd001e7e50f421d891986aad5158bc8', name: 'Sara (Natural Voice)', language: 'Hebrew/English', gender: 'female' },
+  { voice_id: '26b200a0884541ddb94154942d96c9c6', name: 'Tony (Dynamic Host)', language: 'Hebrew/English', gender: 'male' },
   { voice_id: '131a436e60e24f1191a3538b6ec051e7', name: 'Hila (Hebrew Female)', language: 'Hebrew', gender: 'female' },
   { voice_id: '2d5b0e6cf36f460aa7fc47e3eee4ba54', name: 'Sarah (English US)', language: 'English', gender: 'female' },
   { voice_id: '3b09282df5844888be6a89c491b359f4', name: 'Adam (English US)', language: 'English', gender: 'male' },
 ];
+
+export async function resolveValidVoiceId(apiKey: string, requestedVoiceId?: string): Promise<string> {
+  const invalidDefault = '077ab11b14f04ce0b49b5f67b5f59629';
+  if (apiKey && apiKey.trim()) {
+    try {
+      const liveVoices = await fetchHeyGenVoices(apiKey);
+      if (liveVoices && liveVoices.length > 0) {
+        // If requested voice ID is valid and exists in live voices, use it
+        if (requestedVoiceId && requestedVoiceId !== invalidDefault) {
+          const match = liveVoices.find(v => v.voice_id === requestedVoiceId);
+          if (match) return match.voice_id;
+        }
+        // Look for a Hebrew voice first
+        const hebrewVoice = liveVoices.find(v => 
+          v.language?.toLowerCase().includes('hebrew') || 
+          v.name?.toLowerCase().includes('hebrew') ||
+          v.language?.toLowerCase().includes('he-il')
+        );
+        if (hebrewVoice) return hebrewVoice.voice_id;
+
+        // Otherwise return the first active voice available on this HeyGen account
+        return liveVoices[0].voice_id;
+      }
+    } catch (err) {
+      console.warn('[HeyGen] Could not query live voices for fallback:', err);
+    }
+  }
+
+  // Fallback to recognized standard voice if API call failed
+  if (requestedVoiceId && requestedVoiceId !== invalidDefault) {
+    return requestedVoiceId;
+  }
+  return '1bd001e7e50f421d891986aad5158bc8';
+}
 
 export async function fetchHeyGenAvatars(apiKey: string): Promise<HeyGenAvatar[]> {
   if (!apiKey) return DEFAULT_AVATARS;
@@ -349,6 +384,12 @@ export async function generateHeyGenSceneVideo(
 
   const aspectRatio = params.aspectRatio === '9:16' ? '9:16' : (params.aspectRatio === '1:1' ? '1:1' : '16:9');
 
+  // Resolve valid voice ID dynamically if script text is provided
+  let resolvedVoiceId: string = '1bd001e7e50f421d891986aad5158bc8';
+  if (params.scriptText?.trim()) {
+    resolvedVoiceId = await resolveValidVoiceId(apiKey, params.voiceId);
+  }
+
   // 3. Try HeyGen Image-to-Video API (POST /v3/videos)
   try {
     let v3Payload: any;
@@ -370,7 +411,7 @@ export async function generateHeyGenSceneVideo(
         v3Payload.audio_url = publicAudioUrl;
       } else if (params.scriptText?.trim()) {
         v3Payload.script = params.scriptText;
-        v3Payload.voice_id = params.voiceId || '077ab11b14f04ce0b49b5f67b5f59629';
+        v3Payload.voice_id = resolvedVoiceId;
       }
     } else {
       // Studio Avatar Model
@@ -388,7 +429,7 @@ export async function generateHeyGenSceneVideo(
         v3Payload.audio_url = publicAudioUrl;
       } else if (params.scriptText?.trim()) {
         v3Payload.script = params.scriptText;
-        v3Payload.voice_id = params.voiceId || '077ab11b14f04ce0b49b5f67b5f59629';
+        v3Payload.voice_id = resolvedVoiceId;
       }
     }
 
@@ -469,7 +510,7 @@ export async function generateHeyGenSceneVideo(
     voiceConfig = {
       type: 'text',
       input_text: params.scriptText,
-      voice_id: params.voiceId || '077ab11b14f04ce0b49b5f67b5f59629'
+      voice_id: resolvedVoiceId
     };
   }
 

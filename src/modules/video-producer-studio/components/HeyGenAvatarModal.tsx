@@ -17,7 +17,7 @@ export const HeyGenAvatarModal: React.FC = () => {
 
   const targetScene = activeProject.scenes.find(s => s.id === modalTargetSceneId);
   const [selectedAvatarId, setSelectedAvatarId] = useState(targetScene?.avatarId || 'Wayne_20240711');
-  const [selectedVoiceId, setSelectedVoiceId] = useState(targetScene?.voiceId || '077ab11b14f04ce0b49b5f67b5f59629');
+  const [selectedVoiceId, setSelectedVoiceId] = useState(targetScene?.voiceId || '1bd001e7e50f421d891986aad5158bc8');
   const [filterGender, setFilterGender] = useState<'all' | 'male' | 'female'>('all');
 
   const filteredAvatars = avatars.filter(a => {
