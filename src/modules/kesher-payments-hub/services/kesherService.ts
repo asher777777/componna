@@ -487,20 +487,26 @@ export class KesherService {
       if (resp.Trans) return Array.isArray(resp.Trans) ? resp.Trans : [resp.Trans];
       if (resp.data) return Array.isArray(resp.data) ? resp.data : [resp.data];
       if (resp.Data) return Array.isArray(resp.Data) ? resp.Data : [resp.Data];
+      if (resp.docs) return Array.isArray(resp.docs) ? resp.docs : [resp.docs];
+      if (resp.Documents) return Array.isArray(resp.Documents) ? resp.Documents : [resp.Documents];
       if (resp.Table) return Array.isArray(resp.Table) ? resp.Table : [resp.Table];
       if (resp.Rows) return Array.isArray(resp.Rows) ? resp.Rows : [resp.Rows];
       if (resp.Items) return Array.isArray(resp.Items) ? resp.Items : [resp.Items];
+      if (resp.List) return Array.isArray(resp.List) ? resp.List : [resp.List];
       return [];
     };
 
-    const fetchEndpoint = async (funcName: string): Promise<any[]> => {
+    const fetchEndpoint = async (funcName: string, extraParams: Record<string, any> = {}): Promise<any[]> => {
       const payloadDirect = {
         func: funcName,
         format: 'json',
         userName: this.settings.userName,
         password: this.settings.apiKey,
         fromDate: fromDateStr,
-        toDate: toDateStr
+        toDate: toDateStr,
+        FromDate: fromDateStr,
+        ToDate: toDateStr,
+        ...extraParams
       };
 
       try {
@@ -520,27 +526,82 @@ export class KesherService {
       }
     };
 
-    // שליפה מהירה במקביל של עסקאות רגילות והוראות קבע
-    const [transResult, hkResult] = await Promise.allSettled([
-      fetchEndpoint('GetTrans'),
-      fetchEndpoint('GetHKTrans')
+    // שליפה ישירה של מסמכי איזי קאונט במידה ומוגדר טוקן
+    const fetchEasyCountDocs = async (): Promise<any[]> => {
+      if (!this.settings.ezCountToken) return [];
+      const ezUrls = [
+        'https://api.ezcount.co.il/api/get-docs',
+        'https://corsproxy.io/?url=' + encodeURIComponent('https://api.ezcount.co.il/api/get-docs'),
+        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.ezcount.co.il/api/get-docs')
+      ];
+      const ezPayload = {
+        api_key: this.settings.ezCountToken,
+        token: this.settings.ezCountToken,
+        from_date: fromDateStr.replace(/\//g, '-'),
+        to_date: toDateStr.replace(/\//g, '-')
+      };
+
+      for (const url of ezUrls) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 3500);
+        try {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(ezPayload),
+            signal: controller.signal
+          });
+          clearTimeout(timer);
+          if (res.ok) {
+            const data = await res.json();
+            const list = extractTxArray(data);
+            if (list.length > 0) return list;
+          }
+        } catch {
+          clearTimeout(timer);
+        }
+      }
+      return [];
+    };
+
+    // שליפה מהירה במקביל של כל ערוצי המידע בקשר:
+    // 1. GetTrans (כולל מזומן, אשראי והעברות)
+    // 2. GetCompanyTransactions (דוח עסקאות לפי חברה)
+    // 3. GetCashTransactions (דוח עסקאות מזומן וצ'קים)
+    // 4. GetHKTrans (הוראות קבע)
+    // 5. GetDocs (מסמכים וקבלות)
+    // 6. EasyCount Get-Docs
+    const results = await Promise.allSettled([
+      fetchEndpoint('GetTrans', { TranType: 0, IncludeCash: true, isAll: true }),
+      fetchEndpoint('GetCompanyTransactions'),
+      fetchEndpoint('GetCashTransactions'),
+      fetchEndpoint('GetCashTrans'),
+      fetchEndpoint('GetDocs'),
+      fetchEndpoint('GetHKTrans'),
+      fetchEasyCountDocs()
     ]);
 
     const allTransactionsMap = new Map<string, any>();
 
-    if (transResult.status === 'fulfilled' && Array.isArray(transResult.value)) {
-      transResult.value.forEach((tx: any, idx: number) => {
-        const key = String(tx.NumTransaction || tx.Id || tx.TranId || tx.TransactionId || tx.DocNumber || `tx_${idx}`).trim();
-        if (key) allTransactionsMap.set(key, tx);
-      });
-    }
-
-    if (hkResult.status === 'fulfilled' && Array.isArray(hkResult.value)) {
-      hkResult.value.forEach((tx: any, idx: number) => {
-        const key = String(tx.NumTransaction || tx.Id || tx.TranId || tx.TransactionId || tx.DocNumber || `hk_${idx}`).trim();
-        if (key && !allTransactionsMap.has(key)) allTransactionsMap.set(key, tx);
-      });
-    }
+    results.forEach((res, resIdx) => {
+      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
+        res.value.forEach((tx: any, idx: number) => {
+          const key = String(
+            tx.NumTransaction ||
+            tx.Id ||
+            tx.TranId ||
+            tx.TransactionId ||
+            tx.DocNumber ||
+            tx.doc_number ||
+            tx.number ||
+            `${tx.Date || tx.TranDate || tx.doc_date}_${tx.Total || tx.Sum || tx.amount}_${resIdx}_${idx}`
+          ).trim();
+          if (key && !allTransactionsMap.has(key)) {
+            allTransactionsMap.set(key, tx);
+          }
+        });
+      }
+    });
 
     return Array.from(allTransactionsMap.values());
   }
@@ -573,130 +634,566 @@ export class KesherService {
   }
 
   /**
+   * פענוח אמצעי תשלום מדויק מכל שדות המקור של קשר
+   */
+  public parseTransactionPaymentMethod(tx: any): {
+    method: 'CreditCard' | 'Cash' | 'Check' | 'BankTransfer' | 'Bit' | 'StandingOrder';
+    label: string;
+    details: {
+      checkNumber?: string;
+      bankName?: string;
+      branchNumber?: string;
+      accountNumber?: string;
+      cardDigits?: string;
+      transferRef?: string;
+    };
+  } {
+    const rawStr = JSON.stringify(tx || {}).toLowerCase();
+    const pMethod = String(tx?.PaymentMethod || '').toLowerCase();
+    const chargeOption = String(tx?.ChargeOptionType || '').toLowerCase();
+    const details = String(tx?.Details || tx?.Description || tx?.Comment || '').toLowerCase();
+    const pType = String(tx?.PaymentType || tx?.payment_type || '').toLowerCase();
+
+    const checkNum = String(tx?.CheckNumber || tx?.NumCheck || tx?.check_number || '').trim();
+    const bank = String(tx?.Bank || tx?.BankName || tx?.bank_name || '').trim();
+    const branch = String(tx?.Branch || tx?.BranchNumber || tx?.branch_number || '').trim();
+    const account = String(tx?.Account || tx?.AccountNumber || tx?.account_number || '').trim();
+    const cardDigits = String(tx?.CreditNum || tx?.CardNumber || tx?.NumCard || tx?.last4 || '').trim().slice(-4);
+
+    // 1. Bit
+    if (tx?.IsBit || rawStr.includes('bit') || pMethod.includes('bit') || chargeOption.includes('bit') || details.includes('bit')) {
+      return {
+        method: 'Bit',
+        label: 'Bit',
+        details: {}
+      };
+    }
+
+    // 2. Check / שיק / צ'ק
+    if (
+      checkNum ||
+      chargeOption === 'check' ||
+      pType === '2' ||
+      pType === 'check' ||
+      pMethod.includes('צ\'ק') ||
+      pMethod.includes('שיק') ||
+      pMethod.includes('check') ||
+      details.includes('צ\'ק') ||
+      details.includes('שיק')
+    ) {
+      return {
+        method: 'Check',
+        label: checkNum ? `צ'ק (#${checkNum})` : 'צ\'ק',
+        details: { checkNumber: checkNum, bankName: bank, branchNumber: branch, accountNumber: account }
+      };
+    }
+
+    // 3. Bank Transfer / העברה בנקאית
+    if (
+      chargeOption === 'banktransfer' ||
+      chargeOption === 'bank_transfer' ||
+      pType === '3' ||
+      pType === 'bank_transfer' ||
+      pMethod.includes('העברה') ||
+      pMethod.includes('transfer') ||
+      pMethod.includes('בנק') ||
+      details.includes('העברה') ||
+      ((bank || branch) && !cardDigits && !checkNum)
+    ) {
+      const bankLabel = bank ? ` (${bank}${branch ? `-${branch}` : ''})` : '';
+      return {
+        method: 'BankTransfer',
+        label: `העברה בנקאית${bankLabel}`,
+        details: { bankName: bank, branchNumber: branch, accountNumber: account }
+      };
+    }
+
+    // 4. Standing Order / הוראת קבע
+    if (
+      tx?.IsHK ||
+      tx?.CreditType === 10 ||
+      pType === '10' ||
+      pMethod.includes('הוראת קבע') ||
+      details.includes('הוראת קבע')
+    ) {
+      return {
+        method: 'StandingOrder',
+        label: 'הוראת קבע',
+        details: { cardDigits }
+      };
+    }
+
+    // 5. Cash / מזומן
+    if (
+      chargeOption === 'cash' ||
+      pType === '1' ||
+      pType === 'cash' ||
+      pMethod.includes('מזומן') ||
+      details.includes('מזומן')
+    ) {
+      return {
+        method: 'Cash',
+        label: 'מזומן',
+        details: {}
+      };
+    }
+
+    // 6. Credit Card / אשראי
+    if (
+      cardDigits ||
+      tx?.CreditNum ||
+      tx?.CardNumber ||
+      tx?.NumCard ||
+      tx?.CreditType ||
+      tx?.CreditCardCompany ||
+      chargeOption === 'creditcard' ||
+      pType === 'credit_card' ||
+      pMethod.includes('אשראי')
+    ) {
+      return {
+        method: 'CreditCard',
+        label: cardDigits ? `אשראי (..${cardDigits})` : 'כרטיס אשראי',
+        details: { cardDigits }
+      };
+    }
+
+    // ברירת מחדל: אם יש ספרות כרטיס או סכום ללא פירוט
+    return {
+      method: cardDigits ? 'CreditCard' : 'Cash',
+      label: cardDigits ? `אשראי (..${cardDigits})` : 'תקבול כללי',
+      details: { cardDigits }
+    };
+  }
+
+  /**
+   * סנכרון מלא של לקוחות, עסקאות ותקבולים ישירות ל-CRM ול-Firestore
+   */
+  public async syncCustomersToCRM(
+    timeframe: 'all' | 'year' | '3months' | 'week' = 'all',
+    onProgress?: (progressText: string) => void,
+    customDb?: any
+  ): Promise<{
+    success: boolean;
+    totalFetched: number;
+    createdContactsCount: number;
+    updatedContactsCount: number;
+    totalTransactions: number;
+    countsByMethod: {
+      check: number;
+      bankTransfer: number;
+      cash: number;
+      creditCard: number;
+      bit: number;
+      standingOrder: number;
+    };
+    message: string;
+    error?: string;
+  }> {
+    const methodCounts = {
+      check: 0,
+      bankTransfer: 0,
+      cash: 0,
+      creditCard: 0,
+      bit: 0,
+      standingOrder: 0,
+    };
+
+    if (!this.isConfigured()) {
+      return {
+        success: false,
+        totalFetched: 0,
+        createdContactsCount: 0,
+        updatedContactsCount: 0,
+        totalTransactions: 0,
+        countsByMethod: methodCounts,
+        message: '',
+        error: 'לא הוגדרו פרטי קשר (שם משתמש ומפתח) בהגדרות המערכת.'
+      };
+    }
+
+    onProgress?.('שולף עסקאות ומסמכים מכל ערוצי קשר...');
+    const rawTransactions = await this.getTransactions(timeframe);
+
+    if (!rawTransactions || rawTransactions.length === 0) {
+      return {
+        success: true,
+        totalFetched: 0,
+        createdContactsCount: 0,
+        updatedContactsCount: 0,
+        totalTransactions: 0,
+        countsByMethod: methodCounts,
+        message: 'לא נמצאו עסקאות או מסמכים במסוף קשר בטווח הזמן שנבחר.'
+      };
+    }
+
+    onProgress?.(`מפענח ${rawTransactions.length} עסקאות ותקבולים...`);
+
+    // פונקציית ניקוי ונירמול טלפון
+    const normalizePhoneStr = (phone?: string): string => {
+      if (!phone) return '';
+      let clean = String(phone).replace(/\D/g, '');
+      if (clean.startsWith('972')) {
+        clean = '0' + clean.slice(3);
+      } else if (clean.length === 9 && clean.startsWith('5')) {
+        clean = '0' + clean;
+      }
+      return clean;
+    };
+
+    // המרה למבנה פריטי עסקה אחידים
+    const localItems: KesherTransactionItem[] = [];
+
+    // מיפוי לקוחות לפי מזהה ייחודי: טלפון מנורמל -> אימייל -> ת.ז -> שם מלא
+    const customersMap = new Map<string, {
+      demographics: {
+        conta_name: string;
+        f_m: string;
+        l_m: string;
+        conta_phone: string;
+        phone: string;
+        normalizedPhone: string;
+        email: string;
+        company_name: string;
+        mh_crm_city: string;
+        mh_crm_street: string;
+        tg1: string; // ת.ז
+        tz: string;
+      };
+      payments: any[];
+      donations: any[];
+      events: any[];
+      paymentDetails: Record<string, any>;
+    }>();
+
+    for (let idx = 0; idx < rawTransactions.length; idx++) {
+      const tx = rawTransactions[idx];
+      const txId = String(
+        tx.NumTransaction || tx.Id || tx.TranId || tx.TransactionId || tx.DocNumber || tx.doc_number || tx.number || `trx_${idx}`
+      ).trim();
+
+      const rawTotal = tx.Total !== undefined ? tx.Total : (tx.Sum !== undefined ? tx.Sum : (tx.Amount !== undefined ? tx.Amount : (tx.amount !== undefined ? tx.amount : 0)));
+      const parsedTotal = typeof rawTotal === 'number' ? rawTotal : parseFloat(String(rawTotal).replace(/[^0-9.-]/g, '') || '0');
+      const amount = parsedTotal >= 500 && Number.isInteger(parsedTotal) && !tx.doc_number ? parsedTotal / 100 : parsedTotal;
+      const parsedDate = this.parseKesherDate(tx.TranDate || tx.Date || tx.TransactionDate || tx.CreatedAt || tx.doc_date || tx.created_at);
+      const isSuccess = tx.CreditStatus === 0 || tx.CreditStatus === '0' || !tx.CreditStatus || String(tx.Status || '').includes('אושר') || String(tx.Status || '').includes('הושלם') || tx.Status === '000' || tx.Status === 'Approved' || tx.status === 'success';
+
+      const parsedMethod = this.parseTransactionPaymentMethod(tx);
+
+      // עדכון ספירות
+      if (parsedMethod.method === 'Check') methodCounts.check++;
+      else if (parsedMethod.method === 'BankTransfer') methodCounts.bankTransfer++;
+      else if (parsedMethod.method === 'Cash') methodCounts.cash++;
+      else if (parsedMethod.method === 'Bit') methodCounts.bit++;
+      else if (parsedMethod.method === 'StandingOrder') methodCounts.standingOrder++;
+      else methodCounts.creditCard++;
+
+      const rawPhone = String(tx.Phone || tx.Phone2 || tx.PhoneNumber || tx.Tel || tx.customer_phone || tx.phone || '').trim();
+      const normPhone = normalizePhoneStr(rawPhone);
+      const cleanEmail = String(tx.Mail || tx.Email || tx.customer_email || tx.email || '').trim().toLowerCase();
+      const cleanTz = String(tx.Tz || tx.IdNum || tx.ID || tx.tg1 || tx.customer_tz || tx.vat_id || '').trim();
+      const fullName = (tx.Name || tx.ClientName || tx.FullName || tx.customer_name || tx.client_name || `${tx.FirstName || ''} ${tx.LastName || ''}`).trim() || 'לקוח קשר';
+
+      const rawDocType = tx.DocumentType || tx.DocType || tx.ReceiptType || tx.ProjectNumber || tx.ProjectNum || tx.doc_type;
+      let docType = 400;
+      if (rawDocType) {
+        const numDoc = Number(rawDocType);
+        if (!isNaN(numDoc) && numDoc > 0) docType = numDoc;
+        else if (String(rawDocType).includes('תרומה')) docType = 405;
+        else if (String(rawDocType).includes('מס קבלה')) docType = 320;
+        else if (String(rawDocType).includes('מס')) docType = 305;
+      }
+
+      const receiptUrl = tx.OriginalDoc || tx.CopyDoc || tx.DocUrl || tx.Url || tx.ReceiptUrl || tx.pdf_url || tx.download_url || '';
+      const authNumber = String(tx.AuthNum || tx.AuthNumber || tx.ApprovalNumber || tx.DocNumber || tx.doc_number || tx.NumTransaction || tx.CheckNumber || '');
+
+      const transItem: KesherTransactionItem = {
+        id: `kesher_${txId || Math.random().toString(36).substring(2, 8)}`,
+        transactionId: txId,
+        date: parsedDate.toISOString(),
+        amount,
+        clientName: fullName,
+        phone: rawPhone,
+        email: cleanEmail,
+        tz: cleanTz,
+        paymentMethod: parsedMethod.method,
+        documentType: docType,
+        status: isSuccess ? 'Approved' : String(tx.Status || 'Declined'),
+        receiptUrl,
+        authNumber,
+        last4: parsedMethod.details.cardDigits || (tx.CreditNum ? String(tx.CreditNum).slice(-4) : ''),
+        raw: tx
+      };
+
+      localItems.push(transItem);
+
+      // צירוף לרשומת הלקוח
+      const customerKey = normPhone || cleanEmail || cleanTz || fullName;
+      if (!customersMap.has(customerKey)) {
+        customersMap.set(customerKey, {
+          demographics: {
+            conta_name: fullName,
+            f_m: String(tx.FirstName || '').trim() || fullName.split(' ')[0] || '',
+            l_m: String(tx.LastName || '').trim() || (fullName.includes(' ') ? fullName.split(' ').slice(1).join(' ') : ''),
+            conta_phone: normPhone || rawPhone,
+            phone: normPhone || rawPhone,
+            normalizedPhone: normPhone,
+            email: cleanEmail,
+            company_name: String(tx.CompanyName || tx.CreditCardCompany || '').trim(),
+            mh_crm_city: String(tx.City || '').trim(),
+            mh_crm_street: [tx.Address, tx.NumHouse, tx.Entrance ? `כניסה ${tx.Entrance}` : '', tx.ApartmentNumber ? `דירה ${tx.ApartmentNumber}` : ''].filter(Boolean).join(' ').trim(),
+            tg1: cleanTz,
+            tz: cleanTz
+          },
+          payments: [],
+          donations: [],
+          events: [],
+          paymentDetails: { ...parsedMethod.details }
+        });
+      }
+
+      const cust = customersMap.get(customerKey)!;
+      if (!cust.demographics.conta_phone && normPhone) cust.demographics.conta_phone = normPhone;
+      if (!cust.demographics.email && cleanEmail) cust.demographics.email = cleanEmail;
+      if (!cust.demographics.tg1 && cleanTz) {
+        cust.demographics.tg1 = cleanTz;
+        cust.demographics.tz = cleanTz;
+      }
+      if (!cust.demographics.company_name && tx.CompanyName) cust.demographics.company_name = tx.CompanyName.trim();
+      if (!cust.demographics.mh_crm_city && tx.City) cust.demographics.mh_crm_city = tx.City.trim();
+
+      const paymentRecord = {
+        id: `pay_${txId || Date.now()}_${idx}`,
+        transactionId: txId,
+        date: parsedDate.toISOString(),
+        amount,
+        paymentMethod: parsedMethod.method,
+        method: parsedMethod.label,
+        paymentType: parsedMethod.method,
+        status: isSuccess ? 'success' : 'failed',
+        kesherStatus: tx.Status || (isSuccess ? 'Approved' : 'Declined'),
+        documentType: docType,
+        receiptUrl,
+        receiptLink: receiptUrl,
+        authNumber,
+        checkNumber: parsedMethod.details.checkNumber || '',
+        bankName: parsedMethod.details.bankName || '',
+        branchNumber: parsedMethod.details.branchNumber || '',
+        accountNumber: parsedMethod.details.accountNumber || '',
+        cardDigits: parsedMethod.details.cardDigits || '',
+        projectName: tx.ProjectName || tx.ProjectNum || '',
+        comment: tx.Comment || tx.Details || tx.Description || ''
+      };
+
+      cust.payments.push(paymentRecord);
+      cust.donations.push({
+        id: txId || `don_${Date.now()}_${idx}`,
+        campaignId: tx.ProjectNum || 'kesher',
+        campaignTitle: tx.ProjectName || 'קשר',
+        amount,
+        paymentStatus: isSuccess ? 'completed' : 'failed',
+        paymentMethod: parsedMethod.label,
+        transactionId: txId,
+        receiptUrl,
+        date: parsedDate.toISOString(),
+        dedication: tx.Comment || ''
+      });
+      cust.events.push({
+        title: `תקבול בקשר (${parsedMethod.label}): ₪${amount}`,
+        type: 'kesher_transaction',
+        amount,
+        date: parsedDate.toISOString()
+      });
+    }
+
+    // שמירה מקומית של כל העסקאות
+    this.mergeLocalTransactions(localItems);
+
+    let createdContactsCount = 0;
+    let updatedContactsCount = 0;
+
+    // סנכרון ל-Firestore (CRM Contacts + kesher_transactions)
+    try {
+      const { db } = await import('../../../services/firebase');
+      const targetDb = customDb || db;
+
+      if (targetDb) {
+        const { collection, getDocs, doc, setDoc, updateDoc } = await import('firebase/firestore');
+
+        onProgress?.('מסנכרן לקוחות ואנשי קשר מול מסד הנתונים של ה-CRM...');
+
+        // שליפת אנשי קשר קיימים
+        const contactsRef = collection(targetDb, 'contacts');
+        const contactsSnap = await getDocs(contactsRef);
+        const existingContacts: any[] = [];
+        contactsSnap.forEach((d) => existingContacts.push({ id: d.id, ...d.data() }));
+
+        for (const [key, custData] of customersMap.entries()) {
+          const normPhone = custData.demographics.normalizedPhone;
+          const cleanEmail = custData.demographics.email;
+          const cleanTz = custData.demographics.tg1;
+
+          // חיפוש איש קשר קיים לפי טלפון, אימייל או ת.ז
+          const existing = existingContacts.find((c: any) => {
+            const cPhone = normalizePhoneStr(c.phone || c.conta_phone || c.mobile || c.phoneNumber);
+            const cEmail = String(c.email || '').trim().toLowerCase();
+            const cTz = String(c.tg1 || c.tz || c.idNumber || '').trim();
+
+            if (normPhone && cPhone && (cPhone === normPhone || cPhone.endsWith(normPhone) || normPhone.endsWith(cPhone))) return true;
+            if (cleanEmail && cEmail && cEmail === cleanEmail) return true;
+            if (cleanTz && cTz && cTz === cleanTz) return true;
+            return false;
+          });
+
+          if (existing) {
+            // עדכון איש קשר קיים
+            const updates: any = {};
+            if (!existing.conta_name || existing.conta_name === 'לקוח' || existing.conta_name === 'אנונימי') {
+              if (custData.demographics.conta_name) {
+                updates.conta_name = custData.demographics.conta_name;
+                updates.name = custData.demographics.conta_name;
+                updates.fullName = custData.demographics.conta_name;
+              }
+            }
+            if (!existing.f_m && custData.demographics.f_m) updates.f_m = custData.demographics.f_m;
+            if (!existing.l_m && custData.demographics.l_m) updates.l_m = custData.demographics.l_m;
+            if (!existing.email && cleanEmail) updates.email = cleanEmail;
+            if (!existing.conta_phone && custData.demographics.conta_phone) updates.conta_phone = custData.demographics.conta_phone;
+            if (!existing.company_name && custData.demographics.company_name) updates.company_name = custData.demographics.company_name;
+            if (!existing.mh_crm_city && custData.demographics.mh_crm_city) updates.mh_crm_city = custData.demographics.mh_crm_city;
+            if (!existing.mh_crm_street && custData.demographics.mh_crm_street) updates.mh_crm_street = custData.demographics.mh_crm_street;
+            if (!existing.tg1 && cleanTz) {
+              updates.tg1 = cleanTz;
+              updates.tz = cleanTz;
+            }
+
+            // מיזוג תשלומים
+            const currentPayments: any[] = Array.isArray(existing.payments) ? [...existing.payments] : [];
+            const currentDonations: any[] = Array.isArray(existing.campaign_donations_history) ? [...existing.campaign_donations_history] : [];
+            const currentEvents: any[] = Array.isArray(existing.events) ? [...existing.events] : [];
+            let addedNewPayments = false;
+
+            for (const p of custData.payments) {
+              const isDup = currentPayments.some(
+                (cp) => (cp.transactionId && p.transactionId && cp.transactionId === p.transactionId) ||
+                        (cp.date === p.date && Number(cp.amount) === Number(p.amount) && cp.paymentMethod === p.paymentMethod)
+              );
+              if (!isDup) {
+                currentPayments.unshift(p);
+                addedNewPayments = true;
+              }
+            }
+
+            for (const d of custData.donations) {
+              const isDup = currentDonations.some(
+                (cd) => (cd.transactionId && d.transactionId && cd.transactionId === d.transactionId) ||
+                        (cd.id && d.id && cd.id === d.id)
+              );
+              if (!isDup) {
+                currentDonations.unshift(d);
+                addedNewPayments = true;
+              }
+            }
+
+            for (const ev of custData.events) {
+              const isDup = currentEvents.some((cev) => cev.date === ev.date && cev.title === ev.title);
+              if (!isDup) {
+                currentEvents.unshift(ev);
+                addedNewPayments = true;
+              }
+            }
+
+            if (addedNewPayments) {
+              updates.payments = currentPayments;
+              updates.campaign_donations_history = currentDonations;
+              updates.events = currentEvents;
+
+              const successful = currentPayments.filter((p) => p.status === 'success' || p.status === 'Approved');
+              updates.total_spent = successful.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+              updates.order_count = successful.length;
+              if (successful.length > 0) {
+                updates.last_order_date = successful[0].date || new Date().toISOString();
+              }
+            }
+
+            if (Object.keys(updates).length > 0) {
+              updates.updatedAt = new Date().toISOString();
+              await updateDoc(doc(targetDb, 'contacts', existing.id), updates);
+              updatedContactsCount++;
+            }
+          } else {
+            // יצירת איש קשר חדש
+            const successful = custData.payments.filter((p) => p.status === 'success' || p.status === 'Approved');
+            const totalSpent = successful.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+            const lastOrderDate = custData.payments[0]?.date || new Date().toISOString();
+            const docId = `kesher_c_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+            await setDoc(doc(targetDb, 'contacts', docId), {
+              status: 'active',
+              lead_source: 'קשר (סנכרון לקוחות ועסקאות)',
+              source: 'kesher_sync',
+              name: custData.demographics.conta_name,
+              fullName: custData.demographics.conta_name,
+              ...custData.demographics,
+              payments: custData.payments,
+              campaign_donations_history: custData.donations,
+              events: custData.events,
+              payment_details: custData.paymentDetails,
+              total_spent: totalSpent,
+              total_donated: totalSpent,
+              order_count: successful.length,
+              last_order_date: lastOrderDate,
+              tags: ['קשר', 'לקוח משלם'],
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+
+            createdContactsCount++;
+          }
+        }
+
+        // סנכרון רשומות עסקאות ישירות לקולקציית kesher_transactions
+        onProgress?.('מעדכן יומן תקבולים ועסקאות ב-Firestore...');
+        for (const item of localItems.slice(0, 200)) {
+          const tDocId = item.id || `kesher_${item.transactionId || Date.now()}`;
+          const cleanItem = JSON.parse(JSON.stringify(item));
+          await setDoc(doc(targetDb, 'kesher_transactions', tDocId), cleanItem, { merge: true });
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[KesherService] Firestore sync non-fatal error:', dbErr);
+    }
+
+    this.saveSettings({ lastSyncTime: new Date().toISOString() });
+
+    const totalProcessed = localItems.length;
+    const summaryMsg = `סונכרנו בהצלחה ${totalProcessed} עסקאות ותקבולים מקשר (${methodCounts.check} צ'קים, ${methodCounts.bankTransfer} העברות, ${methodCounts.cash} מזומן, ${methodCounts.bit} ביט, ${methodCounts.creditCard} אשראי). עודכנו ${updatedContactsCount} לקוחות ונוצרו ${createdContactsCount} לקוחות חדשים ב-CRM!`;
+
+    return {
+      success: true,
+      totalFetched: rawTransactions.length,
+      createdContactsCount,
+      updatedContactsCount,
+      totalTransactions: totalProcessed,
+      countsByMethod: methodCounts,
+      message: summaryMsg
+    };
+  }
+
+  /**
    * סנכרון עסקאות ולקוחות ישירות ל-CRM
    */
   public async syncTransactionsToCRM(
     timeframe: 'all' | 'year' | '3months' | 'week' = 'all',
     onProgress?: (progressText: string) => void
   ): Promise<KesherSyncResult> {
-    if (!this.isConfigured()) {
-      return { success: false, totalFetched: 0, addedCount: 0, updatedCount: 0, error: 'לא הוגדרו פרטי קשר.' };
-    }
-
-    onProgress?.('שולף עסקאות משרת קשר...');
-    const rawTransactions = await this.getTransactions(timeframe);
-
-    if (!rawTransactions || rawTransactions.length === 0) {
-      return { 
-        success: true, 
-        totalFetched: 0, 
-        addedCount: 0, 
-        updatedCount: 0, 
-        message: 'לא נמצאו עסקאות במסוף קשר בטווח התאריכים המבוקש.' 
-      };
-    }
-
-    // המרה לפורמט עסקאות אחיד
-    const localItems: KesherTransactionItem[] = rawTransactions
-      .map((tx: any) => {
-        const txId = String(tx.NumTransaction || tx.Id || tx.TranId || tx.TransactionId || '').trim();
-        const rawTotal = tx.Total !== undefined ? tx.Total : (tx.Sum !== undefined ? tx.Sum : (tx.Amount !== undefined ? tx.Amount : 0));
-        const parsedTotal = typeof rawTotal === 'number' ? rawTotal : parseFloat(String(rawTotal).replace(/[^0-9.-]/g, '') || '0');
-        // Kesher returns amounts in Agorot, e.g. 5400 = 54 NIS
-        const amount = parsedTotal >= 100 && Number.isInteger(parsedTotal) ? parsedTotal / 100 : parsedTotal;
-        const parsedDate = this.parseKesherDate(tx.TranDate || tx.Date || tx.TransactionDate || tx.CreatedAt);
-        const fullName = (tx.Name || tx.ClientName || tx.FullName || `${tx.FirstName || ''} ${tx.LastName || ''}`).trim() || 'לקוח קשר';
-        const isSuccess = tx.CreditStatus === 0 || tx.CreditStatus === '0' || !tx.CreditStatus || String(tx.Status || '').includes('אושר') || String(tx.Status || '').includes('הושלם') || tx.Status === '000' || tx.Status === 'Approved';
-
-        const rawStr = JSON.stringify(tx).toLowerCase();
-        let method: any = 'Cash';
-
-        if (tx.IsBit || rawStr.includes('bit') || String(tx.PaymentMethod || tx.ChargeOptionType || tx.Description || '').toLowerCase().includes('bit')) {
-          method = 'Bit';
-        } else if (
-          tx.CheckNumber ||
-          tx.NumCheck ||
-          String(tx.PaymentMethod || tx.ChargeOptionType || tx.PaymentType || tx.Details || '').includes('צ\'ק') ||
-          String(tx.PaymentMethod || tx.ChargeOptionType || tx.Details || '').includes('שיק') ||
-          tx.ChargeOptionType === 'Check' ||
-          tx.PaymentType == 2
-        ) {
-          method = 'Check';
-        } else if (
-          tx.ChargeOptionType === 'BankTransfer' ||
-          String(tx.PaymentMethod || tx.ChargeOptionType || tx.Details || '').includes('העברה') ||
-          tx.PaymentType == 3 ||
-          tx.Bank ||
-          tx.Branch
-        ) {
-          method = 'BankTransfer';
-        } else if (
-          tx.CreditNum ||
-          tx.CardNumber ||
-          tx.NumCard ||
-          tx.Brand ||
-          tx.CreditType ||
-          tx.CreditCardCompany ||
-          tx.ChargeOptionType === 'CreditCard' ||
-          String(tx.PaymentMethod || '').includes('אשראי')
-        ) {
-          method = 'CreditCard';
-        } else if (
-          tx.ChargeOptionType === 'Cash' ||
-          String(tx.PaymentMethod || tx.ChargeOptionType || tx.Details || '').includes('מזומן') ||
-          tx.PaymentType == 1
-        ) {
-          method = 'Cash';
-        } else {
-          method = tx.ChargeOptionType || tx.PaymentMethod || (tx.CreditNum || tx.CardNumber ? 'CreditCard' : 'Cash');
-        }
-
-        const rawDocType = tx.DocumentType || tx.DocType || tx.ReceiptType || tx.ProjectNumber || tx.ProjectNum;
-        let docType = 400; // ברירת מחדל: קבלה רגילה
-        if (rawDocType) {
-          const numDoc = Number(rawDocType);
-          if (!isNaN(numDoc) && numDoc > 0) {
-            docType = numDoc;
-          } else if (String(rawDocType).includes('תרומה')) {
-            docType = 405;
-          } else if (String(rawDocType).includes('מס קבלה')) {
-            docType = 320;
-          } else if (String(rawDocType).includes('מס')) {
-            docType = 305;
-          }
-        }
-
-        return {
-          id: `kesher_${txId || Math.random().toString(36).substring(2, 8)}`,
-          transactionId: txId,
-          date: parsedDate.toISOString(),
-          amount,
-          clientName: fullName,
-          phone: tx.Phone || tx.Phone2 || tx.PhoneNumber || tx.Tel || '',
-          email: (tx.Mail || tx.Email || '').trim(),
-          tz: (tx.Tz || tx.IdNum || tx.ID || tx.tg1 || '').trim(),
-          paymentMethod: method,
-          documentType: docType,
-          status: isSuccess ? 'Approved' : String(tx.Status || 'Declined'),
-          receiptUrl: tx.OriginalDoc || tx.CopyDoc || tx.DocUrl || tx.Url || tx.ReceiptUrl || '',
-          authNumber: String(tx.AuthNum || tx.AuthNumber || tx.ApprovalNumber || tx.DocNumber || tx.NumTransaction || tx.CheckNumber || ''),
-          last4: tx.CreditNum ? String(tx.CreditNum).slice(-4) : (tx.CardNumber ? String(tx.CardNumber).slice(-4) : (tx.NumCard ? String(tx.NumCard).slice(-4) : '')),
-          raw: tx
-        };
-      });
-
-    // עדכון ברשימה המקומית
-    this.mergeLocalTransactions(localItems);
-    const added = localItems.length;
-
-    this.saveSettings({ lastSyncTime: new Date().toISOString() });
-
+    const res = await this.syncCustomersToCRM(timeframe, onProgress);
     return {
-      success: true,
-      totalFetched: rawTransactions.length,
-      addedCount: added,
-      updatedCount: 0,
-      message: `סונכרנו בהצלחה ${added} עסקאות ותקבולים מקשר!`
+      success: res.success,
+      totalFetched: res.totalFetched,
+      addedCount: res.createdContactsCount + res.updatedContactsCount,
+      updatedCount: res.updatedContactsCount,
+      message: res.message,
+      error: res.error
     };
   }
 

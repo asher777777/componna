@@ -34,7 +34,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
 תפקידך להעניק מענה אדיב, מהיר, מדויק ותמציתי בעברית בוואטסאפ.
 שמור על נימה שירותית, עניינית, עם אימוג'י במידה.
 אם הלקוח שואל על מחיר או מוצרים - ענה בקצרה והצע לו לבחור באחד הכפתורים מטה.`,
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.6-flash',
     temperature: 0.7,
     interactiveButtons: [
       { buttonId: 'btn_pricing', buttonText: '💰 קבלת הצעת מחיר', actionType: 'prompt', actionValue: 'מה המחיר של המערכת?' },
@@ -53,7 +53,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     triggerType: 'keyword',
     triggerKeywords: ['תקלה', 'לא עובד', 'שגיאה', 'עזרה טכנית', 'סנכרון'],
     systemPrompt: `אתה מומחה תמיכה טכנית של Comona. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל.`,
-    model: 'gemini-1.5-flash',
+    model: 'gemini-3.6-flash',
     temperature: 0.4,
     interactiveButtons: [
       { buttonId: 'btn_reboot', buttonText: '🔄 בדיקת סטטוס מופע', actionType: 'prompt', actionValue: 'כיצד מאתחלים את המופע?' },
@@ -119,7 +119,7 @@ export class WhatsAppAiBotService {
       },
     ];
 
-    const modelName = botConfig.model || 'gemini-1.5-flash';
+    const modelName = botConfig.model || 'gemini-3.6-flash';
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey.trim()}`;
 
     const systemInstruction = {

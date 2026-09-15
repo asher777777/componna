@@ -1020,8 +1020,6 @@ export const DatabaseConnectorModal: React.FC = () => {
                     </optgroup>
                     <optgroup label="🧠 Pro & Reasoning Models">
                       <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (מחשבה עמוקה ופתרון מורכב)</option>
-                      <option value="gemini-2.5-pro">gemini-2.5-pro (פרו רב-מודאלי עם 2M טוקנים)</option>
-                      <option value="gemini-2.5-flash">gemini-2.5-flash (היברידי עם Thinking Budget)</option>
                     </optgroup>
                   </select>
                 </div>

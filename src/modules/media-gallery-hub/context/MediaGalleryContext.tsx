@@ -111,6 +111,7 @@ interface MediaGalleryContextValue {
   ) => Promise<void>;
   deleteMediaItems: (ids: string[]) => Promise<void>;
   updateMediaItem: (id: string, updates: Partial<MediaItem>) => Promise<void>;
+  replaceMediaItem: (originalId: string, updatedItem: MediaItem, file?: File | Blob) => Promise<void>;
   renameMediaItem: (id: string, newName: string) => Promise<void>;
   
   // Folder Operations
@@ -724,6 +725,44 @@ export const MediaGalleryProvider: React.FC<{
     }
   };
 
+  const replaceMediaItem = async (originalId: string, updatedItem: MediaItem, file?: File | Blob) => {
+    let finalItem = { ...updatedItem, id: originalId, updatedAt: Date.now() };
+
+    if (firebaseApp && file) {
+      try {
+        const downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+          firebaseApp,
+          file,
+          finalItem.name
+        );
+        finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
+      } catch (storageErr) {
+        console.warn(`[MediaGallery] Replacement cloud storage upload for ${finalItem.name}:`, storageErr);
+      }
+    }
+
+    setMediaItems((prev) => prev.map((it) => (it.id === originalId ? finalItem : it)));
+    if (focusedItem?.id === originalId) {
+      setFocusedItem(finalItem);
+    }
+
+    if (db) {
+      try {
+        await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
+      } catch (fsErr) {
+        console.warn('[MediaGallery] Firestore save replacement error:', fsErr);
+      }
+    }
+
+    if (file) {
+      MediaIndexedDbService.saveMedia(finalItem, file).catch(() => {});
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: finalItem }));
+    }
+  };
+
   const renameMediaItem = async (id: string, newName: string) => {
     const trimmed = newName.trim();
     if (!trimmed) return;
@@ -1035,6 +1074,7 @@ export const MediaGalleryProvider: React.FC<{
         addMediaItems,
         deleteMediaItems,
         updateMediaItem,
+        replaceMediaItem,
         renameMediaItem,
 
         theme,

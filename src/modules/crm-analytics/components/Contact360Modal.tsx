@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  User, Sparkles, Tag, DollarSign, Target, Clock, Check, RefreshCw 
+  User, Sparkles, Tag, DollarSign, Target, Clock, Check, RefreshCw, Landmark 
 } from 'lucide-react';
 import { Contact, CustomField } from '../types';
 import { ContactModalHeader } from './contact-modal/ContactModalHeader';
@@ -8,6 +8,7 @@ import { ContactOverviewTab } from './contact-modal/ContactOverviewTab';
 import { ContactAiCopilotTab } from './contact-modal/ContactAiCopilotTab';
 import { ContactTagsTab } from './contact-modal/ContactTagsTab';
 import { ContactFinancialTab } from './contact-modal/ContactFinancialTab';
+import { ContactBankAndCheckTab } from './contact-modal/ContactBankAndCheckTab';
 import { ContactCampaignsTab } from './contact-modal/ContactCampaignsTab';
 import { ContactTimelineTab } from './contact-modal/ContactTimelineTab';
 
@@ -19,7 +20,7 @@ interface Props {
   customFields?: CustomField[];
 }
 
-type TabType = 'overview' | 'ai_copilot' | 'tags_groups' | 'financial' | 'campaigns' | 'timeline';
+type TabType = 'overview' | 'ai_copilot' | 'tags_groups' | 'financial' | 'bank_and_checks' | 'campaigns' | 'timeline';
 
 export const Contact360Modal: React.FC<Props> = ({
   isOpen,
@@ -68,6 +69,7 @@ export const Contact360Modal: React.FC<Props> = ({
     { id: 'ai_copilot', label: 'AI Copilot תובנות', icon: Sparkles },
     { id: 'tags_groups', label: 'תגיות וקהילות', icon: Tag, count: formData.tags?.length || 0 },
     { id: 'financial', label: 'עסקאות וכספים', icon: DollarSign },
+    { id: 'bank_and_checks', label: 'פרטי בנק וצ\'קים', icon: Landmark },
     { id: 'campaigns', label: 'קמפיינים ושגריר', icon: Target },
     { id: 'timeline', label: 'ציר זמן והערות', icon: Clock },
   ];
@@ -118,7 +120,10 @@ export const Contact360Modal: React.FC<Props> = ({
             <ContactTagsTab formData={formData} onChange={handleFieldChange} />
           )}
           {activeTab === 'financial' && (
-            <ContactFinancialTab formData={formData} />
+            <ContactFinancialTab formData={formData} onChange={handleFieldChange} />
+          )}
+          {activeTab === 'bank_and_checks' && (
+            <ContactBankAndCheckTab formData={formData} onChange={handleFieldChange} />
           )}
           {activeTab === 'campaigns' && (
             <ContactCampaignsTab formData={formData} />

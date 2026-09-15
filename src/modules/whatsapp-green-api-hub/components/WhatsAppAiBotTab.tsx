@@ -54,7 +54,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       triggerType: 'all',
       triggerKeywords: ['שלום', 'עזרה'],
       systemPrompt: 'אתה בוט שירות חכם ויעיל בוואטסאפ. ענה בעברית ברורה ותמציתית.',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3.6-flash',
       temperature: 0.7,
       interactiveButtons: [
         { buttonId: 'btn_1', buttonText: 'ℹ️ מידע נוסף', actionType: 'prompt', actionValue: 'פרט עוד' },

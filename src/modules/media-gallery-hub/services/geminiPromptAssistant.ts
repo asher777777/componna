@@ -205,7 +205,7 @@ Rules:
 Selected Style Preset: ${preset ? preset.nameEn + ' (' + preset.promptSuffix + ')' : 'None (Choose best matching style)'}`;
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${effectiveKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${effectiveKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -280,7 +280,7 @@ Return ONLY valid JSON in this exact structure:
 }`;
 
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${effectiveKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${effectiveKey}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

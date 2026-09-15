@@ -1,4 +1,5 @@
 import React from 'react';
+import { BrandDnaHubStandaloneView } from '../modules/brand-dna-hub';
 import { AuthPortalStandaloneView } from '../modules/auth-portal';
 import { DbCollectionsHubStandaloneView } from '../modules/db-collections-hub';
 import { MediaGalleryHubStandaloneView } from '../modules/media-gallery-hub';
@@ -24,6 +25,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'brand-dna-hub',
+    name: 'מרכז מיתוג גלובלי (Brand DNA & AI)',
+    description: 'ה-DNA של המערכת: זהות עסקית, אישיות וטון דיבור, פרופילי פרסונות, Design Tokens וסנכרון הנחיות לכל מודולי ה-AI',
+    component: BrandDnaHubStandaloneView,
+    route: '/brand-dna',
+    collectionPrefix: 'brand_dna_',
+  },
   {
     id: 'kesher-payments-hub',
     name: 'סליקה והפקת מסמכים (קשר & איזי קאונט Hub)',
