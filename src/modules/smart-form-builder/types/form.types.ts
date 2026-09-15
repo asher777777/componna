@@ -60,7 +60,15 @@ export interface FormThemeSettings {
   showStepNumbers: boolean;
   luxuryBorder: boolean;
   buttonStyle: 'solid' | 'gradient' | 'outline';
+  backgroundType?: 'color' | 'gradient' | 'image';
+  backgroundImageUrl?: string;
+  backgroundOverlayOpacity?: number; // 0 to 100
+  aspectRatio?: 'auto' | '16:9' | '9:16' | '1:1' | '4:3';
+  containerShape?: 'rounded' | 'square' | 'circle' | 'pill';
+  displayMode?: 'standard_card' | 'single_field_focus' | 'fullscreen';
+  enableVoiceInput?: boolean;
 }
+
 
 export interface FormCompletionSettings {
   title: string;
@@ -93,6 +101,8 @@ export interface SmartFormDefinition {
   isCrmSyncEnabled?: boolean;
   crmDefaultTags?: string[];
   crmDefaultCommunity?: string;
+  whatsappAutomationEnabled?: boolean;
+  whatsappRules?: import('./whatsapp.types').FormWhatsAppRule[];
 }
 
 export interface AIBrainstormMessage {

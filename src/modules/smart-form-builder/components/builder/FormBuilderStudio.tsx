@@ -3,6 +3,7 @@ import { useSmartForm } from '../../context/useSmartForm';
 import { SmartFormDefinition } from '../../types';
 import { FormStepsEditor } from './FormStepsEditor';
 import { FormStyleSettings } from './FormStyleSettings';
+import { FormWhatsAppAutomationsTab } from './FormWhatsAppAutomationsTab';
 import { SmartFormRunner } from '../runner/SmartFormRunner';
 import { FormSubmissionsTable } from '../analytics/FormSubmissionsTable';
 import { AIBrainstormModal } from './AIBrainstormModal';
@@ -22,6 +23,7 @@ import {
   Trash2,
   FileText,
   Sparkles,
+  MessageSquare,
 } from 'lucide-react';
 
 export const FormBuilderStudio: React.FC = () => {
@@ -35,7 +37,7 @@ export const FormBuilderStudio: React.FC = () => {
     deleteForm,
   } = useSmartForm();
 
-  const [activeTab, setActiveTab] = useState<'editor' | 'design' | 'analytics' | 'preview'>('editor');
+  const [activeTab, setActiveTab] = useState<'editor' | 'design' | 'whatsapp' | 'analytics' | 'preview'>('editor');
   const [isBrainstormOpen, setIsBrainstormOpen] = useState(false);
   const [isEmbedOpen, setIsEmbedOpen] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
@@ -238,6 +240,18 @@ export const FormBuilderStudio: React.FC = () => {
         </button>
 
         <button
+          onClick={() => setActiveTab('whatsapp')}
+          className={`flex-1 py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all ${
+            activeTab === 'whatsapp'
+              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 shadow-sm'
+              : 'text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800'
+          }`}
+        >
+          <MessageSquare className="w-4 h-4" />
+          <span>אוטומציות וואטסאפ ({activeForm.whatsappRules?.length || 0})</span>
+        </button>
+
+        <button
           onClick={() => setActiveTab('preview')}
           className={`flex-1 py-2.5 text-xs font-bold rounded-xl flex items-center justify-center gap-2 transition-all ${
             activeTab === 'preview'
@@ -278,17 +292,25 @@ export const FormBuilderStudio: React.FC = () => {
           />
         )}
 
+        {activeTab === 'whatsapp' && (
+          <FormWhatsAppAutomationsTab
+            form={activeForm}
+            onChange={(updated) => setActiveForm(updated)}
+          />
+        )}
+
         {activeTab === 'preview' && (
-          <div className="max-w-2xl mx-auto py-4">
+          <div className="max-w-2xl mx-auto py-4 space-y-4">
             <SmartFormRunner
               form={activeForm}
-              previewMode={true}
-              onComplete={(answers) => {
-                console.log('Preview form completed:', answers);
+              previewMode={false}
+              onComplete={(answers, subId) => {
+                console.log('Form submission saved:', subId, answers);
               }}
             />
           </div>
         )}
+
 
         {activeTab === 'analytics' && (
           <FormSubmissionsTable form={activeForm} />

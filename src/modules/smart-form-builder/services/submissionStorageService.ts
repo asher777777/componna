@@ -69,12 +69,86 @@ export async function submitFormResponse(
     };
   });
 
-  // Build Lead Payload if relevant contact fields exist
-  let leadPayload: LeadPayload | undefined = undefined;
+  // Extract contact fields early for scoring and payload
   const conta_name = rawAnswers['conta_name'] || rawAnswers['name'] || rawAnswers['fullName'] || '';
   const conta_phone = rawAnswers['conta_phone'] || rawAnswers['phone'] || rawAnswers['tel'] || '';
   const email = rawAnswers['email'] || rawAnswers['mail'] || '';
 
+  // Automatically detect client telemetry metadata
+  let metadata: any = {};
+  if (typeof window !== 'undefined') {
+    const ua = navigator.userAgent || '';
+    let deviceType: 'mobile' | 'desktop' | 'tablet' = 'desktop';
+    if (/tablet|ipad/i.test(ua)) deviceType = 'tablet';
+    else if (/mobile|iphone|android/i.test(ua)) deviceType = 'mobile';
+
+    let os = 'Windows';
+    if (/macintosh|mac os x/i.test(ua)) os = 'macOS';
+    else if (/iphone|ipad|ipod/i.test(ua)) os = 'iOS';
+    else if (/android/i.test(ua)) os = 'Android';
+    else if (/linux/i.test(ua)) os = 'Linux';
+
+    let browser = 'Chrome';
+    if (/edg/i.test(ua)) browser = 'Edge';
+    else if (/safari/i.test(ua) && !/chrome/i.test(ua)) browser = 'Safari';
+    else if (/firefox/i.test(ua)) browser = 'Firefox';
+    else if (/opr|opera/i.test(ua)) browser = 'Opera';
+
+    // Parse UTM parameters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const utmSource = urlParams.get('utm_source') || undefined;
+    const utmMedium = urlParams.get('utm_medium') || undefined;
+    const utmCampaign = urlParams.get('utm_campaign') || undefined;
+
+    // Calculate AI Lead Temperature & Score
+    const timeSpent = completionTimeSeconds || 0;
+    let score = 75;
+    let temp: 'hot' | 'warm' | 'cold' = 'warm';
+
+    if (conta_phone && email) {
+      score += 15;
+      temp = 'hot';
+    } else if (conta_phone || email) {
+      score += 10;
+      temp = 'hot';
+    }
+
+    if (timeSpent > 10 && timeSpent < 300) {
+      score += 10;
+    }
+
+    // Page Title and Page Author detection
+    const pageTitle = document.title || '';
+    const pageAuthor =
+      document.querySelector('meta[name="author"]')?.getAttribute('content') ||
+      document.querySelector('meta[property="author"]')?.getAttribute('content') ||
+      document.querySelector('meta[name="creator"]')?.getAttribute('content') ||
+      form.createdBy ||
+      'מנהל המערכת';
+
+    metadata = {
+      deviceType,
+      browser,
+      os,
+      screenResolution: `${window.screen?.width || 0}x${window.screen?.height || 0}`,
+      windowSize: `${window.innerWidth}x${window.innerHeight}`,
+      language: navigator.language || 'he-IL',
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Jerusalem',
+      referrer: document.referrer || 'ישיר (Direct)',
+      pageUrl: window.location.href,
+      pageTitle,
+      pageAuthor,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      leadScore: Math.min(score, 100),
+      leadTemperature: temp,
+      userAgent: ua,
+    };
+  }
+
+  // Build Lead Payload if relevant contact fields exist
+  let leadPayload: LeadPayload | undefined = undefined;
   if (conta_name || conta_phone || email) {
     leadPayload = {
       conta_name: String(conta_name || 'פנייה מטופס דיגיטלי'),
@@ -88,8 +162,28 @@ export async function submitFormResponse(
         formTitle: form.title,
         submissionId,
         answers: rawAnswers,
+        clientMetadata: metadata,
       },
     };
+  }
+
+
+  // Process and trigger WhatsApp automations via Green-API
+  let whatsappDeliveries: any[] = [];
+  if (form.whatsappAutomationEnabled && form.whatsappRules && form.whatsappRules.length > 0) {
+    try {
+      const { processSubmissionWhatsAppAutomations } = await import('./formWhatsAppService');
+      whatsappDeliveries = await processSubmissionWhatsAppAutomations({
+        form,
+        rawAnswers,
+        detailedAnswers,
+        metadata,
+        submissionId,
+        submittedAt: now,
+      });
+    } catch (waErr) {
+      console.warn('Error processing WhatsApp automations:', waErr);
+    }
   }
 
   const submissionData: SmartFormSubmission = {
@@ -102,28 +196,46 @@ export async function submitFormResponse(
     completionTimeSeconds: completionTimeSeconds || 0,
     crmSyncStatus: form.isCrmSyncEnabled && leadPayload ? 'synced' : 'not_applicable',
     leadPayload,
-    metadata: {
-      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
-      pageUrl: typeof window !== 'undefined' ? window.location.href : '',
-    },
+    metadata,
+    whatsappDeliveries,
   };
 
-  // 1. Save in sub-collection: mod_forms/{formId}/submissions/{submissionId}
+  // 1. Ensure parent form document exists and increment submissionsCount
+  try {
+    const parentDocRef = doc(targetDb, collectionName, form.id);
+    await setDoc(
+      parentDocRef,
+      {
+        id: form.id,
+        title: form.title || 'טופס חכם',
+        slug: form.slug || form.id,
+        description: form.description || '',
+        category: form.category || 'כללי',
+        tone: form.tone || 'executive_luxury',
+        steps: form.steps || [],
+        theme: form.theme || {},
+        completion: form.completion || {},
+        createdAt: form.createdAt || now,
+        updatedAt: now,
+        status: form.status || 'published',
+        isCrmSyncEnabled: form.isCrmSyncEnabled ?? true,
+        crmDefaultTags: form.crmDefaultTags || ['טופס חכם'],
+        whatsappAutomationEnabled: form.whatsappAutomationEnabled ?? false,
+        whatsappRules: form.whatsappRules || [],
+        submissionsCount: increment(1),
+      },
+      { merge: true }
+    );
+  } catch (e) {
+    console.warn('Could not upsert parent form doc:', e);
+  }
+
+  // 2. Save in sub-collection: mod_forms/{formId}/submissions/{submissionId}
   const subDocRef = doc(targetDb, collectionName, form.id, SUBMISSIONS_SUBCOLLECTION, submissionId);
   await setDoc(subDocRef, submissionData);
 
-  // 2. Increment submission count on parent form doc
-  try {
-    const parentDocRef = doc(targetDb, collectionName, form.id);
-    await updateDoc(parentDocRef, {
-      submissionsCount: increment(1),
-      updatedAt: now,
-    });
-  } catch (e) {
-    console.warn('Could not increment submissionsCount on form doc:', e);
-  }
-
   // 3. Optional: Sync directly to CRM contacts collection if lead data exists and is enabled
+
   if (form.isCrmSyncEnabled && leadPayload && (conta_phone || email)) {
     try {
       const contactDocId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
@@ -136,13 +248,23 @@ export async function submitFormResponse(
           conta_phone: leadPayload.conta_phone,
           email: leadPayload.email,
           lead_source: leadPayload.source,
-          tags: leadPayload.tags,
+          tags: Array.from(new Set([...(leadPayload.tags || []), 'ליד מטופס', `טופס: ${form.title}`])),
           community: leadPayload.community,
           last_form_name: form.title,
           last_form_submission_date: now,
-          status: 'חדש',
-          created_at: now,
-          updated_at: now,
+          status: 'active',
+          is_lead: true,
+          contact_type: 'lead',
+          form_submissions: [
+            {
+              name: form.title,
+              page: form.id,
+              date: now,
+              payload: rawAnswers,
+            }
+          ],
+          createdAt: now,
+          updatedAt: now,
           notes: `התקבל מטופס "${form.title}" בתאריך ${new Date().toLocaleDateString('he-IL')}`,
         },
         { merge: true }
@@ -151,6 +273,27 @@ export async function submitFormResponse(
       console.warn('Direct CRM contact sync failed (may be offline or restricted):', crmErr);
     }
   }
+
+  // Emit to EventBus for live CRM updates
+  try {
+    const { eventBus } = await import('../../../core/bridge/EventBus');
+    if (leadPayload) {
+      eventBus.emit('crm:lead:created', leadPayload);
+    }
+    eventBus.emit('smart_form:submitted', {
+      formId: form.id,
+      formTitle: form.title,
+      submissionId,
+      data: rawAnswers,
+      leadPayload,
+      submittedAt: now,
+    });
+    eventBus.emit('form:submitted', {
+      formId: form.id,
+      pageUrl: metadata?.pageUrl || '',
+      data: rawAnswers,
+    });
+  } catch {}
 
   return { submissionId, leadPayload };
 }
@@ -277,6 +420,8 @@ export function exportFormSubmissionsToExcel(
       'מספר סידורי': index + 1,
       'תאריך ושעה': new Date(sub.submittedAt).toLocaleString('he-IL'),
       'זמן מילוי (שניות)': sub.completionTimeSeconds || '-',
+      'כותרת עמוד': sub.metadata?.pageTitle || '-',
+      'מחבר עמוד': sub.metadata?.pageAuthor || '-',
       'סטטוס סנכרון CRM': sub.crmSyncStatus === 'synced' ? 'סונכרן' : 'לא סונכרן',
     };
 

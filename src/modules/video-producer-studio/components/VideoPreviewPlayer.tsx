@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, Volume2, Maximize2, Sparkles, Film, CheckCircle2, Type } from 'lucide-react';
+import { Play, Pause, Volume2, Maximize2, Sparkles, Film, CheckCircle2, Type, Subtitles } from 'lucide-react';
 import { VideoScene } from '../types';
 
 interface VideoPreviewPlayerProps {
@@ -9,6 +9,7 @@ interface VideoPreviewPlayerProps {
 
 export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, aspectRatio }) => {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [showSubtitles, setShowSubtitles] = useState(true);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const aspectClass = {
@@ -94,25 +95,41 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
   }, [scene.id]);
 
   return (
-    <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-3xl space-y-3 flex flex-col items-center" dir="rtl">
-      <div className="w-full flex items-center justify-between border-b border-slate-800/80 pb-2 text-xs">
+    <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-3xl space-y-3 flex flex-col items-center shadow-xl" dir="rtl">
+      {/* Top Header */}
+      <div className="w-full flex items-center justify-between border-b border-slate-800/80 pb-2.5 text-xs">
         <span className="font-bold text-slate-200 flex items-center gap-1.5">
-          <Film className="w-3.5 h-3.5 text-purple-400" />
+          <Film className="w-4 h-4 text-purple-400" />
           <span>תצוגה מקדימה לסצנה ({aspectRatio})</span>
         </span>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
+          {/* Subtitle CC Toggle */}
+          <button
+            type="button"
+            onClick={() => setShowSubtitles(!showSubtitles)}
+            className={`p-1.5 rounded-lg border text-[10px] font-bold flex items-center gap-1 transition cursor-pointer ${
+              showSubtitles
+                ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow-sm shadow-yellow-500/10'
+                : 'bg-slate-800/80 text-slate-500 border-slate-700 hover:text-slate-300'
+            }`}
+            title={showSubtitles ? 'הסתר כתוביות (CC פעיל)' : 'הצג כתוביות (CC כבוי)'}
+          >
+            <Subtitles className="w-3.5 h-3.5" />
+            <span>CC</span>
+          </button>
+
           {scene.renderedVideoUrl ? (
-            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1 border border-emerald-500/30">
               <CheckCircle2 className="w-3 h-3" />
               <span>וידאו מוכן</span>
             </span>
           ) : scene.renderedAudioUrl ? (
-            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-semibold flex items-center gap-1">
+            <span className="px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 text-[10px] font-semibold flex items-center gap-1 border border-cyan-500/30">
               <Volume2 className="w-3 h-3" />
               <span>שמע קריינות מוכן</span>
             </span>
           ) : (
-            <span className="text-[10px] text-slate-500 font-mono">טיוטת תצוגה</span>
+            <span className="text-[10px] text-slate-500 font-mono px-2 py-0.5 rounded-md bg-slate-800/50">טיוטת תצוגה</span>
           )}
         </div>
       </div>
@@ -169,21 +186,21 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
                 </span>
               </div>
             )}
-
-            {/* Live Subtitle Overlay */}
-            {subtitleText && (
-              <div
-                className={`absolute ${positionClass} inset-x-3 z-20 flex justify-center text-center pointer-events-none px-2`}
-              >
-                <div
-                  style={{ fontSize: `${subtitleFontSize}px` }}
-                  className={`max-w-[90%] transition-all ${getStyleClass()} ${getAnimationClass()}`}
-                >
-                  {subtitleText}
-                </div>
-              </div>
-            )}
           </>
+        )}
+
+        {/* Live Subtitle Overlay - Rendered ALWAYS whether video is present or not when enabled */}
+        {showSubtitles && subtitleText && (
+          <div
+            className={`absolute ${positionClass} inset-x-3 z-20 flex justify-center text-center pointer-events-none px-2`}
+          >
+            <div
+              style={{ fontSize: `${subtitleFontSize}px` }}
+              className={`max-w-[90%] transition-all ${getStyleClass()} ${getAnimationClass()}`}
+            >
+              {subtitleText}
+            </div>
+          </div>
         )}
       </div>
 
@@ -214,13 +231,18 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
         </div>
       )}
 
+      {/* Footer Info Strip */}
       <div className="w-full text-[11px] text-slate-400 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 flex items-center justify-between">
-        <span>משך מוערך: ~{scene.durationSeconds || 5} שניות</span>
         <span className="flex items-center gap-1">
-          <Type className="w-3 h-3 text-yellow-400" />
-          <span>סגנון כתוביות: {subtitleStyle}</span>
+          <Film className="w-3 h-3 text-purple-400" />
+          <span>משך: ~{scene.durationSeconds || 5}s</span>
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Type className="w-3.5 h-3.5 text-yellow-400" />
+          <span>סגנון: <span className="text-yellow-300 font-semibold">{subtitleStyle}</span></span>
         </span>
       </div>
     </div>
   );
 };
+

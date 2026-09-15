@@ -43,7 +43,7 @@ export interface CoreEventMap {
   'crm:lead:created': LeadPayload;
   'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };
   'auth:state_changed': AuthSessionContract;
-  'form:submitted': { formId: string; pageUrl: string; data: Record<string, any> };
+  'form:submitted': { formId?: string; pageUrl?: string; data?: Record<string, any>; [key: string]: any };
   'smart_form:submitted': {
     formId: string;
     formTitle: string;

@@ -20,10 +20,11 @@ import {
   SlidersHorizontal,
   RefreshCw,
   Loader2,
+  Sparkles,
 } from 'lucide-react';
-import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
+import { useMediaGallery, KNOWN_MODULE_SOURCES, isHeyGenItem } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
-import { MediaFolder, MediaType } from '../types';
+import { MediaFolder, MediaType, MediaCategoryFilter } from '../types';
 
 export const MediaDriveSidebar: React.FC<{
   isOpenMobile?: boolean;
@@ -46,6 +47,7 @@ export const MediaDriveSidebar: React.FC<{
     db,
     isSyncingHeyGen,
     syncHeyGenVideos,
+    openAiImageGenerator,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
@@ -63,7 +65,7 @@ export const MediaDriveSidebar: React.FC<{
     setActiveFolderId(null);
     setFilters((prev) => ({
       ...prev,
-      typeFilter: 'all',
+      typeFilter: 'image',
       sourceModuleFilter: 'all',
       searchQuery: '',
     }));
@@ -80,7 +82,7 @@ export const MediaDriveSidebar: React.FC<{
     if (onCloseMobile) onCloseMobile();
   };
 
-  const handleSelectType = (typeId: MediaType | 'all') => {
+  const handleSelectType = (typeId: MediaCategoryFilter) => {
     setActiveFolderId(null);
     setFilters((prev) => ({
       ...prev,
@@ -117,20 +119,35 @@ export const MediaDriveSidebar: React.FC<{
     }
   };
 
-  const fileTypeOptions: { id: MediaType | 'all'; label: string; icon: any; count: number }[] = [
-    { id: 'all', label: 'כל הקבצים', icon: HardDrive, count: mediaItems.length },
-    { id: 'video', label: 'סרטוני וידאו', icon: FileVideo, count: mediaItems.filter((i) => i.type === 'video').length },
-    { id: 'image', label: 'תמונות', icon: ImageIcon, count: mediaItems.filter((i) => i.type === 'image').length },
-    { id: 'audio', label: 'שמע וקול', icon: Music, count: mediaItems.filter((i) => i.type === 'audio').length },
-    { id: 'document', label: 'מסמכי PDF ו-Office', icon: FileText, count: mediaItems.filter((i) => i.type === 'document').length },
-    { id: 'archive', label: 'ארכיוני ZIP', icon: Archive, count: mediaItems.filter((i) => i.type === 'archive').length },
-    { id: 'code', label: 'קוד ונתונים', icon: Code2, count: mediaItems.filter((i) => i.type === 'code').length },
+  const imagesCount = mediaItems.filter((i) => i.type === 'image').length;
+  const systemVideosCount = mediaItems.filter((i) => i.type === 'video' && !isHeyGenItem(i)).length;
+  const heygenVideosCount = mediaItems.filter((i) => isHeyGenItem(i)).length;
+  const audioCount = mediaItems.filter((i) => i.type === 'audio').length;
+  const docCount = mediaItems.filter((i) => i.type === 'document').length;
+  const archiveCount = mediaItems.filter((i) => i.type === 'archive' || i.type === 'code').length;
+  const allCount = mediaItems.length;
+
+  const fileTypeOptions: {
+    id: MediaCategoryFilter;
+    label: string;
+    icon: any;
+    count: number;
+    badge?: string;
+    isHighlight?: boolean;
+  }[] = [
+    { id: 'image', label: 'תמונות', icon: ImageIcon, count: imagesCount },
+    { id: 'video', label: 'סרטוני מערכת', icon: FileVideo, count: systemVideosCount },
+    { id: 'heygen', label: 'סרטוני HEYGEN AI', icon: Sparkles, count: heygenVideosCount, badge: 'AI', isHighlight: true },
+    { id: 'audio', label: 'שמע וקול', icon: Music, count: audioCount },
+    { id: 'document', label: 'מסמכי PDF ו-Office', icon: FileText, count: docCount },
+    { id: 'archive', label: 'ארכיונים וקוד', icon: Archive, count: archiveCount },
+    { id: 'all', label: 'כל הקבצים', icon: HardDrive, count: allCount },
   ];
 
   const isRootActive =
     activeFolderId === null &&
     (!filters.sourceModuleFilter || filters.sourceModuleFilter === 'all') &&
-    filters.typeFilter === 'all';
+    filters.typeFilter === 'image';
 
   return (
     <aside
@@ -188,6 +205,24 @@ export const MediaDriveSidebar: React.FC<{
             <ChevronRight className="w-4 h-4 rtl:rotate-180" />
           </button>
         </div>
+
+        {/* Gemini AI Image Generator Studio Launch Button */}
+        <button
+          type="button"
+          onClick={() => {
+            openAiImageGenerator();
+            if (onCloseMobile) onCloseMobile();
+          }}
+          className="w-full p-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black flex items-center justify-between text-xs font-black shadow-md shadow-amber-500/20 hover:shadow-amber-500/35 transition-all active:scale-98 cursor-pointer"
+        >
+          <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
+            <Sparkles className="w-4 h-4 flex-shrink-0 animate-pulse" />
+            <span className="truncate">סטודיו Gemini AI</span>
+          </div>
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-black/20 text-black font-bold uppercase">
+            יצירה
+          </span>
+        </button>
       </div>
 
       {/* Sidebar Scrollable Section */}
@@ -327,18 +362,37 @@ export const MediaDriveSidebar: React.FC<{
                     className={`w-full p-2 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer ${
                       isSelected
                         ? isLight
-                          ? 'bg-slate-200 text-slate-900 font-bold border-r-4 border-amber-500 shadow-sm'
-                          : 'bg-slate-800 text-white font-bold border-r-4 border-yellow-500 shadow-sm'
+                          ? 'bg-amber-100/80 text-slate-900 font-bold border-r-4 border-amber-500 shadow-sm'
+                          : 'bg-yellow-500/20 text-yellow-300 font-bold border-r-4 border-yellow-500 shadow-sm'
+                        : opt.isHighlight
+                        ? isLight
+                          ? 'text-purple-700 bg-purple-50/70 hover:bg-purple-100 hover:text-purple-900 font-medium'
+                          : 'text-purple-300 bg-purple-950/20 hover:bg-purple-900/40 hover:text-purple-200 font-medium'
                         : isLight
                         ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
                     }`}
                   >
                     <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
-                      <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${isLight ? 'text-slate-600' : 'text-slate-400'}`} />
+                      <Icon
+                        className={`w-3.5 h-3.5 flex-shrink-0 ${
+                          opt.isHighlight
+                            ? 'text-purple-500 animate-pulse'
+                            : isLight
+                            ? 'text-slate-600'
+                            : 'text-slate-400'
+                        }`}
+                      />
                       <span className="truncate">{opt.label}</span>
+                      {opt.badge && (
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-black uppercase bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs">
+                          {opt.badge}
+                        </span>
+                      )}
                     </div>
-                    <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>{opt.count}</span>
+                    <span className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
+                      {opt.count}
+                    </span>
                   </button>
                 );
               })}

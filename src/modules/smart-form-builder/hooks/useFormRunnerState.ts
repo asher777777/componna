@@ -105,14 +105,7 @@ export function useFormRunnerState({
     if (!validateCurrentStep()) return;
 
     if (isLastStep) {
-      // Final Submit
-      if (previewMode) {
-        setIsCompleted(true);
-        setSubmissionId('preview_sub_id');
-        if (onComplete) onComplete(answers, 'preview_sub_id');
-        return;
-      }
-
+      // Final Submit to Firestore
       setIsSubmitting(true);
       try {
         const completionTime = Math.round((Date.now() - startTimeRef.current) / 1000);
@@ -127,6 +120,7 @@ export function useFormRunnerState({
         setIsCompleted(true);
         if (onComplete) onComplete(answers, res.submissionId);
       } catch (err: any) {
+        console.error('Error submitting form:', err);
         setValidationError(err.message || 'שגיאה בשליחת הטופס. אנא נסה שוב.');
       } finally {
         setIsSubmitting(false);
@@ -135,6 +129,7 @@ export function useFormRunnerState({
       setDirection('next');
       setCurrentStepIndex((prev) => prev + 1);
     }
+
   }, [
     validateCurrentStep,
     isLastStep,
@@ -173,6 +168,17 @@ export function useFormRunnerState({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isCompleted, isSubmitting, currentStep?.fieldType, handleNext]);
 
+  // Reset form to start a new submission
+  const resetForm = useCallback(() => {
+    setCurrentStepIndex(0);
+    setAnswers({});
+    setValidationError(null);
+    setIsCompleted(false);
+    setSubmissionId(null);
+    hasStartedRef.current = false;
+    startTimeRef.current = Date.now();
+  }, []);
+
   return {
     currentStepIndex,
     currentStep,
@@ -191,5 +197,7 @@ export function useFormRunnerState({
     handleNext,
     handlePrev,
     setCurrentStepIndex,
+    resetForm,
   };
 }
+

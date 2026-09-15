@@ -2,6 +2,7 @@ import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 
 export type MediaType = 'video' | 'image' | 'audio' | 'document' | 'archive' | 'code' | 'other';
+export type MediaCategoryFilter = 'all' | MediaType | 'heygen';
 
 export interface MediaFolder {
   id: string;
@@ -57,7 +58,7 @@ export interface ImageConversionOptions {
 
 export interface MediaFilterOptions {
   searchQuery: string;
-  typeFilter: 'all' | MediaType;
+  typeFilter: MediaCategoryFilter;
   sortBy: 'date_desc' | 'date_asc' | 'size_desc' | 'name_asc';
   selectedTag?: string;
   folderId?: string | null; // null/undefined means root or all depending on view

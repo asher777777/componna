@@ -17,11 +17,16 @@ import {
   Image,
   Code2,
   Sparkles,
+  MessageSquare,
+  CreditCard,
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../moduleRegistry';
 import { FirebaseStatus } from './FirebaseStatus';
 
 const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  'kesher-payments-hub': { icon: CreditCard, color: 'text-indigo-400 group-hover:text-indigo-300' },
+  'whatsapp-green-api-hub': { icon: MessageSquare, color: 'text-emerald-400 group-hover:text-emerald-300' },
+  'crm-groups-hub': { icon: Layers, color: 'text-teal-400 group-hover:text-teal-300' },
   'video-producer-studio': { icon: Film, color: 'text-purple-400 group-hover:text-purple-300' },
   'db-connector-hub': { icon: Database, color: 'text-amber-400 group-hover:text-amber-300' },
   'client-platform': { icon: Smartphone, color: 'text-cyan-400 group-hover:text-cyan-300' },

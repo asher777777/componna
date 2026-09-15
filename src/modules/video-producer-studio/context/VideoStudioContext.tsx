@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { VideoProject, VideoScene, HeyGenAvatar, HeyGenVoice, ClarificationResult } from '../types';
 import { 
   fetchAllProjects, 
+  subscribeProjects,
   saveProject, 
   deleteProject, 
   syncAssetToMediaGallery, 
@@ -104,7 +105,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isTeleprompterOpen, setIsTeleprompterOpen] = useState(false);
   const [modalTargetSceneId, setModalTargetSceneId] = useState<string | null>(null);
 
-  // Load projects from DB
+  // Load projects from DB with real-time sync
   const loadProjects = useCallback(async () => {
     const list = await fetchAllProjects(db);
     setProjects(list);
@@ -112,7 +113,14 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   useEffect(() => {
     loadProjects();
-  }, [loadProjects]);
+    if (!db) return;
+    const unsub = subscribeProjects(db, (cloudProjects) => {
+      if (cloudProjects && cloudProjects.length > 0) {
+        setProjects(cloudProjects);
+      }
+    });
+    return () => unsub();
+  }, [db, loadProjects]);
 
   // Load avatars and voices
   useEffect(() => {

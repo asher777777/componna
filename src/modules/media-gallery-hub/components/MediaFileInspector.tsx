@@ -38,6 +38,9 @@ export const MediaFileInspector: React.FC = () => {
     deleteMediaItems,
     renameMediaItem,
     theme,
+    selectionMode,
+    onSelectMedia,
+    openAiImageGenerator,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
@@ -362,6 +365,18 @@ export const MediaFileInspector: React.FC = () => {
 
       {/* Action Buttons Grid */}
       <div className={`pt-2 border-t space-y-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+        {/* Selection Confirmation Button (Shown in Picker / Selection Mode) */}
+        {selectionMode && onSelectMedia && (
+          <button
+            type="button"
+            onClick={() => onSelectMedia([focusedItem])}
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-black text-xs font-black shadow-lg shadow-yellow-500/25 flex items-center justify-center space-x-1.5 rtl:space-x-reverse transition-all active:scale-95 cursor-pointer mb-2"
+          >
+            <Check className="w-4 h-4 text-black" />
+            <span>בחר קובץ זה לשימוש</span>
+          </button>
+        )}
+
         <div className="grid grid-cols-2 gap-2">
           {/* Download */}
           <button
@@ -391,6 +406,19 @@ export const MediaFileInspector: React.FC = () => {
             <span>העבר</span>
           </button>
         </div>
+
+        {/* Gemini AI Image Variation button for images */}
+        {focusedItem.type === 'image' && (
+          <button
+            type="button"
+            onClick={() => openAiImageGenerator(focusedItem)}
+            className="w-full p-2 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black text-xs font-black flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer"
+            title="השתמש בתמונה זו כייחוס ליצירת תמונות חדשות ב-Gemini AI"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>צור וריאציה ב-AI</span>
+          </button>
+        )}
 
         <div className="grid grid-cols-2 gap-2">
           {/* Convert */}

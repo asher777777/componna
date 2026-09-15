@@ -1,4 +1,4 @@
-﻿rules_version = '2';
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -40,7 +40,13 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // 2. Interactive Flow Player Engine Campaigns & Scenes
+    // 2. Global System Settings & Configurations
+    match /system_settings/{settingId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // 3. Interactive Flow Player Engine Campaigns & Scenes
     match /sdo_player_campaign_configs/{slug} {
       allow read: if true;
       allow create, update: if true;
@@ -58,14 +64,80 @@ service cloud.firestore {
       }
     }
 
-    // 3. Media Vault & Gallery Hub
+    // 4. Media Vault & Gallery Hub
     match /sdo_media_vault/{docId} {
       allow read: if true;
       allow create, update: if true;
       allow delete: if isSignedIn();
     }
 
-    // 4. Session Events & Analytics Telemetry
+    match /sdo_media_items/{docId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    match /sdo_media_folders/{docId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 5. Video Studio Projects
+    match /sdo_video_projects/{projectId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 6. Page Builder & Smart Forms
+    match /mod_pagebuilder_pages/{pageId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    match /mod_forms/{formId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    match /mod_form_submissions/{subId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 7. Kesher Transactions & Clearing
+    match /kesher_transactions/{txId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isSignedIn();
+    }
+
+    // 8. WhatsApp & CRM Groups
+    match /wa_bots/{botId} {
+      allow read, write: if true;
+    }
+
+    match /wa_webhook_config/{configId} {
+      allow read, write: if true;
+    }
+
+    match /crm_groups/{groupId} {
+      allow read, write: if true;
+    }
+
+    match /contacts/{contactId} {
+      allow read, write: if true;
+    }
+
+    match /client_platform_config/{clientId} {
+      allow read, write: if true;
+    }
+
+    // 9. Session Events & Analytics Telemetry
     match /sdo_player_session_events/{sessionId} {
       allow read, write: if true;
     }
@@ -74,7 +146,7 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // 5. General Fallback for all other database collections
+    // 10. General Fallback for all other database collections
     match /{document=**} {
       allow read: if true;
       allow write: if true;

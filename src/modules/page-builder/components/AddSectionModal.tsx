@@ -21,6 +21,7 @@ export const AddSectionModal: React.FC<AddSectionModalProps> = ({
 
   const categories = [
     { id: 'all', label: 'כל האזורים' },
+    { id: 'forms', label: 'טפסים חכמים ושאלונים (Smart Forms)' },
     { id: 'headers', label: 'כותרות ו-Hero' },
     { id: 'content', label: 'תוכן ושירותים' },
     { id: 'media', label: 'גלריות ומדיה' },

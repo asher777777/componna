@@ -8,6 +8,7 @@ import {
   updateDoc,
   query,
   orderBy,
+  onSnapshot,
 } from 'firebase/firestore';
 import { MediaItem, MediaFolder, MediaGalleryCollectionsConfig } from '../types';
 import { resolveMediaCollections } from '../config';
@@ -139,5 +140,59 @@ export class FirestoreMediaService {
     const collNames = resolveMediaCollections(undefined, collections);
     const docRef = doc(db, collNames.folders, folderId);
     await deleteDoc(docRef);
+  }
+
+  static subscribeMediaItems(
+    db: Firestore,
+    onData: (items: MediaItem[]) => void,
+    collections?: MediaGalleryCollectionsConfig
+  ): () => void {
+    const collNames = resolveMediaCollections(undefined, collections);
+    try {
+      const collRef = collection(db, collNames.mediaItems);
+      const q = query(collRef, orderBy('createdAt', 'desc'));
+      return onSnapshot(
+        q,
+        (snapshot) => {
+          const items: MediaItem[] = [];
+          snapshot.forEach((docSnap) => {
+            items.push({ ...(docSnap.data() as MediaItem), id: docSnap.id });
+          });
+          onData(items);
+        },
+        (err) => {
+          console.warn('[FirestoreMediaService] Real-time media listener notice:', err);
+        }
+      );
+    } catch {
+      return () => {};
+    }
+  }
+
+  static subscribeFolders(
+    db: Firestore,
+    onData: (folders: MediaFolder[]) => void,
+    collections?: MediaGalleryCollectionsConfig
+  ): () => void {
+    const collNames = resolveMediaCollections(undefined, collections);
+    try {
+      const collRef = collection(db, collNames.folders);
+      return onSnapshot(
+        collRef,
+        (snapshot) => {
+          const folders: MediaFolder[] = [];
+          snapshot.forEach((docSnap) => {
+            folders.push({ ...(docSnap.data() as MediaFolder), id: docSnap.id });
+          });
+          folders.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+          onData(folders);
+        },
+        (err) => {
+          console.warn('[FirestoreMediaService] Real-time folders listener notice:', err);
+        }
+      );
+    } catch {
+      return () => {};
+    }
   }
 }

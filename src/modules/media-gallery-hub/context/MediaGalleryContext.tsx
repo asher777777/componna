@@ -5,6 +5,7 @@ import {
   MediaItem,
   MediaFolder,
   MediaType,
+  MediaCategoryFilter,
   MediaFilterOptions,
   MediaGalleryCollectionsConfig,
   MediaGalleryModuleConfig,
@@ -17,6 +18,14 @@ import { FileCompressionService } from '../services/fileCompressionService';
 import { HeyGenSyncService } from '../services/heygenSyncService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+
+export const isHeyGenItem = (item?: MediaItem | null): boolean => {
+  if (!item) return false;
+  if (item.metadata?.isHeyGenSync === true || item.metadata?.source === 'heygen_cloud_api') return true;
+  if (item.id?.startsWith('heygen_')) return true;
+  const tags = (item.tags || []).map((t) => t.toLowerCase());
+  return tags.includes('heygen') || tags.includes('avatar_video');
+};
 
 export interface ModuleSourceInfo {
   id: string;
@@ -61,6 +70,13 @@ export const KNOWN_MODULE_SOURCES: Record<string, ModuleSourceInfo> = {
     shortLabel: 'אנליטיקה',
     icon: 'BarChart3',
     color: '#f97316',
+  },
+  'gemini-image-generation': {
+    id: 'gemini-image-generation',
+    name: 'מחולל תמונות Gemini AI (Nano Banana)',
+    shortLabel: 'Gemini AI',
+    icon: 'Sparkles',
+    color: '#f59e0b',
   },
   'media-gallery-hub': {
     id: 'media-gallery-hub',
@@ -129,9 +145,18 @@ interface MediaGalleryContextValue {
   focusedItem: MediaItem | null;
   setFocusedItem: (item: MediaItem | null) => void;
 
-  // HeyGen Cloud Sync
+  // HeyGen Cloud Sync & Reveal
   isSyncingHeyGen: boolean;
   syncHeyGenVideos: (customApiKey?: string) => Promise<{ count: number; error?: string }>;
+  isHeyGenRevealed: boolean;
+  setIsHeyGenRevealed: (revealed: boolean) => void;
+
+  // Gemini AI Image Generator Studio
+  isAiGeneratorOpen: boolean;
+  setIsAiGeneratorOpen: (open: boolean) => void;
+  aiGeneratorInitialImage: MediaItem | null;
+  setAiGeneratorInitialImage: (item: MediaItem | null) => void;
+  openAiImageGenerator: (initialImage?: MediaItem | null) => void;
 
   firebaseApp?: FirebaseApp;
   db?: Firestore;
@@ -189,6 +214,16 @@ export const MediaGalleryProvider: React.FC<{
   const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
   const [focusedItem, setFocusedItem] = useState<MediaItem | null>(null);
   const [isSyncingHeyGen, setIsSyncingHeyGen] = useState<boolean>(false);
+  const [isHeyGenRevealed, setIsHeyGenRevealed] = useState<boolean>(false);
+
+  // Gemini AI Image Generator Studio State
+  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState<boolean>(false);
+  const [aiGeneratorInitialImage, setAiGeneratorInitialImage] = useState<MediaItem | null>(null);
+
+  const openAiImageGenerator = (initialImage?: MediaItem | null) => {
+    setAiGeneratorInitialImage(initialImage || null);
+    setIsAiGeneratorOpen(true);
+  };
 
   // Theme Support (Day / Night Mode)
   const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
@@ -215,9 +250,17 @@ export const MediaGalleryProvider: React.FC<{
     return mediaItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
   }, [mediaItems]);
 
+  const initialTypeFilter: MediaCategoryFilter = useMemo(() => {
+    if (allowedTypes && allowedTypes.length > 0) {
+      if (allowedTypes.includes('image')) return 'image';
+      return allowedTypes[0];
+    }
+    return 'image';
+  }, [allowedTypes]);
+
   const [filters, setFilters] = useState<MediaFilterOptions>({
     searchQuery: '',
-    typeFilter: 'all',
+    typeFilter: initialTypeFilter,
     sortBy: 'date_desc',
     sourceModuleFilter: 'all',
     folderId: defaultFolderId,
@@ -225,7 +268,7 @@ export const MediaGalleryProvider: React.FC<{
 
   // Automatically detect sourceModule & human readable label
   const detectSourceModule = (item: Partial<MediaItem>): { sourceModule: string; sourceModuleLabel: string } => {
-    if (item.sourceModule && KNKNOWN_SOURCE(item.sourceModule)) {
+    if (item.sourceModule && KNOWN_MODULE_SOURCES[item.sourceModule]) {
       return {
         sourceModule: item.sourceModule,
         sourceModuleLabel: KNOWN_MODULE_SOURCES[item.sourceModule]?.name || item.sourceModuleLabel || item.sourceModule,
@@ -267,6 +310,20 @@ export const MediaGalleryProvider: React.FC<{
       return {
         sourceModule: 'crm-analytics',
         sourceModuleLabel: 'אנליטיקה ודוחות CRM',
+      };
+    }
+
+    if (
+      tags.includes('gemini_ai') ||
+      tags.includes('gemini_image') ||
+      tags.includes('banana_pro') ||
+      tags.includes('nano_banana') ||
+      item.sourceModule === 'gemini-image-generation' ||
+      metadata.source === 'gemini-image-generation'
+    ) {
+      return {
+        sourceModule: 'gemini-image-generation',
+        sourceModuleLabel: 'מחולל תמונות Gemini AI (Nano Banana)',
       };
     }
 
@@ -460,8 +517,41 @@ export const MediaGalleryProvider: React.FC<{
       window.addEventListener('sdo_media_deleted', handleMediaDeleted);
     }
 
+    let unsubMedia = () => {};
+    let unsubFolders = () => {};
+    if (db) {
+      unsubMedia = FirestoreMediaService.subscribeMediaItems(
+        db,
+        (cloudItems) => {
+          if (!isMounted) return;
+          if (cloudItems && cloudItems.length > 0) {
+            setMediaItems((prev) => {
+              const map = new Map<string, MediaItem>();
+              prev.forEach((it) => map.set(it.id, it));
+              cloudItems.forEach((it) => map.set(it.id, it));
+              return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+            });
+          }
+        },
+        collections
+      );
+
+      unsubFolders = FirestoreMediaService.subscribeFolders(
+        db,
+        (cloudFolders) => {
+          if (!isMounted) return;
+          if (cloudFolders && cloudFolders.length > 0) {
+            setFolders(cloudFolders);
+          }
+        },
+        collections
+      );
+    }
+
     return () => {
       isMounted = false;
+      unsubMedia();
+      unsubFolders();
       if (typeof window !== 'undefined') {
         window.removeEventListener('sdo_media_updated', handleMediaUpdated);
         window.removeEventListener('sdo_media_deleted', handleMediaDeleted);
@@ -887,8 +977,15 @@ export const MediaGalleryProvider: React.FC<{
         }
 
         // Type Filter Tab
-        if (filters.typeFilter !== 'all' && item.type !== filters.typeFilter) {
-          return false;
+        if (filters.typeFilter !== 'all') {
+          if (filters.typeFilter === 'heygen') {
+            if (!isHeyGenItem(item)) return false;
+          } else if (filters.typeFilter === 'video') {
+            // System videos only: exclude HeyGen videos
+            if (item.type !== 'video' || isHeyGenItem(item)) return false;
+          } else {
+            if (item.type !== filters.typeFilter) return false;
+          }
         }
 
         // Source Module Filter
@@ -970,6 +1067,15 @@ export const MediaGalleryProvider: React.FC<{
 
         isSyncingHeyGen,
         syncHeyGenVideos,
+        isHeyGenRevealed,
+        setIsHeyGenRevealed,
+
+        // Gemini AI Image Generator
+        isAiGeneratorOpen,
+        setIsAiGeneratorOpen,
+        aiGeneratorInitialImage,
+        setAiGeneratorInitialImage,
+        openAiImageGenerator,
 
         firebaseApp,
         db,

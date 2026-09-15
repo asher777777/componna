@@ -64,7 +64,7 @@ import {
 export interface SectionDefinition {
   type: SectionType;
   name: string;
-  category: 'headers' | 'content' | 'media' | 'campaign' | 'marketing' | 'contact';
+  category: 'headers' | 'content' | 'media' | 'campaign' | 'marketing' | 'contact' | 'forms';
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   viewComponent: React.ComponentType<{ config: any; [key: string]: any }>;
@@ -426,8 +426,8 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
   smartForm: {
     type: 'smartForm',
     name: 'טופס חכם רב-שלבי (Smart Form)',
-    category: 'contact',
-    description: 'טופס יוקרתי שלב-אחר-שלב מבוסס AI עם אייקונים וחיבור ישיר לאנליטיקה ול-CRM',
+    category: 'forms',
+    description: 'טופס יוקרתי שלב-אחר-שלב, בחירה מרשימת טפסים, עריכה ושמירה בשם חדש ב-mod_forms',
     icon: Sparkles,
     viewComponent: SmartFormSection as any,
     editorComponent: SmartFormEditor as any,

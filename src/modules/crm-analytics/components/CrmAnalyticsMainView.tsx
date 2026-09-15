@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  TrendingUp, BarChart2, Filter, RefreshCw, Layers, Plus, Database 
+  TrendingUp, BarChart2, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2 
 } from 'lucide-react';
 import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
 import { Contact, DatabaseConnectionProfile } from '../types';
@@ -14,6 +14,7 @@ import { DatabaseConnectorModal } from './DatabaseConnectorModal';
 import { FormSubmissionsTable } from '../../smart-form-builder/components/analytics/FormSubmissionsTable';
 import { subscribeSmartForms } from '../../smart-form-builder/services/formStorageService';
 import { SmartFormDefinition } from '../../smart-form-builder/types';
+import { syncSmartFormSubmissionsToContacts } from '../services/smartFormCrmSyncService';
 import { FileText, Users } from 'lucide-react';
 
 export const CrmAnalyticsMainView: React.FC = () => {
@@ -32,14 +33,16 @@ export const CrmAnalyticsMainView: React.FC = () => {
     deleteView,
     refresh,
     updateField,
+    firebaseApp,
   } = useCrmAnalyticsContext();
 
-  const [mainTab, setMainTab] = useState<'contacts' | 'forms'>('contacts');
   const [smartForms, setSmartForms] = useState<SmartFormDefinition[]>([]);
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [showCharts, setShowCharts] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
+  const [isSyncingForms, setIsSyncingForms] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   // Subscribe to smart forms
   React.useEffect(() => {
@@ -52,6 +55,20 @@ export const CrmAnalyticsMainView: React.FC = () => {
     return () => unsub();
   }, []);
 
+  const handleSyncAllFormsToCrm = async () => {
+    setIsSyncingForms(true);
+    setSyncFeedback(null);
+    try {
+      const res = await syncSmartFormSubmissionsToContacts(firebaseApp);
+      setSyncFeedback(`סנכרון חכם הושלם! ${res.totalProcessed} הגשות נסרקו (${res.createdCount} נוצרו כלידים, ${res.updatedCount} עודכנו).`);
+      await refresh();
+      setTimeout(() => setSyncFeedback(null), 5000);
+    } catch (err: any) {
+      setSyncFeedback('שגיאה במהלך הסנכרון');
+    } finally {
+      setIsSyncingForms(false);
+    }
+  };
 
   // Modal states
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -110,6 +127,24 @@ export const CrmAnalyticsMainView: React.FC = () => {
     refresh();
   };
 
+  const handleMetricClick = (metricId: string) => {
+    if (activeMetric === metricId) {
+      setActiveMetric(null);
+      setFilter(prev => ({ ...prev, metricFilter: undefined }));
+    } else {
+      setActiveMetric(metricId);
+      setFilter(prev => ({ ...prev, metricFilter: metricId }));
+    }
+  };
+
+  const metricLabels: Record<string, string> = {
+    contacts: 'כל אנשי הקשר והלידים',
+    revenue: 'לקוחות משלמים (הכנסות)',
+    campaigns: 'משתתפי קמפיינים ותרומות',
+    communities: 'חברי קהילות וקבוצות',
+    forms: 'הגשות טפסים חכמים',
+  };
+
   return (
     <div className="flex flex-col gap-5 p-4 md:p-6 max-w-7xl mx-auto w-full text-right" dir="rtl">
       {/* Top Header Bar */}
@@ -117,14 +152,25 @@ export const CrmAnalyticsMainView: React.FC = () => {
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
             <TrendingUp className="w-6 h-6 text-indigo-600" />
-            <span>לוח אנליטיקה ודוחות CRM</span>
+            <span>לוח אנליטיקה ו-CRM</span>
           </h1>
           <p className="text-xs text-gray-500 mt-1">
-            תובנות ביצועים, פרופיל לקוח 360 AI, פילוח קהילות, וחיבור למסדי נתונים
+            ניהול אנשי קשר ולידים, פילוח קהילות, מעקב הכנסות, וסנכרון טפסים
           </p>
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Smart Sync Forms to CRM Button */}
+          <button
+            onClick={handleSyncAllFormsToCrm}
+            disabled={isSyncingForms}
+            className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            title="סנכרן את כל הגשות הטפסים החכמים ישירות למאגר אנשי הקשר והלידים"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingForms ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
+            <span>{isSyncingForms ? 'מסנכרן טפסים...' : 'סנכרון טפסים ל-CRM'}</span>
+          </button>
+
           {/* Add Contact Button */}
           <button
             onClick={handleOpenNewContact}
@@ -181,87 +227,78 @@ export const CrmAnalyticsMainView: React.FC = () => {
         </div>
       </div>
 
-      {/* Tab Switcher: Contacts CRM vs Smart Forms */}
-      <div className="flex border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-gray-900/50 p-1 rounded-xl gap-1">
-        <button
-          onClick={() => setMainTab('contacts')}
-          className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition ${
-            mainTab === 'contacts'
-              ? 'bg-white dark:bg-gray-800 text-indigo-600 dark:text-indigo-400 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <Users className="w-4 h-4" />
-          <span>אנשי קשר ולידים ({data?.contacts?.length || 0})</span>
-        </button>
-        <button
-          onClick={() => setMainTab('forms')}
-          className={`flex-1 py-2 text-xs font-bold rounded-lg flex items-center justify-center gap-2 transition ${
-            mainTab === 'forms'
-              ? 'bg-white dark:bg-gray-800 text-amber-600 dark:text-amber-400 shadow-sm'
-              : 'text-gray-500 hover:text-gray-700'
-          }`}
-        >
-          <FileText className="w-4 h-4" />
-          <span>טבלאות טפסים חכמים ({smartForms.length})</span>
-        </button>
-      </div>
+      {/* Sync Feedback Toast */}
+      {syncFeedback && (
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-2 shadow-sm animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-semibold">{syncFeedback}</span>
+          </div>
+          <button
+            onClick={() => setSyncFeedback(null)}
+            className="text-emerald-600 hover:text-emerald-800 font-bold"
+          >
+            ✕
+          </button>
+        </div>
+      )}
 
-      {mainTab === 'contacts' ? (
-        <>
-          {/* Saved Views Bar */}
-          <SavedViewsBar
-            views={savedViews}
-            activeViewId={activeViewId}
-            onSelectView={loadView}
-            onSaveView={saveCurrentView}
-            onDeleteView={deleteView}
-          />
+      {/* KPI Summary Metric Cards (Interactive click filters) */}
+      <AnalyticsSummaryCards
+        data={data}
+        loading={loading}
+        onMetricClick={handleMetricClick}
+        activeMetric={activeMetric}
+        formsCountOverride={smartForms.length}
+      />
 
-          {/* Advanced Filter Drawer */}
-          {showFilters && (
-            <AdvancedFilterDrawer
-              filter={filter}
-              onChangeFilter={setFilter}
-              data={data}
-              onReset={handleResetFilters}
-            />
-          )}
+      {/* Active Metric Filter Bar */}
+      {activeMetric && (
+        <div className="flex items-center justify-between px-4 py-2.5 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 animate-fadeIn">
+          <div className="flex items-center gap-2">
+            <span className="font-bold">סינון פעיל:</span>
+            <span className="px-2 py-0.5 rounded-md bg-indigo-200/60 dark:bg-indigo-900 font-semibold text-indigo-800 dark:text-indigo-200">
+              {metricLabels[activeMetric] || activeMetric}
+            </span>
+            <span className="text-gray-500 dark:text-gray-400">
+              (נמצאו {data?.contacts?.length || 0} תוצאות)
+            </span>
+          </div>
+          <button
+            onClick={() => handleMetricClick(activeMetric)}
+            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+          >
+            ביטול סינון (הצג הכל)
+          </button>
+        </div>
+      )}
 
-          {/* KPI Cards */}
-          <AnalyticsSummaryCards
-            data={data}
-            loading={loading}
-            onMetricClick={setActiveMetric}
-            activeMetric={activeMetric}
-          />
+      {/* Saved Views Bar */}
+      <SavedViewsBar
+        views={savedViews}
+        activeViewId={activeViewId}
+        onSelectView={loadView}
+        onSaveView={saveCurrentView}
+        onDeleteView={deleteView}
+      />
 
-          {/* Visual Charts */}
-          {showCharts && data && (
-            <AnalyticsChartsView
-              data={data}
-              onTagClick={handleTagClick}
-              onCommunityClick={handleCommunityClick}
-            />
-          )}
+      {/* Advanced Filter Drawer */}
+      {showFilters && (
+        <AdvancedFilterDrawer
+          filter={filter}
+          onChangeFilter={setFilter}
+          data={data}
+          onReset={handleResetFilters}
+        />
+      )}
 
-          {/* Dynamic Data Table */}
-          <DynamicAnalyticsTable
-            contacts={data?.contacts || []}
-            columns={availableColumns}
-            selectedColumnIds={selectedColumns}
-            onToggleColumn={toggleColumn}
-            onUpdateField={updateField}
-            onSelectContact={handleOpenContact}
-            loading={loading}
-          />
-        </>
-      ) : (
-        /* Smart Form Submissions Dedicated View */
-        <div className="space-y-4">
-          <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm flex flex-wrap items-center justify-between gap-3">
+      {/* If activeMetric is 'forms', show dedicated Smart Form Submissions inspector */}
+      {activeMetric === 'forms' && (
+        <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm space-y-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-3">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-700 dark:text-gray-300">בחר טופס לצפייה בטבלת ההגשות:</span>
+              <FileText className="w-4 h-4 text-rose-500" />
+              <span className="text-xs font-bold text-gray-800 dark:text-gray-200">טבלאות טפסים חכמים והגשות:</span>
               <select
                 value={selectedFormId}
                 onChange={(e) => setSelectedFormId(e.target.value)}
@@ -278,7 +315,6 @@ export const CrmAnalyticsMainView: React.FC = () => {
                 )}
               </select>
             </div>
-
             {selectedFormId && (
               <span className="text-xs text-gray-400 font-mono">
                 קולקציה: `mod_forms/{selectedFormId}/submissions`
@@ -289,12 +325,32 @@ export const CrmAnalyticsMainView: React.FC = () => {
           {smartForms.find((f) => f.id === selectedFormId) ? (
             <FormSubmissionsTable form={smartForms.find((f) => f.id === selectedFormId)!} />
           ) : (
-            <div className="p-12 text-center text-gray-400">
-              בחר טופס מהתפריט למעלה לצפייה בטבלת ההגשות והאנליטיקה שלו.
+            <div className="p-6 text-center text-xs text-gray-400">
+              בחר טופס מהתפריט למעלה לצפייה בטבלת ההגשות.
             </div>
           )}
         </div>
       )}
+
+      {/* Visual Charts */}
+      {showCharts && data && (
+        <AnalyticsChartsView
+          data={data}
+          onTagClick={handleTagClick}
+          onCommunityClick={handleCommunityClick}
+        />
+      )}
+
+      {/* Dynamic Data Table (Unified Contacts & Leads) */}
+      <DynamicAnalyticsTable
+        contacts={data?.contacts || []}
+        columns={availableColumns}
+        selectedColumnIds={selectedColumns}
+        onToggleColumn={toggleColumn}
+        onUpdateField={updateField}
+        onSelectContact={handleOpenContact}
+        loading={loading}
+      />
 
 
       {/* Contact 360 & AI Copilot Modal */}

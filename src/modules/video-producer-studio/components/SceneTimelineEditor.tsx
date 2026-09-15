@@ -459,40 +459,41 @@ export const SceneTimelineEditor: React.FC = () => {
           {/* View Stages & Edit Prompt Button */}
           <button
             onClick={() => setTab('wizard')}
-            className="px-3 py-2 bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-200 border border-indigo-500/40 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+            className="px-3 py-1.5 bg-indigo-950/60 hover:bg-indigo-900/60 text-indigo-200 border border-indigo-500/40 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
             title="צפה בכל שלבי הפרויקט, הפרומפטים והשאלות המנחות ושלח תיקונים ל-Gemini"
           >
             <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-            <span>שלבי הפקה & עריכת פרומפט</span>
+            <span>שלבי הפקה</span>
           </button>
 
           {/* Project Overview & Character Bible Button */}
           <button
             onClick={() => setIsOverviewModalOpen(true)}
-            className="px-3 py-2 bg-purple-950/60 hover:bg-purple-900/60 text-purple-200 border border-purple-500/40 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+            className="px-3 py-1.5 bg-purple-950/60 hover:bg-purple-900/60 text-purple-200 border border-purple-500/40 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition cursor-pointer"
             title="צפה באפיון הפרויקט, עוגן בננה פרו ותנ״ך הדמות"
           >
             <ShieldCheck className="w-3.5 h-3.5 text-pink-400" />
-            <span>אפיון & עוגן בננה פרו</span>
+            <span>אפיון ועוגן</span>
           </button>
 
           <button
             onClick={handleLaunchToFlowPlayer}
             disabled={isExporting}
-            className="px-4 py-2 bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:from-yellow-400 hover:to-amber-400 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-yellow-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
+            className="px-3.5 py-1.5 bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-600 hover:from-yellow-400 hover:to-amber-400 text-black font-extrabold text-xs rounded-xl flex items-center gap-1.5 transition shadow-lg shadow-yellow-500/20 cursor-pointer active:scale-95 disabled:opacity-50"
             title="מייצא את כל הסצנות, המעברים והשכבות ישירות לקמפיין אינטראקטיבי ב-Flow Player"
           >
             <PlayCircle className={`w-4 h-4 text-black ${isExporting ? 'animate-spin' : ''}`} />
-            <span>{isExporting ? 'משגר לנגן...' : '🚀 שגר לעמוד נחיתה אינטראקטיבי'}</span>
+            <span>{isExporting ? 'משגר...' : 'שגר לקמפיין'}</span>
           </button>
 
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+            title="שמור שינויים בפרויקט"
           >
             <Save className="w-3.5 h-3.5 text-purple-400" />
-            <span>{isSaving ? 'שומר...' : 'שמור שינויים'}</span>
+            <span>{isSaving ? 'שומר...' : 'שמור'}</span>
           </button>
         </div>
       </div>
@@ -536,7 +537,7 @@ export const SceneTimelineEditor: React.FC = () => {
                   <span>הוספת סצנה {activeProject.scenes.length + 1} עם Gemini</span>
                 </span>
                 <span className="text-[9px] text-slate-400 font-mono">
-                  {activeProject.conversationId ? 'מזהה שיחה שמור' : 'שיחה חדשה'}
+                  {activeProject.conversationId ? 'שיחה שמורה' : 'שיחה חדשה'}
                 </span>
               </div>
               <input
@@ -642,7 +643,7 @@ export const SceneTimelineEditor: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
             <div className="flex items-center gap-3 flex-1 min-w-[240px]">
               <span className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-300 text-xs font-mono font-bold">
-                סצנה {activeScene.sceneNumber} מתוך {activeProject.scenes.length}
+                סצנה {activeScene.sceneNumber} / {activeProject.scenes.length}
               </span>
               <input
                 type="text"
@@ -657,6 +658,7 @@ export const SceneTimelineEditor: React.FC = () => {
               <button
                 onClick={() => openTeleprompter(activeScene.id)}
                 className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                title="פתח טלפרומפטר"
               >
                 <Mic className="w-3.5 h-3.5 text-emerald-400" />
                 <span>טלפרומפטר</span>
@@ -677,50 +679,50 @@ export const SceneTimelineEditor: React.FC = () => {
           <div className="flex items-center flex-wrap gap-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl p-1.5 shadow-md w-fit">
             <button
               onClick={() => setActiveSubTab('script')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'script'
                   ? 'bg-purple-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              <User className="w-3.5 h-3.5" />
-              <span>מציג, תסריט ותמונת בננה פרו</span>
+              <User className="w-3.5 h-3.5 text-purple-300" />
+              <span>פרזנטור ותמונה</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('video')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'video'
                   ? 'bg-gradient-to-r from-pink-600 to-indigo-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Video className="w-3.5 h-3.5 text-pink-300" />
-              <span>הפקת וידאו AI (HeyGen & Veo)</span>
+              <span>הפקת וידאו AI</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('tts')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'tts'
                   ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
-              <span>קריינות Google TTS & קולות</span>
+              <span>קריינות TTS</span>
             </button>
 
             <button
               onClick={() => setActiveSubTab('subtitles')}
-              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'subtitles'
                   ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
               <Type className="w-3.5 h-3.5 text-amber-900" />
-              <span>מנוע כתוביות (Subtitles)</span>
+              <span>כתוביות (Subtitles)</span>
             </button>
           </div>
 
@@ -912,185 +914,134 @@ export const SceneTimelineEditor: React.FC = () => {
               {/* TAB 2: VIDEO GENERATION (HEYGEN & GOOGLE VEO) */}
               {activeSubTab === 'video' && (
                 <div className="space-y-4">
-                  {/* Video Engine Selection Cards */}
+                  {/* Video Engine Selection & Parameters Card */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <label className="text-xs font-bold text-slate-200 block">
-                      בחר מנוע להפקת הוידאו של הסצנה (Video Production Engine):
-                    </label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                        <Video className="w-3.5 h-3.5 text-pink-400" />
+                        <span>מנוע הפקת וידאו AI (Video Engine)</span>
+                      </label>
+                      <span className="text-[10px] text-pink-400 font-mono">
+                        {selectedVideoEngine === 'heygen' ? 'HeyGen v3 API' : 'Google Veo'}
+                      </span>
+                    </div>
 
+                    {/* Engine Select Dropdown */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {/* Option 1: HeyGen */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedVideoEngine('heygen')}
-                        className={`p-3.5 rounded-2xl border text-right transition cursor-pointer flex flex-col justify-between gap-2 ${
-                          selectedVideoEngine === 'heygen'
-                            ? 'bg-purple-950/40 border-purple-500 shadow-lg shadow-purple-500/20'
-                            : 'bg-slate-950 border-slate-800 hover:bg-slate-800/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-300 flex items-center justify-center">
-                              <User className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="font-bold text-xs text-white block">HeyGen AI Video</span>
-                              <span className="text-[10px] text-purple-300">אווטאר מדבר + תנועות שפתיים</span>
-                            </div>
-                          </div>
-                          {selectedVideoEngine === 'heygen' && (
-                            <span className="w-2.5 h-2.5 rounded-full bg-purple-400 ring-4 ring-purple-500/20" />
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400">
-                          יוצר סרטון של הפרזנטור הנבחר מקריא את הטקסט בדיוק מלא ובסנכרון שפתיים מקצועי.
-                        </p>
-                      </button>
-
-                      {/* Option 2: Google Veo */}
-                      <button
-                        type="button"
-                        onClick={() => setSelectedVideoEngine('veo')}
-                        className={`p-3.5 rounded-2xl border text-right transition cursor-pointer flex flex-col justify-between gap-2 ${
-                          selectedVideoEngine === 'veo'
-                            ? 'bg-pink-950/40 border-pink-500 shadow-lg shadow-pink-500/20'
-                            : 'bg-slate-950 border-slate-800 hover:bg-slate-800/40'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-lg bg-pink-500/20 text-pink-300 flex items-center justify-center">
-                              <Film className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <span className="font-bold text-xs text-white block">Google Veo AI Video</span>
-                              <span className="text-[10px] text-pink-300">וידאו סינמטי מבוסס פרומפט</span>
-                            </div>
-                          </div>
-                          {selectedVideoEngine === 'veo' && (
-                            <span className="w-2.5 h-2.5 rounded-full bg-pink-400 ring-4 ring-pink-500/20" />
-                          )}
-                        </div>
-                        <p className="text-[11px] text-slate-400">
-                          יוצר סרטון וידאו סינמטי מונפש ברזולוציה גבוהה לפי הפרומפט הויזואלי של הסצנה.
-                        </p>
-                      </button>
-                    </div>
-
-                    {/* Scene Duration & Engine Parameters */}
-                    <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 flex items-center justify-between gap-4">
-                      <div className="space-y-0.5">
-                        <span className="text-xs font-bold text-slate-300 block">משך הסרטון (Duration):</span>
-                        <span className="text-[10px] text-slate-500">
-                          {selectedVideoEngine === 'heygen' ? 'מותאם לפי אורך הטקסט המוקרא' : 'משך אנימציית הוידאו הסינמטי'}
-                        </span>
+                      <div className="space-y-1">
+                        <span className="text-[11px] text-slate-400">בחר מנוע הפקה:</span>
+                        <select
+                          value={selectedVideoEngine}
+                          onChange={(e) => setSelectedVideoEngine(e.target.value as any)}
+                          className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-pink-500 focus:outline-none"
+                        >
+                          <option value="heygen">👤 HeyGen AI - אווטאר מדבר & סנכרון שפתיים</option>
+                          <option value="veo">🎬 Google Veo - וידאו סינמטי מונפש מפרומפט</option>
+                        </select>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="number"
-                          min="3"
-                          max="30"
-                          value={activeScene.durationSeconds || 6}
-                          onChange={(e) => updateCurrentScene(activeScene.id, { durationSeconds: parseInt(e.target.value) || 6 })}
-                          className="w-16 p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-white text-center font-bold"
-                        />
-                        <span className="text-xs text-slate-400">שניות</span>
+
+                      {/* Scene Duration */}
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                          <span>משך הסרטון לסצנה:</span>
+                          <span className="text-pink-300 font-mono font-bold">{activeScene.durationSeconds || 6}s</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="range"
+                            min="3"
+                            max="30"
+                            step="1"
+                            value={activeScene.durationSeconds || 6}
+                            onChange={(e) => updateCurrentScene(activeScene.id, { durationSeconds: parseInt(e.target.value) || 6 })}
+                            className="w-full accent-pink-500 cursor-pointer"
+                          />
+                        </div>
                       </div>
                     </div>
 
-                    {/* HeyGen Input Assets Summary */}
+                    {/* HeyGen Input Assets Summary Strip */}
                     {selectedVideoEngine === 'heygen' && (
                       <div className="p-3 bg-slate-950/90 rounded-xl border border-purple-500/30 space-y-2">
                         <div className="text-[11px] font-bold text-purple-300 flex items-center justify-between">
                           <span className="flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
-                            <span>נכסים הנשלחים להפקת הסרטון ב-HeyGen:</span>
+                            <span>נכסים מוכנים להפקה:</span>
                           </span>
-                          <span className="text-[10px] text-slate-400 font-mono">Payload Assets</span>
+                          <button
+                            type="button"
+                            onClick={() => openAvatarModal(activeScene.id)}
+                            className="px-2 py-0.5 bg-purple-600/60 hover:bg-purple-600 text-white rounded-lg text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
+                          >
+                            <Sliders className="w-3 h-3" />
+                            <span>הגדרות קול ואווטאר</span>
+                          </button>
                         </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
                           {/* Image Status */}
                           <div className="p-2 bg-slate-900/90 border border-slate-800 rounded-lg flex items-center justify-between">
-                            <span className="text-slate-300 flex items-center gap-1.5">
+                            <span className="text-slate-300 flex items-center gap-1.5 text-[11px]">
                               <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
-                              <span>תמונת פרזנטור:</span>
+                              <span>פרזנטור:</span>
                             </span>
                             {activeScene.customAvatarImageUrl || activeScene.backgroundMediaUrl ? (
-                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-md flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3" />
-                                <span>תמונה מוכנה</span>
+                                <span>מוכן</span>
                               </span>
                             ) : (
-                              <span className="text-[10px] text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full">
-                                אווטאר ברירת מחדל
+                              <span className="text-[10px] text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-md">
+                                ברירת מחדל
                               </span>
                             )}
                           </div>
 
                           {/* Audio TTS Status */}
                           <div className="p-2 bg-slate-900/90 border border-slate-800 rounded-lg flex items-center justify-between">
-                            <span className="text-slate-300 flex items-center gap-1.5">
+                            <span className="text-slate-300 flex items-center gap-1.5 text-[11px]">
                               <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
-                              <span>שמע וקריינות TTS:</span>
+                              <span>שמע TTS:</span>
                             </span>
                             {activeScene.renderedAudioUrl ? (
-                              <span className="text-[10px] font-bold text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded-full flex items-center gap-1">
+                              <span className="text-[10px] font-bold text-cyan-300 bg-cyan-500/20 px-1.5 py-0.5 rounded-md flex items-center gap-1">
                                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                                <span>קובץ TTS מוכן</span>
+                                <span>מוכן</span>
                               </span>
                             ) : (
-                              <span className="text-[10px] text-slate-400 bg-slate-800 px-2 py-0.5 rounded-full">
-                                טקסט תסריט בלבד
+                              <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md">
+                                מטקסט
                               </span>
                             )}
                           </div>
                         </div>
 
                         {activeScene.renderedAudioUrl && (
-                          <div className="flex items-center justify-between gap-2 p-2 bg-cyan-950/30 border border-cyan-500/20 rounded-lg text-[11px]">
+                          <div className="flex items-center justify-between gap-2 p-1.5 bg-cyan-950/30 border border-cyan-500/20 rounded-lg text-[11px]">
                             <span className="text-cyan-300 flex items-center gap-1">
-                              <Volume2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-                              <span>הקשב לשמע ה-TTS שישלח לסנכרון שפתיים מלא:</span>
+                              <Volume2 className="w-3 h-3 text-cyan-400 shrink-0" />
+                              <span>השמע שיישלח ל-HeyGen:</span>
                             </span>
-                            <audio src={activeScene.renderedAudioUrl} controls className="h-6 max-w-[200px]" />
+                            <audio src={activeScene.renderedAudioUrl} controls className="h-5 max-w-[180px]" />
                           </div>
                         )}
-
-                        <div className="flex items-center justify-between gap-2 p-2 bg-purple-950/30 border border-purple-500/20 rounded-lg text-xs">
-                          <span className="text-purple-300 flex items-center gap-1.5">
-                            <Mic className="w-3.5 h-3.5 text-purple-400" />
-                            <span>הגדרות קול ואווטאר HeyGen:</span>
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => openAvatarModal(activeScene.id)}
-                            className="px-2.5 py-1 bg-purple-600/80 hover:bg-purple-600 text-white rounded-lg text-[11px] font-semibold transition cursor-pointer flex items-center gap-1"
-                          >
-                            <Sliders className="w-3 h-3" />
-                            <span>בחר קול / אווטאר</span>
-                          </button>
-                        </div>
                       </div>
                     )}
 
                     {/* Main Render Action Button */}
-                    <div className="pt-2">
+                    <div className="pt-1">
                       {selectedVideoEngine === 'heygen' ? (
                         <button
                           type="button"
                           onClick={handleRenderHeyGen}
                           disabled={isRenderingScene || !activeScene.dialogueScript.trim()}
-                          className="w-full py-3.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-purple-600/30 transition cursor-pointer disabled:opacity-50 text-xs"
+                          className="w-full py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-purple-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition cursor-pointer disabled:opacity-50 text-xs"
                         >
                           <Sparkles className={`w-4 h-4 ${isRenderingScene ? 'animate-spin text-amber-400' : ''}`} />
                           <span>
                             {isRenderingScene && renderingSceneId === activeScene.id
-                              ? 'מייצר וידאו Image-to-Video ב-HeyGen ומסנכרן לגלריה...'
-                              : activeScene.renderedAudioUrl
-                              ? '🚀 הפק סרטון מונפש (HeyGen Image to Video + שמע TTS)'
-                              : '🚀 הפק סרטון מונפש מתמונה (HeyGen Image to Video)'}
+                              ? 'מייצר וידאו ב-HeyGen ומסנכרן לגלריה...'
+                              : '🚀 הפק סרטון מונפש ב-HeyGen AI'}
                           </span>
                         </button>
                       ) : (
@@ -1098,12 +1049,12 @@ export const SceneTimelineEditor: React.FC = () => {
                           type="button"
                           onClick={handleGenerateVeo}
                           disabled={isGeneratingMedia}
-                          className="w-full py-3.5 bg-gradient-to-r from-pink-600 via-indigo-600 to-purple-600 hover:from-pink-500 hover:to-indigo-500 text-white font-bold rounded-2xl flex items-center justify-center gap-2 shadow-xl shadow-pink-600/30 transition cursor-pointer disabled:opacity-50 text-xs"
+                          className="w-full py-3 bg-gradient-to-r from-pink-600 via-indigo-600 to-purple-600 hover:from-pink-500 hover:to-indigo-500 text-white font-bold rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-pink-600/30 transition cursor-pointer disabled:opacity-50 text-xs"
                         >
                           <Film className={`w-4 h-4 ${isGeneratingMedia && generatingMediaSceneId === activeScene.id ? 'animate-spin' : ''}`} />
                           <span>
                             {isGeneratingMedia && generatingMediaSceneId === activeScene.id
-                              ? 'מייצר וידאו סינמטי ב-Google Veo ומסנכרן לגלריה...'
+                              ? 'מייצר וידאו סינמטי ב-Google Veo...'
                               : '🎬 הפק וידאו סינמטי עם Google Veo'}
                           </span>
                         </button>
@@ -1116,20 +1067,18 @@ export const SceneTimelineEditor: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Video className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>קובץ הוידאו המוכן לסצנה (Rendered Video Asset)</span>
+                        <span>קובץ הוידאו המוכן לסצנה</span>
                       </label>
                       {activeScene.renderedVideoUrl && (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1 border border-emerald-500/30">
                           <CheckCircle2 className="w-3 h-3" />
-                          <span>
-                            {activeScene.videoProvider === 'veo' ? 'Google Veo MP4' : 'HeyGen MP4'}
-                          </span>
+                          <span>{activeScene.videoProvider === 'veo' ? 'Google Veo' : 'HeyGen Video'}</span>
                         </span>
                       )}
                     </div>
 
                     {activeScene.renderedVideoUrl ? (
-                      <div className="p-3 bg-slate-950 rounded-xl border border-emerald-500/30 space-y-3">
+                      <div className="p-3 bg-slate-950 rounded-xl border border-emerald-500/30 space-y-2.5">
                         <div className="aspect-video w-full rounded-lg overflow-hidden bg-black border border-slate-800">
                           <video
                             src={activeScene.renderedVideoUrl}
@@ -1140,8 +1089,8 @@ export const SceneTimelineEditor: React.FC = () => {
                         </div>
 
                         <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                          <span className="text-[11px] text-slate-300 font-mono truncate max-w-[200px]">
-                            {activeScene.renderedVideoUrl.startsWith('data:') ? 'קובץ מוטמע (Base64 Video)' : activeScene.renderedVideoUrl}
+                          <span className="text-[10px] text-slate-400 font-mono truncate max-w-[180px]">
+                            {activeScene.renderedVideoUrl.startsWith('data:') ? 'Base64 Video' : activeScene.renderedVideoUrl}
                           </span>
 
                           <div className="flex items-center gap-2">
@@ -1150,28 +1099,28 @@ export const SceneTimelineEditor: React.FC = () => {
                               download={`scene_${activeScene.sceneNumber}_video.mp4`}
                               target="_blank"
                               rel="noreferrer"
-                              className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
+                              className="px-2.5 py-1 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-200 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1 transition"
                             >
                               <Download className="w-3.5 h-3.5" />
-                              <span>הורד קובץ MP4</span>
+                              <span>הורד MP4</span>
                             </a>
 
                             <button
                               type="button"
                               onClick={() => updateCurrentScene(activeScene.id, { renderedVideoUrl: undefined, heygenJobId: undefined, heygenStatus: undefined })}
-                              className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
-                              title="מחק וידאו והפק מחדש"
+                              className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition"
+                              title="מחק וידאו"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </div>
                       </div>
                     ) : (
-                      <div className="p-6 text-center bg-slate-950/60 rounded-xl border border-dashed border-slate-800 text-slate-500 space-y-2">
-                        <Film className="w-8 h-8 mx-auto text-slate-600" />
+                      <div className="p-4 text-center bg-slate-950/60 rounded-xl border border-dashed border-slate-800 text-slate-500 space-y-1">
+                        <Film className="w-6 h-6 mx-auto text-slate-600" />
                         <p className="text-xs">
-                          טרם הופק וידאו עבור סצנה זו. בחר מנוע (HeyGen או Google Veo) ולחץ על כפתור ההפקה למעלה.
+                          טרם הופק וידאו עבור סצנה זו. בחר מנוע ולחץ על כפתור ההפקה.
                         </p>
                       </div>
                     )}
@@ -1187,10 +1136,10 @@ export const SceneTimelineEditor: React.FC = () => {
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>טקסט הקריינות והדיבוב (כולל תגיות הדרכה קוליות)</span>
+                        <span>טקסט הקריינות והדיבוב</span>
                       </label>
                       <span className="text-[10px] text-slate-500 font-mono">
-                        {activeScene.dialogueScript.length} תווים (~{Math.round(activeScene.dialogueScript.length / 15)} שניות)
+                        {activeScene.dialogueScript.length} תווים (~{Math.round(activeScene.dialogueScript.length / 15)}s)
                       </span>
                     </div>
 
@@ -1203,98 +1152,102 @@ export const SceneTimelineEditor: React.FC = () => {
                     />
 
                     {/* Speech Direction Tags Toolbar */}
-                    <div className="pt-1 space-y-1.5">
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-bold flex items-center gap-1">
-                          <Mic className="w-3 h-3 text-cyan-400" />
-                          <span>תגיות הדרכה קוליות של גוגל (לחץ להוספה בטקסט):</span>
-                        </span>
-                        <span className="text-[10px] text-cyan-400 font-mono">Google AI Studio Speech Guidelines</span>
-                      </div>
-                      <div className="flex items-center flex-wrap gap-1.5">
+                    <div className="pt-1 space-y-1">
+                      <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                        <Mic className="w-3 h-3 text-cyan-400" />
+                        <span>תגיות הדרכה קוליות:</span>
+                      </span>
+                      <div className="flex items-center flex-wrap gap-1">
                         {SPEECH_DIRECTION_TAGS.map((t) => (
                           <button
                             key={t.id}
                             type="button"
                             onClick={() => handleInsertSpeechTag(t.tag)}
-                            className={`px-2 py-0.5 rounded-lg border text-[10px] font-semibold transition cursor-pointer ${t.color}`}
+                            className={`px-1.5 py-0.5 rounded-lg border text-[10px] font-semibold transition cursor-pointer ${t.color}`}
                             title={t.desc}
                           >
                             <span>{t.tag}</span>
-                            <span className="opacity-80 mr-1 text-[9px]">({t.label})</span>
                           </button>
                         ))}
                       </div>
                     </div>
                   </div>
 
-                  {/* Voice Selector & Audio Demo Buttons */}
+                  {/* Voice Selector Dropdown with inline Preview Button */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                         <Mic className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>קטלוג קולות Google Gemini Audio & Cloud TTS</span>
+                        <span>בחירת קול קריינות (Google Gemini Audio & TTS)</span>
                       </label>
                       <span className="text-[10px] text-cyan-400 font-mono">
-                        {GOOGLE_TTS_VOICES.length} קולות זמינים
+                        {GOOGLE_TTS_VOICES.length} קולות
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-60 overflow-y-auto p-1">
-                      {GOOGLE_TTS_VOICES.map((v) => {
-                        const isSelected = (activeScene.googleTtsVoiceName || 'he-IL-Wavenet-B') === v.id;
-                        const isPlaying = playingVoiceId === v.id;
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <select
+                          value={activeScene.googleTtsVoiceName || 'he-IL-Wavenet-B'}
+                          onChange={(e) => {
+                            const foundVoice = GOOGLE_TTS_VOICES.find(v => v.id === e.target.value);
+                            updateCurrentScene(activeScene.id, {
+                              googleTtsVoiceName: e.target.value,
+                              googleTtsLanguageCode: foundVoice?.languageCode || 'he-IL'
+                            });
+                          }}
+                          className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-medium focus:border-cyan-500 focus:outline-none"
+                        >
+                          <optgroup label="קולות עברית (Hebrew Voices)">
+                            {GOOGLE_TTS_VOICES.filter(v => v.languageCode === 'he-IL' || v.languageName.includes('עברית')).map(v => (
+                              <option key={v.id} value={v.id}>
+                                🇮🇱 {v.name} - {v.badge}
+                              </option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="קולות רב-לשוניים ו-Gemini Audio">
+                            {GOOGLE_TTS_VOICES.filter(v => v.languageCode === 'multilingual').map(v => (
+                              <option key={v.id} value={v.id}>
+                                🌐 {v.name} - {v.badge}
+                              </option>
+                            ))}
+                          </optgroup>
+                          <optgroup label="קולות אנגלית ועולמיים">
+                            {GOOGLE_TTS_VOICES.filter(v => v.languageCode !== 'he-IL' && v.languageCode !== 'multilingual' && !v.languageName.includes('עברית')).map(v => (
+                              <option key={v.id} value={v.id}>
+                                🇺🇸 {v.name} ({v.languageName})
+                              </option>
+                            ))}
+                          </optgroup>
+                        </select>
+                      </div>
+
+                      {/* Demo Play Button for current selected voice */}
+                      {(() => {
+                        const currentVoice = GOOGLE_TTS_VOICES.find(v => v.id === (activeScene.googleTtsVoiceName || 'he-IL-Wavenet-B')) || GOOGLE_TTS_VOICES[0];
+                        const isPlaying = playingVoiceId === currentVoice.id;
                         return (
-                          <div
-                            key={v.id}
-                            onClick={() => updateCurrentScene(activeScene.id, {
-                              googleTtsVoiceName: v.id,
-                              googleTtsLanguageCode: v.languageCode
-                            })}
-                            className={`p-2.5 rounded-xl border transition cursor-pointer flex flex-col justify-between gap-1.5 ${
-                              isSelected
-                                ? 'bg-cyan-950/50 border-cyan-500 shadow-md shadow-cyan-950/40'
-                                : 'bg-slate-950 border-slate-800 hover:bg-slate-800/40'
+                          <button
+                            type="button"
+                            onClick={() => handlePlayVoiceDemo(currentVoice)}
+                            className={`px-3 py-2.5 rounded-xl text-xs flex items-center gap-1.5 font-semibold transition cursor-pointer shrink-0 ${
+                              isPlaying
+                                ? 'bg-amber-500 text-black shadow-md shadow-amber-500/30'
+                                : 'bg-cyan-600/30 hover:bg-cyan-600/50 text-cyan-200 border border-cyan-500/40'
                             }`}
+                            title="השמע דמו לקול הנבחר"
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-xs text-white flex items-center gap-1">
-                                <span>{v.name}</span>
-                              </span>
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-mono">
-                                {v.badge}
-                              </span>
-                            </div>
-
-                            <p className="text-[10px] text-slate-400 line-clamp-1">{v.description}</p>
-
-                            <div className="flex items-center justify-between pt-1 border-t border-slate-800/60">
-                              <span className="text-[9px] text-slate-500 font-mono">{v.languageName}</span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handlePlayVoiceDemo(v);
-                                }}
-                                className={`px-2.5 py-1 rounded-lg text-[10px] flex items-center gap-1 font-semibold transition cursor-pointer ${
-                                  isPlaying
-                                    ? 'bg-amber-500 text-black shadow-md shadow-amber-500/30'
-                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                                }`}
-                              >
-                                {loadingVoiceId === v.id ? (
-                                  <RefreshCw className="w-3 h-3 animate-spin text-cyan-300" />
-                                ) : isPlaying ? (
-                                  <Volume2 className="w-3 h-3 text-black animate-pulse" />
-                                ) : (
-                                  <PlayIcon className="w-2.5 h-2.5" />
-                                )}
-                                <span>{loadingVoiceId === v.id ? 'טוען שמע...' : isPlaying ? 'עצור' : 'השמע דמו'}</span>
-                              </button>
-                            </div>
-                          </div>
+                            {loadingVoiceId === currentVoice.id ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-300" />
+                            ) : isPlaying ? (
+                              <Volume2 className="w-3.5 h-3.5 text-black animate-pulse" />
+                            ) : (
+                              <PlayIcon className="w-3.5 h-3.5" />
+                            )}
+                            <span>{loadingVoiceId === currentVoice.id ? 'טוען...' : isPlaying ? 'עצור' : 'השמע דמו'}</span>
+                          </button>
                         );
-                      })}
+                      })()}
                     </div>
                   </div>
 
@@ -1302,17 +1255,15 @@ export const SceneTimelineEditor: React.FC = () => {
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
                     <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>הגדרות מתקדמות & תגיות SSML</span>
+                      <span>הגדרות SSML (מהירות, גובה צליל והדגשה)</span>
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {/* Speaking Rate */}
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">מהירות דיבור</span>
-                          <span className="text-cyan-300 font-mono font-bold">
-                            {currentRate.toFixed(2)}x
-                          </span>
+                          <span className="text-slate-400">מהירות:</span>
+                          <span className="text-cyan-300 font-mono font-bold">{currentRate.toFixed(2)}x</span>
                         </div>
                         <input
                           type="range"
@@ -1326,12 +1277,10 @@ export const SceneTimelineEditor: React.FC = () => {
                       </div>
 
                       {/* Pitch */}
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">גובה צליל (Pitch)</span>
-                          <span className="text-cyan-300 font-mono font-bold">
-                            {currentPitch}st
-                          </span>
+                          <span className="text-slate-400">גובה צליל:</span>
+                          <span className="text-cyan-300 font-mono font-bold">{currentPitch}st</span>
                         </div>
                         <input
                           type="range"
@@ -1345,14 +1294,14 @@ export const SceneTimelineEditor: React.FC = () => {
                       </div>
 
                       {/* Emphasis */}
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                        <label className="text-xs text-slate-400 block">רמת הדגשה (Emphasis)</label>
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <label className="text-xs text-slate-400 block">רמת הדגשה:</label>
                         <select
                           value={activeScene.googleTtsSsmlEmphasis || 'none'}
                           onChange={(e) => updateCurrentScene(activeScene.id, { googleTtsSsmlEmphasis: e.target.value as any })}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                          className="w-full p-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
                         >
-                          <option value="none">ללא הדגשה (None)</option>
+                          <option value="none">רגילה (None)</option>
                           <option value="moderate">מתונה (Moderate)</option>
                           <option value="strong">חזקה (Strong)</option>
                           <option value="reduced">מופחתת (Reduced)</option>
@@ -1362,130 +1311,73 @@ export const SceneTimelineEditor: React.FC = () => {
                   </div>
 
                   {/* Render Google TTS & Audio Import Buttons */}
-                  <div className="space-y-3">
+                  <div className="space-y-2.5">
                     <button
                       type="button"
                       onClick={handleGenerateGoogleTts}
                       disabled={isGeneratingAudio || !activeScene.dialogueScript.trim()}
-                      className="w-full py-3.5 px-4 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 transition cursor-pointer disabled:opacity-50"
+                      className="w-full py-3 px-4 bg-gradient-to-r from-cyan-600 via-blue-600 to-cyan-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-xs rounded-xl flex items-center justify-center gap-2 shadow-lg shadow-cyan-600/20 transition cursor-pointer disabled:opacity-50"
                     >
                       <Volume2 className={`w-4 h-4 ${isGeneratingAudio && generatingMediaSceneId === activeScene.id ? 'animate-spin' : ''}`} />
                       <span>
                         {isGeneratingAudio && generatingMediaSceneId === activeScene.id
-                          ? 'מפיק קובץ שמע עם Google Gemini Speech & TTS...'
-                          : '🎙️ הפק קריינות עם Google Gemini Speech & TTS (וסנכרן לגלריה)'}
+                          ? 'מפיק קובץ שמע ב-Google Cloud TTS...'
+                          : '🎙️ הפק קריינות AI עם Google Cloud TTS'}
                       </span>
                     </button>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={handlePickAudioMedia}
-                        className="p-2.5 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-2 transition cursor-pointer"
+                        className="p-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
-                        <FolderOpen className="w-4 h-4 text-cyan-400" />
-                        <span>📁 בחר שמע מגלריית המדיה</span>
+                        <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
+                        <span>בחר מגלריה</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => audioFileInputRef.current?.click()}
-                        className="p-2.5 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-2 transition cursor-pointer"
+                        className="p-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
-                        <Upload className="w-4 h-4 text-blue-400" />
-                        <span>📤 העלה קובץ שמע מהמחשב</span>
+                        <Upload className="w-3.5 h-3.5 text-blue-400" />
+                        <span>העלה קובץ</span>
                       </button>
                     </div>
 
-                    {/* Active Rendered / Selected Audio Card */}
-                    <div className="p-4 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                          <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>קובץ השמע והקריינות הפעיל לסצנה (Audio Asset)</span>
-                        </label>
-                        {activeScene.renderedAudioUrl ? (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-semibold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>שמע מוגדר ופעיל</span>
+                    {/* Active Audio Card */}
+                    {activeScene.renderedAudioUrl && (
+                      <div className="p-3 bg-slate-950 rounded-xl border border-cyan-500/30 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                            <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+                            <span>קובץ שמע פעיל</span>
                           </span>
-                        ) : (
-                          <span className="text-[10px] text-slate-500">טרם הוגדר שמע</span>
-                        )}
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={activeScene.renderedAudioUrl}
+                              download={`scene_${activeScene.sceneNumber}_audio.wav`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="px-2 py-0.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-200 border border-cyan-500/30 rounded-md text-[11px] font-semibold flex items-center gap-1 transition"
+                            >
+                              <Download className="w-3 h-3" />
+                              <span>הורד</span>
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => updateCurrentScene(activeScene.id, { renderedAudioUrl: undefined })}
+                              className="p-1 text-slate-500 hover:text-rose-400 rounded-md transition"
+                              title="מחק שמע"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <audio src={activeScene.renderedAudioUrl} controls className="h-7 w-full" />
                       </div>
-
-                      {activeScene.renderedAudioUrl ? (
-                        <div className="p-3.5 bg-slate-950 rounded-xl border border-cyan-500/30 space-y-3">
-                          {/* Audio Player */}
-                          <div className="flex items-center justify-between gap-3 bg-slate-900/80 p-2.5 rounded-lg border border-slate-800">
-                            <div className="flex items-center gap-2">
-                              <div className="w-8 h-8 rounded-lg bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                                <Volume2 className="w-4 h-4 animate-pulse" />
-                              </div>
-                              <span className="text-xs font-bold text-slate-200">נגן שמע לסצנה</span>
-                            </div>
-                            <audio src={activeScene.renderedAudioUrl} controls className="h-8 max-w-[260px] sm:max-w-[320px]" />
-                          </div>
-
-                          {/* Spoken Narration Subtitle Box */}
-                          <div className="bg-slate-900/90 border border-cyan-500/20 rounded-xl p-3 text-right" dir="rtl">
-                            <div className="text-[11px] font-bold text-cyan-400 uppercase tracking-wider mb-1 flex items-center justify-between">
-                              <span className="flex items-center gap-1">
-                                <span>💬</span>
-                                <span>כתוביות ותמליל הקריינות:</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopyText(activeScene.subtitleText || activeScene.dialogueScript, 'audio_sub')}
-                                className="text-[10px] text-slate-400 hover:text-cyan-300 flex items-center gap-1 font-mono transition"
-                              >
-                                {copiedField === 'audio_sub' ? <Check className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
-                                <span>{copiedField === 'audio_sub' ? 'הועתק' : 'העתק'}</span>
-                              </button>
-                            </div>
-                            <p className="text-xs text-slate-200 leading-relaxed font-medium select-text whitespace-pre-wrap">
-                              {activeScene.subtitleText || activeScene.dialogueScript || '(אין טקסט קריינות)'}
-                            </p>
-                          </div>
-
-                          {/* Action Toolbar */}
-                          <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-slate-800/80">
-                            <span className="text-[10px] text-slate-400 font-mono truncate max-w-[200px]">
-                              {activeScene.renderedAudioUrl.startsWith('data:') ? 'קובץ שמע מוטמע (Audio Data)' : activeScene.renderedAudioUrl}
-                            </span>
-
-                            <div className="flex items-center gap-2">
-                              <a
-                                href={activeScene.renderedAudioUrl}
-                                download={`scene_${activeScene.sceneNumber}_audio.wav`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-200 border border-cyan-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition"
-                              >
-                                <Download className="w-3.5 h-3.5" />
-                                <span>הורד קובץ שמע</span>
-                              </a>
-
-                              <button
-                                type="button"
-                                onClick={() => updateCurrentScene(activeScene.id, { renderedAudioUrl: undefined })}
-                                className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition cursor-pointer"
-                                title="מחק שמע"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-4 text-center bg-slate-950/60 rounded-xl border border-dashed border-slate-800 text-slate-500 space-y-1.5">
-                          <Volume2 className="w-6 h-6 mx-auto text-slate-600" />
-                          <p className="text-xs">
-                            טרם הופק או נבחר קובץ שמע עבור סצנה זו. תוכל להפיק קריינות AI, לבחור מגלריית המדיה או להעלות קובץ מקומי.
-                          </p>
-                        </div>
-                      )}
-                    </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1503,9 +1395,11 @@ export const SceneTimelineEditor: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => updateCurrentScene(activeScene.id, { subtitleText: activeScene.dialogueScript })}
-                        className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-[10px] font-bold rounded-lg transition"
+                        className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-[10px] font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+                        title="שעתק את תוכן התסריט לשדה הכתוביות"
                       >
-                        ⚡ שעתק מטקסט התסריט
+                        <Wand2 className="w-3 h-3 text-yellow-400" />
+                        <span>שעתק מתסריט</span>
                       </button>
                     </div>
 
@@ -1518,67 +1412,65 @@ export const SceneTimelineEditor: React.FC = () => {
                     />
                   </div>
 
-                  {/* 6 Subtitle Style Presets */}
+                  {/* Subtitle Configuration: Style Preset, Animation, Position & Font Size */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <label className="text-xs font-bold text-slate-200 block">
-                      בחר סגנון כתוביות (Style Presets):
+                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <Palette className="w-3.5 h-3.5 text-yellow-400" />
+                      <span>הגדרות סגנון, אנימציה ומיקום כתוביות</span>
                     </label>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                      {[
-                        { id: 'glow', label: 'זוהר ניאון', desc: 'צללית זוהרת מודרנית', color: 'text-cyan-300' },
-                        { id: 'outline', label: 'קו מתאר (Outline)', desc: 'סגנון קולנועי מודגש', color: 'text-white' },
-                        { id: 'boxed', label: 'תיבה שחורה (Boxed)', desc: 'רקע כהה לקריאות מקסימלית', color: 'text-yellow-300' },
-                        { id: 'tiktok', label: 'טיקטוק / רילס', desc: 'טקסט צהוב עז על רקע שחור', color: 'text-amber-400' },
-                        { id: 'karaoke', label: 'קריוקי דינמי', desc: 'הדגשת מילים בזמן דיבור', color: 'text-pink-400' },
-                        { id: 'minimal', label: 'מינימליסטי', desc: 'עדין ונקי ללא רקע', color: 'text-slate-300' },
-                      ].map((style) => {
-                        const isSelected = (activeScene.subtitleStyle || 'boxed') === style.id;
-                        return (
-                          <button
-                            key={style.id}
-                            type="button"
-                            onClick={() => updateCurrentScene(activeScene.id, { subtitleStyle: style.id as any })}
-                            className={`p-2.5 rounded-xl border text-right transition cursor-pointer ${
-                              isSelected
-                                ? 'bg-yellow-500/20 border-yellow-500 shadow-md shadow-yellow-500/20'
-                                : 'bg-slate-950 border-slate-800 hover:bg-slate-800/40'
-                            }`}
-                          >
-                            <span className={`font-bold text-xs block ${style.color}`}>{style.label}</span>
-                            <span className="text-[10px] text-slate-400">{style.desc}</span>
-                          </button>
-                        );
-                      })}
+                    {/* Subtitle Style Preset Select Dropdown */}
+                    <div className="space-y-1">
+                      <span className="text-[11px] text-slate-400">סגנון עיצוב כתוביות (Style Preset):</span>
+                      <select
+                        value={activeScene.subtitleStyle || 'boxed'}
+                        onChange={(e) => updateCurrentScene(activeScene.id, { subtitleStyle: e.target.value as any })}
+                        className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-yellow-500 focus:outline-none"
+                      >
+                        <option value="boxed">⬛ תיבה שחורה מודגשת (Boxed) - קריאות מקסימלית</option>
+                        <option value="outline">🔲 קו מתאר קולנועי (Outline) - מודגש ללא רקע</option>
+                        <option value="glow">✨ זוהר ניאון (Glow) - צללית ניאון מודרנית</option>
+                        <option value="tiktok">⚡ טיקטוק ורילס (TikTok / Reels) - טקסט צהוב עז</option>
+                        <option value="karaoke">🎤 קריוקי דינמי (Karaoke) - גרדיאנט והדגשה</option>
+                        <option value="minimal">▫️ מינימליסטי (Minimal) - עדין ונקי</option>
+                      </select>
                     </div>
-                  </div>
 
-                  {/* Subtitle Animation, Size & Position Controls */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <label className="text-xs font-bold text-slate-200 block">
-                      התאמת אנימציה, גודל ומיקום:
-                    </label>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {/* Animation */}
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                        <label className="text-xs text-slate-400 block">אנימציה</label>
+                    {/* Animation, Size & Position in 3 Columns */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                      {/* Animation Dropdown */}
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <label className="text-[11px] text-slate-400 block">אנימציה:</label>
                         <select
                           value={activeScene.subtitleAnimation || 'pop'}
                           onChange={(e) => updateCurrentScene(activeScene.id, { subtitleAnimation: e.target.value as any })}
                           className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
                         >
-                          <option value="pop">קפיצה קלה (Pop)</option>
-                          <option value="fade">עמעום (Fade)</option>
-                          <option value="word">מילה במילה (Word)</option>
-                          <option value="line">שורה אחר שורה (Line)</option>
+                          <option value="pop">💥 קפיצה קלה (Pop)</option>
+                          <option value="fade">🌫️ עמעום (Fade)</option>
+                          <option value="word">🔤 מילה במילה (Word)</option>
+                          <option value="line">📜 שורה אחר שורה (Line)</option>
                         </select>
                       </div>
 
-                      {/* Font Size */}
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">גודל גופן</span>
+                      {/* Position Dropdown */}
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <label className="text-[11px] text-slate-400 block">מיקום על המסך:</label>
+                        <select
+                          value={activeScene.subtitlePosition || 'bottom'}
+                          onChange={(e) => updateCurrentScene(activeScene.id, { subtitlePosition: e.target.value as any })}
+                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                        >
+                          <option value="bottom">⬇️ למטה (Bottom)</option>
+                          <option value="center">⏹️ במרכז (Center)</option>
+                          <option value="top">⬆️ למעלה (Top)</option>
+                        </select>
+                      </div>
+
+                      {/* Font Size Slider */}
+                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-slate-400">גודל גופן:</span>
                           <span className="text-yellow-400 font-mono font-bold">
                             {activeScene.subtitleFontSize || 18}px
                           </span>
@@ -1593,28 +1485,14 @@ export const SceneTimelineEditor: React.FC = () => {
                           className="w-full accent-yellow-500 cursor-pointer"
                         />
                       </div>
-
-                      {/* Position */}
-                      <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-                        <label className="text-xs text-slate-400 block">מיקום על המסך</label>
-                        <select
-                          value={activeScene.subtitlePosition || 'bottom'}
-                          onChange={(e) => updateCurrentScene(activeScene.id, { subtitlePosition: e.target.value as any })}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
-                        >
-                          <option value="bottom">למטה (Bottom)</option>
-                          <option value="center">במרכז (Center)</option>
-                          <option value="top">למעלה (Top)</option>
-                        </select>
-                      </div>
                     </div>
                   </div>
 
-                  {/* Subtitle Downloads (SRT / VTT) */}
+                  {/* Subtitle Export Downloads (SRT / VTT) */}
                   <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex items-center justify-between gap-3">
                     <div>
                       <span className="text-xs font-bold text-slate-200 block">ייצוא קבצי כתוביות</span>
-                      <span className="text-[10px] text-slate-400">תואם ליוטיוב, טיקטוק, פרימייר ונגני וידאו</span>
+                      <span className="text-[10px] text-slate-400">תואם ליוטיוב, טיקטוק, פרימייר ונגנים</span>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -1622,6 +1500,7 @@ export const SceneTimelineEditor: React.FC = () => {
                         type="button"
                         onClick={() => handleDownloadSubtitles('srt')}
                         className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                        title="הורד קובץ כתוביות SRT"
                       >
                         <Download className="w-3.5 h-3.5 text-yellow-400" />
                         <span>הורד SRT</span>
@@ -1631,6 +1510,7 @@ export const SceneTimelineEditor: React.FC = () => {
                         type="button"
                         onClick={() => handleDownloadSubtitles('vtt')}
                         className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                        title="הורד קובץ כתוביות VTT"
                       >
                         <Download className="w-3.5 h-3.5 text-amber-400" />
                         <span>הורד VTT</span>

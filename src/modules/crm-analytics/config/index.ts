@@ -1,4 +1,4 @@
-﻿import { DynamicColumn } from '../types';
+import { DynamicColumn } from '../types';
 
 export const MODULE_ID = 'crm-analytics';
 export const MODULE_NAME = 'אנליטיקה ודוחות CRM (CRM Analytics & Insights)';
@@ -6,6 +6,7 @@ export const MODULE_VERSION = '1.0.0';
 
 export const DEFAULT_COLLECTIONS = {
   contacts: 'contacts',
+  leads: 'mod_crm_leads',
   groups: 'crm_groups',
   customFields: 'crm_custom_fields',
   savedViews: 'crm_analytics_saved_views',
@@ -19,17 +20,18 @@ export const CHART_COLORS = [
 
 export const CORE_COLUMNS: DynamicColumn[] = [
   { id: 'conta_name', label: 'שם מלא', category: 'core' },
+  { id: 'contact_type', label: 'סוג (איש קשר / ליד)', category: 'core' },
   { id: 'conta_phone', label: 'טלפון', category: 'core' },
   { id: 'email', label: 'אימייל', category: 'core' },
+  { id: 'lead_source', label: 'מקור הגעה', category: 'core' },
+  { id: 'tags', label: 'תגיות', category: 'tag' },
+  { id: 'community', label: 'קבוצה / קהילה', category: 'core' },
   { id: 'f_m', label: 'משפחה / קרבה', category: 'core' },
   { id: 'gender', label: 'מין', category: 'core' },
   { id: 'mh_crm_city', label: 'עיר', category: 'core' },
   { id: 'mh_crm_street', label: 'כתובת / רחוב', category: 'core' },
   { id: 'company_name', label: 'חברה / ארגון', category: 'core' },
   { id: 'job_title', label: 'תפקיד', category: 'core' },
-  { id: 'lead_source', label: 'מקור הגעה', category: 'core' },
-  { id: 'tags', label: 'תגיות', category: 'tag' },
-  { id: 'community', label: 'קבוצה / קהילה', category: 'core' },
   { id: 'total_spent', label: 'סה"כ רכישות (₪)', category: 'financial', isNumeric: true },
   { id: 'order_count', label: 'מספר הזמנות', category: 'financial', isNumeric: true },
   { id: 'campaign_amount', label: 'סכום קמפיין (₪)', category: 'financial', isNumeric: true },
@@ -41,7 +43,9 @@ export const CORE_COLUMNS: DynamicColumn[] = [
 
 export const DEFAULT_SELECTED_COLUMNS = [
   'conta_name',
+  'contact_type',
   'conta_phone',
+  'lead_source',
   'tags',
   'community',
   'total_spent',

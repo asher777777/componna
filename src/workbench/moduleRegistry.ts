@@ -9,8 +9,10 @@ import { CrmAnalyticsStandaloneView } from '../modules/crm-analytics';
 import { ClientReceiverPlatformStandaloneView } from '../modules/client-receiver-platform';
 import { DbConnectorHubStandaloneView } from '../modules/db-connector-hub';
 import { VideoProducerStudioView } from '../modules/video-producer-studio';
-
 import { SmartFormBuilderStandaloneView } from '../modules/smart-form-builder';
+import { CrmGroupsHubStandaloneView } from '../modules/crm-groups-hub';
+import { WhatsAppGreenApiStandaloneView } from '../modules/whatsapp-green-api-hub';
+import { KesherPaymentsStandaloneView } from '../modules/kesher-payments-hub';
 
 export interface ModuleDefinition {
   id: string;
@@ -22,6 +24,30 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'kesher-payments-hub',
+    name: 'סליקה והפקת מסמכים (קשר & איזי קאונט Hub)',
+    description: 'סליקת אשראי, ביט, הוראות קבע, הפקת קבלות וחשבוניות לפי קוד מסמך (320/405/400), סנכרון תקבולים והגדרות מסוף',
+    component: KesherPaymentsStandaloneView,
+    route: '/kesher-payments',
+    collectionPrefix: 'kesher_',
+  },
+  {
+    id: 'whatsapp-green-api-hub',
+    name: 'וואטסאפ ואוטומציה (GREEN-API Hub)',
+    description: 'מרכז וואטסאפ מקיף: אימות QR/הודעה, סנכרון Webhook, שליחת מדיה/סקרים/כפתורים, ניהול קבוצות והיסטוריית שיחות',
+    component: WhatsAppGreenApiStandaloneView,
+    route: '/whatsapp-hub',
+    collectionPrefix: 'wa_',
+  },
+  {
+    id: 'crm-groups-hub',
+    name: 'ניהול קהילות וקבוצות CRM (Groups & Communities Hub)',
+    description: 'מערכת רב-שכבתית לניהול קהילות, סגמנטציה חכמה (Smart Groups), עמודי שגרירים, גיוס כספי וייבוא מתקדם מוואטסאפ',
+    component: CrmGroupsHubStandaloneView,
+    route: '/crm-groups',
+    collectionPrefix: 'crm_groups',
+  },
   {
     id: 'smart-form-builder',
     name: 'בונה הטפסים החכם (Smart Form Builder)',

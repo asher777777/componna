@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { FormStep, FormThemeSettings } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
-import { Star, Check, Upload, FileCheck } from 'lucide-react';
+import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
+import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2 } from 'lucide-react';
 
 export interface StepRendererProps {
   step: FormStep;
@@ -21,6 +22,24 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   validationError,
 }) => {
   const accentColor = theme?.accentColor || '#D97706';
+  const isVoiceEnabled = theme?.enableVoiceInput !== false;
+
+  const handleSpeechResult = useCallback(
+    (transcript: string) => {
+      if (step.fieldType === 'number') {
+        const numOnly = transcript.replace(/\D/g, '');
+        onChange(numOnly || transcript);
+      } else {
+        onChange(transcript);
+      }
+    },
+    [step.fieldType, onChange]
+  );
+
+  const { isListening, isSupported, toggleListening } = useSpeechRecognition({
+    onResult: handleSpeechResult,
+    lang: 'he-IL',
+  });
 
   const renderFieldInput = () => {
     switch (step.fieldType) {
@@ -31,27 +50,103 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
         return (
           <div className="relative w-full max-w-xl">
             <input
-              type={step.fieldType === 'number' ? 'number' : step.fieldType === 'email' ? 'email' : step.fieldType === 'phone' ? 'tel' : 'text'}
+              type={
+                step.fieldType === 'number'
+                  ? 'number'
+                  : step.fieldType === 'email'
+                  ? 'email'
+                  : step.fieldType === 'phone'
+                  ? 'tel'
+                  : 'text'
+              }
+              dir={
+                step.fieldType === 'phone' ||
+                step.fieldType === 'number' ||
+                step.fieldType === 'email'
+                  ? 'ltr'
+                  : 'rtl'
+              }
               autoFocus
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
-              placeholder={step.placeholder || 'הקלד כאן...'}
-              className="w-full px-5 py-4 text-lg md:text-xl bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm placeholder:text-slate-400"
+              placeholder={step.placeholder || (step.fieldType === 'phone' ? '050-1234567' : 'הקלד כאן...')}
+              className={`w-full px-5 py-4 ${
+                isSupported && isVoiceEnabled ? 'pl-14' : ''
+              } ${
+                step.fieldType === 'phone' || step.fieldType === 'number'
+                  ? 'font-mono text-left'
+                  : ''
+              } text-lg md:text-xl bg-white/90 dark:bg-slate-900/90 border-2 ${
+                isListening
+                  ? 'border-red-500 ring-4 ring-red-500/20'
+                  : 'border-slate-200 dark:border-slate-800 focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
+              } rounded-2xl transition-all outline-none text-slate-800 dark:text-white shadow-sm placeholder:text-slate-400`}
             />
+
+
+            {/* Microphone Voice Button (End of text field in RTL) */}
+            {isSupported && isVoiceEnabled && (
+              <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2.5 rounded-xl transition-all ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-slate-700'
+                  }`}
+                  title={isListening ? 'הקלטה פעילה - לחץ לעצירה' : 'לחץ להקראה קולית במקום הקלדה'}
+                >
+                  {isListening ? (
+                    <Mic className="w-5 h-5 animate-bounce" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         );
 
       case 'textarea':
         return (
-          <div className="w-full max-w-xl">
+          <div className="relative w-full max-w-xl">
             <textarea
               autoFocus
               rows={4}
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
               placeholder={step.placeholder || 'הקלד את תשובתך בהרחבה כאן...'}
-              className="w-full px-5 py-4 text-base md:text-lg bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm placeholder:text-slate-400 resize-y"
+              className={`w-full px-5 py-4 ${
+                isSupported && isVoiceEnabled ? 'pl-14' : ''
+              } text-base md:text-lg bg-white/90 dark:bg-slate-900/90 border-2 ${
+                isListening
+                  ? 'border-red-500 ring-4 ring-red-500/20'
+                  : 'border-slate-200 dark:border-slate-800 focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
+              } rounded-2xl transition-all outline-none text-slate-800 dark:text-white shadow-sm placeholder:text-slate-400 resize-y`}
             />
+
+            {/* Microphone Voice Button for Textarea */}
+            {isSupported && isVoiceEnabled && (
+              <div className="absolute left-3.5 bottom-4">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2.5 rounded-xl transition-all ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-slate-700'
+                  }`}
+                  title={isListening ? 'הקלטה פעילה - לחץ לעצירה' : 'לחץ להקראה קולית במקום הקלדה'}
+                >
+                  {isListening ? (
+                    <Mic className="w-5 h-5 animate-bounce" />
+                  ) : (
+                    <Mic className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            )}
           </div>
         );
 
@@ -242,7 +337,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               autoFocus
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
-              className="w-full px-5 py-4 text-lg bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm"
+              className="w-full px-5 py-4 text-lg bg-white/90 dark:bg-slate-900/90 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm"
             />
           </div>
         );
@@ -255,7 +350,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               autoFocus
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
-              className="w-full px-5 py-4 text-lg bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm"
+              className="w-full px-5 py-4 text-lg bg-white/90 dark:bg-slate-900/90 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all outline-none text-slate-800 dark:text-white shadow-sm"
             />
           </div>
         );
@@ -303,7 +398,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
               placeholder={step.placeholder || 'הקלד כאן...'}
-              className="w-full px-5 py-4 text-lg bg-white/80 dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 outline-none text-slate-800 dark:text-white"
+              className="w-full px-5 py-4 text-lg bg-white/90 dark:bg-slate-900/90 border-2 border-slate-200 dark:border-slate-800 rounded-2xl focus:border-amber-500 dark:focus:border-amber-400 outline-none text-slate-800 dark:text-white"
             />
           </div>
         );
@@ -337,6 +432,14 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
         {renderFieldInput()}
       </div>
 
+      {/* Voice Recording Listening Status Banner */}
+      {isListening && (
+        <div className="flex items-center gap-2 text-xs font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 px-4 py-2 rounded-xl animate-pulse">
+          <Mic className="w-4 h-4 animate-bounce" />
+          <span>מקליט ומפענח את קולך כעת... דבר ברור</span>
+        </div>
+      )}
+
       {/* Validation Error Banner */}
       {validationError && (
         <div className="text-xs font-semibold text-rose-500 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/50 px-4 py-2 rounded-xl animate-shake">
@@ -345,7 +448,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
       )}
 
       {/* Helper text */}
-      {step.helperText && !validationError && (
+      {step.helperText && !validationError && !isListening && (
         <p className="text-xs text-slate-400 max-w-md">
           {step.helperText}
         </p>

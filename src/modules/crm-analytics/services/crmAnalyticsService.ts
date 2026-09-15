@@ -1,4 +1,4 @@
-﻿import { FirebaseApp } from 'firebase/app';
+import { FirebaseApp } from 'firebase/app';
 import { 
   getFirestore, 
   collection, 
@@ -47,12 +47,14 @@ export function parseDateToTime(val: any): number | null {
   return null;
 }
 
-// Generate realistic mock data for standalone workbench demo
+// Generate realistic mock data for standalone workbench demo (Contacts and Leads)
 export function generateMockCrmData(): Contact[] {
   return [
     {
       id: 'c1',
       status: 'active',
+      is_lead: false,
+      contact_type: 'contact',
       conta_name: 'ישראל ישראלי',
       conta_phone: '050-1234567',
       email: 'israel@example.com',
@@ -75,6 +77,8 @@ export function generateMockCrmData(): Contact[] {
     {
       id: 'c2',
       status: 'active',
+      is_lead: false,
+      contact_type: 'contact',
       conta_name: 'שרה כהן',
       conta_phone: '052-7654321',
       email: 'sara.cohen@example.com',
@@ -97,6 +101,8 @@ export function generateMockCrmData(): Contact[] {
     {
       id: 'c3',
       status: 'active',
+      is_lead: false,
+      contact_type: 'contact',
       conta_name: 'דוד לוי',
       conta_phone: '054-9876543',
       email: 'david.levi@example.com',
@@ -119,6 +125,8 @@ export function generateMockCrmData(): Contact[] {
     {
       id: 'c4',
       status: 'active',
+      is_lead: false,
+      contact_type: 'contact',
       conta_name: 'מיכל אברהם',
       conta_phone: '053-1122334',
       email: 'michal.a@example.com',
@@ -140,6 +148,8 @@ export function generateMockCrmData(): Contact[] {
     {
       id: 'c5',
       status: 'active',
+      is_lead: false,
+      contact_type: 'contact',
       conta_name: 'יוסי פרידמן',
       conta_phone: '058-4455667',
       email: 'yossi.f@example.com',
@@ -157,6 +167,87 @@ export function generateMockCrmData(): Contact[] {
       last_form_name: 'טופס יצירת קשר ראשי',
       last_form_submission_date: '2026-08-20',
       createdAt: '2026-05-18',
+    },
+    // Realistic Integrated Leads
+    {
+      id: 'lead_01',
+      status: 'active',
+      is_lead: true,
+      contact_type: 'lead',
+      conta_name: 'יוסי כהן',
+      conta_phone: '050-1234567',
+      email: 'yossi@techsolutions.demo',
+      company_name: 'טק סולושנס בע״מ',
+      job_title: 'מנהל טכנולוגיות',
+      lead_source: 'קמפיין פייסבוק ממומן',
+      tags: ['ליד חדש', 'מתעניין מוביל'],
+      community: 'קהילת יזמים',
+      total_spent: 0,
+      order_count: 0,
+      campaign_amount: 0,
+      last_form_name: 'טופס יצירת קשר ראשי',
+      last_form_submission_date: '2026-09-12',
+      createdAt: '2026-09-12',
+    },
+    {
+      id: 'lead_02',
+      status: 'active',
+      is_lead: true,
+      contact_type: 'lead',
+      conta_name: 'רונית שפירא',
+      conta_phone: '054-3322110',
+      email: 'ronit.s@finance-hub.co.il',
+      company_name: 'שפירא פיננסים',
+      job_title: 'יועצת השקעות',
+      lead_source: 'דף נחיתה ראשי',
+      tags: ['ליד חם', 'פגישת ייעוץ'],
+      community: 'קהילת אקדמיה',
+      total_spent: 0,
+      order_count: 0,
+      campaign_amount: 0,
+      last_form_name: 'שאלון התאמה עסקית',
+      last_form_submission_date: '2026-09-14',
+      createdAt: '2026-09-14',
+    },
+    {
+      id: 'lead_03',
+      status: 'active',
+      is_lead: true,
+      contact_type: 'lead',
+      conta_name: 'אביגדור מזרחי',
+      conta_phone: '052-9988776',
+      email: 'avigdor@mizrahi-group.il',
+      company_name: 'מזרחי יזמות',
+      job_title: 'סמנכ"ל שיווק',
+      lead_source: 'גוגל חיפוש ממומן',
+      tags: ['ליד חדש', 'פרויקט CRM'],
+      community: 'קהילת מפתחים',
+      total_spent: 0,
+      order_count: 0,
+      campaign_amount: 0,
+      last_form_name: 'טופס יצירת קשר ראשי',
+      last_form_submission_date: '2026-09-10',
+      createdAt: '2026-09-10',
+    },
+    {
+      id: 'lead_04',
+      status: 'active',
+      is_lead: true,
+      contact_type: 'lead',
+      conta_name: 'דנה אלון',
+      conta_phone: '053-4455221',
+      email: 'dana@alonmedia.com',
+      company_name: 'אלון מדיה',
+      job_title: 'מנהלת קמפיינים',
+      lead_source: 'אינסטגרם ממומן',
+      tags: ['ליד חם', 'וובינר'],
+      community: 'קהילת מעצבים',
+      total_spent: 0,
+      order_count: 0,
+      campaign_amount: 0,
+      last_form_name: 'הרשמה לקורס מתקדם',
+      last_form_submission_date: '2026-09-13',
+      createdAt: '2026-09-13',
     }
   ];
 }
@@ -171,6 +262,35 @@ export function computeAnalyticsMetrics(
   // Filter by status
   if (filter?.status && filter.status !== 'all') {
     filteredContacts = filteredContacts.filter(c => c.status === filter.status);
+  }
+
+  // Filter by type: all / contacts / leads
+  if (filter?.typeFilter === 'contacts') {
+    filteredContacts = filteredContacts.filter(c => !c.is_lead && c.contact_type !== 'lead');
+  } else if (filter?.typeFilter === 'leads') {
+    filteredContacts = filteredContacts.filter(c => c.is_lead || c.contact_type === 'lead');
+  }
+
+  // Filter by metric click (Interactive Metric Cards)
+  if (filter?.metricFilter) {
+    switch (filter.metricFilter) {
+      case 'revenue':
+        filteredContacts = filteredContacts.filter(c => Number(c.total_spent || 0) > 0);
+        break;
+      case 'campaigns':
+        filteredContacts = filteredContacts.filter(c => Number(c.campaign_amount || 0) > 0 || Boolean(c.campaign_title));
+        break;
+      case 'communities':
+        filteredContacts = filteredContacts.filter(c => Boolean(c.community || c.mh_crm_community));
+        break;
+      case 'forms':
+        filteredContacts = filteredContacts.filter(c => Boolean(c.last_form_name || (Array.isArray(c.form_submissions) && c.form_submissions.length > 0)));
+        break;
+      case 'contacts':
+      default:
+        // Shows all
+        break;
+    }
   }
 
   // Filter by Date Range
@@ -224,12 +344,15 @@ export function computeAnalyticsMetrics(
       (c.conta_phone && c.conta_phone.includes(term)) ||
       (c.email && c.email.toLowerCase().includes(term)) ||
       (c.company_name && c.company_name.toLowerCase().includes(term)) ||
-      (c.mh_crm_city && c.mh_crm_city.toLowerCase().includes(term))
+      (c.mh_crm_city && c.mh_crm_city.toLowerCase().includes(term)) ||
+      (c.lead_source && c.lead_source.toLowerCase().includes(term))
     );
   }
 
   let totalSpent = 0;
   let totalCampaignAmount = 0;
+  let totalLeads = 0;
+  let totalContactsOnly = 0;
   const tagsCount: Record<string, number> = {};
   const leadSourcesCount: Record<string, number> = {};
   const communitiesCount: Record<string, number> = {};
@@ -238,6 +361,13 @@ export function computeAnalyticsMetrics(
   const textFieldsAgg: Record<string, Record<string, number>> = {};
 
   filteredContacts.forEach(c => {
+    // Check if lead or contact
+    if (c.is_lead || c.contact_type === 'lead') {
+      totalLeads += 1;
+    } else {
+      totalContactsOnly += 1;
+    }
+
     // Total Spent
     const spent = Number(c.total_spent || 0);
     if (!isNaN(spent)) totalSpent += spent;
@@ -316,6 +446,8 @@ export function computeAnalyticsMetrics(
 
   return {
     totalContacts: filteredContacts.length,
+    totalLeads,
+    totalContactsOnly,
     totalSpent,
     totalCampaignAmount,
     tagsCount,
@@ -336,7 +468,7 @@ export async function fetchLiveCrmAnalytics(
   collections = DEFAULT_COLLECTIONS
 ): Promise<CRMAnalyticsData> {
   if (!firebaseApp) {
-    // Fallback to rich mock data
+    // Fallback to rich mock data containing contacts and leads
     return computeAnalyticsMetrics(generateMockCrmData(), [], filter);
   }
 
@@ -350,10 +482,51 @@ export async function fetchLiveCrmAnalytics(
     }
 
     const snapshot = await getDocs(q);
-    const contacts: Contact[] = snapshot.docs.map(d => ({
-      id: d.id,
-      ...d.data(),
-    } as Contact));
+    const contacts: Contact[] = snapshot.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        status: data.status || 'active',
+        is_lead: data.is_lead ?? false,
+        contact_type: data.contact_type || (data.is_lead ? 'lead' : 'contact'),
+        ...data,
+      } as Contact;
+    });
+
+    // Also fetch leads from Firestore leads collection if available
+    try {
+      const leadsColName = (collections as any).leads || 'mod_crm_leads';
+      const leadsRef = collection(db, leadsColName);
+      const leadsSnap = await getDocs(leadsRef);
+      leadsSnap.docs.forEach(d => {
+        const raw = d.data();
+        const inner = raw.data || raw;
+        // Avoid duplicate id
+        if (!contacts.some(c => c.id === d.id)) {
+          const leadContact: Contact = {
+            id: d.id,
+            status: inner.status === 'trashed' ? 'trashed' : 'active',
+            is_lead: true,
+            contact_type: 'lead',
+            conta_name: inner.fullName || inner.name || inner.conta_name || 'ליד ללא שם',
+            conta_phone: inner.phone || inner.conta_phone || '',
+            email: inner.email || '',
+            company_name: inner.company || inner.company_name || '',
+            job_title: inner.job_title || inner.role || '',
+            lead_source: inner.source || inner.lead_source || 'ליד ממערכת (Leads DB)',
+            tags: Array.isArray(inner.tags) ? inner.tags : ['ליד חדש'],
+            community: inner.community || '',
+            total_spent: Number(inner.total_spent || 0),
+            order_count: Number(inner.order_count || 0),
+            createdAt: inner.createdAt || new Date().toISOString(),
+            ...inner,
+          };
+          contacts.push(leadContact);
+        }
+      });
+    } catch (leadsErr) {
+      console.warn('Leads collection fetch error:', leadsErr);
+    }
 
     // Custom fields
     let customFields: CustomField[] = [];

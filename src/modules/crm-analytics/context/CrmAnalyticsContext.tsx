@@ -99,6 +99,8 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
         return {
           ...prev,
           totalContacts: prev.totalContacts + 1,
+          totalLeads: (prev.totalLeads || 0) + 1,
+          totalContactsOnly: prev.totalContactsOnly || 0,
           contacts: [newContact, ...prev.contacts],
         };
       });
@@ -109,9 +111,15 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       refresh();
     });
 
+    const unsubSmartForm = eventBus.subscribe('smart_form:submitted', (payload) => {
+      console.log('[CRM] Received smart form submission from EventBus:', payload);
+      refresh();
+    });
+
     return () => {
       unsubLead();
       unsubForm();
+      unsubSmartForm();
     };
   }, [refresh]);
 

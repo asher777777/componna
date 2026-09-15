@@ -1,9 +1,9 @@
 import React from 'react';
-import { Database, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { Database, Wifi, WifiOff, RefreshCw, Cloud, Check } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 export const DatabaseConnectionBadge: React.FC<{ className?: string }> = ({ className = '' }) => {
-  const { config, isConnected, isTesting, lastPingLatency, openConnectorModal } = useSystemConnection();
+  const { config, isConnected, isTesting, isCloudSynced, lastPingLatency, openConnectorModal } = useSystemConnection();
 
   return (
     <button
@@ -13,7 +13,7 @@ export const DatabaseConnectionBadge: React.FC<{ className?: string }> = ({ clas
           ? 'bg-slate-900/90 border-slate-700/80 hover:border-indigo-500/80 text-slate-200 hover:bg-slate-800'
           : 'bg-rose-950/40 border-rose-800/60 text-rose-300 hover:bg-rose-900/40'
       } ${className}`}
-      title="לחץ להגדרת חיבור וסנכרון מסד נתונים"
+      title={isCloudSynced ? "סנכרון ענן אוטומטי פעיל (Firestore Synced)" : "לחץ להגדרת חיבור וסנכרון מסד נתונים"}
     >
       <div className="relative flex items-center justify-center">
         {isTesting ? (
@@ -32,6 +32,12 @@ export const DatabaseConnectionBadge: React.FC<{ className?: string }> = ({ clas
         <span className="font-semibold text-white truncate max-w-[120px]">
           {config.projectId || 'אין חיבור'}
         </span>
+        {isCloudSynced && (
+          <span className="text-[10px] bg-indigo-500/20 text-indigo-300 px-1.5 py-0.5 rounded font-mono border border-indigo-500/30 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
+            סנכרון ענן
+          </span>
+        )}
         {lastPingLatency !== undefined && (
           <span className="text-[10px] text-emerald-400 font-mono">
             {lastPingLatency}ms

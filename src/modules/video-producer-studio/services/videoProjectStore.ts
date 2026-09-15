@@ -1,4 +1,4 @@
-import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, orderBy } from 'firebase/firestore';
+import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { VideoProject, VideoScene } from '../types';
 import { MediaIndexedDbService } from '../../media-gallery-hub/services/mediaIndexedDbService';
 import { MediaItem } from '../../media-gallery-hub/types';
@@ -32,6 +32,30 @@ export async function fetchAllProjects(db?: Firestore): Promise<VideoProject[]> 
     console.warn('[VideoProjectStore] Firestore read notice, using local cache:', err);
     const local = localStorage.getItem('comona_video_studio_projects');
     return local ? JSON.parse(local) : [];
+  }
+}
+
+export function subscribeProjects(
+  db: Firestore,
+  onData: (projects: VideoProject[]) => void
+): () => void {
+  try {
+    const q = query(collection(db, PROJECTS_COLLECTION), orderBy('updatedAt', 'desc'));
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const projects: VideoProject[] = [];
+        snapshot.forEach((d) => {
+          projects.push({ id: d.id, ...(d.data() as any) });
+        });
+        onData(projects);
+      },
+      (err) => {
+        console.warn('[VideoProjectStore] Real-time projects listener notice:', err);
+      }
+    );
+  } catch {
+    return () => {};
   }
 }
 

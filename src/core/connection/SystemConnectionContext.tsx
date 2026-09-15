@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getFirestore, Firestore, collection, getDocs, limit, query } from 'firebase/firestore';
+import { getFirestore, Firestore, collection, getDocs, limit, query, doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { ensureAnonymousAuth } from '../../services/firebaseAuth';
 
@@ -37,7 +37,12 @@ export interface SystemApiKeysConfig {
   greenApiInstanceId?: string;
   greenApiToken?: string;
   customWebhookUrl?: string;
-  [key: string]: string | undefined;
+  kesherUserName?: string;
+  kesherApiKey?: string;
+  kesherPaymentPageId?: string;
+  kesherEzCountToken?: string;
+  kesherDefaultReceiptType?: number;
+  [key: string]: any;
 }
 
 export interface SystemConnectionContextValue {
@@ -49,6 +54,8 @@ export interface SystemConnectionContextValue {
   storage?: FirebaseStorage;
   isConnected: boolean;
   isTesting: boolean;
+  isCloudSynced: boolean;
+  cloudSyncTime?: number;
   lastPingLatency?: number;
   lastPingError?: string;
   updateConfig: (newConfig: Partial<SystemFirebaseConfig>, newCollections?: Partial<SystemCollectionsConfig>) => Promise<void>;
@@ -57,9 +64,10 @@ export interface SystemConnectionContextValue {
   testHeyGenKey: (keyToTest?: string) => Promise<{ success: boolean; error?: string }>;
   testConnection: (customConfig?: SystemFirebaseConfig) => Promise<{ success: boolean; latency?: number; error?: string }>;
   resetToDefaults: () => void;
-  openConnectorModal: () => void;
+  openConnectorModal: (initialTab?: string | any) => void;
   closeConnectorModal: () => void;
   isConnectorModalOpen: boolean;
+  connectorModalInitialTab?: string;
 }
 
 const STORAGE_KEY = 'comona_system_connection_config';
@@ -71,13 +79,18 @@ export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   geminiModel: 'gemini-3.8-flash',
   geminiImageModel: 'gemini-3.1-flash-image',
   geminiVideoModel: 'veo-3.1-generate-preview',
-  heygenApiKey: import.meta.env.VITE_HEYGEN_API_KEY || '',
-  elevenLabsApiKey: import.meta.env.VITE_ELEVENLABS_API_KEY || '',
+  heygenApiKey: '',
+  elevenLabsApiKey: '',
   openaiApiKey: '',
   whatsappApiToken: '',
   greenApiInstanceId: '',
   greenApiToken: '',
   customWebhookUrl: '',
+  kesherUserName: '',
+  kesherApiKey: '',
+  kesherPaymentPageId: '',
+  kesherEzCountToken: '',
+  kesherDefaultReceiptType: 405,
 };
 
 export const DEFAULT_FIREBASE_CONFIG: SystemFirebaseConfig = {
@@ -128,7 +141,10 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
   });
 
   const [isConnectorModalOpen, setIsConnectorModalOpen] = useState(false);
+  const [connectorModalInitialTab, setConnectorModalInitialTab] = useState<string | undefined>(undefined);
   const [isTesting, setIsTesting] = useState(false);
+  const [isCloudSynced, setIsCloudSynced] = useState(false);
+  const [cloudSyncTime, setCloudSyncTime] = useState<number | undefined>(undefined);
   const [lastPingLatency, setLastPingLatency] = useState<number | undefined>(undefined);
   const [lastPingError, setLastPingError] = useState<string | undefined>(undefined);
 
@@ -152,7 +168,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, [config]);
 
-
   // Firestore DB instance
   const db = useMemo<Firestore | undefined>(() => {
     if (!firebaseApp) return undefined;
@@ -166,6 +181,78 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       return undefined;
     }
   }, [firebaseApp, config.databaseId]);
+
+  // Real-time Cloud Synchronization with Firestore (system_settings/global)
+  useEffect(() => {
+    if (!db) return;
+
+    try {
+      const settingsDocRef = doc(db, 'system_settings', 'global');
+      const unsubscribe = onSnapshot(
+        settingsDocRef,
+        (docSnap) => {
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            if (data.config && typeof data.config === 'object') {
+              setConfig((prev) => {
+                const merged = { ...prev, ...data.config };
+                try {
+                  localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
+            }
+
+            if (data.collections && typeof data.collections === 'object') {
+              setCollections((prev) => {
+                const merged = { ...prev, ...data.collections };
+                try {
+                  localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
+            }
+
+            if (data.apiKeys && typeof data.apiKeys === 'object') {
+              setApiKeys((prev) => {
+                const merged = { ...prev, ...data.apiKeys };
+                try {
+                  localStorage.setItem(APIKEYS_KEY, JSON.stringify(merged));
+                } catch {}
+                return merged;
+              });
+            }
+
+            setIsCloudSynced(true);
+            setCloudSyncTime(Date.now());
+          } else {
+            // First time initialization on Firestore
+            setDoc(
+              settingsDocRef,
+              {
+                config,
+                collections,
+                apiKeys,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+              },
+              { merge: true }
+            ).catch((err) => console.warn('[SystemConnection] Auto-init cloud settings notice:', err));
+            setIsCloudSynced(true);
+            setCloudSyncTime(Date.now());
+          }
+        },
+        (error) => {
+          console.warn('[SystemConnection] Cloud settings sync notice:', error);
+          setIsCloudSynced(false);
+        }
+      );
+
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('[SystemConnection] Cloud sync setup notice:', err);
+    }
+  }, [db]);
 
   // Storage instance
   const storage = useMemo<FirebaseStorage | undefined>(() => {
@@ -286,8 +373,9 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updatedConfig));
       } catch {}
 
+      let cleanedCols: SystemCollectionsConfig | undefined = undefined;
       if (newCollections) {
-        const cleanedCols: SystemCollectionsConfig = { ...collections };
+        cleanedCols = { ...collections };
         for (const [k, v] of Object.entries(newCollections)) {
           if (v !== undefined) {
             cleanedCols[k] = v;
@@ -298,8 +386,25 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
           localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(cleanedCols));
         } catch {}
       }
+
+      if (db) {
+        try {
+          const ref = doc(db, 'system_settings', 'global');
+          await setDoc(
+            ref,
+            {
+              config: updatedConfig,
+              ...(cleanedCols ? { collections: cleanedCols } : {}),
+              updatedAt: Date.now(),
+            },
+            { merge: true }
+          );
+        } catch (err) {
+          console.warn('[SystemConnection] Cloud save config notice:', err);
+        }
+      }
     },
-    [config, collections]
+    [config, collections, db]
   );
 
   const updateApiKeys = useCallback(
@@ -309,8 +414,24 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       try {
         localStorage.setItem(APIKEYS_KEY, JSON.stringify(updated));
       } catch {}
+
+      if (db) {
+        try {
+          const ref = doc(db, 'system_settings', 'global');
+          await setDoc(
+            ref,
+            {
+              apiKeys: updated,
+              updatedAt: Date.now(),
+            },
+            { merge: true }
+          );
+        } catch (err) {
+          console.warn('[SystemConnection] Cloud save API keys notice:', err);
+        }
+      }
     },
-    [apiKeys]
+    [apiKeys, db]
   );
 
   const resetToDefaults = useCallback(() => {
@@ -322,9 +443,30 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       localStorage.removeItem(COLLECTIONS_KEY);
       localStorage.removeItem(APIKEYS_KEY);
     } catch {}
-  }, []);
 
-  const openConnectorModal = useCallback(() => setIsConnectorModalOpen(true), []);
+    if (db) {
+      try {
+        const ref = doc(db, 'system_settings', 'global');
+        setDoc(
+          ref,
+          {
+            config: DEFAULT_FIREBASE_CONFIG,
+            collections: DEFAULT_SYSTEM_COLLECTIONS,
+            apiKeys: DEFAULT_API_KEYS,
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        ).catch(() => {});
+      } catch {}
+    }
+  }, [db]);
+
+  const openConnectorModal = useCallback((initialTab?: string | any) => {
+    if (typeof initialTab === 'string') {
+      setConnectorModalInitialTab(initialTab);
+    }
+    setIsConnectorModalOpen(true);
+  }, []);
   const closeConnectorModal = useCallback(() => setIsConnectorModalOpen(false), []);
 
   return (
@@ -338,6 +480,8 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         storage,
         isConnected: !!db,
         isTesting,
+        isCloudSynced,
+        cloudSyncTime,
         lastPingLatency,
         lastPingError,
         updateConfig,
@@ -349,6 +493,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         openConnectorModal,
         closeConnectorModal,
         isConnectorModalOpen,
+        connectorModalInitialTab,
       }}
     >
       {children}

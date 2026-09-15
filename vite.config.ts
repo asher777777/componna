@@ -13,5 +13,17 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
+    proxy: {
+      '/ConnectToKesher': {
+        target: 'https://kesherhk.info',
+        changeOrigin: true,
+        secure: false,
+      },
+      '/KesherAPI': {
+        target: 'https://kesherhk.info',
+        changeOrigin: true,
+        secure: false,
+      },
+    },
   },
 });

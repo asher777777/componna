@@ -1,4 +1,4 @@
-﻿export interface CustomTab {
+export interface CustomTab {
   id: string;
   title: string;
   icon: string;
@@ -50,6 +50,10 @@ export interface Contact {
   ownerId?: string;
   status: "active" | "trashed";
   
+  // Lead / Contact Type Identification
+  is_lead?: boolean;
+  contact_type?: 'contact' | 'lead';
+
   // Core Fields
   conta_name: string;
   f_m?: string;
@@ -143,6 +147,8 @@ export interface CRMAnalyticsFilter {
   startDate?: string;
   endDate?: string;
   status?: "active" | "trashed" | "all";
+  typeFilter?: "all" | "contacts" | "leads";
+  metricFilter?: string | null;
   source?: string;
   tag?: string;
   form?: string;
@@ -152,6 +158,8 @@ export interface CRMAnalyticsFilter {
 
 export interface CRMAnalyticsData {
   totalContacts: number;
+  totalLeads: number;
+  totalContactsOnly: number;
   totalSpent: number;
   totalCampaignAmount: number;
   tagsCount: Record<string, number>;

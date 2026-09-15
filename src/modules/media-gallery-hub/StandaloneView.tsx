@@ -22,12 +22,21 @@ import { ImageConverterModal } from './components/ImageConverterModal';
 import { FolderManagerModal } from './components/FolderManagerModal';
 import { MoveToFolderModal } from './components/MoveToFolderModal';
 import { BulkActionBar } from './components/BulkActionBar';
+import { GeminiImageStudioModal } from './components/GeminiImageStudioModal';
 
 import { useMediaGallery } from './context/MediaGalleryContext';
 
 const MediaGalleryHubContent: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const { isSidebarOpen, setIsSidebarOpen, theme, toggleTheme } = useMediaGallery();
+  const {
+    isSidebarOpen,
+    setIsSidebarOpen,
+    theme,
+    toggleTheme,
+    isAiGeneratorOpen,
+    setIsAiGeneratorOpen,
+    aiGeneratorInitialImage,
+  } = useMediaGallery();
   const isLight = theme === 'light';
 
   return (
@@ -169,6 +178,11 @@ const MediaGalleryHubContent: React.FC = () => {
       <FolderManagerModal />
       <MoveToFolderModal />
       <BulkActionBar />
+      <GeminiImageStudioModal
+        isOpen={isAiGeneratorOpen}
+        onClose={() => setIsAiGeneratorOpen(false)}
+        initialReferenceImage={aiGeneratorInitialImage}
+      />
     </div>
   );
 };

@@ -120,6 +120,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     handleNext,
     handlePrev,
     setCurrentStepIndex,
+    resetForm,
   } = useFormRunnerState({
     form,
     customFirestore,
@@ -128,28 +129,73 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     previewMode,
   });
 
-  const theme = form.theme;
-  const primaryColor = theme?.primaryColor || '#0F172A';
+  const theme = form.theme || ({} as any);
   const accentColor = theme?.accentColor || '#D97706';
+  const hasBgImage = theme?.backgroundType === 'image' && !!theme?.backgroundImageUrl;
+  const overlayOpacity = (theme?.backgroundOverlayOpacity ?? 50) / 100;
+
+  // Aspect ratio class helper
+  const getAspectRatioClasses = () => {
+    switch (theme?.aspectRatio) {
+      case '16:9':
+        return 'aspect-video max-w-4xl max-h-[620px]';
+      case '9:16':
+        return 'aspect-[9/16] max-w-sm min-h-[640px]';
+      case '1:1':
+        return 'aspect-square max-w-xl';
+      default:
+        return 'w-full max-w-2xl min-h-[520px]';
+    }
+  };
+
+  // Shape class helper
+  const getShapeClasses = () => {
+    switch (theme?.containerShape) {
+      case 'square':
+        return 'rounded-none';
+      case 'circle':
+        return 'rounded-full aspect-square flex flex-col justify-center';
+      case 'pill':
+        return 'rounded-[44px]';
+      default:
+        return 'rounded-3xl';
+    }
+  };
+
+  const isSingleFieldFocus = theme?.displayMode === 'single_field_focus';
 
   if (isCompleted) {
     return (
       <div
-        className={`w-full rounded-3xl overflow-hidden shadow-2xl transition-all ${className}`}
+        className={`relative overflow-hidden shadow-2xl transition-all mx-auto ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
         style={{
           backgroundColor: theme?.cardBackground || '#FFFFFF',
           color: theme?.textColor || '#0F172A',
         }}
       >
-        <FormCompletionScreen
-          completion={form.completion}
-          theme={theme}
-          submissionId={submissionId}
-          onReset={previewMode ? () => setCurrentStepIndex(0) : undefined}
-        />
+        {hasBgImage && (
+          <div
+            className="absolute inset-0 bg-cover bg-center"
+            style={{ backgroundImage: `url(${theme.backgroundImageUrl})` }}
+          >
+            <div
+              className="absolute inset-0 bg-slate-950"
+              style={{ opacity: overlayOpacity }}
+            />
+          </div>
+        )}
+        <div className="relative z-10 h-full flex flex-col justify-center">
+          <FormCompletionScreen
+            completion={form.completion}
+            theme={theme}
+            submissionId={submissionId}
+            onReset={resetForm}
+          />
+        </div>
       </div>
     );
   }
+
 
   if (!currentStep) {
     return (
@@ -162,100 +208,134 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   return (
     <div
       dir="rtl"
-      className={`w-full rounded-3xl overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 transition-all flex flex-col min-h-[520px] ${className}`}
+      className={`relative overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 transition-all flex flex-col justify-between mx-auto ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
       style={{
-        backgroundColor: theme?.cardBackground || '#FFFFFF',
-        color: theme?.textColor || '#0F172A',
+        backgroundColor: hasBgImage ? '#0F172A' : theme?.cardBackground || '#FFFFFF',
+        color: hasBgImage ? '#FFFFFF' : theme?.textColor || '#0F172A',
       }}
     >
-      {/* Top Bar: Progress & Form Title */}
-      <div className="p-6 pb-2 border-b border-slate-100 dark:border-slate-800/60 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="font-extrabold text-sm sm:text-base tracking-wide text-slate-800 dark:text-white">
-              {form.title}
-            </span>
-            {previewMode && (
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 border border-amber-500/30">
-                תצוגה מקדימה
+      {/* Background Image & Overlay */}
+      {hasBgImage && (
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${theme.backgroundImageUrl})` }}
+        >
+          <div
+            className="absolute inset-0 bg-slate-950"
+            style={{ opacity: overlayOpacity }}
+          />
+        </div>
+      )}
+
+      {/* Content Container (z-10 above background image) */}
+      <div className="relative z-10 flex flex-col justify-between h-full w-full">
+        {/* Top Header: Progress & Title (hidden in extreme focus if desired) */}
+        <div className="p-6 pb-2 border-b border-slate-100/20 dark:border-slate-800/40 flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-sm sm:text-base tracking-wide drop-shadow-sm">
+                {form.title}
               </span>
+              {previewMode && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/40">
+                  תצוגה מקדימה
+                </span>
+              )}
+            </div>
+
+            {/* Step Dots in Single Field Focus Mode */}
+            {isSingleFieldFocus && (
+              <div className="flex items-center gap-1.5">
+                {form.steps.map((s, idx) => (
+                  <div
+                    key={s.id}
+                    className={`w-2 h-2 rounded-full transition-all ${
+                      idx === currentStepIndex
+                        ? 'w-5 bg-amber-500'
+                        : idx < currentStepIndex
+                        ? 'bg-emerald-400'
+                        : 'bg-slate-300 dark:bg-slate-700'
+                    }`}
+                  />
+                ))}
+              </div>
             )}
           </div>
-        </div>
 
-        {theme?.showProgressBar !== false && (
-          <ProgressBar
-            currentStepIndex={currentStepIndex}
-            totalSteps={stepsCount}
-            progressPercent={progressPercent}
-            accentColor={accentColor}
-            showStepNumbers={theme?.showStepNumbers !== false}
-          />
-        )}
-      </div>
-
-      {/* Main Body (One field per step) */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 my-auto">
-        <StepRenderer
-          key={currentStep.id}
-          step={currentStep}
-          value={currentAnswer}
-          onChange={setStepAnswer}
-          onEnter={handleNext}
-          theme={theme}
-          validationError={validationError}
-        />
-      </div>
-
-      {/* Bottom Footer Navigation */}
-      <div className="p-6 border-t border-slate-100 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-900/40 flex items-center justify-between gap-4">
-        {/* Previous Button */}
-        <div>
-          {!isFirstStep && (
-            <button
-              type="button"
-              onClick={handlePrev}
-              disabled={isSubmitting}
-              className="px-5 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-200 dark:hover:bg-slate-800 transition-all flex items-center gap-2"
-            >
-              <ArrowRight className="w-4 h-4" />
-              <span>הקודם</span>
-            </button>
+          {!isSingleFieldFocus && theme?.showProgressBar !== false && (
+            <ProgressBar
+              currentStepIndex={currentStepIndex}
+              totalSteps={stepsCount}
+              progressPercent={progressPercent}
+              accentColor={accentColor}
+              showStepNumbers={theme?.showStepNumbers !== false}
+            />
           )}
         </div>
 
-        {/* Next / Submit Button */}
-        <div className="flex items-center gap-3">
-          <span className="hidden sm:inline-block text-[11px] text-slate-400">
-            לחץ <kbd className="px-1.5 py-0.5 bg-slate-200 dark:bg-slate-700 rounded font-mono text-[10px]">Enter ↵</kbd>
-          </span>
+        {/* Main Body (One field per step) */}
+        <div className="flex-1 flex items-center justify-center p-6 sm:p-10 my-auto">
+          <StepRenderer
+            key={currentStep.id}
+            step={currentStep}
+            value={currentAnswer}
+            onChange={setStepAnswer}
+            onEnter={handleNext}
+            theme={theme}
+            validationError={validationError}
+          />
+        </div>
 
-          <button
-            type="button"
-            onClick={handleNext}
-            disabled={isSubmitting}
-            className="px-7 py-3 rounded-2xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 text-sm sm:text-base disabled:opacity-50"
-            style={{
-              backgroundColor: accentColor,
-            }}
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin" />
-                <span>שולח...</span>
-              </>
-            ) : isLastStep ? (
-              <>
-                <span>שליחת הטופס</span>
-                <Sparkles className="w-5 h-5" />
-              </>
-            ) : (
-              <>
-                <span>הבא</span>
-                <ArrowLeft className="w-5 h-5" />
-              </>
+        {/* Bottom Footer Navigation */}
+        <div className="p-6 border-t border-slate-100/20 dark:border-slate-800/40 bg-black/10 backdrop-blur-xs flex items-center justify-between gap-4">
+          {/* Previous Button */}
+          <div>
+            {!isFirstStep && (
+              <button
+                type="button"
+                onClick={handlePrev}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-white/10 transition-all flex items-center gap-2"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>הקודם</span>
+              </button>
             )}
-          </button>
+          </div>
+
+          {/* Next / Submit Button */}
+          <div className="flex items-center gap-3">
+            <span className="hidden sm:inline-block text-[11px] opacity-70">
+              לחץ <kbd className="px-1.5 py-0.5 bg-black/30 rounded font-mono text-[10px]">Enter ↵</kbd>
+            </span>
+
+            <button
+              type="button"
+              onClick={handleNext}
+              disabled={isSubmitting}
+              className="px-7 py-3 rounded-2xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 text-sm sm:text-base disabled:opacity-50"
+              style={{
+                backgroundColor: accentColor,
+              }}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  <span>שולח...</span>
+                </>
+              ) : isLastStep ? (
+                <>
+                  <span>שליחת הטופס</span>
+                  <Sparkles className="w-5 h-5" />
+                </>
+              ) : (
+                <>
+                  <span>הבא</span>
+                  <ArrowLeft className="w-5 h-5" />
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -37,7 +37,7 @@ import {
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
-import { MediaItem, MediaType, MediaFolder } from '../types';
+import { MediaItem, MediaType, MediaFolder, MediaCategoryFilter } from '../types';
 
 /**
  * Helper to render filenames cleanly in Hebrew RTL without bidi punctuation flips
@@ -108,11 +108,24 @@ export const MediaGalleryGrid: React.FC = () => {
     setFocusedItem,
     isSyncingHeyGen,
     syncHeyGenVideos,
+    isHeyGenRevealed,
+    setIsHeyGenRevealed,
+    openAiImageGenerator,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
   const [syncStatusMsg, setSyncStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>('grid');
+
+  // Pagination / Chunking to keep DOM lightweight and instantaneous
+  const [visibleCount, setVisibleCount] = useState<number>(24);
+
+  useEffect(() => {
+    setVisibleCount(24);
+  }, [filters, activeFolderId]);
+
+  const displayedItems = filteredItems.slice(0, visibleCount);
+  const hasMore = filteredItems.length > visibleCount;
 
   // Inline rename state
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
@@ -230,10 +243,12 @@ export const MediaGalleryGrid: React.FC = () => {
     }
   };
 
-  const renderFileTypeIcon = (type: MediaType, className: string = 'w-4 h-4') => {
+  const renderFileTypeIcon = (type: MediaCategoryFilter | MediaType | string, className: string = 'w-4 h-4') => {
     switch (type) {
       case 'video':
         return <FileVideo className={`${className} text-indigo-500`} />;
+      case 'heygen':
+        return <Sparkles className={`${className} text-purple-500`} />;
       case 'image':
         return <ImageIcon className={`${className} text-emerald-500`} />;
       case 'audio':
@@ -345,8 +360,10 @@ export const MediaGalleryGrid: React.FC = () => {
               <div className="flex items-center space-x-1.5 rtl:space-x-reverse px-2.5 py-1 rounded-xl border border-indigo-500/40 bg-indigo-500/15 text-indigo-700 dark:text-indigo-200 text-xs font-bold">
                 {renderFileTypeIcon(filters.typeFilter, 'w-3.5 h-3.5')}
                 <span>
-                  {filters.typeFilter === 'video'
-                    ? 'סרטוני וידאו'
+                  {filters.typeFilter === 'heygen'
+                    ? 'סרטוני HeyGen AI'
+                    : filters.typeFilter === 'video'
+                    ? 'סרטוני מערכת'
                     : filters.typeFilter === 'image'
                     ? 'תמונות'
                     : filters.typeFilter === 'audio'
@@ -529,11 +546,26 @@ export const MediaGalleryGrid: React.FC = () => {
             </span>
           </button>
 
+          {/* Gemini AI Image Generator Button */}
+          <button
+            type="button"
+            onClick={() => openAiImageGenerator()}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-xs flex items-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-amber-500/25 transition-all active:scale-95 cursor-pointer"
+            title="יצירת תמונות מרהיבות עם Google Gemini וקידוד אוטומטי"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">יצירת תמונה ב-AI</span>
+          </button>
+
           {/* Quick Upload Button */}
           <button
             type="button"
             onClick={() => setIsUploaderOpen(!isUploaderOpen)}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-bold text-xs flex items-center space-x-1.5 rtl:space-x-reverse shadow-md transition-all active:scale-95 cursor-pointer"
+            className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center space-x-1.5 rtl:space-x-reverse transition-all active:scale-95 cursor-pointer ${
+              isLight
+                ? 'bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-sm'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+            }`}
           >
             <UploadCloud className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">העלאת קבצים</span>
@@ -635,7 +667,58 @@ export const MediaGalleryGrid: React.FC = () => {
       )}
 
       {/* 3. Files Container */}
-      {filteredItems.length === 0 ? (
+      {filters.typeFilter === 'heygen' && !isHeyGenRevealed ? (
+        <div
+          className={`p-8 md:p-12 rounded-3xl border text-center max-w-2xl mx-auto my-6 space-y-6 ${
+            isLight
+              ? 'bg-gradient-to-b from-purple-50 via-white to-indigo-50 border-purple-200 shadow-xl shadow-purple-500/5'
+              : 'bg-gradient-to-b from-purple-950/40 via-slate-900 to-indigo-950/40 border-purple-900/50 shadow-2xl'
+          }`}
+        >
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center mx-auto shadow-xl shadow-purple-500/30 transform hover:scale-105 transition-transform">
+            <Sparkles className="w-10 h-10" />
+          </div>
+
+          <div className="space-y-2">
+            <h3 className={`text-xl md:text-2xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              סרטוני HeyGen AI & אולפן וידאו
+            </h3>
+            <p className={`text-xs md:text-sm max-w-lg mx-auto ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+              בטאב זה מרוכזים כל סרטוני האווטאר וה-AI של HeyGen. כדי לשמור על מהירות וביצועים קלילים של הגלריה,
+              לחץ על הכפתור למטה כדי להציג את הסרטונים.
+            </p>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsHeyGenRevealed(true)}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-500 hover:to-blue-500 text-white font-bold text-sm shadow-lg shadow-purple-500/25 flex items-center justify-center space-x-2 rtl:space-x-reverse cursor-pointer transform active:scale-95 transition-all"
+            >
+              <Play className="w-4 h-4 fill-white ml-1" />
+              <span>הצג סרטוני HEYGEN ({filteredItems.length})</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSyncHeyGen}
+              disabled={isSyncingHeyGen}
+              className={`w-full sm:w-auto px-5 py-3.5 rounded-2xl border font-bold text-sm flex items-center justify-center space-x-2 rtl:space-x-reverse cursor-pointer transition-all ${
+                isLight
+                  ? 'bg-white border-purple-200 text-purple-700 hover:bg-purple-50 shadow-sm'
+                  : 'bg-slate-800 border-purple-800/80 text-purple-300 hover:bg-purple-900/30'
+              }`}
+            >
+              {isSyncingHeyGen ? (
+                <Loader2 className="w-4 h-4 animate-spin text-purple-500" />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-purple-500" />
+              )}
+              <span>סנכרן מ-HeyGen API</span>
+            </button>
+          </div>
+        </div>
+      ) : filteredItems.length === 0 ? (
         <div
           className={`p-12 text-center border rounded-3xl space-y-3 ${
             isLight
@@ -678,7 +761,7 @@ export const MediaGalleryGrid: React.FC = () => {
             <span className="col-span-4 sm:col-span-3 md:col-span-1 text-left">פעולות</span>
           </div>
 
-          {filteredItems.map((item) => {
+          {displayedItems.map((item) => {
             const isSelected = selectedIds.includes(item.id);
             const isFocused = focusedItem?.id === item.id;
             const isEditing = editingItemId === item.id;
@@ -836,7 +919,7 @@ export const MediaGalleryGrid: React.FC = () => {
               : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4'
           }`}
         >
-          {filteredItems.map((item) => {
+          {displayedItems.map((item) => {
             const isSelected = selectedIds.includes(item.id);
             const isFocused = focusedItem?.id === item.id;
             const isEditing = editingItemId === item.id;
@@ -872,22 +955,28 @@ export const MediaGalleryGrid: React.FC = () => {
                         <img
                           src={item.thumbnailUrl}
                           alt={item.name}
-                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
-                        <video
-                          src={`${item.url}#t=0.001`}
-                          preload="metadata"
-                          muted
-                          playsInline
-                          className="w-full h-full object-cover pointer-events-none"
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover:bg-black/40 transition-colors">
-                        <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                          <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
+                        <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden group-hover:from-slate-850 group-hover:to-purple-950 transition-colors">
+                          <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mb-1 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-black transition-all shadow-md">
+                            <Play className="w-4 h-4 fill-current ml-0.5" />
+                          </div>
+                          <span className="text-[10px] font-mono text-amber-300/80 font-semibold truncate max-w-[90%]">
+                            {item.durationSec
+                              ? `${Math.floor(item.durationSec / 60)}:${(item.durationSec % 60).toString().padStart(2, '0')}`
+                              : 'סרטון וידאו'}
+                          </span>
                         </div>
-                      </div>
+                      )}
+                      {item.thumbnailUrl && (
+                        <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover:bg-black/40 transition-colors">
+                          <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                            <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
+                          </div>
+                        </div>
+                      )}
                     </>
                   )}
 
@@ -1098,6 +1187,26 @@ export const MediaGalleryGrid: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pagination Load More Bar */}
+      {hasMore && (
+        <div className="flex flex-col items-center justify-center py-6">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((prev) => prev + 24)}
+            className={`px-6 py-2.5 rounded-2xl font-bold text-xs flex items-center space-x-2 rtl:space-x-reverse shadow-md cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+              isLight
+                ? 'bg-white hover:bg-slate-50 text-slate-800 border border-slate-300'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+            }`}
+          >
+            <span>טען עוד 24 קבצים</span>
+            <span className="text-[11px] font-mono text-amber-500">
+              ({displayedItems.length} מתוך {filteredItems.length})
+            </span>
+          </button>
         </div>
       )}
     </div>

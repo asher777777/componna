@@ -8,6 +8,8 @@ import {
   DEFAULT_CLIENT_PLATFORM_SETTINGS, 
   MASTER_AVAILABLE_MODULES 
 } from '../config';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
 interface ClientPlatformContextValue {
   session: ClientUserSession;
@@ -24,6 +26,7 @@ interface ClientPlatformContextValue {
 const ClientPlatformContext = createContext<ClientPlatformContextValue | null>(null);
 
 export const ClientPlatformProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { db } = useSystemConnection();
   const [session, setSession] = useState<ClientUserSession>({
     uid: 'user_101',
     email: 'admin@client-business.co.il',
@@ -53,9 +56,51 @@ export const ClientPlatformProvider: React.FC<{ children: React.ReactNode }> = (
 
   const [activeRoute, setActiveRoute] = useState<string>('control_panel');
 
+  // Real-time Firestore sync for client platform settings
+  useEffect(() => {
+    if (!db) return;
+    try {
+      const clientId = settings.clientId || 'client_demo_77';
+      const ref = doc(db, 'client_platform_config', clientId);
+      const unsub = onSnapshot(
+        ref,
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data() as ClientPlatformSettings;
+            setSettings((prev) => ({
+              ...prev,
+              ...data,
+              modules: {
+                ...prev.modules,
+                ...(data.modules || {}),
+              },
+            }));
+            try {
+              localStorage.setItem('client_platform_settings', JSON.stringify(data));
+            } catch {}
+          }
+        },
+        (err) => {
+          console.warn('[ClientPlatformContext] Firestore listener notice:', err);
+        }
+      );
+      return () => unsub();
+    } catch (e) {
+      console.warn('[ClientPlatformContext] Firestore subscription setup notice:', e);
+    }
+  }, [db, settings.clientId]);
+
   useEffect(() => {
     localStorage.setItem('client_platform_settings', JSON.stringify(settings));
-  }, [settings]);
+    if (db) {
+      const clientId = settings.clientId || 'client_demo_77';
+      const ref = doc(db, 'client_platform_config', clientId);
+      const cleanPayload = JSON.parse(JSON.stringify(settings));
+      setDoc(ref, cleanPayload, { merge: true }).catch((err) =>
+        console.warn('[ClientPlatformContext] Firestore save notice:', err)
+      );
+    }
+  }, [settings, db]);
 
   const login = (email: string, role: 'admin' | 'editor' | 'viewer' = 'admin') => {
     setSession({
