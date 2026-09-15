@@ -14,10 +14,16 @@ import {
   ShieldCheck,
   Zap,
   Repeat,
-  Layers
+  Layers,
+  Save,
+  UserCheck,
+  Sparkles
 } from 'lucide-react';
 import { kesherService } from '../services/kesherService';
 import { KesherDocumentType, KesherCreditType } from '../types';
+import { Contact } from '../../crm-analytics/types';
+import { crmContactSyncService } from '../services/crmContactSyncService';
+import { CrmContactAutocomplete } from './CrmContactAutocomplete';
 
 export const KesherTerminalTab: React.FC = () => {
   const settings = kesherService.getSettings();
@@ -31,6 +37,11 @@ export const KesherTerminalTab: React.FC = () => {
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [tz, setTz] = useState<string>('');
+
+  // CRM Sync State
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [isSavingCrm, setIsSavingCrm] = useState<boolean>(false);
+  const [crmToast, setCrmToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
   // Credit Card Fields
   const [cardNumber, setCardNumber] = useState<string>('');
@@ -56,6 +67,55 @@ export const KesherTerminalTab: React.FC = () => {
   // Card validation check
   const cardValidation = cardNumber.length >= 8 ? kesherService.validateCreditCard(cardNumber) : null;
 
+  // Handle contact selection from CRM autocomplete
+  const handleSelectContact = (contact: Contact) => {
+    setSelectedContact(contact);
+    setClientName(contact.conta_name || '');
+    setPhone(contact.conta_phone || (contact as any).phone || (contact as any).mobile || '');
+    setEmail(contact.email || '');
+    const contactTz = String(contact.tg1 || (contact as any).tz || (contact as any).idNumber || (contact as any).id_num || (contact as any).vat || '').trim();
+    setTz(contactTz);
+    setCrmToast({
+      message: `נטענו פרטי איש הקשר: ${contact.conta_name}`,
+      type: 'info'
+    });
+    setTimeout(() => setCrmToast(null), 3000);
+  };
+
+  const handleClearContact = () => {
+    setSelectedContact(null);
+  };
+
+  // Quick manual save / update to CRM button handler
+  const handleSaveToCrm = async () => {
+    if (!clientName.trim()) {
+      setErrorMessage('נא להזין שם לקוח לפני שמירה ב-CRM');
+      return;
+    }
+    setIsSavingCrm(true);
+    try {
+      const res = await crmContactSyncService.saveOrUpdateContact({
+        id: selectedContact?.id,
+        clientName,
+        phone,
+        email,
+        tz,
+      });
+      setSelectedContact(res.contact);
+      setCrmToast({
+        message: res.isNew
+          ? `איש קשר חדש (${res.contact.conta_name}) נוצר ונשמר ב-CRM!`
+          : `פרטי איש הקשר (${res.contact.conta_name}) עודכנו בהצלחה ב-CRM!`,
+        type: 'success'
+      });
+      setTimeout(() => setCrmToast(null), 4000);
+    } catch (e: any) {
+      setErrorMessage('שגיאה בשמירת נתוני הלקוח ב-CRM');
+    } finally {
+      setIsSavingCrm(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage('');
@@ -74,6 +134,22 @@ export const KesherTerminalTab: React.FC = () => {
     setIsLoading(true);
 
     try {
+      // 1. Auto-save / sync missing or updated details to CRM
+      let activeCrmContact: Contact | null = null;
+      try {
+        const syncRes = await crmContactSyncService.saveOrUpdateContact({
+          id: selectedContact?.id,
+          clientName,
+          phone,
+          email,
+          tz,
+        });
+        activeCrmContact = syncRes.contact;
+        setSelectedContact(syncRes.contact);
+      } catch (crmErr) {
+        console.warn('CRM sync notice on payment submit:', crmErr);
+      }
+
       if (paymentMode === 'bit') {
         if (!phone) {
           throw new Error('יש להזין מספר טלפון נייד עבור תשלום ב-Bit');
@@ -86,10 +162,26 @@ export const KesherTerminalTab: React.FC = () => {
           documentType: documentType
         });
 
+        const txId = res.BitTransactionId || res.TransactionId || `bit_${Date.now()}`;
+        const docUrl = res.DocUrl || res.Url;
+
+        // 2. Record payment in Contact CRM profile
+        if (activeCrmContact?.id) {
+          await crmContactSyncService.recordContactPayment(activeCrmContact.id, {
+            id: `pay_${txId}`,
+            date: new Date().toISOString().slice(0, 10),
+            amount: Number(amount),
+            paymentType: 'Bit',
+            receiptType: String(documentType),
+            kesherStatus: 'Success',
+            receiptLink: docUrl || '',
+          });
+        }
+
         setSuccessResult({
           message: 'בקשת התשלום נשלחה בהצלחה לאפליקציית Bit!',
-          transactionId: res.BitTransactionId || res.TransactionId,
-          docUrl: res.DocUrl || res.Url
+          transactionId: txId,
+          docUrl: docUrl
         });
       } else {
         // Credit Card
@@ -127,11 +219,28 @@ export const KesherTerminalTab: React.FC = () => {
           comment: `סליקה מלוח בקרה - ${clientName}`
         });
 
+        const txId = res.TransactionId || res.Id || `tx_${Date.now()}`;
+        const authNum = res.AuthNumber || res.ApprovalNumber;
+        const docUrl = res.DocUrl || res.Url;
+
+        // 2. Record payment in Contact CRM profile
+        if (activeCrmContact?.id) {
+          await crmContactSyncService.recordContactPayment(activeCrmContact.id, {
+            id: `pay_${txId}`,
+            date: new Date().toISOString().slice(0, 10),
+            amount: Number(amount),
+            paymentType: dealType === 'standing_order' ? 'הו"ק אשראי' : 'אשראי (קשר)',
+            receiptType: String(documentType),
+            kesherStatus: 'Success',
+            receiptLink: docUrl || '',
+          });
+        }
+
         setSuccessResult({
           message: dealType === 'hold_j5' ? 'מסגרת האשראי נתפסה בהצלחה (J5)!' : 'עסקת האשראי אושרה וחויבה בהצלחה!',
-          transactionId: res.TransactionId || res.Id,
-          authNumber: res.AuthNumber || res.ApprovalNumber,
-          docUrl: res.DocUrl || res.Url
+          transactionId: txId,
+          authNumber: authNum,
+          docUrl: docUrl
         });
 
         // Reset Sensitive Card Fields
@@ -278,10 +387,39 @@ export const KesherTerminalTab: React.FC = () => {
 
         {/* פרטי סכום, לקוח ומסמך */}
         <div className="bg-[#141824]/90 border border-slate-800 rounded-2xl p-6 space-y-5">
-          <h3 className="font-bold text-white text-base flex items-center gap-2 border-b border-slate-800 pb-3">
-            <User className="w-4 h-4 text-indigo-400" />
-            פרטי חיוב ולקוח
-          </h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <h3 className="font-bold text-white text-base flex items-center gap-2">
+              <User className="w-4 h-4 text-indigo-400" />
+              פרטי חיוב ולקוח (מסונכרן עם ה-CRM)
+            </h3>
+
+            {/* Quick CRM Save & Status Actions */}
+            <div className="flex items-center gap-2">
+              {crmToast && (
+                <span className={`text-xs px-2.5 py-1 rounded-lg font-medium flex items-center gap-1.5 animate-in fade-in ${
+                  crmToast.type === 'success'
+                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                    : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                }`}>
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {crmToast.message}
+                </span>
+              )}
+
+              {clientName.trim() && (
+                <button
+                  type="button"
+                  onClick={handleSaveToCrm}
+                  disabled={isSavingCrm}
+                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  title="שמור או עדכן את פרטי הלקוח (כולל ת.ז/טלפון/אימייל) בכרטיס ה-CRM"
+                >
+                  <Save className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{isSavingCrm ? 'שומר ב-CRM...' : 'שמור שינויים ב-CRM'}</span>
+                </button>
+              )}
+            </div>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
@@ -301,15 +439,17 @@ export const KesherTerminalTab: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                שם לקוח / תורם מלא *
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>שם לקוח / תורם מלא *</span>
+                <span className="text-[10px] text-indigo-400 font-normal">הקלד לחיפוש מהיר ב-CRM</span>
               </label>
-              <input
-                type="text"
+              <CrmContactAutocomplete
                 value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-indigo-500 placeholder:text-slate-600"
-                placeholder="ישראל ישראלי"
+                onChange={setClientName}
+                onSelectContact={handleSelectContact}
+                selectedContact={selectedContact}
+                onClearSelection={handleClearContact}
+                placeholder="הקלד שם פרטי / משפחה / טלפון..."
                 required
               />
             </div>
@@ -355,12 +495,19 @@ export const KesherTerminalTab: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">ת.ז / ח.פ</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>ת.ז / ח.פ</span>
+                {selectedContact && !selectedContact.tg1 && tz && (
+                  <span className="text-[10px] text-amber-400 font-normal animate-pulse">
+                    פרט חדש (יישמר ב-CRM)
+                  </span>
+                )}
+              </label>
               <input
                 type="text"
                 value={tz}
                 onChange={(e) => setTz(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 placeholder:text-slate-600"
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 placeholder:text-slate-600 font-mono"
                 placeholder="012345678"
               />
             </div>

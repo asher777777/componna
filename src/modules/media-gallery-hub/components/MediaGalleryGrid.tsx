@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
+import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { MediaItem, MediaType, MediaFolder, MediaCategoryFilter } from '../types';
 
 /**
@@ -74,6 +75,602 @@ const BidiFileName: React.FC<{
     </span>
   );
 };
+
+// Helper for file icons
+const renderFileTypeIcon = (type: MediaCategoryFilter | MediaType | string, className: string = 'w-4 h-4') => {
+  switch (type) {
+    case 'video':
+      return <FileVideo className={`${className} text-indigo-500`} />;
+    case 'heygen':
+      return <Sparkles className={`${className} text-purple-500`} />;
+    case 'image':
+      return <ImageIcon className={`${className} text-emerald-500`} />;
+    case 'audio':
+      return <Music className={`${className} text-amber-500`} />;
+    case 'document':
+      return <FileText className={`${className} text-blue-500`} />;
+    case 'archive':
+      return <Archive className={`${className} text-purple-500`} />;
+    case 'code':
+      return <Code2 className={`${className} text-pink-500`} />;
+    default:
+      return <HardDrive className={`${className} text-slate-500`} />;
+  }
+};
+
+// Optimized thumbnail component with skeleton shimmer and smooth lazy loading
+const OptimizedMediaThumbnail: React.FC<{
+  item: MediaItem;
+  viewMode: 'grid' | 'dense' | 'list';
+  isLight: boolean;
+}> = React.memo(({ item, viewMode, isLight }) => {
+  const [isLoaded, setIsLoaded] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [currentSrc, setCurrentSrc] = useState<string>(item.thumbnailUrl || item.url);
+
+  useEffect(() => {
+    setCurrentSrc(item.thumbnailUrl || item.url);
+    setHasError(false);
+    setIsLoaded(false);
+  }, [item.url, item.thumbnailUrl]);
+
+  const handleImageError = async () => {
+    // 1. Try to recover from local IndexedDB binary blob
+    try {
+      const blob = (await MediaIndexedDbService.getBlob(item.id)) || (await MediaIndexedDbService.getBlob(item.name));
+      if (blob) {
+        const objectUrl = URL.createObjectURL(blob);
+        setCurrentSrc(objectUrl);
+        setHasError(false);
+        return;
+      }
+    } catch {}
+
+    // 2. Try to recover from metadata dataUrl or prompt
+    if (item.metadata?.dataUrl && item.metadata.dataUrl !== currentSrc) {
+      setCurrentSrc(item.metadata.dataUrl);
+      setHasError(false);
+      return;
+    }
+
+    setHasError(true);
+  };
+
+  if (item.type === 'image') {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        {!isLoaded && !hasError && (
+          <div
+            className={`absolute inset-0 animate-pulse ${
+              isLight ? 'bg-slate-200' : 'bg-slate-800'
+            }`}
+          />
+        )}
+        {hasError ? (
+          <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
+            <ImageIcon className="w-8 h-8 opacity-40" />
+            <span className="text-[9px] font-mono">תמונה</span>
+          </div>
+        ) : (
+          <img
+            src={currentSrc}
+            alt={item.name}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setIsLoaded(true)}
+            onError={handleImageError}
+            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
+              isLoaded ? 'opacity-100' : 'opacity-0'
+            }`}
+          />
+        )}
+      </div>
+    );
+  }
+
+  if (item.type === 'video') {
+    return (
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+        {item.thumbnailUrl && !hasError ? (
+          <>
+            {!isLoaded && (
+              <div
+                className={`absolute inset-0 animate-pulse ${
+                  isLight ? 'bg-slate-200' : 'bg-slate-800'
+                }`}
+              />
+            )}
+            <img
+              src={item.thumbnailUrl}
+              alt={item.name}
+              loading="lazy"
+              decoding="async"
+              onLoad={() => setIsLoaded(true)}
+              onError={() => setHasError(true)}
+              className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
+                isLoaded ? 'opacity-100' : 'opacity-0'
+              }`}
+            />
+            <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/45 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
+                <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden group-hover:from-slate-850 group-hover:to-purple-950 transition-colors">
+            <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mb-1 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-black transition-all shadow-md">
+              <Play className="w-4 h-4 fill-current ml-0.5" />
+            </div>
+            <span className="text-[10px] font-mono text-amber-300/80 font-semibold truncate max-w-[90%]">
+              {item.durationSec
+                ? `${Math.floor(item.durationSec / 60)}:${(item.durationSec % 60).toString().padStart(2, '0')}`
+                : 'סרטון וידאו'}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (item.type === 'audio') {
+    return (
+      <div className="flex flex-col items-center justify-center text-amber-500 space-y-1">
+        <Music className="w-8 h-8 animate-pulse" />
+        <span className="text-[10px] font-mono opacity-75">Audio Track</span>
+      </div>
+    );
+  }
+
+  if (item.type === 'document') {
+    return (
+      <div className="flex flex-col items-center justify-center text-blue-500 space-y-1">
+        <FileText className="w-7 h-7" />
+      </div>
+    );
+  }
+
+  if (item.type === 'archive') {
+    return (
+      <div className="flex flex-col items-center justify-center text-purple-500 space-y-1">
+        <Archive className="w-7 h-7" />
+      </div>
+    );
+  }
+
+  if (item.type === 'code') {
+    return (
+      <div className="flex flex-col items-center justify-center text-pink-500 space-y-1">
+        <Code2 className="w-7 h-7" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col items-center justify-center text-slate-500 space-y-1">
+      <HardDrive className="w-7 h-7" />
+    </div>
+  );
+});
+
+// Memoized Grid Card for buttery-smooth rendering
+const MediaGridCard: React.FC<{
+  item: MediaItem;
+  isSelected: boolean;
+  isFocused: boolean;
+  isEditing: boolean;
+  viewMode: 'grid' | 'dense' | 'list';
+  isLight: boolean;
+  selectionMode?: boolean;
+  editingName: string;
+  renameInputRef: React.RefObject<HTMLInputElement>;
+  onItemClick: (item: MediaItem) => void;
+  onItemDoubleClick: (item: MediaItem) => void;
+  onToggleSelect: (id: string) => void;
+  onStartRename: (item: MediaItem, e?: React.MouseEvent) => void;
+  onSaveRename: (id: string, e?: React.MouseEvent | React.KeyboardEvent) => void;
+  onCancelRename: (e?: React.MouseEvent | React.KeyboardEvent) => void;
+  onKeyDownRename: (e: React.KeyboardEvent, id: string) => void;
+  onEditingNameChange: (val: string) => void;
+  onConvertSingle: (e: React.MouseEvent, item: MediaItem) => void;
+  onMoveSingle: (e: React.MouseEvent, item: MediaItem) => void;
+  onDownloadSingle: (e: React.MouseEvent, item: MediaItem) => void;
+}> = React.memo((props) => {
+  const {
+    item,
+    isSelected,
+    isFocused,
+    isEditing,
+    viewMode,
+    isLight,
+    selectionMode,
+    editingName,
+    renameInputRef,
+    onItemClick,
+    onItemDoubleClick,
+    onToggleSelect,
+    onStartRename,
+    onSaveRename,
+    onCancelRename,
+    onKeyDownRename,
+    onEditingNameChange,
+    onConvertSingle,
+    onMoveSingle,
+    onDownloadSingle,
+  } = props;
+
+  return (
+    <div
+      onClick={() => onItemClick(item)}
+      onDoubleClick={() => onItemDoubleClick(item)}
+      className={`group relative rounded-2xl border overflow-hidden shadow transition-all duration-200 cursor-pointer flex flex-col justify-between ${
+        isFocused
+          ? isLight
+            ? 'border-amber-500 ring-2 ring-amber-500/40 bg-amber-50/50 shadow-md'
+            : 'border-yellow-500 ring-2 ring-yellow-500/50 bg-yellow-500/5 shadow-lg'
+          : isSelected
+          ? isLight
+            ? 'border-amber-500 bg-amber-50/50'
+            : 'border-yellow-500 bg-yellow-500/5'
+          : isLight
+          ? 'bg-white border-slate-200 hover:border-amber-500/50 hover:shadow-md'
+          : 'bg-slate-900/90 border-slate-800 hover:border-yellow-500/50 hover:shadow-md'
+      }`}
+    >
+      {/* Media Thumbnail Box */}
+      <div
+        className={`relative w-full flex items-center justify-center overflow-hidden ${
+          isLight ? 'bg-slate-100' : 'bg-slate-950'
+        } ${viewMode === 'dense' ? 'h-28' : 'h-36'}`}
+      >
+        <OptimizedMediaThumbnail item={item} viewMode={viewMode} isLight={isLight} />
+
+        {/* Top Right Checkbox */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(item.id);
+          }}
+          className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition-all shadow cursor-pointer ${
+            isSelected
+              ? 'bg-amber-500 text-black'
+              : isLight
+              ? 'bg-white/80 text-slate-400 hover:text-slate-800 border border-slate-300'
+              : 'bg-black/60 text-slate-400 hover:text-white border border-slate-700'
+          }`}
+        >
+          {isSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
+        </button>
+
+        {/* Top Left Component Badge */}
+        {item.sourceModuleLabel && (
+          <span
+            className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-md border truncate max-w-[100px] backdrop-blur-md ${
+              isLight
+                ? 'bg-white/90 text-amber-800 border-amber-300'
+                : 'bg-black/80 text-yellow-300 border-slate-800'
+            }`}
+          >
+            {item.sourceModuleLabel}
+          </span>
+        )}
+      </div>
+
+      {/* Card Bottom Details */}
+      <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
+        <div>
+          {isEditing ? (
+            <div
+              className="flex items-center space-x-1 rtl:space-x-reverse"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                ref={renameInputRef}
+                type="text"
+                value={editingName}
+                onChange={(e) => onEditingNameChange(e.target.value)}
+                onKeyDown={(e) => onKeyDownRename(e, item.id)}
+                className={`w-full text-xs px-2 py-1 rounded-lg border focus:outline-none ${
+                  isLight
+                    ? 'bg-white border-amber-500 text-slate-900'
+                    : 'bg-slate-950 border-yellow-500 text-white'
+                }`}
+                dir="auto"
+              />
+              <button
+                type="button"
+                onClick={(e) => onSaveRename(item.id, e)}
+                className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex-shrink-0"
+                title="שמור"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={onCancelRename}
+                className="p-1 rounded-lg bg-slate-600 hover:bg-slate-500 text-white flex-shrink-0"
+                title="בטל"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between group/title">
+              <BidiFileName
+                name={item.name}
+                className={`font-bold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}
+                isLight={isLight}
+              />
+              <button
+                type="button"
+                onClick={(e) => onStartRename(item, e)}
+                className="opacity-0 group-hover/title:opacity-100 p-0.5 text-slate-400 hover:text-amber-500 transition-opacity"
+                title="שנה שם קובץ"
+              >
+                <Pencil className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+
+          <div
+            className={`flex items-center justify-between text-[10px] mt-1 font-mono ${
+              isLight ? 'text-slate-500' : 'text-slate-400'
+            }`}
+          >
+            <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
+            <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
+          </div>
+        </div>
+
+        {/* Quick Action Buttons on Card */}
+        <div
+          className={`pt-2 border-t flex items-center justify-between ${
+            isLight ? 'border-slate-100' : 'border-slate-800/80'
+          }`}
+        >
+          <div className="flex items-center space-x-1 rtl:space-x-reverse">
+            {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
+              <button
+                type="button"
+                onClick={(e) => onConvertSingle(e, item)}
+                className={`p-1 rounded-lg text-xs ${
+                  isLight
+                    ? 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700'
+                    : 'bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300'
+                }`}
+                title="המרה ודחיסה"
+              >
+                <Sparkles className="w-3 h-3" />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => onMoveSingle(e, item)}
+              className={`p-1 rounded-lg text-xs ${
+                isLight
+                  ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
+                  : 'bg-slate-800 hover:bg-slate-700 text-amber-300'
+              }`}
+              title="העבר לתיקייה"
+            >
+              <FolderInput className="w-3 h-3" />
+            </button>
+            <button
+              type="button"
+              onClick={(e) => onDownloadSingle(e, item)}
+              className={`p-1 rounded-lg text-xs ${
+                isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
+              }`}
+              title="הורד קובץ"
+            >
+              <Download className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onItemDoubleClick(item);
+            }}
+            className={`text-[10px] font-bold flex items-center space-x-1 rtl:space-x-reverse ${
+              isLight ? 'text-amber-700 hover:text-amber-900' : 'text-yellow-400 hover:text-yellow-300'
+            }`}
+          >
+            <Eye className="w-3 h-3" />
+            <span>{selectionMode ? 'בחר' : 'צפה'}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// Memoized List Row for buttery-smooth list view
+const MediaListRow: React.FC<{
+  item: MediaItem;
+  isSelected: boolean;
+  isFocused: boolean;
+  isEditing: boolean;
+  isLight: boolean;
+  editingName: string;
+  renameInputRef: React.RefObject<HTMLInputElement>;
+  onItemClick: (item: MediaItem) => void;
+  onItemDoubleClick: (item: MediaItem) => void;
+  onToggleSelect: (id: string) => void;
+  onStartRename: (item: MediaItem, e?: React.MouseEvent) => void;
+  onSaveRename: (id: string, e?: React.MouseEvent | React.KeyboardEvent) => void;
+  onCancelRename: (e?: React.MouseEvent | React.KeyboardEvent) => void;
+  onKeyDownRename: (e: React.KeyboardEvent, id: string) => void;
+  onEditingNameChange: (val: string) => void;
+  onDownloadSingle: (e: React.MouseEvent, item: MediaItem) => void;
+  onDeleteSingle: (e: React.MouseEvent, item: MediaItem) => void;
+}> = React.memo((props) => {
+  const {
+    item,
+    isSelected,
+    isFocused,
+    isEditing,
+    isLight,
+    editingName,
+    renameInputRef,
+    onItemClick,
+    onItemDoubleClick,
+    onToggleSelect,
+    onStartRename,
+    onSaveRename,
+    onCancelRename,
+    onKeyDownRename,
+    onEditingNameChange,
+    onDownloadSingle,
+    onDeleteSingle,
+  } = props;
+
+  return (
+    <div
+      onClick={() => onItemClick(item)}
+      onDoubleClick={() => onItemDoubleClick(item)}
+      className={`p-2.5 grid grid-cols-12 gap-2 items-center transition-colors cursor-pointer group ${
+        isFocused
+          ? isLight
+            ? 'bg-amber-100/70 border-r-4 border-amber-500'
+            : 'bg-yellow-500/15 border-r-4 border-yellow-500'
+          : isSelected
+          ? isLight
+            ? 'bg-amber-50'
+            : 'bg-yellow-500/10'
+          : isLight
+          ? 'hover:bg-slate-50'
+          : 'hover:bg-slate-800/60'
+      }`}
+    >
+      {/* Name & Icon */}
+      <div className="col-span-6 sm:col-span-5 flex items-center space-x-2.5 rtl:space-x-reverse min-w-0">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggleSelect(item.id);
+          }}
+          className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-800' : 'text-slate-400 hover:text-white'}`}
+        >
+          {isSelected ? (
+            <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
+          ) : (
+            <Square className="w-3.5 h-3.5" />
+          )}
+        </button>
+
+        <div
+          className={`w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border ${
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-black border-slate-800'
+          }`}
+        >
+          {item.type === 'image' ? (
+            <img src={item.thumbnailUrl || item.url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+          ) : (
+            renderFileTypeIcon(item.type, 'w-4 h-4')
+          )}
+        </div>
+
+        {isEditing ? (
+          <div
+            className="flex items-center space-x-1 rtl:space-x-reverse min-w-0 flex-1"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <input
+              ref={renameInputRef}
+              type="text"
+              value={editingName}
+              onChange={(e) => onEditingNameChange(e.target.value)}
+              onKeyDown={(e) => onKeyDownRename(e, item.id)}
+              className={`w-full text-xs px-2 py-1 rounded-lg border focus:outline-none ${
+                isLight
+                  ? 'bg-white border-amber-500 text-slate-900'
+                  : 'bg-slate-950 border-yellow-500 text-white'
+              }`}
+              dir="auto"
+            />
+            <button
+              type="button"
+              onClick={(e) => onSaveRename(item.id, e)}
+              className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white"
+              title="שמור שם"
+            >
+              <Check className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={onCancelRename}
+              className="p-1 rounded-lg bg-slate-600 hover:bg-slate-500 text-white"
+              title="בטל"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center space-x-1.5 rtl:space-x-reverse min-w-0 flex-1">
+            <BidiFileName
+              name={item.name}
+              className="font-bold flex-1"
+              isLight={isLight}
+            />
+            <button
+              type="button"
+              onClick={(e) => onStartRename(item, e)}
+              className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-amber-500 transition-opacity"
+              title="שנה שם קובץ"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Component */}
+      <div className={`col-span-2 hidden sm:block truncate text-[11px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+        {item.sourceModuleLabel || '-'}
+      </div>
+
+      {/* Size */}
+      <div className={`col-span-2 font-mono text-[11px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+        {FileCompressionService.formatBytes(item.sizeBytes)}
+      </div>
+
+      {/* Date */}
+      <div className={`col-span-2 hidden md:block text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
+        {new Date(item.createdAt).toLocaleDateString('he-IL')}
+      </div>
+
+      {/* Actions */}
+      <div className="col-span-4 sm:col-span-3 md:col-span-1 flex items-center space-x-1 rtl:space-x-reverse justify-end">
+        <button
+          type="button"
+          onClick={(e) => onDownloadSingle(e, item)}
+          className={`p-1 rounded-lg transition-colors ${
+            isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-700 text-slate-300'
+          }`}
+          title="הורד"
+        >
+          <Download className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => onDeleteSingle(e, item)}
+          className={`p-1 rounded-lg transition-colors ${
+            isLight ? 'hover:bg-red-100 text-slate-400 hover:text-red-600' : 'hover:bg-red-950 text-slate-400 hover:text-red-400'
+          }`}
+          title="מחק"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+    </div>
+  );
+});
 
 export const MediaGalleryGrid: React.FC = () => {
   const {
@@ -240,27 +837,6 @@ export const MediaGalleryGrid: React.FC = () => {
       : `האם למחוק את התיקייה "${folder.name}"?`;
     if (confirm(msg)) {
       await deleteFolder(folder.id, false);
-    }
-  };
-
-  const renderFileTypeIcon = (type: MediaCategoryFilter | MediaType | string, className: string = 'w-4 h-4') => {
-    switch (type) {
-      case 'video':
-        return <FileVideo className={`${className} text-indigo-500`} />;
-      case 'heygen':
-        return <Sparkles className={`${className} text-purple-500`} />;
-      case 'image':
-        return <ImageIcon className={`${className} text-emerald-500`} />;
-      case 'audio':
-        return <Music className={`${className} text-amber-500`} />;
-      case 'document':
-        return <FileText className={`${className} text-blue-500`} />;
-      case 'archive':
-        return <Archive className={`${className} text-purple-500`} />;
-      case 'code':
-        return <Code2 className={`${className} text-pink-500`} />;
-      default:
-        return <HardDrive className={`${className} text-slate-500`} />;
     }
   };
 
@@ -767,428 +1343,71 @@ export const MediaGalleryGrid: React.FC = () => {
             const isEditing = editingItemId === item.id;
 
             return (
-              <div
-                key={item.id}
-                onClick={() => handleItemClick(item)}
-                onDoubleClick={() => handleItemDoubleClick(item)}
-                className={`p-2.5 grid grid-cols-12 gap-2 items-center transition-colors cursor-pointer group ${
-                  isFocused
-                    ? isLight
-                      ? 'bg-amber-100/70 border-r-4 border-amber-500'
-                      : 'bg-yellow-500/15 border-r-4 border-yellow-500'
-                    : isSelected
-                    ? isLight
-                      ? 'bg-amber-50'
-                      : 'bg-yellow-500/10'
-                    : isLight
-                    ? 'hover:bg-slate-50'
-                    : 'hover:bg-slate-800/60'
-                }`}
-              >
-                {/* Name & Icon */}
-                <div className="col-span-6 sm:col-span-5 flex items-center space-x-2.5 rtl:space-x-reverse min-w-0">
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelect(item.id);
-                    }}
-                    className={`cursor-pointer ${isLight ? 'text-slate-400 hover:text-slate-800' : 'text-slate-400 hover:text-white'}`}
-                  >
-                    {isSelected ? (
-                      <CheckSquare className="w-3.5 h-3.5 text-amber-500" />
-                    ) : (
-                      <Square className="w-3.5 h-3.5" />
-                    )}
-                  </button>
+              <MediaListRow
+              key={item.id}
+              item={item}
+              isSelected={isSelected}
+              isFocused={isFocused}
+              isEditing={isEditing}
+              isLight={isLight}
+              editingName={editingName}
+              renameInputRef={renameInputRef}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onToggleSelect={toggleSelect}
+              onStartRename={startRename}
+              onSaveRename={saveRename}
+              onCancelRename={cancelRename}
+              onKeyDownRename={handleKeyDownRename}
+              onEditingNameChange={setEditingName}
+              onDownloadSingle={handleDownloadSingle}
+              onDeleteSingle={handleDeleteSingle}
+            />
+          );
+        })}
+      </div>
+    ) : (
+      /* GRID & DENSE VIEW */
+      <div
+        className={`grid gap-3 ${
+          viewMode === 'dense'
+            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
+            : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4'
+        }`}
+      >
+        {displayedItems.map((item) => {
+          const isSelected = selectedIds.includes(item.id);
+          const isFocused = focusedItem?.id === item.id;
+          const isEditing = editingItemId === item.id;
 
-                  <div
-                    className={`w-7 h-7 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0 border ${
-                      isLight ? 'bg-slate-100 border-slate-200' : 'bg-black border-slate-800'
-                    }`}
-                  >
-                    {item.type === 'image' ? (
-                      <img src={item.url} alt={item.name} className="w-full h-full object-cover" />
-                    ) : (
-                      renderFileTypeIcon(item.type, 'w-4 h-4')
-                    )}
-                  </div>
-
-                  {isEditing ? (
-                    <div
-                      className="flex items-center space-x-1 rtl:space-x-reverse min-w-0 flex-1"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        ref={renameInputRef}
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
-                        onKeyDown={(e) => handleKeyDownRename(e, item.id)}
-                        className={`w-full text-xs px-2 py-1 rounded-lg border focus:outline-none ${
-                          isLight
-                            ? 'bg-white border-amber-500 text-slate-900'
-                            : 'bg-slate-950 border-yellow-500 text-white'
-                        }`}
-                        dir="auto"
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => saveRename(item.id, e)}
-                        className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white"
-                        title="שמור שם"
-                      >
-                        <Check className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelRename}
-                        className="p-1 rounded-lg bg-slate-600 hover:bg-slate-500 text-white"
-                        title="בטל"
-                      >
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center space-x-1.5 rtl:space-x-reverse min-w-0 flex-1">
-                      <BidiFileName
-                        name={item.name}
-                        className="font-bold flex-1"
-                        isLight={isLight}
-                      />
-                      <button
-                        type="button"
-                        onClick={(e) => startRename(item, e)}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-slate-400 hover:text-amber-500 transition-opacity"
-                        title="שנה שם קובץ"
-                      >
-                        <Pencil className="w-3 h-3" />
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Component */}
-                <div className={`col-span-2 hidden sm:block truncate text-[11px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                  {item.sourceModuleLabel || '-'}
-                </div>
-
-                {/* Size */}
-                <div className={`col-span-2 font-mono text-[11px] ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                  {FileCompressionService.formatBytes(item.sizeBytes)}
-                </div>
-
-                {/* Date */}
-                <div className={`col-span-2 hidden md:block text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
-                  {new Date(item.createdAt).toLocaleDateString('he-IL')}
-                </div>
-
-                {/* Actions */}
-                <div className="col-span-4 sm:col-span-3 md:col-span-1 flex items-center space-x-1 rtl:space-x-reverse justify-end">
-                  <button
-                    type="button"
-                    onClick={(e) => handleDownloadSingle(e, item)}
-                    className={`p-1 rounded-lg transition-colors ${
-                      isLight ? 'hover:bg-slate-200 text-slate-700' : 'hover:bg-slate-700 text-slate-300'
-                    }`}
-                    title="הורד"
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) => handleDeleteSingle(e, item)}
-                    className={`p-1 rounded-lg transition-colors ${
-                      isLight ? 'hover:bg-red-100 text-slate-400 hover:text-red-600' : 'hover:bg-red-950 text-slate-400 hover:text-red-400'
-                    }`}
-                    title="מחק"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        /* GRID & DENSE VIEW */
-        <div
-          className={`grid gap-3 ${
-            viewMode === 'dense'
-              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6'
-              : 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4'
-          }`}
-        >
-          {displayedItems.map((item) => {
-            const isSelected = selectedIds.includes(item.id);
-            const isFocused = focusedItem?.id === item.id;
-            const isEditing = editingItemId === item.id;
-
-            return (
-              <div
-                key={item.id}
-                onClick={() => handleItemClick(item)}
-                onDoubleClick={() => handleItemDoubleClick(item)}
-                className={`group relative rounded-2xl border overflow-hidden shadow transition-all duration-200 cursor-pointer flex flex-col justify-between ${
-                  isFocused
-                    ? isLight
-                      ? 'border-amber-500 ring-2 ring-amber-500/40 bg-amber-50/50 shadow-md'
-                      : 'border-yellow-500 ring-2 ring-yellow-500/50 bg-yellow-500/5 shadow-lg'
-                    : isSelected
-                    ? isLight
-                      ? 'border-amber-500 bg-amber-50/50'
-                      : 'border-yellow-500 bg-yellow-500/5'
-                    : isLight
-                    ? 'bg-white border-slate-200 hover:border-amber-500/50 hover:shadow-md'
-                    : 'bg-slate-900/90 border-slate-800 hover:border-yellow-500/50 hover:shadow-md'
-                }`}
-              >
-                {/* Media Thumbnail Box */}
-                <div
-                  className={`relative w-full flex items-center justify-center overflow-hidden ${
-                    isLight ? 'bg-slate-100' : 'bg-slate-950'
-                  } ${viewMode === 'dense' ? 'h-28' : 'h-36'}`}
-                >
-                  {item.type === 'video' && (
-                    <>
-                      {item.thumbnailUrl ? (
-                        <img
-                          src={item.thumbnailUrl}
-                          alt={item.name}
-                          loading="lazy"
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden group-hover:from-slate-850 group-hover:to-purple-950 transition-colors">
-                          <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mb-1 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-black transition-all shadow-md">
-                            <Play className="w-4 h-4 fill-current ml-0.5" />
-                          </div>
-                          <span className="text-[10px] font-mono text-amber-300/80 font-semibold truncate max-w-[90%]">
-                            {item.durationSec
-                              ? `${Math.floor(item.durationSec / 60)}:${(item.durationSec % 60).toString().padStart(2, '0')}`
-                              : 'סרטון וידאו'}
-                          </span>
-                        </div>
-                      )}
-                      {item.thumbnailUrl && (
-                        <div className="absolute inset-0 bg-black/25 flex items-center justify-center group-hover:bg-black/40 transition-colors">
-                          <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                            <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  {item.type === 'image' && (
-                    <img
-                      src={item.thumbnailUrl || item.url}
-                      alt={item.name}
-                      loading="lazy"
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      onError={(e) => {
-                        const target = e.currentTarget;
-                        target.style.opacity = '0.5';
-                      }}
-                    />
-                  )}
-
-                  {item.type === 'audio' && (
-                    <div className="flex flex-col items-center justify-center text-amber-500 space-y-1">
-                      <Music className="w-8 h-8 animate-pulse" />
-                      <span className="text-[10px] font-mono opacity-75">Audio Track</span>
-                    </div>
-                  )}
-
-                  {item.type === 'document' && (
-                    <div className="flex flex-col items-center justify-center text-blue-500 space-y-1">
-                      <FileText className="w-7 h-7" />
-                    </div>
-                  )}
-
-                  {item.type === 'archive' && (
-                    <div className="flex flex-col items-center justify-center text-purple-500 space-y-1">
-                      <Archive className="w-7 h-7" />
-                    </div>
-                  )}
-
-                  {item.type === 'code' && (
-                    <div className="flex flex-col items-center justify-center text-pink-500 space-y-1">
-                      <Code2 className="w-7 h-7" />
-                    </div>
-                  )}
-
-                  {item.type === 'other' && (
-                    <div className="flex flex-col items-center justify-center text-slate-500 space-y-1">
-                      <HardDrive className="w-7 h-7" />
-                    </div>
-                  )}
-
-                  {/* Top Right Checkbox */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      toggleSelect(item.id);
-                    }}
-                    className={`absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center transition-all shadow cursor-pointer ${
-                      isSelected
-                        ? 'bg-amber-500 text-black'
-                        : isLight
-                        ? 'bg-white/80 text-slate-400 hover:text-slate-800 border border-slate-300'
-                        : 'bg-black/60 text-slate-400 hover:text-white border border-slate-700'
-                    }`}
-                  >
-                    {isSelected ? <CheckSquare className="w-3.5 h-3.5" /> : <Square className="w-3.5 h-3.5" />}
-                  </button>
-
-                  {/* Top Left Component Badge */}
-                  {item.sourceModuleLabel && (
-                    <span
-                      className={`absolute top-2 left-2 text-[9px] font-bold px-2 py-0.5 rounded-md border truncate max-w-[100px] backdrop-blur-md ${
-                        isLight
-                          ? 'bg-white/90 text-amber-800 border-amber-300'
-                          : 'bg-black/80 text-yellow-300 border-slate-800'
-                      }`}
-                    >
-                      {item.sourceModuleLabel}
-                    </span>
-                  )}
-                </div>
-
-                {/* Card Bottom Details */}
-                <div className="p-3 space-y-2 flex-1 flex flex-col justify-between">
-                  <div>
-                    {isEditing ? (
-                      <div
-                        className="flex items-center space-x-1 rtl:space-x-reverse"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <input
-                          ref={renameInputRef}
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          onKeyDown={(e) => handleKeyDownRename(e, item.id)}
-                          className={`w-full text-xs px-2 py-1 rounded-lg border focus:outline-none ${
-                            isLight
-                              ? 'bg-white border-amber-500 text-slate-900'
-                              : 'bg-slate-950 border-yellow-500 text-white'
-                          }`}
-                          dir="auto"
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => saveRename(item.id, e)}
-                          className="p-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white flex-shrink-0"
-                          title="שמור"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={cancelRename}
-                          className="p-1 rounded-lg bg-slate-600 hover:bg-slate-500 text-white flex-shrink-0"
-                          title="בטל"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between group/title">
-                        <BidiFileName
-                          name={item.name}
-                          className={`font-bold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}
-                          isLight={isLight}
-                        />
-                        <button
-                          type="button"
-                          onClick={(e) => startRename(item, e)}
-                          className="opacity-0 group-hover/title:opacity-100 p-0.5 text-slate-400 hover:text-amber-500 transition-opacity"
-                          title="שנה שם קובץ"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      </div>
-                    )}
-
-                    <div
-                      className={`flex items-center justify-between text-[10px] mt-1 font-mono ${
-                        isLight ? 'text-slate-500' : 'text-slate-400'
-                      }`}
-                    >
-                      <span>{FileCompressionService.formatBytes(item.sizeBytes)}</span>
-                      <span>{new Date(item.createdAt).toLocaleDateString('he-IL')}</span>
-                    </div>
-                  </div>
-
-                  {/* Quick Action Buttons on Card */}
-                  <div
-                    className={`pt-2 border-t flex items-center justify-between ${
-                      isLight ? 'border-slate-100' : 'border-slate-800/80'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                      {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleConvertSingle(e, item)}
-                          className={`p-1 rounded-lg text-xs ${
-                            isLight
-                              ? 'bg-indigo-100 hover:bg-indigo-200 text-indigo-700'
-                              : 'bg-indigo-950/60 hover:bg-indigo-900 text-indigo-300'
-                          }`}
-                          title="המרה ודחיסה"
-                        >
-                          <Sparkles className="w-3 h-3" />
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => handleMoveSingle(e, item)}
-                        className={`p-1 rounded-lg text-xs ${
-                          isLight
-                            ? 'bg-amber-100 hover:bg-amber-200 text-amber-800'
-                            : 'bg-slate-800 hover:bg-slate-700 text-amber-300'
-                        }`}
-                        title="העבר לתיקייה"
-                      >
-                        <FolderInput className="w-3 h-3" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={(e) => handleDownloadSingle(e, item)}
-                        className={`p-1 rounded-lg text-xs ${
-                          isLight
-                            ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                            : 'bg-slate-800 hover:bg-slate-700 text-slate-200'
-                        }`}
-                        title="הורד קובץ"
-                      >
-                        <Download className="w-3 h-3" />
-                      </button>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleItemDoubleClick(item);
-                      }}
-                      className={`text-[10px] font-bold flex items-center space-x-1 rtl:space-x-reverse ${
-                        isLight ? 'text-amber-700 hover:text-amber-900' : 'text-yellow-400 hover:text-yellow-300'
-                      }`}
-                    >
-                      <Eye className="w-3 h-3" />
-                      <span>{selectionMode ? 'בחר' : 'צפה'}</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+          return (
+            <MediaGridCard
+              key={item.id}
+              item={item}
+              isSelected={isSelected}
+              isFocused={isFocused}
+              isEditing={isEditing}
+              viewMode={viewMode}
+              isLight={isLight}
+              selectionMode={selectionMode}
+              editingName={editingName}
+              renameInputRef={renameInputRef}
+              onItemClick={handleItemClick}
+              onItemDoubleClick={handleItemDoubleClick}
+              onToggleSelect={toggleSelect}
+              onStartRename={startRename}
+              onSaveRename={saveRename}
+              onCancelRename={cancelRename}
+              onKeyDownRename={handleKeyDownRename}
+              onEditingNameChange={setEditingName}
+              onConvertSingle={handleConvertSingle}
+              onMoveSingle={handleMoveSingle}
+              onDownloadSingle={handleDownloadSingle}
+            />
+          );
+        })}
+      </div>
+    )}
 
       {/* Pagination Load More Bar */}
       {hasMore && (

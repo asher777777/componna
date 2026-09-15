@@ -19,21 +19,24 @@ import { PageBuilderButton } from '../ui/PageBuilderButton';
 interface SectionNavigatorProps {
   sectionOrder: string[];
   sections: Record<string, any>;
-  activeSectionId: string | null;
+  activeSectionId?: string | null;
+  openSectionId?: string | null;
   onSelectSection: (id: string) => void;
-  onMoveUp: (index: number) => void;
-  onMoveDown: (index: number) => void;
-  onToggleVisibility: (id: string) => void;
-  onToggleMobileHidden: (id: string) => void;
-  onDeleteSection: (id: string) => void;
-  onDuplicateSection: (id: string) => void;
-  onOpenAddModal: () => void;
+  onMoveUp?: (index: number) => void;
+  onMoveDown?: (index: number) => void;
+  onToggleVisibility?: (id: string) => void;
+  onToggleMobileHidden?: (id: string) => void;
+  onDeleteSection?: (id: string) => void;
+  onDuplicateSection?: (id: string) => void;
+  onOpenAddModal?: () => void;
+  onAddSectionClick?: () => void;
 }
 
 export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
   sectionOrder,
   sections,
   activeSectionId,
+  openSectionId,
   onSelectSection,
   onMoveUp,
   onMoveDown,
@@ -42,7 +45,10 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
   onDeleteSection,
   onDuplicateSection,
   onOpenAddModal,
+  onAddSectionClick,
 }) => {
+  const currentActiveId = openSectionId !== undefined ? openSectionId : activeSectionId;
+  const handleAddClick = onAddSectionClick || onOpenAddModal || (() => {});
   return (
     <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 flex flex-col gap-4 text-right shadow-2xl" dir="rtl">
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -113,7 +119,7 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                 {/* Move Up/Down */}
                 <button
                   type="button"
-                  onClick={() => onMoveUp(index)}
+                  onClick={() => onMoveUp?.(index)}
                   disabled={isFirst}
                   className="p-1 text-slate-400 hover:text-white disabled:opacity-20 transition-opacity"
                   title="הזז למעלה"
@@ -122,7 +128,7 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onMoveDown(index)}
+                  onClick={() => onMoveDown?.(index)}
                   disabled={isLast}
                   className="p-1 text-slate-400 hover:text-white disabled:opacity-20 transition-opacity"
                   title="הזז למטה"
@@ -133,7 +139,7 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                 {/* Visibility Toggle */}
                 <button
                   type="button"
-                  onClick={() => onToggleVisibility(sectionId)}
+                  onClick={() => onToggleVisibility?.(sectionId)}
                   className="p-1 text-slate-400 hover:text-white"
                   title={isVisible ? 'הסתר אזור' : 'הצג אזור'}
                 >
@@ -147,7 +153,7 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                 {/* Mobile Hidden Toggle */}
                 <button
                   type="button"
-                  onClick={() => onToggleMobileHidden(sectionId)}
+                  onClick={() => onToggleMobileHidden?.(sectionId)}
                   className="p-1 text-slate-400 hover:text-white"
                   title={isMobileHidden ? 'מוסתר בנייד' : 'מוצג בנייד'}
                 >
@@ -159,7 +165,7 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                 {/* Duplicate */}
                 <button
                   type="button"
-                  onClick={() => onDuplicateSection(sectionId)}
+                  onClick={() => onDuplicateSection?.(sectionId)}
                   className="p-1 text-slate-400 hover:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="שכפל אזור"
                 >
@@ -169,7 +175,7 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                 {/* Delete */}
                 <button
                   type="button"
-                  onClick={() => onDeleteSection(sectionId)}
+                  onClick={() => onDeleteSection?.(sectionId)}
                   className="p-1 text-slate-400 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-opacity"
                   title="מחק אזור"
                 >

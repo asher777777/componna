@@ -4,15 +4,18 @@ import { WorkbenchApp } from './workbench/WorkbenchApp';
 import { HostCapabilitiesProvider } from './core/bridge/HostCapabilitiesContext';
 import { SystemConnectionProvider } from './core/connection/SystemConnectionContext';
 import { MediaPickerHostBridge } from './modules/media-gallery-hub';
+import { BrandDnaProvider } from './modules/brand-dna-hub/context/BrandDnaContext';
 
 export const App: React.FC = () => {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <SystemConnectionProvider>
-        <HostCapabilitiesProvider>
-          <WorkbenchApp />
-          <MediaPickerHostBridge />
-        </HostCapabilitiesProvider>
+        <BrandDnaProvider>
+          <HostCapabilitiesProvider>
+            <WorkbenchApp />
+            <MediaPickerHostBridge />
+          </HostCapabilitiesProvider>
+        </BrandDnaProvider>
       </SystemConnectionProvider>
     </BrowserRouter>
   );

@@ -1,137 +1,121 @@
-import React, { useState } from 'react';
+﻿import React from 'react';
 import { FaqSectionConfig, FaqItem } from '../../types/sectionConfigs';
-import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput';
-import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
-import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
-import { PageBuilderButton } from '../../ui/PageBuilderButton';
-import { Plus, Trash2, Edit2, HelpCircle, Sliders } from 'lucide-react';
+import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { Plus, Trash2 } from 'lucide-react';
 
-interface FaqSectionEditorProps {
+export const FaqSectionEditor: React.FC<{
   config: FaqSectionConfig;
   onChange: (updated: FaqSectionConfig) => void;
-}
-
-export const FaqSectionEditor: React.FC<FaqSectionEditorProps> = ({ config, onChange }) => {
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-
-  const update = <K extends keyof FaqSectionConfig>(field: K, value: FaqSectionConfig[K]) => {
-    onChange({ ...config, [field]: value });
+}> = ({ config, onChange }) => {
+  const handleItemChange = (index: number, field: keyof FaqItem, value: any) => {
+    const updated = [...(config.items || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange({ ...config, items: updated });
   };
 
   const handleAddItem = () => {
     const newItem: FaqItem = {
-      id: Date.now().toString(),
-      question: 'שאלה חדשה?',
-      answer: 'תשובה מפורטת כאן...',
+      id: `faq_${Date.now()}`,
+      question: 'שאלה חדשה שנשאלת לעיתים קרובות?',
+      answer: 'תשובה מפורטת וברורה שמספקת מענה מלא למשתמש.',
     };
-    const updated = [...(config.items || []), newItem];
-    update('items', updated);
-    setEditingItemId(newItem.id);
+    onChange({ ...config, items: [...(config.items || []), newItem] });
   };
 
-  const handleUpdateItem = (id: string, updates: Partial<FaqItem>) => {
-    const updated = (config.items || []).map((item) => (item.id === id ? { ...item, ...updates } : item));
-    update('items', updated);
-  };
-
-  const handleDeleteItem = (id: string) => {
-    if (confirm('האם למחוק שאלה זו?')) {
-      update('items', (config.items || []).filter((item) => item.id !== id));
-      if (editingItemId === id) setEditingItemId(null);
-    }
+  const handleDeleteItem = (index: number) => {
+    const updated = (config.items || []).filter((_, i) => i !== index);
+    onChange({ ...config, items: updated });
   };
 
   return (
-    <div className="flex flex-col gap-4 text-right" dir="rtl">
-      <PageBuilderAccordion title="כותרות שאלות ותשובות" icon={<HelpCircle className="w-4 h-4 text-indigo-400" />} defaultOpen={true}>
+    <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PageBuilderInput
-          label="כותרת האזור"
+          label="כותרת אזור השאלות"
           value={config.title || ''}
-          onChange={(e) => update('title', e.target.value)}
-          placeholder="למשל: שאלות ותשובות נפוצות"
+          onChange={(val) => onChange({ ...config, title: val })}
         />
         <PageBuilderInput
-          label="תת-כותרת"
+          label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(e) => update('subtitle', e.target.value)}
-          placeholder="למשל: תשובות לכל השאלות שרציתם לשאול"
+          onChange={(val) => onChange({ ...config, subtitle: val })}
         />
-      </PageBuilderAccordion>
+      </div>
 
-      <PageBuilderAccordion
-        title={`ניהול שאלות ותשובות (${(config.items || []).length})`}
-        icon={<Plus className="w-4 h-4 text-emerald-400" />}
-        defaultOpen={true}
-        actionNode={
-          <PageBuilderButton size="xs" variant="primary" onClick={handleAddItem} icon={<Plus className="w-3.5 h-3.5" />}>
-            הוסף שאלה
-          </PageBuilderButton>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          {(config.items || []).map((item, idx) => {
-            const isEditing = editingItemId === item.id;
-            return (
-              <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-                <div className="flex items-center justify-between p-3 bg-slate-950/40">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-500">#{idx + 1}</span>
-                    <span className="text-sm font-bold text-white">{item.question || 'ללא שאלה'}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditingItemId(isEditing ? null : item.id)}
-                      className="p-1 text-slate-400 hover:text-indigo-400"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-1 text-slate-400 hover:text-rose-400"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {isEditing && (
-                  <div className="p-4 border-t border-slate-800/80 bg-slate-900/90 flex flex-col gap-3 animate-in fade-in">
-                    <PageBuilderInput
-                      label="השאלה"
-                      value={item.question}
-                      onChange={(e) => handleUpdateItem(item.id, { question: e.target.value })}
-                    />
-                    <PageBuilderTextarea
-                      label="התשובה"
-                      value={item.answer}
-                      onChange={(e) => handleUpdateItem(item.id, { answer: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-3">
+        <h4 className="text-xs font-bold text-slate-300">הגדרות תצוגה ועזרה</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.showSearchBar !== false}
+              onChange={(e) => onChange({ ...config, showSearchBar: e.target.checked })}
+              className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+            />
+            <span>הצג שורת חיפוש מהירה</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.showContactCard !== false}
+              onChange={(e) => onChange({ ...config, showContactCard: e.target.checked })}
+              className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+            />
+            <span>הצג כרטיס תמיכה ישיר</span>
+          </label>
+          <PageBuilderInput
+            label="טלפון וואטסאפ לפניות"
+            value={config.whatsappContact || ''}
+            onChange={(val) => onChange({ ...config, whatsappContact: val })}
+          />
         </div>
-      </PageBuilderAccordion>
+      </div>
 
-      <PageBuilderAccordion title="עיצוב ועוגן" icon={<Sliders className="w-4 h-4 text-pink-400" />}>
-        <PageBuilderColorPicker
-          label="צבע רקע"
-          value={config.backgroundColor || 'transparent'}
-          onChange={(c) => update('backgroundColor', c)}
-        />
-        <PageBuilderInput
-          label="מזהה עוגן"
-          value={config.anchorId || 'faq'}
-          onChange={(e) => update('anchorId', e.target.value)}
-          placeholder="faq"
-          dir="ltr"
-        />
-      </PageBuilderAccordion>
+      <div className="flex items-center justify-between pt-2">
+        <h4 className="text-sm font-bold text-white">שאלות ותשובות ({config.items?.length || 0})</h4>
+        <button
+          type="button"
+          onClick={handleAddItem}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>הוסף שאלה</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {config.items?.map((item, idx) => (
+          <div key={item.id || idx} className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-400">שאלה #{idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => handleDeleteItem(idx)}
+                className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                title="מחק"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            <PageBuilderInput
+              label="השאלה"
+              value={item.question || ''}
+              onChange={(val) => handleItemChange(idx, 'question', val)}
+            />
+
+            <div>
+              <label className="block text-xs text-slate-400 mb-1 font-medium">התשובה</label>
+              <textarea
+                rows={3}
+                value={item.answer || ''}
+                onChange={(e) => handleItemChange(idx, 'answer', e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

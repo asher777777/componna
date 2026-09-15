@@ -1,13 +1,14 @@
-import React from 'react';
+﻿import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export interface PageBuilderInputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+export interface PageBuilderInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
   label?: string;
   helperText?: string;
   error?: string;
   prefixIcon?: React.ReactNode;
   suffixIcon?: React.ReactNode;
+  onChange?: (e: any) => void;
 }
 
 export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
@@ -18,6 +19,7 @@ export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
   suffixIcon,
   className,
   id,
+  onChange,
   ...props
 }) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
@@ -47,6 +49,11 @@ export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
               className
             )
           )}
+          onChange={(e) => {
+            if (onChange) {
+              onChange(e);
+            }
+          }}
           {...props}
         />
         {suffixIcon && (
@@ -61,10 +68,11 @@ export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
   );
 };
 
-export interface PageBuilderTextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+export interface PageBuilderTextareaProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange'> {
   label?: string;
   helperText?: string;
   error?: string;
+  onChange?: (e: any) => void;
 }
 
 export const PageBuilderTextarea: React.FC<PageBuilderTextareaProps> = ({
@@ -74,6 +82,7 @@ export const PageBuilderTextarea: React.FC<PageBuilderTextareaProps> = ({
   className,
   id,
   rows = 3,
+  onChange,
   ...props
 }) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
@@ -96,6 +105,11 @@ export const PageBuilderTextarea: React.FC<PageBuilderTextareaProps> = ({
             className
           )
         )}
+        onChange={(e) => {
+          if (onChange) {
+            onChange(e);
+          }
+        }}
         {...props}
       />
       {error && <span className="text-[11px] text-rose-400 font-medium">{error}</span>}

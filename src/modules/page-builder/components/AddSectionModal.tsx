@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { SECTION_REGISTRY, SectionDefinition } from '../registry/sectionRegistry';
 import { SectionType } from '../types/pageBuilder.types';
 import { PageBuilderModal } from '../ui/PageBuilderModal';
@@ -21,13 +21,14 @@ export const AddSectionModal: React.FC<AddSectionModalProps> = ({
 
   const categories = [
     { id: 'all', label: 'כל האזורים' },
-    { id: 'forms', label: 'טפסים חכמים ושאלונים (Smart Forms)' },
-    { id: 'headers', label: 'כותרות ו-Hero' },
-    { id: 'content', label: 'תוכן ושירותים' },
-    { id: 'media', label: 'גלריות ומדיה' },
+    { id: 'headers', label: 'כותרות ו-Hero 2.0' },
+    { id: 'content', label: 'Bento Grid ותוכן' },
+    { id: 'social_proof', label: 'הוכחה חברתית וביקורות' },
+    { id: 'marketing', label: 'מחירונים ושיווק' },
+    { id: 'contact', label: 'צור קשר ו-GEO' },
+    { id: 'forms', label: 'טפסים חכמים' },
     { id: 'campaign', label: 'קמפיינים ותרומות' },
-    { id: 'marketing', label: 'שיווק והנעה לפעולה' },
-    { id: 'contact', label: 'צור קשר וקהילה' },
+    { id: 'media', label: 'גלריות ווידאו' },
   ];
 
   const allSections = Object.values(SECTION_REGISTRY);
@@ -49,7 +50,7 @@ export const AddSectionModal: React.FC<AddSectionModalProps> = ({
     <PageBuilderModal
       isOpen={isOpen}
       onClose={onClose}
-      title="הוספת אזור חדש לעמוד"
+      title="הוספת אזור חדש לעמוד (קולקציית 2026)"
       subtitle="בחרו אזור מתוך הקטלוג העשיר להטמעה מיידית בדף"
       maxWidth="4xl"
     >
@@ -87,7 +88,7 @@ export const AddSectionModal: React.FC<AddSectionModalProps> = ({
         </div>
 
         {/* Grid of Available Sections */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[60vh] overflow-y-auto pr-1">
           {filteredSections.map((def) => {
             const Icon = def.icon;
             return (

@@ -1,198 +1,152 @@
-import React, { useState } from 'react';
+﻿import React from 'react';
 import { PricingSectionConfig, PricingPackageItem } from '../../types/sectionConfigs';
-import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput';
-import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
-import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
-import { PageBuilderButton } from '../../ui/PageBuilderButton';
-import { Plus, Trash2, Edit2, CreditCard, Sliders } from 'lucide-react';
+import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { Plus, Trash2 } from 'lucide-react';
 
-interface PricingEditorProps {
+export const PricingEditor: React.FC<{
   config: PricingSectionConfig;
   onChange: (updated: PricingSectionConfig) => void;
-}
-
-export const PricingEditor: React.FC<PricingEditorProps> = ({ config, onChange }) => {
-  const [editingPkgId, setEditingPkgId] = useState<string | null>(null);
-
-  const update = <K extends keyof PricingSectionConfig>(field: K, value: PricingSectionConfig[K]) => {
-    onChange({ ...config, [field]: value });
+}> = ({ config, onChange }) => {
+  const handlePackageChange = (index: number, field: keyof PricingPackageItem, value: any) => {
+    const updated = [...(config.packages || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange({ ...config, packages: updated });
   };
 
   const handleAddPackage = () => {
     const newPkg: PricingPackageItem = {
-      id: Date.now().toString(),
+      id: `pkg_${Date.now()}`,
       name: 'חבילה חדשה',
-      price: '₪149',
+      priceMonthly: '₪149',
+      priceYearly: '₪119',
       period: '/ חודש',
-      description: 'תיאור קצר',
-      features: ['פיצ׳ר 1', 'פיצ׳ר 2', 'פיצ׳ר 3'],
-      buttonText: 'בחר חבילה',
-      buttonUrl: '#',
+      description: 'פירוט קצר על החבילה',
+      features: ['תכונה ראשונה', 'תכונה שנייה', 'תמיכה מלאה'],
+      buttonText: 'בחר מסלול',
+      buttonUrl: '#contact',
     };
-    const updated = [...(config.packages || []), newPkg];
-    update('packages', updated);
-    setEditingPkgId(newPkg.id);
+    onChange({ ...config, packages: [...(config.packages || []), newPkg] });
   };
 
-  const handleUpdatePackage = (id: string, updates: Partial<PricingPackageItem>) => {
-    const updated = (config.packages || []).map((p) => (p.id === id ? { ...p, ...updates } : p));
-    update('packages', updated);
-  };
-
-  const handleDeletePackage = (id: string) => {
-    if (confirm('האם למחוק חבילה זו?')) {
-      update('packages', (config.packages || []).filter((p) => p.id !== id));
-      if (editingPkgId === id) setEditingPkgId(null);
-    }
+  const handleDeletePackage = (index: number) => {
+    const updated = (config.packages || []).filter((_, i) => i !== index);
+    onChange({ ...config, packages: updated });
   };
 
   return (
-    <div className="flex flex-col gap-4 text-right" dir="rtl">
-      <PageBuilderAccordion title="כותרות מחירונים" icon={<CreditCard className="w-4 h-4 text-indigo-400" />} defaultOpen={true}>
+    <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PageBuilderInput
-          label="כותרת האזור"
+          label="כותרת מחירון"
           value={config.title || ''}
-          onChange={(e) => update('title', e.target.value)}
-          placeholder="למשל: תוכניות ומחירים מותאמים"
+          onChange={(val) => onChange({ ...config, title: val })}
         />
         <PageBuilderInput
-          label="תת-כותרת"
+          label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(e) => update('subtitle', e.target.value)}
-          placeholder="למשל: בחרו את החבילה המתאימה ביותר"
+          onChange={(val) => onChange({ ...config, subtitle: val })}
         />
-      </PageBuilderAccordion>
+      </div>
 
-      <PageBuilderAccordion
-        title={`ניהול חבילות (${(config.packages || []).length})`}
-        icon={<Plus className="w-4 h-4 text-emerald-400" />}
-        defaultOpen={true}
-        actionNode={
-          <PageBuilderButton size="xs" variant="primary" onClick={handleAddPackage} icon={<Plus className="w-3.5 h-3.5" />}>
-            הוסף חבילה
-          </PageBuilderButton>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          {(config.packages || []).map((pkg, idx) => {
-            const isEditing = editingPkgId === pkg.id;
-            return (
-              <div key={pkg.id} className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden">
-                <div className="flex items-center justify-between p-3 bg-slate-950/40">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-500">#{idx + 1}</span>
-                    <span className="text-sm font-bold text-white">{pkg.name} - {pkg.price}</span>
-                    {pkg.isFeatured && (
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                        מודגשת
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditingPkgId(isEditing ? null : pkg.id)}
-                      className="p-1 text-slate-400 hover:text-indigo-400"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeletePackage(pkg.id)}
-                      className="p-1 text-slate-400 hover:text-rose-400"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {isEditing && (
-                  <div className="p-4 border-t border-slate-800/80 bg-slate-900/90 flex flex-col gap-3 animate-in fade-in">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PageBuilderInput
-                        label="שם החבילה"
-                        value={pkg.name}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { name: e.target.value })}
-                      />
-                      <PageBuilderInput
-                        label="מחיר (למשל: ₪199)"
-                        value={pkg.price}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { price: e.target.value })}
-                        dir="ltr"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PageBuilderInput
-                        label="תקופה (למשל: / חודש)"
-                        value={pkg.period || ''}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { period: e.target.value })}
-                      />
-                      <PageBuilderInput
-                        label="תגית עליונה (Badge)"
-                        value={pkg.badge || ''}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { badge: e.target.value })}
-                        placeholder="למשל: הכי פופולרי"
-                      />
-                    </div>
-
-                    <PageBuilderTextarea
-                      label="מאפיינים ופיצ'רים (הפרד בשורות חדשות)"
-                      value={(pkg.features || []).join('\n')}
-                      onChange={(e) =>
-                        handleUpdatePackage(pkg.id, {
-                          features: e.target.value.split('\n').filter(Boolean),
-                        })
-                      }
-                      rows={3}
-                    />
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PageBuilderInput
-                        label="טקסט כפתור"
-                        value={pkg.buttonText || ''}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { buttonText: e.target.value })}
-                      />
-                      <PageBuilderInput
-                        label="קישור כפתור"
-                        value={pkg.buttonUrl || ''}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { buttonUrl: e.target.value })}
-                        dir="ltr"
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950 border border-slate-800">
-                      <label className="text-xs font-semibold text-slate-300">הבלט חבילה זו (Featured)</label>
-                      <input
-                        type="checkbox"
-                        checked={pkg.isFeatured || false}
-                        onChange={(e) => handleUpdatePackage(pkg.id, { isFeatured: e.target.checked })}
-                        className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-700 cursor-pointer"
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-3">
+        <h4 className="text-xs font-bold text-slate-300">מתג תשלום שנתי / חודשי</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={config.showBillingToggle !== false}
+              onChange={(e) => onChange({ ...config, showBillingToggle: e.target.checked })}
+              className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+            />
+            <span>הצג מתג חודשי/שנתי</span>
+          </label>
+          <PageBuilderInput
+            label="תגית הנחה שנתית (Badge)"
+            value={config.yearlyDiscountBadge || 'חיסכון של 20% 🎉'}
+            onChange={(val) => onChange({ ...config, yearlyDiscountBadge: val })}
+          />
         </div>
-      </PageBuilderAccordion>
+      </div>
 
-      <PageBuilderAccordion title="עיצוב ועוגן" icon={<Sliders className="w-4 h-4 text-pink-400" />}>
-        <PageBuilderColorPicker
-          label="צבע רקע"
-          value={config.backgroundColor || 'transparent'}
-          onChange={(c) => update('backgroundColor', c)}
-        />
-        <PageBuilderInput
-          label="מזהה עוגן"
-          value={config.anchorId || 'pricing'}
-          onChange={(e) => update('anchorId', e.target.value)}
-          placeholder="pricing"
-          dir="ltr"
-        />
-      </PageBuilderAccordion>
+      <div className="flex items-center justify-between pt-2">
+        <h4 className="text-sm font-bold text-white">חבילות מחיר ({config.packages?.length || 0})</h4>
+        <button
+          type="button"
+          onClick={handleAddPackage}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>הוסף חבילה</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {config.packages?.map((pkg, idx) => (
+          <div key={pkg.id || idx} className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-400">חבילה #{idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => handleDeletePackage(idx)}
+                className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                title="מחק"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <PageBuilderInput
+                label="שם החבילה"
+                value={pkg.name || ''}
+                onChange={(val) => handlePackageChange(idx, 'name', val)}
+              />
+              <PageBuilderInput
+                label="מחיר חודשי"
+                value={pkg.priceMonthly || ''}
+                onChange={(val) => handlePackageChange(idx, 'priceMonthly', val)}
+              />
+              <PageBuilderInput
+                label="מחיר שנתי מוזל"
+                value={pkg.priceYearly || ''}
+                onChange={(val) => handlePackageChange(idx, 'priceYearly', val)}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <PageBuilderInput
+                label="תגית / Badge"
+                value={pkg.badge || ''}
+                onChange={(val) => handlePackageChange(idx, 'badge', val)}
+              />
+              <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pt-6">
+                <input
+                  type="checkbox"
+                  checked={pkg.isFeatured || false}
+                  onChange={(e) => handlePackageChange(idx, 'isFeatured', e.target.checked)}
+                  className="rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-0"
+                />
+                <span>הבלט חבילה זו (Pro Highlight)</span>
+              </label>
+              <PageBuilderInput
+                label="טקסט כפתור"
+                value={pkg.buttonText || ''}
+                onChange={(val) => handlePackageChange(idx, 'buttonText', val)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs text-slate-400 mb-1 font-medium">רשימת פיצ׳רים (שורה אחר שורה)</label>
+              <textarea
+                rows={3}
+                value={(pkg.features || []).join('\n')}
+                onChange={(e) => handlePackageChange(idx, 'features', e.target.value.split('\n').filter(Boolean))}
+                className="w-full bg-slate-900 border border-slate-800 text-white rounded-xl p-3 text-xs focus:outline-none focus:border-indigo-500"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

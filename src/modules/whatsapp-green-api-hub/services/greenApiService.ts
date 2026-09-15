@@ -7,6 +7,9 @@ import {
   GreenApiGroupData,
   GreenApiQueueItem,
   GreenApiContactInfo,
+  GreenApiTextStatusPayload,
+  GreenApiMediaStatusPayload,
+  GreenApiStatusStatisticItem,
 } from '../types';
 
 export interface GreenApiCredentials {
@@ -784,5 +787,98 @@ export class GreenApiService {
     if (!this.isConfigured()) return { isCleared: false };
     const res = await fetch(`${this.baseUrl}/clearMessagesQueue/${this.token}`, { method: 'GET' });
     return await res.json().catch(() => ({ isCleared: res.ok }));
+  }
+
+  // --- WHATSAPP STATUSES & STORIES API ---
+
+  public async sendTextStatus(payload: GreenApiTextStatusPayload): Promise<{ idMessage: string; [key: string]: any }> {
+    if (!this.isConfigured()) throw new Error('Green-API is not configured');
+    const hosts = this.getCandidateHosts();
+
+    const body: any = {
+      message: payload.message,
+    };
+    if (payload.backgroundColor) body.backgroundColor = payload.backgroundColor;
+    if (payload.font) body.font = payload.font;
+    if (payload.participants && payload.participants.length > 0) {
+      body.participants = payload.participants;
+    }
+
+    let lastError: any = null;
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`${h}/waInstance${this.idInstance}/sendTextStatus/${this.token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          this.host = h;
+          return await res.json();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          lastError = new Error(errData.message || `HTTP ${res.status}`);
+        }
+      } catch (e: any) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error('Failed to send text status');
+  }
+
+  public async sendMediaStatus(payload: GreenApiMediaStatusPayload): Promise<{ idMessage: string; [key: string]: any }> {
+    if (!this.isConfigured()) throw new Error('Green-API is not configured');
+    const hosts = this.getCandidateHosts();
+
+    const body: any = {
+      urlFile: payload.urlFile,
+      fileName: payload.fileName || 'status.jpg',
+    };
+    if (payload.caption) body.caption = payload.caption;
+    if (payload.participants && payload.participants.length > 0) {
+      body.participants = payload.participants;
+    }
+
+    let lastError: any = null;
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`${h}/waInstance${this.idInstance}/sendMediaStatus/${this.token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          this.host = h;
+          return await res.json();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          lastError = new Error(errData.message || `HTTP ${res.status}`);
+        }
+      } catch (e: any) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error('Failed to send media status');
+  }
+
+  public async getStatusStatistic(idMessage: string): Promise<GreenApiStatusStatisticItem[]> {
+    if (!this.isConfigured() || !idMessage) return [];
+    const hosts = this.getCandidateHosts();
+
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`${h}/waInstance${this.idInstance}/getStatusStatistic/${this.token}?idMessage=${encodeURIComponent(idMessage)}`, {
+          method: 'GET',
+        });
+        if (res.ok) {
+          this.host = h;
+          const data = await res.json();
+          if (Array.isArray(data)) return data;
+        }
+      } catch (e) {
+        console.warn('getStatusStatistic error on host:', h, e);
+      }
+    }
+    return [];
   }
 }

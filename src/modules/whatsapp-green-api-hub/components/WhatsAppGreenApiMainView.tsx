@@ -21,6 +21,7 @@ import { WhatsAppInstanceModal } from './WhatsAppInstanceModal';
 import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppWebChatView } from './WhatsAppWebChatView';
 import { WhatsAppAiBotTab } from './WhatsAppAiBotTab';
+import { WhatsAppStatusesTab } from './WhatsAppStatusesTab';
 
 export const WhatsAppGreenApiMainView: React.FC = () => {
   const { apiKeys, openConnectorModal, db, collections } = useSystemConnection();
@@ -39,7 +40,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const isDark = theme === 'dark';
 
   // Active Tab - WhatsApp Web is default landing tab
-  const [activeTab, setActiveTab] = useState<'webchat' | 'aibots' | 'sender' | 'groups' | 'service'>('webchat');
+  const [activeTab, setActiveTab] = useState<'webchat' | 'statuses' | 'aibots' | 'sender' | 'groups' | 'service'>('webchat');
 
   // Instance credentials pulled directly from central system connection
   const instanceId = apiKeys.greenApiInstanceId || '';
@@ -371,6 +372,16 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('statuses')}
+            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+              activeTab === 'statuses' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : themeClasses.tabInactive
+            }`}
+          >
+            <Smartphone className="w-4 h-4 text-emerald-300" />
+            <span>📱 סטטוסים ו-Stories</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('aibots')}
             className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'aibots' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
@@ -428,7 +439,19 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           />
         )}
 
-        {/* TAB 2: AI BOTS & INTERACTIVE BUTTONS BUILDER */}
+        {/* TAB 2: WHATSAPP STATUSES & STORIES STUDIO & ARCHIVE */}
+        {activeTab === 'statuses' && (
+          <WhatsAppStatusesTab
+            service={greenApiService}
+            db={db}
+            collectionName={collections?.whatsappStatuses || 'whatsapp_statuses'}
+            isDark={isDark}
+            connectedAccountName={connectedAccountDisplayName}
+            googleAiApiKey={apiKeys.googleAiApiKey}
+          />
+        )}
+
+        {/* TAB 3: AI BOTS & INTERACTIVE BUTTONS BUILDER */}
         {activeTab === 'aibots' && (
           <WhatsAppAiBotTab
             googleAiApiKey={apiKeys.googleAiApiKey}

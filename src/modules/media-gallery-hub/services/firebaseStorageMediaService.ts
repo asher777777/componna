@@ -22,26 +22,30 @@ export class FirebaseStorageMediaService {
     app: FirebaseApp,
     file: File | Blob,
     fileName: string,
-    onProgress?: (percent: number) => void
+    onProgress?: (percent: number) => void,
+    existingItemMeta?: Partial<MediaItem>
   ): Promise<string> {
     const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
     const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_').trim();
-    const timeStamp = Date.now();
+    const timeStamp = existingItemMeta?.createdAt || Date.now();
     const storagePath = `sdo_media_vault/${timeStamp}_${safeName}`;
     const directUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
     const workingLocalUrl = URL.createObjectURL(file);
 
     const { type: mediaType, mimeType } = FileCompressionService.detectFileType(safeName, file.type);
+    const canonicalId = existingItemMeta?.id || `storage_${timeStamp}_${safeName.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
     const localMediaItem: MediaItem = {
-      id: `storage_${timeStamp}_${safeName.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+      ...existingItemMeta,
+      id: canonicalId,
       name: safeName,
-      type: mediaType,
-      mimeType: file.type || mimeType,
+      type: existingItemMeta?.type || mediaType,
+      mimeType: file.type || existingItemMeta?.mimeType || mimeType,
       url: workingLocalUrl,
-      sizeBytes: file.size || 1992294,
+      sizeBytes: file.size || existingItemMeta?.sizeBytes || 1992294,
       createdAt: timeStamp,
-      tags: ['firebase_storage', mediaType],
+      updatedAt: Date.now(),
+      tags: existingItemMeta?.tags || ['firebase_storage', mediaType],
     };
 
     // 0. Remove from deleted tombstones list so new uploads are never blocked
@@ -66,28 +70,28 @@ export class FirebaseStorageMediaService {
       console.warn('[FirebaseStorageMediaService] IndexedDB pre-save notice:', idbErr);
     }
 
-    // Broadcast update event so all media gallery views sync instantly
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: localMediaItem }));
-    }
-
     // 2. Asynchronously index in Firestore without blocking upload
+    const initialUrl = existingItemMeta?.url?.startsWith('data:')
+      ? existingItemMeta.url
+      : (file instanceof Blob && (file as any).type?.startsWith('image/') ? workingLocalUrl : directUrl);
+
     try {
       const db = getFirestore(app);
       const vaultDocRef = doc(db, 'sdo_media_vault', `${timeStamp}_${safeName}`);
       const itemsDocRef = doc(db, 'sdo_media_items', localMediaItem.id);
       
       const payload = {
+        ...localMediaItem,
         id: localMediaItem.id,
         name: safeName,
         fullName: `${timeStamp}_${safeName}`,
-        url: directUrl,
-        type: mediaType,
+        url: initialUrl,
+        type: localMediaItem.type,
         mimeType: localMediaItem.mimeType,
-        sizeBytes: file.size || 1992294,
+        sizeBytes: file.size || localMediaItem.sizeBytes,
         createdAt: timeStamp,
         storagePath,
-        updatedAt: timeStamp,
+        updatedAt: Date.now(),
       };
 
       setDoc(vaultDocRef, payload, { merge: true }).catch(() => {});
@@ -106,17 +110,30 @@ export class FirebaseStorageMediaService {
         isResolved = true;
         if (onProgress) onProgress(100);
 
+        const updatedItem = { ...localMediaItem, url: finalUrl, thumbnailUrl: finalUrl };
+
         // Update IndexedDB record with confirmed URL
-        MediaIndexedDbService.saveMedia({ ...localMediaItem, url: finalUrl }, file).catch(() => {});
+        MediaIndexedDbService.saveMedia(updatedItem, file).catch(() => {});
+
+        // Update Firestore with verified permanent URL
+        try {
+          const db = getFirestore(app);
+          const vaultDocRef = doc(db, 'sdo_media_vault', `${timeStamp}_${safeName}`);
+          const itemsDocRef = doc(db, 'sdo_media_items', localMediaItem.id);
+          setDoc(vaultDocRef, { url: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+          setDoc(itemsDocRef, { url: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+        } catch {}
+
         if (typeof window !== 'undefined') {
-          window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: { ...localMediaItem, url: finalUrl } }));
+          window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: updatedItem }));
         }
         resolve(finalUrl);
       };
 
-      // Safety timeout: if cloud storage stalls or CORS blocks it, resolve smoothly with local working URL
+      // Safety timeout: if cloud storage stalls or CORS blocks it, resolve smoothly with local working URL or dataUrl
+      const fallbackUrl = existingItemMeta?.url?.startsWith('data:') ? existingItemMeta.url : workingLocalUrl;
       const safetyTimeout = setTimeout(() => {
-        finish(workingLocalUrl);
+        finish(fallbackUrl);
       }, 5000);
 
       try {
@@ -172,29 +189,41 @@ export class FirebaseStorageMediaService {
       }
     } catch {}
 
-    const registerItem = (fullName: string, downloadUrl: string, sizeBytes: number, createdAt: number) => {
-      const cleanName = fullName.replace(/^\d+_/, '');
+    const registerItem = (
+      fullName: string,
+      downloadUrl: string,
+      sizeBytes?: number,
+      createdAt?: number,
+      existingId?: string,
+      extraMeta?: Partial<MediaItem>
+    ) => {
+      const cleanName = (extraMeta?.name || fullName).replace(/^\d+_/, '').trim();
+      const canonicalId = existingId || extraMeta?.id || `storage_${fullName.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+      const nameKey = cleanName.toLowerCase();
+      const idKey = canonicalId.toLowerCase();
+
       if (
-        scannedCleanNames.has(cleanName.toLowerCase()) ||
-        deletedSet.has(cleanName.toLowerCase()) ||
-        deletedSet.has(fullName.toLowerCase()) ||
-        deletedSet.has(`storage_${fullName.replace(/[^a-zA-Z0-9_-]/g, '_')}`.toLowerCase())
+        scannedCleanNames.has(nameKey) ||
+        deletedSet.has(nameKey) ||
+        deletedSet.has(idKey) ||
+        deletedSet.has(fullName.toLowerCase())
       ) {
         return;
       }
-      scannedCleanNames.add(cleanName.toLowerCase());
+      scannedCleanNames.add(nameKey);
 
-      const { type, mimeType } = FileCompressionService.detectFileType(cleanName);
+      const { type, mimeType } = FileCompressionService.detectFileType(cleanName, extraMeta?.mimeType);
 
       items.push({
-        id: `storage_${fullName.replace(/[^a-zA-Z0-9_-]/g, '_')}`,
+        ...extraMeta,
+        id: canonicalId,
         name: cleanName,
-        type,
-        mimeType,
+        type: extraMeta?.type || type,
+        mimeType: extraMeta?.mimeType || mimeType,
         url: downloadUrl,
-        sizeBytes: sizeBytes || 1992294,
-        createdAt: createdAt || Date.now(),
-        tags: ['firebase_storage', type],
+        sizeBytes: sizeBytes || extraMeta?.sizeBytes || 1992294,
+        createdAt: createdAt || extraMeta?.createdAt || Date.now(),
+        tags: extraMeta?.tags || ['firebase_storage', type],
       });
     };
 
@@ -203,7 +232,7 @@ export class FirebaseStorageMediaService {
       const idbItems = await MediaIndexedDbService.getAllMedia();
       idbItems.forEach((it) => {
         if (it && it.url) {
-          registerItem(it.name || it.id, it.url, it.sizeBytes, it.createdAt);
+          registerItem(it.name || it.id, it.url, it.sizeBytes, it.createdAt, it.id, it);
         }
       });
     } catch (idbErr) {
@@ -217,36 +246,21 @@ export class FirebaseStorageMediaService {
       snap.forEach((docSnap) => {
         const data = docSnap.data();
         if (data && data.url) {
-          registerItem(data.name || data.fullName || docSnap.id, data.url, data.sizeBytes || 1992294, data.createdAt || Date.now());
+          registerItem(
+            data.name || data.fullName || docSnap.id,
+            data.url,
+            data.sizeBytes || 1992294,
+            data.createdAt || Date.now(),
+            data.id || docSnap.id,
+            data as Partial<MediaItem>
+          );
         }
       });
     } catch (firestoreErr) {
       console.warn('[FirebaseStorageMediaService] Firestore vault read notice:', firestoreErr);
     }
 
-    // 2. Second priority: Try dynamic Storage listAll scan in parallel with safe timeout
-    try {
-      const storage = this.getStorageInstance(app);
-      const vaultRef = ref(storage, 'sdo_media_vault');
-      const listPromise = listAll(vaultRef);
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 2000));
-      const res = (await Promise.race([listPromise, timeoutPromise])) as any;
-
-      if (res && res.items) {
-        const promises = res.items.map(async (itemRef: any) => {
-          try {
-            const encoded = encodeURIComponent(itemRef.fullPath);
-            const directUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media`;
-            registerItem(itemRef.name, directUrl, 1992294, Date.now());
-          } catch {}
-        });
-        await Promise.all(promises);
-      }
-    } catch (corsErr) {
-      // CORS blocked or network failure - handled smoothly without throwing
-    }
-
-    // 3. Base confirmed server bucket files fallback
+    // 2. Base confirmed server bucket files fallback
     const allServerVaultFiles = [
       { name: 'scene_1_animated.mp4', fullName: '1788087385571_scene_1_animated.mp4', size: 1992294, time: 1788087385571 },
       { name: 'scene_3_animated.mp4', fullName: '1788089036047_scene_3_animated.mp4', size: 1992294, time: 1788089036047 },

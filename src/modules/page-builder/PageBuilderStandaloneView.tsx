@@ -1,131 +1,261 @@
-import React, { useState, useEffect } from 'react';
-import { PageBuilder } from './PageBuilder';
-import { PageBuilderConfig } from './types/pageBuilder.types';
+﻿import React, { useState, useEffect } from 'react';
+import { PageBuilderConfig, SectionType } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
+import { PageBuilderEditor } from './PageBuilderEditor';
+import { PageBuilderRenderer } from './PageBuilderRenderer';
+import { PagesDashboardTab } from './components/PagesDashboardTab';
+import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
+import { UrlShortenerModal } from './components/UrlShortenerModal';
+import { pageBuilderFirestore } from './services/pageBuilderFirestore';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { useBrandDna } from '../brand-dna-hub/hooks/useBrandDna';
+import { Layers, Edit3, Sparkles } from 'lucide-react';
 
 const STORAGE_KEY = 'comona_pagebuilder_current_page';
 
 const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
   pageId: 'demo-homepage',
-  pageTitle: 'עמוד הבית הראשי',
+  pageTitle: 'עמוד הבית הראשי 2026',
   slug: 'home',
+  published: true,
+  isHomePage: true,
+  viewsCount: 1420,
+  leadsCount: 38,
   globalSettings: {
-    siteTitle: 'מרכז הקהילה והחסד',
-    companyName: 'עמותת החסד והתורה',
-    slogan: 'מחברים לבבות, בונים עתיד משותף',
-    theme: 'navy',
-    headerLayout: 'classic',
+    siteTitle: 'הפלטפורמה הדיגיטלית המובילה',
+    companyName: 'הארגון המוביל',
+    slogan: 'חדשנות, איכות וצמיחה מתמדת',
+    theme: 'modern',
+    headerLayout: 'floating-glass',
     headerSticky: true,
     isHeaderVisible: true,
     isFooterVisible: true,
-    primaryColor: '#4f46e5',
-    secondaryColor: '#ec4899',
+    primaryColor: '#6366f1',
+    secondaryColor: '#0ea5e9',
     backgroundColor: '#0a0a0c',
     textColor: '#f8fafc',
-    buttonBgColor: '#4f46e5',
+    buttonBgColor: '#6366f1',
     contactWhatsApp: '972545947701',
     contactPhone: '03-5551234',
     contactEmail: 'contact@example.org',
-    address: 'רחוב הרצל 1, תל אביב',
+    address: 'דרך מנחם בגין 144, תל אביב',
   },
   seoSettings: {
-    title: 'מרכז הקהילה והחסד - האתר הרשמי',
-    description: 'הצטרפו לפעילות הקהילתית, שיעורים, עדכונים, פרויקטים וקמפיין גיוס משותף.',
-    keywords: ['קהילה', 'חסד', 'תרומות', 'שיעורים', 'הדרכה'],
+    title: 'הפלטפורמה המובילה - דפי נחיתה וניהול קהילות',
+    description: 'עצבו ופרסמו דפי אינטרנט מתקדמים ב-AI עם תמיכה מלאה ב-GEO SEO, מחירונים חכמים ו-WhatsApp.',
+    keywords: ['דפי נחיתה', 'קהילות', 'שירותים דיגיטליים', 'AI Page Builder'],
+    geo: {
+      enabled: true,
+      targetCity: 'תל אביב',
+      targetRegion: 'גוש דן והמרכז',
+      targetCountry: 'ישראל',
+      serviceAreas: ['תל אביב וגוש דן', 'ירושלים והסביבה', 'השרון', 'צפון ודרום'],
+      localBusinessName: 'הארגון המוביל',
+      businessAddress: 'דרך מנחם בגין 144, תל אביב',
+      businessPhone: '03-5551234',
+      openingHours: 'א׳-ה׳: 09:00-19:00',
+    },
   },
   sectionOrder: [
     'hero',
-    'campaignHeader',
-    'campaignTiers',
+    'logoMarquee',
     'services',
-    'mainContent',
-    'videoGallery',
-    'timer',
+    'statsBento',
+    'testimonials',
     'pricing',
+    'beforeAfter',
     'faq',
     'community',
-    'livePosts',
-    'landingSection',
-    'smartForm',
+    'geoLocal',
     'contact',
   ],
   sections: {
     hero: { ...SECTION_REGISTRY.hero.defaultConfig, id: 'hero' },
-    campaignHeader: { ...SECTION_REGISTRY.campaignHeader.defaultConfig, id: 'campaignHeader' },
-    campaignTiers: { ...SECTION_REGISTRY.campaignTiers.defaultConfig, id: 'campaignTiers' },
+    logoMarquee: { ...SECTION_REGISTRY.logoMarquee.defaultConfig, id: 'logoMarquee' },
     services: { ...SECTION_REGISTRY.services.defaultConfig, id: 'services' },
-    mainContent: { ...SECTION_REGISTRY.mainContent.defaultConfig, id: 'mainContent' },
-    videoGallery: { ...SECTION_REGISTRY.videoGallery.defaultConfig, id: 'videoGallery' },
-    timer: { ...SECTION_REGISTRY.timer.defaultConfig, id: 'timer' },
+    statsBento: { ...SECTION_REGISTRY.statsBento.defaultConfig, id: 'statsBento' },
+    testimonials: { ...SECTION_REGISTRY.testimonials.defaultConfig, id: 'testimonials' },
     pricing: { ...SECTION_REGISTRY.pricing.defaultConfig, id: 'pricing' },
+    beforeAfter: { ...SECTION_REGISTRY.beforeAfter.defaultConfig, id: 'beforeAfter' },
     faq: { ...SECTION_REGISTRY.faq.defaultConfig, id: 'faq' },
     community: { ...SECTION_REGISTRY.community.defaultConfig, id: 'community' },
-    livePosts: { ...SECTION_REGISTRY.livePosts.defaultConfig, id: 'livePosts' },
-    landingSection: { ...SECTION_REGISTRY.landingSection.defaultConfig, id: 'landingSection' },
-    smartForm: { ...SECTION_REGISTRY.smartForm.defaultConfig, id: 'smartForm' },
+    geoLocal: { ...SECTION_REGISTRY.geoLocal.defaultConfig, id: 'geoLocal' },
     contact: { ...SECTION_REGISTRY.contact.defaultConfig, id: 'contact' },
   },
 };
 
 export const PageBuilderStandaloneView: React.FC = () => {
   const { db } = useSystemConnection();
-  const [pageConfig, setPageConfig] = useState<PageBuilderConfig>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) return JSON.parse(saved);
-    } catch {}
-    return DEMO_INITIAL_CONFIG;
-  });
+  const { brandDna } = useBrandDna();
 
-  // Real-time Firestore sync for the page definition
+  const [viewMode, setViewMode] = useState<'pages' | 'editor' | 'public'>('pages');
+  const [pages, setPages] = useState<PageBuilderConfig[]>([DEMO_INITIAL_CONFIG]);
+  const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(DEMO_INITIAL_CONFIG);
+
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isShortenerModalOpen, setIsShortenerModalOpen] = useState(false);
+  const [selectedShortPage, setSelectedShortPage] = useState<PageBuilderConfig | null>(null);
+
+  // Load all pages from Firestore / LocalStorage
   useEffect(() => {
-    if (!db) return;
-    try {
-      const pageDocRef = doc(db, 'mod_pagebuilder_pages', 'demo-homepage');
-      const unsub = onSnapshot(
-        pageDocRef,
-        (snap) => {
-          if (snap.exists()) {
-            const data = snap.data() as PageBuilderConfig;
-            setPageConfig(data);
-            try {
-              localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-            } catch {}
-          }
-        },
-        (err) => {
-          console.warn('[PageBuilder] Firestore listener notice:', err);
-        }
-      );
-      return () => unsub();
-    } catch (e) {
-      console.warn('[PageBuilder] Firestore subscription setup notice:', e);
-    }
+    const loadData = async () => {
+      const all = await pageBuilderFirestore.getAllPages(db);
+      if (all.length > 0) {
+        setPages(all);
+        const home = all.find((p) => p.isHomePage) || all[0];
+        setCurrentPage(home);
+      } else {
+        // Save initial demo
+        await pageBuilderFirestore.savePage(DEMO_INITIAL_CONFIG, db);
+        setPages([DEMO_INITIAL_CONFIG]);
+      }
+    };
+    loadData();
   }, [db]);
 
-  const handleSaveConfig = async (savedConfig: PageBuilderConfig) => {
-    setPageConfig(savedConfig);
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(savedConfig));
-    } catch {}
+  // Save current page handler
+  const handleSavePage = async (updated: PageBuilderConfig) => {
+    setCurrentPage(updated);
+    await pageBuilderFirestore.savePage(updated, db);
+    const all = await pageBuilderFirestore.getAllPages(db);
+    setPages(all);
+  };
 
-    if (db) {
-      try {
-        const pageId = savedConfig.pageId || 'demo-homepage';
-        const pageDocRef = doc(db, 'mod_pagebuilder_pages', pageId);
-        const cleanPayload = JSON.parse(JSON.stringify({ ...savedConfig, updatedAt: new Date().toISOString() }));
-        await setDoc(pageDocRef, cleanPayload, { merge: true });
-      } catch (err) {
-        console.warn('[PageBuilder] Firestore save notice:', err);
+  // Create empty new page
+  const handleCreateNewPage = async () => {
+    const newId = `page_${Date.now()}`;
+    const newPage: PageBuilderConfig = {
+      pageId: newId,
+      pageTitle: 'דף נחיתה חדש',
+      slug: `page-${Math.floor(Math.random() * 9000 + 1000)}`,
+      published: false,
+      isHomePage: false,
+      viewsCount: 0,
+      leadsCount: 0,
+      globalSettings: {
+        ...DEMO_INITIAL_CONFIG.globalSettings,
+        siteTitle: 'דף נחיתה חדש',
+        primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
+        companyName: brandDna?.identity?.companyName || 'החברה המובילה',
+      },
+      seoSettings: {
+        title: 'דף נחיתה חדש ומעוצב',
+        description: 'תיאור קצר של הדף...',
+        keywords: ['שירותים', 'איכות'],
+      },
+      sectionOrder: ['hero', 'services', 'pricing', 'contact'],
+      sections: {
+        hero: { ...SECTION_REGISTRY.hero.defaultConfig, id: 'hero' },
+        services: { ...SECTION_REGISTRY.services.defaultConfig, id: 'services' },
+        pricing: { ...SECTION_REGISTRY.pricing.defaultConfig, id: 'pricing' },
+        contact: { ...SECTION_REGISTRY.contact.defaultConfig, id: 'contact' },
+      },
+    };
+
+    await pageBuilderFirestore.savePage(newPage, db);
+    const all = await pageBuilderFirestore.getAllPages(db);
+    setPages(all);
+    setCurrentPage(newPage);
+    setViewMode('editor');
+  };
+
+  // Duplicate page
+  const handleDuplicatePage = async (page: PageBuilderConfig) => {
+    const duplicated = await pageBuilderFirestore.duplicatePage(page, db);
+    const all = await pageBuilderFirestore.getAllPages(db);
+    setPages(all);
+    setCurrentPage(duplicated);
+  };
+
+  // Delete page
+  const handleDeletePage = async (pageId: string) => {
+    if (confirm('האם למחוק עמוד זה לצמיתות?')) {
+      await pageBuilderFirestore.deletePage(pageId, db);
+      const all = await pageBuilderFirestore.getAllPages(db);
+      setPages(all);
+      if (currentPage.pageId === pageId && all.length > 0) {
+        setCurrentPage(all[0]);
       }
     }
   };
 
+  // Set home page
+  const handleSetHomePage = async (pageId: string) => {
+    await pageBuilderFirestore.setHomePage(pageId, db);
+    const all = await pageBuilderFirestore.getAllPages(db);
+    setPages(all);
+    if (currentPage.pageId === pageId) {
+      setCurrentPage({ ...currentPage, isHomePage: true });
+    }
+  };
+
+  // Toggle publish
+  const handleTogglePublish = async (page: PageBuilderConfig) => {
+    const updated = await pageBuilderFirestore.togglePublish(page, db);
+    const all = await pageBuilderFirestore.getAllPages(db);
+    setPages(all);
+    if (currentPage.pageId === page.pageId) {
+      setCurrentPage(updated);
+    }
+  };
+
   return (
-    <div className="w-full min-h-screen bg-[#09090b]">
-      <PageBuilder initialConfig={pageConfig} onSaveConfig={handleSaveConfig} editable={true} />
+    <div className="w-full min-h-screen bg-[#09090b] text-white select-none">
+      {viewMode === 'pages' ? (
+        <PagesDashboardTab
+          pages={pages}
+          activePageId={currentPage.pageId}
+          onSelectPage={(page) => {
+            setCurrentPage(page);
+            setViewMode('editor');
+          }}
+          onNewPage={handleCreateNewPage}
+          onOpenAiBuilder={() => setIsAiModalOpen(true)}
+          onDuplicatePage={handleDuplicatePage}
+          onDeletePage={handleDeletePage}
+          onSetHomePage={handleSetHomePage}
+          onTogglePublish={handleTogglePublish}
+          onOpenShortener={(page) => {
+            setSelectedShortPage(page);
+            setIsShortenerModalOpen(true);
+          }}
+        />
+      ) : (
+        <PageBuilderEditor
+          initialConfig={currentPage}
+          onSaveConfig={handleSavePage}
+          onGoToPagesList={() => setViewMode('pages')}
+          onClose={() => setViewMode('pages')}
+        />
+      )}
+
+      {/* AI Live Page Generator Modal */}
+      <AiLivePageBuilderModal
+        isOpen={isAiModalOpen}
+        onClose={() => setIsAiModalOpen(false)}
+        onComplete={async (generatedConfig) => {
+          await pageBuilderFirestore.savePage(generatedConfig, db);
+          const all = await pageBuilderFirestore.getAllPages(db);
+          setPages(all);
+          setCurrentPage(generatedConfig);
+          setViewMode('editor');
+        }}
+      />
+
+      {/* URL Shortener Modal */}
+      {selectedShortPage && (
+        <UrlShortenerModal
+          isOpen={isShortenerModalOpen}
+          onClose={() => setIsShortenerModalOpen(false)}
+          config={selectedShortPage}
+          onSaveShortUrl={async (shortUrl, shortSlug) => {
+            const updated = { ...selectedShortPage, shortUrl, shortSlug };
+            await pageBuilderFirestore.savePage(updated, db);
+            const all = await pageBuilderFirestore.getAllPages(db);
+            setPages(all);
+          }}
+        />
+      )}
     </div>
   );
 };

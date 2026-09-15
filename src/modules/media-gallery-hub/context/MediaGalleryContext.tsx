@@ -338,154 +338,173 @@ export const MediaGalleryProvider: React.FC<{
     return Boolean(KNOWN_MODULE_SOURCES[source]);
   }
 
-  // Load all media sources directly from Server Cloud Storage + IndexedDB + Firestore + Folders
+  // Load all media sources with instant local cache (0ms) + non-blocking background server sync
   useEffect(() => {
     let isMounted = true;
 
     const loadServerSources = async () => {
-      setIsLoading(true);
+      const mergedMap = new Map<string, MediaItem>();
+
+      const normalizeItem = (rawItem: MediaItem): MediaItem => {
+        const { type, mimeType } = FileCompressionService.detectFileType(rawItem.name || '', rawItem.mimeType);
+        const itemType = rawItem.type && rawItem.type !== 'other' ? rawItem.type : type;
+        const { sourceModule, sourceModuleLabel } = detectSourceModule(rawItem);
+
+        return {
+          ...rawItem,
+          type: itemType,
+          mimeType: rawItem.mimeType || mimeType,
+          sourceModule: rawItem.sourceModule || sourceModule,
+          sourceModuleLabel: rawItem.sourceModuleLabel || sourceModuleLabel,
+        };
+      };
+
+      // Filter out deleted items from local tombstone list
+      let deletedSet = new Set<string>();
       try {
-        const mergedMap = new Map<string, MediaItem>();
+        const stored = localStorage.getItem('sdo_media_deleted_ids');
+        if (stored) {
+          deletedSet = new Set(JSON.parse(stored).map((x: string) => x.toLowerCase().trim()));
+        }
+      } catch {}
 
-        const normalizeItem = (rawItem: MediaItem): MediaItem => {
-          const { type, mimeType } = FileCompressionService.detectFileType(rawItem.name || '', rawItem.mimeType);
-          const itemType = rawItem.type && rawItem.type !== 'other' ? rawItem.type : type;
-          const { sourceModule, sourceModuleLabel } = detectSourceModule(rawItem);
+      // Clean, normalized deduplication map + name index
+      const nameToKeyMap = new Map<string, string>();
 
-          return {
-            ...rawItem,
-            type: itemType,
-            mimeType: rawItem.mimeType || mimeType,
-            sourceModule: rawItem.sourceModule || sourceModule,
-            sourceModuleLabel: rawItem.sourceModuleLabel || sourceModuleLabel,
+      const addDeduplicated = (rawItem: MediaItem) => {
+        if (!rawItem) return;
+        const item = normalizeItem(rawItem);
+        const nameKey = (item.name || '').toLowerCase().trim();
+        const idKey = (item.id || '').toLowerCase().trim();
+        if (!nameKey && !idKey) return;
+
+        if (deletedSet.has(nameKey) || deletedSet.has(idKey)) {
+          return;
+        }
+
+        // Find existing key by name or ID
+        const existingKey = (nameKey ? nameToKeyMap.get(nameKey) : undefined) || (mergedMap.has(idKey) ? idKey : undefined);
+
+        if (!existingKey) {
+          const key = idKey || nameKey;
+          mergedMap.set(key, item);
+          if (nameKey) nameToKeyMap.set(nameKey, key);
+        } else {
+          const existing = mergedMap.get(existingKey)!;
+
+          // Determine best URL: prefer permanent https/http or base64 over transient blob:
+          const isExistingBlob = existing.url?.startsWith('blob:');
+          const isNewBlob = item.url?.startsWith('blob:');
+          let preferredUrl = existing.url;
+          if (isExistingBlob && !isNewBlob && item.url) {
+            preferredUrl = item.url;
+          } else if (!existing.url && item.url) {
+            preferredUrl = item.url;
+          }
+
+          const mergedItem: MediaItem = {
+            ...existing,
+            ...item,
+            id: existing.id || item.id,
+            url: preferredUrl,
+            thumbnailUrl: preferredUrl,
+            description: item.description || existing.description,
+            tags: Array.from(new Set([...(existing.tags || []), ...(item.tags || [])])),
+            sourceModule: existing.sourceModule !== 'media-gallery-hub' ? existing.sourceModule : item.sourceModule,
+            sourceModuleLabel: existing.sourceModuleLabel !== 'העלאה ישירה במאגר המדיה' ? existing.sourceModuleLabel : item.sourceModuleLabel,
+            folderId: item.folderId !== undefined ? item.folderId : existing.folderId,
+            metadata: { ...(existing.metadata || {}), ...(item.metadata || {}) },
           };
+
+          mergedMap.set(existingKey, mergedItem);
+        }
+      };
+
+      // 1. Initial confirmed server media
+      INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
+
+      // 2. Instant LocalStorage items (sanitized: purge expired blob: URLs across browser reloads)
+      try {
+        const sanitizeLsItems = (items: any[]): MediaItem[] => {
+          return items.filter((it) => it && it.url && !it.url.startsWith('blob:'));
         };
 
-        // Filter out deleted items from local tombstone list
-        let deletedSet = new Set<string>();
-        try {
-          const stored = localStorage.getItem('sdo_media_deleted_ids');
-          if (stored) {
-            deletedSet = new Set(JSON.parse(stored).map((x: string) => x.toLowerCase().trim()));
+        const rawStudioItems = localStorage.getItem('comona_media_gallery_items');
+        if (rawStudioItems) {
+          const parsed = JSON.parse(rawStudioItems);
+          if (Array.isArray(parsed)) {
+            const clean = sanitizeLsItems(parsed);
+            clean.forEach(addDeduplicated);
+            localStorage.setItem('comona_media_gallery_items', JSON.stringify(clean));
           }
-        } catch {}
-
-        const addDeduplicated = (rawItem: MediaItem) => {
-          if (!rawItem) return;
-          const item = normalizeItem(rawItem);
-          const key = item.id || item.url || (item.name ? item.name.toLowerCase().trim() : '');
-          if (!key) return;
-
-          const nameKey = (item.name || '').toLowerCase().trim();
-          const idKey = (item.id || '').toLowerCase().trim();
-          if (deletedSet.has(nameKey) || deletedSet.has(idKey)) {
-            return;
-          }
-
-          const existing = mergedMap.get(key);
-          if (!existing) {
-            mergedMap.set(key, item);
-          } else {
-            mergedMap.set(key, { ...existing, ...item });
-          }
-        };
-
-        // 1. Initial confirmed server media
-        INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
-
-        // 2. Load from localStorage caches (comona_media_gallery_items & sdo_media_vault_items)
-        try {
-          const rawStudioItems = localStorage.getItem('comona_media_gallery_items');
-          if (rawStudioItems) {
-            const parsed = JSON.parse(rawStudioItems);
-            if (Array.isArray(parsed)) {
-              parsed.forEach(addDeduplicated);
-            }
-          }
-          const rawVaultItems = localStorage.getItem('sdo_media_vault_items');
-          if (rawVaultItems) {
-            const parsed = JSON.parse(rawVaultItems);
-            if (Array.isArray(parsed)) {
-              parsed.forEach(addDeduplicated);
-            }
-          }
-        } catch (lsErr) {
-          console.warn('[MediaGallery] LocalStorage items load notice:', lsErr);
         }
-
-        // 3. Load from local IndexedDB (instant zero-latency cache)
-        try {
-          const idbItems = await MediaIndexedDbService.getAllMedia();
-          idbItems.forEach((it) => {
-            if (it && it.url) addDeduplicated(it);
-          });
-        } catch (idbErr) {
-          console.warn('[MediaGallery] IndexedDB load notice:', idbErr);
+        const rawVaultItems = localStorage.getItem('sdo_media_vault_items');
+        if (rawVaultItems) {
+          const parsed = JSON.parse(rawVaultItems);
+          if (Array.isArray(parsed)) {
+            const clean = sanitizeLsItems(parsed);
+            clean.forEach(addDeduplicated);
+            localStorage.setItem('sdo_media_vault_items', JSON.stringify(clean));
+          }
         }
+      } catch {}
 
-        // 4. Fetch all files directly from Firebase Storage bucket
+      // 3. Instant IndexedDB Cache (0ms local DB)
+      try {
+        const idbItems = await MediaIndexedDbService.getAllMedia();
+        idbItems.forEach((it) => {
+          if (it && it.url) addDeduplicated(it);
+        });
+        const idbFolders = await MediaIndexedDbService.getFolders();
+        if (isMounted && idbFolders.length > 0) {
+          setFolders(idbFolders);
+        }
+      } catch (idbErr) {
+        console.warn('[MediaGallery] IndexedDB cache notice:', idbErr);
+      }
+
+      // Render local items immediately to give instant 0ms interactivity
+      if (isMounted) {
+        setMediaItems(Array.from(mergedMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+        setIsLoading(false);
+      }
+
+      // 4. Background non-blocking fetch from Cloud Storage & Firestore
+      try {
         if (firebaseApp) {
-          try {
-            const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp);
-            storageItems.forEach((item) => {
-              addDeduplicated(item);
-              if (db) {
-                FirestoreMediaService.saveMediaItem(db, collections, item).catch(() => {});
-              }
-            });
-          } catch (storageErr) {
-            console.warn('[MediaGallery] Firebase storage list notice:', storageErr);
-          }
+          const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp);
+          storageItems.forEach((item) => addDeduplicated(item));
         }
 
-        // 4. Fetch remote items from Firestore (both active collections & global sdo_media_items)
         if (db) {
-          try {
-            const remoteItems = await FirestoreMediaService.fetchMediaItems(db, collections);
-            remoteItems.forEach((item) => {
+          const remoteItems = await FirestoreMediaService.fetchMediaItems(db, collections);
+          remoteItems.forEach((item) => {
+            if (item.url) addDeduplicated(item);
+          });
+
+          if (collections.mediaItems !== 'sdo_media_items') {
+            const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
+              mediaItems: 'sdo_media_items',
+              folders: 'sdo_media_folders',
+            });
+            defaultItems.forEach((item) => {
               if (item.url) addDeduplicated(item);
             });
+          }
 
-            if (collections.mediaItems !== 'sdo_media_items') {
-              const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
-                mediaItems: 'sdo_media_items',
-                folders: 'sdo_media_folders',
-              });
-              defaultItems.forEach((item) => {
-                if (item.url) addDeduplicated(item);
-              });
-            }
-          } catch (e) {
-            console.warn('[MediaGallery] Firestore fetch notice:', e);
+          const remoteFolders = await FirestoreMediaService.fetchFolders(db, collections);
+          if (isMounted && remoteFolders.length > 0) {
+            setFolders(remoteFolders);
           }
-        }
-
-        // 5. Load Folders (Firestore + IndexedDB + LocalStorage)
-        let loadedFolders: MediaFolder[] = [];
-        try {
-          if (db) {
-            loadedFolders = await FirestoreMediaService.fetchFolders(db, collections);
-          }
-          if (loadedFolders.length === 0) {
-            loadedFolders = await MediaIndexedDbService.getFolders();
-          }
-        } catch (fErr) {
-          console.warn('[MediaGallery] Folder loading notice:', fErr);
-          loadedFolders = await MediaIndexedDbService.getFolders();
         }
 
         if (!isMounted) return;
-
-        const finalMerged = Array.from(mergedMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+        const finalMerged = Array.from(mergedMap.values())
+          .filter((it) => it && it.url && (it.name || it.id))
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         setMediaItems(finalMerged);
-        setFolders(loadedFolders);
-
-        // Sync to IndexedDB
-        finalMerged.forEach((item) => MediaIndexedDbService.saveMedia(item).catch(() => {}));
       } catch (err) {
-        console.warn('[MediaGallery] Failed to load server media sources:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+        console.warn('[MediaGallery] Background sync notice:', err);
       }
     };
 
@@ -497,8 +516,13 @@ export const MediaGalleryProvider: React.FC<{
       if (customEvent.detail) {
         setMediaItems((prev) => {
           const newItem = customEvent.detail;
+          const newNameKey = (newItem.name || '').toLowerCase().trim();
+          const newIdKey = (newItem.id || '').toLowerCase().trim();
           const filtered = prev.filter(
-            (it) => it.id !== newItem.id && it.name.toLowerCase().trim() !== newItem.name.toLowerCase().trim()
+            (it) =>
+              it.id !== newItem.id &&
+              it.name.toLowerCase().trim() !== newNameKey &&
+              it.id.toLowerCase().trim() !== newIdKey
           );
           return [newItem, ...filtered];
         });
@@ -508,8 +532,10 @@ export const MediaGalleryProvider: React.FC<{
     const handleMediaDeleted = (e: Event) => {
       const customEvent = e as CustomEvent<{ ids: string[] }>;
       if (customEvent.detail?.ids) {
-        const deletedIds = new Set(customEvent.detail.ids);
-        setMediaItems((prev) => prev.filter((it) => !deletedIds.has(it.id)));
+        const deletedIds = new Set(customEvent.detail.ids.map((x) => x.toLowerCase().trim()));
+        setMediaItems((prev) =>
+          prev.filter((it) => !deletedIds.has(it.id.toLowerCase().trim()) && !deletedIds.has(it.name.toLowerCase().trim()))
+        );
       }
     };
 
@@ -527,10 +553,32 @@ export const MediaGalleryProvider: React.FC<{
           if (!isMounted) return;
           if (cloudItems && cloudItems.length > 0) {
             setMediaItems((prev) => {
-              const map = new Map<string, MediaItem>();
-              prev.forEach((it) => map.set(it.id, it));
-              cloudItems.forEach((it) => map.set(it.id, it));
-              return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              const nameMap = new Map<string, MediaItem>();
+              const idMap = new Map<string, MediaItem>();
+
+              const addItem = (it: MediaItem) => {
+                const nameKey = (it.name || '').toLowerCase().trim();
+                const idKey = (it.id || '').toLowerCase().trim();
+                const existing = (nameKey ? nameMap.get(nameKey) : undefined) || (idKey ? idMap.get(idKey) : undefined);
+                if (!existing) {
+                  if (nameKey) nameMap.set(nameKey, it);
+                  if (idKey) idMap.set(idKey, it);
+                } else {
+                  const isExistingBlob = existing.url?.startsWith('blob:');
+                  const isNewBlob = it.url?.startsWith('blob:');
+                  const bestUrl = isExistingBlob && !isNewBlob ? it.url : existing.url || it.url;
+                  const merged = { ...existing, ...it, url: bestUrl, thumbnailUrl: bestUrl };
+                  if (nameKey) nameMap.set(nameKey, merged);
+                  if (idKey) idMap.set(idKey, merged);
+                }
+              };
+
+              prev.forEach(addItem);
+              cloudItems.forEach(addItem);
+
+              return Array.from(new Set([...nameMap.values(), ...idMap.values()])).sort(
+                (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+              );
             });
           }
         },
@@ -611,9 +659,10 @@ export const MediaGalleryProvider: React.FC<{
             firebaseApp,
             file,
             initialItem.name,
-            (pct) => onProgress && onProgress(index, pct)
+            (pct) => onProgress && onProgress(index, pct),
+            initialItem
           );
-          finalItem = { ...finalItem, url: downloadUrl };
+          finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
         } catch (storageErr) {
           console.warn(`[MediaGallery] Cloud storage upload for ${initialItem.name}:`, storageErr);
         }
@@ -644,7 +693,7 @@ export const MediaGalleryProvider: React.FC<{
 
       // Update state with confirmed permanent URL
       setMediaItems((prev) =>
-        prev.map((it) => (it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() ? finalItem : it))
+        prev.map((it) => (it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() || it.id === finalItem.id ? finalItem : it))
       );
 
       // Broadcast via global EventBus
@@ -733,7 +782,9 @@ export const MediaGalleryProvider: React.FC<{
         const downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
           firebaseApp,
           file,
-          finalItem.name
+          finalItem.name,
+          undefined,
+          finalItem
         );
         finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
       } catch (storageErr) {

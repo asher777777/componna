@@ -1,227 +1,135 @@
-import React, { useState } from 'react';
+﻿import React from 'react';
 import { ServicesSectionConfig, ServiceItem } from '../../types/sectionConfigs';
-import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput';
-import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
+import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderIconPicker } from '../../ui/PageBuilderIconPicker';
-import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
-import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
-import { PageBuilderButton } from '../../ui/PageBuilderButton';
-import { Plus, Trash2, Edit2, Eye, EyeOff, GripVertical, Sparkles, Layers, Sliders } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 
-interface ServicesGridEditorProps {
+export const ServicesGridEditor: React.FC<{
   config: ServicesSectionConfig;
   onChange: (updated: ServicesSectionConfig) => void;
-}
-
-export const ServicesGridEditor: React.FC<ServicesGridEditorProps> = ({ config, onChange }) => {
-  const [editingItemId, setEditingItemId] = useState<string | null>(null);
-
-  const update = <K extends keyof ServicesSectionConfig>(field: K, value: ServicesSectionConfig[K]) => {
-    onChange({ ...config, [field]: value });
+}> = ({ config, onChange }) => {
+  const handleItemChange = (index: number, field: keyof ServiceItem, value: any) => {
+    const updated = [...(config.items || [])];
+    updated[index] = { ...updated[index], [field]: value };
+    onChange({ ...config, items: updated });
   };
 
   const handleAddItem = () => {
     const newItem: ServiceItem = {
-      id: Date.now().toString(),
-      title: 'שירות / כרטיס חדש',
-      description: 'תיאור השירות והערך המרכזי ללקוח...',
-      icon: 'Star',
+      id: `srv_${Date.now()}`,
+      title: 'שירות / פיצ׳ר חדש',
+      description: 'תיאור מפורט על השירות ויתרונותיו המרכזיים',
+      icon: 'Sparkles',
       url: '#',
       isVisible: true,
+      span: '1',
     };
-    const updated = [...(config.items || []), newItem];
-    update('items', updated);
-    setEditingItemId(newItem.id);
+    onChange({ ...config, items: [...(config.items || []), newItem] });
   };
 
-  const handleUpdateItem = (id: string, updates: Partial<ServiceItem>) => {
-    const updated = (config.items || []).map((item) =>
-      item.id === id ? { ...item, ...updates } : item
-    );
-    update('items', updated);
-  };
-
-  const handleDeleteItem = (id: string) => {
-    if (confirm('האם למחוק כרטיס שירות זה?')) {
-      update(
-        'items',
-        (config.items || []).filter((item) => item.id !== id)
-      );
-      if (editingItemId === id) setEditingItemId(null);
-    }
-  };
-
-  const handleToggleItemVisibility = (id: string) => {
-    const updated = (config.items || []).map((item) =>
-      item.id === id ? { ...item, isVisible: item.isVisible === false } : item
-    );
-    update('items', updated);
+  const handleDeleteItem = (index: number) => {
+    const updated = (config.items || []).filter((_, i) => i !== index);
+    onChange({ ...config, items: updated });
   };
 
   return (
-    <div className="flex flex-col gap-4 text-right" dir="rtl">
-      {/* Title & Description */}
-      <PageBuilderAccordion title="כותרות ותיאור האזור" icon={<Layers className="w-4 h-4 text-indigo-400" />} defaultOpen={true}>
+    <div className="flex flex-col gap-6 text-right" dir="rtl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <PageBuilderInput
           label="כותרת אזור השירותים"
           value={config.title || ''}
-          onChange={(e) => update('title', e.target.value)}
-          placeholder="למשל: השירותים והפתרונות שלנו"
-        />
-        <PageBuilderTextarea
-          label="תיאור כללי / פסקת מבוא"
-          value={config.description || ''}
-          onChange={(e) => update('description', e.target.value)}
-          rows={2}
-          placeholder="למשל: מגוון רחב של כלים ופתרונות המותאמים אישית לצרכים שלך"
-        />
-      </PageBuilderAccordion>
-
-      {/* Items List Manager */}
-      <PageBuilderAccordion
-        title={`ניהול כרטיסי שירות (${(config.items || []).length})`}
-        icon={<Sparkles className="w-4 h-4 text-amber-400" />}
-        defaultOpen={true}
-        actionNode={
-          <PageBuilderButton size="xs" variant="primary" onClick={handleAddItem} icon={<Plus className="w-3.5 h-3.5" />}>
-            הוסף כרטיס
-          </PageBuilderButton>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          {(config.items || []).map((item, idx) => {
-            const isEditing = editingItemId === item.id;
-            return (
-              <div
-                key={item.id}
-                className="rounded-2xl border border-slate-800 bg-slate-900/60 overflow-hidden transition-all"
-              >
-                <div className="flex items-center justify-between p-3 bg-slate-950/40">
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono text-slate-500">#{idx + 1}</span>
-                    <span className="text-sm font-bold text-white">{item.title || 'ללא כותרת'}</span>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleItemVisibility(item.id)}
-                      className="p-1 text-slate-400 hover:text-white"
-                      title={item.isVisible !== false ? 'מוצג' : 'מוסתר'}
-                    >
-                      {item.isVisible !== false ? (
-                        <Eye className="w-4 h-4 text-emerald-400" />
-                      ) : (
-                        <EyeOff className="w-4 h-4 text-rose-400" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditingItemId(isEditing ? null : item.id)}
-                      className="p-1 text-slate-400 hover:text-indigo-400"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteItem(item.id)}
-                      className="p-1 text-slate-400 hover:text-rose-400"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {isEditing && (
-                  <div className="p-4 border-t border-slate-800/80 bg-slate-900/90 flex flex-col gap-3 animate-in fade-in">
-                    <PageBuilderInput
-                      label="כותרת הכרטיס"
-                      value={item.title}
-                      onChange={(e) => handleUpdateItem(item.id, { title: e.target.value })}
-                    />
-                    <PageBuilderTextarea
-                      label="תיאור השירות"
-                      value={item.description || ''}
-                      onChange={(e) => handleUpdateItem(item.id, { description: e.target.value })}
-                      rows={2}
-                    />
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <PageBuilderIconPicker
-                        label="אייקון הכרטיס"
-                        value={item.icon || 'Star'}
-                        onChange={(icon) => handleUpdateItem(item.id, { icon })}
-                      />
-                      <PageBuilderInput
-                        label="תגית עליונה (Badge)"
-                        value={item.badge || ''}
-                        onChange={(e) => handleUpdateItem(item.id, { badge: e.target.value })}
-                        placeholder="למשל: פופולרי / חדש"
-                      />
-                    </div>
-                    <PageBuilderInput
-                      label="קישור למידע נוסף (URL)"
-                      value={item.url || ''}
-                      onChange={(e) => handleUpdateItem(item.id, { url: e.target.value })}
-                      placeholder="https://... או /services/..."
-                      dir="ltr"
-                    />
-                    <PageBuilderImageUpload
-                      label="תמונה נלווית (אופציונלי)"
-                      value={item.imageSrc}
-                      onChange={(url) => handleUpdateItem(item.id, { imageSrc: url })}
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </PageBuilderAccordion>
-
-      {/* Grid Settings & Appearance */}
-      <PageBuilderAccordion title="הגדרות פריסה ומראה" icon={<Sliders className="w-4 h-4 text-pink-400" />}>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5 text-right">
-            <label className="text-xs font-semibold text-slate-300">מספר עמודות במחשב</label>
-            <select
-              value={config.columns || 3}
-              onChange={(e) => update('columns', parseInt(e.target.value) as any)}
-              className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
-            >
-              <option value={1}>עמודה אחת (1)</option>
-              <option value={2}>שתי עמודות (2)</option>
-              <option value={3}>שלוש עמודות (3)</option>
-              <option value={4}>ארבע עמודות (4)</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5 text-right">
-            <label className="text-xs font-semibold text-slate-300">אפקט הובר (Hover)</label>
-            <select
-              value={config.effect || 'hover-scale'}
-              onChange={(e) => update('effect', e.target.value as any)}
-              className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
-            >
-              <option value="hover-scale">הגבהה עדינה (Scale)</option>
-              <option value="hover-glow">הארה זוהרת (Glow)</option>
-              <option value="none">ללא אפקט</option>
-            </select>
-          </div>
-        </div>
-
-        <PageBuilderColorPicker
-          label="צבע רקע"
-          value={config.backgroundColor || 'transparent'}
-          onChange={(c) => update('backgroundColor', c)}
+          onChange={(val) => onChange({ ...config, title: val })}
         />
         <PageBuilderInput
-          label="מזהה עוגן (Anchor ID)"
-          value={config.anchorId || 'services'}
-          onChange={(e) => update('anchorId', e.target.value)}
-          placeholder="services"
-          dir="ltr"
+          label="תת-כותרת / תגית"
+          value={config.subtitle || ''}
+          onChange={(val) => onChange({ ...config, subtitle: val })}
         />
-      </PageBuilderAccordion>
+      </div>
+
+      <PageBuilderInput
+        label="תיאור כללי (אופציונלי)"
+        value={config.description || ''}
+        onChange={(val) => onChange({ ...config, description: val })}
+      />
+
+      <div className="flex items-center justify-between pt-2">
+        <h4 className="text-sm font-bold text-white">כרטיסיות Bento Grid ({config.items?.length || 0})</h4>
+        <button
+          type="button"
+          onClick={handleAddItem}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>הוסף כרטיס פיצ׳ר</span>
+        </button>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {config.items?.map((item, idx) => (
+          <div key={item.id || idx} className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-400">כרטיס #{idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => handleDeleteItem(idx)}
+                className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                title="מחק"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <PageBuilderInput
+                label="כותרת הפיצ׳ר"
+                value={item.title || ''}
+                onChange={(val) => handleItemChange(idx, 'title', val)}
+              />
+              <PageBuilderIconPicker
+                label="אייקון"
+                value={item.icon || 'Star'}
+                onChange={(val) => handleItemChange(idx, 'icon', val)}
+              />
+              <div>
+                <label className="block text-xs text-slate-400 mb-1 font-medium">פריסת Bento (רוחב)</label>
+                <select
+                  value={item.span || '1'}
+                  onChange={(e) => handleItemChange(idx, 'span', e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                >
+                  <option value="1">עמודה רגילה (1 Col)</option>
+                  <option value="2">עמודה כפולה מודגשת (2 Cols - Bento Hero)</option>
+                </select>
+              </div>
+            </div>
+
+            <PageBuilderInput
+              label="תיאור הפיצ׳ר"
+              value={item.description || ''}
+              onChange={(val) => handleItemChange(idx, 'description', val)}
+            />
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <PageBuilderInput
+                label="תגית / Badge"
+                value={item.badge || ''}
+                onChange={(val) => handleItemChange(idx, 'badge', val)}
+              />
+              <PageBuilderInput
+                label="כתובת תמונה מלווה (URL)"
+                value={item.imageSrc || ''}
+                onChange={(val) => handleItemChange(idx, 'imageSrc', val)}
+              />
+              <PageBuilderInput
+                label="קישור למידע נוסף (URL)"
+                value={item.url || ''}
+                onChange={(val) => handleItemChange(idx, 'url', val)}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

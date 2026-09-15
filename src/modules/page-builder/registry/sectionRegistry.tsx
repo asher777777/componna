@@ -1,9 +1,14 @@
-import React from 'react';
+﻿import React from 'react';
 import { SectionType } from '../types/pageBuilder.types';
 
 // Display Views
 import { HeroSection } from '../sections/hero/HeroSection';
 import { ServicesGridSection } from '../sections/services/ServicesGridSection';
+import { TestimonialsSection } from '../sections/testimonials/TestimonialsSection';
+import { LogoMarqueeSection } from '../sections/logoMarquee/LogoMarqueeSection';
+import { StatsBentoSection } from '../sections/statsBento/StatsBentoSection';
+import { BeforeAfterSection } from '../sections/beforeAfter/BeforeAfterSection';
+import { GeoLocalSection } from '../sections/geoLocal/GeoLocalSection';
 import { CourseBannerSection } from '../sections/courseBanner/CourseBannerSection';
 import { CampaignHeaderSection } from '../sections/campaign/CampaignHeaderSection';
 import { CampaignTiersSection } from '../sections/campaign/CampaignTiersSection';
@@ -18,10 +23,16 @@ import { CommunitySection } from '../sections/community/CommunitySection';
 import { LivePostsGridSection } from '../sections/livePosts/LivePostsGridSection';
 import { LandingSection } from '../sections/landing/LandingSection';
 import { ContactSection } from '../sections/contact/ContactSection';
+import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
 
 // Editors
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { ServicesGridEditor } from '../sections/services/ServicesGridEditor';
+import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
+import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
+import { StatsBentoEditor } from '../sections/statsBento/StatsBentoEditor';
+import { BeforeAfterEditor } from '../sections/beforeAfter/BeforeAfterEditor';
+import { GeoLocalEditor } from '../sections/geoLocal/GeoLocalEditor';
 import { CourseBannerEditor } from '../sections/courseBanner/CourseBannerEditor';
 import { CampaignHeaderEditor } from '../sections/campaign/CampaignHeaderEditor';
 import { CampaignTiersEditor } from '../sections/campaign/CampaignTiersEditor';
@@ -36,7 +47,6 @@ import { CommunityEditor } from '../sections/community/CommunityEditor';
 import { LivePostsGridEditor } from '../sections/livePosts/LivePostsGridEditor';
 import { LandingEditor } from '../sections/landing/LandingEditor';
 import { ContactEditor } from '../sections/contact/ContactEditor';
-import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
 import { SmartFormEditor } from '../sections/smartForm/SmartFormEditor';
 
 // Icons
@@ -58,13 +68,17 @@ import {
   Send,
   Phone,
   Sparkles,
+  Star,
+  Layers,
+  TrendingUp,
+  SlidersHorizontal,
+  MapPin,
 } from 'lucide-react';
-
 
 export interface SectionDefinition {
   type: SectionType;
   name: string;
-  category: 'headers' | 'content' | 'media' | 'campaign' | 'marketing' | 'contact' | 'forms';
+  category: 'headers' | 'content' | 'social_proof' | 'marketing' | 'media' | 'campaign' | 'contact' | 'forms';
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   viewComponent: React.ComponentType<{ config: any; [key: string]: any }>;
@@ -75,9 +89,9 @@ export interface SectionDefinition {
 export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
   hero: {
     type: 'hero',
-    name: 'אזור ראשי (Hero)',
+    name: 'אזור ראשי 2.0 (Hero)',
     category: 'headers',
-    description: 'כותרת ענקית, תת-כותרת, תמונת אווירה/וידאו, כפתורי הנעה לפעולה או טופס לידים',
+    description: 'כותרת ענקית, באדג׳ הכרזה, הוכחה חברתית (Avatars), כפתורי פעולה ומסגרת Showcase',
     icon: LayoutTemplate,
     viewComponent: HeroSection,
     editorComponent: HeroEditor,
@@ -89,20 +103,31 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       subtitle: 'חדש! גרסה 2.0 זמינה כעת',
       description: 'עצבו, ערכו ופרסמו דפי אינטרנט מתקדמים בקלות, במהירות ובהתאמה מלאה למובייל.',
       imageSrc: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
-      layout: 'fz',
-      heroStyle: 'classic',
-      flexDirection: 'row',
+      layout: 'bento-hero',
+      heroStyle: 'mesh-glow',
       buttonsVisible: true,
-      primaryButton: { text: 'התחל עכשיו בחינם', url: '#', target: '_self' },
-      secondaryButton: { text: 'צפה בהדגמה חיה', url: '#', target: '_self' },
+      primaryButton: { text: 'התחל עכשיו בחינם', url: '#pricing', target: '_self' },
+      secondaryButton: { text: 'צפה בהדגמה חיה', url: '#testimonials', target: '_self' },
+      announcementBadge: { text: '🚀 שחרור רשמי של גרסת 2026 זמין כעת', url: '#services' },
+      socialProofAvatars: {
+        visible: true,
+        ratingText: 'מדורג 4.9/5 על ידי יותר מ-1,200+ לקוחות',
+        starsCount: 5,
+        avatars: [
+          { id: '1', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80' },
+          { id: '2', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80' },
+          { id: '3', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80' },
+        ],
+      },
       backgroundColor: 'transparent',
     },
   },
+
   services: {
     type: 'services',
-    name: 'שירותים וכרטיסיות',
+    name: 'Bento Grid פיצ׳רים ושירותים',
     category: 'content',
-    description: 'גריד מעוצב של כרטיסי שירותים, תכונות ופיצ׳רים עם אייקונים ואפקטים',
+    description: 'גריד מודרני אסימטרי עם כרטיסיות זוהרות (Glow), תגיות, נתונים חיים ותמונות',
     icon: Grid,
     viewComponent: ServicesGridSection,
     editorComponent: ServicesGridEditor,
@@ -111,17 +136,221 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       visible: true,
       anchorId: 'services',
       title: 'השירותים והפתרונות המובילים שלנו',
+      subtitle: 'טכנולוגיה מתקדמת',
       description: 'מגוון כלים מתקדמים שנבנו במיוחד עבור הצמיחה והניהול שלכם',
-      columns: 3,
-      effect: 'hover-scale',
+      layout: 'bento',
+      effect: 'border-beam',
       backgroundColor: 'transparent',
       items: [
-        { id: '1', title: 'בניית דפים ויזואלית', description: 'יוצר עמודים מלא בגרור ושחרר', icon: 'Layout', url: '#', isVisible: true },
-        { id: '2', title: 'סנכרון CRM אוטומטי', description: 'כל הלידים מוזרמים מיידית למערכת', icon: 'Users', url: '#', isVisible: true, badge: 'מומלץ' },
-        { id: '3', title: 'תמיכה במובייל ו-RTL', description: 'חוויית משתמש מושלמת בעברית', icon: 'Sparkles', url: '#', isVisible: true },
+        {
+          id: '1',
+          title: 'בניית דפים ויזואלית ב-AI',
+          description: 'יוצר עמודים מלא בגרור ושחרר עם עוזר AI חכם',
+          icon: 'Sparkles',
+          url: '#',
+          isVisible: true,
+          span: '2',
+          badge: 'מומלץ',
+          highlight: true,
+          imageSrc: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+        },
+        {
+          id: '2',
+          title: 'סנכרון CRM ו-WhatsApp',
+          description: 'כל הלידים מוזרמים מיידית למערכת ללא עיכוב',
+          icon: 'Users',
+          url: '#',
+          isVisible: true,
+          span: '1',
+          statNumber: '100%',
+          statLabel: 'אוטומציה מלאה',
+        },
+        {
+          id: '3',
+          title: 'תמיכה במובייל ו-RTL',
+          description: 'חוויית משתמש מושלמת בעברית ובכל גודל מסך',
+          icon: 'Zap',
+          url: '#',
+          isVisible: true,
+          span: '1',
+          statNumber: '<0.5s',
+          statLabel: 'מהירות טעינה',
+        },
       ],
     },
   },
+
+  testimonials: {
+    type: 'testimonials',
+    name: 'המלצות וביקורות לקוחות 2.0',
+    category: 'social_proof',
+    description: 'כרטיסי המלצה עם כוכבי דירוג, ציונים, תגיות לקוח מאומת וסיכום ביקורות',
+    icon: Star,
+    viewComponent: TestimonialsSection,
+    editorComponent: TestimonialsEditor,
+    defaultConfig: {
+      type: 'testimonials',
+      visible: true,
+      anchorId: 'testimonials',
+      title: 'מה הלקוחות שלנו מספרים?',
+      subtitle: 'ביקורות מאומתות',
+      description: 'ההצלחה שלכם היא המדד האמיתי למקצועיות שלנו.',
+      showRatingSummary: true,
+      overallRating: 4.9,
+      totalReviewsCount: '250+ ביקורות בגוגל וברשת',
+      trustBadgeText: 'לקוחות מאומתים 100%',
+      backgroundColor: 'transparent',
+      items: [
+        {
+          id: '1',
+          name: 'רועי שפירא',
+          role: 'מנכ״ל ומייסד',
+          company: 'סטודיו דיגיטל פרו',
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+          rating: 5,
+          content: '״המערכת שינתה לנו את כל תהליך העבודה! תוך פחות מיום אחד העלינו דף נחיתה מושלם שייצר לנו עשרות לידים איכותיים.״',
+          isVerified: true,
+          badge: 'לקוח VIP',
+        },
+        {
+          id: '2',
+          name: 'מיכל אברהמי',
+          role: 'מנהלת שיווק וקהילה',
+          company: 'עמותת שותפים לדרך',
+          avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
+          rating: 5,
+          content: '״החיבור לוואטסאפ ול-CRM עובד בצורה חלקה ומופלאה. הכל ברור, בעברית מלאה וברמת גימור שאין באף מערכת אחרת.״',
+          isVerified: true,
+          badge: 'קנייה מאומתת',
+        },
+      ],
+    },
+  },
+
+  logoMarquee: {
+    type: 'logoMarquee',
+    name: 'שורת שותפים ולוגואים נעה',
+    category: 'social_proof',
+    description: 'קרוסלת לוגואים נעה בלולאה אינסופית להצגת מותגים, שותפים ולקוחות',
+    icon: Layers,
+    viewComponent: LogoMarqueeSection,
+    editorComponent: LogoMarqueeEditor,
+    defaultConfig: {
+      type: 'logoMarquee',
+      visible: true,
+      anchorId: 'partners',
+      title: 'נבחר על ידי הארגונים והחברות המובילות במשק',
+      grayscale: false,
+      backgroundColor: '#08080a',
+      logos: [
+        { id: '1', name: 'Google Partner', logoUrl: 'https://cdn.worldvectorlogo.com/logos/google-g-2015.svg' },
+        { id: '2', name: 'Microsoft Azure', logoUrl: 'https://cdn.worldvectorlogo.com/logos/microsoft-5.svg' },
+        { id: '3', name: 'Meta Verified', logoUrl: 'https://cdn.worldvectorlogo.com/logos/meta-1.svg' },
+        { id: '4', name: 'Stripe Security', logoUrl: 'https://cdn.worldvectorlogo.com/logos/stripe-4.svg' },
+        { id: '5', name: 'AWS Cloud', logoUrl: 'https://cdn.worldvectorlogo.com/logos/amazon-web-services-2.svg' },
+      ],
+    },
+  },
+
+  statsBento: {
+    type: 'statsBento',
+    name: 'מדדי מפתח והישגים (Stats Bento)',
+    category: 'social_proof',
+    description: 'הצגת 4 מדדים מספריים מרשימים עם אייקונים, צבעים ותגיות',
+    icon: TrendingUp,
+    viewComponent: StatsBentoSection,
+    editorComponent: StatsBentoEditor,
+    defaultConfig: {
+      type: 'statsBento',
+      visible: true,
+      anchorId: 'stats',
+      title: 'התוצאות מדברות בעד עצמן',
+      subtitle: 'מדדי ביצוע מובילים',
+      backgroundColor: 'transparent',
+      stats: [
+        { id: '1', number: '99.8', suffix: '%', label: 'שביעות רצון לקוחות', description: 'מדד שירות מעולה', color: 'emerald', icon: 'Heart' },
+        { id: '2', number: '12,500', suffix: '+', label: 'משתמשים פעילים', description: 'קהילה בצמיחה מתמדת', color: 'indigo', icon: 'Users' },
+        { id: '3', number: '3.4', suffix: 'X', label: 'גידול ממוצע בהמרות', description: 'תוצאה מוכחת לכל לקוח', color: 'purple', icon: 'TrendingUp' },
+        { id: '4', number: '24/7', suffix: '', label: 'תמיכה וליווי אישי', description: 'מענה אנושי מהיר בוואטסאפ', color: 'amber', icon: 'Sparkles' },
+      ],
+    },
+  },
+
+  beforeAfter: {
+    type: 'beforeAfter',
+    name: 'סליידר השוואת לפני / אחרי',
+    category: 'marketing',
+    description: 'סליידר אינטראקטיבי אינטואיטיבי המאפשר למשתמש לגרור ולהשוות תוצאות',
+    icon: SlidersHorizontal,
+    viewComponent: BeforeAfterSection,
+    editorComponent: BeforeAfterEditor,
+    defaultConfig: {
+      type: 'beforeAfter',
+      visible: true,
+      anchorId: 'beforeAfter',
+      title: 'השפעה ושינוי: לפני ואחרי',
+      subtitle: 'תוצאות מוכחות בשטח',
+      description: 'גררו את הסליידר כדי לראות את ההבדל הדרמטי בתוצאות.',
+      beforeImage: 'https://images.unsplash.com/photo-1581291518857-4e27b48ff24e?auto=format&fit=crop&w=1000&q=80',
+      afterImage: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1000&q=80',
+      beforeLabel: 'לפני',
+      afterLabel: 'אחרי',
+      defaultPosition: 50,
+      backgroundColor: 'transparent',
+    },
+  },
+
+  geoLocal: {
+    type: 'geoLocal',
+    name: 'סניף מקומי וקידום GEO',
+    category: 'contact',
+    description: 'הצגת כתובת מקומית, אזורי שירות מורשים, שעות פתיחה ומפת Google Maps אינטראקטיבית',
+    icon: MapPin,
+    viewComponent: GeoLocalSection,
+    editorComponent: GeoLocalEditor,
+    defaultConfig: {
+      type: 'geoLocal',
+      visible: true,
+      anchorId: 'location',
+      title: 'הסניף והפעילות המקומית שלנו',
+      subtitle: 'שירות מקומי בפריסה רחבה',
+      businessName: 'מרכז הפעילות והשירות',
+      city: 'תל אביב',
+      address: 'דרך מנחם בגין 144, תל אביב',
+      phone: '03-1234567',
+      whatsapp: '0501234567',
+      serviceAreas: ['תל אביב וגוש דן', 'ירושלים והסביבה', 'שרון והמרכז'],
+      openingHours: ['א׳ - ה׳: 09:00 - 19:00', 'יום ו׳: 09:00 - 13:00'],
+      mapEmbedUrl: 'https://maps.google.com/maps?q=Tel%20Aviv&t=&z=13&ie=UTF8&iwloc=&output=embed',
+      backgroundColor: 'transparent',
+    },
+  },
+
+  pricing: {
+    type: 'pricing',
+    name: 'מחירונים וחבילות 2.0',
+    category: 'marketing',
+    description: 'טבלת חבילות ומחירים עם מתג חודשי/שנתי, 20% חיסכון והבלטת מסלול Pro',
+    icon: CreditCard,
+    viewComponent: PricingSection,
+    editorComponent: PricingEditor,
+    defaultConfig: {
+      type: 'pricing',
+      visible: true,
+      anchorId: 'pricing',
+      title: 'תוכניות ומחירים שקופים ומותאמים',
+      subtitle: 'בחרו את המסלול המתאים ביותר עבורכם',
+      showBillingToggle: true,
+      yearlyDiscountBadge: 'חיסכון של 20% 🎉',
+      backgroundColor: 'transparent',
+      packages: [
+        { id: '1', name: 'בסיסי (Starter)', priceMonthly: '₪99', priceYearly: '₪79', period: '/ חודש', description: 'למשתמשים יחידים ומתחילים', features: ['עד 5 דפים מעוצבים', 'חיבור דומיין מותאם', 'טפסי לידים בסיסיים', 'תמיכה באימייל'], buttonText: 'התחל בחינם', buttonUrl: '#contact' },
+        { id: '2', name: 'מקצועי (Pro 2026)', priceMonthly: '₪249', priceYearly: '₪199', period: '/ חודש', description: 'לקהילות, מוסדות ועסקים בצמיחה', isFeatured: true, badge: 'הכי משתלם ⭐️', features: ['דפים ועמודים ללא הגבלה', 'סנכרון מלא למערכת CRM', 'עוזר AI ליצירת תוכן ותמונות', 'תמיכת VIP 24/7 בוואטסאפ'], buttonText: 'בחר מסלול Pro', buttonUrl: '#contact' },
+        { id: '3', name: 'ארגוני (Enterprise)', priceMonthly: '₪590', priceYearly: '₪470', period: '/ חודש', description: 'לארגונים ורשתות עם דרישות מתקדמות', features: ['פתרון מותאם אישית (Custom SLA)', 'מנהל חשבון אישי ייעודי', 'אינטגרציות API מתקדמות', 'הדרכות צוות פרונטליות'], buttonText: 'צור קשר להתאמה', buttonUrl: '#contact' },
+      ],
+    },
+  },
+
   mainContent: {
     type: 'mainContent',
     name: 'באנר קורס / תוכן מודגש',
@@ -144,6 +373,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+
   campaignHeader: {
     type: 'campaignHeader',
     name: 'מד התקדמות קמפיין תרומות',
@@ -165,6 +395,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+
   campaignTiers: {
     type: 'campaignTiers',
     name: 'מדרגות תרומה וסכומים',
@@ -188,6 +419,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
     },
   },
+
   campaignDonors: {
     type: 'campaignDonors',
     name: 'כרטיסיות תורמים ושגרירים',
@@ -212,6 +444,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
     },
   },
+
   videoGallery: {
     type: 'videoGallery',
     name: 'גלריית וידאו ומדיה',
@@ -232,6 +465,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       images: [],
     },
   },
+
   imageListing: {
     type: 'imageListing',
     name: 'גלריית תמונות וכרטיסים',
@@ -254,11 +488,12 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
     },
   },
+
   faq: {
     type: 'faq',
-    name: 'שאלות ותשובות (FAQ)',
+    name: 'שאלות ותשובות (FAQ 2.0)',
     category: 'content',
-    description: 'אקורדיון שאלות ותשובות נפתחות בעיצוב נקי ונוח לקריאה',
+    description: 'עיצוב Notion מודרני עם שורת חיפוש מהירה וכרטיס פנייה ישירה לוואטסאפ',
     icon: HelpCircle,
     viewComponent: FaqSection,
     editorComponent: FaqSectionEditor,
@@ -268,6 +503,8 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       anchorId: 'faq',
       title: 'שאלות ותשובות נפוצות',
       subtitle: 'כל מה שרציתם לדעת על הפלטפורמה והשירות',
+      showSearchBar: true,
+      showContactCard: true,
       backgroundColor: 'transparent',
       items: [
         { id: '1', question: 'איך מתחילים לעבוד עם המערכת?', answer: 'נרשמים בקלות, בוחרים תבנית עיצוב או מתחילים מאפס, ומעצבים את העמוד בעזרת עורך הבית הוויזואלי הנוח.' },
@@ -276,11 +513,12 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
     },
   },
+
   timer: {
     type: 'timer',
-    name: 'טיימר ספירה לאחור',
+    name: 'טיימר ספירה לאחור 2.0',
     category: 'marketing',
-    description: 'שעון רץ לאחור לימי אירוע, מבצעים, השקות או סיום קמפיין',
+    description: 'שעון רץ לאחור עם כרטיסיות זכוכית וספרות ענק לקידום אירועים והשקות',
     icon: Clock,
     viewComponent: TimerSection,
     editorComponent: TimerEditor,
@@ -297,28 +535,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       labelColor: '#94a3b8',
     },
   },
-  pricing: {
-    type: 'pricing',
-    name: 'מחירונים וחבילות',
-    category: 'marketing',
-    description: 'טבלת חבילות, מחירים, רשימת פיצ׳רים והבלטת חבילה מומלצת',
-    icon: CreditCard,
-    viewComponent: PricingSection,
-    editorComponent: PricingEditor,
-    defaultConfig: {
-      type: 'pricing',
-      visible: true,
-      anchorId: 'pricing',
-      title: 'תוכניות ומחירים מותאמים',
-      subtitle: 'בחרו את המסלול המתאים ביותר לעסק או לקהילה שלכם',
-      backgroundColor: 'transparent',
-      packages: [
-        { id: '1', name: 'בסיסי', price: '₪99', period: '/ חודש', description: 'למשתמשים יחידים ומתחילים', features: ['עד 5 דפים מעוצבים', 'חיבור דומיין מותאם', 'טפסי לידים בסיסיים', 'תמיכה באימייל'], buttonText: 'התחל בחינם', buttonUrl: '#' },
-        { id: '2', name: 'מקצועי (Pro)', price: '₪249', period: '/ חודש', description: 'לקהילות, מוסדות ועסקים בצמיחה', isFeatured: true, badge: 'הכי משתלם', features: ['דפים ועמודים ללא הגבלה', 'סנכרון מלא למערכת CRM', 'עוזר AI ליצירת תוכן ותמונות', 'תמיכת VIP 24/7 בוואטסאפ'], buttonText: 'בחר מסלול Pro', buttonUrl: '#' },
-        { id: '3', name: 'ארגוני (Enterprise)', price: '₪590', period: '/ חודש', description: 'לארגונים ורשתות עם דרישות מתקדמות', features: ['פתרון מותאם אישית (Custom SLA)', 'מנהל חשבון אישי ייעודי', 'אינטגרציות API מתקדמות', 'הדרכות צוות פרונטליות'], buttonText: 'צור קשר להתאמה', buttonUrl: '#' },
-      ],
-    },
-  },
+
   richContent: {
     type: 'richContent',
     name: 'אודות / תוכן מעוצב',
@@ -337,11 +554,12 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+
   community: {
     type: 'community',
-    name: 'קהילה וחיבור וואטסאפ',
+    name: 'קהילה וצ׳אט וואטסאפ 2.0',
     category: 'contact',
-    description: 'כרטיס קהילה חמה, קישור מהיר לקבוצת וואטסאפ, ציטוט ותגית חברים',
+    description: 'כרטיס קהילה חמה, הדמיית צ׳אט WhatsApp אותנטית ותגית חברים',
     icon: MessageCircle,
     viewComponent: CommunitySection,
     editorComponent: CommunityEditor,
@@ -360,6 +578,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+
   livePosts: {
     type: 'livePosts',
     name: 'עדכונים ואירועים (פוסטים)',
@@ -382,6 +601,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
     },
   },
+
   landingSection: {
     type: 'landingSection',
     name: 'דף נחיתה וטופס הרשמה',
@@ -401,11 +621,12 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+
   contact: {
     type: 'contact',
-    name: 'אזור צור קשר',
+    name: 'אזור צור קשר ו-GEO',
     category: 'contact',
-    description: 'פרטי התקשרות (טלפון, מייל, כתובת, וואטסאפ) וטופס פנייה ישיר',
+    description: 'פרטי התקשרות (טלפון, מייל, כתובת, וואטסאפ), מפה וטופס פנייה ישיר',
     icon: Phone,
     viewComponent: ContactSection,
     editorComponent: ContactEditor,
@@ -423,6 +644,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       backgroundColor: 'transparent',
     },
   },
+
   smartForm: {
     type: 'smartForm',
     name: 'טופס חכם רב-שלבי (Smart Form)',
@@ -442,4 +664,3 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     },
   },
 };
-

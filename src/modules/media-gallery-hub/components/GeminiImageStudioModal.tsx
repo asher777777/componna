@@ -247,6 +247,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       type: 'image',
       mimeType: generatedResult.mimeType || 'image/png',
       url: generatedResult.imageUrl,
+      thumbnailUrl: generatedResult.imageUrl,
       sizeBytes: file ? file.size : 250000,
       width: generatedResult.width,
       height: generatedResult.height,
@@ -258,6 +259,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       sourceModule: 'gemini-image-generation',
       sourceModuleLabel: 'מחולל Gemini AI',
       metadata: {
+        dataUrl: generatedResult.imageUrl,
         aiPrompt: enhancedPrompt || prompt,
         originalUserPrompt: prompt,
         model: generatedResult.model,

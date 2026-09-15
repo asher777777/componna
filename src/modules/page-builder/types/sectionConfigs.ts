@@ -1,13 +1,20 @@
 import { BaseSectionConfig } from './pageBuilder.types';
 
+export interface HeroAvatarItem {
+  id: string;
+  avatarUrl: string;
+  name?: string;
+}
+
 export interface HeroSectionConfig extends BaseSectionConfig {
   type: 'hero';
   title: string;
   subtitle?: string;
   description?: string;
   imageSrc?: string;
-  layout?: 'fz' | 'spatial' | 'centered' | 'split';
-  heroStyle?: 'classic' | 'modern' | 'minimal' | 'card';
+  videoBgUrl?: string;
+  layout?: 'fz' | 'spatial' | 'centered' | 'split' | 'bento-hero';
+  heroStyle?: 'classic' | 'modern' | 'minimal' | 'card' | 'mesh-glow';
   flexDirection?: 'row' | 'row-reverse';
   buttonsVisible?: boolean;
   primaryButton?: {
@@ -25,6 +32,17 @@ export interface HeroSectionConfig extends BaseSectionConfig {
   hoverColor?: string;
   formMode?: boolean;
   formTitle?: string;
+  announcementBadge?: {
+    text: string;
+    url?: string;
+    icon?: string;
+  };
+  socialProofAvatars?: {
+    visible: boolean;
+    avatars: HeroAvatarItem[];
+    ratingText?: string;
+    starsCount?: number;
+  };
 }
 
 export interface ServiceItem {
@@ -36,17 +54,111 @@ export interface ServiceItem {
   url?: string;
   isVisible?: boolean;
   badge?: string;
+  span?: '1' | '2' | '3'; // Bento Span
+  highlight?: boolean;
+  statNumber?: string;
+  statLabel?: string;
 }
 
 export interface ServicesSectionConfig extends BaseSectionConfig {
   type: 'services';
   title: string;
+  subtitle?: string;
   description?: string;
-  layout?: 'grid' | 'cards' | 'minimal';
+  layout?: 'grid' | 'bento' | 'cards' | 'minimal';
   columns?: number;
   columnsMobile?: number;
-  effect?: 'hover-scale' | 'hover-glow' | 'none';
+  effect?: 'hover-scale' | 'hover-glow' | 'border-beam' | 'none';
   items: ServiceItem[];
+}
+
+export interface TestimonialItem {
+  id: string;
+  name: string;
+  role?: string;
+  company?: string;
+  avatarUrl?: string;
+  content: string;
+  rating: number; // 1-5
+  isVerified?: boolean;
+  badge?: string;
+  videoUrl?: string;
+}
+
+export interface TestimonialsSectionConfig extends BaseSectionConfig {
+  type: 'testimonials';
+  title: string;
+  subtitle?: string;
+  description?: string;
+  layout?: 'grid' | 'carousel' | 'masonry';
+  showRatingSummary?: boolean;
+  overallRating?: number;
+  totalReviewsCount?: string;
+  trustBadgeText?: string;
+  items: TestimonialItem[];
+}
+
+export interface LogoMarqueeItem {
+  id: string;
+  name: string;
+  logoUrl: string;
+  url?: string;
+}
+
+export interface LogoMarqueeSectionConfig extends BaseSectionConfig {
+  type: 'logoMarquee';
+  title?: string;
+  speed?: 'slow' | 'medium' | 'fast';
+  direction?: 'left' | 'right';
+  grayscale?: boolean;
+  logos: LogoMarqueeItem[];
+}
+
+export interface StatsBentoItem {
+  id: string;
+  number: string;
+  suffix?: string;
+  label: string;
+  description?: string;
+  icon?: string;
+  badge?: string;
+  color?: string;
+}
+
+export interface StatsBentoSectionConfig extends BaseSectionConfig {
+  type: 'statsBento';
+  title?: string;
+  subtitle?: string;
+  layout?: 'bento-4' | 'row-4' | 'cards-3';
+  stats: StatsBentoItem[];
+}
+
+export interface BeforeAfterSectionConfig extends BaseSectionConfig {
+  type: 'beforeAfter';
+  title: string;
+  subtitle?: string;
+  description?: string;
+  beforeImage: string;
+  afterImage: string;
+  beforeLabel?: string;
+  afterLabel?: string;
+  defaultPosition?: number; // 0 to 100 percentage
+}
+
+export interface GeoLocalSectionConfig extends BaseSectionConfig {
+  type: 'geoLocal';
+  title: string;
+  subtitle?: string;
+  businessName?: string;
+  city?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  whatsapp?: string;
+  serviceAreas?: string[];
+  openingHours?: string[];
+  mapEmbedUrl?: string;
+  directionsUrl?: string;
 }
 
 export interface CourseBannerSectionConfig extends BaseSectionConfig {
@@ -161,14 +273,9 @@ export interface FaqSectionConfig extends BaseSectionConfig {
   subtitle?: string;
   titleColor?: string;
   subtitleColor?: string;
-  itemTextColor?: string;
-  questionTextColor?: string;
-  answerTextColor?: string;
-  activeTabBgColor?: string;
-  inactiveTabBgColor?: string;
-  tabBorderColor?: string;
-  layout?: 'accordion' | 'cards' | 'two-columns';
-  effect?: 'slide' | 'fade';
+  showSearchBar?: boolean;
+  showContactCard?: boolean;
+  whatsappContact?: string;
   items: FaqItem[];
 }
 
@@ -177,7 +284,9 @@ export interface TimerSectionConfig extends BaseSectionConfig {
   title: string;
   subtitle?: string;
   targetDate: string;
-  layout?: 'boxed' | 'minimal' | 'cards';
+  layout?: 'boxed' | 'minimal' | 'cards' | 'floating-bar';
+  ctaText?: string;
+  ctaUrl?: string;
   titleColor?: string;
   subtitleColor?: string;
   boxBackgroundColor?: string;
@@ -188,7 +297,8 @@ export interface TimerSectionConfig extends BaseSectionConfig {
 export interface PricingPackageItem {
   id: string;
   name: string;
-  price: string;
+  priceMonthly: string;
+  priceYearly?: string;
   period?: string;
   description?: string;
   isFeatured?: boolean;
@@ -203,6 +313,8 @@ export interface PricingSectionConfig extends BaseSectionConfig {
   title: string;
   subtitle?: string;
   description?: string;
+  showBillingToggle?: boolean;
+  yearlyDiscountBadge?: string;
   packages: PricingPackageItem[];
 }
 
@@ -227,6 +339,8 @@ export interface CommunitySectionConfig extends BaseSectionConfig {
   layout?: 'classic' | 'modern' | 'card';
   badgeVisible?: boolean;
   buttonVisible?: boolean;
+  showLiveChatPreview?: boolean;
+  chatBubbleMessage?: string;
 }
 
 export interface LivePostItem {
@@ -282,4 +396,6 @@ export interface ContactSectionConfig extends BaseSectionConfig {
   showMap?: boolean;
   mapEmbedUrl?: string;
   showForm?: boolean;
+  openingHours?: string;
+  directWhatsappChat?: boolean;
 }

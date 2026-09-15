@@ -179,10 +179,27 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 };
 
+const FALLBACK_CONTEXT_VALUE: BrandDnaContextValue = {
+  brandDna: DEFAULT_BRAND_DNA,
+  isLoading: false,
+  isSaving: false,
+  completenessScore: 0,
+  missingRecommendations: [],
+  updateIdentity: () => {},
+  updateVoice: () => {},
+  updateAudience: () => {},
+  updateDesignTokens: () => {},
+  updateTrust: () => {},
+  setFullBrandDna: () => {},
+  saveNow: async () => true,
+  resetToDefaults: () => {},
+  getGeminiSystemContext: () => '',
+};
+
 export const useBrandDna = (): BrandDnaContextValue => {
   const context = useContext(BrandDnaContext);
   if (!context) {
-    throw new Error('useBrandDna must be used within a BrandDnaProvider');
+    return FALLBACK_CONTEXT_VALUE;
   }
   return context;
 };

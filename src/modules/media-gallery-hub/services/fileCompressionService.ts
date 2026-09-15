@@ -225,6 +225,24 @@ export class FileCompressionService {
   }
 
   /**
+   * Fast client-side lightweight thumbnail generator (Max 360px, WebP/JPEG format, ~15KB-30KB)
+   */
+  public static async generateThumbnail(source: File | Blob | string): Promise<{ dataUrl: string; blob: Blob } | null> {
+    try {
+      const res = await this.convertAndCompressImage(source, {
+        targetFormat: 'image/webp',
+        quality: 0.75,
+        maxWidth: 360,
+        maxHeight: 360,
+        preserveAspectRatio: true,
+      });
+      return { dataUrl: res.dataUrl, blob: res.blob };
+    } catch {
+      return null;
+    }
+  }
+
+  /**
    * Convert JSON text to CSV string
    */
   public static jsonToCsv(jsonContent: string): string {

@@ -96,3 +96,47 @@ export interface GreenApiContactInfo {
   messageExpiration?: number;
   muteExpiration?: number;
 }
+
+// --- WHATSAPP STATUSES / STORIES TYPES ---
+
+export type GreenApiStatusFont = 'SERIF' | 'SANS_SERIF' | 'NORICAN_REGULAR' | 'BRYNDAN_WRITE' | 'OSWALD_HEAVY';
+
+export interface GreenApiTextStatusPayload {
+  message: string;
+  backgroundColor?: string;
+  font?: GreenApiStatusFont;
+  participants?: string[];
+}
+
+export interface GreenApiMediaStatusPayload {
+  urlFile: string;
+  fileName: string;
+  caption?: string;
+  participants?: string[];
+}
+
+export interface GreenApiStatusStatisticItem {
+  timestamp: number;
+  participant: string;
+  status: 'sent' | 'delivered' | 'read';
+}
+
+export interface SavedWhatsAppStatus {
+  id: string; // idMessage
+  type: 'text' | 'media';
+  message?: string;
+  urlFile?: string;
+  fileName?: string;
+  caption?: string;
+  backgroundColor?: string;
+  font?: GreenApiStatusFont;
+  createdAt: number;
+  expiresAt: number;
+  accountName?: string;
+  viewersCount: number;
+  deliveredCount: number;
+  sentCount: number;
+  statistics: GreenApiStatusStatisticItem[];
+  lastSyncedAt?: number;
+}
+

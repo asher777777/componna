@@ -60,16 +60,22 @@ export class MediaIndexedDbService {
         }
       } catch {}
 
-      // 1. Backup metadata to LocalStorage
-      try {
-        const existingRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
-        const existing: MediaItem[] = existingRaw ? JSON.parse(existingRaw) : [];
-        const filtered = existing.filter((i) => i.id !== item.id && i.name.toLowerCase().trim() !== item.name.toLowerCase().trim());
-        filtered.unshift(item);
-        // keep up to 100 metadata items in localstorage
-        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered.slice(0, 100)));
-      } catch (lsErr) {
-        console.warn('[MediaIndexedDb] LocalStorage metadata backup notice:', lsErr);
+      // 1. Backup metadata to LocalStorage (only persistent non-blob items)
+      if (item.url && !item.url.startsWith('blob:')) {
+        try {
+          const existingRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+          const existing: MediaItem[] = existingRaw ? JSON.parse(existingRaw) : [];
+          const nameLower = (item.name || '').toLowerCase().trim();
+          const idLower = (item.id || '').toLowerCase().trim();
+          const filtered = existing.filter(
+            (i) => i.id.toLowerCase().trim() !== idLower && i.name.toLowerCase().trim() !== nameLower && !i.url?.startsWith('blob:')
+          );
+          filtered.unshift(item);
+          // keep up to 100 metadata items in localstorage
+          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(filtered.slice(0, 100)));
+        } catch (lsErr) {
+          console.warn('[MediaIndexedDb] LocalStorage metadata backup notice:', lsErr);
+        }
       }
 
       // 2. Save binary Blob and Item to IndexedDB
@@ -145,14 +151,28 @@ export class MediaIndexedDbService {
 
       // Re-create fresh Object URLs for each local item if it has a stored Blob
       const reconstructed: MediaItem[] = items
-        .filter((item) => !deletedSet.has(item.id.toLowerCase().trim()) && !deletedSet.has(item.name.toLowerCase().trim()))
+        .filter((item) => {
+          if (!item) return false;
+          const idKey = (item.id || '').toLowerCase().trim();
+          const nameKey = (item.name || '').toLowerCase().trim();
+          if (deletedSet.has(idKey) || deletedSet.has(nameKey)) return false;
+          
+          const storedBlob = blobsMap.get(item.id) || blobsMap.get(nameKey);
+          // If item has a transient blob URL and no stored binary blob in IndexedDB, it is an expired hollow ghost
+          if (item.url?.startsWith('blob:') && !storedBlob) {
+            return false;
+          }
+          return true;
+        })
         .map((item) => {
-          const storedBlob = blobsMap.get(item.id) || blobsMap.get(item.name.toLowerCase().trim());
+          const nameKey = (item.name || '').toLowerCase().trim();
+          const storedBlob = blobsMap.get(item.id) || blobsMap.get(nameKey);
           if (storedBlob) {
             const freshObjectUrl = URL.createObjectURL(storedBlob);
             return {
               ...item,
               url: freshObjectUrl,
+              thumbnailUrl: freshObjectUrl,
             };
           }
           return item;
@@ -167,6 +187,45 @@ export class MediaIndexedDbService {
       } catch (e) {
         return [];
       }
+    }
+  }
+
+  /**
+   * Fetch binary blob by ID or filename for on-demand image repair
+   */
+  public static async getBlob(idOrName: string): Promise<Blob | null> {
+    try {
+      if (!idOrName) return null;
+      const db = await this.openDB();
+      const tx = db.transaction([STORE_BLOBS], 'readonly');
+      const store = tx.objectStore(STORE_BLOBS);
+
+      const targetId = idOrName.toLowerCase().trim();
+      const req1 = store.get(targetId);
+      const res1: any = await new Promise((resolve) => {
+        req1.onsuccess = () => resolve(req1.result);
+        req1.onerror = () => resolve(null);
+      });
+      if (res1 && res1.blob) return res1.blob;
+
+      const rawReq = store.get(idOrName);
+      const resRaw: any = await new Promise((resolve) => {
+        rawReq.onsuccess = () => resolve(rawReq.result);
+        rawReq.onerror = () => resolve(null);
+      });
+      if (resRaw && resRaw.blob) return resRaw.blob;
+
+      const cleanName = idOrName.replace(/^storage_\d+_/, '').toLowerCase().trim();
+      const req2 = store.get(cleanName);
+      const res2: any = await new Promise((resolve) => {
+        req2.onsuccess = () => resolve(req2.result);
+        req2.onerror = () => resolve(null);
+      });
+      if (res2 && res2.blob) return res2.blob;
+
+      return null;
+    } catch {
+      return null;
     }
   }
 

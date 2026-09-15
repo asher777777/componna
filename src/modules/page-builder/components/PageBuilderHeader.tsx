@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab } from '../types/pageBuilder.types';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
 import {
@@ -13,10 +13,10 @@ import {
   Tablet,
   Smartphone,
   Sparkles,
-  Download,
-  Upload,
+  Layers,
+  Share2,
+  MapPin,
   ArrowRight,
-  ExternalLink,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -30,8 +30,11 @@ interface PageBuilderHeaderProps {
   isSaving?: boolean;
   onOpenSettings: () => void;
   onOpenAddSection: () => void;
-  onExportJson?: () => void;
-  onImportJson?: () => void;
+  onOpenAiBuilder?: () => void;
+  onOpenPublish?: () => void;
+  onOpenShortener?: () => void;
+  onOpenGeo?: () => void;
+  onGoToPagesList?: () => void;
 }
 
 export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
@@ -44,25 +47,49 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
   isSaving = false,
   onOpenSettings,
   onOpenAddSection,
-  onExportJson,
-  onImportJson,
+  onOpenAiBuilder,
+  onOpenPublish,
+  onOpenShortener,
+  onOpenGeo,
+  onGoToPagesList,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0c0c0e]/95 border-b border-slate-800 backdrop-blur-xl px-4 sm:px-6 py-3 select-none" dir="rtl">
       <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
-        {/* Left Side: Page Title and Quick Badge */}
+        {/* Left Side: Back to Pages + Page Title and Status */}
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-md shadow-indigo-600/30">
-            <Sparkles className="w-5 h-5" />
-          </div>
+          {onGoToPagesList && (
+            <button
+              type="button"
+              onClick={onGoToPagesList}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 text-xs font-bold transition-all"
+              title="חזרה לכל העמודים"
+            >
+              <Layers className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden sm:inline">כל העמודים</span>
+            </button>
+          )}
+
           <div className="text-right">
             <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold text-white">{config.pageTitle || 'עמוד ללא שם'}</h1>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700" dir="ltr">
-                /{config.slug || 'home'}
-              </span>
+              <h1 className="text-sm sm:text-base font-bold text-white max-w-[180px] sm:max-w-xs truncate">
+                {config.pageTitle || 'עמוד ללא שם'}
+              </h1>
+              {config.isHomePage && (
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                  עמוד בית 🏠
+                </span>
+              )}
+              {config.published ? (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hidden sm:inline">
+                  מפורסם
+                </span>
+              ) : (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline">
+                  טיוטה
+                </span>
+              )}
             </div>
-            <span className="text-[11px] text-slate-400">יוצר עמודים מודולרי (Page Builder)</span>
           </div>
         </div>
 
@@ -121,7 +148,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
             )}
           >
             <ListOrdered className="w-3.5 h-3.5" />
-            <span>סידור שכבות</span>
+            <span>שכבות</span>
           </button>
         </div>
 
@@ -135,7 +162,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
                 'p-1.5 rounded-xl transition-all',
                 viewportMode === 'desktop' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
               )}
-              title="תצוגת מחשב (Desktop)"
+              title="תצוגת מחשב"
             >
               <Monitor className="w-4 h-4" />
             </button>
@@ -146,7 +173,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
                 'p-1.5 rounded-xl transition-all',
                 viewportMode === 'tablet' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
               )}
-              title="תצוגת טאבלט (Tablet)"
+              title="תצוגת טאבלט"
             >
               <Tablet className="w-4 h-4" />
             </button>
@@ -157,35 +184,80 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
                 'p-1.5 rounded-xl transition-all',
                 viewportMode === 'mobile' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-white'
               )}
-              title="תצוגת סמארטפון (Mobile)"
+              title="תצוגת סמארטפון"
             >
               <Smartphone className="w-4 h-4" />
             </button>
           </div>
         )}
 
-        {/* Right Side: Actions (Settings, Add Section, Save) */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* Right Side: Tools & Actions */}
+        <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* AI Page Generator */}
+          {onOpenAiBuilder && (
+            <button
+              type="button"
+              onClick={onOpenAiBuilder}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600/30 to-purple-600/30 border border-indigo-500/40 text-indigo-300 hover:text-white text-xs font-bold transition-all hover:scale-105"
+              title="יוצר עמודים ב-AI"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden lg:inline">AI Builder</span>
+            </button>
+          )}
+
+          {/* Shorten URL & QR */}
+          {onOpenShortener && (
+            <button
+              type="button"
+              onClick={onOpenShortener}
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all"
+              title="מקצר URL וקוד QR"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* GEO SEO Settings */}
+          {onOpenGeo && (
+            <button
+              type="button"
+              onClick={onOpenGeo}
+              className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all"
+              title="הגדרות GEO SEO"
+            >
+              <MapPin className="w-4 h-4 text-emerald-400" />
+            </button>
+          )}
+
+          {/* Settings */}
           <button
             type="button"
             onClick={onOpenSettings}
             className="p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all"
-            title="הגדרות עמוד ו-SEO"
+            title="הגדרות עמוד ומיתוג"
           >
             <Settings2 className="w-4 h-4" />
           </button>
 
-          {onExportJson && (
+          {/* Publish Button */}
+          {onOpenPublish && (
             <button
               type="button"
-              onClick={onExportJson}
-              className="hidden sm:flex p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition-all"
-              title="ייצוא קובץ JSON"
+              onClick={onOpenPublish}
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md',
+                config.published
+                  ? 'bg-emerald-600/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-600 hover:text-white'
+                  : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+              )}
             >
-              <Download className="w-4 h-4" />
+              <Globe className="w-3.5 h-3.5" />
+              <span>{config.published ? 'מפורסם 🚀' : 'פרסם עמוד'}</span>
             </button>
           )}
 
+          {/* Save Button */}
           <PageBuilderButton
             size="sm"
             variant="gradient"
@@ -193,7 +265,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
             disabled={isSaving}
             icon={<Save className="w-4 h-4" />}
           >
-            {isSaving ? 'שומר...' : 'שמור שינויים'}
+            {isSaving ? 'שומר...' : 'שמור'}
           </PageBuilderButton>
         </div>
       </div>
