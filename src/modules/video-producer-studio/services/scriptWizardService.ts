@@ -5,10 +5,15 @@ import {
   ChatMessageContext, 
   OutputDeliverablePreference,
   ClarificationQuestionItem,
-  ClarificationResult
+  ClarificationResult,
+  InteractiveActionItem,
+  InteractiveCardItem
 } from '../types';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
 import { VISUAL_STYLES_CATALOG, PRODUCTION_TYPES_CATALOG, TTS_LANGUAGES } from '../config/catalogs';
+import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { ExtractedPageSummary } from './pageContentExtractor';
+import { cleanSubtitleText } from './subtitleService';
 
 export interface ScriptGenerationParams {
   topic: string;
@@ -28,6 +33,12 @@ export interface ScriptGenerationParams {
   aspectRatio?: '16:9' | '9:16' | '1:1';
   conversationId?: string;
   conversationHistory?: ChatMessageContext[];
+
+  // Brand DNA & Page Builder Integration
+  brandDna?: BrandDna | null;
+  sourcePageId?: string;
+  sourcePageTitle?: string;
+  sourcePageSummary?: ExtractedPageSummary | null;
 }
 
 export interface ScriptGenerationResult {
@@ -62,6 +73,65 @@ export function getValidGeminiModel(requestedModel?: string): string {
 }
 
 /**
+ * Helper to construct Brand DNA Guidelines text block
+ */
+function buildBrandDnaPromptBlock(brandDna?: BrandDna | null): string {
+  if (!brandDna) return '';
+
+  const { identity, voice, audience, trust } = brandDna;
+  const formalityNames = ['מאוד קליל וחברי', 'קליל', 'מאוזן ומקצועי', 'רשמי', 'רשמי ומוקפד מאוד'];
+  const formalityText = formalityNames[(voice.personality?.formality || 3) - 1] || 'מאוזן';
+
+  const objectionsText = (audience?.commonObjections || [])
+    .map((o) => `  - התנגדות: "${o.objection}" -> מענה/הפרכה: "${o.rebuttal}"`)
+    .join('\n');
+
+  const personasText = (audience?.personas || [])
+    .map((p) => `  - פרסונה "${p.name}" (${p.roleOrProfile}): כאב מרכזי: "${p.mainPain}", תוצאה מבוקשת: "${p.dreamOutcome}"`)
+    .join('\n');
+
+  return `
+========================================
+🔥 MANDATORY BRAND DNA & VOICE GUIDELINES (מרכז מיתוג גלובלי):
+- Company Name: ${identity?.companyName || 'המותג'}
+- Brand Slogan: ${identity?.slogan || ''}
+- Company Purpose / Vision: ${identity?.companyVision || identity?.organizationPurpose || ''}
+- Unique Value Proposition (UVP): ${audience?.mainUvp || ''}
+- Brand Voice Tone: רמת רשמיות ${voice?.personality?.formality || 3}/5 (${formalityText}), חמימות ${voice?.personality?.warmth || 4}/5, אנרגיה ${voice?.personality?.energy || 4}/5.
+- Gender / Audience Addressing: ${voice?.genderAddressing || 'plural'} (למשל: פנייה בלשון רבים / ניטרלית בהתאם למותג)
+- Sector Compliance: ${voice?.sectorCompliance || 'general'}
+- MANDATORY POWER WORDS (יש לשלב באופן טבעי בסקריפט): ${(voice?.powerWords || []).join(', ') || 'איכות, מקצועיות, תוצאות'}
+- FORBIDDEN WORDS (אסור בתכלית האיסור להשתמש במילים אלו!): ${(voice?.forbiddenWords || []).join(', ') || 'זול, חלטורה'}
+- Target Personas:
+${personasText || '  קהל עסקי ופרטי ממוקד'}
+- Common Objections & Key Rebuttals (לשימוש בשאלות ותשובות ובאינטראקציה):
+${objectionsText || '  מענה מהיר ומקצועי לכל שאלה'}
+- Trust & Contact: טלפון/וואטסאפ: ${trust?.whatsappSupportNumber || trust?.contactPhone || ''}, ביטחון: ${trust?.securityBadgeText || ''}
+========================================
+`;
+}
+
+/**
+ * Helper to construct Page Builder content text block
+ */
+function buildPageContentPromptBlock(sourcePageSummary?: ExtractedPageSummary | null): string {
+  if (!sourcePageSummary) return '';
+
+  return `
+========================================
+🌐 SOURCE LANDING PAGE CONTENT (תוכן העמוד הנבחר מיוצר העמודים):
+- Page Title: ${sourcePageSummary.pageTitle}
+- URL Slug: ${sourcePageSummary.slug}
+- Hero Headline: ${sourcePageSummary.heroHeadline || ''}
+- Hero Subheadline / Promise: ${sourcePageSummary.heroSubheadline || ''}
+- Hero CTA: ${sourcePageSummary.heroCtaText || 'קבלו הצעה'}
+- Detailed Page Sections & Features:
+${sourcePageSummary.sectionsSummaryText}
+========================================
+`;
+}
+
+/**
  * Step 1: Generate 2-3 sharp guiding questions from Gemini to refine project scope
  */
 export async function generateClarificationQuestionsWithAI(
@@ -76,9 +146,16 @@ export async function generateClarificationQuestionsWithAI(
   const conversationId = params.conversationId || `conv_clarify_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
   const liveModel = getValidGeminiModel(modelName);
 
-  const promptText = `You are an elite Hollywood Video Director and Strategic CRO Marketing Consultant.
-The user wants to create a video production project.
-Analyze their initial inputs and materials, and return 2 to 3 sharp, focused clarification questions in Hebrew to guide and refine the script quality, unique selling proposition, primary customer objection, and call to action.
+  const brandDnaBlock = buildBrandDnaPromptBlock(params.brandDna);
+  const pageContentBlock = buildPageContentPromptBlock(params.sourcePageSummary);
+
+  const promptText = `You are an elite Hollywood Video Director, AI Video Architect, and Strategic CRO Marketing Consultant.
+The user wants to create an ultra-high-converting, interactive video production campaign that can replace or augment a landing page.
+
+Analyze their initial inputs, attached materials, Brand DNA, and Source Landing Page content (if provided), and return 2 to 3 sharp, focused clarification questions in Hebrew to guide and refine:
+1. The primary audience persona & emotional pain point.
+2. The core Q&A interactive branching choice (what key question should the avatar ask the viewer to qualify them?).
+3. The ultimate call to action and conversion trigger.
 
 INITIAL BRIEF:
 - Topic / Concept: ${params.topic}
@@ -91,15 +168,19 @@ ${params.documentUrl ? `- Reference Document / Google Sheet / Web URL: ${params.
 ${params.referencePdfBase64 ? `- Attached PDF document is provided for context.` : ''}
 ${params.referenceImageBase64 ? `- Attached reference image is provided for visual context.` : ''}
 
+${brandDnaBlock}
+
+${pageContentBlock}
+
 Return ONLY a valid JSON object matching this exact schema:
 {
-  "analysisSummary": "משפט אחד קצר בעברית המסכם את ניתוח הבריף והפוטנציאל השיווקי",
+  "analysisSummary": "משפט אחד עד שניים בעברית המסכמים את הפוטנציאל השיווקי והחיבור בין המיתוג, תוכן העמוד והוידאו האינטראקטיבי",
   "questions": [
     {
       "id": "q1",
       "question": "שאלה מנחה חדה וממוקדת בעברית",
       "hint": "רמז קצר או דוגמה לתשובה",
-      "suggestedAnswer": "הצעת תשובה ראשונית שהמשתמש יכול לאמץ בלחיצה"
+      "suggestedAnswer": "הצעת תשובה ראשונית מותאמת מותג שהמשתמש יכול לאמץ בלחיצה"
     }
   ]
 }`;
@@ -162,8 +243,8 @@ Return ONLY a valid JSON object matching this exact schema:
 
   const parsed = JSON.parse(text);
 
-  const promptTokens = data.usageMetadata?.promptTokenCount || 450;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 350;
+  const promptTokens = data.usageMetadata?.promptTokenCount || 550;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 400;
 
   const costReport = calculateGeminiCost({
     model: modelName,
@@ -182,7 +263,7 @@ Return ONLY a valid JSON object matching this exact schema:
 }
 
 /**
- * Step 2: Main AI Studio Storyboard & Project Architect Engine
+ * Step 2: Main AI Studio Storyboard & Interactive Branching Tree Architect
  */
 export async function generateStoryboardWithAI(
   apiKey: string,
@@ -203,8 +284,11 @@ ${params.clarificationAnswers.map((a, i) => `  ${i + 1}. שאלה: ${a.question}
      תשובה: ${a.answer}`).join('\n')}`
     : '';
 
+  const brandDnaBlock = buildBrandDnaPromptBlock(params.brandDna);
+  const pageContentBlock = buildPageContentPromptBlock(params.sourcePageSummary);
+
   const promptText = `You are an elite Hollywood Video Director, AI Media Architect, and CRO Conversion Specialist.
-You must construct a cohesive, ultra-high-converting, multi-scene video production project.
+You must construct a cohesive, ultra-high-converting, multi-scene interactive video tree that can completely replace or empower a static landing page.
 
 PROJECT SPECIFICATIONS:
 - Production Type: ${prodType.name} (${prodType.description})
@@ -223,15 +307,23 @@ ${params.referencePdfBase64 ? '- An attached PDF document is provided. Extract a
 
 ${clarificationBlock}
 
-PROJECT TITLE MANDATE:
-Generate a compelling, descriptive, and high-converting Hebrew project title for the "title" field that accurately captures the campaign (e.g. "המהפכה השיווקית של [שם הנושא] - סרטון תדמית ומכירה").
+${brandDnaBlock}
+
+${pageContentBlock}
+
+INTERACTIVE Q&A & TREE ARCHITECTURE MANDATE:
+1. Scene 1 (welcome_hook): Avatar greets the audience with high energy and UVP, presenting an immediate interactive question (Quick Replies / Buttons) to qualify the viewer (e.g., "איזה פתרון אתם מחפשים?").
+2. Scene 2 (feature_explainer / personalized branch): Presents the value proposition matching the viewer's choice, incorporating key services and proof points.
+3. Scene 3 (objection_handler / interactive FAQ): Avatar addresses the top FAQ / objection from the brand/page with interactive cards.
+4. Scene 4+ (lead_closing): Compelling closing offer, direct CTA button (WhatsApp / Lead Capture / Checkout) with trust badges.
+5. Interactive Actions & Cards: Every scene MUST include realistic, engaging Hebrew interactive actions (e.g. choice buttons) and interactive cards (e.g. highlight badge, service point, testimonial quote).
 
 GOOGLE SPEECH & AUDIO DIRECTION MANDATE:
-According to Google AI Studio Speech Generation standards, every scene's "dialogueScript" MUST naturally incorporate speech direction and timing tags like [excited], [warm], [pause], [emphasis], [dramatic], [whispering], [cheerful] to instruct the TTS voice model on cadence, emotion, and dramatic pauses.
+Every scene's "dialogueScript" MUST incorporate speech direction tags like [excited], [warm], [pause], [emphasis], [dramatic], [cheerful] to instruct TTS voice cadence.
 
 NANO BANANA PRO CONSISTENCY MANDATE:
-You must define a unified "[BANANA_PRO_CONSISTENCY_SEED]" in the character bible and visual guide.
-Every single scene's "visualPrompt" MUST begin with the exact visual style prefix followed by the consistent character/scene tags so that Imagen 3 / Nano Banana Pro renders 100% consistent visuals across all ${sceneCount} scenes.
+Define a unified "[BANANA_PRO_CONSISTENCY_SEED]" in the character bible.
+Every scene's "visualPrompt" MUST begin with "${visualStyle.visualPromptPrefix}, [BANANA_PRO_CONSISTENCY_SEED], ..." for 100% visual consistency.
 
 Return ONLY a valid JSON object matching this exact schema:
 {
@@ -251,17 +343,18 @@ Return ONLY a valid JSON object matching this exact schema:
       "sceneNumber": 1,
       "sceneRole": "welcome_hook",
       "title": "Hebrew scene title",
-      "dialogueScript": "[warm] טקסט הקריינות של הפרזנטור [pause] כולל תגיות הדרכה קוליות [emphasis] להגשה מקצועית.",
-      "visualPrompt": "${visualStyle.visualPromptPrefix}, [BANANA_PRO_CONSISTENCY_SEED], detailed scene specific action, shot angle, lighting",
+      "dialogueScript": "[warm] שלום וברוכים הבאים! [pause] האם אתם מחפשים לשדרג את העסק שלכם? [excited] בחרו את האפשרות המתאימה לכם למטה!",
+      "visualPrompt": "${visualStyle.visualPromptPrefix}, [BANANA_PRO_CONSISTENCY_SEED], modern cinematic studio background, friendly presenter smiling at camera",
       "characterDescription": "Avatar expression, posture, and action",
       "durationSeconds": 6,
       "interactiveActions": [
-        { "label": "Action button text in Hebrew", "variant": "primary" }
+        { "label": "אני רוצה להגדיל מכירות", "variant": "primary" },
+        { "label": "אני רוצה לחסוך זמן ומשאבים", "variant": "gold" }
       ],
       "interactiveCards": [
-        { "title": "Card title in Hebrew", "description": "Card explanation in Hebrew", "badge": "⭐ תגית" }
+        { "title": "פתרון מותאם אישית", "description": "גלו את המסלול המתאים לכם", "badge": "⭐ מומלץ" }
       ],
-      "voicePromptExamples": ["דוגמה לפקודה קולית"]
+      "voicePromptExamples": ["רוצה להגדיל מכירות", "מעוניין בהסבר נוסף"]
     }
   ]
 }`;
@@ -324,8 +417,8 @@ Return ONLY a valid JSON object matching this exact schema:
 
   const parsed = JSON.parse(text);
 
-  const promptTokens = data.usageMetadata?.promptTokenCount || 600;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 1200;
+  const promptTokens = data.usageMetadata?.promptTokenCount || 750;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 1400;
 
   const costReport = calculateGeminiCost({
     model: modelName,
@@ -353,6 +446,11 @@ Return ONLY a valid JSON object matching this exact schema:
       voiceId: defaultVoice,
       transition: 'fade',
       heygenStatus: 'pending',
+      subtitleText: cleanSubtitleText(s.dialogueScript),
+      subtitleStyle: 'boxed',
+      subtitleAnimation: 'word',
+      subtitleFontSize: 18,
+      subtitlePosition: 'bottom',
       interactiveActions: (s.interactiveActions || []).map((act: any, aIdx: number) => ({
         id: `act_${sceneId}_${aIdx}`,
         label: act.label || 'המשך',
@@ -366,26 +464,39 @@ Return ONLY a valid JSON object matching this exact schema:
         badge: card.badge
       })),
       voicePromptExamples: s.voicePromptExamples || [],
-      autoTransitionOnEnd: true
+      autoTransitionOnEnd: true,
+      whatsappNumber: params.brandDna?.trust?.whatsappSupportNumber || params.sourcePageSummary?.contact?.whatsapp,
+      whatsappMessage: `שלום, הגעתי מסרטון האינטראקטיבי של ${params.brandDna?.identity?.companyName || params.sourcePageSummary?.pageTitle || 'העמוד'}`
     };
   });
 
-  // Link actions sequentially
+  // Link actions sequentially / branching
   scenes.forEach((scn, idx) => {
     const nextScn = scenes[idx + 1] || scenes[0];
     if (scn.interactiveActions && scn.interactiveActions.length > 0) {
-      scn.interactiveActions[0].targetSceneId = nextScn.id;
+      scn.interactiveActions.forEach((act, actIdx) => {
+        // If there are multiple actions in scene 1, branch to scene 2 or scene 3
+        if (idx === 0 && scenes.length >= 3 && actIdx > 0) {
+          act.targetSceneId = scenes[2]?.id || nextScn.id;
+        } else {
+          act.targetSceneId = nextScn.id;
+        }
+      });
     }
   });
 
+  const defaultTitle = params.sourcePageSummary?.pageTitle 
+    ? `עץ וידאו אינטראקטיבי: ${params.sourcePageSummary.pageTitle}`
+    : (params.topic ? `${params.topic} - ${params.marketingHook || 'הפקת וידאו'}` : `פרויקט וידאו חדש - ${new Date().toLocaleDateString('he-IL')}`);
+
   const finalProjectTitle = parsed.title?.trim()
     ? parsed.title.trim().replace(/^["']|["']$/g, '')
-    : (params.topic ? `${params.topic} - ${params.marketingHook || 'הפקת וידאו'}` : `פרויקט וידאו חדש - ${new Date().toLocaleDateString('he-IL')}`);
+    : defaultTitle;
 
   const conversationHistory: ChatMessageContext[] = [
     {
       role: 'user',
-      content: `Generate Storyboard Brief: Topic="${params.topic}", Audience="${params.targetAudience}", Hook="${params.marketingHook}", Style="${visualStyle.name}", Scenes=${sceneCount}`,
+      content: `Generate Storyboard Brief: Topic="${params.topic}", Page="${params.sourcePageSummary?.pageTitle || 'None'}", Audience="${params.targetAudience}", Hook="${params.marketingHook}", Style="${visualStyle.name}", Scenes=${sceneCount}`,
       timestamp: new Date().toISOString()
     },
     {
@@ -434,7 +545,7 @@ PROJECT OVERVIEW & BIBLE:
 - Target Language: ${project.ttsLanguage || 'he-IL'}
 
 USER INSTRUCTION FOR NEXT SCENE ${nextSceneNumber}:
-${customSceneInstruction || 'Create the next natural progression scene in the storyboard / funnel.'}
+${customSceneInstruction || 'Create the next natural progression scene in the storyboard / interactive funnel.'}
 
 Return ONLY a JSON object with this exact schema:
 {
@@ -446,10 +557,10 @@ Return ONLY a JSON object with this exact schema:
   "characterDescription": "${overview?.characterBible || 'Consistent character'}",
   "durationSeconds": 6,
   "interactiveActions": [
-    { "label": "המשך", "variant": "primary" }
+    { "label": "המשך לשלב הבא", "variant": "primary" }
   ],
   "interactiveCards": [
-    { "title": "כרטיס הסבר", "description": "פירוט" }
+    { "title": "כרטיס הסבר", "description": "פירוט התכונה", "badge": "⭐ נקודה חשובה" }
   ]
 }`;
 
@@ -481,8 +592,8 @@ Return ONLY a JSON object with this exact schema:
 
   const parsed = JSON.parse(text);
 
-  const promptTokens = data.usageMetadata?.promptTokenCount || 400;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 500;
+  const promptTokens = data.usageMetadata?.promptTokenCount || 450;
+  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 550;
 
   const costReport = calculateGeminiCost({
     model: modelName,
@@ -506,6 +617,11 @@ Return ONLY a JSON object with this exact schema:
     voiceId: project.scenes[0]?.voiceId || '1bd001e7e50f421d891986aad5158bc8',
     transition: 'fade',
     heygenStatus: 'pending',
+    subtitleText: cleanSubtitleText(parsed.dialogueScript),
+    subtitleStyle: 'boxed',
+    subtitleAnimation: 'word',
+    subtitleFontSize: 18,
+    subtitlePosition: 'bottom',
     interactiveActions: (parsed.interactiveActions || []).map((act: any, aIdx: number) => ({
       id: `act_${newSceneId}_${aIdx}`,
       label: act.label || 'המשך',

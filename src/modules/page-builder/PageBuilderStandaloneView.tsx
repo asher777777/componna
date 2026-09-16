@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageBuilderConfig, SectionType } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { PageBuilderEditor } from './PageBuilderEditor';
@@ -86,6 +87,7 @@ const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
 };
 
 export const PageBuilderStandaloneView: React.FC = () => {
+  const navigate = useNavigate();
   const { db } = useSystemConnection();
   const { brandDna } = useBrandDna();
 
@@ -120,6 +122,14 @@ export const PageBuilderStandaloneView: React.FC = () => {
     await pageBuilderFirestore.savePage(updated, db);
     const all = await pageBuilderFirestore.getAllPages(db);
     setPages(all);
+  };
+
+  // Convert page to interactive video funnel
+  const handleConvertToVideo = (page: PageBuilderConfig) => {
+    try {
+      localStorage.setItem('sdo_video_studio_target_page_id', page.pageId);
+    } catch {}
+    navigate('/video-producer-studio');
   };
 
   // Create empty new page
@@ -221,6 +231,7 @@ export const PageBuilderStandaloneView: React.FC = () => {
             setSelectedShortPage(page);
             setIsShortenerModalOpen(true);
           }}
+          onConvertToVideo={handleConvertToVideo}
         />
       ) : (
         <PageBuilderEditor
@@ -228,6 +239,7 @@ export const PageBuilderStandaloneView: React.FC = () => {
           onSaveConfig={handleSavePage}
           onGoToPagesList={() => setViewMode('pages')}
           onClose={() => setViewMode('pages')}
+          onConvertToVideo={() => handleConvertToVideo(currentPage)}
         />
       )}
 

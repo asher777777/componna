@@ -14,7 +14,7 @@ import { VideoPreviewPlayer } from './VideoPreviewPlayer';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
 import { GOOGLE_TTS_VOICES, SPEECH_DIRECTION_TAGS, synthesizeGoogleSpeechAudio } from '../services/googleTtsService';
-import { generateSrtContent, generateVttContent, downloadSubtitleFile } from '../services/subtitleService';
+import { generateSrtContent, generateVttContent, downloadSubtitleFile, cleanSubtitleText } from '../services/subtitleService';
 import { PRODUCTION_TYPES_CATALOG, VISUAL_STYLES_CATALOG } from '../config/catalogs';
 
 export const SceneTimelineEditor: React.FC = () => {
@@ -1394,12 +1394,12 @@ export const SceneTimelineEditor: React.FC = () => {
                       </label>
                       <button
                         type="button"
-                        onClick={() => updateCurrentScene(activeScene.id, { subtitleText: activeScene.dialogueScript })}
+                        onClick={() => updateCurrentScene(activeScene.id, { subtitleText: cleanSubtitleText(activeScene.dialogueScript) })}
                         className="px-2.5 py-1 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-300 text-[10px] font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
-                        title="שעתק את תוכן התסריט לשדה הכתוביות"
+                        title="שעתק את תוכן התסריט לשדה הכתוביות (ללא תגיות TTS)"
                       >
                         <Wand2 className="w-3 h-3 text-yellow-400" />
-                        <span>שעתק מתסריט</span>
+                        <span>שעתק מתסריט (נקי)</span>
                       </button>
                     </div>
 
@@ -1407,7 +1407,7 @@ export const SceneTimelineEditor: React.FC = () => {
                       rows={3}
                       value={activeScene.subtitleText || ''}
                       onChange={(e) => updateCurrentScene(activeScene.id, { subtitleText: e.target.value })}
-                      placeholder={activeScene.dialogueScript || 'הזן טקסט כתוביות ייעודי לסצנה...'}
+                      placeholder={cleanSubtitleText(activeScene.dialogueScript) || 'הזן טקסט כתוביות ייעודי לסצנה...'}
                       className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-yellow-500 focus:outline-none leading-relaxed"
                     />
                   </div>
@@ -1442,13 +1442,13 @@ export const SceneTimelineEditor: React.FC = () => {
                       <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
                         <label className="text-[11px] text-slate-400 block">אנימציה:</label>
                         <select
-                          value={activeScene.subtitleAnimation || 'pop'}
+                          value={activeScene.subtitleAnimation || 'word'}
                           onChange={(e) => updateCurrentScene(activeScene.id, { subtitleAnimation: e.target.value as any })}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 font-medium"
                         >
+                          <option value="word">🔤 מילה במילה מסונכרן (Word / Karaoke)</option>
                           <option value="pop">💥 קפיצה קלה (Pop)</option>
                           <option value="fade">🌫️ עמעום (Fade)</option>
-                          <option value="word">🔤 מילה במילה (Word)</option>
                           <option value="line">📜 שורה אחר שורה (Line)</option>
                         </select>
                       </div>

@@ -27,23 +27,23 @@ export function convertVideoProjectToCampaign(project: VideoProject): CampaignCo
 
     const overlays: OverlayItem[] = [];
 
-    // 1. Actions / CTAs
+    // 1. Actions / Q&A Interactive Decision Tree Options
     if (scene.interactiveActions && scene.interactiveActions.length > 0) {
       overlays.push({
         id: `overlay_actions_${scene.id}`,
         type: 'quick_replies',
         position: 'bottom',
-        title: 'בחר פעולה:',
+        title: isFirst ? 'בחר אפשרות להתאמה אישית:' : 'מה הצעד הבא שלך?',
         actions: scene.interactiveActions.map(act => ({
           id: act.id,
           label: act.label,
           targetNodeId: act.targetSceneId || nextScene?.id || scene.id,
-          variant: act.variant === 'gold' ? 'gold' : 'primary'
+          variant: act.variant === 'gold' ? 'gold' : act.variant === 'danger' ? 'primary' : 'primary'
         }))
       });
     }
 
-    // 2. Info Cards
+    // 2. Info Cards & Trust Badges
     if (scene.interactiveCards && scene.interactiveCards.length > 0) {
       const card = scene.interactiveCards[0];
       overlays.push({
@@ -55,7 +55,7 @@ export function convertVideoProjectToCampaign(project: VideoProject): CampaignCo
       });
     }
 
-    // 3. Lead Generation Form overlay on closing scene
+    // 3. Lead Generation Form overlay on closing / sales scene
     if (scene.sceneRole === 'lead_closing' || isLast) {
       overlays.push({
         id: `overlay_lead_${scene.id}`,
@@ -65,7 +65,7 @@ export function convertVideoProjectToCampaign(project: VideoProject): CampaignCo
         subtitle: 'השאירו פרטים ונחזור אליכם בהקדם',
         formFields: [
           { key: 'fullName', label: 'שם מלא', type: 'text', placeholder: 'ישראל ישראלי' },
-          { key: 'phone', label: 'טלפון נייד', type: 'tel', placeholder: '050-0000000' }
+          { key: 'phone', label: 'טלפון נייד / וואטסאפ', type: 'tel', placeholder: '050-0000000' }
         ]
       });
     }

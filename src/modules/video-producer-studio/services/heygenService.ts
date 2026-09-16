@@ -1,5 +1,24 @@
 import { HeyGenAvatar, HeyGenVoice, HeyGenGenerateJobResult } from '../types';
 
+/**
+ * Route API requests through Vite dev proxy on localhost to avoid browser CORS preflight errors
+ */
+export function getHeyGenApiUrl(path: string): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return `/api/heygen${cleanPath}`;
+  }
+  return `https://api.heygen.com${cleanPath}`;
+}
+
+export function getHeyGenUploadUrl(path: string): string {
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+    return `/upload/heygen${cleanPath}`;
+  }
+  return `https://upload.heygen.com${cleanPath}`;
+}
+
 export const DEFAULT_AVATARS: HeyGenAvatar[] = [
   {
     avatar_id: 'Wayne_20240711',
@@ -76,17 +95,27 @@ export async function resolveValidVoiceId(apiKey: string, requestedVoiceId?: str
 }
 
 export async function fetchHeyGenAvatars(apiKey: string): Promise<HeyGenAvatar[]> {
-  if (!apiKey) return DEFAULT_AVATARS;
+  if (!apiKey || !apiKey.trim()) return DEFAULT_AVATARS;
   try {
-    const res = await fetch('https://api.heygen.com/v2/avatars', {
+    let res = await fetch(getHeyGenApiUrl('/v2/avatars'), {
       headers: {
         'X-Api-Key': apiKey.trim(),
         'Accept': 'application/json'
       }
     });
+
+    if (!res.ok && getHeyGenApiUrl('/v2/avatars') !== 'https://api.heygen.com/v2/avatars') {
+      res = await fetch('https://api.heygen.com/v2/avatars', {
+        headers: {
+          'X-Api-Key': apiKey.trim(),
+          'Accept': 'application/json'
+        }
+      });
+    }
+
     if (!res.ok) throw new Error(`HeyGen error ${res.status}`);
     const data = await res.json();
-    if (data?.data?.avatars && Array.isArray(data.data.avatars)) {
+    if (data?.data?.avatars && Array.isArray(data.data.avatars) && data.data.avatars.length > 0) {
       return data.data.avatars.map((a: any) => ({
         avatar_id: a.avatar_id,
         avatar_name: a.avatar_name || a.avatar_id,
@@ -103,17 +132,27 @@ export async function fetchHeyGenAvatars(apiKey: string): Promise<HeyGenAvatar[]
 }
 
 export async function fetchHeyGenVoices(apiKey: string): Promise<HeyGenVoice[]> {
-  if (!apiKey) return DEFAULT_VOICES;
+  if (!apiKey || !apiKey.trim()) return DEFAULT_VOICES;
   try {
-    const res = await fetch('https://api.heygen.com/v2/voices', {
+    let res = await fetch(getHeyGenApiUrl('/v2/voices'), {
       headers: {
         'X-Api-Key': apiKey.trim(),
         'Accept': 'application/json'
       }
     });
+
+    if (!res.ok && getHeyGenApiUrl('/v2/voices') !== 'https://api.heygen.com/v2/voices') {
+      res = await fetch('https://api.heygen.com/v2/voices', {
+        headers: {
+          'X-Api-Key': apiKey.trim(),
+          'Accept': 'application/json'
+        }
+      });
+    }
+
     if (!res.ok) throw new Error(`HeyGen error ${res.status}`);
     const data = await res.json();
-    if (data?.data?.voices && Array.isArray(data.data.voices)) {
+    if (data?.data?.voices && Array.isArray(data.data.voices) && data.data.voices.length > 0) {
       return data.data.voices.map((v: any) => ({
         voice_id: v.voice_id,
         name: v.name || v.voice_id,
@@ -149,18 +188,18 @@ function dataUriToBlob(dataUri: string): { blob: Blob; mimeType: string } {
 }
 
 function extractHeyGenErrorMessage(errData: any, status: number): string {
-  if (!errData) return `HeyGen API error (${status})`;
+  if (!errData) return `שגיאת שרת HeyGen (${status})`;
   if (typeof errData === 'string') return errData;
-  if (typeof errData.error === 'string') return errData.error;
-  if (errData.error?.message) return String(errData.error.message);
-  if (errData.message) return String(errData.message);
+  if (errData.message && typeof errData.message === 'string') return errData.message;
+  if (errData.error?.message && typeof errData.error?.message === 'string') return errData.error.message;
+  if (errData.error && typeof errData.error === 'string') return errData.error;
+  if (errData.data?.message && typeof errData.data?.message === 'string') return errData.data.message;
   if (errData.data && typeof errData.data === 'string') return errData.data;
-  if (errData.data?.message) return String(errData.data.message);
-  if (errData.failure_message) return String(errData.failure_message);
+  if (errData.code) return `קוד שגיאה: ${errData.code} - ${errData.message || JSON.stringify(errData)}`;
   try {
     return JSON.stringify(errData);
   } catch {
-    return `HeyGen API error (${status})`;
+    return `שגיאת שרת HeyGen (${status})`;
   }
 }
 
@@ -197,7 +236,7 @@ export async function uploadAssetToHeyGen(
     mimeType = mediaData.type || defaultMime;
   }
 
-  const res = await fetch('https://upload.heygen.com/v1/asset', {
+  let res = await fetch(getHeyGenUploadUrl('/v1/asset'), {
     method: 'POST',
     headers: {
       'X-Api-Key': apiKey.trim(),
@@ -205,6 +244,17 @@ export async function uploadAssetToHeyGen(
     },
     body: blob
   });
+
+  if (!res.ok && res.status === 404 && getHeyGenUploadUrl('/v1/asset') !== 'https://upload.heygen.com/v1/asset') {
+    res = await fetch('https://upload.heygen.com/v1/asset', {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': apiKey.trim(),
+        'Content-Type': mimeType
+      },
+      body: blob
+    });
+  }
 
   if (!res.ok) {
     const errData = await res.json().catch(() => ({}));
@@ -244,7 +294,7 @@ export async function fetchHeyGenTalkingPhotos(
 ): Promise<{ talking_photo_id: string; talking_photo_name?: string; preview_image_url?: string }[]> {
   if (!apiKey) return [];
   try {
-    const res = await fetch('https://api.heygen.com/v2/talking_photos', {
+    const res = await fetch(getHeyGenApiUrl('/v2/talking_photos'), {
       headers: {
         'X-Api-Key': apiKey.trim(),
         'Accept': 'application/json'
@@ -266,6 +316,18 @@ export async function getOrCreateTalkingPhotoId(
   apiKey: string,
   imageData: string | Blob
 ): Promise<string | null> {
+  // 1. Try Asset upload first - HeyGen accepts the uploaded asset_id as talking_photo_id
+  try {
+    const assetRes = await uploadAssetToHeyGen(apiKey, imageData, 'image/jpeg');
+    if (assetRes.asset_id) {
+      console.info('[HeyGen] Obtained asset_id for talking photo:', assetRes.asset_id);
+      return assetRes.asset_id;
+    }
+  } catch (assetErr) {
+    console.warn('[HeyGen] Asset upload notice:', assetErr);
+  }
+
+  // 2. Try dedicated talking_photo upload endpoint
   let blob: Blob | null = null;
   let mimeType = 'image/jpeg';
 
@@ -288,10 +350,9 @@ export async function getOrCreateTalkingPhotoId(
     mimeType = imageData.type || 'image/jpeg';
   }
 
-  // 1. Try dedicated talking_photo upload endpoint
   if (blob) {
     try {
-      const res = await fetch('https://upload.heygen.com/v1/talking_photo', {
+      let res = await fetch(getHeyGenUploadUrl('/v1/talking_photo'), {
         method: 'POST',
         headers: {
           'X-Api-Key': apiKey.trim(),
@@ -299,9 +360,21 @@ export async function getOrCreateTalkingPhotoId(
         },
         body: blob
       });
+
+      if (!res.ok && res.status === 404 && getHeyGenUploadUrl('/v1/talking_photo') !== 'https://upload.heygen.com/v1/talking_photo') {
+        res = await fetch('https://upload.heygen.com/v1/talking_photo', {
+          method: 'POST',
+          headers: {
+            'X-Api-Key': apiKey.trim(),
+            'Content-Type': mimeType
+          },
+          body: blob
+        });
+      }
+
       if (res.ok) {
         const data = await res.json();
-        const photoId = data?.data?.talking_photo_id || data?.data?.id;
+        const photoId = data?.data?.talking_photo_id || data?.data?.id || data?.id;
         if (photoId) return photoId;
       }
     } catch (err) {
@@ -309,7 +382,7 @@ export async function getOrCreateTalkingPhotoId(
     }
   }
 
-  // 2. Fallback: Fetch existing talking photos from HeyGen account
+  // 3. Fallback: Fetch existing talking photos from HeyGen account
   try {
     const existing = await fetchHeyGenTalkingPhotos(apiKey);
     if (existing && existing.length > 0 && existing[0].talking_photo_id) {
@@ -323,9 +396,7 @@ export async function getOrCreateTalkingPhotoId(
 }
 
 /**
- * Generate HeyGen Video using the dedicated Image-to-Video model (POST /v3/videos with type="image")
- * or Studio Avatar model (type="avatar") with full Google TTS audio integration.
- * Refer to https://developers.heygen.com/image-to-video
+ * Generate HeyGen Video with full Avatar, Photo Avatar, Background, and Audio integration.
  */
 export async function generateHeyGenSceneVideo(
   apiKey: string,
@@ -341,12 +412,11 @@ export async function generateHeyGenSceneVideo(
     isPhotoAvatar?: boolean;
   }
 ): Promise<string> {
-  if (!apiKey) {
+  if (!apiKey || !apiKey.trim()) {
     throw new Error('נא להזין מפתח HeyGen API Key ברכיב ה-DB Connector.');
   }
 
   const rawPhoto = params.customAvatarImageUrl || params.imageUrl || params.backgroundMediaUrl;
-  const isImageToVideo = Boolean(rawPhoto && rawPhoto.trim());
 
   // 1. Prepare Audio Asset (Google TTS or uploaded voice track)
   let audioAssetId: string | undefined;
@@ -365,11 +435,11 @@ export async function generateHeyGenSceneVideo(
     }
   }
 
-  // 2. Prepare Image Asset if Image-to-Video
+  // 2. Prepare Image / Background Asset
   let imageAssetId: string | undefined;
   let publicImageUrl: string | undefined;
 
-  if (isImageToVideo && rawPhoto) {
+  if (rawPhoto) {
     try {
       const imageResult = await uploadAssetToHeyGen(apiKey, rawPhoto, 'image/jpeg');
       imageAssetId = imageResult.asset_id;
@@ -390,164 +460,148 @@ export async function generateHeyGenSceneVideo(
     resolvedVoiceId = await resolveValidVoiceId(apiKey, params.voiceId);
   }
 
-  // 3. Try HeyGen Image-to-Video API (POST /v3/videos)
-  try {
-    let v3Payload: any;
+  // 3. Resolve Character (Photo Avatar or Studio Avatar)
+  let character: any;
 
-    if (isImageToVideo) {
-      // Image to Video Model (https://developers.heygen.com/image-to-video)
-      v3Payload = {
-        type: 'image',
-        image: imageAssetId
-          ? { type: 'asset_id', asset_id: imageAssetId }
-          : { type: 'url', url: publicImageUrl || rawPhoto },
-        aspect_ratio: aspectRatio,
-        title: 'Comona Image-to-Video Scene'
+  const wantsPhotoAvatar = params.isPhotoAvatar || !!params.customAvatarImageUrl || (!!rawPhoto && !params.avatarId);
+
+  if (wantsPhotoAvatar && rawPhoto) {
+    let photoId: string | null | undefined = imageAssetId;
+    if (!photoId) {
+      photoId = await getOrCreateTalkingPhotoId(apiKey, rawPhoto);
+    }
+    if (photoId) {
+      character = {
+        type: 'talking_photo',
+        talking_photo_id: photoId
       };
-
-      if (audioAssetId) {
-        v3Payload.audio_asset_id = audioAssetId;
-      } else if (publicAudioUrl) {
-        v3Payload.audio_url = publicAudioUrl;
-      } else if (params.scriptText?.trim()) {
-        v3Payload.script = params.scriptText;
-        v3Payload.voice_id = resolvedVoiceId;
-      }
+      console.info('[HeyGen] Using talking_photo character with ID:', photoId);
     } else {
-      // Studio Avatar Model
-      v3Payload = {
-        type: 'avatar',
-        avatar_id: params.avatarId || 'Wayne_20240711',
-        avatar_style: 'normal',
-        aspect_ratio: aspectRatio,
-        title: 'Comona Avatar Scene'
-      };
+      throw new Error('לא ניתן היה לעבד את תמונת הפרזנטור מול HeyGen. נא לוודא שהתמונה בפורמט תקין ולנסות שוב.');
+    }
+  }
 
-      if (audioAssetId) {
-        v3Payload.audio_asset_id = audioAssetId;
-      } else if (publicAudioUrl) {
-        v3Payload.audio_url = publicAudioUrl;
-      } else if (params.scriptText?.trim()) {
-        v3Payload.script = params.scriptText;
-        v3Payload.voice_id = resolvedVoiceId;
-      }
+  // If studio avatar requested or chosen
+  if (!character) {
+    const liveAvatars = await fetchHeyGenAvatars(apiKey);
+    let chosenAvatarId = params.avatarId;
+
+    // Check if the requested avatar ID exists in live account avatars
+    const matchedAvatar = liveAvatars.find(a => a.avatar_id === chosenAvatarId);
+    if (matchedAvatar) {
+      chosenAvatarId = matchedAvatar.avatar_id;
+    } else if (liveAvatars.length > 0) {
+      // Use the first valid avatar from this HeyGen account
+      chosenAvatarId = liveAvatars[0].avatar_id;
+    } else {
+      chosenAvatarId = 'Wayne_20240711';
     }
 
-    console.log('[HeyGen] Sending POST /v3/videos payload:', JSON.stringify(v3Payload, null, 2));
+    character = {
+      type: 'avatar',
+      avatar_id: chosenAvatarId,
+      avatar_style: 'normal'
+    };
+  }
 
-    const v3Res = await fetch('https://api.heygen.com/v3/videos', {
+  // 4. Construct Voice payload
+  let voice: any;
+  if (publicAudioUrl) {
+    voice = {
+      type: 'audio',
+      audio_url: publicAudioUrl
+    };
+  } else {
+    voice = {
+      type: 'text',
+      input_text: params.scriptText?.trim() || 'שלום וברוכים הבאים',
+      voice_id: resolvedVoiceId
+    };
+  }
+
+  // 5. Construct Dimension
+  const dimension = aspectRatio === '9:16'
+    ? { width: 720, height: 1280 }
+    : (aspectRatio === '1:1' ? { width: 720, height: 720 } : { width: 1280, height: 720 });
+
+  // 6. Construct Scene Input
+  const sceneInput: any = {
+    character,
+    voice
+  };
+
+  // Background: only apply if not a talking photo (or if a separate background exists)
+  if (character?.type !== 'talking_photo' && publicImageUrl) {
+    sceneInput.background = {
+      type: 'image',
+      url: publicImageUrl
+    };
+  }
+
+  const v2Payload = {
+    video_inputs: [sceneInput],
+    dimension,
+    test: false
+  };
+
+  console.log('[HeyGen] Sending POST /v2/video/generate payload:', JSON.stringify(v2Payload, null, 2));
+
+  // Try proxy first, fallback to direct URL if proxy returns 404 or fails
+  const primaryUrl = getHeyGenApiUrl('/v2/video/generate');
+  const directUrl = 'https://api.heygen.com/v2/video/generate';
+
+  let response: Response;
+  let resData: any;
+
+  try {
+    response = await fetch(primaryUrl, {
       method: 'POST',
       headers: {
         'X-Api-Key': apiKey.trim(),
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify(v3Payload)
+      body: JSON.stringify(v2Payload)
     });
+    resData = await response.json().catch(() => ({}));
 
-    if (v3Res.ok) {
-      const data = await v3Res.json();
-      const videoId = data?.data?.video_id || data?.data?.id || data?.video_id || data?.id;
-      if (videoId) {
-        console.info('[HeyGen] Successfully started v3 video job:', videoId);
-        return videoId;
-      }
-    } else {
-      const errJson = await v3Res.json().catch(() => ({}));
-      console.warn('[HeyGen] /v3/videos returned error:', errJson);
+    // If proxy returned 404 (e.g. Vite dev server hasn't reloaded proxy config), try direct URL
+    if (!response.ok && primaryUrl !== directUrl && response.status === 404) {
+      console.warn('[HeyGen] Proxy returned 404, attempting direct HeyGen URL...');
+      response = await fetch(directUrl, {
+        method: 'POST',
+        headers: {
+          'X-Api-Key': apiKey.trim(),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(v2Payload)
+      });
+      resData = await response.json().catch(() => ({}));
     }
-  } catch (v3Err) {
-    console.warn('[HeyGen] /v3/videos call failed, falling back to /v2/video/generate:', v3Err);
+  } catch (netErr: any) {
+    console.warn('[HeyGen] Primary request failed, attempting direct URL:', netErr);
+    response = await fetch(directUrl, {
+      method: 'POST',
+      headers: {
+        'X-Api-Key': apiKey.trim(),
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(v2Payload)
+    });
+    resData = await response.json().catch(() => ({}));
   }
 
-  // 4. Fallback to /v2/video/generate
-  const dimensionMap = {
-    '16:9': { width: 1920, height: 1080 },
-    '9:16': { width: 1080, height: 1920 },
-    '1:1': { width: 1080, height: 1080 }
-  };
-  const dimension = dimensionMap[params.aspectRatio || '16:9'];
-
-  let characterConfig: any;
-  let backgroundConfig: any = undefined;
-
-  // If image is provided, try getting a valid talking photo ID, otherwise use image as background with avatar
-  let talkingPhotoId: string | null = null;
-  if (isImageToVideo && rawPhoto) {
-    talkingPhotoId = await getOrCreateTalkingPhotoId(apiKey, rawPhoto);
+  if (!response.ok) {
+    const errMsg = extractHeyGenErrorMessage(resData, response.status);
+    console.error('[HeyGen] Full Error response:', { status: response.status, statusText: response.statusText, data: resData });
+    throw new Error(`שגיאת HeyGen (${response.status}): ${errMsg}`);
   }
 
-  if (talkingPhotoId) {
-    characterConfig = {
-      type: 'talking_photo',
-      talking_photo_id: talkingPhotoId
-    };
-  } else {
-    characterConfig = {
-      type: 'avatar',
-      avatar_id: params.avatarId || 'Wayne_20240711',
-      avatar_style: 'normal'
-    };
-    if (publicImageUrl || (rawPhoto && rawPhoto.startsWith('http'))) {
-      backgroundConfig = {
-        type: 'image',
-        url: publicImageUrl || rawPhoto
-      };
-    }
-  }
-
-  let voiceConfig: any;
-  if (publicAudioUrl) {
-    voiceConfig = {
-      type: 'audio',
-      audio_url: publicAudioUrl
-    };
-  } else if (audioAssetId) {
-    voiceConfig = {
-      type: 'audio',
-      audio_asset_id: audioAssetId
-    };
-  } else {
-    voiceConfig = {
-      type: 'text',
-      input_text: params.scriptText,
-      voice_id: resolvedVoiceId
-    };
-  }
-
-  const v2Payload: any = {
-    video_inputs: [
-      {
-        character: characterConfig,
-        voice: voiceConfig,
-        ...(backgroundConfig && { background: backgroundConfig })
-      }
-    ],
-    dimension
-  };
-
-  console.log('[HeyGen] Sending fallback POST /v2/video/generate payload:', JSON.stringify(v2Payload, null, 2));
-
-  const v2Res = await fetch('https://api.heygen.com/v2/video/generate', {
-    method: 'POST',
-    headers: {
-      'X-Api-Key': apiKey.trim(),
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(v2Payload)
-  });
-
-  if (!v2Res.ok) {
-    const errData = await v2Res.json().catch(() => ({}));
-    console.error('[HeyGen] Generate video fallback error response:', errData);
-    throw new Error(extractHeyGenErrorMessage(errData, v2Res.status));
-  }
-
-  const v2Data = await v2Res.json();
-  const videoId = v2Data?.data?.video_id;
+  const videoId = resData?.data?.video_id || resData?.data?.id || resData?.video_id || resData?.id;
   if (!videoId) {
     throw new Error('לא התקבל מזהה סרטון מ-HeyGen.');
   }
 
+  console.info('[HeyGen] Video creation job started successfully:', videoId);
   return videoId;
 }
 
@@ -555,55 +609,55 @@ export async function pollHeyGenVideoStatus(
   apiKey: string,
   videoId: string
 ): Promise<HeyGenGenerateJobResult> {
-  // 1. Try v3 status endpoint
+  // 1. Try v1 video_status.get endpoint
   try {
-    const v3Res = await fetch(`https://api.heygen.com/v3/videos/${videoId}`, {
+    const res = await fetch(getHeyGenApiUrl(`/v1/video_status.get?video_id=${videoId}`), {
       headers: {
         'X-Api-Key': apiKey.trim(),
         'Accept': 'application/json'
       }
     });
 
-    if (v3Res.ok) {
-      const data = await v3Res.json();
-      const item = data?.data || data;
-      const statusRaw = String(item?.status || '').toLowerCase();
-      const status = statusRaw === 'completed' ? 'completed' : (statusRaw === 'failed' ? 'failed' : 'processing');
-      const videoUrl = item?.video_url;
-      const error = item?.failure_message || item?.error?.message || item?.error;
+    if (res.ok) {
+      const data = await res.json();
+      const status = data?.data?.status;
+      const videoUrl = data?.data?.video_url;
+      const error = data?.data?.error;
 
       return {
         video_id: videoId,
-        status,
+        status: status === 'completed' ? 'completed' : (status === 'failed' ? 'failed' : 'processing'),
         video_url: videoUrl,
-        error
+        error: error?.message || error
       };
     }
-  } catch (v3Err) {
-    console.warn('[HeyGen] v3 status check fallback:', v3Err);
+  } catch (err) {
+    console.warn('[HeyGen] video_status.get error:', err);
   }
 
-  // 2. Fallback to v1 video_status.get endpoint
-  const res = await fetch(`https://api.heygen.com/v1/video_status.get?video_id=${videoId}`, {
+  // 2. Fallback to v3 status endpoint
+  const v3Res = await fetch(getHeyGenApiUrl(`/v3/videos/${videoId}`), {
     headers: {
       'X-Api-Key': apiKey.trim(),
       'Accept': 'application/json'
     }
   });
 
-  if (!res.ok) {
-    throw new Error(`Failed to check video status (${res.status})`);
+  if (!v3Res.ok) {
+    throw new Error(`Failed to check video status (${v3Res.status})`);
   }
 
-  const data = await res.json();
-  const status = data?.data?.status;
-  const videoUrl = data?.data?.video_url;
-  const error = data?.data?.error;
+  const itemData = await v3Res.json();
+  const item = itemData?.data || itemData;
+  const statusRaw = String(item?.status || '').toLowerCase();
+  const status = statusRaw === 'completed' ? 'completed' : (statusRaw === 'failed' ? 'failed' : 'processing');
+  const videoUrl = item?.video_url;
+  const error = item?.failure_message || item?.error?.message || item?.error;
 
   return {
     video_id: videoId,
-    status: status === 'completed' ? 'completed' : (status === 'failed' ? 'failed' : 'processing'),
+    status,
     video_url: videoUrl,
-    error: error?.message || error
+    error
   };
 }

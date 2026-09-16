@@ -20,7 +20,8 @@ export type SectionType =
   | 'livePosts'
   | 'landingSection'
   | 'contact'
-  | 'smartForm';
+  | 'smartForm'
+  | 'flowPlayer';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

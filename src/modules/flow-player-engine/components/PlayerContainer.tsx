@@ -38,9 +38,10 @@ import { AspectRatioType, CampaignConfig } from '../types';
 
 export const PlayerContainer: React.FC<{
   className?: string;
+  embedMode?: boolean;
   onOpenProjectsTab?: () => void;
   onNewProjectCreated?: (campaign: CampaignConfig) => void;
-}> = ({ className = '', onOpenProjectsTab, onNewProjectCreated }) => {
+}> = ({ className = '', embedMode = false, onOpenProjectsTab, onNewProjectCreated }) => {
   const { db, collections } = useFlowPlayerModule();
   const {
     campaign,
@@ -65,7 +66,7 @@ export const PlayerContainer: React.FC<{
   const [isSavingProject, setIsSavingProject] = useState<boolean>(false);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  const isLive = playerMode === 'live';
+  const isLive = embedMode || playerMode === 'live';
 
   const handleSaveProject = async () => {
     setIsSavingProject(true);
@@ -314,13 +315,15 @@ export const PlayerContainer: React.FC<{
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={() => setPlayerMode('edit')}
-            className="p-1 text-slate-400 hover:text-yellow-400 transition-colors border-r border-slate-700 pr-1.5"
-            title="חזרה למצב עריכה"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-          </button>
+          {!embedMode && (
+            <button
+              onClick={() => setPlayerMode('edit')}
+              className="p-1 text-slate-400 hover:text-yellow-400 transition-colors border-r border-slate-700 pr-1.5"
+              title="חזרה למצב עריכה"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       )}
 

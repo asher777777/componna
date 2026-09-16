@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   Calendar,
   Layers,
+  Film
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -29,6 +30,7 @@ interface PagesDashboardTabProps {
   onSetHomePage: (pageId: string) => void;
   onTogglePublish: (page: PageBuilderConfig) => void;
   onOpenShortener: (page: PageBuilderConfig) => void;
+  onConvertToVideo?: (page: PageBuilderConfig) => void;
 }
 
 export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
@@ -42,6 +44,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onSetHomePage,
   onTogglePublish,
   onOpenShortener,
+  onConvertToVideo,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'drafts'>('all');
@@ -65,7 +68,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
             <span>ניהול עמודים ודפי נחיתה</span>
           </h1>
           <p className="text-xs sm:text-sm text-slate-400 mt-1">
-            צפו בכל העמודים שנבנו במערכת, נהלו פרסום, הגדירו את עמוד הבית וצרו דפים חדשים ב-AI.
+            צפו בכל העמודים שנבנו במערכת, נהלו פרסום, הגדירו את עמוד הבית והמירו דפים סטטיים לעצי וידאו אינטראקטיביים.
           </p>
         </div>
 
@@ -217,6 +220,20 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
 
                 {/* Quick Action Buttons */}
                 <div className="pt-6 mt-6 border-t border-slate-800 flex flex-col gap-3">
+                  
+                  {/* Convert Page to Interactive Video CTA */}
+                  {onConvertToVideo && (
+                    <button
+                      type="button"
+                      onClick={() => onConvertToVideo(page)}
+                      className="w-full py-2 px-3 rounded-xl bg-gradient-to-r from-purple-900/60 to-pink-900/60 hover:from-purple-800/80 hover:to-pink-800/80 border border-purple-500/40 text-purple-200 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                      title="צור עץ וידאו אינטראקטיבי לעמוד זה בסטודיו"
+                    >
+                      <Film className="w-3.5 h-3.5 text-pink-400" />
+                      <span>🎬 צור עץ וידאו אינטראקטיבי ב-AI</span>
+                    </button>
+                  )}
+
                   <div className="flex items-center gap-2">
                     <button
                       type="button"

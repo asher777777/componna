@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab } from '../types/pageBuilder.types';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
 import {
@@ -17,6 +17,7 @@ import {
   Share2,
   MapPin,
   ArrowRight,
+  Film
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -35,6 +36,7 @@ interface PageBuilderHeaderProps {
   onOpenShortener?: () => void;
   onOpenGeo?: () => void;
   onGoToPagesList?: () => void;
+  onConvertToVideo?: () => void;
 }
 
 export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
@@ -52,6 +54,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
   onOpenShortener,
   onOpenGeo,
   onGoToPagesList,
+  onConvertToVideo,
 }) => {
   return (
     <header className="sticky top-0 z-40 w-full bg-[#0c0c0e]/95 border-b border-slate-800 backdrop-blur-xl px-4 sm:px-6 py-3 select-none" dir="rtl">
@@ -193,6 +196,20 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
 
         {/* Right Side: Tools & Actions */}
         <div className="flex items-center gap-2 sm:gap-2.5">
+          
+          {/* Convert to Interactive Video Button */}
+          {onConvertToVideo && (
+            <button
+              type="button"
+              onClick={onConvertToVideo}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-purple-600/40 via-pink-600/40 to-indigo-600/40 border border-purple-500/50 text-purple-200 hover:text-white text-xs font-bold transition-all hover:scale-105 shadow-md shadow-purple-600/20 cursor-pointer"
+              title="צור עץ וידאו אינטראקטיבי מתוכן עמוד זה בסטודיו"
+            >
+              <Film className="w-3.5 h-3.5 text-pink-400" />
+              <span className="hidden xl:inline">צור וידאו אינטראקטיבי 🎬</span>
+            </button>
+          )}
+
           {/* AI Page Generator */}
           {onOpenAiBuilder && (
             <button

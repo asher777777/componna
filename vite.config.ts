@@ -24,6 +24,18 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/api/heygen': {
+        target: 'https://api.heygen.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/heygen/, ''),
+        secure: false,
+      },
+      '/upload/heygen': {
+        target: 'https://upload.heygen.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/upload\/heygen/, ''),
+        secure: false,
+      },
     },
   },
 });

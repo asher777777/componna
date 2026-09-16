@@ -39,8 +39,9 @@ function generateSessionId(): string {
 
 export const PlayerMachineProvider: React.FC<{
   initialCampaign: CampaignConfig;
+  initialMode?: 'edit' | 'live';
   children: React.ReactNode;
-}> = ({ initialCampaign, children }) => {
+}> = ({ initialCampaign, initialMode, children }) => {
   const { db, collections, config } = useFlowPlayerModule();
 
   const [campaign, setCampaign] = useState<CampaignConfig>(initialCampaign);
@@ -237,6 +238,7 @@ export const PlayerMachineProvider: React.FC<{
   };
 
   const [playerMode, setPlayerMode] = useState<'edit' | 'live'>(() => {
+    if (initialMode) return initialMode;
     if (typeof window !== 'undefined') {
       const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get('mode') === 'live' || searchParams.get('live') === 'true') {

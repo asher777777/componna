@@ -47,6 +47,18 @@ const VideoStudioContent: React.FC = () => {
         {/* Tab Switcher */}
         <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-2xl border border-slate-800 text-xs">
           <button
+            onClick={() => setTab('projects')}
+            className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition cursor-pointer ${
+              tab === 'projects'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <FolderKanban className="w-3.5 h-3.5" />
+            <span>פרויקטים שמורים</span>
+          </button>
+
+          <button
             onClick={() => setTab('wizard')}
             className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition cursor-pointer ${
               tab === 'wizard'
@@ -69,18 +81,6 @@ const VideoStudioContent: React.FC = () => {
           >
             <Layers className="w-3.5 h-3.5" />
             <span>עורך ציר זמן (Studio)</span>
-          </button>
-
-          <button
-            onClick={() => setTab('projects')}
-            className={`px-3.5 py-1.5 rounded-xl font-semibold flex items-center gap-1.5 transition cursor-pointer ${
-              tab === 'projects'
-                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            <FolderKanban className="w-3.5 h-3.5" />
-            <span>פרויקטים שמורים</span>
           </button>
         </div>
 

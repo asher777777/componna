@@ -402,3 +402,20 @@ export interface ContactSectionConfig extends BaseSectionConfig {
   openingHours?: string;
   directWhatsappChat?: boolean;
 }
+
+export interface FlowPlayerSectionConfig extends BaseSectionConfig {
+  type: 'flowPlayer';
+  campaignId?: string;
+  campaignSlug?: string;
+  sectionTitle?: string;
+  sectionSubtitle?: string;
+  showSectionHeader?: boolean;
+  aspectRatio?: '9:16' | '16:9' | '1:1' | 'auto';
+  containerWidth?: 'sm' | 'md' | 'lg' | 'full';
+  backgroundColor?: string;
+  desktopBgImage?: string;
+  desktopBgStyle?: 'cover' | 'contain' | 'blur-ambient' | 'pattern';
+  desktopBgOverlayOpacity?: number;
+  mode?: 'live' | 'edit';
+}
+

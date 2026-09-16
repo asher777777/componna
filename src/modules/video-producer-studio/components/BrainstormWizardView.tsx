@@ -4,7 +4,8 @@ import {
   Image as ImageIcon, CheckCircle2, Globe, Palette, FileText, 
   Video, Play, Layers, X, Upload, HelpCircle, ShieldCheck,
   FileCode, Link as LinkIcon, MessageSquare, ArrowLeft, ArrowRight,
-  Lightbulb, Check, ChevronDown, Edit3, Plus, RefreshCw, Eye, ListOrdered, BookOpen
+  Lightbulb, Check, ChevronDown, Edit3, Plus, RefreshCw, Eye, ListOrdered, BookOpen,
+  Layout, HelpCircle as HelpIcon, Send, Sparkle, ExternalLink
 } from 'lucide-react';
 import { useVideoStudio } from '../context/VideoStudioContext';
 import { 
@@ -16,6 +17,8 @@ import {
   MARKETING_HOOKS_CATALOG
 } from '../config/catalogs';
 import { OutputDeliverablePreference, ClarificationQuestionItem, VideoProject } from '../types';
+import { extractPageContentForVideo, ExtractedPageSummary } from '../services/pageContentExtractor';
+import { PageBuilderConfig } from '../../page-builder/types/pageBuilder.types';
 
 const WIZARD_DRAFT_KEY = 'sdo_studio_wizard_draft_v1';
 
@@ -29,7 +32,13 @@ export const BrainstormWizardView: React.FC = () => {
     reGenerateProjectWithAI,
     addNextSceneWithAI,
     generateClarificationQuestions, 
-    isGeneratingScript 
+    isGeneratingScript,
+    brandDna,
+    refreshBrandDna,
+    availablePages,
+    refreshPages,
+    selectedPageForWizard,
+    setSelectedPageForWizard
   } = useVideoStudio();
 
   // Active Stage Tab for Stage Inspection: 'brief' | 'clarification' | 'overview' | 'scenes'
@@ -66,6 +75,9 @@ export const BrainstormWizardView: React.FC = () => {
   // Document Link / Google Sheet / Web URL
   const [documentUrl, setDocumentUrl] = useState<string>('');
 
+  // Page Builder Extraction State
+  const [extractedSummary, setExtractedSummary] = useState<ExtractedPageSummary | null>(null);
+
   // Clarification Chat State
   const [clarificationQuestions, setClarificationQuestions] = useState<ClarificationQuestionItem[]>([]);
   const [clarificationAnalysis, setClarificationAnalysis] = useState<string>('');
@@ -79,7 +91,37 @@ export const BrainstormWizardView: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // 1. Load active project data into form if an active project exists
+  // Auto-pickup target page passed from Page Builder via localStorage
+  useEffect(() => {
+    try {
+      const targetPageId = localStorage.getItem('sdo_video_studio_target_page_id');
+      if (targetPageId && availablePages.length > 0) {
+        const page = availablePages.find(p => p.pageId === targetPageId);
+        if (page) {
+          setSelectedPageForWizard(page);
+          localStorage.removeItem('sdo_video_studio_target_page_id');
+        }
+      }
+    } catch {}
+  }, [availablePages, setSelectedPageForWizard]);
+
+  // 1. Handle selected page change
+  useEffect(() => {
+    if (selectedPageForWizard) {
+      const summary = extractPageContentForVideo(selectedPageForWizard);
+      setExtractedSummary(summary);
+      if (!topic.trim()) {
+        setTopic(`${selectedPageForWizard.pageTitle} - ${summary.heroHeadline || summary.companyName || 'עמוד נחיתה אינטראקטיבי'}`);
+      }
+      if (summary.heroHeadline && marketingHook === MARKETING_HOOKS_CATALOG[0].name) {
+        setMarketingHook(summary.heroHeadline);
+      }
+    } else {
+      setExtractedSummary(null);
+    }
+  }, [selectedPageForWizard]);
+
+  // 2. Load active project data into form if an active project exists
   useEffect(() => {
     if (activeProject) {
       setTopic(activeProject.description || activeProject.title || '');
@@ -126,7 +168,7 @@ export const BrainstormWizardView: React.FC = () => {
         const savedDraft = localStorage.getItem(WIZARD_DRAFT_KEY);
         if (savedDraft) {
           const parsed = JSON.parse(savedDraft);
-          if (parsed.topic) setTopic(parsed.topic);
+          if (parsed.topic && !selectedPageForWizard) setTopic(parsed.topic);
           if (parsed.productionType) setProductionType(parsed.productionType);
           if (parsed.visualStyle) setVisualStyle(parsed.visualStyle);
           if (parsed.targetAudience) setTargetAudience(parsed.targetAudience);
@@ -138,9 +180,9 @@ export const BrainstormWizardView: React.FC = () => {
         console.warn('Draft load warning:', e);
       }
     }
-  }, [activeProject]);
+  }, [activeProject, selectedPageForWizard]);
 
-  // 2. Real-time auto-save draft to localStorage
+  // 3. Real-time auto-save draft to localStorage
   useEffect(() => {
     if (!activeProject && topic.trim()) {
       const draft = {
@@ -263,7 +305,7 @@ export const BrainstormWizardView: React.FC = () => {
   const handleStartClarification = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!topic.trim()) {
-      setErrorMsg('נא להזין נושא או רעיון לסרטון.');
+      setErrorMsg('נא להזין נושא או לבחור עמוד לסרטון.');
       return;
     }
     setErrorMsg(null);
@@ -282,7 +324,11 @@ export const BrainstormWizardView: React.FC = () => {
         referencePdfBase64: referencePdfBase64 || undefined,
         referencePdfName: referencePdfName || undefined,
         documentUrl: documentUrl.trim() || undefined,
-        aspectRatio
+        aspectRatio,
+        brandDna,
+        sourcePageId: selectedPageForWizard?.pageId,
+        sourcePageTitle: selectedPageForWizard?.pageTitle,
+        sourcePageSummary: extractedSummary
       });
 
       setClarificationQuestions(res.questions);
@@ -306,7 +352,7 @@ export const BrainstormWizardView: React.FC = () => {
   // Direct generation bypassing clarification questions
   const handleDirectGenerate = async () => {
     if (!topic.trim()) {
-      setErrorMsg('נא להזין נושא או רעיון לסרטון.');
+      setErrorMsg('נא להזין נושא או לבחור עמוד לסרטון.');
       return;
     }
     setErrorMsg(null);
@@ -326,7 +372,11 @@ export const BrainstormWizardView: React.FC = () => {
           referencePdfName: referencePdfName || undefined,
           documentUrl: documentUrl.trim() || undefined,
           aspectRatio,
-          conversationId: activeConversationId
+          conversationId: activeConversationId,
+          brandDna,
+          sourcePageId: selectedPageForWizard?.pageId,
+          sourcePageTitle: selectedPageForWizard?.pageTitle,
+          sourcePageSummary: extractedSummary
         });
       } else {
         await createProjectFromWizard({
@@ -342,7 +392,11 @@ export const BrainstormWizardView: React.FC = () => {
           referencePdfBase64: referencePdfBase64 || undefined,
           referencePdfName: referencePdfName || undefined,
           documentUrl: documentUrl.trim() || undefined,
-          aspectRatio
+          aspectRatio,
+          brandDna,
+          sourcePageId: selectedPageForWizard?.pageId,
+          sourcePageTitle: selectedPageForWizard?.pageTitle,
+          sourcePageSummary: extractedSummary
         });
       }
     } catch (err: any) {
@@ -375,7 +429,11 @@ export const BrainstormWizardView: React.FC = () => {
           documentUrl: documentUrl.trim() || undefined,
           clarificationAnswers: answersList,
           conversationId: activeConversationId || activeProject.conversationId,
-          aspectRatio
+          aspectRatio,
+          brandDna,
+          sourcePageId: selectedPageForWizard?.pageId,
+          sourcePageTitle: selectedPageForWizard?.pageTitle,
+          sourcePageSummary: extractedSummary
         });
       } else {
         await createProjectFromWizard({
@@ -393,7 +451,11 @@ export const BrainstormWizardView: React.FC = () => {
           documentUrl: documentUrl.trim() || undefined,
           clarificationAnswers: answersList,
           conversationId: activeConversationId,
-          aspectRatio
+          aspectRatio,
+          brandDna,
+          sourcePageId: selectedPageForWizard?.pageId,
+          sourcePageTitle: selectedPageForWizard?.pageTitle,
+          sourcePageSummary: extractedSummary
         });
       }
     } catch (err: any) {
@@ -423,7 +485,7 @@ export const BrainstormWizardView: React.FC = () => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6" dir="rtl">
+    <div className="max-w-5xl mx-auto p-4 sm:p-6 space-y-6" dir="rtl">
       
       {/* Active Project Banner if viewing/editing an existing project */}
       {activeProject && (
@@ -471,21 +533,139 @@ export const BrainstormWizardView: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30 text-xs font-semibold mb-2">
               <Sparkles className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
-              <span>Gemini AI Multimodal & Banana Pro Video Architect</span>
+              <span>Brand DNA & Page-to-Interactive Video Architect</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              {activeProject ? 'סקירת כל שלבי הפרויקט, עריכה ויצירת המשך' : 'אשף הפקת וידאו חכם עם שאלות מנחות וחיבור מסמכים'}
+              יוצר עצי וידאו אינטראקטיביים חכמים להמרת עמודים סטטיים
             </h1>
-            <p className="text-sm text-slate-300 mt-1 max-w-2xl">
-              {activeProject 
-                ? 'צפה בכל שלבי הפרויקט מהפרומפט הראשוני ועד הסצנות, ערוך ושלח שוב עם תיקונים ל-Gemini, או הוסף סצנות המשך.'
-                : '20 קהלי יעד, 20 הוקים שיווקיים, 20 סגנונות ויזואליים, העלאת PDF/תמונה/קישור וזרימת שיחה מנחה עם Gemini לפני פריסת הסטוריבורד בעורך.'}
+            <p className="text-sm text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              המרת תוכן עמודים מ-Page Builder ושפת המותג מ-Brand DNA לעץ סרטונים אינטראקטיבי עם שאלות ותשובות, תגיות קוליות של Google Speech, עוגן בננה פרו (Banana Pro) ונגן ממיר לפעולה.
             </p>
           </div>
           <div className="hidden md:flex w-16 h-16 rounded-2xl bg-purple-500/20 border border-purple-500/40 items-center justify-center text-purple-400 shadow-xl shadow-purple-500/10">
             <Film className="w-8 h-8" />
           </div>
         </div>
+      </div>
+
+      {/* BRAND DNA & PAGE BUILDER INTEGRATION OVERVIEW BAR */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        
+        {/* Brand DNA Hub Card */}
+        <div className="p-4 bg-gradient-to-br from-slate-900/90 via-indigo-950/40 to-slate-900/90 border border-indigo-500/30 rounded-3xl shadow-lg relative overflow-hidden">
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-300">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">מרכז מיתוג גלובלי (Brand DNA)</span>
+                <span className="text-[10px] text-indigo-300">מסונכרן לפרומפטים של Gemini</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => refreshBrandDna()}
+              className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-indigo-500/10 rounded-xl transition cursor-pointer border border-slate-800"
+              title="רענן מיתוג"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="space-y-1.5 text-[11px] bg-slate-950/70 p-3 rounded-2xl border border-slate-800/80">
+            <div className="flex justify-between">
+              <span className="text-slate-400">שם המותג:</span>
+              <span className="font-bold text-slate-200">{brandDna?.identity.companyName || 'המותג המוביל'}</span>
+            </div>
+            {brandDna?.identity.slogan && (
+              <div className="flex justify-between">
+                <span className="text-slate-400">סלוגן:</span>
+                <span className="text-slate-300 truncate max-w-[200px]">{brandDna.identity.slogan}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-slate-400">רשמיות קולית:</span>
+              <span className="text-indigo-300 font-mono">
+                {brandDna?.voice.personality.formality || 3}/5 | פנייה: {brandDna?.voice.genderAddressing || 'רבים'}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 pt-1 border-t border-slate-800 text-[10px] text-slate-400">
+              <Sparkle className="w-3 h-3 text-amber-400 shrink-0" />
+              <span className="truncate">
+                מילות עוצמה: {(brandDna?.voice.powerWords || ['איכות', 'מקצועיות', 'תוצאות']).slice(0, 3).join(', ')}...
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Page Builder Selector Card */}
+        <div className="p-4 bg-gradient-to-br from-slate-900/90 via-purple-950/40 to-slate-900/90 border border-purple-500/30 rounded-3xl shadow-lg relative overflow-hidden">
+          <div className="flex items-center justify-between mb-2.5">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-purple-500/20 border border-purple-500/40 flex items-center justify-center text-purple-300">
+                <Layout className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-xs font-bold text-white block">יוצר העמודים (Page Builder)</span>
+                <span className="text-[10px] text-purple-300">בחר עמוד להמרת תוכן לעץ וידאו</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => refreshPages()}
+              className="p-1.5 text-slate-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-xl transition cursor-pointer border border-slate-800"
+              title="רענן רשימת דפים"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          <div className="space-y-2">
+            <select
+              value={selectedPageForWizard?.pageId || ''}
+              onChange={(e) => {
+                const targetId = e.target.value;
+                if (!targetId) {
+                  setSelectedPageForWizard(null);
+                } else {
+                  const p = availablePages.find(page => page.pageId === targetId);
+                  if (p) setSelectedPageForWizard(p);
+                }
+              }}
+              className="w-full p-2.5 bg-slate-950 border border-purple-500/40 rounded-xl text-xs text-white font-semibold focus:border-purple-400 focus:outline-none cursor-pointer"
+            >
+              <option value="">-- יצירת תסריט חופשי (ללא עמוד מקושר) --</option>
+              {availablePages.map((page) => (
+                <option key={page.pageId} value={page.pageId}>
+                  📄 {page.pageTitle} ({page.slug || page.pageId}) {page.isHomePage ? '🌟 דף בית' : ''}
+                </option>
+              ))}
+            </select>
+
+            {extractedSummary ? (
+              <div className="p-2.5 bg-purple-950/40 border border-purple-500/30 rounded-xl text-[11px] space-y-1 text-slate-300">
+                <div className="flex items-center justify-between font-bold text-purple-200">
+                  <span>תוכן שנשלף מהעמוד:</span>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-500/30">מוכן לסנכרון</span>
+                </div>
+                <div className="text-[10px] text-slate-400 truncate">
+                  🔹 Hero: {extractedSummary.heroHeadline || 'כותרת ראשית'}
+                </div>
+                <div className="flex gap-2 text-[10px] text-slate-300">
+                  <span>🛠 {extractedSummary.services.length} שירותים</span>
+                  <span>❓ {extractedSummary.faqItems.length} שאלות ותשובות</span>
+                  <span>💎 {extractedSummary.pricingPackages.length} חבילות</span>
+                </div>
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-400 px-1">
+                💡 בחר עמוד נחיתה כדי לחלץ את הכותרות, השירותים, השאלות הנפוצות וההנעה לפעולה ישירות לתוך עץ הוידאו.
+              </p>
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* STAGE TABS BAR */}
@@ -809,26 +989,18 @@ export const BrainstormWizardView: React.FC = () => {
                   type="file"
                   ref={imageFileInputRef}
                   onChange={handleImageFileChange}
-                  accept="image/png, image/jpeg, image/webp"
+                  accept="image/*"
                   className="hidden"
                 />
                 {referenceImageBase64 || referenceImageName ? (
-                  <div className="flex items-center justify-between p-2.5 bg-indigo-950/30 border border-indigo-500/40 rounded-xl">
+                  <div className="flex items-center justify-between p-3 bg-indigo-950/30 border border-indigo-500/40 rounded-xl">
                     <div className="flex items-center gap-2.5 overflow-hidden">
-                      {referenceImageBase64 ? (
-                        <img
-                          src={referenceImageBase64}
-                          alt="Reference"
-                          className="w-10 h-10 object-cover rounded-lg border border-indigo-500/50 bg-black shrink-0"
-                        />
-                      ) : (
-                        <div className="w-10 h-10 rounded-lg bg-indigo-500/20 flex items-center justify-center text-indigo-300">
-                          <ImageIcon className="w-5 h-5" />
-                        </div>
-                      )}
+                      <div className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400 shrink-0">
+                        <ImageIcon className="w-5 h-5" />
+                      </div>
                       <div className="truncate">
-                        <span className="text-xs font-bold text-white block truncate">{referenceImageName || 'תמונת רפרנס'}</span>
-                        <span className="text-[10px] text-indigo-300">תמונת רפרנס ל-Banana Pro</span>
+                        <span className="text-xs font-bold text-white block truncate">{referenceImageName || 'תמונת רפרנס מקושרת'}</span>
+                        <span className="text-[10px] text-indigo-300">תמונת הרפרנס מעובדת עם Gemini</span>
                       </div>
                     </div>
                     <button
@@ -846,386 +1018,305 @@ export const BrainstormWizardView: React.FC = () => {
                     className="w-full py-3.5 px-3 border border-dashed border-slate-700 hover:border-indigo-500/50 bg-slate-900/40 hover:bg-indigo-950/20 rounded-xl flex items-center justify-center gap-2 text-slate-300 hover:text-indigo-300 transition cursor-pointer text-xs font-semibold"
                   >
                     <ImageIcon className="w-4 h-4 text-indigo-400" />
-                    <span>העלה תמונת מוצר / לוגו (עד 5MB)</span>
+                    <span>העלה תמונת רפרנס / דמות (עד 5MB)</span>
                   </button>
                 )}
               </div>
             </div>
 
-            {/* Document Link or Web URL */}
-            <div className="space-y-1.5 pt-1">
-              <label className="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                <LinkIcon className="w-3.5 h-3.5 text-cyan-400" />
-                <span>קישור למסמך, Google Sheet, עמוד מוצר או אתר אינטרנט:</span>
-              </label>
+            {/* Document Link / Web URL */}
+            <div className="pt-1">
+              <div className="flex items-center gap-1.5 text-xs text-slate-300 mb-1.5 font-semibold">
+                <LinkIcon className="w-3.5 h-3.5 text-emerald-400" />
+                <span>קישור למסמך חיצוני / Google Sheets / Notion / עמוד אינטרנט:</span>
+              </div>
               <input
                 type="url"
                 value={documentUrl}
                 onChange={(e) => setDocumentUrl(e.target.value)}
-                placeholder="https://docs.google.com/spreadsheets/... או https://mywebsite.com/product"
-                className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:border-cyan-400 focus:outline-none"
+                placeholder="https://docs.google.com/spreadsheets/d/... או https://example.com/page"
+                className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:border-emerald-400 focus:outline-none"
               />
             </div>
           </div>
 
-          {/* 7. Technical Settings: Scene Count (1-20), TTS Language, Aspect Ratio */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2 border-t border-slate-800/80">
+          {/* 7. Output Settings (Scene Count, Language, Aspect Ratio) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span>מספר סצנות (1 עד 20)</span>
-              </label>
-              <select
+              <label className="text-xs font-bold text-slate-300 block mb-1">כמות סצנות מבוקשת</label>
+              <input
+                type="number"
+                min={1}
+                max={20}
                 value={sceneCount}
-                onChange={(e) => setSceneCount(Number(e.target.value))}
-                className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-purple-500 cursor-pointer"
-              >
-                {Array.from({ length: 20 }, (_, i) => i + 1).map((num) => (
-                  <option key={num} value={num}>
-                    {num} סצנות (~{num * 6} שניות סה״כ)
-                  </option>
-                ))}
-              </select>
+                onChange={(e) => setSceneCount(parseInt(e.target.value) || 4)}
+                className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-bold focus:border-purple-400 focus:outline-none"
+              />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Globe className="w-3.5 h-3.5 text-emerald-400" />
-                <span>שפת קריינות (TTS Language)</span>
-              </label>
+              <label className="text-xs font-bold text-slate-300 block mb-1">שפת קריינות (TTS)</label>
               <select
                 value={ttsLanguage}
                 onChange={(e) => setTtsLanguage(e.target.value)}
-                className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-purple-500 cursor-pointer"
+                className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-purple-400 focus:outline-none cursor-pointer"
               >
                 {TTS_LANGUAGES.map((lang) => (
                   <option key={lang.code} value={lang.code}>
-                    {lang.flag} {lang.name}
+                    {lang.name}
                   </option>
                 ))}
               </select>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1.5 flex items-center gap-1.5">
-                <Film className="w-3.5 h-3.5 text-pink-400" />
-                <span>יחס תצוגה (Aspect Ratio)</span>
-              </label>
+              <label className="text-xs font-bold text-slate-300 block mb-1">יחס מסך (Aspect Ratio)</label>
               <select
                 value={aspectRatio}
                 onChange={(e) => setAspectRatio(e.target.value as any)}
-                className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-purple-500 cursor-pointer"
+                className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-purple-400 focus:outline-none cursor-pointer"
               >
-                <option value="16:9">16:9 (לרוחב - YouTube, אתר)</option>
-                <option value="9:16">9:16 (לאורך - Reels, TikTok, Shorts)</option>
-                <option value="1:1">1:1 (ריבוע - פיד אינסטגרם/פייסבוק)</option>
+                <option value="16:9">16:9 (רוחב / מחשב ויוטיוב)</option>
+                <option value="9:16">9:16 (אורך / סטורי וטיקטוק)</option>
+                <option value="1:1">1:1 (ריבוע / פוסט אינסטגרם)</option>
               </select>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
             <button
               type="button"
               onClick={handleDirectGenerate}
-              disabled={isGeneratingScript}
-              className="w-full sm:w-auto px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer border border-slate-700 disabled:opacity-50"
+              disabled={isGeneratingScript || !topic.trim()}
+              className="w-full sm:w-auto px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-2xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700 disabled:opacity-50"
             >
-              <Film className="w-4 h-4 text-purple-400" />
-              <span>{activeProject ? '⚡ עדכן ורנדר ישירות ללא שאלות' : '⚡ דלג על שאלות וייצר סטוריבורד ישירות'}</span>
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>יצירה ישירה מהירה (דלג על שאלות מנחות)</span>
             </button>
 
             <button
               type="submit"
-              disabled={isGeneratingScript}
-              className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-purple-600/30 transition cursor-pointer disabled:opacity-50 text-sm"
+              disabled={isGeneratingScript || !topic.trim()}
+              className="w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white rounded-2xl text-xs font-black shadow-xl shadow-purple-600/30 transition flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
-              <MessageSquare className={`w-5 h-5 ${isGeneratingScript ? 'animate-spin' : ''}`} />
-              <span>
-                {isGeneratingScript 
-                  ? 'Gemini מנתח את החומרים ומכין שאלות מנחות...' 
-                  : 'המשך לשאלות מנחות וחידוד איכות עם Gemini'}
-              </span>
+              {isGeneratingScript ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Gemini מעבד ומנתח את הבריף...</span>
+                </>
+              ) : (
+                <>
+                  <span>שלב הבא: קבל שאלות מנחות מ-Gemini</span>
+                  <ArrowLeft className="w-4 h-4" />
+                </>
+              )}
             </button>
           </div>
+
         </form>
       )}
 
-      {/* STAGE 2: CLARIFICATION & GUIDING QUESTIONS CHAT */}
+      {/* STAGE 2: CLARIFICATION QUESTIONS CHAT */}
       {activeStageTab === 'clarification' && (
-        <div className="p-6 bg-slate-900/95 border border-purple-500/40 rounded-3xl space-y-6 shadow-2xl animate-scaleUp">
+        <div className="p-6 bg-slate-900/90 border border-pink-500/30 rounded-3xl space-y-6 shadow-2xl">
           
-          {/* Analysis Bubble */}
-          <div className="p-4 bg-purple-950/40 border border-purple-500/30 rounded-2xl flex items-start gap-3">
-            <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400 shrink-0 mt-0.5">
-              <Lightbulb className="w-5 h-5 animate-pulse" />
+          <div className="p-4 bg-pink-950/30 border border-pink-500/30 rounded-2xl">
+            <div className="flex items-center gap-2 text-pink-300 text-xs font-bold mb-1">
+              <Sparkles className="w-4 h-4 text-pink-400" />
+              <span>ניתוח Gemini AI Marketing & CRO:</span>
             </div>
-            <div className="space-y-1">
-              <span className="text-xs font-bold text-purple-300 block">תובנת ניתוח מנהל קריאייטיב AI:</span>
-              <p className="text-sm text-slate-200 leading-relaxed font-medium">
-                {clarificationAnalysis || 'הבריף נותח בהצלחה! להלן השאלות והתשובות ששימשו לעיצוב הסטוריבורד. באפשרותך לשנות תשובות ולשלוח שוב עם תיקונים ל-Gemini.'}
-              </p>
-            </div>
+            <p className="text-sm text-slate-200 leading-relaxed">
+              {clarificationAnalysis || 'Gemini ניתח את הנתונים ומציע 2-3 שאלות מיקוד כדי להבטיח אחוזי המרה מקסימליים:'}
+            </p>
           </div>
 
-          {/* Guiding Questions List */}
           <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-pink-400" />
-                <span>שאלות ותשובות מנחות לדיוק הסטוריבורד ({clarificationQuestions.length}):</span>
-              </h3>
-              <span className="text-[11px] text-purple-300">ניתן לערוך כל תשובה בנפרד</span>
-            </div>
-
-            {clarificationQuestions.length === 0 ? (
-              <div className="p-8 text-center bg-slate-950/60 rounded-2xl border border-slate-800 space-y-2">
-                <p className="text-xs text-slate-400">טרם הופקו שאלות מנחות עבור פרויקט זה.</p>
-                <button
-                  type="button"
-                  onClick={handleStartClarification}
-                  disabled={isGeneratingScript}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold inline-flex items-center gap-2 transition cursor-pointer"
-                >
-                  <Sparkles className="w-4 h-4" />
-                  <span>ייצר שאלות מנחות כעת</span>
-                </button>
-              </div>
-            ) : (
-              clarificationQuestions.map((q, qIdx) => (
-                <div key={q.id} className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2.5">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-white flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-purple-600/30 border border-purple-500/50 flex items-center justify-center text-[10px] text-purple-300 font-bold">
-                        {qIdx + 1}
-                      </span>
-                      <span>{q.question}</span>
+            {clarificationQuestions.map((item, idx) => (
+              <div key={item.id} className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-white flex items-center gap-2">
+                    <span className="w-5 h-5 rounded-full bg-pink-500/20 text-pink-400 border border-pink-500/30 text-[10px] flex items-center justify-center font-mono">
+                      {idx + 1}
                     </span>
-                    {q.hint && (
-                      <span className="text-[10px] text-slate-400 hidden sm:inline">
-                        💡 {q.hint}
-                      </span>
-                    )}
-                  </div>
-
-                  <textarea
-                    rows={2}
-                    value={clarificationAnswers[q.id] || ''}
-                    onChange={(e) => setClarificationAnswers({ ...clarificationAnswers, [q.id]: e.target.value })}
-                    placeholder={q.suggestedAnswer ? `למשל: ${q.suggestedAnswer}` : 'הזן את תשובתך כאן...'}
-                    className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:border-purple-500 focus:outline-none"
-                  />
-
-                  {q.suggestedAnswer && (
-                    <button
-                      type="button"
-                      onClick={() => setClarificationAnswers({ ...clarificationAnswers, [q.id]: q.suggestedAnswer || '' })}
-                      className="text-[11px] text-purple-400 hover:text-purple-300 flex items-center gap-1 font-medium transition cursor-pointer"
-                    >
-                      <Check className="w-3 h-3" />
-                      <span>אמץ תשובה מוצעת: "{q.suggestedAnswer}"</span>
-                    </button>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-
-          {/* Action Buttons in Clarification Mode */}
-          <div className="pt-4 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setActiveStageTab('brief')}
-              className="w-full sm:w-auto px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-2xl text-xs flex items-center justify-center gap-2 transition cursor-pointer"
-            >
-              <ArrowRight className="w-4 h-4" />
-              <span>חזור לעריכת הבריף</span>
-            </button>
-
-            <div className="flex items-center gap-3 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={handleFinalSubmitWithClarifications}
-                disabled={isGeneratingScript}
-                className="w-full sm:w-auto px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:from-purple-500 hover:to-pink-500 text-white font-extrabold rounded-2xl flex items-center justify-center gap-3 shadow-xl shadow-purple-600/30 transition cursor-pointer disabled:opacity-50 text-sm"
-              >
-                <Wand2 className={`w-5 h-5 ${isGeneratingScript ? 'animate-spin text-amber-300' : ''}`} />
-                <span>
-                  {isGeneratingScript 
-                    ? 'Gemini מייצר ומעדכן את הסצנות בעורך...' 
-                    : activeProject
-                      ? '🔄 עדכן ושלח שוב עם תיקונים ל-Gemini'
-                      : `🚀 ייצר ${sceneCount} סצנות ואפיון מלא ופרוס בעורך`}
-                </span>
-              </button>
-            </div>
-          </div>
-
-        </div>
-      )}
-
-      {/* STAGE 3: PROJECT OVERVIEW & CHARACTER BIBLE */}
-      {activeStageTab === 'overview' && activeProject?.projectOverview && (
-        <div className="p-6 bg-slate-900/95 border border-indigo-500/40 rounded-3xl space-y-6 shadow-2xl animate-scaleUp">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-400" />
-              <span>אפיון הפקה כולל, עוגן בננה פרו ותנ״ך הדמות</span>
-            </h3>
-            <span className="text-[10px] text-indigo-300 font-mono">Banana Pro Consistency Seed</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-              <span className="text-xs font-bold text-purple-300 block">חזון הקונספט (Concept):</span>
-              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                {activeProject.projectOverview.concept}
-              </p>
-            </div>
-
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-              <span className="text-xs font-bold text-pink-300 block">עוגן עקביות בננה פרו (Consistency Seed):</span>
-              <p className="text-xs text-slate-200 font-mono leading-relaxed bg-slate-900 p-2.5 rounded-xl border border-slate-800">
-                {activeProject.projectOverview.bananaConsistencySeed || selectedStyle.visualPromptPrefix}
-              </p>
-            </div>
-
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-              <span className="text-xs font-bold text-emerald-300 block">תנ״ך הדמות והפרזנטור (Character Bible):</span>
-              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                {activeProject.projectOverview.characterBible}
-              </p>
-            </div>
-
-            <div className="p-4 bg-slate-950 rounded-2xl border border-slate-800 space-y-2">
-              <span className="text-xs font-bold text-cyan-300 block">הנחיה ויזואלית ומצלמה (Visual Guide):</span>
-              <p className="text-xs text-slate-200 leading-relaxed font-medium">
-                {activeProject.projectOverview.visualGuide}
-              </p>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-            <button
-              onClick={() => setActiveStageTab('brief')}
-              className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-semibold"
-            >
-              ערוך בריף
-            </button>
-
-            <button
-              onClick={() => setTab('editor')}
-              className="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/30"
-            >
-              <span>עבור לציר הסצנות בעורך</span>
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* STAGE 4: SCENES SUMMARY & CONTINUATION GENERATION */}
-      {activeStageTab === 'scenes' && activeProject && (
-        <div className="p-6 bg-slate-900/95 border border-amber-500/40 rounded-3xl space-y-6 shadow-2xl animate-scaleUp">
-          
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <ListOrdered className="w-5 h-5 text-amber-400" />
-                <span>סקירת כל הסצנות שנוצרו ({activeProject.scenes.length}/20)</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                להלן תמצית הסצנות והתסריטים שנשמרו בפרויקט
-              </p>
-            </div>
-
-            <button
-              onClick={() => setTab('editor')}
-              className="px-4 py-2 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-amber-600/30"
-            >
-              <span>🎬 פתח עורך מלא</span>
-              <ArrowLeft className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Scenes Grid */}
-          <div className="space-y-3">
-            {activeProject.scenes.map((scn, idx) => (
-              <div
-                key={scn.id}
-                className="p-4 bg-slate-950 rounded-2xl border border-slate-800/80 flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-300 font-mono text-xs font-bold shrink-0">
-                    {idx + 1}
-                  </div>
-                  <div className="space-y-1">
-                    <span className="text-xs font-bold text-white block">{scn.title}</span>
-                    <p className="text-xs text-slate-300 line-clamp-2 max-w-xl">
-                      {scn.dialogueScript}
-                    </p>
-                    <div className="flex items-center gap-2 pt-1 text-[10px] text-slate-400 font-mono">
-                      <span>משך: {scn.durationSeconds || 6} שניות</span>
-                      <span>•</span>
-                      <span>תפקיד: {scn.sceneRole || 'feature'}</span>
-                    </div>
-                  </div>
+                    <span>{item.question}</span>
+                  </label>
+                  {item.hint && <span className="text-[10px] text-slate-400">{item.hint}</span>}
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
-                  {scn.renderedVideoUrl ? (
-                    <span className="px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-semibold flex items-center gap-1">
-                      <CheckCircle2 className="w-3 h-3" />
-                      <span>וידאו מוכן</span>
-                    </span>
-                  ) : scn.backgroundMediaUrl ? (
-                    <span className="px-2.5 py-1 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-semibold flex items-center gap-1">
-                      <ImageIcon className="w-3 h-3" />
-                      <span>תמונה מוכנה</span>
-                    </span>
-                  ) : (
-                    <span className="px-2.5 py-1 rounded-full bg-slate-800 text-slate-400 text-[10px] font-semibold">
-                      ממתין להפקה
-                    </span>
-                  )}
-                </div>
+                <textarea
+                  rows={2}
+                  value={clarificationAnswers[item.id] || ''}
+                  onChange={(e) => setClarificationAnswers({ ...clarificationAnswers, [item.id]: e.target.value })}
+                  placeholder={item.suggestedAnswer || 'הזן את תשובתך או קבל את ההצעה...'}
+                  className="w-full p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-slate-100 placeholder-slate-500 focus:border-pink-400 focus:outline-none"
+                />
+
+                {item.suggestedAnswer && (
+                  <button
+                    type="button"
+                    onClick={() => setClarificationAnswers({ ...clarificationAnswers, [item.id]: item.suggestedAnswer || '' })}
+                    className="text-[10px] text-pink-400 hover:text-pink-300 flex items-center gap-1 font-semibold cursor-pointer"
+                  >
+                    <Check className="w-3 h-3" />
+                    <span>אמץ הצעה: "{item.suggestedAnswer}"</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
 
-          {/* ADD CONTINUATION SCENE DRAWER */}
-          <div className="p-4 bg-purple-950/40 border border-purple-500/40 rounded-2xl space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-pink-300 flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-pink-400 animate-pulse" />
-                <span>יצירת סצנת המשך {activeProject.scenes.length + 1} (המשך שיחה עם Gemini):</span>
-              </span>
-              <span className="text-[10px] text-slate-400 font-mono">
-                {activeProject.conversationId ? 'שיחה שמורה' : 'חיבור חדש'}
-              </span>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => setActiveStageTab('brief')}
+              className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+            >
+              <ArrowRight className="w-4 h-4" />
+              <span>חזור לבריף</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleFinalSubmitWithClarifications}
+              disabled={isGeneratingScript}
+              className="px-6 py-3 bg-gradient-to-r from-pink-600 via-purple-600 to-indigo-600 hover:from-pink-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-black shadow-xl shadow-pink-600/30 transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isGeneratingScript ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>בונה עץ סצנות אינטראקטיבי עם Gemini...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>צור עץ סטוריבורד אינטראקטיבי סופי 🎬</span>
+                </>
+              )}
+            </button>
+          </div>
+
+        </div>
+      )}
+
+      {/* STAGE 3: OVERVIEW & BANANA PRO CONSISTENCY BIBLE */}
+      {activeStageTab === 'overview' && activeProject?.projectOverview && (
+        <div className="p-6 bg-slate-900/90 border border-indigo-500/30 rounded-3xl space-y-6 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-indigo-400" />
+              <span>אפיון הפקה כולל & עוגן עקביות בננה פרו</span>
+            </h2>
+            <span className="text-xs text-indigo-300 font-mono bg-indigo-500/10 px-3 py-1 rounded-full border border-indigo-500/20">
+              Gemini Architect Engine
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+            <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-1.5">
+              <span className="text-indigo-400 font-bold block">חזון וקונספט (Concept):</span>
+              <p className="text-slate-200 leading-relaxed">{activeProject.projectOverview.concept}</p>
             </div>
 
-            <input
-              type="text"
-              value={continuationPrompt}
-              onChange={(e) => setContinuationPrompt(e.target.value)}
-              placeholder="הזן הוראות מותאמות לסצנה הבאה (למשל: סצנת טיפול בהתנגדויות מחיר, הדגמת פיצ׳ר נוסף, או שיחת סגירה)..."
-              className="w-full p-3 bg-slate-950 border border-purple-500/40 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-400"
-            />
+            <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-1.5">
+              <span className="text-amber-400 font-bold block">עוגן בננה פרו (Consistency Seed):</span>
+              <p className="text-amber-200 font-mono text-[11px] bg-slate-900 p-2 rounded border border-slate-800 break-all">
+                {activeProject.projectOverview.bananaConsistencySeed || selectedStyle.visualPromptPrefix}
+              </p>
+            </div>
 
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-[11px] text-slate-400">
-                הסצנה החדשה תישמר אוטומטית בפרויקט ותתווסף לציר הסצנות
-              </span>
+            <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-1.5">
+              <span className="text-pink-400 font-bold block">תנ"ך דמות (Character Bible):</span>
+              <p className="text-slate-300 leading-relaxed">{activeProject.projectOverview.characterBible}</p>
+            </div>
 
+            <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-1.5">
+              <span className="text-emerald-400 font-bold block">מדריך סביבה ותאורה (Visual Guide):</span>
+              <p className="text-slate-300 leading-relaxed">{activeProject.projectOverview.visualGuide}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STAGE 4: SCENES INSPECTION & CONTINUATION */}
+      {activeStageTab === 'scenes' && activeProject && (
+        <div className="p-6 bg-slate-900/90 border border-amber-500/30 rounded-3xl space-y-6 shadow-2xl">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-bold text-white flex items-center gap-2">
+              <ListOrdered className="w-5 h-5 text-amber-400" />
+              <span>סקירת עץ הסצנות האינטראקטיבי ({activeProject.scenes.length} סצנות)</span>
+            </h2>
+            <button
+              type="button"
+              onClick={() => setTab('editor')}
+              className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shadow-lg shadow-purple-600/30"
+            >
+              <Film className="w-3.5 h-3.5" />
+              <span>עבור לעורך המלא</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {activeProject.scenes.map((scene, idx) => (
+              <div key={scene.id} className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-6 h-6 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center">
+                      {scene.sceneNumber}
+                    </span>
+                    <span className="text-xs font-bold text-white">{scene.title}</span>
+                  </div>
+                  <span className="text-[10px] font-mono bg-slate-900 px-2 py-0.5 rounded text-slate-400 border border-slate-800">
+                    {scene.sceneRole || 'explainer'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-slate-300 bg-slate-900/50 p-2.5 rounded-xl border border-slate-800/80 leading-relaxed">
+                  🗣️ {scene.dialogueScript}
+                </p>
+
+                {scene.interactiveActions && scene.interactiveActions.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] text-purple-400 font-bold block">שאלות / כפתורי פעולה אינטראקטיביים:</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {scene.interactiveActions.map((act, aIdx) => (
+                        <span key={aIdx} className="text-[10px] px-2 py-0.5 rounded-md bg-purple-950/80 text-purple-300 border border-purple-500/30">
+                          🔘 {act.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Add Continuation Scene */}
+          <div className="p-4 bg-slate-950/80 border border-slate-800 rounded-2xl space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-white flex items-center gap-1.5">
+                <Plus className="w-4 h-4 text-amber-400" />
+                <span>הוסף סצנת המשך לעץ (Scene {activeProject.scenes.length + 1})</span>
+              </label>
+              <span className="text-[10px] text-slate-400 font-mono">מקסימום 20 סצנות</span>
+            </div>
+
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={continuationPrompt}
+                onChange={(e) => setContinuationPrompt(e.target.value)}
+                placeholder="הנחיה מיוחדת לסצנה הבאה (אופציונלי, למשל: שאלת העמקה על מחיר או מענה להתנגדות ספציפית)..."
+                className="flex-1 p-2.5 bg-slate-900 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:border-amber-400 focus:outline-none"
+              />
               <button
                 type="button"
                 onClick={handleAddContinuationScene}
-                disabled={isAddingContinuation || isGeneratingScript}
-                className="px-5 py-2.5 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold rounded-xl text-xs flex items-center gap-2 shadow-lg shadow-purple-600/30 transition cursor-pointer disabled:opacity-50"
+                disabled={isAddingContinuation}
+                className="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
               >
-                <Wand2 className={`w-4 h-4 ${isAddingContinuation ? 'animate-spin' : ''}`} />
-                <span>{isAddingContinuation ? 'Gemini מייצר סצנה...' : `✨ הוסף סצנה ${activeProject.scenes.length + 1} עכשיו`}</span>
+                {isAddingContinuation ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                <span>הוסף סצנה</span>
               </button>
             </div>
           </div>

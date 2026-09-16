@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { SectionType } from '../types/pageBuilder.types';
 
 // Display Views
@@ -24,6 +24,7 @@ import { LivePostsGridSection } from '../sections/livePosts/LivePostsGridSection
 import { LandingSection } from '../sections/landing/LandingSection';
 import { ContactSection } from '../sections/contact/ContactSection';
 import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
+import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
 
 // Editors
 import { HeroEditor } from '../sections/hero/HeroEditor';
@@ -48,6 +49,7 @@ import { LivePostsGridEditor } from '../sections/livePosts/LivePostsGridEditor';
 import { LandingEditor } from '../sections/landing/LandingEditor';
 import { ContactEditor } from '../sections/contact/ContactEditor';
 import { SmartFormEditor } from '../sections/smartForm/SmartFormEditor';
+import { FlowPlayerEditor } from '../sections/flowPlayer/FlowPlayerEditor';
 
 // Icons
 import {
@@ -661,6 +663,33 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       sectionSubtitle: 'מלאו את השאלון הקצר שלב אחר שלב לקבלת מענה אישי',
       containerWidth: 'md',
       backgroundColor: 'transparent',
+    },
+  },
+
+  flowPlayer: {
+    type: 'flowPlayer',
+    name: 'נגן זרימה אינטראקטיבי (Flow Player)',
+    category: 'marketing',
+    description: 'הטמעת נציג מכירות / מצגת אינטראקטיבית עם וידאו, שכבות ממשק וזיהוי קולי ב-AI',
+    icon: Video,
+    viewComponent: FlowPlayerSection as any,
+    editorComponent: FlowPlayerEditor as any,
+    defaultConfig: {
+      type: 'flowPlayer',
+      visible: true,
+      anchorId: 'interactivePlayer',
+      campaignId: 'sales_rep_interactive_01',
+      campaignSlug: 'sales_rep_interactive_01',
+      showSectionHeader: false,
+      sectionTitle: '',
+      sectionSubtitle: '',
+      containerWidth: 'lg',
+      aspectRatio: '9:16',
+      backgroundColor: 'transparent',
+      desktopBgImage: '',
+      desktopBgStyle: 'blur-ambient',
+      desktopBgOverlayOpacity: 40,
+      mode: 'live',
     },
   },
 };

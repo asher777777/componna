@@ -1,6 +1,16 @@
 /**
- * Subtitles Engine (SRT & WebVTT Generator and Parser)
+ * Strips SSML tags, bracketed emotion/speech directions (e.g. [pause], [emphasis], [cheerful]),
+ * and parenthetical directions so subtitles are pure spoken text for viewers.
  */
+export function cleanSubtitleText(rawText?: string): string {
+  if (!rawText) return '';
+  return rawText
+    .replace(/<[^>]*>/g, '') // Remove SSML / XML tags like <break time="0.5s"/>, <prosody ...>
+    .replace(/\[[^\]]*\]/g, '') // Remove bracketed directions like [pause], [emphasis], [cheerful], [צחוק]
+    .replace(/\([^\)]*(?:pause|emphasis|cheerful|happy|sad|excited|friendly|whisper|לחש|שקט|הפסקה|הדגשה|צחוק|חיוך|טון|רגוע|דרמטי)[^\)]*\)/gi, '') // Remove parenthetical stage directions
+    .replace(/\s+/g, ' ') // Collapse multiple spaces
+    .trim();
+}
 
 function formatSrtTime(totalSeconds: number): string {
   const hrs = Math.floor(totalSeconds / 3600);
@@ -21,7 +31,8 @@ function formatVttTime(totalSeconds: number): string {
 }
 
 export function generateSrtContent(text: string, durationSec: number = 6): string {
-  const words = text.trim().split(/\s+/).filter(Boolean);
+  const cleaned = cleanSubtitleText(text);
+  const words = cleaned.split(/\s+/).filter(Boolean);
   if (words.length === 0) return '';
 
   const chunkSize = Math.max(Math.ceil(words.length / Math.ceil(durationSec / 2.5)), 4);

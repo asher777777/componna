@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, Maximize2, Sparkles, Film, CheckCircle2, Type, Subtitles } from 'lucide-react';
 import { VideoScene } from '../types';
+import { cleanSubtitleText } from '../services/subtitleService';
 
 interface VideoPreviewPlayerProps {
   scene: VideoScene;
@@ -10,7 +11,10 @@ interface VideoPreviewPlayerProps {
 export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, aspectRatio }) => {
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [showSubtitles, setShowSubtitles] = useState(true);
+  const [playbackProgress, setPlaybackProgress] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const speechIntervalRef = useRef<any>(null);
 
   const aspectClass = {
     '16:9': 'aspect-video',
@@ -18,9 +22,10 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
     '1:1': 'aspect-square max-w-[340px]'
   }[aspectRatio];
 
-  const subtitleText = scene.subtitleText || scene.dialogueScript;
+  const rawSubtitle = scene.subtitleText || scene.dialogueScript;
+  const subtitleText = cleanSubtitleText(rawSubtitle);
   const subtitleStyle = scene.subtitleStyle || 'boxed';
-  const subtitleAnimation = scene.subtitleAnimation || 'pop';
+  const subtitleAnimation = scene.subtitleAnimation || 'word';
   const subtitleFontSize = scene.subtitleFontSize || 16;
   const subtitlePosition = scene.subtitlePosition || 'bottom';
 
@@ -43,7 +48,7 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
       case 'tiktok':
         return 'bg-amber-400 text-black px-3 py-1 rounded-lg font-black uppercase tracking-wider shadow-2xl';
       case 'karaoke':
-        return 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white px-3.5 py-1.5 rounded-2xl font-black shadow-xl animate-pulse';
+        return 'bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 text-white px-3.5 py-1.5 rounded-2xl font-black shadow-xl';
       case 'minimal':
         return 'text-white/95 font-medium drop-shadow-md';
       default:
@@ -58,8 +63,6 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
         return 'animate-scaleUp transition-transform';
       case 'fade':
         return 'animate-fadeIn transition-opacity';
-      case 'word':
-        return 'animate-pulse';
       case 'line':
         return 'transition-all duration-300';
       default:
@@ -67,22 +70,60 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
     }
   };
 
+  // Split words for Word-By-Word (Karaoke / TikTok captions)
+  const words = subtitleText.split(/\s+/).filter(Boolean);
+  const activeWordIdx = (isPlayingAudio || playbackProgress > 0) && words.length > 0
+    ? Math.min(Math.floor(playbackProgress * words.length), words.length - 1)
+    : -1;
+
+  const handleAudioTimeUpdate = () => {
+    if (audioRef.current && audioRef.current.duration) {
+      const prog = audioRef.current.currentTime / audioRef.current.duration;
+      setPlaybackProgress(prog);
+    }
+  };
+
+  const handleVideoTimeUpdate = () => {
+    if (videoRef.current && videoRef.current.duration) {
+      const prog = videoRef.current.currentTime / videoRef.current.duration;
+      setPlaybackProgress(prog);
+    }
+  };
+
   const toggleAudio = () => {
     if (isPlayingAudio) {
       if (audioRef.current) audioRef.current.pause();
       if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      if (speechIntervalRef.current) clearInterval(speechIntervalRef.current);
       setIsPlayingAudio(false);
+      setPlaybackProgress(0);
     } else {
       if (audioRef.current) {
         audioRef.current.play().catch(() => {});
-      }
-      if ('speechSynthesis' in window && scene.dialogueScript) {
+      } else if ('speechSynthesis' in window && subtitleText) {
         window.speechSynthesis.cancel();
-        const utt = new SpeechSynthesisUtterance(scene.dialogueScript);
+        const utt = new SpeechSynthesisUtterance(subtitleText);
         utt.lang = scene.googleTtsLanguageCode || 'he-IL';
         utt.rate = scene.googleTtsSsmlRate ? parseFloat(scene.googleTtsSsmlRate) : 1.0;
-        utt.onend = () => setIsPlayingAudio(false);
-        utt.onerror = () => setIsPlayingAudio(false);
+        
+        const estDurationMs = (scene.durationSeconds || Math.max(Math.round(subtitleText.length / 14), 4)) * 1000;
+        const startTime = Date.now();
+        speechIntervalRef.current = setInterval(() => {
+          const elapsed = Date.now() - startTime;
+          const prog = Math.min(elapsed / estDurationMs, 0.99);
+          setPlaybackProgress(prog);
+        }, 100);
+
+        utt.onend = () => {
+          setIsPlayingAudio(false);
+          setPlaybackProgress(1);
+          if (speechIntervalRef.current) clearInterval(speechIntervalRef.current);
+        };
+        utt.onerror = () => {
+          setIsPlayingAudio(false);
+          setPlaybackProgress(0);
+          if (speechIntervalRef.current) clearInterval(speechIntervalRef.current);
+        };
         window.speechSynthesis.speak(utt);
       }
       setIsPlayingAudio(true);
@@ -91,6 +132,8 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
 
   useEffect(() => {
     setIsPlayingAudio(false);
+    setPlaybackProgress(0);
+    if (speechIntervalRef.current) clearInterval(speechIntervalRef.current);
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
   }, [scene.id]);
 
@@ -138,9 +181,11 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
       <div className={`w-full ${aspectClass} mx-auto bg-black rounded-2xl overflow-hidden border border-slate-800 relative flex items-center justify-center shadow-2xl group`}>
         {scene.renderedVideoUrl ? (
           <video
+            ref={videoRef}
             src={scene.renderedVideoUrl}
             controls
             playsInline
+            onTimeUpdate={handleVideoTimeUpdate}
             className="w-full h-full object-cover"
           />
         ) : (
@@ -179,7 +224,7 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <p className="text-xs font-bold text-white line-clamp-2">
-                  "{scene.dialogueScript || 'סצנה מוכנה להפקת וידאו...'}"
+                  "{subtitleText || 'סצנה מוכנה להפקת וידאו...'}"
                 </p>
                 <span className="text-[10px] text-purple-300 font-mono block">
                   {scene.isPhotoAvatar ? 'תמונת אווטאר מותאמת' : `אווטאר: ${scene.avatarId || 'Wayne'}`}
@@ -198,7 +243,32 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
               style={{ fontSize: `${subtitleFontSize}px` }}
               className={`max-w-[90%] transition-all ${getStyleClass()} ${getAnimationClass()}`}
             >
-              {subtitleText}
+              {subtitleAnimation === 'word' && words.length > 0 ? (
+                <span className="inline-flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1">
+                  {words.map((w, idx) => {
+                    const isActive = idx === activeWordIdx;
+                    const isPast = activeWordIdx >= 0 && idx < activeWordIdx;
+                    return (
+                      <span
+                        key={idx}
+                        className={`transition-all duration-150 inline-block ${
+                          isActive
+                            ? 'scale-115 text-yellow-300 drop-shadow-[0_0_10px_rgba(253,224,71,0.9)] font-black -translate-y-0.5'
+                            : isPast
+                            ? 'opacity-100'
+                            : activeWordIdx >= 0
+                            ? 'opacity-60'
+                            : 'opacity-100'
+                        }`}
+                      >
+                        {w}
+                      </span>
+                    );
+                  })}
+                </span>
+              ) : (
+                subtitleText
+              )}
             </div>
           </div>
         )}
@@ -210,7 +280,11 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
           <audio
             ref={audioRef}
             src={scene.renderedAudioUrl}
-            onEnded={() => setIsPlayingAudio(false)}
+            onTimeUpdate={handleAudioTimeUpdate}
+            onEnded={() => {
+              setIsPlayingAudio(false);
+              setPlaybackProgress(0);
+            }}
             className="hidden"
           />
           <div className="flex items-center gap-2">

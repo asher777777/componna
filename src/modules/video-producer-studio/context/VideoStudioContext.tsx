@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { VideoProject, VideoScene, HeyGenAvatar, HeyGenVoice, ClarificationResult } from '../types';
 import { 
   fetchAllProjects, 
-  subscribeProjects,
+  subscribeProjects, 
   saveProject, 
   deleteProject, 
   syncAssetToMediaGallery, 
@@ -27,6 +27,12 @@ import { exportVideoProjectToFlowPlayer, convertVideoProjectToCampaign } from '.
 import { CampaignConfig } from '../../flow-player-engine/types';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { TokenUsageReport } from '../../../core/ai';
+import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { loadBrandDna } from '../../brand-dna-hub/services/brandDnaFirestore';
+import { PageBuilderConfig } from '../../page-builder/types/pageBuilder.types';
+import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
+import { extractPageContentForVideo, ExtractedPageSummary } from '../services/pageContentExtractor';
+import { cleanSubtitleText } from '../services/subtitleService';
 
 export type StudioTab = 'wizard' | 'editor' | 'projects' | 'avatars';
 
@@ -76,13 +82,22 @@ interface VideoStudioContextValue {
   openTeleprompter: (sceneId: string) => void;
   closeTeleprompter: () => void;
   modalTargetSceneId: string | null;
+
+  // Brand DNA & Page Builder Integration
+  brandDna: BrandDna | null;
+  refreshBrandDna: () => Promise<BrandDna>;
+  availablePages: PageBuilderConfig[];
+  refreshPages: () => Promise<PageBuilderConfig[]>;
+  selectedPageForWizard: PageBuilderConfig | null;
+  setSelectedPageForWizard: (p: PageBuilderConfig | null) => void;
+  startWizardWithPage: (page: PageBuilderConfig) => void;
 }
 
 const VideoStudioContext = createContext<VideoStudioContextValue | null>(null);
 
 export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db, config, apiKeys, openConnectorModal } = useSystemConnection();
-  const [tab, setTab] = useState<StudioTab>('wizard');
+  const [tab, setTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<VideoProject[]>([]);
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
   const [activeSceneId, setActiveSceneId] = useState<string | null>(null);
@@ -104,6 +119,30 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
   const [isTeleprompterOpen, setIsTeleprompterOpen] = useState(false);
   const [modalTargetSceneId, setModalTargetSceneId] = useState<string | null>(null);
+
+  // Brand DNA & Page Builder State
+  const [brandDna, setBrandDna] = useState<BrandDna | null>(null);
+  const [availablePages, setAvailablePages] = useState<PageBuilderConfig[]>([]);
+  const [selectedPageForWizard, setSelectedPageForWizard] = useState<PageBuilderConfig | null>(null);
+
+  // Load Brand DNA
+  const refreshBrandDna = useCallback(async (): Promise<BrandDna> => {
+    const data = await loadBrandDna(db as any);
+    setBrandDna(data);
+    return data;
+  }, [db]);
+
+  // Load Page Builder Pages
+  const refreshPages = useCallback(async (): Promise<PageBuilderConfig[]> => {
+    const list = await pageBuilderFirestore.getAllPages(db as any);
+    setAvailablePages(list);
+    return list;
+  }, [db]);
+
+  useEffect(() => {
+    refreshBrandDna();
+    refreshPages();
+  }, [refreshBrandDna, refreshPages]);
 
   // Load projects from DB with real-time sync
   const loadProjects = useCallback(async () => {
@@ -133,6 +172,14 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const startNewProject = () => {
     setActiveProject(null);
     setActiveSceneId(null);
+    setSelectedPageForWizard(null);
+    setTab('wizard');
+  };
+
+  const startWizardWithPage = (page: PageBuilderConfig) => {
+    setActiveProject(null);
+    setActiveSceneId(null);
+    setSelectedPageForWizard(page);
     setTab('wizard');
   };
 
@@ -145,10 +192,17 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setIsGeneratingScript(true);
     try {
+      const dna = params.brandDna || brandDna;
+      const pageSummary = params.sourcePageSummary || (selectedPageForWizard ? extractPageContentForVideo(selectedPageForWizard) : null);
+
       const res = await generateClarificationQuestionsWithAI(
         geminiKey,
         apiKeys.geminiModel || 'gemini-3.6-flash',
-        params
+        {
+          ...params,
+          brandDna: dna,
+          sourcePageSummary: pageSummary
+        }
       );
       setLastCostReport(res.costReport);
       return res.result;
@@ -166,7 +220,14 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setIsGeneratingScript(true);
     try {
-      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', params);
+      const dna = params.brandDna || brandDna;
+      const pageSummary = params.sourcePageSummary || (selectedPageForWizard ? extractPageContentForVideo(selectedPageForWizard) : null);
+
+      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', {
+        ...params,
+        brandDna: dna,
+        sourcePageSummary: pageSummary
+      });
       const isInteractive = params.productionType === 'landing_funnel' || params.outputPreference === 'full_production';
       
       const cleanTitle = (res.project.title && res.project.title.trim().length > 1)
@@ -236,8 +297,13 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     setIsGeneratingScript(true);
     try {
+      const dna = params.brandDna || brandDna;
+      const pageSummary = params.sourcePageSummary || (selectedPageForWizard ? extractPageContentForVideo(selectedPageForWizard) : null);
+
       const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', {
         ...params,
+        brandDna: dna,
+        sourcePageSummary: pageSummary,
         conversationId: activeProject.conversationId || params.conversationId,
         conversationHistory: activeProject.conversationHistory
       });
@@ -556,7 +622,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         generator: 'google_tts',
         mimeType: 'audio/wav',
         scriptText: textToSpeak || scene.dialogueScript,
-        subtitleText: scene.subtitleText || textToSpeak || scene.dialogueScript,
+        subtitleText: cleanSubtitleText(scene.subtitleText || textToSpeak || scene.dialogueScript),
         tags: [scene.googleTtsVoiceName || 'he-IL-Wavenet-B', 'google_tts']
       });
 
@@ -595,16 +661,17 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
 
+      const hasCustomPhoto = !!(scene.customAvatarImageUrl || (scene.isPhotoAvatar && scene.backgroundMediaUrl));
       const videoJobId = await generateHeyGenSceneVideo(heygenKey, {
-        avatarId: scene.avatarId || 'Wayne_20240711',
+        avatarId: scene.avatarId,
         scriptText: scene.dialogueScript,
         voiceId: scene.voiceId,
         aspectRatio: activeProject.aspectRatio,
         backgroundMediaUrl: scene.backgroundMediaUrl,
-        customAvatarImageUrl: scene.customAvatarImageUrl || scene.backgroundMediaUrl,
-        imageUrl: scene.customAvatarImageUrl || scene.backgroundMediaUrl,
+        customAvatarImageUrl: scene.customAvatarImageUrl || (hasCustomPhoto ? scene.backgroundMediaUrl : undefined),
+        imageUrl: scene.customAvatarImageUrl || (hasCustomPhoto ? scene.backgroundMediaUrl : undefined),
         audioUrl: sceneAudioUrl || scene.renderedAudioUrl,
-        isPhotoAvatar: true
+        isPhotoAvatar: hasCustomPhoto
       });
 
       updateCurrentScene(sceneId, { heygenJobId: videoJobId });
@@ -720,7 +787,14 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         isTeleprompterOpen,
         openTeleprompter,
         closeTeleprompter,
-        modalTargetSceneId
+        modalTargetSceneId,
+        brandDna,
+        refreshBrandDna,
+        availablePages,
+        refreshPages,
+        selectedPageForWizard,
+        setSelectedPageForWizard,
+        startWizardWithPage
       }}
     >
       {children}

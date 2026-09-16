@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab, SectionType } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { PageBuilderHeader } from './components/PageBuilderHeader';
@@ -20,6 +20,7 @@ interface PageBuilderEditorProps {
   onSaveConfig?: (config: PageBuilderConfig) => Promise<void> | void;
   onClose?: () => void;
   onGoToPagesList?: () => void;
+  onConvertToVideo?: () => void;
 }
 
 export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
@@ -27,6 +28,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   onSaveConfig,
   onClose,
   onGoToPagesList,
+  onConvertToVideo,
 }) => {
   const [config, setConfig] = useState<PageBuilderConfig>(initialConfig);
   const [activeTab, setActiveTab] = useState<BuilderTab>('edit');
@@ -201,6 +203,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         onOpenShortener={() => setIsShortenerModalOpen(true)}
         onOpenGeo={() => setIsGeoDrawerOpen(true)}
         onGoToPagesList={onGoToPagesList}
+        onConvertToVideo={onConvertToVideo}
       />
 
       {/* Main Workspace based on Active Tab */}
