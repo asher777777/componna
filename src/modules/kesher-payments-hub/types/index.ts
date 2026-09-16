@@ -43,6 +43,24 @@ export interface CreditCardTransactionRequest {
   transactionId?: string;
 }
 
+export interface ReceiptLineItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+  category?: string;
+}
+
+export interface GlossaryItem {
+  id: string;
+  name: string;
+  defaultPrice: number;
+  category?: string;
+  usageCount?: number;
+  updatedAt?: string;
+}
+
 export interface CashTransactionRequest {
   clientName: string;
   amount: number; // in ILS
@@ -52,6 +70,8 @@ export interface CashTransactionRequest {
   email?: string;
   tz?: string;
   details?: string;
+  purpose?: string;
+  items?: ReceiptLineItem[];
   date?: string;
   // Check details
   checkNumber?: string;

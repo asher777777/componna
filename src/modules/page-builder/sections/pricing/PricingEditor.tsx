@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { PricingSectionConfig, PricingPackageItem } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { Plus, Trash2 } from 'lucide-react';
@@ -133,6 +133,49 @@ export const PricingEditor: React.FC<{
                 value={pkg.buttonText || ''}
                 onChange={(val) => handlePackageChange(idx, 'buttonText', val)}
               />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-slate-900/60 rounded-xl border border-slate-800/80">
+              <div>
+                <label className="block text-[11px] text-slate-400 mb-1 font-bold">סוג פעולה בלחיצה על הכפתור:</label>
+                <select
+                  value={pkg.actionType || 'kesher_checkout'}
+                  onChange={(e) => handlePackageChange(idx, 'actionType', e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-indigo-500 font-bold"
+                >
+                  <option value="kesher_checkout">💳 סליקת קשר ישירה (אשראי, ביט, חשבונית/קבלה)</option>
+                  <option value="smart_form">📝 פתיחת טופס חכם רב-שלבי (Smart Form)</option>
+                  <option value="external_url">🔗 קישור חיצוני / גלילה בעמוד</option>
+                </select>
+              </div>
+
+              {pkg.actionType === 'smart_form' ? (
+                <div>
+                  <label className="block text-[11px] text-indigo-300 mb-1 font-bold">בחר תבנית טופס חכם:</label>
+                  <select
+                    value={pkg.formTemplateId || 'template_pricing_quote'}
+                    onChange={(e) => handlePackageChange(idx, 'formTemplateId', e.target.value)}
+                    className="w-full bg-slate-950 border border-indigo-500/40 text-indigo-200 rounded-xl p-2 text-xs focus:outline-none focus:border-indigo-500 font-bold"
+                  >
+                    <option value="template_pricing_quote">✨ התאמת חבילה והצעת מחיר אישית</option>
+                    <option value="template_course_registration">🎓 הרשמה לקורס / הכשרה יוקרתית</option>
+                    <option value="template_vip_discovery_call">📅 תיאום שיחת ייעוץ אסטרטגית VIP</option>
+                    <option value="template_ambassador_onboarding">🌟 הצטרפות לשגרירי קהילה ומובילים</option>
+                    <option value="template_donation_pledge">🙏 טופס תרומה והוראת קבע לחסד</option>
+                  </select>
+                </div>
+              ) : pkg.actionType === 'external_url' ? (
+                <PageBuilderInput
+                  label="כתובת URL להפניה"
+                  value={pkg.buttonUrl || ''}
+                  onChange={(val) => handlePackageChange(idx, 'buttonUrl', val)}
+                  placeholder="https://example.com/checkout או #contact"
+                />
+              ) : (
+                <div className="flex items-center text-xs text-emerald-400 font-bold gap-1 pt-6">
+                  <span>✓ מחובר לסליקת קשר ולסנכרון כרטיס איש קשר ב-CRM</span>
+                </div>
+              )}
             </div>
 
             <div>

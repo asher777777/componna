@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import {
   Plus,
@@ -226,6 +226,16 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                       <Edit3 className="w-3.5 h-3.5" />
                       <span>ערוך עמוד</span>
                     </button>
+
+                    <a
+                      href={`/p/${page.slug || page.pageId}${!page.published ? '?preview=true' : ''}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-colors"
+                      title={page.published ? 'צפה בעמוד באוויר' : 'תצוגה מקדימה'}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </a>
 
                     <button
                       type="button"

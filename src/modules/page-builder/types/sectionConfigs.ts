@@ -306,6 +306,9 @@ export interface PricingPackageItem {
   features: string[];
   buttonText?: string;
   buttonUrl?: string;
+  actionType?: 'kesher_checkout' | 'smart_form' | 'external_url';
+  formId?: string;
+  formTemplateId?: string;
 }
 
 export interface PricingSectionConfig extends BaseSectionConfig {

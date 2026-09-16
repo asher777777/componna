@@ -7,7 +7,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        hebrew: ['Rubik', 'Segoe UI', 'sans-serif'],
+        hebrew: ['Heebo', 'Rubik', 'Assistant', 'Segoe UI', 'sans-serif'],
+        heebo: ['Heebo', 'sans-serif'],
+        rubik: ['Rubik', 'sans-serif'],
+        assistant: ['Assistant', 'sans-serif'],
       },
       colors: {
         brand: {

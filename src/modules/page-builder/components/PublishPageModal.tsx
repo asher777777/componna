@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import {
   Globe,
@@ -32,7 +32,7 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
   if (!isOpen) return null;
 
   const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.comona.io';
-  const publicUrl = `${origin}/#/p/${config.slug || config.pageId}`;
+  const publicUrl = `${origin}/p/${config.slug || config.pageId}`;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl);

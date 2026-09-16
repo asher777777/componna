@@ -1,6 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { LogoMarqueeSectionConfig, LogoMarqueeItem } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { Plus, Trash2 } from 'lucide-react';
 
 export const LogoMarqueeEditor: React.FC<{
@@ -61,36 +62,30 @@ export const LogoMarqueeEditor: React.FC<{
 
       <div className="flex flex-col gap-3">
         {config.logos?.map((logo, idx) => (
-          <div key={logo.id || idx} className="p-3 bg-slate-950/70 border border-slate-800 rounded-2xl flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-              {logo.logoUrl ? (
-                <img src={logo.logoUrl} alt={logo.name} className="max-h-8 max-w-8 object-contain" />
-              ) : (
-                <span className="text-xs text-slate-500">לוגו</span>
-              )}
+          <div key={logo.id || idx} className="p-3 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold text-indigo-400">לוגו #{idx + 1}</span>
+              <button
+                type="button"
+                onClick={() => handleDeleteItem(idx)}
+                className="text-slate-500 hover:text-red-400 p-1 transition-colors"
+                title="מחק"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
 
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <PageBuilderInput
-                label="שם חברה / מותג"
-                value={logo.name || ''}
-                onChange={(val) => handleItemChange(idx, 'name', val)}
-              />
-              <PageBuilderInput
-                label="כתובת תמונת הלוגו (URL)"
-                value={logo.logoUrl || ''}
-                onChange={(val) => handleItemChange(idx, 'logoUrl', val)}
-              />
-            </div>
+            <PageBuilderInput
+              label="שם חברה / מותג"
+              value={logo.name || ''}
+              onChange={(val) => handleItemChange(idx, 'name', val)}
+            />
 
-            <button
-              type="button"
-              onClick={() => handleDeleteItem(idx)}
-              className="text-slate-500 hover:text-red-400 p-2 transition-colors"
-              title="מחק"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+            <PageBuilderImageUpload
+              label="תמונת לוגו (SVG / PNG)"
+              value={logo.logoUrl}
+              onChange={(url) => handleItemChange(idx, 'logoUrl', url)}
+            />
           </div>
         ))}
       </div>

@@ -5,3 +5,5 @@ export * from './PageBuilder';
 export * from './PageBuilderEditor';
 export * from './PageBuilderRenderer';
 export * from './PageBuilderStandaloneView';
+export * from './components/PublicPageView';
+export * from './components/KesherCheckoutModal';

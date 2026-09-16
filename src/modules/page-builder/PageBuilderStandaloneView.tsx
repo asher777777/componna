@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig, SectionType } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { PageBuilderEditor } from './PageBuilderEditor';
@@ -35,6 +35,7 @@ const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
     backgroundColor: '#0a0a0c',
     textColor: '#f8fafc',
     buttonBgColor: '#6366f1',
+    fontFamily: 'Heebo, sans-serif',
     contactWhatsApp: '972545947701',
     contactPhone: '03-5551234',
     contactEmail: 'contact@example.org',
@@ -137,6 +138,7 @@ export const PageBuilderStandaloneView: React.FC = () => {
         siteTitle: 'דף נחיתה חדש',
         primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
         companyName: brandDna?.identity?.companyName || 'החברה המובילה',
+        fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
       },
       seoSettings: {
         title: 'דף נחיתה חדש ומעוצב',

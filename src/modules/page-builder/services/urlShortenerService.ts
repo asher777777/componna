@@ -1,4 +1,4 @@
-﻿export interface ShortUrlResult {
+export interface ShortUrlResult {
   shortSlug: string;
   shortUrl: string;
   domain: string;
@@ -66,7 +66,7 @@ export const urlShortenerService = {
     
     // Resolve target URL
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.comona.io';
-    const fullTargetUrl = `${origin}/#/p/${pageSlug}`;
+    const fullTargetUrl = `${origin}/p/${pageSlug}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(shortUrl)}&bgcolor=0f172a&color=6366f1&margin=15`;
 
     return {

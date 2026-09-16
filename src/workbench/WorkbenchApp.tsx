@@ -3,21 +3,36 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { REGISTERED_MODULES } from './moduleRegistry';
+import { PublicPageView } from '../modules/page-builder';
 
 export const WorkbenchApp: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
+
+  const isPublicPage =
+    location.pathname.startsWith('/p/') ||
+    location.pathname.startsWith('/page/') ||
+    location.pathname.startsWith('/preview/') ||
+    location.hash.startsWith('#/p/') ||
+    location.hash.startsWith('#/page/');
+
   const isStandalone =
     searchParams.get('mode') === 'live' ||
     searchParams.get('standalone') === 'true' ||
-    location.pathname.startsWith('/p/');
+    isPublicPage;
 
   if (isStandalone) {
     return (
-      <div className="w-screen h-screen overflow-hidden bg-slate-950 flex items-center justify-center p-0 m-0 select-none" dir="rtl">
-        <main className="w-full h-full flex items-center justify-center overflow-hidden">
+      <div className="w-screen min-h-screen bg-[#09090b] flex items-center justify-center p-0 m-0 text-white" dir="rtl">
+        <main className="w-full min-h-screen">
           <Routes>
-            <Route path="/" element={<Navigate to="/flow-player-engine" replace />} />
+            <Route path="/p/:slug" element={<PublicPageView />} />
+            <Route path="/p/*" element={<PublicPageView />} />
+            <Route path="/page/:slug" element={<PublicPageView />} />
+            <Route path="/page/*" element={<PublicPageView />} />
+            <Route path="/preview/:slug" element={<PublicPageView />} />
+            <Route path="/preview/*" element={<PublicPageView />} />
+
             {REGISTERED_MODULES.map((module) => {
               const Component = module.component;
               return (
@@ -28,12 +43,7 @@ export const WorkbenchApp: React.FC = () => {
                 />
               );
             })}
-            <Route
-              path="/p/*"
-              element={React.createElement(
-                REGISTERED_MODULES.find((m) => m.id === 'flow-player-engine')?.component || 'div'
-              )}
-            />
+            <Route path="/" element={<Navigate to="/flow-player-engine" replace />} />
           </Routes>
         </main>
       </div>
@@ -51,6 +61,15 @@ export const WorkbenchApp: React.FC = () => {
         <main className="flex-1 overflow-y-auto bg-slate-900/50">
           <Routes>
             <Route path="/" element={<Navigate to={REGISTERED_MODULES[0]?.route || '/'} replace />} />
+            
+            {/* Public Page Routes */}
+            <Route path="/p/:slug" element={<PublicPageView />} />
+            <Route path="/p/*" element={<PublicPageView />} />
+            <Route path="/page/:slug" element={<PublicPageView />} />
+            <Route path="/page/*" element={<PublicPageView />} />
+            <Route path="/preview/:slug" element={<PublicPageView />} />
+            <Route path="/preview/*" element={<PublicPageView />} />
+
             {REGISTERED_MODULES.map((module) => {
               const Component = module.component;
               return (

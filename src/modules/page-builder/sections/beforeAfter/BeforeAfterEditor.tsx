@@ -1,6 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { BeforeAfterSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 
 export const BeforeAfterEditor: React.FC<{
   config: BeforeAfterSectionConfig;
@@ -37,10 +38,10 @@ export const BeforeAfterEditor: React.FC<{
               value={config.beforeLabel || 'לפני'}
               onChange={(val) => onChange({ ...config, beforeLabel: val })}
             />
-            <PageBuilderInput
-              label="כתובת תמונת 'לפני' (URL)"
-              value={config.beforeImage || ''}
-              onChange={(val) => onChange({ ...config, beforeImage: val })}
+            <PageBuilderImageUpload
+              label="תמונת 'לפני'"
+              value={config.beforeImage}
+              onChange={(url) => onChange({ ...config, beforeImage: url })}
             />
           </div>
 
@@ -50,10 +51,10 @@ export const BeforeAfterEditor: React.FC<{
               value={config.afterLabel || 'אחרי'}
               onChange={(val) => onChange({ ...config, afterLabel: val })}
             />
-            <PageBuilderInput
-              label="כתובת תמונת 'אחרי' (URL)"
-              value={config.afterImage || ''}
-              onChange={(val) => onChange({ ...config, afterImage: val })}
+            <PageBuilderImageUpload
+              label="תמונת 'אחרי'"
+              value={config.afterImage}
+              onChange={(url) => onChange({ ...config, afterImage: url })}
             />
           </div>
         </div>

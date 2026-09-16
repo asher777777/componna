@@ -259,6 +259,22 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                 </div>
               </div>
 
+              {/* Font Family Selector */}
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-2">גופן האתר (Font Family):</label>
+                <select
+                  value={globalSettings.fontFamily || 'Heebo, sans-serif'}
+                  onChange={(e) => updateGlobal('fontFamily', e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-bold"
+                >
+                  <option value="Heebo, sans-serif">Heebo (היבו - מודרני ונקי)</option>
+                  <option value="Assistant, sans-serif">Assistant (אסיסטנט - עדין ואלגנטי)</option>
+                  <option value="Rubik, sans-serif">Rubik (רוביק - יוקרתי ועגול)</option>
+                  <option value="Alef, sans-serif">Alef (אלף - מסורתי ורשמי)</option>
+                  <option value="'Varela Round', sans-serif">Varela Round (ורלה עגול)</option>
+                </select>
+              </div>
+
               <PageBuilderColorPicker
                 label="צבע ראשי (Primary Color)"
                 value={globalSettings.primaryColor || '#6366f1'}

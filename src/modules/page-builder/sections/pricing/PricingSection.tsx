@@ -1,7 +1,9 @@
-﻿import React, { useState } from 'react';
-import { PricingSectionConfig } from '../../types/sectionConfigs';
-import { Check, Sparkles, ArrowLeft, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { PricingSectionConfig, PricingPackageItem } from '../../types/sectionConfigs';
+import { Check, Sparkles, ArrowLeft, ShieldCheck, CreditCard, FileText, X } from 'lucide-react';
 import { clsx } from 'clsx';
+import { KesherCheckoutModal } from '../../components/KesherCheckoutModal';
+import { SmartFormRunner, SMART_FORM_TEMPLATES } from '../../../smart-form-builder';
 
 export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ config }) => {
   const {
@@ -16,6 +18,20 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
   } = config;
 
   const [isYearly, setIsYearly] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<PricingPackageItem | null>(null);
+
+  const handleSelectPackage = (pkg: PricingPackageItem) => {
+    // If buttonUrl is an external link (http/https) and action is external_url, navigate
+    if (pkg.actionType === 'external_url' && pkg.buttonUrl && (pkg.buttonUrl.startsWith('http://') || pkg.buttonUrl.startsWith('https://'))) {
+      window.open(pkg.buttonUrl, '_blank');
+      return;
+    }
+    setSelectedPackage(pkg);
+  };
+
+  const activeFormTemplate = selectedPackage?.actionType === 'smart_form'
+    ? SMART_FORM_TEMPLATES.find((t) => t.id === selectedPackage?.formTemplateId) || SMART_FORM_TEMPLATES[0]
+    : null;
 
   return (
     <section
@@ -77,6 +93,8 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
           {packages.map((pkg) => {
             const activePrice = isYearly && pkg.priceYearly ? pkg.priceYearly : pkg.priceMonthly || '₪99';
+            const isSmartForm = pkg.actionType === 'smart_form';
+
             return (
               <div
                 key={pkg.id}
@@ -121,18 +139,20 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
                 </div>
 
                 <div className="mt-8 pt-4">
-                  <a
-                    href={pkg.buttonUrl || '#contact'}
+                  <button
+                    type="button"
+                    onClick={() => handleSelectPackage(pkg)}
                     className={clsx(
-                      'w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all',
+                      'w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center gap-2 transition-all cursor-pointer',
                       pkg.isFeatured
                         ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:opacity-95 text-white shadow-xl shadow-indigo-600/40 hover:scale-105'
                         : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                     )}
                   >
-                    <span>{pkg.buttonText || 'התחילו עכשיו'}</span>
+                    {isSmartForm ? <FileText className="w-4 h-4 text-indigo-300" /> : <CreditCard className="w-4 h-4" />}
+                    <span>{pkg.buttonText || (isSmartForm ? 'מילוי שאלון התאמה' : 'התחילו עכשיו')}</span>
                     <ArrowLeft className="w-4 h-4" />
-                  </a>
+                  </button>
                 </div>
               </div>
             );
@@ -142,9 +162,47 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
         {/* Guarantee Banner */}
         <div className="flex items-center justify-center gap-2 text-xs text-slate-400 mt-2">
           <ShieldCheck className="w-4 h-4 text-indigo-400" />
-          <span>14 ימי ניסיון ללא התחייבות • ביטול בלחיצת כפתור בכל עת • שירות לקוחות בעברית</span>
+          <span>סליקה מאובטחת ע"י קשר • טפסים חכמים ומעוצבים • סנכרון CRM מיידי וניהול לידים</span>
         </div>
       </div>
+
+      {/* 1. Kesher Direct Checkout Modal */}
+      {selectedPackage && selectedPackage.actionType !== 'smart_form' && (
+        <KesherCheckoutModal
+          isOpen={!!selectedPackage}
+          onClose={() => setSelectedPackage(null)}
+          pkg={selectedPackage}
+          isYearly={isYearly}
+          pageTitle={title}
+          onPaymentSuccess={(info) => {
+            console.log('[PricingSection] Payment completed:', info);
+          }}
+        />
+      )}
+
+      {/* 2. Smart Form Runner Modal (Cleanly imported from smart-form-builder) */}
+      {selectedPackage && selectedPackage.actionType === 'smart_form' && activeFormTemplate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto" dir="rtl">
+          <div className="relative w-full max-w-2xl bg-slate-950 border border-slate-800 rounded-3xl p-6 shadow-2xl my-8">
+            <button
+              type="button"
+              onClick={() => setSelectedPackage(null)}
+              className="absolute top-5 left-5 text-slate-400 hover:text-white p-1 rounded-full bg-slate-900 border border-slate-800 z-20 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <SmartFormRunner
+              form={activeFormTemplate}
+              formId={selectedPackage.formId}
+              onComplete={(answers, submissionId) => {
+                console.log('[PricingSection] Smart Form Submitted:', submissionId, answers);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </section>
   );
 };
+

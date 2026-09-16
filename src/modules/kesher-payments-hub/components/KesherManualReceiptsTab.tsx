@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   FileText,
   Banknote,
@@ -14,13 +14,21 @@ import {
   ShieldCheck,
   Save,
   Sparkles,
-  UserCheck
+  UserCheck,
+  Plus,
+  Trash2,
+  BookOpen,
+  Layers,
+  Tag
 } from 'lucide-react';
 import { kesherService } from '../services/kesherService';
-import { KesherDocumentType } from '../types';
+import { KesherDocumentType, ReceiptLineItem, GlossaryItem } from '../types';
 import { Contact } from '../../crm-analytics/types';
 import { crmContactSyncService } from '../services/crmContactSyncService';
 import { CrmContactAutocomplete } from './CrmContactAutocomplete';
+import { ReceiptItemGlossaryAutocomplete } from './ReceiptItemGlossaryAutocomplete';
+import { ReceiptGlossaryManagerModal } from './ReceiptGlossaryManagerModal';
+import { receiptGlossaryService } from '../services/receiptGlossaryService';
 
 export const KesherManualReceiptsTab: React.FC = () => {
   const settings = kesherService.getSettings();
@@ -30,12 +38,120 @@ export const KesherManualReceiptsTab: React.FC = () => {
     settings.defaultReceiptType || 405
   );
 
+  // Form State
   const [amount, setAmount] = useState<string>('');
   const [clientName, setClientName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [tz, setTz] = useState<string>('');
   const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
+  // Line Items (Receipt Purpose & Breakdown)
+  const [lineItems, setLineItems] = useState<ReceiptLineItem[]>([
+    { id: 'item_1', description: '', quantity: 1, unitPrice: 0, total: 0 }
+  ]);
+  const [showGlossaryModal, setShowGlossaryModal] = useState<boolean>(false);
+  const [presetGlossaryItems, setPresetGlossaryItems] = useState<GlossaryItem[]>([]);
+
+  // Subscribe to glossary items for presets
+  useEffect(() => {
+    const unsub = receiptGlossaryService.subscribe((list) => {
+      setPresetGlossaryItems(list);
+    });
+    return unsub;
+  }, []);
+
+  // Calculate items sum
+  const calculatedTotal = lineItems.reduce((sum, item) => sum + (Number(item.total) || (Number(item.quantity || 1) * Number(item.unitPrice || 0))), 0);
+
+  // Sync calculated total to main amount when line items change
+  const syncItemsToAmount = (items: ReceiptLineItem[]) => {
+    const tot = items.reduce((sum, item) => sum + (Number(item.total) || (Number(item.quantity || 1) * Number(item.unitPrice || 0))), 0);
+    if (tot > 0) {
+      setAmount(String(tot));
+    }
+  };
+
+  const handleAddLineItem = () => {
+    const newItem: ReceiptLineItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      description: '',
+      quantity: 1,
+      unitPrice: 0,
+      total: 0
+    };
+    const updated = [...lineItems, newItem];
+    setLineItems(updated);
+  };
+
+  const handleRemoveLineItem = (index: number) => {
+    if (lineItems.length <= 1) {
+      setLineItems([{ id: 'item_1', description: '', quantity: 1, unitPrice: 0, total: 0 }]);
+      return;
+    }
+    const updated = lineItems.filter((_, i) => i !== index);
+    setLineItems(updated);
+    syncItemsToAmount(updated);
+  };
+
+  const handleUpdateLineItem = (index: number, field: keyof ReceiptLineItem, value: any) => {
+    const updated = [...lineItems];
+    const current = { ...updated[index], [field]: value };
+    const qty = Number(current.quantity) || 1;
+    const price = Number(current.unitPrice) || 0;
+    current.total = Math.round(qty * price * 100) / 100;
+    updated[index] = current;
+    setLineItems(updated);
+    syncItemsToAmount(updated);
+  };
+
+  const handleSelectGlossaryItem = (index: number, glossaryItem: GlossaryItem) => {
+    const updated = [...lineItems];
+    const current = {
+      ...updated[index],
+      description: glossaryItem.name,
+      unitPrice: glossaryItem.defaultPrice || updated[index].unitPrice || 0,
+      category: glossaryItem.category || 'כללי',
+    };
+    const qty = Number(current.quantity) || 1;
+    current.total = Math.round(qty * current.unitPrice * 100) / 100;
+    updated[index] = current;
+    setLineItems(updated);
+    syncItemsToAmount(updated);
+  };
+
+  const handleApplyPreset = (preset: GlossaryItem) => {
+    // If the only line item is empty, replace it
+    if (lineItems.length === 1 && !lineItems[0].description.trim() && !lineItems[0].unitPrice) {
+      handleSelectGlossaryItem(0, preset);
+      return;
+    }
+    // Otherwise add as new line item
+    const newItem: ReceiptLineItem = {
+      id: `item_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      description: preset.name,
+      quantity: 1,
+      unitPrice: preset.defaultPrice || 0,
+      total: preset.defaultPrice || 0,
+      category: preset.category,
+    };
+    const updated = [...lineItems, newItem];
+    setLineItems(updated);
+    syncItemsToAmount(updated);
+  };
+
+  // Sync main amount change down to single line item if appropriate
+  const handleAmountChange = (val: string) => {
+    setAmount(val);
+    const num = parseFloat(val);
+    if (!isNaN(num) && num >= 0 && lineItems.length === 1 && lineItems[0].quantity === 1) {
+      setLineItems([{
+        ...lineItems[0],
+        unitPrice: num,
+        total: num
+      }]);
+    }
+  };
 
   // CRM Sync State
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
@@ -165,6 +281,18 @@ export const KesherManualReceiptsTab: React.FC = () => {
         console.warn('CRM sync notice on manual receipt submit:', crmErr);
       }
 
+      // 2. Auto-save all line items to Glossary
+      try {
+        await receiptGlossaryService.saveItemsFromReceipt(lineItems);
+      } catch (glossaryErr) {
+        console.warn('Glossary auto-save notice on receipt submit:', glossaryErr);
+      }
+
+      const itemsPurpose = lineItems
+        .filter(it => it.description && it.description.trim())
+        .map(it => `${it.description.trim()}${Number(it.quantity) > 1 ? ` (כמות: ${it.quantity})` : ''}`)
+        .join(', ');
+
       const res = await kesherService.sendCashTransaction({
         clientName,
         amount: Number(amount),
@@ -174,6 +302,9 @@ export const KesherManualReceiptsTab: React.FC = () => {
         email,
         tz,
         date,
+        details: itemsPurpose || undefined,
+        purpose: itemsPurpose || undefined,
+        items: lineItems,
         checkNumber: paymentType === 'Check' ? checkNumber : undefined,
         bankName: (paymentType === 'Check' || paymentType === 'BankTransfer') ? bankName : undefined,
         branchNumber: (paymentType === 'Check' || paymentType === 'BankTransfer') ? branchNumber : undefined,
@@ -184,7 +315,7 @@ export const KesherManualReceiptsTab: React.FC = () => {
       const receiptNum = res.ReceiptNumber || res.TransactionId || res.Id || `rcpt_${Date.now()}`;
       const docUrl = res.DocUrl || res.Url;
 
-      // 2. Record payment in Contact CRM profile
+      // 3. Record payment in Contact CRM profile
       if (activeCrmContact?.id) {
         const paymentLabel = paymentType === 'Check'
           ? `צ'ק (מס' ${checkNumber || 'ללא'})`
@@ -192,11 +323,13 @@ export const KesherManualReceiptsTab: React.FC = () => {
           ? `העברה בנקאית (אסמכתא ${transferRef || 'ללא'})`
           : 'מזומן';
 
+        const paymentDesc = itemsPurpose ? `${paymentLabel} - ${itemsPurpose}` : paymentLabel;
+
         await crmContactSyncService.recordContactPayment(activeCrmContact.id, {
           id: `pay_${receiptNum}`,
           date: date || new Date().toISOString().slice(0, 10),
           amount: Number(amount),
-          paymentType: paymentLabel,
+          paymentType: paymentDesc,
           receiptType: String(receiptType),
           kesherStatus: 'Success',
           receiptLink: docUrl || '',
@@ -214,6 +347,7 @@ export const KesherManualReceiptsTab: React.FC = () => {
       setClientName('');
       setCheckNumber('');
       setTransferRef('');
+      setLineItems([{ id: 'item_1', description: '', quantity: 1, unitPrice: 0, total: 0 }]);
       setSelectedContact(null);
     } catch (err: any) {
       setErrorMessage(err.message || 'שגיאה בהפקת הקבלה');
@@ -347,13 +481,18 @@ export const KesherManualReceiptsTab: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                סכום שהתקבל (₪) *
+              <label className="block text-xs font-semibold text-slate-300 mb-1.5 flex items-center justify-between">
+                <span>סכום שהתקבל (₪) *</span>
+                {calculatedTotal > 0 && (
+                  <span className="text-[10px] text-emerald-400 font-normal">
+                    מחושב מהשורות ✓
+                  </span>
+                )}
               </label>
               <input
                 type="number"
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-lg font-bold text-white focus:outline-none focus:border-emerald-500 placeholder:text-slate-600"
                 placeholder="0.00"
                 min="1"
@@ -445,6 +584,152 @@ export const KesherManualReceiptsTab: React.FC = () => {
                 placeholder="123456789"
               />
             </div>
+          </div>
+        </div>
+
+        {/* אזור פירוט פריטים ומטרת הקבלה (גלוסרי ומחירון אוטומטי) */}
+        <div className="bg-[#141824]/90 border border-slate-800 rounded-2xl p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-500/20 text-indigo-400 rounded-xl border border-indigo-500/30">
+                <Layers className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-white text-base">עבור מה יצאה הקבלה / פירוט פריטים</h3>
+                <p className="text-xs text-slate-400">
+                  הקלד שם פריט לבחירה מהירה מגלוסרי הפריטים עם השלמת סכומים אוטומטית
+                </p>
+              </div>
+            </div>
+
+            {/* Quick action buttons */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowGlossaryModal(true)}
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 hover:text-white border border-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
+                <span>גלוסרי ומחירון פריטים</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddLineItem}
+                className="px-3.5 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-white border border-emerald-500/40 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer shadow-sm"
+              >
+                <Plus className="w-3.5 h-3.5 text-emerald-400" />
+                <span>+ הוסף שורת פריט</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Quick Preset Badges */}
+          {presetGlossaryItems.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 pt-1">
+              <span className="text-[11px] text-slate-500 font-medium ml-1 flex items-center gap-1">
+                <Sparkles className="w-3 h-3 text-indigo-400" />
+                הוספה מהירה מהגלוסרי:
+              </span>
+              {presetGlossaryItems.slice(0, 6).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => handleApplyPreset(preset)}
+                  className="text-[11px] px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 hover:border-indigo-500/50 rounded-lg transition flex items-center gap-1.5 cursor-pointer group"
+                >
+                  <Tag className="w-2.5 h-2.5 text-indigo-400" />
+                  <span>{preset.name}</span>
+                  {preset.defaultPrice > 0 && (
+                    <span className="text-emerald-400 font-bold font-mono group-hover:text-emerald-300">
+                      ₪{Number(preset.defaultPrice).toLocaleString('he-IL')}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Line Items Table / Rows */}
+          <div className="space-y-2.5 pt-1">
+            {lineItems.map((item, index) => (
+              <div
+                key={item.id || index}
+                className="p-3 bg-slate-900/90 border border-slate-800 rounded-xl grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+              >
+                {/* Description & Autocomplete */}
+                <div className="sm:col-span-6">
+                  <label className="block text-[11px] text-slate-400 mb-1 flex items-center justify-between">
+                    <span>תיאור הפריט / מטרה *</span>
+                    <span className="text-[10px] text-indigo-400 font-normal">חיפוש מהיר בגלוסרי</span>
+                  </label>
+                  <ReceiptItemGlossaryAutocomplete
+                    value={item.description}
+                    onChange={(val) => handleUpdateLineItem(index, 'description', val)}
+                    onSelectItem={(glossaryItem) => handleSelectGlossaryItem(index, glossaryItem)}
+                    unitPrice={item.unitPrice}
+                  />
+                </div>
+
+                {/* Quantity */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-slate-400 mb-1">כמות</label>
+                  <input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => handleUpdateLineItem(index, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                    min="1"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white text-center focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                {/* Unit Price */}
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] text-slate-400 mb-1">מחיר יחידה (₪)</label>
+                  <input
+                    type="number"
+                    value={item.unitPrice || ''}
+                    onChange={(e) => handleUpdateLineItem(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                    min="0"
+                    step="0.01"
+                    placeholder="0.00"
+                    className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-bold text-center focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+
+                {/* Total & Remove */}
+                <div className="sm:col-span-2 flex items-center justify-between gap-2 pt-2 sm:pt-4">
+                  <div>
+                    <span className="block text-[10px] text-slate-500">סה"כ לשורה</span>
+                    <span className="text-xs font-bold text-emerald-400 font-mono">
+                      ₪{(item.total || (item.quantity * item.unitPrice)).toLocaleString('he-IL')}
+                    </span>
+                  </div>
+
+                  {lineItems.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLineItem(index)}
+                      className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                      title="הסר שורה"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Calculated Items Total Banner */}
+          <div className="flex items-center justify-between p-3 bg-slate-900/60 border border-slate-800 rounded-xl text-xs">
+            <span className="text-slate-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              סה"כ מחושב מכל שורות הפריטים (מסונכרן לסכום הקבלה):
+            </span>
+            <span className="text-sm font-black text-emerald-400 font-mono">
+              ₪{calculatedTotal.toLocaleString('he-IL')}
+            </span>
           </div>
         </div>
 
@@ -585,6 +870,13 @@ export const KesherManualReceiptsTab: React.FC = () => {
           </button>
         </div>
       </form>
+
+      {/* Glossary Manager Modal */}
+      <ReceiptGlossaryManagerModal
+        isOpen={showGlossaryModal}
+        onClose={() => setShowGlossaryModal(false)}
+        onSelectItem={handleApplyPreset}
+      />
     </div>
   );
 };

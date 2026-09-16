@@ -1,6 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { HeroSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 
 export const HeroEditor: React.FC<{
   config: HeroSectionConfig;
@@ -99,10 +100,10 @@ export const HeroEditor: React.FC<{
         </div>
       </div>
 
-      <PageBuilderInput
-        label="כתובת תמונת רקע / Showcase (URL)"
-        value={config.imageSrc || ''}
-        onChange={(val) => onChange({ ...config, imageSrc: val })}
+      <PageBuilderImageUpload
+        label="תמונת רקע / Showcase (גלריית מדיה)"
+        value={config.imageSrc}
+        onChange={(url) => onChange({ ...config, imageSrc: url })}
       />
     </div>
   );

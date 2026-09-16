@@ -2,6 +2,7 @@ export * from './types';
 export * from './config/constants';
 export * from './config/luxuryIcons';
 export * from './config/tonePresets';
+export * from './config/formTemplates';
 export * from './services/aiFormService';
 export * from './services/formStorageService';
 export * from './services/submissionStorageService';

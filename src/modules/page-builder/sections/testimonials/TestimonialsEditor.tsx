@@ -1,6 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import { TestimonialsSectionConfig, TestimonialItem } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { Plus, Trash2, Star, CheckCircle2 } from 'lucide-react';
 
 export const TestimonialsEditor: React.FC<{
@@ -125,12 +126,7 @@ export const TestimonialsEditor: React.FC<{
               />
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <PageBuilderInput
-                label="קישור לתמונת פרופיל"
-                value={item.avatarUrl || ''}
-                onChange={(val) => handleItemChange(idx, 'avatarUrl', val)}
-              />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <PageBuilderInput
                 label="דירוג (1-5)"
                 type="number"
@@ -143,6 +139,12 @@ export const TestimonialsEditor: React.FC<{
                 onChange={(val) => handleItemChange(idx, 'badge', val)}
               />
             </div>
+
+            <PageBuilderImageUpload
+              label="תמונת פרופיל של הממליץ"
+              value={item.avatarUrl}
+              onChange={(url) => handleItemChange(idx, 'avatarUrl', url)}
+            />
 
             <div>
               <label className="block text-xs text-slate-400 mb-1 font-medium">תוכן ההמלצה</label>
