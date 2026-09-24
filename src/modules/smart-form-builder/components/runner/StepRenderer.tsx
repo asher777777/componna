@@ -2,7 +2,8 @@ import React, { useCallback } from 'react';
 import { FormStep, FormThemeSettings } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
-import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2 } from 'lucide-react';
+import { transliterateHebrewToSlug, cleanEmailSpeech } from '../../utils/transliteration';
+import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock } from 'lucide-react';
 
 export interface StepRendererProps {
   step: FormStep;
@@ -24,16 +25,35 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   const accentColor = theme?.accentColor || '#D97706';
   const isVoiceEnabled = theme?.enableVoiceInput !== false;
 
+  const isSubdomain =
+    step.mappingKey === 'requested_subdomain' ||
+    step.id?.includes('subdomain') ||
+    step.title?.toLowerCase().includes('סאב') ||
+    step.title?.toLowerCase().includes('subdomain');
+
+  const isEmail =
+    step.fieldType === 'email' ||
+    step.mappingKey === 'email' ||
+    step.id?.includes('email') ||
+    step.title?.includes('דוא"ל') ||
+    step.title?.includes('אימייל');
+
   const handleSpeechResult = useCallback(
     (transcript: string) => {
-      if (step.fieldType === 'number') {
+      if (isSubdomain) {
+        const slug = transliterateHebrewToSlug(transcript);
+        onChange(slug);
+      } else if (isEmail) {
+        const email = cleanEmailSpeech(transcript);
+        onChange(email);
+      } else if (step.fieldType === 'number') {
         const numOnly = transcript.replace(/\D/g, '');
         onChange(numOnly || transcript);
       } else {
         onChange(transcript);
       }
     },
-    [step.fieldType, onChange]
+    [isSubdomain, isEmail, step.fieldType, onChange]
   );
 
   const { isListening, isSupported, toggleListening } = useSpeechRecognition({
@@ -42,9 +62,126 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   });
 
   const renderFieldInput = () => {
+    // 1. Dedicated Subdomain Input with Auto-Transliteration and Live URL Preview
+    if (isSubdomain) {
+      const cleanSub = transliterateHebrewToSlug(value || '');
+      return (
+        <div className="w-full max-w-xl space-y-3">
+          <div className="relative flex items-center rounded-2xl border-2 transition-all overflow-hidden bg-slate-900/90 border-slate-800 focus-within:border-amber-500 focus-within:ring-4 focus-within:ring-amber-500/10 shadow-lg">
+            {/* Globe Icon */}
+            <div className="p-3.5 text-amber-400 border-l border-slate-800 bg-slate-950/60">
+              <Globe className="w-5 h-5" />
+            </div>
+
+            {/* Subdomain Input */}
+            <input
+              type="text"
+              autoFocus
+              value={value || ''}
+              onChange={(e) => {
+                const transliterated = transliterateHebrewToSlug(e.target.value);
+                onChange(transliterated);
+              }}
+              placeholder={step.placeholder || 'your-business'}
+              className="flex-1 bg-transparent px-4 py-4 text-lg md:text-xl font-bold font-mono text-white placeholder:text-slate-500 focus:outline-none text-left"
+              dir="ltr"
+            />
+
+            {/* Locked Domain Suffix Badge */}
+            <div className="bg-amber-500/10 text-amber-400 border-r border-slate-800 font-mono font-black text-sm px-4 py-4 select-none flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 opacity-70" />
+              <span>.kosun.pro</span>
+            </div>
+
+            {/* Microphone Button */}
+            {isSupported && isVoiceEnabled && (
+              <div className="pr-3 pl-1 flex items-center">
+                <button
+                  type="button"
+                  onClick={toggleListening}
+                  className={`p-2.5 rounded-xl transition-all ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110'
+                      : 'bg-slate-800 text-slate-400 hover:text-amber-400 hover:bg-slate-700'
+                  }`}
+                  title={
+                    isListening
+                      ? 'הקלטה פעילה - לחץ לעצירה'
+                      : 'הקרא בעברית או באנגלית והמערכת תתרגם לסאב-דומיין תקין באנגלית'
+                  }
+                >
+                  <Mic className={`w-5 h-5 ${isListening ? 'animate-bounce' : ''}`} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Live URL Preview Badge */}
+          <div className="flex items-center justify-between text-xs px-2 text-slate-300">
+            <span className="flex items-center gap-1.5 font-medium">
+              <span>כתובת המערכת:</span>
+              <span className="font-mono font-bold text-amber-400 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
+                https://{cleanSub || 'your-brand'}.kosun.pro
+              </span>
+            </span>
+            <span className="text-slate-400 text-[11px] hidden sm:inline">
+              ✨ הקלדה או הקראה בעברית מתורגמת לאנגלית מיידית
+            </span>
+          </div>
+        </div>
+      );
+    }
+
+    // 2. Dedicated Email Input with LTR isolation and voice email recognition
+    if (isEmail || step.fieldType === 'email') {
+      return (
+        <div className="relative w-full max-w-xl">
+          <input
+            type="email"
+            dir="ltr"
+            autoFocus
+            value={value || ''}
+            onChange={(e) => {
+              const cleaned = cleanEmailSpeech(e.target.value);
+              onChange(cleaned || e.target.value);
+            }}
+            placeholder={step.placeholder || 'name@business.co.il'}
+            className={`w-full px-5 py-4 ${
+              isSupported && isVoiceEnabled ? 'pl-14' : ''
+            } font-mono text-left text-lg md:text-xl bg-slate-900/90 border-2 ${
+              isListening
+                ? 'border-red-500 ring-4 ring-red-500/20'
+                : 'border-slate-800 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
+            } rounded-2xl transition-all outline-none text-white shadow-sm placeholder:text-slate-500`}
+          />
+
+          {/* Microphone Voice Button */}
+          {isSupported && isVoiceEnabled && (
+            <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={toggleListening}
+                className={`p-2.5 rounded-xl transition-all ${
+                  isListening
+                    ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110'
+                    : 'bg-slate-800 text-slate-400 hover:text-amber-400 hover:bg-slate-700'
+                }`}
+                title={
+                  isListening
+                    ? 'הקלטה פעילה - לחץ לעצירה'
+                    : 'הקרא כתובת אימייל (לדוגמה: "ישראל שטרודל ג\'ימייל נקודה קום")'
+                }
+              >
+                <Mic className={`w-5 h-5 ${isListening ? 'animate-bounce' : ''}`} />
+              </button>
+            </div>
+          )}
+        </div>
+      );
+    }
+
     switch (step.fieldType) {
       case 'text':
-      case 'email':
       case 'phone':
       case 'number':
         return (
@@ -53,16 +190,13 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
               type={
                 step.fieldType === 'number'
                   ? 'number'
-                  : step.fieldType === 'email'
-                  ? 'email'
                   : step.fieldType === 'phone'
                   ? 'tel'
                   : 'text'
               }
               dir={
                 step.fieldType === 'phone' ||
-                step.fieldType === 'number' ||
-                step.fieldType === 'email'
+                step.fieldType === 'number'
                   ? 'ltr'
                   : 'rtl'
               }
@@ -76,13 +210,12 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                 step.fieldType === 'phone' || step.fieldType === 'number'
                   ? 'font-mono text-left'
                   : ''
-              } text-lg md:text-xl bg-white/90 dark:bg-slate-900/90 border-2 ${
+              } text-lg md:text-xl bg-slate-900/90 border-2 ${
                 isListening
                   ? 'border-red-500 ring-4 ring-red-500/20'
-                  : 'border-slate-200 dark:border-slate-800 focus:border-amber-500 dark:focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
-              } rounded-2xl transition-all outline-none text-slate-800 dark:text-white shadow-sm placeholder:text-slate-400`}
+                  : 'border-slate-800 focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10'
+              } rounded-2xl transition-all outline-none text-white shadow-sm placeholder:text-slate-500`}
             />
-
 
             {/* Microphone Voice Button (End of text field in RTL) */}
             {isSupported && isVoiceEnabled && (
@@ -93,15 +226,11 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   className={`p-2.5 rounded-xl transition-all ${
                     isListening
                       ? 'bg-red-500 text-white animate-pulse shadow-lg shadow-red-500/40 scale-110'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-slate-700'
+                      : 'bg-slate-800 text-slate-400 hover:text-amber-400 hover:bg-slate-700'
                   }`}
                   title={isListening ? 'הקלטה פעילה - לחץ לעצירה' : 'לחץ להקראה קולית במקום הקלדה'}
                 >
-                  {isListening ? (
-                    <Mic className="w-5 h-5 animate-bounce" />
-                  ) : (
-                    <Mic className="w-5 h-5" />
-                  )}
+                  <Mic className={`w-5 h-5 ${isListening ? 'animate-bounce' : ''}`} />
                 </button>
               </div>
             )}
@@ -163,15 +292,15 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   onClick={() => onChange(opt.value)}
                   className={`group relative p-4 rounded-2xl border-2 text-right transition-all duration-200 flex items-start gap-3.5 ${
                     isSelected
-                      ? 'border-amber-500 bg-amber-500/10 dark:bg-amber-500/20 shadow-md ring-2 ring-amber-500/20'
-                      : 'border-slate-200 dark:border-slate-800 hover:border-amber-400/50 bg-white/80 dark:bg-slate-900/80 hover:bg-slate-50 dark:hover:bg-slate-800/80'
+                      ? 'border-amber-500 bg-amber-500/20 shadow-lg ring-2 ring-amber-500/30'
+                      : 'border-slate-800 hover:border-slate-700 bg-slate-900/90 hover:bg-slate-800/90 shadow-sm'
                   }`}
                 >
                   <div
                     className={`mt-0.5 p-2 rounded-xl transition-colors ${
                       isSelected
-                        ? 'bg-amber-500 text-white'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 group-hover:bg-amber-500/10 group-hover:text-amber-600'
+                        ? 'bg-amber-500 text-slate-950 font-black'
+                        : 'bg-slate-800 text-amber-400 group-hover:bg-amber-500/10 group-hover:text-amber-400'
                     }`}
                   >
                     <LuxuryIconRenderer
@@ -180,17 +309,17 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-slate-800 dark:text-white text-base">
+                    <div className={`font-bold text-base leading-tight ${isSelected ? 'text-white font-black' : 'text-slate-100'}`}>
                       {opt.label}
                     </div>
                     {opt.description && (
-                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      <div className="text-xs text-slate-300 mt-1 leading-relaxed">
                         {opt.description}
                       </div>
                     )}
                   </div>
                   {isSelected && (
-                    <div className="w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0 self-center">
+                    <div className="w-5 h-5 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shrink-0 self-center">
                       <Check className="w-3.5 h-3.5 stroke-[3]" />
                     </div>
                   )}
@@ -412,16 +541,16 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
         <LuxuryIconRenderer
           iconName={step.iconName}
           withContainer
-          className="w-8 h-8 text-amber-600 dark:text-amber-400"
+          className="w-8 h-8 text-amber-400"
         />
-        <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-sm">
           {step.title}
           {step.required && (
-            <span className="text-amber-500 mr-1.5 text-xl" title="שדה חובה">*</span>
+            <span className="text-amber-400 mr-1.5 text-xl" title="שדה חובה">*</span>
           )}
         </h2>
         {step.subtitle && (
-          <p className="text-sm sm:text-base text-slate-500 dark:text-slate-400 leading-relaxed max-w-lg">
+          <p className="text-sm sm:text-base text-slate-200 leading-relaxed max-w-lg">
             {step.subtitle}
           </p>
         )}

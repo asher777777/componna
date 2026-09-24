@@ -74,6 +74,32 @@ export type StorefrontViewMode =
   | 'catalog'
   | 'sandbox_trial'
   | 'checkout'
+  | 'sales_proposal'
+  | 'edit_proposal_form'
   | 'subdomain_picker'
   | 'success_provisioned'
   | 'admin_pricing';
+
+export interface AiSalesOptimizationInput {
+  businessName?: string;
+  industry?: string;
+  cartModules: string[];
+  subdomain?: string;
+  billingPlan: BillingInterval;
+  monthlyTotal: number;
+  customerNotes?: string;
+  budgetRange?: string;
+  teamSize?: string;
+}
+
+export interface AiSalesOptimizationResult {
+  headlinePitch: string;
+  executiveSummary: string;
+  roiProjectionText: string;
+  estimatedRoiMultiplier: string;
+  keyBenefitsByIndustry: string[];
+  objectionHandlers: { objection: string; response: string }[];
+  suggestedAddons: { moduleId: string; moduleName: string; reason: string; discountOffer?: string }[];
+  persuasiveClosingHook: string;
+  generatedAt: string;
+}

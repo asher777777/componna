@@ -205,13 +205,15 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     );
   }
 
+  const isDarkBg = !theme?.cardBackground || theme?.cardBackground?.startsWith('#0') || theme?.cardBackground?.startsWith('#1') || theme?.cardBackground?.startsWith('#2') || theme?.textColor === '#ffffff';
+
   return (
     <div
       dir="rtl"
-      className={`relative overflow-hidden shadow-2xl border border-slate-100 dark:border-slate-800 transition-all flex flex-col justify-between mx-auto ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
+      className={`${isDarkBg ? 'dark text-white' : 'text-slate-900'} relative overflow-hidden shadow-2xl border border-slate-800/80 transition-all flex flex-col justify-between mx-auto ${getShapeClasses()} ${getAspectRatioClasses()} ${className}`}
       style={{
-        backgroundColor: hasBgImage ? '#0F172A' : theme?.cardBackground || '#FFFFFF',
-        color: hasBgImage ? '#FFFFFF' : theme?.textColor || '#0F172A',
+        backgroundColor: hasBgImage ? '#0F172A' : (theme?.cardBackground || (isDarkBg ? '#09090b' : '#FFFFFF')),
+        color: hasBgImage ? '#FFFFFF' : (theme?.textColor || (isDarkBg ? '#FFFFFF' : '#0F172A')),
       }}
     >
       {/* Background Image & Overlay */}

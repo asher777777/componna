@@ -162,6 +162,8 @@ export function formatAuthError(error: any): string {
       return 'הסיסמה חלשה מדי (נדרשים לפחות 6 תווים)';
     case 'auth/operation-not-allowed':
       return 'שיטת התחברות זו אינה מופעלת ב-Firebase Console (יש להפעילה תחת Authentication -> Sign-in method)';
+    case 'auth/unauthorized-domain':
+      return 'הדומיין הנוכחי אינו מורשה ב-Firebase. יש להוסיף את הדומיין/כתובת תחת Firebase Console -> Authentication -> Settings -> Authorized domains';
     case 'auth/popup-closed-by-user':
       return 'חלון ההתחברות של גוגל נסגר לפני השלמת הכניסה';
     case 'auth/popup-blocked':

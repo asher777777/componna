@@ -1,9 +1,13 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X, Send, Users, Sparkles, CheckCircle, AlertCircle, Clock,
-  ListFilter, Image, FileText, MessageSquare, Play, Pause, RefreshCw
+  ListFilter, Image, FileText, MessageSquare, Play, Pause, RefreshCw,
+  FolderOpen, Tag, CheckSquare, Square
 } from 'lucide-react';
+import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
+import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { normalizePhone } from '../services/whatsappCrmSyncService';
 
 export interface BulkSendItemResult {
   phone: string;
@@ -17,6 +21,7 @@ interface Props {
   isOpen: boolean;
   onClose: () => void;
   service: GreenApiService;
+  db?: Firestore;
   isDark: boolean;
   onRecipientSent?: (chatId: string, messageText: string, phone: string) => void;
 }
@@ -25,6 +30,7 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
   isOpen,
   onClose,
   service,
+  db,
   isDark,
   onRecipientSent,
 }) => {
@@ -39,6 +45,74 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
   const [isPaused, setIsPaused] = useState(false);
   const [results, setResults] = useState<BulkSendItemResult[]>([]);
   const isCancelledRef = useRef(false);
+
+  // Media Picker & CRM Groups state
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  const [crmGroups, setCrmGroups] = useState<{ id: string; name: string; memberCount?: number }[]>([]);
+  const [selectedCrmGroup, setSelectedCrmGroup] = useState('');
+  const [isLoadingCrm, setIsLoadingCrm] = useState(false);
+
+  // Load CRM Groups on open
+  useEffect(() => {
+    if (!db) return;
+    let isMounted = true;
+    setIsLoadingCrm(true);
+
+    const loadGroups = async () => {
+      try {
+        const groupsSnap = await getDocs(collection(db, 'crm_groups')).catch(() => null);
+        const list: { id: string; name: string; memberCount?: number }[] = [];
+        if (groupsSnap) {
+          groupsSnap.forEach((d) => {
+            const data = d.data();
+            list.push({ id: d.id, name: data.name || d.id, memberCount: data.memberCount });
+          });
+        }
+        if (isMounted) setCrmGroups(list);
+      } catch (e) {
+        console.warn('Error loading CRM groups for bulk modal:', e);
+      } finally {
+        if (isMounted) setIsLoadingCrm(false);
+      }
+    };
+
+    loadGroups();
+    return () => {
+      isMounted = false;
+    };
+  }, [db]);
+
+  // Load contacts from chosen CRM group
+  const handleLoadCrmGroup = async (groupName: string) => {
+    if (!db || !groupName) return;
+    try {
+      const contactsSnap = await getDocs(collection(db, 'contacts'));
+      const groupPhones: string[] = [];
+      contactsSnap.forEach((d) => {
+        const data = d.data();
+        const g = data.group || data.community || data.sourceGroupName || '';
+        if (g.toLowerCase().trim() === groupName.toLowerCase().trim()) {
+          const raw = data.phone || data.conta_phone || data.mobile || data.phoneNumber || '';
+          const norm = normalizePhone(String(raw));
+          if (norm) {
+            const full = norm.startsWith('972') ? norm : `972${norm}`;
+            groupPhones.push(full);
+          }
+        }
+      });
+
+      if (groupPhones.length > 0) {
+        const existing = phoneListRaw.trim() ? phoneListRaw.split('\n') : [];
+        const combined = Array.from(new Set([...existing, ...groupPhones]));
+        setPhoneListRaw(combined.join('\n'));
+        alert(`נטענו ${groupPhones.length} אנשי קשר מקבוצת "${groupName}" בהצלחה!`);
+      } else {
+        alert(`לא נמצאו אנשי קשר עם טלפון תקין בקבוצת "${groupName}"`);
+      }
+    } catch (err: any) {
+      alert(`שגיאה בטעינת אנשי קשר מה-CRM: ${err.message}`);
+    }
+  };
 
   // Parse phone numbers
   const parsePhones = (): string[] => {
@@ -170,6 +244,31 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs">
+          {/* CRM Group Quick Loader */}
+          {crmGroups.length > 0 && (
+            <div className={`p-3 rounded-2xl border flex items-center gap-2.5 ${
+              isDark ? 'bg-indigo-950/30 border-indigo-800/40' : 'bg-indigo-50 border-indigo-200'
+            }`}>
+              <Users className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span className="font-bold text-[11px] text-indigo-300">טען נמענים מקבוצת CRM:</span>
+              <select
+                value={selectedCrmGroup}
+                onChange={(e) => {
+                  setSelectedCrmGroup(e.target.value);
+                  if (e.target.value) handleLoadCrmGroup(e.target.value);
+                }}
+                className={`p-1.5 rounded-xl border text-xs flex-1 ${
+                  isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                }`}
+              >
+                <option value="">-- בחר קהילת / קבוצת CRM --</option>
+                {crmGroups.map((g) => (
+                  <option key={g.id} value={g.name}>{g.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Numbers list input */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
@@ -233,9 +332,19 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
           {/* Optional Media URL & Throttle Settings */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className={`block mb-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                קישור ישיר למדיה / קובץ (אופציונלי)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  קישור ישיר למדיה / קובץ (אופציונלי)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsMediaPickerOpen(true)}
+                  className="px-2 py-0.5 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg text-[10px] flex items-center gap-1 shadow cursor-pointer transition"
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  <span>בחר מגלריה</span>
+                </button>
+              </div>
               <input
                 type="url"
                 disabled={isSending}
@@ -344,6 +453,25 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
           </div>
         </div>
       </div>
+
+      {/* Media Gallery Picker Modal */}
+      {isMediaPickerOpen && (
+        <MediaPickerModal
+          isOpen={true}
+          onClose={() => setIsMediaPickerOpen(false)}
+          title="בחר מדיה לקמפיין תפוצה מתוך הגלריה האישית"
+          allowedTypes={['image', 'video', 'document', 'audio']}
+          maxSelectCount={1}
+          onSelectMedia={(items) => {
+            if (items && items.length > 0) {
+              setFileUrl(items[0].url);
+              setFileName(items[0].name || 'file.pdf');
+              setIsMediaPickerOpen(false);
+            }
+          }}
+          db={db}
+        />
+      )}
     </div>
   );
 };

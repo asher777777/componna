@@ -3,7 +3,7 @@ import {
   MessageSquare, Send, Search, Users, Phone, Video, MoreVertical,
   Paperclip, Smile, Check, CheckCheck, RefreshCw, Plus, Sparkles,
   ExternalLink, Image, FileText, ArrowRight, UserPlus, Filter,
-  CheckSquare, Square, Database, UserCheck, Tag, DownloadCloud, X
+  CheckSquare, Square, Database, UserCheck, Tag, DownloadCloud, X, FolderOpen
 } from 'lucide-react';
 import { Firestore } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
@@ -11,6 +11,8 @@ import { GreenApiChat, GreenApiChatMessage } from '../types';
 import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppCrmExportModal } from './WhatsAppCrmExportModal';
 import { WhatsAppDynamicBroadcastModal } from './WhatsAppDynamicBroadcastModal';
+import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { MediaItem } from '../../media-gallery-hub/types';
 
 interface Props {
   service: GreenApiService;
@@ -91,6 +93,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
   // Attach File Modal State
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
+  const [isAttachMediaPickerOpen, setIsAttachMediaPickerOpen] = useState(false);
   const [attachUrl, setAttachUrl] = useState('');
   const [attachFileName, setAttachFileName] = useState('document.pdf');
   const [attachCaption, setAttachCaption] = useState('');
@@ -1004,7 +1007,17 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
             <div className="space-y-3 text-xs">
               <div>
-                <label className="block font-medium mb-1">קישור ישיר לקובץ / תמונה (URL)</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-medium">קישור ישיר לקובץ / תמונה (URL)</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAttachMediaPickerOpen(true)}
+                    className="px-2.5 py-1 bg-amber-500 hover:bg-amber-400 text-black font-bold rounded-lg text-[10px] flex items-center gap-1 shadow cursor-pointer transition"
+                  >
+                    <FolderOpen className="w-3 h-3" />
+                    <span>בחר מגלריית המדיה שלי</span>
+                  </button>
+                </div>
                 <input
                   type="url"
                   value={attachUrl}
@@ -1062,6 +1075,25 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Media Picker Modal for Attachment */}
+      {isAttachMediaPickerOpen && (
+        <MediaPickerModal
+          isOpen={true}
+          onClose={() => setIsAttachMediaPickerOpen(false)}
+          title="בחר מדיה לשליחה בצ'אט מתוך הגלריה האישית"
+          allowedTypes={['image', 'video', 'document', 'audio']}
+          maxSelectCount={1}
+          onSelectMedia={(items) => {
+            if (items && items.length > 0) {
+              setAttachUrl(items[0].url);
+              setAttachFileName(items[0].name || 'file.pdf');
+              setIsAttachMediaPickerOpen(false);
+            }
+          }}
+          db={db}
+        />
       )}
     </div>
   );

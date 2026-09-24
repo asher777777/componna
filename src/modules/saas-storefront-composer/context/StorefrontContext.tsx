@@ -6,10 +6,15 @@ import {
   StorefrontGeneralSettings, 
   StorefrontViewMode, 
   TenantCustomerInfo, 
-  TenantRecord 
+  TenantRecord,
+  AiSalesOptimizationInput,
+  AiSalesOptimizationResult
 } from '../types';
 import { StorefrontService } from '../services/storefrontService';
 import { GoDaddyDnsService } from '../services/godaddyDnsService';
+import { SaasSalesFormBridge } from '../services/saasSalesFormBridge';
+import { AiSalesAgentService } from '../services/aiSalesAgentService';
+import { SmartFormDefinition } from '../../smart-form-builder/types';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { LeadPayload } from '../../../core/contracts';
 
@@ -27,6 +32,15 @@ interface StorefrontContextType {
   totalMonthly: number;
   totalAnnualSavings: number;
   
+  // Proposal & AI Sales Agent
+  activeProposalForm: SmartFormDefinition | null;
+  aiOptimizationResult: AiSalesOptimizationResult | null;
+  isOptimizingAi: boolean;
+  generateOrGetProposalForm: () => SmartFormDefinition;
+  updateProposalForm: (updated: SmartFormDefinition) => void;
+  runAiOptimization: (input?: Partial<AiSalesOptimizationInput>) => Promise<AiSalesOptimizationResult>;
+  askAiSalesCopilot: (query: string) => Promise<string>;
+
   // Actions
   setViewMode: (mode: StorefrontViewMode) => void;
   setBillingPlan: (plan: BillingInterval) => void;
@@ -56,6 +70,9 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [selectedSubdomain, setSelectedSubdomain] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [provisionedTenant, setProvisionedTenant] = useState<TenantRecord | null>(null);
+  const [activeProposalForm, setActiveProposalForm] = useState<SmartFormDefinition | null>(null);
+  const [aiOptimizationResult, setAiOptimizationResult] = useState<AiSalesOptimizationResult | null>(null);
+  const [isOptimizingAi, setIsOptimizingAi] = useState(false);
 
   const [customerInfo, setCustomerInfo] = useState<TenantCustomerInfo>({
     fullName: '',
@@ -201,11 +218,74 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
+  const generateOrGetProposalForm = (): SmartFormDefinition => {
+    if (activeProposalForm) {
+      return activeProposalForm;
+    }
+    const generated = SaasSalesFormBridge.generateProposalFormDefinition({
+      cart,
+      billingPlan,
+      totalMonthly,
+      subdomain: selectedSubdomain,
+      baseDomain: settings.baseDomain,
+      customerInfo,
+    });
+    SaasSalesFormBridge.saveProposalForm(generated);
+    setActiveProposalForm(generated);
+    return generated;
+  };
+
+  const updateProposalForm = (updated: SmartFormDefinition) => {
+    setActiveProposalForm(updated);
+    SaasSalesFormBridge.saveProposalForm(updated);
+  };
+
+  const runAiOptimization = async (overrideInput?: Partial<AiSalesOptimizationInput>): Promise<AiSalesOptimizationResult> => {
+    setIsOptimizingAi(true);
+    try {
+      const input: AiSalesOptimizationInput = {
+        businessName: overrideInput?.businessName || customerInfo.businessName || customerInfo.fullName || 'עסק דיגיטלי',
+        industry: overrideInput?.industry || 'כללי',
+        cartModules: cart.map(c => c.name),
+        subdomain: selectedSubdomain,
+        billingPlan,
+        monthlyTotal: totalMonthly,
+        customerNotes: overrideInput?.customerNotes || '',
+        teamSize: overrideInput?.teamSize || '1-10',
+        budgetRange: overrideInput?.budgetRange || '',
+      };
+
+      const result = await AiSalesAgentService.analyzeCustomerAndOptimizeProposal(input);
+      setAiOptimizationResult(result);
+
+      // Also refine active proposal form if exists
+      const currentForm = activeProposalForm || generateOrGetProposalForm();
+      const refined = AiSalesAgentService.refineFormDefinitionWithAi(currentForm, result);
+      updateProposalForm(refined);
+
+      return result;
+    } finally {
+      setIsOptimizingAi(false);
+    }
+  };
+
+  const askAiSalesCopilot = async (query: string): Promise<string> => {
+    return AiSalesAgentService.askSalesAgentCopilot(query, {
+      businessName: customerInfo.businessName || customerInfo.fullName,
+      cartModules: cart.map(c => c.name),
+      totalMonthly,
+      billingPlan: billingPlan === 'annual' ? 'שנתי (חיסכון 20%)' : 'חודשי',
+      subdomain: selectedSubdomain ? `${selectedSubdomain}.${settings.baseDomain}` : undefined,
+    });
+  };
+
   const resetStorefront = () => {
     setCart([]);
     setSelectedSubdomain('');
     setProvisionedTenant(null);
     setTrialActiveModule(null);
+    setActiveProposalForm(null);
+    setAiOptimizationResult(null);
     setViewMode('catalog');
   };
 
@@ -224,6 +304,13 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         isProcessing,
         totalMonthly,
         totalAnnualSavings,
+        activeProposalForm,
+        aiOptimizationResult,
+        isOptimizingAi,
+        generateOrGetProposalForm,
+        updateProposalForm,
+        runAiOptimization,
+        askAiSalesCopilot,
         setViewMode,
         setBillingPlan,
         toggleCartItem,

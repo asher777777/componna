@@ -18,8 +18,13 @@ import { FlowPlayerEngineStandaloneView } from '../../flow-player-engine';
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { DbCollectionsHubStandaloneView } from '../../db-collections-hub';
 import { TemplateStandaloneView } from '../../_template';
+import { Globe } from 'lucide-react';
 
-export const DynamicClientShell: React.FC = () => {
+export interface DynamicClientShellProps {
+  onExitToPublic?: () => void;
+}
+
+export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitToPublic }) => {
   const { session, logout, settings, activeRoute, setActiveRoute } = useClientPlatform();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -98,7 +103,19 @@ export const DynamicClientShell: React.FC = () => {
 
           {/* Navigation Links */}
           <div className="p-3 space-y-1">
-            
+            {onExitToPublic && (
+              <button
+                onClick={onExitToPublic}
+                className="w-full mb-2 flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition shadow-sm"
+              >
+                <div className="flex items-center gap-2">
+                  <Globe className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span>צפייה באתר (מבקרים)</span>
+                </div>
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {/* Control Panel (Always available for admin) */}
             {session.role === 'admin' && (
               <button

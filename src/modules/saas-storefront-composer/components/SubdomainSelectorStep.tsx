@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useStorefront } from '../context/StorefrontContext';
 import { StorefrontService } from '../services/storefrontService';
+import { transliterateHebrewToSlug } from '../../smart-form-builder/utils/transliteration';
 
 export const SubdomainSelectorStep: React.FC = () => {
   const { 
@@ -52,8 +53,8 @@ export const SubdomainSelectorStep: React.FC = () => {
   }, [inputVal]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow english letters, numbers and dashes
-    const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    // Transliterate Hebrew to English and keep only valid slug characters
+    const val = transliterateHebrewToSlug(e.target.value);
     setInputVal(val);
   };
 

@@ -98,14 +98,24 @@ export const CheckoutAndPaymentStep: React.FC = () => {
       </div>
 
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={() => setViewMode('catalog')}
-          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
-        >
-          <ArrowRight className="w-4 h-4" />
-          <span>חזרה לחנות הרכיבים</span>
-        </button>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setViewMode('catalog')}
+            className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-900 dark:hover:text-white transition"
+          >
+            <ArrowRight className="w-4 h-4" />
+            <span>חזרה לחנות הרכיבים</span>
+          </button>
+
+          <button
+            onClick={() => setViewMode('sales_proposal')}
+            className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 transition shadow-sm"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>📋 הצג כמסמך הצעת מחיר וטופס AI</span>
+          </button>
+        </div>
 
         <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
           <ShieldCheck className="w-4 h-4" />

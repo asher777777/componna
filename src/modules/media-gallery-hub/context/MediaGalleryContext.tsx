@@ -18,6 +18,7 @@ import { FileCompressionService } from '../services/fileCompressionService';
 import { HeyGenSyncService } from '../services/heygenSyncService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth } from '../../../services/firebaseAuth';
 
 export const isHeyGenItem = (item?: MediaItem | null): boolean => {
   if (!item) return false;
@@ -203,6 +204,16 @@ export const MediaGalleryProvider: React.FC<{
   const [converterItem, setConverterItem] = useState<MediaItem | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
+
+  // Track authenticated user for strict media isolation
+  useEffect(() => {
+    const unsub = subscribeToAuth(firebaseApp, (authState) => {
+      setCurrentUserUid(authState.uid || null);
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
   // Folder Modal state
   const [isFolderModalOpen, setIsFolderModalOpen] = useState<boolean>(false);
   const [editingFolder, setEditingFolder] = useState<MediaFolder | null>(null);
@@ -247,9 +258,28 @@ export const MediaGalleryProvider: React.FC<{
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
+  // User Isolation: items visible to the current authenticated user
+  const userVisibleItems = useMemo(() => {
+    return mediaItems.filter((item) => {
+      if (currentUserUid) {
+        const itemOwner =
+          item.userId ||
+          item.createdBy ||
+          item.metadata?.ownerUid ||
+          item.metadata?.userId;
+
+        // If explicitly owned by a different user, isolate and hide
+        if (itemOwner && itemOwner !== currentUserUid) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [mediaItems, currentUserUid]);
+
   const totalStorageBytes = useMemo(() => {
-    return mediaItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
-  }, [mediaItems]);
+    return userVisibleItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+  }, [userVisibleItems]);
 
   const initialTypeFilter: MediaCategoryFilter = useMemo(() => {
     if (allowedTypes && allowedTypes.length > 0) {
@@ -611,7 +641,7 @@ export const MediaGalleryProvider: React.FC<{
   // Recalculate folder item counts
   const foldersWithCounts = useMemo(() => {
     const counts = new Map<string, number>();
-    mediaItems.forEach((item) => {
+    userVisibleItems.forEach((item) => {
       if (item.folderId) {
         counts.set(item.folderId, (counts.get(item.folderId) || 0) + 1);
       }
@@ -620,7 +650,7 @@ export const MediaGalleryProvider: React.FC<{
       ...f,
       itemCount: counts.get(f.id) || 0,
     }));
-  }, [folders, mediaItems]);
+  }, [folders, userVisibleItems]);
 
   const addMediaItems = async (
     newItems: MediaItem[],
@@ -632,6 +662,8 @@ export const MediaGalleryProvider: React.FC<{
       const { sourceModule, sourceModuleLabel } = detectSourceModule(item);
       return {
         ...item,
+        userId: item.userId || currentUserUid || undefined,
+        createdBy: item.createdBy || currentUserUid || undefined,
         folderId: item.folderId !== undefined ? item.folderId : activeFolderId,
         sourceModule: item.sourceModule || sourceModule,
         sourceModuleLabel: item.sourceModuleLabel || sourceModuleLabel,
@@ -1054,7 +1086,7 @@ export const MediaGalleryProvider: React.FC<{
   };
 
   const filteredItems = useMemo(() => {
-    return mediaItems
+    return userVisibleItems
       .filter((item) => {
         // Allowed Types
         if (config?.allowedTypes && config.allowedTypes.length > 0) {
@@ -1101,12 +1133,12 @@ export const MediaGalleryProvider: React.FC<{
         if (filters.sortBy === 'name_asc') return a.name.localeCompare(b.name, 'he');
         return 0;
       });
-  }, [mediaItems, filters, activeFolderId, config?.allowedTypes]);
+  }, [userVisibleItems, filters, activeFolderId, config?.allowedTypes]);
 
   return (
     <MediaGalleryContext.Provider
       value={{
-        mediaItems,
+        mediaItems: userVisibleItems,
         filteredItems,
         folders: foldersWithCounts,
         activeFolderId,

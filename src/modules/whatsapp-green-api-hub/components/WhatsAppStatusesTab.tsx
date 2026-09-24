@@ -3,9 +3,11 @@ import {
   Sparkles, Send, Image, Type, Eye, Clock, CheckCircle,
   AlertCircle, RefreshCw, Trash2, ExternalLink, Play, Film,
   Users, Palette, ChevronRight, ChevronLeft, ShieldCheck, Database,
-  Search, Filter, Smartphone, CheckCheck, X
+  Search, Filter, Smartphone, CheckCheck, X, FolderOpen, Wand2,
+  Tag, UserCheck, CheckSquare, Square, Layers, BookOpen, ShoppingBag,
+  Megaphone, Lightbulb, Ticket, Flame
 } from 'lucide-react';
-import { Firestore } from 'firebase/firestore';
+import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
 import {
   GreenApiStatusFont,
@@ -18,6 +20,16 @@ import {
   updateStatusStatisticsInArchive,
   deleteStatusFromArchive
 } from '../services/whatsappStatusService';
+import {
+  WhatsAppAiBotService,
+  STATUS_PRESETS,
+  STATUS_TONE_LABELS,
+  StatusTone,
+  StatusVariation
+} from '../services/whatsappAiBotService';
+import { normalizePhone } from '../services/whatsappCrmSyncService';
+import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { MediaItem } from '../../media-gallery-hub/types';
 
 interface Props {
   service: GreenApiService;
@@ -42,6 +54,21 @@ const PRESET_FONTS: { id: GreenApiStatusFont; name: string; family: string }[] =
   { id: 'OSWALD_HEAVY', name: 'Oswald (מודגש כותרת)', family: 'impact, sans-serif' },
 ];
 
+interface CrmGroupInfo {
+  id: string;
+  name: string;
+  memberCount?: number;
+  color?: string;
+}
+
+interface CrmContactInfo {
+  id: string;
+  name: string;
+  phone: string;
+  tags: string[];
+  group?: string;
+}
+
 export const WhatsAppStatusesTab: React.FC<Props> = ({
   service,
   db,
@@ -50,7 +77,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   connectedAccountName = 'חשבון WhatsApp',
   googleAiApiKey,
 }) => {
-  // Mode: 'create' | 'archive' | 'analytics'
+  // Mode: 'create' | 'archive'
   const [activeSubTab, setActiveSubTab] = useState<'create' | 'archive'>('create');
 
   // Creator state
@@ -61,8 +88,29 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   const [mediaUrl, setMediaUrl] = useState('');
   const [fileName, setFileName] = useState('status.jpg');
   const [mediaCaption, setMediaCaption] = useState('');
-  const [targetAudience, setTargetAudience] = useState<'all' | 'custom'>('all');
+
+  // Media Gallery Picker Modal state
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+
+  // Audience & CRM integration state
+  const [targetAudience, setTargetAudience] = useState<'all' | 'crm_group' | 'crm_tag' | 'custom'>('all');
   const [customParticipantsInput, setCustomParticipantsInput] = useState('');
+  const [crmGroups, setCrmGroups] = useState<CrmGroupInfo[]>([]);
+  const [crmContacts, setCrmContacts] = useState<CrmContactInfo[]>([]);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
+  const [selectedCrmGroup, setSelectedCrmGroup] = useState<string>('');
+  const [selectedCrmTag, setSelectedCrmTag] = useState<string>('');
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [contactSearchQuery, setContactSearchQuery] = useState('');
+  const [isLoadingCrmData, setIsLoadingCrmData] = useState(false);
+
+  // AI Generator & Enhancer State
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [isEnhancingAi, setIsEnhancingAi] = useState(false);
+  const [aiPromptTopic, setAiPromptTopic] = useState('');
+  const [selectedTone, setSelectedTone] = useState<StatusTone>('chasidic');
+  const [generatedVariations, setGeneratedVariations] = useState<StatusVariation[]>([]);
+  const [aiFeedbackMessage, setAiFeedbackMessage] = useState<string | null>(null);
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ success: boolean; msg: string; idMessage?: string } | null>(null);
@@ -82,10 +130,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   const [filterType, setFilterType] = useState<'all' | 'active' | 'expired'>('all');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // AI Prompt State
-  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
-  const [aiPromptTopic, setAiPromptTopic] = useState('');
-
   // Load archive on mount / when db changes
   useEffect(() => {
     setIsLoadingArchive(true);
@@ -97,6 +141,88 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         setIsLoadingArchive(false);
       });
   }, [db, collectionName]);
+
+  // Load CRM Groups & Contacts for live audience selection
+  useEffect(() => {
+    if (!db) return;
+    let isMounted = true;
+    setIsLoadingCrmData(true);
+
+    const fetchCrmData = async () => {
+      try {
+        // 1. Fetch CRM Groups
+        const groupsSnap = await getDocs(collection(db, 'crm_groups')).catch(() => null);
+        const loadedGroups: CrmGroupInfo[] = [];
+        if (groupsSnap) {
+          groupsSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            loadedGroups.push({
+              id: docSnap.id,
+              name: data.name || docSnap.id,
+              memberCount: data.memberCount || 0,
+              color: data.color || '#3b82f6',
+            });
+          });
+        }
+
+        // 2. Fetch CRM Contacts
+        const contactsSnap = await getDocs(collection(db, 'contacts')).catch(() => null);
+        const loadedContacts: CrmContactInfo[] = [];
+        const tagSet = new Set<string>();
+
+        if (contactsSnap) {
+          contactsSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            const rawPhone = data.phone || data.conta_phone || data.mobile || data.phoneNumber || '';
+            const normalized = normalizePhone(String(rawPhone));
+            const name = data.name || data.conta_name || data.fullName || (normalized ? `0${normalized}` : 'איש קשר');
+            const tags: string[] = Array.isArray(data.tags) ? data.tags : [];
+            tags.forEach((t) => tagSet.add(t));
+
+            const groupName = data.group || data.community || data.sourceGroupName || '';
+            if (groupName && !loadedGroups.some((g) => g.name === groupName)) {
+              loadedGroups.push({
+                id: `group_${groupName}`,
+                name: groupName,
+                memberCount: 1,
+              });
+            }
+
+            if (normalized) {
+              loadedContacts.push({
+                id: docSnap.id,
+                name,
+                phone: normalized,
+                tags,
+                group: groupName,
+              });
+            }
+          });
+        }
+
+        if (isMounted) {
+          setCrmGroups(loadedGroups);
+          setCrmContacts(loadedContacts);
+          setAvailableTags(Array.from(tagSet));
+          if (loadedGroups.length > 0 && !selectedCrmGroup) {
+            setSelectedCrmGroup(loadedGroups[0].name);
+          }
+          if (tagSet.size > 0 && !selectedCrmTag) {
+            setSelectedCrmTag(Array.from(tagSet)[0]);
+          }
+        }
+      } catch (err) {
+        console.warn('[WhatsAppStatusesTab] CRM fetch notice:', err);
+      } finally {
+        if (isMounted) setIsLoadingCrmData(false);
+      }
+    };
+
+    fetchCrmData();
+    return () => {
+      isMounted = false;
+    };
+  }, [db]);
 
   // Active stories (created within last 24 hours)
   const now = Date.now();
@@ -130,6 +256,55 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     return statuses.reduce((acc, s) => acc + (s.viewersCount || 0), 0);
   }, [statuses]);
 
+  // Derived target participants based on selected audience mode
+  const derivedParticipants = useMemo<string[] | undefined>(() => {
+    if (targetAudience === 'all') {
+      return undefined;
+    }
+
+    if (targetAudience === 'crm_group' && selectedCrmGroup) {
+      const groupContacts = crmContacts.filter(
+        (c) => (c.group || '').toLowerCase().trim() === selectedCrmGroup.toLowerCase().trim()
+      );
+      return groupContacts
+        .map((c) => (c.phone.startsWith('972') ? c.phone : `972${c.phone}`))
+        .map((p) => `${p}@c.us`);
+    }
+
+    if (targetAudience === 'crm_tag' && selectedCrmTag) {
+      const taggedContacts = crmContacts.filter((c) => c.tags.includes(selectedCrmTag));
+      return taggedContacts
+        .map((c) => (c.phone.startsWith('972') ? c.phone : `972${c.phone}`))
+        .map((p) => `${p}@c.us`);
+    }
+
+    if (targetAudience === 'custom') {
+      const manualPhones = customParticipantsInput
+        .split(/[\n,;]+/)
+        .map((p) => p.trim().replace(/\D/g, ''))
+        .filter((p) => p.length >= 7)
+        .map((p) => (p.startsWith('972') ? p : p.startsWith('0') ? `972${p.substring(1)}` : `972${p}`))
+        .map((p) => `${p}@c.us`);
+
+      const selectedCrmPhones = crmContacts
+        .filter((c) => selectedContactIds.has(c.id))
+        .map((c) => (c.phone.startsWith('972') ? c.phone : `972${c.phone}`))
+        .map((p) => `${p}@c.us`);
+
+      const combined = Array.from(new Set([...manualPhones, ...selectedCrmPhones]));
+      return combined.length > 0 ? combined : undefined;
+    }
+
+    return undefined;
+  }, [
+    targetAudience,
+    selectedCrmGroup,
+    selectedCrmTag,
+    customParticipantsInput,
+    selectedContactIds,
+    crmContacts,
+  ]);
+
   // Refresh stats for all active statuses from GREEN-API
   const handleRefreshAllStatistics = async () => {
     if (!service.isConfigured()) return;
@@ -137,7 +312,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     try {
       const updatedStatuses = [...statuses];
       for (const st of updatedStatuses) {
-        // Only query statistics for statuses that have an id
         if (st.id) {
           try {
             const stats = await service.getStatusStatistic(st.id);
@@ -152,7 +326,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               st.sentCount = sentCount;
               st.lastSyncedAt = Date.now();
 
-              // Save updated statistics to Firestore
               await updateStatusStatisticsInArchive(db, collectionName, st.id, stats);
             }
           } catch (err) {
@@ -163,6 +336,109 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
       setStatuses([...updatedStatuses]);
     } finally {
       setIsRefreshingStats(false);
+    }
+  };
+
+  // Enhance / Polish Existing Text with AI
+  const handleEnhanceWithAi = async () => {
+    const currentText = statusType === 'text' ? textMessage.trim() : mediaCaption.trim();
+    if (!currentText) {
+      alert('נא להזין טקסט בסטטוס כדי שנוכל לשפר וללטש אותו עם AI');
+      return;
+    }
+
+    setIsEnhancingAi(true);
+    setAiFeedbackMessage(null);
+
+    try {
+      const result = await WhatsAppAiBotService.enhanceStatusText({
+        apiKey: googleAiApiKey || '',
+        originalText: currentText,
+        tone: selectedTone,
+      });
+
+      if (statusType === 'text') {
+        setTextMessage(result.text);
+      } else {
+        setMediaCaption(result.text);
+      }
+
+      setAiFeedbackMessage(
+        result.costReport
+          ? `✨ הטקסט שופר בהצלחה! (${result.costReport.formattedSummary})`
+          : '✨ הטקסט שופר בהצלחה והותאם לסטורי בוואטסאפ!'
+      );
+      setTimeout(() => setAiFeedbackMessage(null), 5000);
+    } catch (e: any) {
+      alert(`שגיאה בשיפור הטקסט: ${e.message}`);
+    } finally {
+      setIsEnhancingAi(false);
+    }
+  };
+
+  // Generate 3 Variations with AI from Topic or Preset
+  const handleGenerateAiStatus = async (customTopic?: string) => {
+    const topicToUse = (customTopic || aiPromptTopic).trim();
+    if (!topicToUse) {
+      alert('נא להקליד נושא לסטטוס או לבחור באחת התבניות המוכנות מטה');
+      return;
+    }
+
+    setIsGeneratingAi(true);
+    setAiFeedbackMessage(null);
+
+    try {
+      const result = await WhatsAppAiBotService.generateStatusVariations({
+        apiKey: googleAiApiKey || '',
+        topic: topicToUse,
+        tone: selectedTone,
+      });
+
+      setGeneratedVariations(result.variations);
+
+      // Auto-apply the first variation
+      if (result.variations.length > 0) {
+        if (statusType === 'text') {
+          setTextMessage(result.variations[0].text);
+        } else {
+          setMediaCaption(result.variations[0].text);
+        }
+      }
+
+      setAiFeedbackMessage(
+        result.costReport
+          ? `🎉 נוצרו ${result.variations.length} גרסאות שונות! (${result.costReport.formattedSummary})`
+          : `🎉 נוצרו ${result.variations.length} גרסאות שונות לבחירתך!`
+      );
+      setTimeout(() => setAiFeedbackMessage(null), 6000);
+    } catch (e: any) {
+      alert(`שגיאה ביצירת סטטוס AI: ${e.message}`);
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  // Apply a selected variation card
+  const handleApplyVariation = (v: StatusVariation) => {
+    if (statusType === 'text') {
+      setTextMessage(v.text);
+    } else {
+      setMediaCaption(v.text);
+    }
+    setAiFeedbackMessage(`✓ גרסה "${v.title}" הוחלה על הסטטוס!`);
+    setTimeout(() => setAiFeedbackMessage(null), 3000);
+  };
+
+  // Media Picker selection handler
+  const handleSelectMediaFromGallery = (items: MediaItem[]) => {
+    if (items && items.length > 0) {
+      const selected = items[0];
+      setMediaUrl(selected.url);
+      setFileName(selected.name || 'status.jpg');
+      if (selected.description && !mediaCaption) {
+        setMediaCaption(selected.description);
+      }
+      setIsMediaPickerOpen(false);
     }
   };
 
@@ -179,21 +455,12 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     }
 
     if (statusType === 'media' && !mediaUrl.trim()) {
-      alert('נא להזין קישור ישיר לתמונה או לווידאו');
+      alert('נא להזין קישור ישיר לתמונה או לווידאו או לבחור מגלריית המדיה');
       return;
     }
 
     setIsPublishing(true);
     setPublishResult(null);
-
-    const participants =
-      targetAudience === 'custom' && customParticipantsInput.trim()
-        ? customParticipantsInput
-            .split(/[\n,;]+/)
-            .map((p) => p.trim().replace(/\D/g, ''))
-            .filter((p) => p.length >= 7)
-            .map((p) => (p.includes('@c.us') ? p : `${p}@c.us`))
-        : undefined;
 
     try {
       let res: any;
@@ -202,20 +469,20 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
           message: textMessage.trim(),
           backgroundColor,
           font,
-          participants,
+          participants: derivedParticipants,
         });
       } else {
         res = await service.sendMediaStatus({
           urlFile: mediaUrl.trim(),
           fileName: fileName.trim() || 'status.jpg',
           caption: mediaCaption.trim() || undefined,
-          participants,
+          participants: derivedParticipants,
         });
       }
 
       const idMessage = res?.idMessage || `status_${Date.now()}`;
       const publishedAt = Date.now();
-      const expiresAt = publishedAt + 24 * 60 * 60 * 1000; // 24 hours lifetime in WhatsApp
+      const expiresAt = publishedAt + 24 * 60 * 60 * 1000;
 
       const newSavedStatus: SavedWhatsAppStatus = {
         id: idMessage,
@@ -236,7 +503,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         lastSyncedAt: publishedAt,
       };
 
-      // Save permanently to Firestore & localStorage
       await saveStatusToArchive(db, collectionName, newSavedStatus);
       setStatuses((prev) => [newSavedStatus, ...prev]);
 
@@ -246,7 +512,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         idMessage,
       });
 
-      // Clear input fields
       if (statusType === 'text') {
         setTextMessage('');
       } else {
@@ -263,43 +528,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     }
   };
 
-  // Generate AI Status Copy
-  const handleGenerateAiStatus = async () => {
-    if (!googleAiApiKey) {
-      alert('מפתח Google AI (Gemini) אינו מוגדר. ניתן להגדירו ברכיב הסנכרון והחיבורים.');
-      return;
-    }
-
-    setIsGeneratingAi(true);
-    try {
-      const prompt = `Write an engaging, viral, high-converting WhatsApp status (Story) in Hebrew for a business/community about: "${aiPromptTopic || 'עדכון חשוב ומבצע מיוחד לקהל הלקוחות'}". Keep it under 200 characters, punchy, with relevant emojis and a clear call to action. Return ONLY the Hebrew status text without explanations or quotes.`;
-      
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${googleAiApiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-        if (text) {
-          if (statusType === 'text') {
-            setTextMessage(text);
-          } else {
-            setMediaCaption(text);
-          }
-        }
-      }
-    } catch (e: any) {
-      alert(`שגיאה ביצירת תוכן AI: ${e.message}`);
-    } finally {
-      setIsGeneratingAi(false);
-    }
-  };
-
   const handleDeleteStatus = async (statusId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (!confirm('האם למחוק סטטוס זה מהארכיון השמור?')) return;
@@ -312,7 +540,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
       
       {/* Top Header & Analytics KPI Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        
         {/* KPI 1: Active Stories */}
         <div className={`p-4 rounded-3xl border shadow-sm flex items-center gap-3.5 ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
@@ -375,114 +602,56 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
             <RefreshCw className={`w-4 h-4 ${isRefreshingStats ? 'animate-spin' : ''}`} />
           </button>
         </div>
-
       </div>
 
-      {/* Active Stories Carousel / Story Rings Bar */}
-      {activeStories.length > 0 && (
-        <div className={`p-4 rounded-3xl border shadow-md space-y-3 ${
-          isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
-        }`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 font-bold text-xs">
-              <Smartphone className="w-4 h-4 text-emerald-400" />
-              <span>סטטוסים פעילים כרגע בוואטסאפ (WhatsApp Stories)</span>
-            </div>
-            <span className="text-[10px] text-slate-400 font-mono">
-              מוצגים למשך 24 שעות • נשמרים לצמיתות במערכת
-            </span>
-          </div>
+      {/* Sub-Tabs: Create New Status vs Archive & Analytics */}
+      <div className="flex items-center justify-between border-b border-slate-800/40 pb-2">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('create')}
+            className={`px-4 py-2 rounded-2xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${
+              activeSubTab === 'create'
+                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/20'
+                : isDark ? 'text-slate-400 hover:text-white bg-slate-900' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-emerald-300" />
+            <span>פרסום ויצירת סטטוס חדש</span>
+          </button>
 
-          <div className="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-thin">
-            {activeStories.map((story) => {
-              const remainingMs = Math.max(0, story.expiresAt - now);
-              const remainingHours = Math.floor(remainingMs / (1000 * 60 * 60));
-              const remainingMinutes = Math.floor((remainingMs % (1000 * 60 * 60)) / (1000 * 60));
-
-              return (
-                <div
-                  key={story.id}
-                  onClick={() => setViewingStory(story)}
-                  className="flex flex-col items-center gap-1.5 shrink-0 group cursor-pointer"
-                >
-                  <div className="relative p-0.5 rounded-full bg-gradient-to-tr from-emerald-500 via-teal-400 to-indigo-500 shadow-md group-hover:scale-105 transition-transform duration-200">
-                    <div
-                      className="w-16 h-16 rounded-full border-2 border-slate-950 flex items-center justify-center overflow-hidden text-center p-1 text-[9px] font-bold text-white shadow-inner"
-                      style={{
-                        backgroundColor: story.backgroundColor || '#128C7E',
-                        backgroundImage: story.urlFile ? `url(${story.urlFile})` : undefined,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                      }}
-                    >
-                      {!story.urlFile && (
-                        <span className="line-clamp-2 px-1 leading-tight">
-                          {story.message || 'סטטוס'}
-                        </span>
-                      )}
-                    </div>
-                    <span className="absolute bottom-0 right-0 p-0.5 bg-emerald-600 rounded-full border border-slate-950 text-white">
-                      <Eye className="w-2.5 h-2.5" />
-                    </span>
-                  </div>
-
-                  <span className="text-[10px] font-bold truncate max-w-[70px]">
-                    {story.viewersCount || 0} צפיות
-                  </span>
-                  <span className="text-[9px] text-emerald-400 font-mono -mt-1">
-                    {remainingHours}h {remainingMinutes}m
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveSubTab('archive')}
+            className={`px-4 py-2 rounded-2xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${
+              activeSubTab === 'archive'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/20'
+                : isDark ? 'text-slate-400 hover:text-white bg-slate-900' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
+            }`}
+          >
+            <Database className="w-4 h-4 text-indigo-300" />
+            <span>ארכיון קבוע ומעקב צפיות ({statuses.length})</span>
+          </button>
         </div>
-      )}
-
-      {/* Main Tabs Navigation: Create vs Archive */}
-      <div className="flex gap-2 border-b border-slate-800 pb-3">
-        <button
-          onClick={() => setActiveSubTab('create')}
-          className={`px-4 py-2 rounded-2xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
-            activeSubTab === 'create'
-              ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
-              : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-          <span>🚀 פרסום ויצירת סטטוס חדש</span>
-        </button>
-
-        <button
-          onClick={() => setActiveSubTab('archive')}
-          className={`px-4 py-2 rounded-2xl font-bold text-xs flex items-center gap-2 transition cursor-pointer ${
-            activeSubTab === 'archive'
-              ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
-              : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-          }`}
-        >
-          <Database className="w-4 h-4" />
-          <span>📦 ארכיון קבוע ומעקב צפיות ({statuses.length})</span>
-        </button>
       </div>
 
-      {/* SUB-TAB 1: CREATE & PUBLISH STATUS STUDIO */}
+      {/* SUB-TAB 1: CREATE NEW WHATSAPP STATUS */}
       {activeSubTab === 'create' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
-          {/* Left Form (7 Cols) */}
+          {/* Left Form: Creator Settings (7 Cols) */}
           <div className={`lg:col-span-7 p-5 rounded-3xl border space-y-4 shadow-sm ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
             
             {/* Status Type Selector */}
             <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
-              <span className="font-bold text-sm flex items-center gap-2">
-                <Palette className="w-4 h-4 text-emerald-400" />
-                <span>סטודיו יצירת סטטוס לוואטסאפ</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <Smartphone className="w-5 h-5 text-emerald-500" />
+                <h3 className="font-black text-sm">סטודיו יצירת סטטוס לוואטסאפ</h3>
+              </div>
 
-              <div className="flex gap-1 bg-slate-950/60 p-1 rounded-2xl border border-slate-800">
+              <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
                 <button
                   type="button"
                   onClick={() => setStatusType('text')}
@@ -495,7 +664,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   <Type className="w-3.5 h-3.5" />
                   <span>סטטוס טקסט</span>
                 </button>
-
                 <button
                   type="button"
                   onClick={() => setStatusType('media')}
@@ -511,39 +679,166 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* AI Generator Bar */}
-            {googleAiApiKey && (
-              <div className={`p-3 rounded-2xl border flex items-center gap-2 ${
-                isDark ? 'bg-indigo-950/20 border-indigo-800/40' : 'bg-indigo-50 border-indigo-200'
-              }`}>
-                <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+            {/* AI Generator & Enhancer Hub */}
+            <div className={`p-4 rounded-3xl border space-y-3.5 ${
+              isDark ? 'bg-gradient-to-b from-indigo-950/40 to-purple-950/20 border-indigo-800/40' : 'bg-gradient-to-b from-indigo-50 to-purple-50 border-indigo-200'
+            }`}>
+              
+              {/* AI Top Bar & Tone Selector */}
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow">
+                    <Sparkles className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-indigo-400 block">עוזר AI חכם לכתיבת סטטוסים</span>
+                    <span className="text-[10px] text-slate-400">מחולל תוכן חסידי, שיווקי וקהילתי עם וריאציות</span>
+                  </div>
+                </div>
+
+                {/* Tone Selector */}
+                <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5">
+                  {(Object.keys(STATUS_TONE_LABELS) as StatusTone[]).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setSelectedTone(t)}
+                      className={`px-2 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shrink-0 ${
+                        selectedTone === t
+                          ? 'bg-indigo-600 text-white shadow'
+                          : isDark ? 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-300'
+                      }`}
+                      title={STATUS_TONE_LABELS[t].desc}
+                    >
+                      <span>{STATUS_TONE_LABELS[t].icon}</span>
+                      <span>{STATUS_TONE_LABELS[t].label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Quick Preset Topics */}
+              <div>
+                <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">תבניות מהירות מוכנות:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {STATUS_PRESETS.map((preset) => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setAiPromptTopic(preset.defaultTopic);
+                        setSelectedTone(preset.tone);
+                        handleGenerateAiStatus(preset.defaultTopic);
+                      }}
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-medium flex items-center gap-1 transition cursor-pointer ${
+                        isDark ? 'bg-slate-900 hover:bg-indigo-900/60 border border-slate-800 text-slate-300 hover:text-white' : 'bg-white hover:bg-indigo-50 border border-slate-300 text-slate-700 hover:text-indigo-900 shadow-xs'
+                      }`}
+                    >
+                      <span>{preset.icon}</span>
+                      <span>{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* AI Prompt Input Bar */}
+              <div className="flex items-center gap-2">
                 <input
                   type="text"
                   value={aiPromptTopic}
                   onChange={(e) => setAiPromptTopic(e.target.value)}
-                  placeholder="כתוב נושא לסטטוס שיווקי (למשל: מבצע חג, פתיחת קורס, ברכת שבוע טוב)..."
-                  className={`flex-1 p-2 rounded-xl border text-xs ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleGenerateAiStatus();
+                    }
+                  }}
+                  placeholder="כתוב נושא מותאם אישית (למשל: דבר תורה חסידי לסוכות, מבצע מיוחד, עדכון קהילה)..."
+                  className={`flex-1 p-2.5 rounded-xl border text-xs ${
                     isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'
                   }`}
                 />
+                
                 <button
                   type="button"
-                  onClick={handleGenerateAiStatus}
+                  onClick={() => handleGenerateAiStatus()}
                   disabled={isGeneratingAi}
-                  className="px-3 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow cursor-pointer disabled:opacity-50 shrink-0"
+                  className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer disabled:opacity-50 shrink-0"
                 >
                   <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAi ? 'animate-spin' : ''}`} />
-                  <span>{isGeneratingAi ? 'מייצר...' : 'צור עם AI'}</span>
+                  <span>{isGeneratingAi ? 'מייצר 3 גרסאות...' : 'צור עם AI'}</span>
                 </button>
               </div>
-            )}
+
+              {/* AI Feedback toast */}
+              {aiFeedbackMessage && (
+                <div className="p-2 rounded-xl bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 text-[11px] font-bold animate-fade-in flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>{aiFeedbackMessage}</span>
+                </div>
+              )}
+
+              {/* 3 Variations Selector Cards */}
+              {generatedVariations.length > 0 && (
+                <div className="space-y-2 pt-1 border-t border-indigo-800/30">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-bold text-indigo-300">בחר אחת מ-3 הגרסאות שהופקו:</span>
+                    <span className="text-[10px] text-slate-400">לחץ להחלה מידית</span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {generatedVariations.map((v) => {
+                      const isCurrentlyActive = (statusType === 'text' ? textMessage : mediaCaption).trim() === v.text.trim();
+                      return (
+                        <div
+                          key={v.id}
+                          onClick={() => handleApplyVariation(v)}
+                          className={`p-2.5 rounded-2xl border text-right cursor-pointer transition flex flex-col justify-between space-y-1.5 ${
+                            isCurrentlyActive
+                              ? 'bg-indigo-600/30 border-indigo-500 shadow-md ring-1 ring-indigo-500'
+                              : isDark ? 'bg-slate-950/60 border-slate-800 hover:border-slate-700' : 'bg-white border-slate-200 hover:border-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-[11px] text-indigo-400">{v.title}</span>
+                            {isCurrentlyActive && <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />}
+                          </div>
+                          <p className="text-[10px] text-slate-300 line-clamp-3 leading-relaxed whitespace-pre-wrap">
+                            {v.text}
+                          </p>
+                          <span className="text-[9px] text-slate-500 block pt-1 border-t border-slate-800/40">
+                            {v.text.length} תווים
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+            </div>
 
             {/* Form Fields: Text Status */}
             {statusType === 'text' && (
               <div className="space-y-3">
                 <div>
                   <div className="flex justify-between items-center mb-1">
-                    <label className="font-semibold text-slate-300">תוכן הסטטוס (עד 500 תווים)</label>
+                    <div className="flex items-center gap-2">
+                      <label className="font-semibold text-slate-300">תוכן הסטטוס (עד 500 תווים)</label>
+                      
+                      {/* "שפר עם AI" Button */}
+                      <button
+                        type="button"
+                        onClick={handleEnhanceWithAi}
+                        disabled={isEnhancingAi || !textMessage.trim()}
+                        className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold rounded-xl text-[10px] flex items-center gap-1 shadow cursor-pointer disabled:opacity-50 transition"
+                        title="שפר, ערוך והוסף אימוג'ים לטקסט הקיים"
+                      >
+                        <Wand2 className={`w-3 h-3 ${isEnhancingAi ? 'animate-spin' : ''}`} />
+                        <span>{isEnhancingAi ? 'משפר...' : '✨ שפר עם AI'}</span>
+                      </button>
+                    </div>
+
                     <span className={`text-[10px] font-mono ${textMessage.length > 450 ? 'text-amber-400' : 'text-slate-500'}`}>
                       {textMessage.length} / 500
                     </span>
@@ -553,7 +848,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     maxLength={500}
                     value={textMessage}
                     onChange={(e) => setTextMessage(e.target.value)}
-                    placeholder="הקלד כאן את תוכן הסטטוס לוואטסאפ..."
+                    placeholder="הקלד כאן את תוכן הסטטוס לוואטסאפ או השתמש במחולל ה-AI מעלה..."
                     className={`w-full p-3 rounded-2xl border text-sm font-medium ${
                       isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                     }`}
@@ -610,12 +905,25 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
             {statusType === 'media' && (
               <div className="space-y-3">
                 <div>
-                  <label className="block font-semibold text-slate-300 mb-1">קישור ישיר לקובץ מדיה (תמונה / וידאו)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="font-semibold text-slate-300">קובץ מדיה (תמונה או וידאו)</label>
+                    
+                    {/* Media Gallery Picker Button */}
+                    <button
+                      type="button"
+                      onClick={() => setIsMediaPickerOpen(true)}
+                      className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>📂 בחר מגלריית המדיה שלי</span>
+                    </button>
+                  </div>
+
                   <input
                     type="url"
                     value={mediaUrl}
                     onChange={(e) => setMediaUrl(e.target.value)}
-                    placeholder="https://example.com/image.jpg או https://example.com/video.mp4"
+                    placeholder="https://example.com/image.jpg או בחר מגלריית המדיה בלחיצה מעלה..."
                     className={`w-full p-2.5 rounded-xl border font-mono text-xs ${
                       isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                     }`}
@@ -639,7 +947,19 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-slate-300 mb-1">כיתוב למדיה (Caption)</label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-semibold text-slate-300">כיתוב למדיה (Caption)</label>
+                      <button
+                        type="button"
+                        onClick={handleEnhanceWithAi}
+                        disabled={isEnhancingAi || !mediaCaption.trim()}
+                        className="text-indigo-400 hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        <Wand2 className="w-3 h-3" />
+                        <span>שפר כיתוב עם AI</span>
+                      </button>
+                    </div>
+
                     <input
                       type="text"
                       value={mediaCaption}
@@ -654,11 +974,27 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Target Audience */}
-            <div className="border-t border-slate-800/40 pt-3 space-y-2">
-              <label className="block font-semibold text-slate-300">קהל יעד לצפייה בסטטוס</label>
-              <div className="flex gap-4">
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-xs">
+            {/* Target Audience & CRM Groups Integration */}
+            <div className="border-t border-slate-800/40 pt-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-slate-300 flex items-center gap-1.5">
+                  <Users className="w-4 h-4 text-emerald-400" />
+                  <span>קהל יעד לצפייה בסטטוס (CRM & Audience)</span>
+                </label>
+                
+                {derivedParticipants && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold font-mono">
+                    {derivedParticipants.length} נמענים נבחרו
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
+                  targetAudience === 'all'
+                    ? 'bg-emerald-600/20 border-emerald-500 text-emerald-300 font-bold'
+                    : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}>
                   <input
                     type="radio"
                     name="audience"
@@ -666,32 +1002,196 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     onChange={() => setTargetAudience('all')}
                     className="text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span>כל אנשי הקשר הרשומים (ברירת מחדל של WhatsApp)</span>
+                  <span>כל אנשי הקשר</span>
                 </label>
 
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-xs">
+                <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
+                  targetAudience === 'crm_group'
+                    ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300 font-bold'
+                    : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}>
+                  <input
+                    type="radio"
+                    name="audience"
+                    checked={targetAudience === 'crm_group'}
+                    onChange={() => setTargetAudience('crm_group')}
+                    className="text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span>קבוצת CRM</span>
+                </label>
+
+                <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
+                  targetAudience === 'crm_tag'
+                    ? 'bg-purple-600/20 border-purple-500 text-purple-300 font-bold'
+                    : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}>
+                  <input
+                    type="radio"
+                    name="audience"
+                    checked={targetAudience === 'crm_tag'}
+                    onChange={() => setTargetAudience('crm_tag')}
+                    className="text-purple-600 focus:ring-purple-500"
+                  />
+                  <span>תגית CRM</span>
+                </label>
+
+                <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
+                  targetAudience === 'custom'
+                    ? 'bg-amber-600/20 border-amber-500 text-amber-300 font-bold'
+                    : isDark ? 'bg-slate-950 border-slate-800 text-slate-400' : 'bg-slate-50 border-slate-200 text-slate-700'
+                }`}>
                   <input
                     type="radio"
                     name="audience"
                     checked={targetAudience === 'custom'}
                     onChange={() => setTargetAudience('custom')}
-                    className="text-indigo-600 focus:ring-indigo-500"
+                    className="text-amber-600 focus:ring-amber-500"
                   />
-                  <span>רשימת נמענים ספציפית</span>
+                  <span>בחירה ידנית</span>
                 </label>
               </div>
 
+              {/* Sub-view: CRM Group selector */}
+              {targetAudience === 'crm_group' && (
+                <div className={`p-3 rounded-2xl border space-y-2 ${
+                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <label className="block text-[11px] font-semibold text-slate-300">בחר קבוצת / קהילת CRM:</label>
+                  {crmGroups.length === 0 ? (
+                    <p className="text-slate-500 text-xs">טרם הוגדרו קבוצות במערכת ה-CRM.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {crmGroups.map((g) => {
+                        const count = crmContacts.filter((c) => (c.group || '').toLowerCase().trim() === g.name.toLowerCase().trim()).length;
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            onClick={() => setSelectedCrmGroup(g.name)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                              selectedCrmGroup === g.name
+                                ? 'bg-indigo-600 text-white shadow'
+                                : isDark ? 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-700 hover:text-slate-900 border border-slate-300'
+                            }`}
+                          >
+                            <span>👥</span>
+                            <span>{g.name}</span>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-view: CRM Tag selector */}
+              {targetAudience === 'crm_tag' && (
+                <div className={`p-3 rounded-2xl border space-y-2 ${
+                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <label className="block text-[11px] font-semibold text-slate-300">בחר תגית CRM לסינון:</label>
+                  {availableTags.length === 0 ? (
+                    <p className="text-slate-500 text-xs">טרם נוצרו תגיות לאנשי קשר ב-CRM.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {availableTags.map((tag) => {
+                        const count = crmContacts.filter((c) => c.tags.includes(tag)).length;
+                        return (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => setSelectedCrmTag(tag)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                              selectedCrmTag === tag
+                                ? 'bg-purple-600 text-white shadow'
+                                : isDark ? 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-700 hover:text-slate-900 border border-slate-300'
+                            }`}
+                          >
+                            <Tag className="w-3 h-3" />
+                            <span>{tag}</span>
+                            <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
+                              {count}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Sub-view: Custom manual input and fast CRM contact picker */}
               {targetAudience === 'custom' && (
-                <textarea
-                  rows={2}
-                  value={customParticipantsInput}
-                  onChange={(e) => setCustomParticipantsInput(e.target.value)}
-                  placeholder="הזן מספרי טלפון מופרדים בפסיקים או שורות חדשות (לדוגמה: 972501234567, 972521234567)..."
-                  className={`w-full p-2 rounded-xl border text-xs font-mono ${
-                    isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
-                  }`}
-                  dir="ltr"
-                />
+                <div className={`p-3 rounded-2xl border space-y-3 ${
+                  isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div>
+                    <label className="block font-semibold text-slate-300 mb-1">הזן מספרי טלפון ישירות (מופרדים בפסיק או שורה חדשה):</label>
+                    <textarea
+                      rows={2}
+                      value={customParticipantsInput}
+                      onChange={(e) => setCustomParticipantsInput(e.target.value)}
+                      placeholder="972501234567, 972521234567..."
+                      className={`w-full p-2 rounded-xl border text-xs font-mono ${
+                        isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
+                      }`}
+                      dir="ltr"
+                    />
+                  </div>
+
+                  {/* Fast pick from CRM Contacts */}
+                  {crmContacts.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-800/40">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-slate-400">או בחר מתוך אנשי הקשר ב-CRM:</span>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedContactIds(new Set(crmContacts.map((c) => c.id)))}
+                            className="text-[10px] text-indigo-400 hover:underline cursor-pointer"
+                          >
+                            בחר הכל ({crmContacts.length})
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setSelectedContactIds(new Set())}
+                            className="text-[10px] text-slate-500 hover:underline cursor-pointer"
+                          >
+                            נקה
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="max-h-36 overflow-y-auto divide-y divide-slate-800/30 custom-scrollbar border rounded-xl p-1 bg-slate-900/50">
+                        {crmContacts.map((c) => {
+                          const isChecked = selectedContactIds.has(c.id);
+                          return (
+                            <div
+                              key={c.id}
+                              onClick={() => {
+                                const next = new Set(selectedContactIds);
+                                if (isChecked) next.delete(c.id);
+                                else next.add(c.id);
+                                setSelectedContactIds(next);
+                              }}
+                              className="p-1.5 flex items-center justify-between hover:bg-slate-800/50 rounded-lg cursor-pointer text-xs"
+                            >
+                              <div className="flex items-center gap-2">
+                                {isChecked ? <CheckSquare className="w-3.5 h-3.5 text-indigo-400" /> : <Square className="w-3.5 h-3.5 text-slate-500" />}
+                                <span className="font-bold">{c.name}</span>
+                                {c.group && <span className="text-[10px] text-slate-400">({c.group})</span>}
+                              </div>
+                              <span className="font-mono text-[10px] text-slate-400" dir="ltr">0{c.phone}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
@@ -757,7 +1257,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
                 {/* Story Account Header */}
                 <div className="flex items-center gap-2 z-10 pt-1">
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs border border-white/40">
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs border border-white/40 shadow">
                     WA
                   </div>
                   <div>
@@ -766,34 +1266,40 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   </div>
                 </div>
 
-                {/* Center Content */}
-                <div className="my-auto text-center px-3 z-10">
+                {/* Center Content: Text Message or Media Preview */}
+                <div className="my-auto text-center px-2 z-10">
                   {statusType === 'text' ? (
                     <p
-                      className="text-base font-bold whitespace-pre-wrap leading-relaxed drop-shadow-md break-words"
+                      className="text-base font-bold whitespace-pre-wrap leading-relaxed drop-shadow-md"
                       style={{
                         fontFamily: PRESET_FONTS.find((f) => f.id === font)?.family || 'sans-serif',
                       }}
                     >
-                      {textMessage || 'הקלד טקסט לתצוגה מקדימה...'}
+                      {textMessage || 'הקלד טקסט או בחר תבנית AI להצגת תצוגה מקדימה'}
                     </p>
-                  ) : !mediaUrl ? (
-                    <div className="flex flex-col items-center justify-center text-slate-400 gap-2 opacity-60">
-                      <Image className="w-12 h-12" />
-                      <span className="text-xs">הזן קישור תמונה או וידאו</span>
-                    </div>
-                  ) : null}
+                  ) : (
+                    !mediaUrl && (
+                      <div className="flex flex-col items-center justify-center text-white/60 space-y-2">
+                        <Image className="w-12 h-12 stroke-[1.5]" />
+                        <span className="text-xs">הזן קישור תמונה או וידאו</span>
+                      </div>
+                    )
+                  )}
                 </div>
 
-                {/* Bottom Caption */}
+                {/* Bottom Caption for Media Status */}
                 {statusType === 'media' && mediaCaption && (
-                  <div className="z-10 bg-black/60 backdrop-blur-sm p-2 rounded-xl text-center text-xs">
-                    <p className="leading-snug">{mediaCaption}</p>
+                  <div className="bg-black/60 backdrop-blur-sm p-2 rounded-xl text-center text-xs z-10 text-white">
+                    <p className="line-clamp-2">{mediaCaption}</p>
                   </div>
                 )}
-
               </div>
             </div>
+
+            {/* Hint below phone */}
+            <span className="text-[10px] text-slate-500 mt-2 text-center">
+              כך ייראה הסטטוס על מסך הטלפון של אנשי הקשר שלך
+            </span>
           </div>
 
         </div>
@@ -1137,6 +1643,19 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* MEDIA GALLERY PICKER MODAL (Isolated to current logged in user) */}
+      {isMediaPickerOpen && (
+        <MediaPickerModal
+          isOpen={true}
+          onClose={() => setIsMediaPickerOpen(false)}
+          title="בחר מדיה לסטטוס וואטסאפ מתוך הגלריה האישית"
+          allowedTypes={['image', 'video']}
+          maxSelectCount={1}
+          onSelectMedia={handleSelectMediaFromGallery}
+          db={db}
+        />
       )}
 
     </div>

@@ -7,6 +7,8 @@ import { PublicStorefrontApp } from '../../modules/saas-storefront-composer/comp
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { Globe, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 
+import { TenantSubdomainView } from './TenantSubdomainView';
+
 export const TenantAppResolver: React.FC = () => {
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
@@ -63,42 +65,9 @@ export const TenantAppResolver: React.FC = () => {
     }
   }, []);
 
-  // 1. Subdomain View (Customer Custom UI - No Dev Sidebar!)
+  // 1. Subdomain View (Public Landing Page by default + Owner Admin Control Panel)
   if (tenantSubdomain && tenantRecord) {
-    return (
-      <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 font-sans" dir="rtl">
-        {/* Top Subdomain Status Bar */}
-        <header className="bg-slate-900 text-white px-4 py-2 text-xs flex items-center justify-between border-b border-indigo-500/30 shrink-0">
-          <div className="flex items-center gap-2">
-            <Globe className="w-4 h-4 text-indigo-400" />
-            <span className="font-bold text-white">סאב-דומיין פעיל:</span>
-            <span className="font-mono text-indigo-300 bg-slate-800 px-2 py-0.5 rounded">
-              {tenantRecord.fullDomain}
-            </span>
-            <span className="text-gray-400 hidden sm:inline">| קולקציות מבודדות ב-DB: <code className="text-emerald-400">{tenantRecord.collectionPrefix}*</code></span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                window.location.href = window.location.origin;
-              }}
-              className="flex items-center gap-1 text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1 rounded-lg transition"
-            >
-              <ArrowRight className="w-3.5 h-3.5" />
-              <span>חזרה לחנות (kosun.pro)</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Mount the client platform shell with only active modules */}
-        <div className="flex-1">
-          <ClientPlatformProvider>
-            <DynamicClientShell />
-          </ClientPlatformProvider>
-        </div>
-      </div>
-    );
+    return <TenantSubdomainView tenantRecord={tenantRecord} />;
   }
 
   // 2. Developer / Super-Admin Workbench Mode (If explicitly requested)

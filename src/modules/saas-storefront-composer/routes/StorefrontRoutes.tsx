@@ -6,6 +6,8 @@ import { CheckoutAndPaymentStep } from '../components/CheckoutAndPaymentStep';
 import { SubdomainSelectorStep } from '../components/SubdomainSelectorStep';
 import { LaunchSuccessScreen } from '../components/LaunchSuccessScreen';
 import { AdminStorefrontManager } from '../components/AdminStorefrontManager';
+import { DynamicSalesProposalView } from '../components/DynamicSalesProposalView';
+import { ProposalFormStudioEditorWrapper } from '../components/ProposalFormStudioEditorWrapper';
 
 export const StorefrontRoutes: React.FC = () => {
   const { viewMode } = useStorefront();
@@ -15,6 +17,10 @@ export const StorefrontRoutes: React.FC = () => {
       return <MarketplaceCatalogView />;
     case 'sandbox_trial':
       return <InteractiveTrialSandbox />;
+    case 'sales_proposal':
+      return <DynamicSalesProposalView />;
+    case 'edit_proposal_form':
+      return <ProposalFormStudioEditorWrapper />;
     case 'checkout':
       return <CheckoutAndPaymentStep />;
     case 'subdomain_picker':
@@ -27,3 +33,4 @@ export const StorefrontRoutes: React.FC = () => {
       return <MarketplaceCatalogView />;
   }
 };
+

@@ -36,6 +36,8 @@ export interface MediaItem {
   sourceModule?: string; // Module ID where file was created/uploaded e.g. 'video-producer-studio'
   sourceModuleLabel?: string; // Hebrew human-readable name e.g. 'סטודיו וידאו ואווטאר'
   isFavorite?: boolean;
+  userId?: string; // Owner user ID for user isolation
+  createdBy?: string; // User ID who created/uploaded this item
   metadata?: Record<string, any>;
 }
 

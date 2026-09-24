@@ -298,6 +298,47 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                 </div>
               </div>
 
+              {/* Gemini 3.x Model & Settings */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={`block mb-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                    מודל בינה מלאכותית (Google Gemini)
+                  </label>
+                  <select
+                    value={activeBot.model || 'gemini-3.6-flash'}
+                    onChange={(e) => saveBotChanges({ ...activeBot, model: e.target.value })}
+                    className={`w-full p-2.5 rounded-xl border text-xs font-semibold ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
+                  >
+                    <option value="gemini-3.6-flash">✨ Gemini 3.6 Flash (ברירת מחדל Comona - מומלץ)</option>
+                    <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (ביצועים גבוהים והיגיון מתקדם)</option>
+                    <option value="gemini-3.7-flash">🚀 Gemini 3.7 Flash (מהיר וגמיש)</option>
+                    <option value="gemini-3.5-flash">💡 Gemini 3.5 Flash (קל משקל ויציב)</option>
+                    <option value="gemini-3.5-flash-lite">⚡ Gemini 3.5 Flash Lite (מענה סופר מהיר וחסכוני)</option>
+                    <option value="gemini-3.1-pro-preview">🧠 Gemini 3.1 Pro (הבנה עמוקה ומשימות מורכבות)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={`font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                      יצירתיות מענה (Temperature)
+                    </label>
+                    <span className="font-mono text-indigo-400 text-xs font-bold">
+                      {activeBot.temperature ?? 0.7}
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0.1"
+                    max="1.0"
+                    step="0.05"
+                    value={activeBot.temperature ?? 0.7}
+                    onChange={(e) => saveBotChanges({ ...activeBot, temperature: parseFloat(e.target.value) })}
+                    className="w-full accent-indigo-600 cursor-pointer"
+                  />
+                </div>
+              </div>
+
               {/* Trigger Types */}
               <div>
                 <label className={`block mb-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>מתי הבוט יגיב בוואטסאפ?</label>

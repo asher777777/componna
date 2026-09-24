@@ -3,7 +3,7 @@ import {
   MessageSquare, Send, QrCode, Smartphone, Globe, RefreshCw, CheckCircle,
   AlertCircle, Server, Users, Image, BarChart2,
   ListFilter, ShieldCheck, Power, KeyRound, ExternalLink, Sun, Moon,
-  Trash2, ArrowUpRight, Bot, Sparkles, Sliders
+  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { GreenApiService } from '../services/greenApiService';
@@ -22,6 +22,7 @@ import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppWebChatView } from './WhatsAppWebChatView';
 import { WhatsAppAiBotTab } from './WhatsAppAiBotTab';
 import { WhatsAppStatusesTab } from './WhatsAppStatusesTab';
+import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
 
 export const WhatsAppGreenApiMainView: React.FC = () => {
   const { apiKeys, openConnectorModal, db, collections } = useSystemConnection();
@@ -83,6 +84,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
 
   // Chats State
   const [chats, setChats] = useState<GreenApiChat[]>([]);
@@ -526,7 +528,17 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             {sendType === 'file_url' && (
               <div className="space-y-3">
                 <div>
-                  <label className={`block ${themeClasses.textTitle} font-semibold mb-1`}>קישור ישיר לקובץ / מדיה (URL)</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className={`block ${themeClasses.textTitle} font-semibold`}>קישור ישיר לקובץ / מדיה (URL)</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsMediaPickerOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>📂 בחר מגלריית המדיה</span>
+                    </button>
+                  </div>
                   <input
                     type="url"
                     value={fileUrl}
@@ -870,6 +882,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           isOpen={isBulkModalOpen}
           onClose={() => setIsBulkModalOpen(false)}
           service={greenApiService}
+          db={db}
           isDark={isDark}
           onRecipientSent={handleBulkRecipientSent}
         />
@@ -899,6 +912,24 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           onSaved={() => {
             refreshStatus();
           }}
+        />
+
+        {/* 6. Media Gallery Picker for Sender Tab */}
+        <MediaPickerModal
+          isOpen={isMediaPickerOpen}
+          onClose={() => setIsMediaPickerOpen(false)}
+          onSelectMedia={(items) => {
+            if (items && items.length > 0) {
+              setFileUrl(items[0].url);
+              setFileName(items[0].name || 'file.pdf');
+              if (items[0].name && !fileCaption) {
+                setFileCaption(items[0].name);
+              }
+            }
+            setIsMediaPickerOpen(false);
+          }}
+          allowedTypes={['image', 'video', 'document', 'audio']}
+          title="בחר מדיה לשליחה בוואטסאפ"
         />
 
       </div>

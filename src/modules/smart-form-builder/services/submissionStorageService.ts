@@ -96,9 +96,9 @@ export async function submitFormResponse(
 
     // Parse UTM parameters from URL
     const urlParams = new URLSearchParams(window.location.search);
-    const utmSource = urlParams.get('utm_source') || undefined;
-    const utmMedium = urlParams.get('utm_medium') || undefined;
-    const utmCampaign = urlParams.get('utm_campaign') || undefined;
+    const utmSource = urlParams.get('utm_source') || '';
+    const utmMedium = urlParams.get('utm_medium') || '';
+    const utmCampaign = urlParams.get('utm_campaign') || '';
 
     // Calculate AI Lead Temperature & Score
     const timeSpent = completionTimeSeconds || 0;
@@ -232,7 +232,8 @@ export async function submitFormResponse(
 
   // 2. Save in sub-collection: mod_forms/{formId}/submissions/{submissionId}
   const subDocRef = doc(targetDb, collectionName, form.id, SUBMISSIONS_SUBCOLLECTION, submissionId);
-  await setDoc(subDocRef, submissionData);
+  const cleanSubmissionPayload = JSON.parse(JSON.stringify(submissionData));
+  await setDoc(subDocRef, cleanSubmissionPayload);
 
   // 3. Optional: Sync directly to CRM contacts collection if lead data exists and is enabled
 
@@ -240,35 +241,32 @@ export async function submitFormResponse(
     try {
       const contactDocId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
       const contactRef = doc(targetDb, 'contacts', contactDocId);
-      await setDoc(
-        contactRef,
-        {
-          id: contactDocId,
-          conta_name: leadPayload.conta_name,
-          conta_phone: leadPayload.conta_phone,
-          email: leadPayload.email,
-          lead_source: leadPayload.source,
-          tags: Array.from(new Set([...(leadPayload.tags || []), 'ליד מטופס', `טופס: ${form.title}`])),
-          community: leadPayload.community,
-          last_form_name: form.title,
-          last_form_submission_date: now,
-          status: 'active',
-          is_lead: true,
-          contact_type: 'lead',
-          form_submissions: [
-            {
-              name: form.title,
-              page: form.id,
-              date: now,
-              payload: rawAnswers,
-            }
-          ],
-          createdAt: now,
-          updatedAt: now,
-          notes: `התקבל מטופס "${form.title}" בתאריך ${new Date().toLocaleDateString('he-IL')}`,
-        },
-        { merge: true }
-      );
+      const contactPayload = JSON.parse(JSON.stringify({
+        id: contactDocId,
+        conta_name: leadPayload.conta_name,
+        conta_phone: leadPayload.conta_phone,
+        email: leadPayload.email,
+        lead_source: leadPayload.source,
+        tags: Array.from(new Set([...(leadPayload.tags || []), 'ליד מטופס', `טופס: ${form.title}`])),
+        community: leadPayload.community,
+        last_form_name: form.title,
+        last_form_submission_date: now,
+        status: 'active',
+        is_lead: true,
+        contact_type: 'lead',
+        form_submissions: [
+          {
+            name: form.title,
+            page: form.id,
+            date: now,
+            payload: rawAnswers,
+          }
+        ],
+        createdAt: now,
+        updatedAt: now,
+        notes: `התקבל מטופס "${form.title}" בתאריך ${new Date().toLocaleDateString('he-IL')}`,
+      }));
+      await setDoc(contactRef, contactPayload, { merge: true });
     } catch (crmErr) {
       console.warn('Direct CRM contact sync failed (may be offline or restricted):', crmErr);
     }

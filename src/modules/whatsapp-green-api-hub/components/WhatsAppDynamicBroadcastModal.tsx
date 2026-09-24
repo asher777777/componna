@@ -1,16 +1,19 @@
 import React, { useState, useRef } from 'react';
 import {
   X, Send, Users, Sparkles, CheckCircle, AlertCircle, Clock,
-  Image, Paperclip, MessageSquare, Pause
+  Image, Paperclip, MessageSquare, Pause, FolderOpen
 } from 'lucide-react';
+import { Firestore } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
 import { GreenApiChat } from '../types';
+import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   selectedContacts: GreenApiChat[];
   service: GreenApiService;
+  db?: Firestore;
   connectedAccountName?: string;
   sourceGroupName?: string;
   isDark: boolean;
@@ -32,6 +35,7 @@ export const WhatsAppDynamicBroadcastModal: React.FC<Props> = ({
   const [messageTemplate, setMessageTemplate] = useState('שלום {firstName}, תודה שפנית אלינו!');
   const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('document.pdf');
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   const [delaySec, setDelaySec] = useState(1.5);
   const [isSending, setIsSending] = useState(false);
   const [progressIndex, setProgressIndex] = useState(0);
@@ -212,9 +216,19 @@ export const WhatsAppDynamicBroadcastModal: React.FC<Props> = ({
           {/* Media URL & Delay */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
             <div>
-              <label className={`block font-medium mb-1 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
-                קישור ישיר לתמונה / קובץ (אופציונלי)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className={`block font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+                  קישור ישיר לתמונה / קובץ (אופציונלי)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsMediaPickerOpen(true)}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-400 hover:text-indigo-300 transition cursor-pointer"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  <span>בחר מגלריה</span>
+                </button>
+              </div>
               <input
                 type="url"
                 disabled={isSending}
@@ -308,6 +322,20 @@ export const WhatsAppDynamicBroadcastModal: React.FC<Props> = ({
         </div>
 
       </div>
+
+      <MediaPickerModal
+        isOpen={isMediaPickerOpen}
+        onClose={() => setIsMediaPickerOpen(false)}
+        onSelectMedia={(items) => {
+          if (items && items.length > 0) {
+            setFileUrl(items[0].url);
+            setFileName(items[0].name || 'file.pdf');
+          }
+          setIsMediaPickerOpen(false);
+        }}
+        allowedTypes={['image', 'video', 'document', 'audio']}
+        title="בחר מדיה לשידור דינמי"
+      />
     </div>
   );
 };
