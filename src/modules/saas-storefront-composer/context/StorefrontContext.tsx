@@ -10,6 +10,8 @@ import {
 } from '../types';
 import { StorefrontService } from '../services/storefrontService';
 import { GoDaddyDnsService } from '../services/godaddyDnsService';
+import { eventBus } from '../../../core/bridge/EventBus';
+import { LeadPayload } from '../../../core/contracts';
 
 interface StorefrontContextType {
   catalog: ModulePricingConfig[];
@@ -155,6 +157,38 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         monthlyTotal: totalMonthly,
         paymentTransactionId: txnId,
       });
+
+      // 3. Decoupled CRM Contact Creation via EventBus (Zero Spaghetti Cross-Coupling)
+      try {
+        const leadPayload: LeadPayload = {
+          conta_name: customerInfo.fullName || customerInfo.businessName || `לקוח סאב-דומיין ${cleanSub}`,
+          conta_phone: customerInfo.phone || '050-0000000',
+          email: customerInfo.email || `${cleanSub}@example.com`,
+          source: `רכישת סאב-דומיין (${fullDomain})`,
+          tags: [
+            'לקוח משלם 💳',
+            `סאב-דומיין: ${cleanSub}`,
+            billingPlan === 'annual' ? 'מנוי שנתי (חיסכון 20%)' : 'מנוי חודשי',
+            ...cart.map(c => `רכיב: ${c.name}`),
+          ],
+          community: 'דיירי מערכת SaaS',
+          metadata: {
+            subdomain: cleanSub,
+            fullDomain,
+            businessName: customerInfo.businessName,
+            billingPlan,
+            monthlyTotal: totalMonthly,
+            annualTotal: billingPlan === 'annual' ? totalMonthly * 12 : totalMonthly,
+            transactionId: txnId,
+            activeModules: cart.map(c => c.moduleId),
+            purchasedAt: tenant.createdAt,
+          },
+        };
+        eventBus.publish('crm:lead:created', leadPayload);
+        console.log(`[Storefront -> CRM] Contact event emitted for ${cleanSub}:`, leadPayload);
+      } catch (evtErr) {
+        console.warn('[Storefront] CRM EventBus emit notice:', evtErr);
+      }
 
       setProvisionedTenant(tenant);
       setViewMode('success_provisioned');

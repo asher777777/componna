@@ -85,22 +85,37 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       console.log('[CRM] Received lead from EventBus:', payload);
       setData(prev => {
         if (!prev) return null;
+        const meta = payload.metadata || {};
+        const isPayingCustomer = Boolean(meta.monthlyTotal || meta.annualTotal || meta.transactionId);
+        const spent = Number(meta.annualTotal || meta.monthlyTotal || meta.total_spent || 0);
+
         const newContact: Contact = {
-          id: `lead_${Date.now()}`,
+          id: `contact_${Date.now()}`,
           status: 'active',
+          is_lead: !isPayingCustomer,
+          contact_type: isPayingCustomer ? 'contact' : 'lead',
           conta_name: payload.conta_name,
           conta_phone: payload.conta_phone,
           email: payload.email,
-          lead_source: payload.source || 'אירוע חיצוני (EventBus)',
-          tags: payload.tags || ['ליד חדש'],
-          community: payload.community,
-          createdAt: new Date().toISOString(),
+          company_name: meta.businessName || meta.companyName || '',
+          lead_source: payload.source || 'רכישת מערכת / אירוע חיצוני',
+          tags: payload.tags || ['לקוח חדש'],
+          community: payload.community || 'דיירי מערכת SaaS',
+          total_spent: spent,
+          order_count: isPayingCustomer ? 1 : 0,
+          campaign_title: meta.billingPlan ? (meta.billingPlan === 'annual' ? 'מנוי שנתי (SaaS)' : 'מנוי חודשי (SaaS)') : undefined,
+          campaign_amount: Number(meta.monthlyTotal || 0),
+          last_form_name: meta.subdomain ? `רכישת סאב-דומיין (${meta.subdomain})` : undefined,
+          last_form_submission_date: meta.purchasedAt || new Date().toISOString(),
+          createdAt: meta.purchasedAt || new Date().toISOString(),
         };
+
         return {
           ...prev,
           totalContacts: prev.totalContacts + 1,
-          totalLeads: (prev.totalLeads || 0) + 1,
-          totalContactsOnly: prev.totalContactsOnly || 0,
+          totalContactsOnly: isPayingCustomer ? (prev.totalContactsOnly || 0) + 1 : (prev.totalContactsOnly || 0),
+          totalLeads: !isPayingCustomer ? (prev.totalLeads || 0) + 1 : (prev.totalLeads || 0),
+          totalSpent: (prev.totalSpent || 0) + spent,
           contacts: [newContact, ...prev.contacts],
         };
       });

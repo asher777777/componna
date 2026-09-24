@@ -96,11 +96,11 @@ export class StorefrontService {
     return [
       {
         subdomain: 'demo',
-        fullDomain: 'demo.glowmanage.com',
-        clientName: 'הדגמת מערכת Comona',
-        ownerEmail: 'demo@glowmanage.com',
+        fullDomain: 'demo.kosun.pro',
+        clientName: 'הדגמת מערכת Kosun',
+        ownerEmail: 'demo@kosun.pro',
         ownerPhone: '050-0000000',
-        activeModules: ['crm-analytics', 'page-builder', 'smart-form-builder', 'media-gallery-hub'],
+        activeModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics'],
         collectionPrefix: 'tenant_demo_mod_',
         billingPlan: 'annual',
         monthlyTotal: 346,

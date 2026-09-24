@@ -37,9 +37,9 @@ export const TenantAppResolver: React.FC = () => {
         // Fallback demo tenant for the requested subdomain
         const demoTenant: TenantRecord = {
           subdomain: sub,
-          fullDomain: `${sub}.glowmanage.com`,
+          fullDomain: `${sub}.kosun.pro`,
           clientName: `מערכת דפי נחיתה (${sub})`,
-          ownerEmail: `${sub}@example.com`,
+          ownerEmail: `${sub}@kosun.pro`,
           ownerPhone: '050-1234567',
           activeModules: ['page-builder', 'media-gallery-hub', 'crm-analytics'],
           collectionPrefix: `tenant_${sub}_mod_`,

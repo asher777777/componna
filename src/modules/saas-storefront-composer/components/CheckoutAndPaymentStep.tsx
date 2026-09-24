@@ -25,6 +25,28 @@ export const CheckoutAndPaymentStep: React.FC = () => {
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
+  const handleAutoFillDemo = () => {
+    setCustomerInfo({
+      fullName: 'ישראל ישראלי (דמו)',
+      email: 'demo@glowmanage.com',
+      phone: '050-1234567',
+      businessName: 'סוכנות דפי נחיתה פרו',
+    });
+    setCardNumber('4580 1234 5678 9012');
+    setCardExp('12/28');
+    setCardCvv('777');
+    setCardHolder('ישראל ישראלי');
+  };
+
+  const handleInstantDemoBypass = () => {
+    handleAutoFillDemo();
+    setIsProcessingPayment(true);
+    setTimeout(() => {
+      setIsProcessingPayment(false);
+      setViewMode('subdomain_picker');
+    }, 400);
+  };
+
   const handleNextToSubdomain = (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerInfo.fullName.trim() || !customerInfo.email.trim() || !customerInfo.businessName.trim()) {
@@ -39,12 +61,42 @@ export const CheckoutAndPaymentStep: React.FC = () => {
     setTimeout(() => {
       setIsProcessingPayment(false);
       setViewMode('subdomain_picker');
-    }, 800);
+    }, 600);
   };
 
   return (
     <div className="max-w-4xl mx-auto space-y-6" dir="rtl">
       
+      {/* Demo Test Notice Banner */}
+      <div className="bg-gradient-to-r from-amber-500/20 via-indigo-500/20 to-emerald-500/20 border border-amber-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+        <div className="flex items-center gap-2.5">
+          <Sparkles className="w-5 h-5 text-amber-500 shrink-0" />
+          <div>
+            <span className="font-bold text-amber-900 dark:text-amber-200">מצב בדיקה ודמו (Sandbox Demo):</span>
+            <span className="text-gray-600 dark:text-gray-300 mr-1">
+              שלב התשלום פועל כעת בסביבת בדיקה מדומה – לא יבוצע שום חיוב אמיתי.
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <button
+            type="button"
+            onClick={handleAutoFillDemo}
+            className="px-3 py-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 text-gray-800 dark:text-gray-200 font-bold rounded-xl border border-gray-300 dark:border-gray-600 shadow-sm transition"
+          >
+            🪄 מילוי נתוני בדיקה
+          </button>
+          <button
+            type="button"
+            onClick={handleInstantDemoBypass}
+            className="px-4 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-md transition"
+          >
+            ⚡ תשלום דמו מיידי
+          </button>
+        </div>
+      </div>
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <button
@@ -57,7 +109,7 @@ export const CheckoutAndPaymentStep: React.FC = () => {
 
         <div className="flex items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400">
           <ShieldCheck className="w-4 h-4" />
-          <span>קופה מאובטחת בתקן PCI-DSS</span>
+          <span>קופה מאובטחת בסביבת בדיקות (Sandbox)</span>
         </div>
       </div>
 

@@ -8,11 +8,11 @@ export const STOREFRONT_COLLECTIONS = {
 };
 
 export const DEFAULT_GENERAL_SETTINGS: StorefrontGeneralSettings = {
-  baseDomain: 'glowmanage.com',
-  platformName: 'Comona SaaS Hub',
+  baseDomain: 'kosun.pro',
+  platformName: 'Kosun SaaS Platform',
   currencySymbol: '₪',
   supportPhone: '050-1234567',
-  supportEmail: 'support@glowmanage.com',
+  supportEmail: 'support@kosun.pro',
   dnsProvider: 'hostinger',
   godaddyDnsMode: 'wildcard',
   wildcardVerified: true,
