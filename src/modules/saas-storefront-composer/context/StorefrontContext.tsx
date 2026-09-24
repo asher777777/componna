@@ -14,6 +14,7 @@ import { StorefrontService } from '../services/storefrontService';
 import { GoDaddyDnsService } from '../services/godaddyDnsService';
 import { SaasSalesFormBridge } from '../services/saasSalesFormBridge';
 import { AiSalesAgentService } from '../services/aiSalesAgentService';
+import { TenantWelcomeNotificationService, WelcomeDispatchResult } from '../services/tenantWelcomeNotificationService';
 import { SmartFormDefinition } from '../../smart-form-builder/types';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { LeadPayload } from '../../../core/contracts';
@@ -28,6 +29,7 @@ interface StorefrontContextType {
   customerInfo: TenantCustomerInfo;
   selectedSubdomain: string;
   provisionedTenant: TenantRecord | null;
+  lastDispatchResult: WelcomeDispatchResult | null;
   isProcessing: boolean;
   totalMonthly: number;
   totalAnnualSavings: number;
@@ -54,7 +56,8 @@ interface StorefrontContextType {
   setSelectedSubdomain: (subdomain: string) => void;
   updateCatalogItem: (item: ModulePricingConfig) => void;
   updateSettings: (newSettings: StorefrontGeneralSettings) => void;
-  completeCheckoutAndProvision: () => Promise<TenantRecord | null>;
+  completeCheckoutAndProvision: (overrideSubdomain?: string, discoveryData?: Record<string, any>) => Promise<TenantRecord | null>;
+  resendWelcomeNotifications: () => Promise<WelcomeDispatchResult | null>;
   resetStorefront: () => void;
 }
 
@@ -64,12 +67,13 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [catalog, setCatalog] = useState<ModulePricingConfig[]>(() => StorefrontService.getCatalog());
   const [settings, setSettings] = useState<StorefrontGeneralSettings>(() => StorefrontService.getSettings());
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [billingPlan, setBillingPlan] = useState<BillingInterval>('monthly');
+  const [billingPlan, setBillingPlanState] = useState<BillingInterval>('monthly');
   const [viewMode, setViewMode] = useState<StorefrontViewMode>('catalog');
   const [trialActiveModule, setTrialActiveModule] = useState<ModulePricingConfig | null>(null);
   const [selectedSubdomain, setSelectedSubdomain] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [provisionedTenant, setProvisionedTenant] = useState<TenantRecord | null>(null);
+  const [lastDispatchResult, setLastDispatchResult] = useState<WelcomeDispatchResult | null>(null);
   const [activeProposalForm, setActiveProposalForm] = useState<SmartFormDefinition | null>(null);
   const [aiOptimizationResult, setAiOptimizationResult] = useState<AiSalesOptimizationResult | null>(null);
   const [isOptimizingAi, setIsOptimizingAi] = useState(false);
@@ -92,7 +96,15 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
 
   const isInCart = (moduleId: string) => cart.some(i => i.moduleId === moduleId);
 
+  const setBillingPlan = (plan: BillingInterval) => {
+    setBillingPlanState(plan);
+    setActiveProposalForm(null);
+    setAiOptimizationResult(null);
+  };
+
   const toggleCartItem = (module: ModulePricingConfig) => {
+    setActiveProposalForm(null);
+    setAiOptimizationResult(null);
     if (isInCart(module.id)) {
       setCart(prev => prev.filter(i => i.moduleId !== module.id));
     } else {
@@ -109,7 +121,11 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     }
   };
 
-  const clearCart = () => setCart([]);
+  const clearCart = () => {
+    setCart([]);
+    setActiveProposalForm(null);
+    setAiOptimizationResult(null);
+  };
 
   const startTrial = (module: ModulePricingConfig) => {
     setTrialActiveModule(module);
@@ -142,12 +158,16 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     StorefrontService.saveSettings(newSettings);
   };
 
-  const completeCheckoutAndProvision = async (): Promise<TenantRecord | null> => {
-    if (!selectedSubdomain || cart.length === 0) return null;
+  const completeCheckoutAndProvision = async (
+    overrideSubdomain?: string,
+    discoveryData?: Record<string, any>
+  ): Promise<TenantRecord | null> => {
+    const targetSub = overrideSubdomain || selectedSubdomain;
+    if (!targetSub || cart.length === 0) return null;
 
     setIsProcessing(true);
     try {
-      const cleanSub = selectedSubdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+      const cleanSub = targetSub.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
       const fullDomain = `${cleanSub}.${settings.baseDomain}`;
       const prefix = `tenant_${cleanSub}_mod_`;
       const txnId = `TXN-${Date.now().toString(36).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -161,14 +181,15 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         apiSecret: settings.godaddyApiSecret,
       });
 
-      // 2. Save in Database
+      // 2. Save in Database with ONLY selected modules from cart
+      const activeModuleIds = Array.from(new Set(cart.map(c => c.moduleId)));
       const tenant = await StorefrontService.provisionNewTenant({
         subdomain: cleanSub,
         fullDomain,
         clientName: customerInfo.businessName || `עסק ${cleanSub}`,
         ownerEmail: customerInfo.email,
         ownerPhone: customerInfo.phone,
-        activeModules: cart.map(c => c.moduleId),
+        activeModules: activeModuleIds,
         collectionPrefix: prefix,
         billingPlan,
         monthlyTotal: totalMonthly,
@@ -197,14 +218,24 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
             monthlyTotal: totalMonthly,
             annualTotal: billingPlan === 'annual' ? totalMonthly * 12 : totalMonthly,
             transactionId: txnId,
-            activeModules: cart.map(c => c.moduleId),
+            activeModules: activeModuleIds,
             purchasedAt: tenant.createdAt,
+            discoveryAnswers: discoveryData || {},
           },
         };
         eventBus.publish('crm:lead:created', leadPayload);
         console.log(`[Storefront -> CRM] Contact event emitted for ${cleanSub}:`, leadPayload);
       } catch (evtErr) {
         console.warn('[Storefront] CRM EventBus emit notice:', evtErr);
+      }
+
+      // 4. Send Welcome WhatsApp & Official Email Receipt with Credentials
+      try {
+        const dispatchResult = await TenantWelcomeNotificationService.sendWelcomeAndReceipt(tenant);
+        setLastDispatchResult(dispatchResult);
+        console.log(`[Storefront] Welcome notification dispatch result:`, dispatchResult);
+      } catch (notifErr) {
+        console.warn('[Storefront] Welcome notification dispatch notice:', notifErr);
       }
 
       setProvisionedTenant(tenant);
@@ -215,6 +246,18 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
       return null;
     } finally {
       setIsProcessing(false);
+    }
+  };
+
+  const resendWelcomeNotifications = async (): Promise<WelcomeDispatchResult | null> => {
+    if (!provisionedTenant) return null;
+    try {
+      const res = await TenantWelcomeNotificationService.sendWelcomeAndReceipt(provisionedTenant);
+      setLastDispatchResult(res);
+      return res;
+    } catch (e) {
+      console.warn('Failed resending notifications:', e);
+      return null;
     }
   };
 
@@ -301,6 +344,7 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         customerInfo,
         selectedSubdomain,
         provisionedTenant,
+        lastDispatchResult,
         isProcessing,
         totalMonthly,
         totalAnnualSavings,
@@ -324,6 +368,7 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         updateCatalogItem,
         updateSettings,
         completeCheckoutAndProvision,
+        resendWelcomeNotifications,
         resetStorefront,
       }}
     >

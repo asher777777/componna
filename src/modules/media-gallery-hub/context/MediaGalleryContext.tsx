@@ -170,7 +170,11 @@ interface MediaGalleryContextValue {
   onClosePicker?: () => void;
 }
 
-const MediaGalleryContext = createContext<MediaGalleryContextValue | null>(null);
+export const MediaGalleryContext = createContext<MediaGalleryContextValue | null>(null);
+
+export const useOptionalMediaGallery = () => {
+  return useContext(MediaGalleryContext);
+};
 
 export const MediaGalleryProvider: React.FC<{
   config: MediaGalleryModuleConfig;

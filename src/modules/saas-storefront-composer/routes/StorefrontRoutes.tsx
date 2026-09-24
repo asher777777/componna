@@ -18,11 +18,10 @@ export const StorefrontRoutes: React.FC = () => {
     case 'sandbox_trial':
       return <InteractiveTrialSandbox />;
     case 'sales_proposal':
+    case 'checkout':
       return <DynamicSalesProposalView />;
     case 'edit_proposal_form':
       return <ProposalFormStudioEditorWrapper />;
-    case 'checkout':
-      return <CheckoutAndPaymentStep />;
     case 'subdomain_picker':
       return <SubdomainSelectorStep />;
     case 'success_provisioned':

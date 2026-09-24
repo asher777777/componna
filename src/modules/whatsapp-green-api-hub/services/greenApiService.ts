@@ -404,23 +404,42 @@ export class GreenApiService {
   public async sendContact(params: {
     chatId: string;
     contact: {
-      phoneContact: number;
+      phoneContact: number | string;
       firstName: string;
       lastName?: string;
+      middleName?: string;
       company?: string;
     };
   }): Promise<{ idMessage?: string; error?: string }> {
-    if (!this.isConfigured()) return { error: 'לא הוגדרו מפתחות' };
+    if (!this.isConfigured()) return { error: 'לא הוגדרו מפתחות התחברות ל-Green-API' };
+
+    const rawDigits = String(params.contact.phoneContact).replace(/\D/g, '');
+    const cleanPhone = rawDigits.startsWith('0') ? `972${rawDigits.substring(1)}` : rawDigits;
+    const phoneContactNum = parseInt(cleanPhone, 10);
+
+    if (isNaN(phoneContactNum) || phoneContactNum <= 0) {
+      return { error: 'מספר טלפון של איש הקשר אינו תקין' };
+    }
+
     try {
       const res = await fetch(`${this.baseUrl}/sendContact/${this.token}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: params.chatId.includes('@') ? params.chatId : `${params.chatId.replace(/\D/g, '')}@c.us`,
-          contact: params.contact,
+          contact: {
+            phoneContact: phoneContactNum,
+            firstName: params.contact.firstName?.trim() || 'איש קשר',
+            lastName: params.contact.lastName?.trim() || '',
+            middleName: params.contact.middleName?.trim() || '',
+            company: params.contact.company?.trim() || '',
+          },
         }),
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson?.message || `HTTP ${res.status}: ${res.statusText}`);
+      }
       return await res.json();
     } catch (e: any) {
       return { error: e.message };
@@ -587,7 +606,7 @@ export class GreenApiService {
             idMessage: m.idMessage,
             chatId: m.chatId,
             type: m.type,
-            textMessage: m.textMessage || (m.caption ? `${m.caption} [קובץ]` : (m.downloadUrl ? '[מדיה/קובץ]' : '')),
+            textMessage: m.textMessage || (m.contact ? `📇 כרטיס איש קשר: ${m.contact.displayName || m.contact.name || m.contact.phoneContact || ''}` : '') || (m.caption ? `${m.caption} [קובץ]` : (m.downloadUrl ? '[מדיה/קובץ]' : '')),
             timestamp: m.timestamp || Math.floor(Date.now() / 1000),
             downloadUrl: m.downloadUrl,
             caption: m.caption,

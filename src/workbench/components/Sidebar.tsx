@@ -50,7 +50,9 @@ export const Sidebar: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('comona_sidebar_collapsed', String(isCollapsed));
+    try {
+      localStorage.setItem('comona_sidebar_collapsed', String(isCollapsed));
+    } catch {}
   }, [isCollapsed]);
 
   const filtered = REGISTERED_MODULES.filter(

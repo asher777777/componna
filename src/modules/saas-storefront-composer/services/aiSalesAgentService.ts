@@ -3,13 +3,21 @@ import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
 
 export class AiSalesAgentService {
   /**
-   * Analyzes the customer profile and generates a dynamic, highly persuasive sales proposal optimization
+   * Analyzes the customer profile, module selection and discovery answers to generate
+   * a dynamic, highly persuasive sales proposal optimization with ROI projection.
    */
   static async analyzeCustomerAndOptimizeProposal(
     input: AiSalesOptimizationInput,
     customApiKey?: string
   ): Promise<AiSalesOptimizationResult> {
     const apiKey = customApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+
+    const hasPageBuilder = input.cartModules.some(m => m.includes('דפי נחיתה') || m.includes('אתרים') || m.toLowerCase().includes('page-builder'));
+    const hasCrm = input.cartModules.some(m => m.includes('CRM') || m.includes('אנליטיקה') || m.toLowerCase().includes('crm'));
+    const hasVideo = input.cartModules.some(m => m.includes('וידאו') || m.includes('אווטאר') || m.toLowerCase().includes('video'));
+    const hasForms = input.cartModules.some(m => m.includes('טפסים') || m.toLowerCase().includes('form'));
+    const hasWhatsApp = input.cartModules.some(m => m.includes('וואטסאפ') || m.toLowerCase().includes('whatsapp'));
+    const hasPayments = input.cartModules.some(m => m.includes('סליקה') || m.toLowerCase().includes('payments'));
 
     const prompt = `
 אתה "סוכן מכירות AI בכיר ומומחה סגירת עסקאות SaaS" (Chief Revenue & Deal Closing Officer).
@@ -27,10 +35,10 @@ export class AiSalesAgentService {
 
 הנחיות קריטיות:
 1. עברית רהוטה, יוקרתית, מקצועית, מעוררת ביטחון וממוקדת תוצאות עסקיות (ROI).
-2. אסור להשתמש באימוג'ים מוגזמים.
-3. לחשב תחזית ROI מנומקת (חיסכון בשעות עבודה, הגדלת המרות, קיצור זמני הגעה לשוק).
+2. דגש פסיכולוגי חזק על המקצועיות של הפלטפורמה ועל החזר השקעה מיידי.
+3. לחשב תחזית ROI מנומקת (חיסכון בשעות עבודה, הגדלת המרות, קיצור זמני תגובה).
 4. לזהות 2 התנגדויות נפוצות של לקוחות בתחום זה ולספק מענה משכנע.
-5. להמליץ על מודול משלים 1 מתוך המערכת (אם רלוונטי) עם הנחת באנדל.
+5. להמליץ על מודול משלים 1 מתוך המערכת (שאינו בעגלה) עם הצעת ערך משכנעת.
 
 החזר תשובה אך ורק בפורמט JSON תקני במבנה המדויק הבא:
 {
@@ -95,32 +103,63 @@ export class AiSalesAgentService {
       }
     }
 
-    // Heuristic Fallback
+    // Dynamic Heuristic Fallback based on selected module composition
     const biz = input.businessName || 'העסק שלך';
+    
+    let headlinePitch = `פלטפורמת צמיחה דיגיטלית מותאמת אישית עבור ${biz}`;
+    let roiProjectionText = `חיסכון מוערך של כ-35 שעות עבודה חודשיות, קיצור זמני תגובה ללידים ב-80% ושיפור צפוי של 25-40% באחוזי ההמרה.`;
+    let estimatedRoiMultiplier = 'x4.2';
+    const keyBenefits: string[] = [
+      'הקצאת סאב-דומיין מיידית ומבודדת ללא תלות באנשי פיתוח חיצוניים',
+    ];
+
+    if (hasPageBuilder) {
+      headlinePitch = `מערך דפי נחיתה ומיתוג ממיר בעל סמכות עסקית עבור ${biz}`;
+      keyBenefits.push('עמודי נחיתה בעיצוב פרימיום מותאם למובייל עם זמני טעינה מהירים');
+    }
+    if (hasCrm) {
+      headlinePitch = `מערכת CRM, אנליטיקה ומשפכי המרה מתקדמים עבור ${biz}`;
+      keyBenefits.push('סנכרון מלא בזמן אמת בין עמודי הנחיתה לכרטיס הלקוח המועשר ב-CRM');
+    }
+    if (hasVideo) {
+      keyBenefits.push('הפקת סרטוני אווטאר ותסריטי AI ללא צורך באולפני צילום יקרים');
+      roiProjectionText = `חיסכון של מעל 4,500 ₪ לחודש בעלויות הפקת וידאו וצוותי צילום, עם אספקה מיידית של תוכן ממיר.`;
+      estimatedRoiMultiplier = 'x5.1';
+    }
+    if (hasWhatsApp) {
+      keyBenefits.push('מענה אוטומטי תוך 5 שניות לכל ליד חדש ב-WhatsApp המגדיל את אחוז הסגירה');
+    }
+    if (hasPayments) {
+      keyBenefits.push('סליקה מיידית באשראי, Bit ו-Apple Pay עם חשבוניות מס ירוקות אוטומטיות כחוק');
+    }
+
     return {
-      headlinePitch: `פלטפורמת צמיחה דיגיטלית מותאמת אישית עבור ${biz}`,
-      executiveSummary: `ההצעה שנבנתה עבור ${biz} מאגדת את הרכיבים המובילים להאצת תהליכי שיווק, אוטומציה וניהול לקוחות, המופעלים תחת סאב-דומיין ייעודי ומאובטח.`,
-      roiProjectionText: `חיסכון מוערך של כ-30 שעות עבודה חודשיות, קיצור זמני תגובה ללידים ב-80% ושיפור צפוי של 25-35% באחוזי ההמרה.`,
-      estimatedRoiMultiplier: 'x3.8',
-      keyBenefitsByIndustry: [
-        'הקצאת סאב-דומיין מיידית ומבודדת ללא תלות באנשי פיתוח',
-        'סנכרון מלא בזמן אמת בין עמודי הנחיתה לכרטיס הלקוח ב-CRM',
-        'הפחתה דרמטית בעלויות רישיונות נפרדים לתוכנות שונות',
-      ],
+      headlinePitch,
+      executiveSummary: `ההצעה שנבנתה עבור ${biz} מאגדת את הרכיבים הטכנולוגיים המובילים להאצת תהליכי שיווק, אוטומציה וניהול לקוחות, המופעלים תחת סאב-דומיין ייעודי, עצמאי ומאובטח.`,
+      roiProjectionText,
+      estimatedRoiMultiplier,
+      keyBenefitsByIndustry: keyBenefits.slice(0, 4),
       objectionHandlers: [
         {
-          objection: 'האם נדרש ידע טכני או תכנות כדי לתפעל את המערכת?',
-          response: 'לא. המערכת מגיעה עם ממשק ויזואלי אינטואיטיבי, תבניות מוכנות ועורך Drag & Drop מלא בעברית.',
+          objection: 'האם נדרש ידע טכני או מתכנת כדי לתפעל את המערכת?',
+          response: 'לא. המערכת מגיעה עם ממשק ויזואלי אינטואיטיבי, תבניות מוכנות בעברית ועורך Drag & Drop מלא שמוכן לעבודה מיידית.',
         },
         {
-          objection: 'מה קורה אם נרצה לשדרג או להוסיף רכיבים בעתיד?',
-          response: 'המערכת מודולרית לחלוטין. ניתן להוסיף או להסיר רכיבים בלחיצת כפתור ישירות מלוח הבקרה.',
+          objection: 'מה קורה אם נרצה להרחיב או להוסיף רכיבים בעתיד?',
+          response: 'המערכת מודולרית לחלוטין. ניתן להוסיף רכיבים נוספים ישירות מחנות התוספים בלוח הבקרה בלחיצת כפתור אחת.',
         }
       ],
-      suggestedAddons: [
+      suggestedAddons: hasCrm ? [
+        {
+          moduleId: 'whatsapp-green-api-hub',
+          moduleName: 'וואטסאפ ואוטומציה (Green-API)',
+          reason: 'שליחת הודעת וואטסאפ אוטומטית לכל ליד שנכנס ל-CRM תוך 5 שניות',
+          discountOffer: 'חיסכון של 20% במסלול שנתי',
+        }
+      ] : [
         {
           moduleId: 'crm-analytics',
-          moduleName: 'אנליטיקה ו-CRM',
+          moduleName: 'אנליטיקה ו-CRM מתקדם',
           reason: 'איסוף אוטומטי של כל הפניות והלידים לפרופיל 360 מועשר ב-AI',
           discountOffer: 'חיסכון של 20% במסלול שנתי',
         }

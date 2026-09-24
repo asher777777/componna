@@ -59,7 +59,7 @@ export const PublicStorefrontHeader: React.FC<PublicStorefrontHeaderProps> = ({
           {/* Cart Counter */}
           {cart.length > 0 && (
             <button
-              onClick={() => setViewMode('checkout')}
+              onClick={() => setViewMode('sales_proposal')}
               className="flex items-center gap-1.5 bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-500 transition"
             >
               <ShoppingCart className="w-3.5 h-3.5" />

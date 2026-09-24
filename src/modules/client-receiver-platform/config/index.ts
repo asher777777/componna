@@ -110,9 +110,18 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
   logoUrl: '',
   primaryColor: '#6366f1',
   modules: {
+    'page-builder': {
+      moduleId: 'page-builder',
+      isEnabled: true,
+      customSlug: '/pages',
+      customTitle: 'יוצר עמודים ואתרים',
+      requiredRole: 'editor' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'mod_pagebuilder_'
+    },
     'video-producer-studio': {
       moduleId: 'video-producer-studio',
-      isEnabled: true,
+      isEnabled: false,
       customSlug: '/video-producer',
       customTitle: 'סטודיו וידאו ואווטאר',
       requiredRole: 'editor' as const,
@@ -121,7 +130,7 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
     },
     'db-connector-hub': {
       moduleId: 'db-connector-hub',
-      isEnabled: true,
+      isEnabled: false,
       customSlug: '/db-connector',
       customTitle: 'סנכרון DB מרכזי',
       requiredRole: 'admin' as const,
@@ -130,21 +139,12 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
     },
     'crm-analytics': {
       moduleId: 'crm-analytics',
-      isEnabled: true,
+      isEnabled: false,
       customSlug: '/crm-analytics',
       customTitle: 'אנליטיקה ו-CRM',
       requiredRole: 'viewer' as const,
       thirdPartyKeys: {},
       collectionPrefix: 'mod_crm_'
-    },
-    'page-builder': {
-      moduleId: 'page-builder',
-      isEnabled: true,
-      customSlug: '/pages',
-      customTitle: 'עמודי נחיתה',
-      requiredRole: 'editor' as const,
-      thirdPartyKeys: {},
-      collectionPrefix: 'mod_pagebuilder_'
     },
     'auth-portal': {
       moduleId: 'auth-portal',
@@ -157,7 +157,7 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
     },
     'flow-player-engine': {
       moduleId: 'flow-player-engine',
-      isEnabled: true,
+      isEnabled: false,
       customSlug: '/flow-player',
       customTitle: 'נגן וידאו אינטראקטיבי',
       requiredRole: 'viewer' as const,
@@ -166,7 +166,7 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
     },
     'media-gallery-hub': {
       moduleId: 'media-gallery-hub',
-      isEnabled: true,
+      isEnabled: false,
       customSlug: '/media',
       customTitle: 'גלריית מדיה',
       requiredRole: 'editor' as const,

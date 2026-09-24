@@ -2,7 +2,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   ClientPlatformSettings, 
   ClientUserSession, 
-  ClientModuleSetting 
+  ClientModuleSetting,
+  UserRole
 } from '../types';
 import { 
   DEFAULT_CLIENT_PLATFORM_SETTINGS, 
@@ -14,7 +15,7 @@ import { TenantRecord } from '../../saas-storefront-composer/types';
 
 interface ClientPlatformContextValue {
   session: ClientUserSession;
-  login: (email: string, role?: 'admin' | 'editor' | 'viewer') => void;
+  login: (email: string, role?: UserRole) => void;
   logout: () => void;
   settings: ClientPlatformSettings;
   updateSettings: (newSettings: ClientPlatformSettings) => void;
@@ -66,12 +67,11 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
       const modSettings: Record<string, ClientModuleSetting> = {};
       
       MASTER_AVAILABLE_MODULES.forEach((m) => {
-        // Module is enabled if purchased OR if page-builder (default landing page editor for all tenants)
-        const isPurchased = activeMods.includes(m.id);
-        const isEnabled = isPurchased || m.id === 'page-builder';
+        // Module is enabled ONLY if specifically purchased in activeModules (or fallback to page-builder if empty)
+        const isPurchased = activeMods.includes(m.id) || (activeMods.length === 0 && m.id === 'page-builder');
         modSettings[m.id] = {
           moduleId: m.id,
-          isEnabled,
+          isEnabled: isPurchased,
           customSlug: m.defaultSlug,
           customTitle: m.defaultTitle,
           requiredRole: 'viewer',
@@ -85,15 +85,22 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
         const saved = localStorage.getItem(storageKey);
         if (saved) {
           const parsed = JSON.parse(saved);
+          const mergedModules: Record<string, ClientModuleSetting> = {};
+          MASTER_AVAILABLE_MODULES.forEach((m) => {
+            const isPurchased = activeMods.includes(m.id) || (activeMods.length === 0 && m.id === 'page-builder');
+            mergedModules[m.id] = {
+              ...modSettings[m.id],
+              ...(parsed.modules?.[m.id] || {}),
+              isEnabled: isPurchased, // Strictly enforce purchased status
+            };
+          });
+
           return {
             clientId: tenantRecord.subdomain,
             clientName: tenantRecord.clientName || `עסק ${tenantRecord.subdomain}`,
             logoUrl: parsed.logoUrl || '',
             primaryColor: parsed.primaryColor || '#6366f1',
-            modules: {
-              ...modSettings,
-              ...(parsed.modules || {}),
-            },
+            modules: mergedModules,
             updatedAt: parsed.updatedAt || new Date().toISOString(),
           };
         }
@@ -170,7 +177,24 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
 
   useEffect(() => {
     const storageKey = settings.clientId ? `client_platform_settings_${settings.clientId}` : 'client_platform_settings';
-    localStorage.setItem(storageKey, JSON.stringify(settings));
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(settings));
+    } catch (e) {
+      console.warn('[ClientPlatformContext] LocalStorage quota exceeded or error:', e);
+      try {
+        // Attempt to free storage by pruning obsolete client settings keys
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('client_platform_settings_') && k !== storageKey) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+        localStorage.setItem(storageKey, JSON.stringify(settings));
+      } catch {}
+    }
+
     if (db) {
       const clientId = settings.clientId || 'client_demo_77';
       const ref = doc(db, 'client_platform_config', clientId);
@@ -181,7 +205,7 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
     }
   }, [settings, db]);
 
-  const login = (email: string, role: 'admin' | 'editor' | 'viewer' = 'admin') => {
+  const login = (email: string, role: UserRole = 'admin') => {
     setSession({
       uid: `u_${Date.now()}`,
       email,

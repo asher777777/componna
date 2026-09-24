@@ -279,18 +279,10 @@ export const MarketplaceCatalogView: React.FC = () => {
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setViewMode('sales_proposal')}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-indigo-300 border border-indigo-500/40 px-4 py-3 rounded-xl font-bold text-xs shadow transition"
-              title="הפקת טופס הצעת מחיר מותאם אישית ב-AI"
+              className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-500/30 transition transform active:scale-95"
             >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-              <span>הפקת הצעת מחיר (AI)</span>
-            </button>
-
-            <button
-              onClick={() => setViewMode('checkout')}
-              className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-5 py-3 rounded-xl font-bold text-xs shadow-lg shadow-indigo-500/30 transition transform active:scale-95"
-            >
-              <span>המשך לקופה</span>
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>המשך להפקת הצעה והזמנת סאב-דומיין</span>
               <ArrowLeft className="w-4 h-4" />
             </button>
           </div>

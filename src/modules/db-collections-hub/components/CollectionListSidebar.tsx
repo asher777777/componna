@@ -100,7 +100,9 @@ export const CollectionListSidebar: React.FC = () => {
   });
 
   useEffect(() => {
-    localStorage.setItem('comona_db_sidebar_collapsed', String(isCollapsed));
+    try {
+      localStorage.setItem('comona_db_sidebar_collapsed', String(isCollapsed));
+    } catch {}
   }, [isCollapsed]);
 
   const handleScan = async () => {

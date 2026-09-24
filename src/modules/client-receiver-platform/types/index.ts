@@ -1,4 +1,4 @@
-﻿export type UserRole = 'admin' | 'editor' | 'viewer';
+export type UserRole = 'admin' | 'editor' | 'viewer' | 'super_admin';
 
 export interface ClientUserSession {
   uid: string;

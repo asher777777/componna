@@ -13,6 +13,7 @@ export interface CrmExportContactInput {
   name?: string;
   firstName?: string;
   lastName?: string;
+  ownerId?: string;
   sourceAccountName?: string;
   sourceGroupName?: string;
   customTags?: string[];
@@ -69,7 +70,8 @@ export async function syncContactsToCrm(
   defaultAccountName: string = '',
   defaultGroupName: string = '',
   defaultTags: string[] = [],
-  groupsCollectionName: string = 'crm_groups'
+  groupsCollectionName: string = 'crm_groups',
+  ownerId?: string
 ): Promise<CrmSyncResult> {
   const result: CrmSyncResult = {
     total: contactsToSync.length,
@@ -113,6 +115,7 @@ export async function syncContactsToCrm(
             category: 'group',
             type: 'manual',
             color: '#6366f1',
+            ownerId: ownerId || '',
             updatedAt: Date.now(),
           },
           { merge: true }
@@ -133,6 +136,7 @@ export async function syncContactsToCrm(
       const formattedPhone = item.phone.startsWith('+') ? item.phone : item.phone;
       const accountName = (item.sourceAccountName || defaultAccountName || '').trim();
       const groupName = (item.sourceGroupName || defaultGroupName || '').trim();
+      const resolvedOwnerId = (item.ownerId || ownerId || '').trim();
 
       const tagsToMerge = Array.from(
         new Set([
@@ -186,6 +190,11 @@ export async function syncContactsToCrm(
           updates.sourceGroupName = groupName;
         }
 
+        // Owner ID
+        if (!existingData.ownerId && resolvedOwnerId) {
+          updates.ownerId = resolvedOwnerId;
+        }
+
         // Source metadata
         if (!existingData.sourceAccountName && accountName) updates.sourceAccountName = accountName;
         if (!existingData.source) updates.source = 'whatsapp_green_api';
@@ -217,6 +226,9 @@ export async function syncContactsToCrm(
           mobile: formattedPhone,
           phoneNumber: formattedPhone,
           normalizedPhone: normPhone,
+          ownerId: resolvedOwnerId,
+          userId: resolvedOwnerId,
+          createdBy: resolvedOwnerId,
           source: 'whatsapp_green_api',
           sourceAccountName: accountName,
           sourceGroupName: groupName,

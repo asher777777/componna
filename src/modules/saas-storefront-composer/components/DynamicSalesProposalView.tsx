@@ -22,6 +22,7 @@ export const DynamicSalesProposalView: React.FC = () => {
     runAiOptimization,
     aiOptimizationResult,
     isOptimizingAi,
+    completeCheckoutAndProvision,
   } = useStorefront();
 
   const [currentForm, setCurrentForm] = useState<SmartFormDefinition>(() => generateOrGetProposalForm());
@@ -60,10 +61,10 @@ export const DynamicSalesProposalView: React.FC = () => {
       setSelectedSubdomain(extracted.subdomain);
     }
 
-    // Proceed to subdomain activation or checkout
-    if (extracted.isConfirmed) {
-      setViewMode('checkout');
-    } else {
+    // Direct auto-provisioning with GoDaddy DNS, DB collection isolation and WhatsApp welcome
+    const tenant = await completeCheckoutAndProvision(extracted.subdomain, extracted.discoveryAnswers);
+    if (!tenant) {
+      // If subdomain wasn't set or needs confirmation
       setViewMode('subdomain_picker');
     }
   };
@@ -71,7 +72,7 @@ export const DynamicSalesProposalView: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6" dir="rtl">
       
-      {/* Top Subtle Document Header */}
+      {/* Top Subtle Document Header with Studio Edit Button */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-900/60 backdrop-blur-md px-6 py-4 rounded-2xl border border-slate-800">
         <div className="flex items-center gap-3">
           <button
@@ -94,25 +95,15 @@ export const DynamicSalesProposalView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
-          {/* Discrete Studio Edit Button */}
+          {/* Studio Edit Button for Administrator */}
           <button
             type="button"
             onClick={() => setViewMode('edit_proposal_form')}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold rounded-xl border border-slate-700 transition"
-            title="עריכת שלבים ושדות ב-Studio"
+            className="flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 text-xs font-bold rounded-xl border border-amber-500/40 shadow-sm transition"
+            title="עריכת שלבים ושדות ב-Form Builder Studio"
           >
-            <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-            <span>ערוך ב-Studio</span>
-          </button>
-
-          {/* Direct Checkout Button */}
-          <button
-            type="button"
-            onClick={() => setViewMode('checkout')}
-            className="flex items-center gap-1.5 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold rounded-xl shadow transition"
-          >
-            <span>לתשלום מיידי</span>
-            <ArrowLeft className="w-3.5 h-3.5" />
+            <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+            <span>✏️ ערוך ב-Studio (מנהל)</span>
           </button>
         </div>
       </div>

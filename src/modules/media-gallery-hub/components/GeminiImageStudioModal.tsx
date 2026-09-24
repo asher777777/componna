@@ -24,8 +24,11 @@ import {
   ShieldCheck,
   Zap,
   Key,
+  Send,
+  Crown,
 } from 'lucide-react';
-import { useMediaGallery } from '../context/MediaGalleryContext';
+import { doc, setDoc, collection } from 'firebase/firestore';
+import { useOptionalMediaGallery } from '../context/MediaGalleryContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import {
   generateGeminiImage,
@@ -45,22 +48,35 @@ export interface GeminiImageStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialReferenceImage?: MediaItem | null;
+  onUseImage?: (imageUrl: string, metadata: { title: string; prompt: string; tags: string[] }) => void;
+  useButtonLabel?: string;
+  defaultAspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  title?: string;
+  subtitle?: string;
 }
 
 export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   isOpen,
   onClose,
   initialReferenceImage,
+  onUseImage,
+  useButtonLabel,
+  defaultAspectRatio = '1:1',
+  title,
+  subtitle,
 }) => {
-  const { addMediaItems, theme, activeFolderId, folders } = useMediaGallery();
-  const { apiKeys, updateApiKeys } = useSystemConnection();
+  const gallery = useOptionalMediaGallery();
+  const addMediaItems = gallery?.addMediaItems;
+  const theme = gallery?.theme || 'dark';
+  const activeFolderId = gallery?.activeFolderId;
+  const { apiKeys, updateApiKeys, db, collections } = useSystemConnection();
   const isLight = theme === 'light';
 
   // Generation Parameters
   const [prompt, setPrompt] = useState<string>('');
   const [enhancedPrompt, setEnhancedPrompt] = useState<string>('');
   const [selectedPresetId, setSelectedPresetId] = useState<string>('minimalist-logo');
-  const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>('1:1');
+  const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>(defaultAspectRatio);
   const [selectedModel, setSelectedModel] = useState<
     'gemini-3.1-flash-image' | 'gemini-3-pro-image' | 'gemini-3.1-flash-lite-image' | 'imagen-3.0-generate-002'
   >('gemini-3.1-flash-image');
@@ -270,7 +286,12 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       },
     };
 
-    await addMediaItems([newMediaItem], file ? [file] : undefined);
+    if (addMediaItems) {
+      await addMediaItems([newMediaItem], file ? [file] : undefined);
+    } else if (db) {
+      const collName = collections?.mediaItems || 'mediaItems';
+      await setDoc(doc(collection(db, collName), newMediaItem.id), newMediaItem);
+    }
     setIsSaved(true);
   };
 
@@ -335,14 +356,15 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
             <div>
               <div className="flex items-center space-x-2 rtl:space-x-reverse">
                 <h2 className="text-base sm:text-lg font-black tracking-tight">
-                  סטודיו Gemini AI • יצירת תמונות מושלמות
+                  {title || 'סטודיו Gemini AI • יצירת תמונות מושלמות'}
                 </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-yellow-300 border border-amber-500/30">
-                  Nano Banana 2 & Pro
+                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 border border-amber-400/50 shadow-xs flex items-center gap-1">
+                  <Crown className="w-3 h-3 text-slate-950 fill-slate-950" />
+                  <span>פונקציית AI למנויים משודרגים (PRO)</span>
                 </span>
               </div>
               <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                מחולל תמונות מתקדם עם עוזר פרומפטים וקידוד כותרת ותיאור אוטומטיים
+                {subtitle || 'מחולל תמונות מתקדם עם עוזר פרומפטים וקידוד כותרת ותיאור אוטומטיים'}
               </p>
             </div>
           </div>
@@ -866,42 +888,62 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
                 </div>
 
                 {/* Result Actions */}
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleSaveToGallery}
-                    disabled={isSaved}
-                    className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse cursor-pointer shadow transition-all ${
-                      isSaved
-                        ? 'bg-emerald-600 text-white cursor-default'
-                        : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black'
-                    }`}
-                  >
-                    {isSaved ? (
-                      <>
-                        <Check className="w-3.5 h-3.5" />
-                        <span>נשמר בהצלחה בגלריה!</span>
-                      </>
-                    ) : (
-                      <>
-                        <FolderPlus className="w-3.5 h-3.5" />
-                        <span>שמור לגלריה</span>
-                      </>
-                    )}
-                  </button>
+                <div className="space-y-2 pt-1">
+                  {onUseImage && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onUseImage(generatedResult.imageUrl, {
+                          title: resultTitle || prompt,
+                          prompt: enhancedPrompt || prompt,
+                          tags: resultTags,
+                        });
+                        onClose();
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white shadow-lg shadow-emerald-600/30 cursor-pointer transition transform hover:scale-[1.01]"
+                    >
+                      <Send className="w-4 h-4" />
+                      <span>{useButtonLabel || '🚀 השתמש בתמונה ושגר'}</span>
+                    </button>
+                  )}
 
-                  <button
-                    type="button"
-                    onClick={handleDownloadImage}
-                    className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse border cursor-pointer transition-all ${
-                      isLight
-                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
-                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                    }`}
-                  >
-                    <Download className="w-3.5 h-3.5" />
-                    <span>הורד למחשב</span>
-                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSaveToGallery}
+                      disabled={isSaved}
+                      className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse cursor-pointer shadow transition-all ${
+                        isSaved
+                          ? 'bg-emerald-600 text-white cursor-default'
+                          : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black'
+                      }`}
+                    >
+                      {isSaved ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>נשמר בהצלחה בגלריה!</span>
+                        </>
+                      ) : (
+                        <>
+                          <FolderPlus className="w-3.5 h-3.5" />
+                          <span>שמור לגלריה</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleDownloadImage}
+                      className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse border cursor-pointer transition-all ${
+                        isLight
+                          ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
+                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
+                      }`}
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>הורד למחשב</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* Iterate / Image-to-Image helper */}

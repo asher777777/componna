@@ -48,7 +48,7 @@ export const TenantAppResolver: React.FC = () => {
           clientName: `מערכת לקוח (${sub})`,
           ownerEmail: `${sub}@kosun.pro`,
           ownerPhone: '050-1234567',
-          activeModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics'],
+          activeModules: ['page-builder'],
           collectionPrefix: `tenant_${sub}_mod_`,
           billingPlan: 'annual',
           monthlyTotal: 129,

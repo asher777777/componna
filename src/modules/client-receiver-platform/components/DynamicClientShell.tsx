@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useClientPlatform } from '../context/ClientPlatformContext';
 import { ComponentRegistryTable } from './ComponentRegistryTable';
+import { ClientAddonMarketplaceView } from './ClientAddonMarketplaceView';
 import { MASTER_AVAILABLE_MODULES } from '../config';
 
 // Import standalone views of our modules
@@ -18,7 +19,7 @@ import { FlowPlayerEngineStandaloneView } from '../../flow-player-engine';
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { DbCollectionsHubStandaloneView } from '../../db-collections-hub';
 import { TemplateStandaloneView } from '../../_template';
-import { Globe } from 'lucide-react';
+import { Globe, ShoppingBag, Sparkles } from 'lucide-react';
 
 export interface DynamicClientShellProps {
   onExitToPublic?: () => void;
@@ -50,8 +51,10 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
 
   const renderActiveModuleView = () => {
     switch (activeRoute) {
+      case 'marketplace':
+        return <ClientAddonMarketplaceView />;
       case 'control_panel':
-        return <ComponentRegistryTable />;
+        return session.role === 'super_admin' ? <ComponentRegistryTable /> : <ClientAddonMarketplaceView />;
       case 'video-producer-studio':
         return <VideoProducerStudioView />;
       case 'db-connector-hub':
@@ -71,7 +74,19 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
       case 'template':
         return <TemplateStandaloneView />;
       default:
-        return <ComponentRegistryTable />;
+        // Default to first active module or page-builder
+        if (enabledModules.length > 0) {
+          const firstMod = enabledModules[0].id;
+          if (firstMod === 'video-producer-studio') return <VideoProducerStudioView />;
+          if (firstMod === 'db-connector-hub') return <DbConnectorHubStandaloneView />;
+          if (firstMod === 'crm-analytics') return <CrmAnalyticsStandaloneView />;
+          if (firstMod === 'page-builder') return <PageBuilderStandaloneView />;
+          if (firstMod === 'auth-portal') return <AuthPortalStandaloneView />;
+          if (firstMod === 'flow-player-engine') return <FlowPlayerEngineStandaloneView />;
+          if (firstMod === 'media-gallery-hub') return <MediaGalleryHubStandaloneView />;
+          if (firstMod === 'db-collections-hub') return <DbCollectionsHubStandaloneView />;
+        }
+        return <PageBuilderStandaloneView />;
     }
   };
 
@@ -116,8 +131,26 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
               </button>
             )}
 
-            {/* Control Panel (Always available for admin) */}
-            {session.role === 'admin' && (
+            {/* Add-ons Marketplace & Upgrades Button */}
+            <button
+              onClick={() => setActiveRoute('marketplace')}
+              className={`w-full mb-3 flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition shadow-sm ${
+                activeRoute === 'marketplace'
+                  ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-slate-950 shadow-md shadow-amber-500/20'
+                  : 'text-amber-300 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="w-4 h-4 text-amber-400" />
+                <span>חנות רכיבים ושדרוגים</span>
+              </div>
+              <span className="text-[10px] bg-amber-500/30 text-amber-200 px-1.5 py-0.5 rounded-md font-bold">
+                + הרחבה
+              </span>
+            </button>
+
+            {/* Control Panel (Only available for super_admin) */}
+            {session.role === 'super_admin' && (
               <button
                 onClick={() => setActiveRoute('control_panel')}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
@@ -127,11 +160,11 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
                 }`}
               >
                 <Sliders className="w-4 h-4" />
-                <span>לוח בקרת רכיבים (Admin)</span>
+                <span>לוח בקרת רכיבים (Dev Admin)</span>
               </button>
             )}
 
-            <div className="pt-3 pb-1 text-[10px] font-bold text-gray-400 px-3 uppercase tracking-wider">
+            <div className="pt-2 pb-1 text-[10px] font-bold text-gray-400 px-3 uppercase tracking-wider">
               רכיבים פעילים ({enabledModules.length})
             </div>
 

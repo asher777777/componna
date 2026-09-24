@@ -3,8 +3,9 @@ import {
   MessageSquare, Send, QrCode, Smartphone, Globe, RefreshCw, CheckCircle,
   AlertCircle, Server, Users, Image, BarChart2,
   ListFilter, ShieldCheck, Power, KeyRound, ExternalLink, Sun, Moon,
-  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen
+  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen, UserCheck, Database, Search, Crown
 } from 'lucide-react';
+import { collection, getDocs, query } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { GreenApiService } from '../services/greenApiService';
 import {
@@ -23,9 +24,10 @@ import { WhatsAppWebChatView } from './WhatsAppWebChatView';
 import { WhatsAppAiBotTab } from './WhatsAppAiBotTab';
 import { WhatsAppStatusesTab } from './WhatsAppStatusesTab';
 import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
 
 export const WhatsAppGreenApiMainView: React.FC = () => {
-  const { apiKeys, openConnectorModal, db, collections } = useSystemConnection();
+  const { apiKeys, openConnectorModal, db, collections, firebaseApp } = useSystemConnection();
 
   // Day / Night Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -35,7 +37,9 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
-    localStorage.setItem('comona_whatsapp_theme', nextTheme);
+    try {
+      localStorage.setItem('comona_whatsapp_theme', nextTheme);
+    } catch {}
   };
 
   const isDark = theme === 'dark';
@@ -85,13 +89,14 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const [isPhoneModalOpen, setIsPhoneModalOpen] = useState(false);
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  const [isAiImageStudioOpen, setIsAiImageStudioOpen] = useState(false);
 
   // Chats State
   const [chats, setChats] = useState<GreenApiChat[]>([]);
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
 
   // Sender State
-  const [sendType, setSendType] = useState<'text' | 'file_url' | 'poll' | 'buttons'>('text');
+  const [sendType, setSendType] = useState<'text' | 'file_url' | 'poll' | 'buttons' | 'contact'>('text');
   const [targetChat, setTargetChat] = useState('');
   const [textMsg, setTextMsg] = useState('');
   const [fileUrl, setFileUrl] = useState('');
@@ -103,6 +108,16 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
     { buttonId: 'btn_1', buttonText: 'אישור והמשך' },
     { buttonId: 'btn_2', buttonText: 'פנה לנציג' },
   ]);
+
+  // Contact Sender State
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactFirstName, setContactFirstName] = useState('');
+  const [contactLastName, setContactLastName] = useState('');
+  const [contactCompany, setContactCompany] = useState('');
+  const [crmContactsList, setCrmContactsList] = useState<Array<{ id: string; name: string; phone: string; company?: string }>>([]);
+  const [isCrmPickerOpen, setIsCrmPickerOpen] = useState(false);
+  const [crmContactSearch, setCrmContactSearch] = useState('');
+
   const [isSending, setIsSending] = useState(false);
   const [sendResult, setSendResult] = useState<{ success: boolean; msg: string } | null>(null);
 
@@ -180,6 +195,36 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
     setSelectedChatId(chatId);
   };
 
+  const loadCrmContacts = async () => {
+    if (!db) return;
+    try {
+      const coll = collection(db, collections?.contacts || 'contacts');
+      const snap = await getDocs(query(coll));
+      const items: Array<{ id: string; name: string; phone: string; company?: string }> = [];
+      snap.forEach((d) => {
+        const data = d.data();
+        const phone = data.phone || data.phoneNumber || data.mobile || '';
+        const name =
+          data.name ||
+          data.fullName ||
+          data.contactName ||
+          `${data.firstName || ''} ${data.lastName || ''}`.trim() ||
+          'איש קשר';
+        if (phone) {
+          items.push({
+            id: d.id,
+            name,
+            phone,
+            company: data.company || data.businessName || data.organization || '',
+          });
+        }
+      });
+      setCrmContactsList(items);
+    } catch (err) {
+      console.warn('Failed to load CRM contacts:', err);
+    }
+  };
+
   const handleSendMessage = async () => {
     if (!targetChat.trim()) {
       alert('נא להזין מספר טלפון או מזהה קבוצה');
@@ -212,6 +257,19 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           message: textMsg,
           buttons: buttonsList,
         });
+      } else if (sendType === 'contact') {
+        if (!contactPhone.trim()) {
+          throw new Error('נא להזין מספר טלפון של איש הקשר');
+        }
+        res = await greenApiService.sendContact({
+          chatId: targetChat,
+          contact: {
+            phoneContact: contactPhone.trim(),
+            firstName: contactFirstName.trim() || 'איש קשר',
+            lastName: contactLastName.trim(),
+            company: contactCompany.trim(),
+          },
+        });
       }
 
       if (res && res.idMessage) {
@@ -219,8 +277,18 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           success: true,
           msg: `ההודעה שוגרה בהצלחה! מזהה: ${res.idMessage}`,
         });
-        handleBulkRecipientSent(targetChat, textMsg || fileName || pollTitle, targetChat.split('@')[0]);
-        setTextMsg('');
+        const summary =
+          sendType === 'contact'
+            ? `כרטיס איש קשר: ${contactFirstName} ${contactLastName}`
+            : textMsg || fileName || pollTitle;
+        handleBulkRecipientSent(targetChat, summary, targetChat.split('@')[0]);
+        if (sendType === 'text') setTextMsg('');
+        if (sendType === 'contact') {
+          setContactPhone('');
+          setContactFirstName('');
+          setContactLastName('');
+          setContactCompany('');
+        }
       } else {
         throw new Error(res?.error || 'שגיאה בשליחת הודעה');
       }
@@ -435,6 +503,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             selectedChatId={selectedChatId}
             setSelectedChatId={setSelectedChatId}
             db={db}
+            firebaseApp={firebaseApp}
             contactsCollectionName={collections?.contacts || 'contacts'}
             groupsCollectionName={collections?.groups || 'crm_groups'}
             connectedAccountName={connectedAccountDisplayName}
@@ -475,6 +544,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
               {[
                 { id: 'text', label: 'הודעת טקסט', icon: MessageSquare },
                 { id: 'file_url', label: 'מדיה / קובץ לפי URL', icon: Image },
+                { id: 'contact', label: 'כרטיס איש קשר (vCard)', icon: UserCheck },
                 { id: 'poll', label: 'סקר וואטסאפ', icon: BarChart2 },
                 { id: 'buttons', label: 'כפתורי מענה מהיר', icon: ListFilter },
               ].map((t) => {
@@ -482,7 +552,12 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
                 return (
                   <button
                     key={t.id}
-                    onClick={() => setSendType(t.id as any)}
+                    onClick={() => {
+                      setSendType(t.id as any);
+                      if (t.id === 'contact' && crmContactsList.length === 0) {
+                        loadCrmContacts();
+                      }
+                    }}
                     className={`px-3 py-2 rounded-xl flex items-center gap-1.5 font-medium transition cursor-pointer ${
                       sendType === t.id
                         ? 'bg-indigo-600 text-white shadow-md'
@@ -525,19 +600,154 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
               </div>
             )}
 
+            {sendType === 'contact' && (
+              <div className="space-y-3">
+                {/* CRM quick picker */}
+                <div className={`p-3 rounded-2xl border space-y-2 ${themeClasses.subCard}`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <Database className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>בחירה מהירה ממאגר ה-CRM</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCrmPickerOpen(!isCrmPickerOpen);
+                        if (!crmContactsList.length) loadCrmContacts();
+                      }}
+                      className="px-2.5 py-1 bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-300 border border-indigo-500/30 rounded-lg text-[11px] font-bold cursor-pointer transition"
+                    >
+                      {isCrmPickerOpen ? 'סגור רשימה' : `בחר מ-CRM (${crmContactsList.length || 'טען'})`}
+                    </button>
+                  </div>
+
+                  {isCrmPickerOpen && (
+                    <div className="space-y-2 pt-2 border-t border-slate-800/40">
+                      <div className="relative">
+                        <Search className="w-3.5 h-3.5 absolute right-2.5 top-2.5 text-slate-400" />
+                        <input
+                          type="text"
+                          value={crmContactSearch}
+                          onChange={(e) => setCrmContactSearch(e.target.value)}
+                          placeholder="חפש לפי שם או טלפון ב-CRM..."
+                          className={`w-full pr-8 pl-3 py-1.5 rounded-xl border text-xs ${themeClasses.input}`}
+                        />
+                      </div>
+
+                      <div className="max-h-36 overflow-y-auto space-y-1">
+                        {crmContactsList.length === 0 ? (
+                          <p className="text-center py-2 text-slate-500 text-[11px]">לא נמצאו אנשי קשר ב-CRM</p>
+                        ) : (
+                          crmContactsList
+                            .filter(
+                              (c) =>
+                                c.name.toLowerCase().includes(crmContactSearch.toLowerCase()) ||
+                                c.phone.includes(crmContactSearch) ||
+                                (c.company && c.company.toLowerCase().includes(crmContactSearch.toLowerCase()))
+                            )
+                            .slice(0, 15)
+                            .map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => {
+                                  const parts = c.name.split(' ');
+                                  setContactFirstName(parts[0] || c.name);
+                                  setContactLastName(parts.slice(1).join(' ') || '');
+                                  setContactPhone(c.phone);
+                                  setContactCompany(c.company || '');
+                                  setIsCrmPickerOpen(false);
+                                }}
+                                className={`w-full text-right p-2 rounded-xl flex items-center justify-between transition cursor-pointer ${
+                                  isDark ? 'hover:bg-slate-800 bg-slate-900/50' : 'hover:bg-slate-100 bg-white'
+                                }`}
+                              >
+                                <div>
+                                  <span className="font-bold block">{c.name}</span>
+                                  {c.company && <span className="text-[10px] text-slate-400 block">{c.company}</span>}
+                                </div>
+                                <span className="font-mono text-[11px] text-emerald-400" dir="ltr">{c.phone}</span>
+                              </button>
+                            ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={`block ${themeClasses.textTitle} font-semibold mb-1`}>שם פרטי / מלא *</label>
+                    <input
+                      type="text"
+                      value={contactFirstName}
+                      onChange={(e) => setContactFirstName(e.target.value)}
+                      placeholder="ישראל"
+                      className={`w-full p-2.5 rounded-xl border ${themeClasses.input} text-xs`}
+                    />
+                  </div>
+                  <div>
+                    <label className={`block ${themeClasses.textMuted} font-medium mb-1`}>שם משפחה</label>
+                    <input
+                      type="text"
+                      value={contactLastName}
+                      onChange={(e) => setContactLastName(e.target.value)}
+                      placeholder="ישראלי"
+                      className={`w-full p-2.5 rounded-xl border ${themeClasses.input} text-xs`}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className={`block ${themeClasses.textTitle} font-semibold mb-1`}>טלפון של איש הקשר (בינלאומי) *</label>
+                    <input
+                      type="text"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      placeholder="972501234567 או 0501234567"
+                      className={`w-full p-2.5 rounded-xl border ${themeClasses.input} font-mono text-xs`}
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className={`block ${themeClasses.textMuted} font-medium mb-1`}>חברה / ארגון (אופציונלי)</label>
+                    <input
+                      type="text"
+                      value={contactCompany}
+                      onChange={(e) => setContactCompany(e.target.value)}
+                      placeholder="קומונה בע״מ"
+                      className={`w-full p-2.5 rounded-xl border ${themeClasses.input} text-xs`}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {sendType === 'file_url' && (
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className={`block ${themeClasses.textTitle} font-semibold`}>קישור ישיר לקובץ / מדיה (URL)</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsMediaPickerOpen(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      <span>📂 בחר מגלריית המדיה</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsMediaPickerOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        <span>📂 גלריה</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsAiImageStudioOpen(true)}
+                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black rounded-lg text-xs font-black transition shadow-sm cursor-pointer"
+                        title="מחולל תמונות ופרומפטים ב-AI (פונקציית PRO למנויים משודרגים)"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-black fill-black" />
+                        <span>✨ צור תמונה עם AI (PRO)</span>
+                      </button>
+                    </div>
                   </div>
                   <input
                     type="url"
@@ -930,6 +1140,22 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           }}
           allowedTypes={['image', 'video', 'document', 'audio']}
           title="בחר מדיה לשליחה בוואטסאפ"
+        />
+
+        {/* 7. Gemini AI Image & Prompt Studio Modal (PRO Feature) */}
+        <GeminiImageStudioModal
+          isOpen={isAiImageStudioOpen}
+          onClose={() => setIsAiImageStudioOpen(false)}
+          title="סטודיו יצירת תמונות AI ל-WhatsApp"
+          subtitle="מחולל תמונות ופרומפטים מתקדם עם Gemini AI (פונקציה בלעדית למנויים משודרגים)"
+          useButtonLabel="שבץ תמונה זו לשיגור"
+          defaultAspectRatio="1:1"
+          onUseImage={(imageUrl, meta) => {
+            setSendType('file_url');
+            setFileUrl(imageUrl);
+            setFileName(`${(meta.title || 'ai_image').replace(/[^\w\u0590-\u05FF]/g, '_')}.png`);
+            setFileCaption(meta.title || meta.prompt || 'נוצר באמצעות AI Studio');
+          }}
         />
 
       </div>

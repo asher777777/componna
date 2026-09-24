@@ -4,6 +4,8 @@ import {
   Tag, ShieldCheck, ArrowRight, RefreshCw, FolderPlus, User, Edit3, Plus
 } from 'lucide-react';
 import { Firestore, collection, getDocs, query, limit } from 'firebase/firestore';
+import { FirebaseApp } from 'firebase/app';
+import { subscribeToAuth } from '../../../services/firebaseAuth';
 import {
   CrmExportContactInput,
   syncContactsToCrm,
@@ -16,6 +18,7 @@ interface Props {
   onClose: () => void;
   contacts: Array<{ id: string; name?: string; phone?: string; isGroup?: boolean }>;
   db?: Firestore;
+  firebaseApp?: FirebaseApp;
   contactsCollectionName?: string;
   groupsCollectionName?: string;
   connectedAccountName?: string;
@@ -30,6 +33,7 @@ export const WhatsAppCrmExportModal: React.FC<Props> = ({
   onClose,
   contacts,
   db,
+  firebaseApp,
   contactsCollectionName = 'contacts',
   groupsCollectionName = 'crm_groups',
   connectedAccountName = '',
@@ -44,13 +48,23 @@ export const WhatsAppCrmExportModal: React.FC<Props> = ({
   const individualContacts = contacts.filter((c) => !c.isGroup);
 
   // Editable Names map: chatId -> editedName
-  const [editableNames, setEditableNames] = useState<Record<string, string>>(() => {
+  const [editableNames, setEditableNames] = useState<Record<string, string>>({});
+  const [currentUserUid, setCurrentUserUid] = useState<string>('');
+
+  useEffect(() => {
+    const unsub = subscribeToAuth(firebaseApp, (st) => {
+      setCurrentUserUid(st.uid || '');
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  useEffect(() => {
     const map: Record<string, string> = {};
     individualContacts.forEach((c) => {
       map[c.id] = c.name || '';
     });
-    return map;
-  });
+    setEditableNames(map);
+  }, [contacts]);
 
   // Account Name state
   const [accountName, setAccountName] = useState(
@@ -190,7 +204,8 @@ export const WhatsAppCrmExportModal: React.FC<Props> = ({
         accountName.trim(),
         effectiveGroupName,
         tags,
-        groupsCollectionName
+        groupsCollectionName,
+        currentUserUid || undefined
       );
       setSyncResult(res);
 

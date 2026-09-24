@@ -5,7 +5,7 @@ import {
   Users, Palette, ChevronRight, ChevronLeft, ShieldCheck, Database,
   Search, Filter, Smartphone, CheckCheck, X, FolderOpen, Wand2,
   Tag, UserCheck, CheckSquare, Square, Layers, BookOpen, ShoppingBag,
-  Megaphone, Lightbulb, Ticket, Flame
+  Megaphone, Lightbulb, Ticket, Flame, Crown
 } from 'lucide-react';
 import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
@@ -29,6 +29,7 @@ import {
 } from '../services/whatsappAiBotService';
 import { normalizePhone } from '../services/whatsappCrmSyncService';
 import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
 import { MediaItem } from '../../media-gallery-hub/types';
 
 interface Props {
@@ -91,6 +92,8 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
   // Media Gallery Picker Modal state
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
+  // Gemini AI Image Studio Modal state (PRO Feature)
+  const [isAiImageStudioOpen, setIsAiImageStudioOpen] = useState(false);
 
   // Audience & CRM integration state
   const [targetAudience, setTargetAudience] = useState<'all' | 'crm_group' | 'crm_tag' | 'custom'>('all');
@@ -908,15 +911,27 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   <div className="flex items-center justify-between mb-1">
                     <label className="font-semibold text-slate-300">קובץ מדיה (תמונה או וידאו)</label>
                     
-                    {/* Media Gallery Picker Button */}
-                    <button
-                      type="button"
-                      onClick={() => setIsMediaPickerOpen(true)}
-                      className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
-                    >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      <span>📂 בחר מגלריית המדיה שלי</span>
-                    </button>
+                    {/* Media Picker & AI Generator Buttons */}
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsMediaPickerOpen(true)}
+                        className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5" />
+                        <span>📂 גלריה</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setIsAiImageStudioOpen(true)}
+                        className="px-3 py-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
+                        title="יצירת תמונה מותאמת לסטטוס ב-AI (פונקציה למנויים משודרגים)"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
+                        <span>✨ צור תמונה עם AI (PRO)</span>
+                      </button>
+                    </div>
                   </div>
 
                   <input
@@ -1657,6 +1672,24 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
           db={db}
         />
       )}
+
+      {/* GEMINI AI IMAGE STUDIO MODAL (PRO Feature) */}
+      <GeminiImageStudioModal
+        isOpen={isAiImageStudioOpen}
+        onClose={() => setIsAiImageStudioOpen(false)}
+        title="סטודיו יצירת תמונות AI לסטטוסים ו-Stories"
+        subtitle="מחולל תמונות ופרומפטים מתקדם עם Gemini AI (פונקציה בלעדית למנויים משודרגים)"
+        useButtonLabel="שבץ תמונה זו לסטטוס"
+        defaultAspectRatio="9:16"
+        onUseImage={(imageUrl, meta) => {
+          setStatusType('media');
+          setMediaUrl(imageUrl);
+          setFileName(`${(meta.title || 'ai_status_image').replace(/[^\w\u0590-\u05FF]/g, '_')}.png`);
+          if (!mediaCaption.trim()) {
+            setMediaCaption(meta.title || meta.prompt || '');
+          }
+        }}
+      />
 
     </div>
   );
