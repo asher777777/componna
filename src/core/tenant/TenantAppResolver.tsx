@@ -3,24 +3,29 @@ import { WorkbenchApp } from '../../workbench/WorkbenchApp';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
 import { StorefrontService } from '../../modules/saas-storefront-composer/services/storefrontService';
+import { PublicStorefrontApp } from '../../modules/saas-storefront-composer/components/PublicStorefrontApp';
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { Globe, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const TenantAppResolver: React.FC = () => {
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
+  const [isDevWorkbench, setIsDevWorkbench] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('dev') === 'true' || params.get('mode') === 'dev' || params.get('workbench') === 'true';
+  });
 
   useEffect(() => {
-    // 1. Detect from URL query param (e.g. ?tenant=landing) or hostname (e.g. landing.domain.com)
+    // 1. Detect from URL query param (e.g. ?tenant=landing) or hostname (e.g. landing.kosun.pro)
     const params = new URLSearchParams(window.location.search);
     const tenantParam = params.get('tenant');
     const hostname = window.location.hostname;
     
-    // Check if subdomain exists in hostname (ignore localhost / web.app standard root)
+    // Check if subdomain exists in hostname (ignore localhost root / web.app standard root)
     let sub: string | null = null;
     if (tenantParam) {
       sub = tenantParam;
-    } else if (!hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1') && !hostname.startsWith('comona') && !hostname.startsWith('glowmanage')) {
+    } else if (!hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1') && !hostname.startsWith('comona') && !hostname.startsWith('glowmanage') && !hostname.startsWith('kosun.pro') && !hostname.startsWith('www.kosun.pro')) {
       const parts = hostname.split('.');
       if (parts.length > 2) {
         sub = parts[0];
@@ -38,10 +43,10 @@ export const TenantAppResolver: React.FC = () => {
         const demoTenant: TenantRecord = {
           subdomain: sub,
           fullDomain: `${sub}.kosun.pro`,
-          clientName: `מערכת דפי נחיתה (${sub})`,
+          clientName: `מערכת לקוח (${sub})`,
           ownerEmail: `${sub}@kosun.pro`,
           ownerPhone: '050-1234567',
-          activeModules: ['page-builder', 'media-gallery-hub', 'crm-analytics'],
+          activeModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics'],
           collectionPrefix: `tenant_${sub}_mod_`,
           billingPlan: 'annual',
           monthlyTotal: 129,
@@ -58,11 +63,11 @@ export const TenantAppResolver: React.FC = () => {
     }
   }, []);
 
-  // If a tenant is active on this subdomain
+  // 1. Subdomain View (Customer Custom UI - No Dev Sidebar!)
   if (tenantSubdomain && tenantRecord) {
     return (
       <div className="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-950 font-sans" dir="rtl">
-        {/* Top Subdomain Bar indicator */}
+        {/* Top Subdomain Status Bar */}
         <header className="bg-slate-900 text-white px-4 py-2 text-xs flex items-center justify-between border-b border-indigo-500/30 shrink-0">
           <div className="flex items-center gap-2">
             <Globe className="w-4 h-4 text-indigo-400" />
@@ -70,7 +75,7 @@ export const TenantAppResolver: React.FC = () => {
             <span className="font-mono text-indigo-300 bg-slate-800 px-2 py-0.5 rounded">
               {tenantRecord.fullDomain}
             </span>
-            <span className="text-gray-400 hidden sm:inline">| קולקציות: <code className="text-emerald-400">{tenantRecord.collectionPrefix}*</code></span>
+            <span className="text-gray-400 hidden sm:inline">| קולקציות מבודדות ב-DB: <code className="text-emerald-400">{tenantRecord.collectionPrefix}*</code></span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -81,7 +86,7 @@ export const TenantAppResolver: React.FC = () => {
               className="flex items-center gap-1 text-[11px] bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-3 py-1 rounded-lg transition"
             >
               <ArrowRight className="w-3.5 h-3.5" />
-              <span>חזרה לחנות הראשית (Workbench)</span>
+              <span>חזרה לחנות (kosun.pro)</span>
             </button>
           </div>
         </header>
@@ -96,6 +101,15 @@ export const TenantAppResolver: React.FC = () => {
     );
   }
 
-  // Otherwise render the default Workbench (Marketplace + Dev Workbench)
-  return <WorkbenchApp />;
+  // 2. Developer / Super-Admin Workbench Mode (If explicitly requested)
+  if (isDevWorkbench) {
+    return <WorkbenchApp />;
+  }
+
+  // 3. Default Public View for Kosun.pro (Clean Storefront + Customer Login Modal, No Dev Sidebar!)
+  return (
+    <PublicStorefrontApp
+      onEnterDevWorkbench={() => setIsDevWorkbench(true)}
+    />
+  );
 };

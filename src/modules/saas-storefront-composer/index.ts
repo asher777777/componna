@@ -9,4 +9,7 @@ export * from './components/CheckoutAndPaymentStep';
 export * from './components/SubdomainSelectorStep';
 export * from './components/LaunchSuccessScreen';
 export * from './components/AdminStorefrontManager';
+export * from './components/PublicStorefrontHeader';
+export * from './components/CustomerLoginModal';
+export * from './components/PublicStorefrontApp';
 export * from './StandaloneView';
