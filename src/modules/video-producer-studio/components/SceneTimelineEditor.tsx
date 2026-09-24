@@ -236,9 +236,14 @@ export const SceneTimelineEditor: React.FC = () => {
   const handleRenderHeyGen = async () => {
     setRenderError(null);
     setRenderSuccess(null);
+    const hasPhoto = activeScene.customAvatarImageUrl || activeScene.backgroundMediaUrl;
+    if (!hasPhoto) {
+      setRenderError('חובה לבחור או להעלות תמונת פרזנטור (תמונה) עבור הסצנה לפני ההפקה ב-HeyGen.');
+      return;
+    }
     try {
       await renderHeyGenScene(activeScene.id);
-      setRenderSuccess('הפקת וידאו HeyGen החלה בהצלחה! הסרטון יסונכרן אוטומטית לגלריה.');
+      setRenderSuccess('הפקת וידאו מונפש מהתמונה החלה ב-HeyGen! הסרטון יסונכרן אוטומטית לגלריה.');
     } catch (err: any) {
       setRenderError(err?.message || 'שגיאה ביצירת הוידאו');
     }
@@ -935,7 +940,7 @@ export const SceneTimelineEditor: React.FC = () => {
                           onChange={(e) => setSelectedVideoEngine(e.target.value as any)}
                           className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-pink-500 focus:outline-none"
                         >
-                          <option value="heygen">👤 HeyGen AI - אווטאר מדבר & סנכרון שפתיים</option>
+                          <option value="heygen">📸 HeyGen AI - הנפשת תמונת פרזנטור + שמע TTS</option>
                           <option value="veo">🎬 Google Veo - וידאו סינמטי מונפש מפרומפט</option>
                         </select>
                       </div>
@@ -974,7 +979,7 @@ export const SceneTimelineEditor: React.FC = () => {
                             className="px-2 py-0.5 bg-purple-600/60 hover:bg-purple-600 text-white rounded-lg text-[10px] font-semibold transition cursor-pointer flex items-center gap-1"
                           >
                             <Sliders className="w-3 h-3" />
-                            <span>הגדרות קול ואווטאר</span>
+                            <span>הגדרות קול קריינות</span>
                           </button>
                         </div>
 
@@ -983,7 +988,7 @@ export const SceneTimelineEditor: React.FC = () => {
                           <div className="p-2 bg-slate-900/90 border border-slate-800 rounded-lg flex items-center justify-between">
                             <span className="text-slate-300 flex items-center gap-1.5 text-[11px]">
                               <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
-                              <span>פרזנטור:</span>
+                              <span>תמונת פרזנטור:</span>
                             </span>
                             {activeScene.customAvatarImageUrl || activeScene.backgroundMediaUrl ? (
                               <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/15 px-1.5 py-0.5 rounded-md flex items-center gap-1">
@@ -991,8 +996,8 @@ export const SceneTimelineEditor: React.FC = () => {
                                 <span>מוכן</span>
                               </span>
                             ) : (
-                              <span className="text-[10px] text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded-md">
-                                ברירת מחדל
+                              <span className="text-[10px] text-rose-400 bg-rose-500/15 px-1.5 py-0.5 rounded-md">
+                                חובה לבחור תמונה
                               </span>
                             )}
                           </div>

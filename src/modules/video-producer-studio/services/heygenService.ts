@@ -401,7 +401,6 @@ export async function getOrCreateTalkingPhotoId(
 export async function generateHeyGenSceneVideo(
   apiKey: string,
   params: {
-    avatarId?: string;
     scriptText: string;
     voiceId?: string;
     aspectRatio?: '16:9' | '9:16' | '1:1';
@@ -410,6 +409,7 @@ export async function generateHeyGenSceneVideo(
     imageUrl?: string;
     audioUrl?: string;
     isPhotoAvatar?: boolean;
+    avatarId?: string;
   }
 ): Promise<string> {
   if (!apiKey || !apiKey.trim()) {
@@ -417,8 +417,11 @@ export async function generateHeyGenSceneVideo(
   }
 
   const rawPhoto = params.customAvatarImageUrl || params.imageUrl || params.backgroundMediaUrl;
+  if (!rawPhoto) {
+    throw new Error('נא להעלות או לבחור תמונת פרזנטור עבור הסצנה. המערכת מייצרת וידאו אך ורק מתמונת פרזנטור עם סנכרון שמע/TTS (ללא אווטארים גנריים).');
+  }
 
-  // 1. Prepare Audio Asset (Google TTS or uploaded voice track)
+  // 1. Prepare Audio Asset (Google TTS or uploaded audio track)
   let audioAssetId: string | undefined;
   let publicAudioUrl: string | undefined;
 
@@ -426,7 +429,8 @@ export async function generateHeyGenSceneVideo(
     try {
       const audioResult = await uploadAudioToHeyGen(apiKey, params.audioUrl);
       audioAssetId = audioResult.audio_asset_id;
-      publicAudioUrl = audioResult.audio_url;
+      publicAudioUrl = audioResult.audio_url || (params.audioUrl.startsWith('http') ? params.audioUrl : undefined);
+      console.info('[HeyGen] Audio asset uploaded successfully:', { audioAssetId, publicAudioUrl });
     } catch (audioErr) {
       console.warn('[HeyGen] Audio asset upload fallback:', audioErr);
       if (params.audioUrl.startsWith('http')) {
@@ -435,76 +439,37 @@ export async function generateHeyGenSceneVideo(
     }
   }
 
-  // 2. Prepare Image / Background Asset
-  let imageAssetId: string | undefined;
-  let publicImageUrl: string | undefined;
+  // 2. Prepare Photo Asset for Talking Photo
+  let photoId: string | undefined;
 
-  if (rawPhoto) {
-    try {
-      const imageResult = await uploadAssetToHeyGen(apiKey, rawPhoto, 'image/jpeg');
-      imageAssetId = imageResult.asset_id;
-      publicImageUrl = imageResult.asset_url;
-    } catch (imgErr) {
-      console.warn('[HeyGen] Image asset upload fallback:', imgErr);
-      if (rawPhoto.startsWith('http')) {
-        publicImageUrl = rawPhoto;
-      }
+  try {
+    const imageResult = await uploadAssetToHeyGen(apiKey, rawPhoto, 'image/jpeg');
+    photoId = imageResult.asset_id;
+  } catch (imgErr) {
+    console.warn('[HeyGen] Image asset upload attempt 1:', imgErr);
+  }
+
+  if (!photoId) {
+    const fallbackPhotoId = await getOrCreateTalkingPhotoId(apiKey, rawPhoto);
+    if (fallbackPhotoId) {
+      photoId = fallbackPhotoId;
     }
+  }
+
+  if (!photoId) {
+    throw new Error('לא ניתן היה להעלות את תמונת הפרזנטור ל-HeyGen. נא לוודא שקובץ התמונה תקין (JPG/PNG) ונסה שוב.');
   }
 
   const aspectRatio = params.aspectRatio === '9:16' ? '9:16' : (params.aspectRatio === '1:1' ? '1:1' : '16:9');
 
-  // Resolve valid voice ID dynamically if script text is provided
-  let resolvedVoiceId: string = '1bd001e7e50f421d891986aad5158bc8';
-  if (params.scriptText?.trim()) {
-    resolvedVoiceId = await resolveValidVoiceId(apiKey, params.voiceId);
-  }
+  // 3. Strict Character Definition: ONLY Talking Photo
+  const character = {
+    type: 'talking_photo',
+    talking_photo_id: photoId
+  };
+  console.info('[HeyGen] Configured Talking Photo character:', character);
 
-  // 3. Resolve Character (Photo Avatar or Studio Avatar)
-  let character: any;
-
-  const wantsPhotoAvatar = params.isPhotoAvatar || !!params.customAvatarImageUrl || (!!rawPhoto && !params.avatarId);
-
-  if (wantsPhotoAvatar && rawPhoto) {
-    let photoId: string | null | undefined = imageAssetId;
-    if (!photoId) {
-      photoId = await getOrCreateTalkingPhotoId(apiKey, rawPhoto);
-    }
-    if (photoId) {
-      character = {
-        type: 'talking_photo',
-        talking_photo_id: photoId
-      };
-      console.info('[HeyGen] Using talking_photo character with ID:', photoId);
-    } else {
-      throw new Error('לא ניתן היה לעבד את תמונת הפרזנטור מול HeyGen. נא לוודא שהתמונה בפורמט תקין ולנסות שוב.');
-    }
-  }
-
-  // If studio avatar requested or chosen
-  if (!character) {
-    const liveAvatars = await fetchHeyGenAvatars(apiKey);
-    let chosenAvatarId = params.avatarId;
-
-    // Check if the requested avatar ID exists in live account avatars
-    const matchedAvatar = liveAvatars.find(a => a.avatar_id === chosenAvatarId);
-    if (matchedAvatar) {
-      chosenAvatarId = matchedAvatar.avatar_id;
-    } else if (liveAvatars.length > 0) {
-      // Use the first valid avatar from this HeyGen account
-      chosenAvatarId = liveAvatars[0].avatar_id;
-    } else {
-      chosenAvatarId = 'Wayne_20240711';
-    }
-
-    character = {
-      type: 'avatar',
-      avatar_id: chosenAvatarId,
-      avatar_style: 'normal'
-    };
-  }
-
-  // 4. Construct Voice payload
+  // 4. Construct Voice payload (Synced TTS Audio track or Text fallback)
   let voice: any;
   if (publicAudioUrl) {
     voice = {
@@ -512,6 +477,7 @@ export async function generateHeyGenSceneVideo(
       audio_url: publicAudioUrl
     };
   } else {
+    const resolvedVoiceId = await resolveValidVoiceId(apiKey, params.voiceId);
     voice = {
       type: 'text',
       input_text: params.scriptText?.trim() || 'שלום וברוכים הבאים',
@@ -524,18 +490,30 @@ export async function generateHeyGenSceneVideo(
     ? { width: 720, height: 1280 }
     : (aspectRatio === '1:1' ? { width: 720, height: 720 } : { width: 1280, height: 720 });
 
-  // 6. Construct Scene Input
+  // 6. Construct Scene Input (Talking Photo is the presenter)
   const sceneInput: any = {
     character,
     voice
   };
 
-  // Background: only apply if not a talking photo (or if a separate background exists)
-  if (character?.type !== 'talking_photo' && publicImageUrl) {
-    sceneInput.background = {
-      type: 'image',
-      url: publicImageUrl
-    };
+  // Only add background if user specified a distinct background image separate from the presenter photo
+  if (params.backgroundMediaUrl && params.backgroundMediaUrl !== rawPhoto && params.customAvatarImageUrl) {
+    try {
+      const bgResult = await uploadAssetToHeyGen(apiKey, params.backgroundMediaUrl, 'image/jpeg');
+      if (bgResult.asset_url) {
+        sceneInput.background = {
+          type: 'image',
+          url: bgResult.asset_url
+        };
+      }
+    } catch {
+      if (params.backgroundMediaUrl.startsWith('http')) {
+        sceneInput.background = {
+          type: 'image',
+          url: params.backgroundMediaUrl
+        };
+      }
+    }
   }
 
   const v2Payload = {

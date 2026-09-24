@@ -1,6 +1,6 @@
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
-import { WorkbenchApp } from './workbench/WorkbenchApp';
+import { TenantAppResolver } from './core/tenant/TenantAppResolver';
 import { HostCapabilitiesProvider } from './core/bridge/HostCapabilitiesContext';
 import { SystemConnectionProvider } from './core/connection/SystemConnectionContext';
 import { MediaPickerHostBridge } from './modules/media-gallery-hub';
@@ -12,7 +12,7 @@ export const App: React.FC = () => {
       <SystemConnectionProvider>
         <BrandDnaProvider>
           <HostCapabilitiesProvider>
-            <WorkbenchApp />
+            <TenantAppResolver />
             <MediaPickerHostBridge />
           </HostCapabilitiesProvider>
         </BrandDnaProvider>

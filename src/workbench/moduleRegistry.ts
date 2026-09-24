@@ -1,4 +1,5 @@
 import React from 'react';
+import { SaasStorefrontComposerStandaloneView } from '../modules/saas-storefront-composer';
 import { BrandDnaHubStandaloneView } from '../modules/brand-dna-hub';
 import { AuthPortalStandaloneView } from '../modules/auth-portal';
 import { DbCollectionsHubStandaloneView } from '../modules/db-collections-hub';
@@ -25,6 +26,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'saas-storefront-composer',
+    name: 'חנות רכיבים, סאב-דומיינים ו-SaaS (Storefront)',
+    description: 'חנות מרקטפלייס לאורחים: בחירת רכיבים, התנסות חיה (Sandbox), סליקה, ובחירת סאב-דומיין מיידי (GoDaddy DNS) ללא שכפול שרתים',
+    component: SaasStorefrontComposerStandaloneView,
+    route: '/saas-storefront',
+    collectionPrefix: 'sys_storefront_',
+  },
   {
     id: 'brand-dna-hub',
     name: 'מרכז מיתוג גלובלי (Brand DNA & AI)',

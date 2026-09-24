@@ -388,8 +388,8 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       dialogueScript: 'טקסט קריינות עבור הסצנה...',
       visualPrompt: 'Cinematic corporate studio with soft ambient lighting',
       durationSeconds: 6,
-      avatarId: 'Wayne_20240711',
       avatarPose: 'half_body',
+      isPhotoAvatar: true,
       voiceId: '1bd001e7e50f421d891986aad5158bc8',
       transition: 'fade',
       heygenStatus: 'pending',
@@ -661,20 +661,23 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         }
       }
 
-      const hasCustomPhoto = !!(scene.customAvatarImageUrl || (scene.isPhotoAvatar && scene.backgroundMediaUrl));
+      const presenterPhoto = scene.customAvatarImageUrl || scene.backgroundMediaUrl;
+      if (!presenterPhoto) {
+        throw new Error('נא להעלות או לבחור תמונת פרזנטור (Photo Avatar) עבור הסצנה לפני ההפקה ב-HeyGen.');
+      }
+
       const videoJobId = await generateHeyGenSceneVideo(heygenKey, {
-        avatarId: scene.avatarId,
         scriptText: scene.dialogueScript,
         voiceId: scene.voiceId,
         aspectRatio: activeProject.aspectRatio,
         backgroundMediaUrl: scene.backgroundMediaUrl,
-        customAvatarImageUrl: scene.customAvatarImageUrl || (hasCustomPhoto ? scene.backgroundMediaUrl : undefined),
-        imageUrl: scene.customAvatarImageUrl || (hasCustomPhoto ? scene.backgroundMediaUrl : undefined),
+        customAvatarImageUrl: presenterPhoto,
+        imageUrl: presenterPhoto,
         audioUrl: sceneAudioUrl || scene.renderedAudioUrl,
-        isPhotoAvatar: hasCustomPhoto
+        isPhotoAvatar: true
       });
 
-      updateCurrentScene(sceneId, { heygenJobId: videoJobId });
+      updateCurrentScene(sceneId, { heygenJobId: videoJobId, isPhotoAvatar: true });
 
       // Poll until video is completed
       let attempts = 0;
@@ -698,8 +701,8 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
               sceneId: scene.id,
               sceneNumber: scene.sceneNumber,
               assetType: 'video',
-              generator: scene.isPhotoAvatar ? 'heygen_photo_avatar' : 'heygen_avatar',
-              tags: [scene.avatarId || 'Wayne', 'heygen']
+              generator: 'heygen_photo_avatar',
+              tags: ['photo_avatar', 'heygen', 'tts']
             });
 
             setIsRenderingScene(false);

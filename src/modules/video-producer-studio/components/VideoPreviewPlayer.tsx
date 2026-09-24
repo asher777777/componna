@@ -227,7 +227,7 @@ export const VideoPreviewPlayer: React.FC<VideoPreviewPlayerProps> = ({ scene, a
                   "{subtitleText || 'סצנה מוכנה להפקת וידאו...'}"
                 </p>
                 <span className="text-[10px] text-purple-300 font-mono block">
-                  {scene.isPhotoAvatar ? 'תמונת אווטאר מותאמת' : `אווטאר: ${scene.avatarId || 'Wayne'}`}
+                  פרזנטור מונפש מתמונה (Photo Avatar)
                 </span>
               </div>
             )}
