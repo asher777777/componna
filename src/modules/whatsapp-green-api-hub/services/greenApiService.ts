@@ -886,16 +886,39 @@ export class GreenApiService {
 
     for (const h of hosts) {
       try {
-        const res = await fetch(`${h}/waInstance${this.idInstance}/getStatusStatistic/${this.token}?idMessage=${encodeURIComponent(idMessage)}`, {
-          method: 'GET',
-        });
+        // 1. Try GET request
+        let res = await fetch(
+          `${h}/waInstance${this.idInstance}/getStatusStatistic/${this.token}?idMessage=${encodeURIComponent(idMessage)}`,
+          { method: 'GET' }
+        );
+
+        // 2. If GET returns method not allowed or bad request, try POST
+        if (!res.ok && (res.status === 405 || res.status === 400 || res.status === 404)) {
+          res = await fetch(`${h}/waInstance${this.idInstance}/getStatusStatistic/${this.token}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idMessage }),
+          });
+        }
+
         if (res.ok) {
           this.host = h;
           const data = await res.json();
           if (Array.isArray(data)) return data;
+          if (Array.isArray(data?.statistics)) return data.statistics;
+          if (Array.isArray(data?.statusStatistic)) return data.statusStatistic;
+          if (Array.isArray(data?.data)) return data.data;
+          return [];
+        } else {
+          const errText = await res.text().catch(() => '');
+          if (res.status === 403) {
+            console.warn(`[GREEN-API] getStatusStatistic 403 Forbidden: Status tracking feature may require activation on instance.`, errText);
+          } else {
+            console.warn(`[GREEN-API] getStatusStatistic error (${res.status}) on host ${h}:`, errText);
+          }
         }
       } catch (e) {
-        console.warn('getStatusStatistic error on host:', h, e);
+        console.warn('getStatusStatistic network error on host:', h, e);
       }
     }
     return [];

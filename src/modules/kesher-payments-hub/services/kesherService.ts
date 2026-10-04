@@ -87,7 +87,7 @@ export class KesherService {
   /**
    * ביצוע קריאה מאובטחת לשרת קשר עם תמיכת Proxy ו-Timeout נגד תקיעות
    */
-  public async postToConnect(payload: any, timeoutMs: number = 4500): Promise<any> {
+  public async postToConnect(payload: any, timeoutMs: number = 15000): Promise<any> {
     const urlsToTry = [
       '/ConnectToKesher/ConnectToKesher',
       'https://kesherhk.info/ConnectToKesher/ConnectToKesher',
@@ -132,7 +132,7 @@ export class KesherService {
   /**
    * ביצוע קריאת GET לממשק KesherAPI עם תמיכת Proxy ו-Timeout
    */
-  public async getFromKesherApi(apiPath: string, queryParams: Record<string, string>, timeoutMs: number = 4500): Promise<any> {
+  public async getFromKesherApi(apiPath: string, queryParams: Record<string, string>, timeoutMs: number = 15000): Promise<any> {
     const searchParams = new URLSearchParams(queryParams).toString();
     const urlsToTry = [
       `/KesherAPI/${apiPath}?${searchParams}`,
@@ -267,31 +267,40 @@ export class KesherService {
     };
 
     const result = await this.postToConnect(payload);
+    const resData = result?.data || result;
 
-    if (result.Status === false || result.status === 'error' || result.error) {
-      throw new Error(result.Description || result.error || result.Message || 'שגיאה בסליקה מול קשר');
+    if (resData.Status === false || resData.status === 'error' || resData.error || resData.faultcode) {
+      throw new Error(resData.Description || resData.faultstring || resData.error || resData.Message || 'שגיאה בסליקה מול קשר');
     }
+
+    const txId = String(resData.TransactionId || resData.Data || resData.Id || `trx_${Date.now()}`);
+    const receiptDocUrl = resData.DocUrl || resData.Url || (resData.Data && typeof resData.Data === 'string' && resData.Data.startsWith('http') ? resData.Data : '') || '';
 
     // שמירה ביומן תקבולים מקומי
     this.recordLocalTransaction({
       id: `trx_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      transactionId: result.TransactionId || result.Id || '',
+      transactionId: txId,
       date: new Date().toISOString(),
       amount: Number(req.amount),
       clientName: req.clientName,
       phone: req.phone,
       email: req.email,
       tz: req.tz,
-      paymentMethod: creditType === 10 ? 'CreditCard' : 'CreditCard',
+      paymentMethod: creditType === 10 ? 'StandingOrder' : 'CreditCard',
       documentType: req.documentType || this.settings.defaultReceiptType || 320,
       status: 'Approved',
-      receiptUrl: result.DocUrl || result.Url || '',
-      authNumber: result.AuthNumber || result.ApprovalNumber || '',
+      receiptUrl: receiptDocUrl,
+      authNumber: resData.AuthNumber || resData.ApprovalNumber || '',
       last4: req.cardNumber.slice(-4),
-      raw: result
+      raw: resData
     });
 
-    return result;
+    return {
+      ...resData,
+      TransactionId: txId,
+      DocUrl: receiptDocUrl,
+      Status: true
+    };
   }
 
   /**
@@ -301,6 +310,10 @@ export class KesherService {
     if (!this.isConfigured()) {
       throw new Error('לא הוגדרו שם משתמש וסיסמה למערכת קשר');
     }
+
+    const cleanClientName = (req.clientName || '').trim();
+    const firstName = cleanClientName.split(' ')[0] || 'לקוח';
+    const lastName = cleanClientName.includes(' ') ? cleanClientName.split(' ').slice(1).join(' ') : 'ללא';
 
     const payload = {
       Json: {
@@ -315,27 +328,32 @@ export class KesherService {
           Branch: req.branchNumber || '',
           Account: req.accountNumber || '',
           Currency: 1, // ILS
-          LastName: req.clientName.trim().split(' ').slice(1).join(' ') || '',
-          FirstName: req.clientName.trim().split(' ')[0] || '',
+          LastName: lastName,
+          FirstName: firstName,
           CheckNumber: req.checkNumber || null,
           ProjectNumber: String(req.receiptType || this.settings.defaultReceiptType || '405'),
           TransactionType: 'debit',
-          ChargeOptionType: req.paymentType // Cash / Check / BankTransfer
+          ChargeOptionType: req.paymentType, // Cash / Check / BankTransfer
+          Tz: req.tz || ''
         }
       },
       format: 'json'
     };
 
     const result = await this.postToConnect(payload);
+    const resData = result?.data || result;
 
-    if (result.Status === false || result.status === 'error' || result.error) {
-      throw new Error(result.Description || result.error || result.Message || 'שגיאה בהפקת קבלה ידנית בקשר');
+    if (resData.Status === false || resData.status === 'error' || resData.error || resData.faultcode) {
+      throw new Error(resData.Description || resData.faultstring || resData.error || resData.Message || 'שגיאה בהפקת קבלה ידנית בקשר');
     }
+
+    const receiptNum = String(resData.ReceiptNumber || resData.Data || resData.TransactionId || resData.Id || `cash_${Date.now()}`);
+    const receiptDocUrl = resData.DocUrl || resData.Url || (resData.Data && typeof resData.Data === 'string' && resData.Data.startsWith('http') ? resData.Data : '') || '';
 
     // שמירה ביומן תקבולים מקומי
     this.recordLocalTransaction({
       id: `cash_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
-      transactionId: result.TransactionId || result.ReceiptNumber || '',
+      transactionId: receiptNum,
       date: req.date || new Date().toISOString(),
       amount: Number(req.amount),
       clientName: req.clientName,
@@ -345,11 +363,18 @@ export class KesherService {
       paymentMethod: req.paymentType,
       documentType: req.receiptType || this.settings.defaultReceiptType || '405',
       status: 'Success',
-      receiptUrl: result.DocUrl || result.Url || '',
-      raw: result
+      receiptUrl: receiptDocUrl,
+      raw: resData
     });
 
-    return result;
+    return {
+      ...resData,
+      ReceiptNumber: receiptNum,
+      TransactionId: receiptNum,
+      DocUrl: receiptDocUrl,
+      Status: true,
+      success: true
+    };
   }
 
   /**
@@ -510,7 +535,7 @@ export class KesherService {
       };
 
       try {
-        const res = await this.postToConnect(payloadDirect, 4000);
+        const res = await this.postToConnect(payloadDirect, 15000);
         const list = extractTxArray(res);
         if (list.length > 0) return list;
       } catch (e) {
@@ -519,7 +544,7 @@ export class KesherService {
 
       try {
         const payloadWrapped = { Json: payloadDirect, format: 'json' };
-        const res = await this.postToConnect(payloadWrapped, 4000);
+        const res = await this.postToConnect(payloadWrapped, 15000);
         return extractTxArray(res);
       } catch (e) {
         return [];
@@ -873,7 +898,16 @@ export class KesherService {
 
       const rawTotal = tx.Total !== undefined ? tx.Total : (tx.Sum !== undefined ? tx.Sum : (tx.Amount !== undefined ? tx.Amount : (tx.amount !== undefined ? tx.amount : 0)));
       const parsedTotal = typeof rawTotal === 'number' ? rawTotal : parseFloat(String(rawTotal).replace(/[^0-9.-]/g, '') || '0');
-      const amount = parsedTotal >= 500 && Number.isInteger(parsedTotal) && !tx.doc_number ? parsedTotal / 100 : parsedTotal;
+      
+      let amount = parsedTotal;
+      if (tx.Service && (String(tx.Service).includes('הוראת קבע') || String(tx.Service).includes('דף תשלום'))) {
+        amount = parsedTotal / 100;
+      } else if (tx.Comment4 === 'שידור הוק' || tx.ObligationReference) {
+        amount = parsedTotal / 100;
+      } else if (parsedTotal >= 500 && Number.isInteger(parsedTotal) && !tx.doc_number && !tx.DocNumber && !tx.CopyDoc && !tx.OriginalDoc) {
+        amount = parsedTotal / 100;
+      }
+
       const parsedDate = this.parseKesherDate(tx.TranDate || tx.Date || tx.TransactionDate || tx.CreatedAt || tx.doc_date || tx.created_at);
       const isSuccess = tx.CreditStatus === 0 || tx.CreditStatus === '0' || !tx.CreditStatus || String(tx.Status || '').includes('אושר') || String(tx.Status || '').includes('הושלם') || tx.Status === '000' || tx.Status === 'Approved' || tx.status === 'success';
 
@@ -903,8 +937,9 @@ export class KesherService {
         else if (String(rawDocType).includes('מס')) docType = 305;
       }
 
-      const receiptUrl = tx.OriginalDoc || tx.CopyDoc || tx.DocUrl || tx.Url || tx.ReceiptUrl || tx.pdf_url || tx.download_url || '';
-      const authNumber = String(tx.AuthNum || tx.AuthNumber || tx.ApprovalNumber || tx.DocNumber || tx.doc_number || tx.NumTransaction || tx.CheckNumber || '');
+      const docDetailsPdf = tx.DocumentsDetails?.DocumentDetails?.[0]?.PdfLinkCopy || tx.DocumentsDetails?.DocumentDetails?.[0]?.PdfLink;
+      const receiptUrl = tx.CopyDoc || tx.OriginalDoc || docDetailsPdf || tx.DocUrl || tx.Url || tx.ReceiptUrl || tx.pdf_url || tx.download_url || '';
+      const authNumber = String(tx.AuthNum || tx.AuthNumber || tx.ApprovalNumber || tx.OKNum || tx.DocNumber || tx.CouponNumber || tx.doc_number || tx.NumTransaction || tx.CheckNumber || '');
 
       const transItem: KesherTransactionItem = {
         id: `kesher_${txId || Math.random().toString(36).substring(2, 8)}`,

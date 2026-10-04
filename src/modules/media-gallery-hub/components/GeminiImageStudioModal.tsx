@@ -30,6 +30,8 @@ import {
 import { doc, setDoc, collection } from 'firebase/firestore';
 import { useOptionalMediaGallery } from '../context/MediaGalleryContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
+import { FirestoreMediaService } from '../services/firestoreMediaService';
 import {
   generateGeminiImage,
   GeminiImageResult,
@@ -69,8 +71,9 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   const addMediaItems = gallery?.addMediaItems;
   const theme = gallery?.theme || 'dark';
   const activeFolderId = gallery?.activeFolderId;
-  const { apiKeys, updateApiKeys, db, collections } = useSystemConnection();
+  const { apiKeys, updateApiKeys, db, collections, firebaseApp } = useSystemConnection();
   const isLight = theme === 'light';
+  const [isSavingToStorage, setIsSavingToStorage] = useState<boolean>(false);
 
   // Generation Parameters
   const [prompt, setPrompt] = useState<string>('');
@@ -231,6 +234,24 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
     }
   };
 
+  // Helper to convert generated base64 to File object
+  const createMediaFile = (name: string): File | undefined => {
+    if (!generatedResult?.base64Data) return undefined;
+    try {
+      const byteString = atob(generatedResult.base64Data);
+      const ab = new ArrayBuffer(byteString.length);
+      const ia = new Uint8Array(ab);
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i);
+      }
+      const blob = new Blob([ab], { type: generatedResult.mimeType || 'image/png' });
+      return new File([blob], name, { type: generatedResult.mimeType || 'image/png' });
+    } catch (b64Err) {
+      console.warn('Blob conversion notice:', b64Err);
+      return undefined;
+    }
+  };
+
   // Save to Gallery
   const handleSaveToGallery = async () => {
     if (!generatedResult) return;
@@ -240,59 +261,104 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       finalName = `${finalName}.png`;
     }
 
-    let file: File | undefined = undefined;
+    setIsSavingToStorage(true);
+    try {
+      const file = createMediaFile(finalName);
+      let storageUrl = generatedResult.imageUrl;
 
-    if (generatedResult.base64Data) {
-      try {
-        const byteString = atob(generatedResult.base64Data);
-        const ab = new ArrayBuffer(byteString.length);
-        const ia = new Uint8Array(ab);
-        for (let i = 0; i < byteString.length; i++) {
-          ia[i] = byteString.charCodeAt(i);
+      // 1. Direct Cloud Storage Upload
+      if (firebaseApp && file) {
+        try {
+          storageUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+            firebaseApp,
+            file,
+            finalName
+          );
+        } catch (storageErr) {
+          console.warn('Direct Firebase Storage upload notice:', storageErr);
         }
-        const blob = new Blob([ab], { type: generatedResult.mimeType || 'image/png' });
-        file = new File([blob], finalName, { type: generatedResult.mimeType || 'image/png' });
-      } catch (b64Err) {
-        console.warn('Blob conversion notice:', b64Err);
+      }
+
+      // 2. Prepare lightweight MediaItem without multi-megabyte inline base64 dataUrl
+      const newMediaItem: MediaItem = {
+        id: `gemini_img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        name: finalName,
+        type: 'image',
+        mimeType: generatedResult.mimeType || 'image/png',
+        url: storageUrl,
+        thumbnailUrl: storageUrl,
+        sizeBytes: file ? file.size : 250000,
+        width: generatedResult.width,
+        height: generatedResult.height,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        description: resultDescription.trim(),
+        tags: resultTags,
+        folderId: activeFolderId,
+        sourceModule: 'gemini-image-generation',
+        sourceModuleLabel: 'מחולל Gemini AI',
+        metadata: {
+          aiPrompt: enhancedPrompt || prompt,
+          originalUserPrompt: prompt,
+          model: generatedResult.model,
+          aspectRatio: aspectRatio,
+          estimatedCostUSD: generatedResult.usageReport.estimatedCostUSD,
+          estimatedCostILS: generatedResult.usageReport.estimatedCostILS,
+          totalTokens: generatedResult.usageReport.totalTokens,
+        },
+      };
+
+      if (addMediaItems) {
+        await addMediaItems([newMediaItem], file ? [file] : undefined);
+      } else if (db) {
+        await FirestoreMediaService.saveMediaItem(db, collections, newMediaItem);
+      }
+
+      setGeneratedResult((prev) => (prev ? { ...prev, imageUrl: storageUrl } : null));
+      setIsSaved(true);
+    } catch (saveErr: any) {
+      console.error('Failed to save to gallery:', saveErr);
+      setErrorMessage(`שגיאה בשמירת התמונה לגלריה: ${saveErr.message || saveErr}`);
+    } finally {
+      setIsSavingToStorage(false);
+    }
+  };
+
+  // Use image in WhatsApp / chat / status with automatic storage upload
+  const handleUseImageAction = async () => {
+    if (!generatedResult || !onUseImage) return;
+
+    let finalName = resultTitle.trim() || `Gemini_Creation_${Date.now()}.png`;
+    if (!finalName.includes('.')) {
+      finalName = `${finalName}.png`;
+    }
+
+    let publicUrl = generatedResult.imageUrl;
+    if (publicUrl.startsWith('data:') && firebaseApp) {
+      setIsSavingToStorage(true);
+      try {
+        const file = createMediaFile(finalName);
+        if (file) {
+          publicUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+            firebaseApp,
+            file,
+            finalName
+          );
+          setGeneratedResult((prev) => (prev ? { ...prev, imageUrl: publicUrl } : null));
+        }
+      } catch (uploadErr) {
+        console.warn('Failed to upload image before use:', uploadErr);
+      } finally {
+        setIsSavingToStorage(false);
       }
     }
 
-    const newMediaItem: MediaItem = {
-      id: `gemini_img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
-      name: finalName,
-      type: 'image',
-      mimeType: generatedResult.mimeType || 'image/png',
-      url: generatedResult.imageUrl,
-      thumbnailUrl: generatedResult.imageUrl,
-      sizeBytes: file ? file.size : 250000,
-      width: generatedResult.width,
-      height: generatedResult.height,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-      description: resultDescription.trim(),
+    onUseImage(publicUrl, {
+      title: resultTitle || prompt,
+      prompt: enhancedPrompt || prompt,
       tags: resultTags,
-      folderId: activeFolderId,
-      sourceModule: 'gemini-image-generation',
-      sourceModuleLabel: 'מחולל Gemini AI',
-      metadata: {
-        dataUrl: generatedResult.imageUrl,
-        aiPrompt: enhancedPrompt || prompt,
-        originalUserPrompt: prompt,
-        model: generatedResult.model,
-        aspectRatio: aspectRatio,
-        estimatedCostUSD: generatedResult.usageReport.estimatedCostUSD,
-        estimatedCostILS: generatedResult.usageReport.estimatedCostILS,
-        totalTokens: generatedResult.usageReport.totalTokens,
-      },
-    };
-
-    if (addMediaItems) {
-      await addMediaItems([newMediaItem], file ? [file] : undefined);
-    } else if (db) {
-      const collName = collections?.mediaItems || 'mediaItems';
-      await setDoc(doc(collection(db, collName), newMediaItem.id), newMediaItem);
-    }
-    setIsSaved(true);
+    });
+    onClose();
   };
 
   // Download locally
@@ -892,18 +958,12 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
                   {onUseImage && (
                     <button
                       type="button"
-                      onClick={() => {
-                        onUseImage(generatedResult.imageUrl, {
-                          title: resultTitle || prompt,
-                          prompt: enhancedPrompt || prompt,
-                          tags: resultTags,
-                        });
-                        onClose();
-                      }}
-                      className="w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white shadow-lg shadow-emerald-600/30 cursor-pointer transition transform hover:scale-[1.01]"
+                      onClick={handleUseImageAction}
+                      disabled={isSavingToStorage}
+                      className="w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white shadow-lg shadow-emerald-600/30 cursor-pointer transition transform hover:scale-[1.01] disabled:opacity-60"
                     >
-                      <Send className="w-4 h-4" />
-                      <span>{useButtonLabel || '🚀 השתמש בתמונה ושגר'}</span>
+                      {isSavingToStorage ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                      <span>{isSavingToStorage ? 'מעלה ומכין תמונה לשליחה...' : (useButtonLabel || '🚀 השתמש בתמונה ושגר')}</span>
                     </button>
                   )}
 
@@ -911,14 +971,19 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
                     <button
                       type="button"
                       onClick={handleSaveToGallery}
-                      disabled={isSaved}
+                      disabled={isSaved || isSavingToStorage}
                       className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse cursor-pointer shadow transition-all ${
                         isSaved
                           ? 'bg-emerald-600 text-white cursor-default'
                           : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black'
-                      }`}
+                      } disabled:opacity-60`}
                     >
-                      {isSaved ? (
+                      {isSavingToStorage ? (
+                        <>
+                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          <span>מעלה לענן...</span>
+                        </>
+                      ) : isSaved ? (
                         <>
                           <Check className="w-3.5 h-3.5" />
                           <span>נשמר בהצלחה בגלריה!</span>

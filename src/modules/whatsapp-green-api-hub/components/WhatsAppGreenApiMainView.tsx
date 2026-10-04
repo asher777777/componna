@@ -379,116 +379,137 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           </div>
 
           {/* Quick Header Buttons */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             {/* Day / Night Mode Switch */}
             <button
               onClick={toggleTheme}
               title={isDark ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
-              className={`p-2 rounded-xl border flex items-center gap-1 text-xs font-bold transition cursor-pointer ${
+              aria-label={isDark ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
+              className={`p-2 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition cursor-pointer ${
                 isDark
                   ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-amber-300'
                   : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-indigo-700'
               }`}
             >
               {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
-              <span>{isDark ? 'יום' : 'לילה'}</span>
+              <span className="hidden sm:inline">{isDark ? 'יום' : 'לילה'}</span>
             </button>
 
             {/* Quick Bulk Sender Button */}
             <button
               onClick={() => setIsBulkModalOpen(true)}
-              className="px-3.5 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition cursor-pointer"
+              title="שליחה מרובה לרשימת תפוצה"
+              aria-label="שליחה מרובה לרשימת תפוצה"
+              className="p-2 sm:px-3.5 sm:py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition cursor-pointer"
             >
               <Users className="w-4 h-4" />
-              <span>שליחה מרובה</span>
+              <span className="hidden sm:inline">שליחה מרובה</span>
             </button>
 
             <button
               onClick={() => setIsQrModalOpen(true)}
-              className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+              title="חיבור WhatsApp באמצעות קוד QR"
+              aria-label="חיבור WhatsApp באמצעות קוד QR"
+              className="p-2 sm:px-3 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
             >
               <QrCode className="w-4 h-4" />
-              <span>חיבור QR</span>
+              <span className="hidden sm:inline">חיבור QR</span>
             </button>
 
             <button
               onClick={() => setIsPhoneModalOpen(true)}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
+              title="חיבור באמצעות קוד אימות לטלפון"
+              aria-label="חיבור באמצעות קוד אימות לטלפון"
+              className="p-2 sm:px-3 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
             >
               <Smartphone className="w-4 h-4" />
-              <span>קוד לטלפון</span>
+              <span className="hidden sm:inline">קוד לטלפון</span>
             </button>
 
             <button
               onClick={() => setIsWebhookModalOpen(true)}
-              className="px-3 py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-400 font-bold rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
+              title="הגדרות Webhook של שרת ההודעות"
+              aria-label="הגדרות Webhook של שרת ההודעות"
+              className="p-2 sm:px-3 sm:py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-400 font-bold rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
             >
               <Globe className="w-4 h-4" />
-              <span>Webhook</span>
+              <span className="hidden sm:inline">Webhook</span>
             </button>
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className={`flex border ${themeClasses.navBg} rounded-2xl p-1 text-xs gap-1 overflow-x-auto`}>
+        <div className={`flex border ${themeClasses.navBg} rounded-2xl p-1 text-xs gap-1 overflow-x-auto no-scrollbar`}>
           <button
             onClick={() => setActiveTab('webchat')}
-            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            title="שיחות וצ'אט חי"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'webchat' ? 'bg-emerald-600 text-white shadow-md' : themeClasses.tabInactive
             }`}
           >
-            <MessageSquare className="w-4 h-4" />
-            <span>💬 שיחות וצ'אט חי (WhatsApp Web)</span>
+            <MessageSquare className="w-4 h-4 text-emerald-300" />
+            <span className="hidden sm:inline">שיחות וצ'אט חי (WhatsApp Web)</span>
+            <span className="sm:hidden">צ'אט</span>
           </button>
 
           <button
             onClick={() => setActiveTab('statuses')}
-            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            title="סטטוסים ו-Stories"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'statuses' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : themeClasses.tabInactive
             }`}
           >
             <Smartphone className="w-4 h-4 text-emerald-300" />
-            <span>📱 סטטוסים ו-Stories</span>
+            <span className="hidden sm:inline">סטטוסים ו-Stories</span>
+            <span className="sm:hidden">סטטוסים</span>
           </button>
 
           <button
             onClick={() => setActiveTab('aibots')}
-            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            title="בוטים מבוססי AI וכפתורים"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'aibots' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
             }`}
           >
             <Bot className="w-4 h-4 text-amber-300" />
-            <span>🤖 בוטים מבוססי AI וכפתורים</span>
+            <span className="hidden sm:inline">בוטים מבוססי AI וכפתורים</span>
+            <span className="sm:hidden">בוטים</span>
           </button>
 
           <button
             onClick={() => setActiveTab('sender')}
-            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            title="שיגור מתקדם (Omni-Sender)"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'sender' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
             }`}
           >
-            <Send className="w-4 h-4" />
-            <span>🚀 שיגור מתקדם (Omni-Sender)</span>
+            <Send className="w-4 h-4 text-indigo-300" />
+            <span className="hidden sm:inline">שיגור מתקדם (Omni-Sender)</span>
+            <span className="sm:hidden">שיגור</span>
           </button>
 
           <button
             onClick={() => setActiveTab('groups')}
-            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            title="ניהול קבוצות"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'groups' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
             }`}
           >
-            <Users className="w-4 h-4" />
-            <span>👥 ניהול קבוצות</span>
+            <Users className="w-4 h-4 text-purple-300" />
+            <span className="hidden sm:inline">ניהול קבוצות</span>
+            <span className="sm:hidden">קבוצות</span>
           </button>
 
           <button
             onClick={() => setActiveTab('service')}
-            className={`py-2.5 px-4 font-semibold rounded-xl flex items-center gap-2 transition cursor-pointer shrink-0 ${
+            title="כלי שירות ותורים"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
               activeTab === 'service' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
             }`}
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>🛡️ כלי שירות ותורים</span>
+            <ShieldCheck className="w-4 h-4 text-teal-300" />
+            <span className="hidden sm:inline">כלי שירות ותורים</span>
+            <span className="sm:hidden">שירות</span>
           </button>
         </div>
 
@@ -515,6 +536,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
           <WhatsAppStatusesTab
             service={greenApiService}
             db={db}
+            firebaseApp={firebaseApp}
             collectionName={collections?.whatsappStatuses || 'whatsapp_statuses'}
             isDark={isDark}
             connectedAccountName={connectedAccountDisplayName}
@@ -729,23 +751,26 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
                 <div>
                   <div className="flex items-center justify-between mb-1">
                     <label className={`block ${themeClasses.textTitle} font-semibold`}>קישור ישיר לקובץ / מדיה (URL)</label>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         type="button"
                         onClick={() => setIsMediaPickerOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
+                        title="בחר מדיה מהגלריה האישית"
+                        aria-label="בחר מדיה מהגלריה"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-bold transition shadow-sm cursor-pointer"
                       >
                         <FolderOpen className="w-3.5 h-3.5" />
-                        <span>📂 גלריה</span>
+                        <span className="hidden sm:inline">גלריה</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setIsAiImageStudioOpen(true)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black rounded-lg text-xs font-black transition shadow-sm cursor-pointer"
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-black rounded-lg text-xs font-black transition shadow-sm cursor-pointer"
                         title="מחולל תמונות ופרומפטים ב-AI (פונקציית PRO למנויים משודרגים)"
+                        aria-label="מחולל תמונות ופרומפטים ב-AI"
                       >
                         <Sparkles className="w-3.5 h-3.5 text-black fill-black" />
-                        <span>✨ צור תמונה עם AI (PRO)</span>
+                        <span className="hidden sm:inline">תמונת AI (PRO)</span>
                       </button>
                     </div>
                   </div>

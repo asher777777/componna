@@ -64,8 +64,19 @@ export class FirestoreMediaService {
   ): Promise<void> {
     const collNames = resolveMediaCollections(undefined, collections);
     const docRef = doc(db, collNames.mediaItems, item.id);
+    
+    // Create copy and remove oversized base64 dataUrl from metadata if present
+    const cleanItem = { ...item };
+    if (cleanItem.metadata && typeof cleanItem.metadata === 'object') {
+      const meta = { ...cleanItem.metadata };
+      if (typeof meta.dataUrl === 'string' && meta.dataUrl.startsWith('data:')) {
+        delete meta.dataUrl;
+      }
+      cleanItem.metadata = meta;
+    }
+
     const sanitized = this.cleanUndefinedFields({
-      ...item,
+      ...cleanItem,
       updatedAt: Date.now(),
     });
     await setDoc(docRef, sanitized, { merge: true });

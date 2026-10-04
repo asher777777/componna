@@ -469,14 +469,16 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
       }`}
       dir="rtl"
     >
-      {/* 1. Left Sidebar: Chat List & Selection Toolbar (380px wide) */}
+      {/* 1. Left Sidebar: Chat List & Selection Toolbar (Full width on mobile when no chat is selected, 380px on desktop) */}
       <div
-        className={`w-80 sm:w-96 flex flex-col border-l shrink-0 ${
+        className={`w-full md:w-80 lg:w-96 flex flex-col border-l shrink-0 ${
+          selectedChatId ? 'hidden md:flex' : 'flex'
+        } ${
           isDark ? 'bg-slate-950/90 border-slate-800' : 'bg-slate-50/90 border-slate-200'
         }`}
       >
         {/* Sidebar Header */}
-        <div className={`p-4 border-b space-y-3 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'}`}>
+        <div className={`p-3.5 sm:p-4 border-b space-y-3 ${isDark ? 'border-slate-800 bg-slate-900/60' : 'border-slate-200 bg-white'}`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 font-black text-sm">
               <MessageSquare className="w-5 h-5 text-emerald-500" />
@@ -488,10 +490,11 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
               <button
                 onClick={refreshChats}
                 disabled={isRefreshingChats}
-                className={`p-1.5 rounded-xl border text-xs transition cursor-pointer ${
-                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                className={`p-2 rounded-xl border text-xs transition cursor-pointer ${
+                  isDark ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
                 }`}
                 title="רענן שיחות מחשבון הוואטסאפ"
+                aria-label="רענן שיחות"
               >
                 <RefreshCw className={`w-4 h-4 ${isRefreshingChats ? 'animate-spin text-emerald-500' : ''}`} />
               </button>
@@ -499,18 +502,20 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
               {/* Bulk Campaign Action Button */}
               <button
                 onClick={onOpenBulkModal}
-                className="px-2.5 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-[11px] flex items-center gap-1 shadow-md cursor-pointer transition"
+                className="p-2 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-[11px] flex items-center gap-1 shadow-md cursor-pointer transition"
                 title="שליחה מרובה לרשימת תפוצה"
+                aria-label="שליחה מרובה"
               >
                 <Users className="w-3.5 h-3.5" />
-                <span>שליחה מרובה</span>
+                <span className="hidden sm:inline">שליחה מרובה</span>
               </button>
 
               {/* New Chat Button */}
               <button
                 onClick={() => setIsNewChatModalOpen(true)}
-                className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow cursor-pointer transition"
+                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow cursor-pointer transition"
                 title="התחל שיחה חדשה לפי מספר"
+                aria-label="התחל שיחה חדשה"
               >
                 <UserPlus className="w-4 h-4" />
               </button>
@@ -535,6 +540,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                 onClick={() => setSearchTerm('')}
                 className="absolute left-2.5 top-2.5 p-0.5 rounded-full hover:bg-slate-700/40 text-slate-400 hover:text-white transition cursor-pointer"
                 title="נקה חיפוש"
+                aria-label="נקה חיפוש"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -543,42 +549,45 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
           {/* Filter Pills & Select All */}
           <div className="flex items-center justify-between gap-1 text-[11px] font-semibold pt-1">
-            <div className="flex gap-1">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
               <button
                 key="contacts"
                 onClick={() => handleTabChange('contacts')}
-                className={`px-3 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
                   chatFilter === 'contacts'
                     ? 'bg-emerald-600 text-white shadow'
                     : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-slate-200 text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>👤 אנשי קשר</span>
+                <UserCheck className="w-3.5 h-3.5" />
+                <span>אנשי קשר</span>
               </button>
 
               <button
                 key="groups"
                 onClick={() => handleTabChange('groups')}
-                className={`px-3 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
                   chatFilter === 'groups'
                     ? 'bg-purple-600 text-white shadow'
                     : isDark ? 'bg-slate-900 text-slate-400 hover:text-white' : 'bg-slate-200 text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <span>👥 קבוצות</span>
+                <Users className="w-3.5 h-3.5" />
+                <span>קבוצות</span>
               </button>
 
               {selectedContactIds.size > 0 && (
                 <button
                   key="selected"
                   onClick={() => handleTabChange('selected')}
-                  className={`px-2.5 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 ${
+                  className={`px-2.5 py-1 rounded-xl transition cursor-pointer flex items-center gap-1 shrink-0 ${
                     chatFilter === 'selected'
                       ? 'bg-indigo-600 text-white shadow'
                       : 'bg-indigo-500/20 text-indigo-400'
                   }`}
                 >
-                  <span>✓ נבחרו ({selectedContactIds.size})</span>
+                  <Check className="w-3 h-3" />
+                  <span>נבחרו ({selectedContactIds.size})</span>
                 </button>
               )}
             </div>
@@ -588,11 +597,11 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleSelectAllVisible}
-                className="text-[10px] text-slate-400 hover:text-indigo-400 flex items-center gap-1 cursor-pointer"
+                className="text-[10px] text-slate-400 hover:text-indigo-400 flex items-center gap-1 cursor-pointer shrink-0"
                 title="סמן או בטל סימון של כל המוצגים"
               >
                 <CheckSquare className="w-3 h-3" />
-                <span>בחר הכל</span>
+                <span className="hidden sm:inline">בחר הכל</span>
               </button>
             )}
           </div>
@@ -749,35 +758,48 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
       </div>
 
       {/* 2. Right Panel: Active Chat Workspace */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className={`flex-1 flex-col min-w-0 ${selectedChatId ? 'flex' : 'hidden md:flex'}`}>
         {selectedChatId ? (
           <>
             {/* Active Chat Header */}
             <div
-              className={`p-3.5 px-5 border-b flex items-center justify-between shadow-sm z-10 ${
+              className={`p-3 sm:p-3.5 sm:px-5 border-b flex items-center justify-between shadow-sm z-10 ${
                 isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200'
               }`}
             >
-              <div className="flex items-center gap-3 min-w-0">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                {/* Mobile Back Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedChatId(null)}
+                  className={`md:hidden p-2 rounded-xl border text-xs flex items-center justify-center transition cursor-pointer shrink-0 ${
+                    isDark ? 'bg-slate-800 border-slate-700 text-slate-200' : 'bg-slate-100 border-slate-300 text-slate-700'
+                  }`}
+                  title="חזרה לרשימת השיחות"
+                  aria-label="חזרה לרשימת השיחות"
+                >
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+
                 <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 shadow text-white ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center font-bold text-xs shrink-0 shadow text-white ${
                     selectedChat?.isGroup
                       ? 'bg-gradient-to-tr from-purple-600 to-indigo-600'
                       : 'bg-gradient-to-tr from-emerald-600 to-teal-500'
                   }`}
                 >
-                  {selectedChat?.isGroup ? <Users className="w-5 h-5" /> : (selectedChat?.name?.slice(0, 2).toUpperCase() || 'WA')}
+                  {selectedChat?.isGroup ? <Users className="w-4 h-4 sm:w-5 sm:h-5" /> : (selectedChat?.name?.slice(0, 2).toUpperCase() || 'WA')}
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-bold text-sm truncate">{selectedChat?.name || selectedChatId}</h3>
-                  <span className="text-[11px] text-emerald-500 font-medium flex items-center gap-1">
+                  <h3 className="font-bold text-xs sm:text-sm truncate">{selectedChat?.name || selectedChatId}</h3>
+                  <span className="text-[10px] sm:text-[11px] text-emerald-500 font-medium flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>{selectedChat?.isGroup ? 'קבוצת WhatsApp' : 'פעיל ב-WhatsApp'}</span>
                   </span>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 {/* Single Contact Save to CRM button */}
                 {selectedChat && !selectedChat.isGroup && (
                   <button
@@ -786,11 +808,12 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                       setExportSourceGroupName('');
                       setIsCrmExportModalOpen(true);
                     }}
-                    className="px-2.5 py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-medium rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
+                    className="p-2 sm:px-2.5 sm:py-1.5 bg-indigo-600/20 hover:bg-indigo-600/30 border border-indigo-500/30 text-indigo-300 font-medium rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
                     title="שמור איש קשר זה ל-CRM"
+                    aria-label="שמור איש קשר ל-CRM"
                   >
                     <Database className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>שמור ל-CRM</span>
+                    <span className="hidden sm:inline">שמור ל-CRM</span>
                   </button>
                 )}
 
@@ -798,11 +821,12 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                 {selectedChat && selectedChat.isGroup && (
                   <button
                     onClick={() => handleExtractGroupToCrm(selectedChat)}
-                    className="px-2.5 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 font-medium rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
+                    className="p-2 sm:px-2.5 sm:py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 font-medium rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
                     title="חלץ את כל משתתפי הקבוצה וסנכרן ל-CRM"
+                    aria-label="סנכרן משתתפי קבוצה ל-CRM"
                   >
                     <DownloadCloud className="w-3.5 h-3.5 text-purple-400" />
-                    <span>סנכרן משתתפי קבוצה ל-CRM</span>
+                    <span className="hidden sm:inline">סנכרן ל-CRM</span>
                   </button>
                 )}
 
@@ -818,6 +842,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                     isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white' : 'bg-slate-100 border-slate-200 text-slate-700 hover:text-slate-900'
                   }`}
                   title="רענן היסטוריית שיחה"
+                  aria-label="רענן היסטוריית שיחה"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${isLoadingMessages ? 'animate-spin' : ''}`} />
                 </button>
@@ -1128,8 +1153,13 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                 <Paperclip className="w-4 h-4 text-indigo-500" />
                 <span>שליחת מדיה / קובץ לפי קישור</span>
               </h3>
-              <button onClick={() => setIsAttachModalOpen(false)} className="text-slate-400 hover:text-white">
-                ✕
+              <button
+                onClick={() => setIsAttachModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+                title="סגור"
+                aria-label="סגור"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
 
@@ -1154,9 +1184,10 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                       }}
                       className="px-2.5 py-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-bold rounded-lg text-[10px] flex items-center gap-1 shadow cursor-pointer transition"
                       title="יצירת תמונה ופרומפט ב-AI (למנויים משודרגים)"
+                      aria-label="יצירת תמונה ב-AI"
                     >
                       <Sparkles className="w-3 h-3 text-yellow-300 fill-yellow-300" />
-                      <span>✨ צור תמונה עם AI (PRO)</span>
+                      <span>תמונת AI (PRO)</span>
                     </button>
                   </div>
                 </div>

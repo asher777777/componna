@@ -5,9 +5,10 @@ import {
   Users, Palette, ChevronRight, ChevronLeft, ShieldCheck, Database,
   Search, Filter, Smartphone, CheckCheck, X, FolderOpen, Wand2,
   Tag, UserCheck, CheckSquare, Square, Layers, BookOpen, ShoppingBag,
-  Megaphone, Lightbulb, Ticket, Flame, Crown
+  Megaphone, Lightbulb, Ticket, Flame, Crown, Zap, Check
 } from 'lucide-react';
 import { Firestore, collection, getDocs } from 'firebase/firestore';
+import { FirebaseApp } from 'firebase/app';
 import { GreenApiService } from '../services/greenApiService';
 import {
   GreenApiStatusFont,
@@ -30,11 +31,50 @@ import {
 import { normalizePhone } from '../services/whatsappCrmSyncService';
 import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
 import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
+import { FirebaseStorageMediaService } from '../../media-gallery-hub/services/firebaseStorageMediaService';
 import { MediaItem } from '../../media-gallery-hub/types';
+
+// Crisp Lucide Icon Mappings replacing raw emojis
+const getToneIcon = (tone: StatusTone) => {
+  switch (tone) {
+    case 'chasidic':
+      return <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+    case 'marketing':
+      return <Megaphone className="w-3.5 h-3.5 text-rose-400 shrink-0" />;
+    case 'official':
+      return <ShieldCheck className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+    case 'warm':
+      return <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+    case 'viral':
+      return <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />;
+    default:
+      return <Sparkles className="w-3.5 h-3.5 text-indigo-400 shrink-0" />;
+  }
+};
+
+const getPresetIcon = (presetId: string) => {
+  switch (presetId) {
+    case 'chasidic_sukkot':
+      return <Layers className="w-3.5 h-3.5 text-emerald-400 shrink-0" />;
+    case 'chasidic_parasha':
+      return <BookOpen className="w-3.5 h-3.5 text-amber-400 shrink-0" />;
+    case 'flash_sale':
+      return <ShoppingBag className="w-3.5 h-3.5 text-rose-400 shrink-0" />;
+    case 'community_news':
+      return <Megaphone className="w-3.5 h-3.5 text-blue-400 shrink-0" />;
+    case 'value_tip':
+      return <Lightbulb className="w-3.5 h-3.5 text-yellow-400 shrink-0" />;
+    case 'event_invite':
+      return <Ticket className="w-3.5 h-3.5 text-purple-400 shrink-0" />;
+    default:
+      return <Flame className="w-3.5 h-3.5 text-indigo-400 shrink-0" />;
+  }
+};
 
 interface Props {
   service: GreenApiService;
   db?: Firestore;
+  firebaseApp?: FirebaseApp;
   collectionName?: string;
   isDark: boolean;
   connectedAccountName?: string;
@@ -73,6 +113,7 @@ interface CrmContactInfo {
 export const WhatsAppStatusesTab: React.FC<Props> = ({
   service,
   db,
+  firebaseApp,
   collectionName = 'whatsapp_statuses',
   isDark,
   connectedAccountName = 'חשבון WhatsApp',
@@ -337,6 +378,12 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         }
       }
       setStatuses([...updatedStatuses]);
+      if (viewersModalStatus) {
+        const refreshedCurrent = updatedStatuses.find((s) => s.id === viewersModalStatus.id);
+        if (refreshedCurrent) {
+          setViewersModalStatus({ ...refreshedCurrent });
+        }
+      }
     } finally {
       setIsRefreshingStats(false);
     }
@@ -467,6 +514,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
     try {
       let res: any;
+      let finalMediaUrl = mediaUrl.trim();
+      let finalFileName = fileName.trim() || `status_${Date.now()}.png`;
+
       if (statusType === 'text') {
         res = await service.sendTextStatus({
           message: textMessage.trim(),
@@ -475,9 +525,44 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
           participants: derivedParticipants,
         });
       } else {
+        // If mediaUrl is a base64 Data URL or Blob URL, upload to Firebase Cloud Storage first
+        if ((finalMediaUrl.startsWith('data:') || finalMediaUrl.startsWith('blob:')) && firebaseApp) {
+          try {
+            let fileToUpload: Blob;
+            if (finalMediaUrl.startsWith('data:')) {
+              const [header, base64] = finalMediaUrl.split(',');
+              const mime = header.match(/:(.*?);/)?.[1] || 'image/png';
+              const byteString = atob(base64);
+              const ab = new ArrayBuffer(byteString.length);
+              const ia = new Uint8Array(ab);
+              for (let i = 0; i < byteString.length; i++) {
+                ia[i] = byteString.charCodeAt(i);
+              }
+              fileToUpload = new Blob([ab], { type: mime });
+            } else {
+              const blobRes = await fetch(finalMediaUrl);
+              fileToUpload = await blobRes.blob();
+            }
+
+            const storageUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+              firebaseApp,
+              fileToUpload,
+              finalFileName
+            );
+            finalMediaUrl = storageUrl;
+            setMediaUrl(storageUrl);
+          } catch (storageErr: any) {
+            console.warn('Failed to upload status media to Firebase Storage:', storageErr);
+          }
+        }
+
+        if (finalMediaUrl.startsWith('data:') || finalMediaUrl.startsWith('blob:')) {
+          throw new Error('שליחת סטטוס מדיה דורשת קישור אינטרנטי ישיר. אנא ודא חיבור תקין ל-Firebase Storage או בחר תמונה מגלריית המדיה.');
+        }
+
         res = await service.sendMediaStatus({
-          urlFile: mediaUrl.trim(),
-          fileName: fileName.trim() || 'status.jpg',
+          urlFile: finalMediaUrl,
+          fileName: finalFileName,
           caption: mediaCaption.trim() || undefined,
           participants: derivedParticipants,
         });
@@ -491,8 +576,8 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         id: idMessage,
         type: statusType,
         message: statusType === 'text' ? textMessage.trim() : undefined,
-        urlFile: statusType === 'media' ? mediaUrl.trim() : undefined,
-        fileName: statusType === 'media' ? fileName.trim() : undefined,
+        urlFile: statusType === 'media' ? finalMediaUrl : undefined,
+        fileName: statusType === 'media' ? finalFileName : undefined,
         caption: statusType === 'media' ? mediaCaption.trim() : undefined,
         backgroundColor: statusType === 'text' ? backgroundColor : undefined,
         font: statusType === 'text' ? font : undefined,
@@ -542,98 +627,104 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     <div className="space-y-6 text-xs" dir="rtl">
       
       {/* Top Header & Analytics KPI Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         {/* KPI 1: Active Stories */}
-        <div className={`p-4 rounded-3xl border shadow-sm flex items-center gap-3.5 ${
+        <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-sm flex items-center gap-2.5 sm:gap-3.5 ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
-          <div className="w-11 h-11 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 flex items-center justify-center shrink-0">
-            <Smartphone className="w-5 h-5 animate-pulse" />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 flex items-center justify-center shrink-0">
+            <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 animate-pulse" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 block">סטטוסים פעילים (24h)</span>
-            <div className="flex items-center gap-2">
-              <span className="text-xl font-black text-emerald-400">{activeStories.length}</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">באוויר</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 block">פעילים (24h)</span>
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="text-lg sm:text-xl font-black text-emerald-400">{activeStories.length}</span>
+              <span className="text-[9px] sm:text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-300 font-bold">באוויר</span>
             </div>
           </div>
         </div>
 
         {/* KPI 2: Total Views */}
-        <div className={`p-4 rounded-3xl border shadow-sm flex items-center gap-3.5 ${
+        <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-sm flex items-center gap-2.5 sm:gap-3.5 ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
-          <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
-            <Eye className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 flex items-center justify-center shrink-0">
+            <Eye className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 block">סך צפיות שנרשמו</span>
-            <span className="text-xl font-black text-indigo-400">{totalViews}</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 block">סך צפיות</span>
+            <span className="text-lg sm:text-xl font-black text-indigo-400">{totalViews}</span>
           </div>
         </div>
 
         {/* KPI 3: Permanently Archived */}
-        <div className={`p-4 rounded-3xl border shadow-sm flex items-center gap-3.5 ${
+        <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-sm flex items-center gap-2.5 sm:gap-3.5 ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
-          <div className="w-11 h-11 rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
-            <Database className="w-5 h-5" />
+          <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0">
+            <Database className="w-4 h-4 sm:w-5 sm:h-5" />
           </div>
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 block">ארכיון קבוע שמור</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-xl font-black text-purple-400">{statuses.length}</span>
-              <span className="text-[10px] text-slate-400 font-mono">Firestore</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 block">בארכיון קבוע</span>
+            <div className="flex items-center gap-1">
+              <span className="text-lg sm:text-xl font-black text-purple-400">{statuses.length}</span>
+              <span className="text-[9px] text-slate-400 font-mono hidden xs:inline">Firestore</span>
             </div>
           </div>
         </div>
 
         {/* KPI 4: Refresh Action */}
-        <div className={`p-4 rounded-3xl border shadow-sm flex items-center justify-between gap-2 ${
+        <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-sm flex items-center justify-between gap-2 ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           <div>
-            <span className="text-[11px] font-semibold text-slate-400 block">מעקב צפיות וסטטיסטיקה</span>
-            <span className="text-[10px] text-slate-500">נתונים בזמן אמת</span>
+            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-400 block">מעקב צפיות</span>
+            <span className="text-[9px] sm:text-[10px] text-slate-500">בזמן אמת</span>
           </div>
           <button
             onClick={handleRefreshAllStatistics}
             disabled={isRefreshingStats}
-            className="p-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl shadow transition cursor-pointer disabled:opacity-50"
+            className="p-2 sm:p-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white rounded-xl sm:rounded-2xl shadow transition cursor-pointer disabled:opacity-50"
             title="רענן נתוני צפיות מ-WhatsApp"
+            aria-label="רענן נתוני צפיות מ-WhatsApp"
           >
-            <RefreshCw className={`w-4 h-4 ${isRefreshingStats ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isRefreshingStats ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Sub-Tabs: Create New Status vs Archive & Analytics */}
       <div className="flex items-center justify-between border-b border-slate-800/40 pb-2">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             onClick={() => setActiveSubTab('create')}
-            className={`px-4 py-2 rounded-2xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl font-black text-xs flex items-center gap-1.5 sm:gap-2 transition cursor-pointer ${
               activeSubTab === 'create'
                 ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-lg shadow-emerald-600/20'
                 : isDark ? 'text-slate-400 hover:text-white bg-slate-900' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
             }`}
+            title="פרסום ויצירת סטטוס חדש"
           >
-            <Sparkles className="w-4 h-4 text-emerald-300" />
-            <span>פרסום ויצירת סטטוס חדש</span>
+            <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-300" />
+            <span className="hidden sm:inline">פרסום ויצירת סטטוס חדש</span>
+            <span className="sm:hidden">יצירת סטטוס</span>
           </button>
 
           <button
             type="button"
             onClick={() => setActiveSubTab('archive')}
-            className={`px-4 py-2 rounded-2xl font-black text-xs flex items-center gap-2 transition cursor-pointer ${
+            className={`px-3 sm:px-4 py-2 rounded-xl sm:rounded-2xl font-black text-xs flex items-center gap-1.5 sm:gap-2 transition cursor-pointer ${
               activeSubTab === 'archive'
                 ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-600/20'
                 : isDark ? 'text-slate-400 hover:text-white bg-slate-900' : 'text-slate-600 hover:text-slate-900 bg-slate-100'
             }`}
+            title="ארכיון קבוע ומעקב צפיות מלא"
           >
-            <Database className="w-4 h-4 text-indigo-300" />
-            <span>ארכיון קבוע ומעקב צפיות ({statuses.length})</span>
+            <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-300" />
+            <span className="hidden sm:inline">ארכיון קבוע ומעקב צפיות</span>
+            <span className="sm:hidden">ארכיון</span>
+            <span className="font-mono text-[10px] opacity-80">({statuses.length})</span>
           </button>
         </div>
       </div>
@@ -643,63 +734,65 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left Form: Creator Settings (7 Cols) */}
-          <div className={`lg:col-span-7 p-5 rounded-3xl border space-y-4 shadow-sm ${
+          <div className={`lg:col-span-7 p-4 sm:p-5 rounded-2xl sm:rounded-3xl border space-y-4 shadow-sm ${
             isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
             
             {/* Status Type Selector */}
             <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
               <div className="flex items-center gap-2">
-                <Smartphone className="w-5 h-5 text-emerald-500" />
-                <h3 className="font-black text-sm">סטודיו יצירת סטטוס לוואטסאפ</h3>
+                <Smartphone className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-500" />
+                <h3 className="font-black text-xs sm:text-sm">סטודיו סטטוסים</h3>
               </div>
 
               <div className="flex gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">
                 <button
                   type="button"
                   onClick={() => setStatusType('text')}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
                     statusType === 'text'
                       ? 'bg-emerald-600 text-white shadow'
                       : 'text-slate-400 hover:text-white'
                   }`}
+                  title="סטטוס טקסט עם צבע וגופן"
                 >
                   <Type className="w-3.5 h-3.5" />
-                  <span>סטטוס טקסט</span>
+                  <span className="hidden xs:inline">טקסט</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setStatusType('media')}
-                  className={`px-3 py-1.5 rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg sm:rounded-xl font-bold text-xs flex items-center gap-1.5 transition cursor-pointer ${
                     statusType === 'media'
                       ? 'bg-indigo-600 text-white shadow'
                       : 'text-slate-400 hover:text-white'
                   }`}
+                  title="סטטוס מדיה (תמונה / וידאו)"
                 >
                   <Image className="w-3.5 h-3.5" />
-                  <span>מדיה (תמונה / וידאו)</span>
+                  <span className="hidden xs:inline">מדיה</span>
                 </button>
               </div>
             </div>
 
             {/* AI Generator & Enhancer Hub */}
-            <div className={`p-4 rounded-3xl border space-y-3.5 ${
+            <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border space-y-3 ${
               isDark ? 'bg-gradient-to-b from-indigo-950/40 to-purple-950/20 border-indigo-800/40' : 'bg-gradient-to-b from-indigo-50 to-purple-50 border-indigo-200'
             }`}>
               
               {/* AI Top Bar & Tone Selector */}
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow">
-                    <Sparkles className="w-4 h-4" />
+                  <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow shrink-0">
+                    <Sparkles className="w-3.5 h-3.5" />
                   </div>
                   <div>
-                    <span className="font-bold text-xs text-indigo-400 block">עוזר AI חכם לכתיבת סטטוסים</span>
-                    <span className="text-[10px] text-slate-400">מחולל תוכן חסידי, שיווקי וקהילתי עם וריאציות</span>
+                    <span className="font-bold text-xs text-indigo-400 block">עוזר AI לכתיבת סטטוסים</span>
+                    <span className="text-[9px] sm:text-[10px] text-slate-400 hidden xs:block">מחולל תוכן חסידי, שיווקי וקהילתי</span>
                   </div>
                 </div>
 
-                {/* Tone Selector */}
+                {/* Tone Selector with Lucide icons */}
                 <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5">
                   {(Object.keys(STATUS_TONE_LABELS) as StatusTone[]).map((t) => (
                     <button
@@ -712,15 +805,16 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                           : isDark ? 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-300'
                       }`}
                       title={STATUS_TONE_LABELS[t].desc}
+                      aria-label={STATUS_TONE_LABELS[t].label}
                     >
-                      <span>{STATUS_TONE_LABELS[t].icon}</span>
-                      <span>{STATUS_TONE_LABELS[t].label}</span>
+                      {getToneIcon(t)}
+                      <span className="hidden md:inline">{STATUS_TONE_LABELS[t].label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* AI Quick Preset Topics */}
+              {/* AI Quick Preset Topics with Lucide icons */}
               <div>
                 <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">תבניות מהירות מוכנות:</span>
                 <div className="flex flex-wrap gap-1.5">
@@ -733,11 +827,12 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                         setSelectedTone(preset.tone);
                         handleGenerateAiStatus(preset.defaultTopic);
                       }}
-                      className={`px-2.5 py-1 rounded-xl text-[11px] font-medium flex items-center gap-1 transition cursor-pointer ${
+                      className={`px-2.5 py-1 rounded-xl text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer ${
                         isDark ? 'bg-slate-900 hover:bg-indigo-900/60 border border-slate-800 text-slate-300 hover:text-white' : 'bg-white hover:bg-indigo-50 border border-slate-300 text-slate-700 hover:text-indigo-900 shadow-xs'
                       }`}
+                      title={preset.defaultTopic}
                     >
-                      <span>{preset.icon}</span>
+                      {getPresetIcon(preset.id)}
                       <span>{preset.label}</span>
                     </button>
                   ))}
@@ -756,8 +851,8 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                       handleGenerateAiStatus();
                     }
                   }}
-                  placeholder="כתוב נושא מותאם אישית (למשל: דבר תורה חסידי לסוכות, מבצע מיוחד, עדכון קהילה)..."
-                  className={`flex-1 p-2.5 rounded-xl border text-xs ${
+                  placeholder="כתוב נושא מותאם אישית (למשל: דבר תורה חסידי, מבצע, עדכון קהילה)..."
+                  className={`flex-1 p-2 sm:p-2.5 rounded-xl border text-xs ${
                     isDark ? 'bg-slate-950 border-slate-800 text-white' : 'bg-white border-slate-300 text-slate-900'
                   }`}
                 />
@@ -766,10 +861,12 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   type="button"
                   onClick={() => handleGenerateAiStatus()}
                   disabled={isGeneratingAi}
-                  className="px-4 py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer disabled:opacity-50 shrink-0"
+                  className="px-3 sm:px-4 py-2 sm:py-2.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer disabled:opacity-50 shrink-0"
+                  title="צור 3 גרסאות שונות לסטטוס בעזרת בינה מלאכותית"
                 >
                   <Sparkles className={`w-3.5 h-3.5 ${isGeneratingAi ? 'animate-spin' : ''}`} />
-                  <span>{isGeneratingAi ? 'מייצר 3 גרסאות...' : 'צור עם AI'}</span>
+                  <span className="hidden xs:inline">{isGeneratingAi ? 'מייצר...' : 'צור ב-AI'}</span>
+                  <span className="xs:hidden">AI</span>
                 </button>
               </div>
 
@@ -835,10 +932,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                         onClick={handleEnhanceWithAi}
                         disabled={isEnhancingAi || !textMessage.trim()}
                         className="px-2.5 py-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-95 text-white font-bold rounded-xl text-[10px] flex items-center gap-1 shadow cursor-pointer disabled:opacity-50 transition"
-                        title="שפר, ערוך והוסף אימוג'ים לטקסט הקיים"
+                        title="שפר, ערוך והתאם את הטקסט לסטטוס וואטסאפ בעזרת AI"
                       >
                         <Wand2 className={`w-3 h-3 ${isEnhancingAi ? 'animate-spin' : ''}`} />
-                        <span>{isEnhancingAi ? 'משפר...' : '✨ שפר עם AI'}</span>
+                        <span className="hidden sm:inline">{isEnhancingAi ? 'משפר...' : 'שפר עם AI'}</span>
+                        <span className="sm:hidden">{isEnhancingAi ? '...' : 'שפר'}</span>
                       </button>
                     </div>
 
@@ -909,27 +1007,30 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               <div className="space-y-3">
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <label className="font-semibold text-slate-300">קובץ מדיה (תמונה או וידאו)</label>
+                    <label className="font-semibold text-slate-300">קובץ מדיה (תמונה / וידאו)</label>
                     
                     {/* Media Picker & AI Generator Buttons */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 sm:gap-2">
                       <button
                         type="button"
                         onClick={() => setIsMediaPickerOpen(true)}
-                        className="px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
+                        className="px-2.5 sm:px-3 py-1 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
+                        title="בחר מתוך גלריית המדיה השמורה"
                       >
-                        <FolderOpen className="w-3.5 h-3.5" />
-                        <span>📂 גלריה</span>
+                        <FolderOpen className="w-3.5 h-3.5 text-black" />
+                        <span className="hidden sm:inline">גלריה</span>
                       </button>
 
                       <button
                         type="button"
                         onClick={() => setIsAiImageStudioOpen(true)}
-                        className="px-3 py-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
+                        className="px-2.5 sm:px-3 py-1 bg-gradient-to-r from-purple-600 via-indigo-600 to-amber-500 hover:from-purple-500 hover:to-amber-400 text-white font-black rounded-xl text-xs flex items-center gap-1.5 shadow cursor-pointer transition"
                         title="יצירת תמונה מותאמת לסטטוס ב-AI (פונקציה למנויים משודרגים)"
                       >
-                        <Sparkles className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300" />
-                        <span>✨ צור תמונה עם AI (PRO)</span>
+                        <Crown className="w-3.5 h-3.5 text-amber-300" />
+                        <Sparkles className="w-3.5 h-3.5 text-yellow-300" />
+                        <span className="hidden sm:inline">תמונת AI (PRO)</span>
+                        <span className="sm:hidden">AI PRO</span>
                       </button>
                     </div>
                   </div>
@@ -938,7 +1039,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     type="url"
                     value={mediaUrl}
                     onChange={(e) => setMediaUrl(e.target.value)}
-                    placeholder="https://example.com/image.jpg או בחר מגלריית המדיה בלחיצה מעלה..."
+                    placeholder="https://example.com/image.jpg או בחר מגלריית המדיה מעלה..."
                     className={`w-full p-2.5 rounded-xl border font-mono text-xs ${
                       isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                     }`}
@@ -946,7 +1047,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-semibold text-slate-300 mb-1">שם הקובץ</label>
                     <input
@@ -969,9 +1070,10 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                         onClick={handleEnhanceWithAi}
                         disabled={isEnhancingAi || !mediaCaption.trim()}
                         className="text-indigo-400 hover:text-indigo-300 text-[10px] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                        title="שפר ונסח כיתוב מושלם ב-AI"
                       >
                         <Wand2 className="w-3 h-3" />
-                        <span>שפר כיתוב עם AI</span>
+                        <span className="hidden xs:inline">שפר כיתוב</span>
                       </button>
                     </div>
 
@@ -994,12 +1096,12 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               <div className="flex items-center justify-between">
                 <label className="font-semibold text-slate-300 flex items-center gap-1.5">
                   <Users className="w-4 h-4 text-emerald-400" />
-                  <span>קהל יעד לצפייה בסטטוס (CRM & Audience)</span>
+                  <span>קהל יעד לצפייה (CRM)</span>
                 </label>
                 
                 {derivedParticipants && (
                   <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 font-bold font-mono">
-                    {derivedParticipants.length} נמענים נבחרו
+                    {derivedParticipants.length} נמענים
                   </span>
                 )}
               </div>
@@ -1017,7 +1119,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     onChange={() => setTargetAudience('all')}
                     className="text-emerald-600 focus:ring-emerald-500"
                   />
-                  <span>כל אנשי הקשר</span>
+                  <Users className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                  <span className="hidden sm:inline">כל אנשי הקשר</span>
+                  <span className="sm:hidden">כולם</span>
                 </label>
 
                 <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
@@ -1032,7 +1136,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     onChange={() => setTargetAudience('crm_group')}
                     className="text-indigo-600 focus:ring-indigo-500"
                   />
-                  <span>קבוצת CRM</span>
+                  <Layers className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                  <span className="hidden sm:inline">קבוצת CRM</span>
+                  <span className="sm:hidden">קבוצה</span>
                 </label>
 
                 <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
@@ -1047,7 +1153,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     onChange={() => setTargetAudience('crm_tag')}
                     className="text-purple-600 focus:ring-purple-500"
                   />
-                  <span>תגית CRM</span>
+                  <Tag className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+                  <span className="hidden sm:inline">תגית CRM</span>
+                  <span className="sm:hidden">תגית</span>
                 </label>
 
                 <label className={`p-2.5 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
@@ -1062,7 +1170,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     onChange={() => setTargetAudience('custom')}
                     className="text-amber-600 focus:ring-amber-500"
                   />
-                  <span>בחירה ידנית</span>
+                  <UserCheck className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="hidden sm:inline">בחירה ידנית</span>
+                  <span className="sm:hidden">ידני</span>
                 </label>
               </div>
 
@@ -1071,7 +1181,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 <div className={`p-3 rounded-2xl border space-y-2 ${
                   isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <label className="block text-[11px] font-semibold text-slate-300">בחר קבוצת / קהילת CRM:</label>
+                  <label className="block text-[11px] font-semibold text-slate-300">בחר קבוצת CRM:</label>
                   {crmGroups.length === 0 ? (
                     <p className="text-slate-500 text-xs">טרם הוגדרו קבוצות במערכת ה-CRM.</p>
                   ) : (
@@ -1089,7 +1199,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                                 : isDark ? 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-700 hover:text-slate-900 border border-slate-300'
                             }`}
                           >
-                            <span>👥</span>
+                            <Users className="w-3 h-3 text-indigo-400 shrink-0" />
                             <span>{g.name}</span>
                             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
                               {count}
@@ -1125,7 +1235,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                                 : isDark ? 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-700 hover:text-slate-900 border border-slate-300'
                             }`}
                           >
-                            <Tag className="w-3 h-3" />
+                            <Tag className="w-3 h-3 text-purple-400 shrink-0" />
                             <span>{tag}</span>
                             <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-white/20 font-mono">
                               {count}
@@ -1233,10 +1343,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 type="button"
                 onClick={handlePublishStatus}
                 disabled={isPublishing}
-                className="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:opacity-95 text-white font-black text-sm rounded-2xl shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
+                className="w-full py-3 sm:py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 hover:opacity-95 text-white font-black text-xs sm:text-sm rounded-xl sm:rounded-2xl shadow-xl shadow-emerald-600/30 flex items-center justify-center gap-2 transition cursor-pointer disabled:opacity-50"
               >
-                {isPublishing ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                <span>{isPublishing ? 'מפרסם סטטוס לוואטסאפ...' : '🚀 פרסם סטטוס לוואטסאפ כעת'}</span>
+                {isPublishing ? <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5 animate-spin" /> : <Send className="w-4 h-4 sm:w-5 sm:h-5" />}
+                <span className="hidden xs:inline">{isPublishing ? 'מפרסם סטטוס לוואטסאפ...' : 'פרסם סטטוס לוואטסאפ כעת'}</span>
+                <span className="xs:hidden">{isPublishing ? 'מפרסם...' : 'פרסם כעת'}</span>
               </button>
             </div>
 
@@ -1246,18 +1357,18 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
           <div className="lg:col-span-5 flex flex-col items-center">
             <span className="text-xs font-bold text-slate-400 mb-2 flex items-center gap-1.5">
               <Eye className="w-3.5 h-3.5" />
-              <span>תצוגה מקדימה חיה של הסטטוס (WhatsApp Story)</span>
+              <span>תצוגה מקדימה של הסטטוס (WhatsApp Story)</span>
             </span>
 
             {/* Smartphone Mockup Frame */}
-            <div className="w-72 h-[480px] rounded-[40px] border-4 border-slate-700 bg-slate-950 shadow-2xl p-3 flex flex-col justify-between relative overflow-hidden">
+            <div className="w-72 max-w-full h-[460px] sm:h-[480px] rounded-[36px] sm:rounded-[40px] border-4 border-slate-700 bg-slate-950 shadow-2xl p-3 flex flex-col justify-between relative overflow-hidden">
               
               {/* Phone Notch */}
-              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4 bg-slate-800 rounded-full z-20" />
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-24 sm:w-28 h-3.5 sm:h-4 bg-slate-800 rounded-full z-20" />
 
               {/* Story Content Viewport */}
               <div
-                className="w-full h-full rounded-[32px] overflow-hidden flex flex-col justify-between p-4 relative text-white"
+                className="w-full h-full rounded-[28px] sm:rounded-[32px] overflow-hidden flex flex-col justify-between p-4 relative text-white"
                 style={{
                   backgroundColor: statusType === 'text' ? backgroundColor : '#000000',
                   backgroundImage: statusType === 'media' && mediaUrl ? `url(${mediaUrl})` : undefined,
@@ -1272,7 +1383,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
                 {/* Story Account Header */}
                 <div className="flex items-center gap-2 z-10 pt-1">
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs border border-white/40 shadow">
+                  <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs border border-white/40 shadow shrink-0">
                     WA
                   </div>
                   <div>
@@ -1285,7 +1396,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 <div className="my-auto text-center px-2 z-10">
                   {statusType === 'text' ? (
                     <p
-                      className="text-base font-bold whitespace-pre-wrap leading-relaxed drop-shadow-md"
+                      className="text-sm sm:text-base font-bold whitespace-pre-wrap leading-relaxed drop-shadow-md"
                       style={{
                         fontFamily: PRESET_FONTS.find((f) => f.id === font)?.family || 'sans-serif',
                       }}
@@ -1295,7 +1406,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                   ) : (
                     !mediaUrl && (
                       <div className="flex flex-col items-center justify-center text-white/60 space-y-2">
-                        <Image className="w-12 h-12 stroke-[1.5]" />
+                        <Image className="w-10 h-10 sm:w-12 sm:h-12 stroke-[1.5]" />
                         <span className="text-xs">הזן קישור תמונה או וידאו</span>
                       </div>
                     )
@@ -1322,32 +1433,32 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
       {/* SUB-TAB 2: PERMANENT ARCHIVE & FULL VIEWER TRACKING */}
       {activeSubTab === 'archive' && (
-        <div className={`p-5 rounded-3xl border space-y-4 shadow-sm ${
+        <div className={`p-4 sm:p-5 rounded-2xl sm:rounded-3xl border space-y-4 shadow-sm ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
           
           {/* Header & Filter Controls */}
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/40 pb-3">
             <div className="flex items-center gap-2">
-              <Database className="w-5 h-5 text-indigo-400" />
+              <Database className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400 shrink-0" />
               <div>
-                <h3 className="font-bold text-sm">ארכיון סטטוסים ומעקב צפיות מלא</h3>
-                <span className="text-[11px] text-slate-400">
+                <h3 className="font-bold text-xs sm:text-sm">ארכיון סטטוסים ומעקב צפיות מלא</h3>
+                <span className="text-[10px] sm:text-[11px] text-slate-400 hidden xs:block">
                   כל הסטטוסים, התמונות והצפיות נשמרים לצמיתות ב-Firestore גם לאחר 24 שעות
                 </span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               {/* Search */}
-              <div className="relative">
+              <div className="relative flex-1 sm:flex-initial">
                 <Search className="w-3.5 h-3.5 absolute right-3 top-2.5 text-slate-400" />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="חפש בארכיון..."
-                  className={`pr-8 pl-3 py-1.5 rounded-xl text-xs border ${
+                  className={`w-full sm:w-36 md:w-48 pr-8 pl-3 py-1.5 rounded-xl text-xs border ${
                     isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'
                   }`}
                 />
@@ -1358,29 +1469,38 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => setFilterType('all')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                  className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                     filterType === 'all' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
                   }`}
+                  title="כל הסטטוסים בארכיון"
                 >
-                  הכל ({statuses.length})
+                  <Layers className="w-3 h-3" />
+                  <span className="hidden sm:inline">הכל</span>
+                  <span className="font-mono text-[10px]">({statuses.length})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterType('active')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                  className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                     filterType === 'active' ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-white'
                   }`}
+                  title="סטטוסים פעילים כרגע בוואטסאפ"
                 >
-                  פעילים ({activeStories.length})
+                  <Smartphone className="w-3 h-3 text-emerald-400" />
+                  <span className="hidden sm:inline">פעילים</span>
+                  <span className="font-mono text-[10px]">({activeStories.length})</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setFilterType('expired')}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition ${
+                  className={`px-2 sm:px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${
                     filterType === 'expired' ? 'bg-purple-600 text-white' : 'text-slate-400 hover:text-white'
                   }`}
+                  title="סטטוסים שהסתיימו בארכיון"
                 >
-                  ארכיון ({expiredStories.length})
+                  <Database className="w-3 h-3 text-purple-400" />
+                  <span className="hidden sm:inline">ארכיון</span>
+                  <span className="font-mono text-[10px]">({expiredStories.length})</span>
                 </button>
               </div>
 
@@ -1388,10 +1508,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 type="button"
                 onClick={handleRefreshAllStatistics}
                 disabled={isRefreshingStats}
-                className="px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+                className="px-2.5 sm:px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+                title="סנכרן נתוני צפיות מעודכנים מוואטסאפ"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${isRefreshingStats ? 'animate-spin' : ''}`} />
-                <span>סנכרן צפיות</span>
+                <span className="hidden sm:inline">סנכרן צפיות</span>
               </button>
             </div>
           </div>
@@ -1497,8 +1618,8 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
       {/* FULL-SCREEN WHATSAPP STORY VIEWER MODAL */}
       {viewingStory && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in" dir="rtl">
-          <div className="w-full max-w-sm h-[600px] rounded-[36px] overflow-hidden flex flex-col justify-between p-5 relative text-white shadow-2xl border border-slate-700"
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in" dir="rtl">
+          <div className="w-full max-w-sm h-[90vh] sm:h-[600px] rounded-3xl sm:rounded-[36px] overflow-hidden flex flex-col justify-between p-4 sm:p-5 relative text-white shadow-2xl border border-slate-700"
             style={{
               backgroundColor: viewingStory.backgroundColor || '#075E54',
               backgroundImage: viewingStory.urlFile ? `url(${viewingStory.urlFile})` : undefined,
@@ -1513,11 +1634,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               </div>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs border border-white">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-emerald-600 flex items-center justify-center font-bold text-xs border border-white shrink-0">
                     WA
                   </div>
                   <div>
-                    <span className="block font-bold text-sm leading-none drop-shadow">{connectedAccountName}</span>
+                    <span className="block font-bold text-xs sm:text-sm leading-none drop-shadow">{connectedAccountName}</span>
                     <span className="text-[10px] text-white/80 drop-shadow">
                       {new Date(viewingStory.createdAt).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                     </span>
@@ -1538,7 +1659,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
             <div className="my-auto text-center px-4 z-10">
               {viewingStory.type === 'text' && (
                 <p
-                  className="text-xl font-bold whitespace-pre-wrap leading-relaxed drop-shadow-lg"
+                  className="text-lg sm:text-xl font-bold whitespace-pre-wrap leading-relaxed drop-shadow-lg"
                   style={{
                     fontFamily: PRESET_FONTS.find((f) => f.id === viewingStory.font)?.family || 'sans-serif',
                   }}
@@ -1560,11 +1681,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 onClick={() => {
                   setViewersModalStatus(viewingStory);
                 }}
-                className="bg-black/70 backdrop-blur-sm p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-black/80 transition"
+                className="bg-black/70 backdrop-blur-sm p-2.5 sm:p-3 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-black/80 transition"
               >
                 <div className="flex items-center gap-2">
                   <Eye className="w-4 h-4 text-emerald-400" />
-                  <span className="font-bold text-xs">{viewingStory.viewersCount || 0} אנשים צפו בסטטוס</span>
+                  <span className="font-bold text-xs">{viewingStory.viewersCount || 0} צופים</span>
                 </div>
                 <span className="text-[11px] text-indigo-400 font-semibold underline">פרטי הצופים</span>
               </div>
@@ -1575,15 +1696,15 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
       {/* VIEWERS ACTIVITY DETAILS MODAL */}
       {viewersModalStatus && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in" dir="rtl">
-          <div className={`w-full max-w-lg rounded-3xl border shadow-2xl p-6 space-y-4 max-h-[85vh] flex flex-col ${
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/80 backdrop-blur-sm animate-fade-in" dir="rtl">
+          <div className={`w-full max-w-lg rounded-3xl border shadow-2xl p-4 sm:p-6 space-y-4 max-h-[85vh] flex flex-col ${
             isDark ? 'bg-slate-900 border-slate-800 text-slate-100' : 'bg-white border-slate-200 text-slate-900'
           }`}>
             <div className="flex items-center justify-between border-b border-slate-800/40 pb-3">
               <div className="flex items-center gap-2.5">
-                <Eye className="w-5 h-5 text-emerald-400" />
+                <Eye className="w-5 h-5 text-emerald-400 shrink-0" />
                 <div>
-                  <h3 className="font-bold text-sm">מעקב צפיות בסטטוס (WhatsApp Activity)</h3>
+                  <h3 className="font-bold text-xs sm:text-sm">מעקב צפיות בסטטוס (WhatsApp Activity)</h3>
                   <span className="text-[10px] text-slate-400 font-mono">מזהה: {viewersModalStatus.id}</span>
                 </div>
               </div>
@@ -1598,21 +1719,21 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
             {/* Viewer Counts Breakdown */}
             <div className="grid grid-cols-3 gap-2 text-center font-mono">
-              <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-                <span className="block text-emerald-400 font-bold text-lg">{viewersModalStatus.viewersCount || 0}</span>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                <span className="block text-emerald-400 font-bold text-base sm:text-lg">{viewersModalStatus.viewersCount || 0}</span>
                 <span className="text-[10px] font-sans">צפו (Read)</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
-                <span className="block text-indigo-400 font-bold text-lg">{viewersModalStatus.deliveredCount || 0}</span>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                <span className="block text-indigo-400 font-bold text-base sm:text-lg">{viewersModalStatus.deliveredCount || 0}</span>
                 <span className="text-[10px] font-sans">נמסרו (Delivered)</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
-                <span className="block text-slate-300 font-bold text-lg">{viewersModalStatus.sentCount || 0}</span>
+              <div className="p-2 sm:p-2.5 rounded-xl bg-slate-800/40 border border-slate-700/40">
+                <span className="block text-slate-300 font-bold text-base sm:text-lg">{viewersModalStatus.sentCount || 0}</span>
                 <span className="text-[10px] font-sans">נשלחו (Sent)</span>
               </div>
             </div>
 
-            {/* Viewers List */}
+            {/* Viewers List with Lucide Icons */}
             <div className="flex-1 overflow-y-auto space-y-2 divide-y divide-slate-800/20 max-h-64">
               {(!viewersModalStatus.statistics || viewersModalStatus.statistics.length === 0) ? (
                 <div className="p-6 text-center text-slate-500 text-xs space-y-1">
@@ -1624,15 +1745,30 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                 viewersModalStatus.statistics.map((st, i) => (
                   <div key={i} className="pt-2 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-2">
-                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] text-white ${
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-[10px] text-white shrink-0 ${
                         st.status === 'read' ? 'bg-emerald-600' : 'bg-indigo-600'
                       }`}>
                         {st.status === 'read' ? <CheckCheck className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                       </div>
                       <div>
-                        <span className="font-mono font-bold block" dir="ltr">{st.participant}</span>
-                        <span className="text-[10px] text-slate-400">
-                          {st.status === 'read' ? '👁️ צפה בסטטוס' : st.status === 'delivered' ? '✓✓ נמסר למכשיר' : '✓ נשלח'}
+                        <span className="font-mono font-bold block text-[11px]" dir="ltr">{st.participant}</span>
+                        <span className="text-[10px] text-slate-400 flex items-center gap-1">
+                          {st.status === 'read' ? (
+                            <>
+                              <Eye className="w-3 h-3 text-emerald-400 inline" />
+                              <span>צפה בסטטוס</span>
+                            </>
+                          ) : st.status === 'delivered' ? (
+                            <>
+                              <CheckCheck className="w-3 h-3 text-indigo-400 inline" />
+                              <span>נמסר למכשיר</span>
+                            </>
+                          ) : (
+                            <>
+                              <Check className="w-3 h-3 text-slate-400 inline" />
+                              <span>נשלח</span>
+                            </>
+                          )}
                         </span>
                       </div>
                     </div>
