@@ -1,5 +1,5 @@
 import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
-import { BrandDna } from '../../../core/contracts';
+import { BrandDna } from '../../brand-dna-hub/types/brandDna';
 
 export interface GenerationStep {
   stepIndex: number;
@@ -20,23 +20,23 @@ export const aiPageGenerator = {
     
     // Default fallback ideas
     const fallback = [
-      { id: 'sales-funnel', title: '׳׳©׳₪׳ ׳׳›׳™׳¨׳•׳× ׳™׳•׳§׳¨׳×׳™', description: '׳“׳£ ׳ ׳—׳™׳×׳” ׳׳׳›׳™׳¨׳× ׳”׳©׳™׳¨׳•׳× ׳”׳׳¨׳›׳–׳™ ׳¢׳ ׳₪׳™׳¨׳•׳˜ ׳×׳•׳›׳ ׳™׳•׳× ׳•׳”׳•׳›׳—׳” ׳—׳‘׳¨׳×׳™׳×.', prompt: '׳“׳£ ׳ ׳—׳™׳×׳” ׳™׳•׳§׳¨׳×׳™ ׳•׳׳׳™׳¨ ׳׳׳›׳™׳¨׳× ׳”׳©׳™׳¨׳•׳× ׳”׳׳•׳‘׳™׳, ׳›׳•׳׳ ׳׳¡׳׳•׳׳™׳, ׳‘׳™׳§׳•׳¨׳•׳× ׳•׳”׳ ׳¢׳” ׳׳₪׳¢׳•׳׳” ׳‘׳¨׳•׳¨׳”.', icon: 'Zap' },
-      { id: 'geo-local', title: '׳“׳£ ׳©׳™׳¨׳•׳× ׳׳§׳•׳׳™ (GEO)', description: '׳“׳£ ׳׳׳•׳§׳“ ׳׳–׳•׳¨ ׳₪׳¢׳™׳׳•׳× ׳¢׳ ׳׳₪׳”, ׳©׳¢׳•׳× ׳₪׳×׳™׳—׳” ׳•׳™׳¦׳™׳¨׳× ׳§׳©׳¨ ׳׳”׳™׳¨׳” ׳׳•׳•׳׳˜׳¡׳׳₪.', prompt: '׳“׳£ ׳©׳™׳¨׳•׳× ׳׳–׳•׳¨׳™ (GEO) ׳¢׳ ׳׳™׳§׳•׳“ ׳‘׳׳§׳•׳—׳•׳× ׳׳§׳•׳׳™׳™׳, ׳׳₪׳”, ׳©׳¢׳•׳× ׳₪׳¢׳™׳׳•׳× ׳•׳”׳•׳›׳—׳” ׳—׳‘׳¨׳×׳™׳× ׳׳׳•׳׳×׳×.', icon: 'MapPin' },
-      { id: 'lead-gen', title: '׳§׳׳₪׳™׳™׳ ׳׳’׳ ׳˜ ׳׳™׳“׳™׳', description: '׳“׳£ ׳”׳©׳׳¨׳× ׳₪׳¨׳˜׳™׳ ׳§׳¦׳¨ ׳׳”׳•׳¨׳“׳× ׳׳“׳¨׳™׳ ׳׳• ׳”׳¨׳©׳׳” ׳׳•׳•׳‘׳™׳ ׳¨.', prompt: '׳“׳£ ׳ ׳—׳™׳×׳” ׳§׳¦׳¨ ׳•׳׳׳•׳§׳“ ׳׳׳™׳¡׳•׳£ ׳׳™׳“׳™׳, ׳”׳׳¦׳™׳¢ ׳׳“׳¨׳™׳ ׳—׳™׳ ׳׳™ ׳׳• ׳”׳¨׳©׳׳” ׳׳”׳¨׳¦׳׳” ׳§׳¨׳•׳‘׳”.', icon: 'Layers' },
+      { id: 'sales-funnel', title: 'משפך מכירות יוקרתי', description: 'דף נחיתה למכירת השירות המרכזי עם פירוט תוכניות והוכחה חברתית.', prompt: 'דף נחיתה יוקרתי וממיר למכירת השירות המוביל, כולל מסלולים, ביקורות והנעה לפעולה ברורה.', icon: 'Zap' },
+      { id: 'geo-local', title: 'דף שירות מקומי (GEO)', description: 'דף ממוקד אזור פעילות עם מפה, שעות פתיחה ויצירת קשר מהירה לוואטסאפ.', prompt: 'דף שירות אזורי (GEO) עם מיקוד בלקוחות מקומיים, מפה, שעות פעילות והוכחה חברתית מאומתת.', icon: 'MapPin' },
+      { id: 'lead-gen', title: 'קמפיין מגנט לידים', description: 'דף השארת פרטים קצר להורדת מדריך או הרשמה לוובינר.', prompt: 'דף נחיתה קצר וממוקד לאיסוף לידים, המציע מדריך חינמי או הרשמה להרצאה קרובה.', icon: 'Layers' },
     ];
 
     if (!apiKey) return fallback;
 
     const systemPrompt = `
 You are an expert Marketing Strategist. 
-The brand name is "${brandDna?.identity?.companyName || '׳”׳—׳‘׳¨׳”'}". 
+The brand name is "${brandDna?.identity?.companyName || 'החברה'}". 
 Their purpose: "${brandDna?.identity?.organizationPurpose || ''}".
-Their target audience: "${brandDna?.audience?.targetAudiences?.join(',') || '׳׳§׳•׳—׳•׳×'}".
+Their target audience: "${brandDna?.audience?.targetAudiences?.join(',') || 'לקוחות'}".
 
 Suggest 3 completely different landing page concepts/goals this brand should build right now to grow their business.
 Output ONLY a valid JSON array of objects, each with:
 - id: short english id (e.g. "webinar-funnel")
-- title: short catchy title in Hebrew (e.g. "׳”׳¨׳©׳׳” ׳׳•׳•׳‘׳™׳ ׳¨ ׳§׳”׳™׳׳×׳™")
+- title: short catchy title in Hebrew (e.g. "הרשמה לוובינר קהילתי")
 - description: short description in Hebrew
 - prompt: a detailed prompt in Hebrew that the user can use to generate this page
 - icon: one of these Lucide icon names: ['Zap', 'MapPin', 'Layers', 'Heart', 'Sparkles', 'GraduationCap', 'Star']
@@ -80,20 +80,20 @@ NO MARKDOWN. ONLY JSON.`;
   ): Promise<PageBuilderConfig> {
     const primaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
     const secondaryColor = brandDna?.designTokens?.secondaryColor || '#0ea5e9';
-    const companyName = brandDna?.identity?.companyName || '׳”׳—׳‘׳¨׳” ׳”׳׳•׳‘׳™׳׳”';
-    const slogan = brandDna?.identity?.slogan || '׳—׳“׳©׳ ׳•׳×, ׳׳™׳›׳•׳× ׳•׳¦׳׳™׳—׳” ׳׳×׳׳“׳×';
+    const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
+    const slogan = brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
     const logoUrl = brandDna?.identity?.logoUrl || '';
     const phone = brandDna?.trust?.contactPhone || '03-1234567';
     const email = brandDna?.trust?.contactEmail || 'contact@example.com';
     const whatsapp = brandDna?.trust?.whatsappSupportNumber || '0501234567';
-    const address = brandDna?.trust?.officeAddress || '׳×׳ ׳׳‘׳™׳‘, ׳™׳©׳¨׳׳';
+    const address = brandDna?.trust?.officeAddress || 'תל אביב, ישראל';
 
     const pageId = `page_ai_${Date.now()}`;
     
     // Initial config shell, will be updated by AI response
     let pageConfig: PageBuilderConfig = {
       pageId,
-      pageTitle: `${companyName} - ׳“׳£ ׳—׳›׳`,
+      pageTitle: `${companyName} - דף חכם`,
       slug: 'launch',
       published: false,
       isHomePage: false,
@@ -124,19 +124,19 @@ NO MARKDOWN. ONLY JSON.`;
       },
       seoSettings: {
         title: `${companyName} - ${slogan}`,
-        description: brandDna?.identity?.shortVision || `${companyName} ׳׳¦׳™׳’׳” ׳₪׳×׳¨׳•׳ ׳•׳× ׳׳×׳§׳“׳׳™׳ ׳•׳׳™׳›׳•׳×׳™׳™׳ ׳׳׳ ׳₪׳©׳¨׳•׳×.`,
-        keywords: ['׳©׳™׳¨׳•׳×׳™׳ ׳׳§׳¦׳•׳¢׳™׳™׳', '׳—׳“׳©׳ ׳•׳×', '׳“׳™׳’׳™׳˜׳', companyName],
+        description: brandDna?.identity?.shortVision || `${companyName} מציגה פתרונות מתקדמים ואיכותיים ללא פשרות.`,
+        keywords: ['שירותים מקצועיים', 'חדשנות', 'דיגיטל', companyName],
         geo: {
           enabled: true,
-          targetCity: '׳×׳ ׳׳‘׳™׳‘',
-          targetRegion: '׳’׳•׳© ׳“׳ ׳•׳”׳׳¨׳›׳–',
-          targetCountry: '׳™׳©׳¨׳׳',
-          serviceAreas: ['׳›׳ ׳”׳׳¨׳¥'],
+          targetCity: 'תל אביב',
+          targetRegion: 'גוש דן והמרכז',
+          targetCountry: 'ישראל',
+          serviceAreas: ['כל הארץ'],
           localBusinessName: companyName,
           businessAddress: address,
           businessPhone: phone,
           businessEmail: email,
-          openingHours: '׳-׳” 09:00-18:00',
+          openingHours: 'א-ה 09:00-18:00',
         },
       },
       sectionOrder: [],
@@ -159,7 +159,7 @@ NO MARKDOWN. ONLY JSON.`;
       };
     } else {
       try {
-        const targetAudience = brandDna?.audience?.targetAudiences?.join(", ") || "׳׳§׳•׳—׳•׳× ׳₪׳•׳˜׳ ׳¦׳™׳׳׳™׳™׳";
+        const targetAudience = brandDna?.audience?.targetAudiences?.join(", ") || "לקוחות פוטנציאליים";
         const brandColors = `Primary: ${primaryColor}, BG: ${brandDna?.designTokens?.backgroundColor || '#ffffff'}`;
         
         const systemPrompt = `
@@ -167,7 +167,8 @@ You are an expert Web Page Architect and Conversion Rate Optimizer.
 Brand Context:
 - Company: "${companyName}"
 - Audience: ${targetAudience}
-- Core UVP: "${brandDna?.audience?.mainUvp || '׳”׳—׳‘׳¨׳” ׳”׳׳•׳‘׳™׳׳”'}"
+- Core UVP: "${brandDna?.audience?.mainUvp || 'החברה המובילה'}"
+- Voice/Tone: "${brandDna?.identity?.brandPersonality || 'מקצועי, אמין וחדשני'}"
 - Goal: Create a high-converting, deeply immersive page. DO NOT output a generic one-section page. Build a rich page with 4-8 interconnected sections (like Hero -> Marquee -> Services -> Bento -> Testimonials -> FAQ -> Contact).
 
 User Prompt: "${userPrompt}"
@@ -199,8 +200,8 @@ User Prompt: "${userPrompt}"
   "sections": [
     {
       "sectionType": "hero",
-      "stepTitle": "׳›׳•׳×׳¨׳× ׳§׳¦׳¨׳” ׳‘׳¢׳‘׳¨׳™׳×",
-      "statusText": "׳₪׳¢׳•׳׳” ׳§׳¦׳¨׳” ׳‘׳¢׳‘׳¨׳™׳×",
+      "stepTitle": "כותרת קצרה בעברית",
+      "statusText": "פעולה קצרה בעברית",
       "data": {
         "title": "Main title",
         "layout": "split",
@@ -268,8 +269,8 @@ User Prompt: "${userPrompt}"
             stepIndex: i + 1,
             totalSteps: generatedSteps.length,
             sectionType: step.sectionType,
-            stepTitle: step.stepTitle || `׳‘׳ ׳™׳™׳× ׳׳–׳•׳¨ ${step.sectionType}`,
-            statusText: step.statusText || '׳׳™׳™׳¦׳¨ ׳ ׳×׳•׳ ׳™׳ ׳•׳¢׳™׳¦׳•׳‘ ׳׳•׳×׳׳...',
+            stepTitle: step.stepTitle || `בניית אזור ${step.sectionType}`,
+            statusText: step.statusText || 'מייצר נתונים ועיצוב מותאם...',
             progressPercent: Math.round(((i + 1) / generatedSteps.length) * 100),
           },
           JSON.parse(JSON.stringify(pageConfig))
@@ -299,7 +300,7 @@ User Prompt: "${userPrompt}"
       return currentConfig;
     }
 
-    const companyName = brandDna?.identity?.companyName || '׳”׳—׳‘׳¨׳” ׳”׳׳•׳‘׳™׳׳”';
+    const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
     const systemPrompt = `
 You are an expert UI/UX Designer and Conversion Rate Optimizer.
 The user wants to redesign a specific "${sectionType}" section for the company "${companyName}".
@@ -358,23 +359,23 @@ Rewrite the text content in Hebrew to match the user's prompt.
   },
 
   getFallbackSteps(prompt: string, companyName: string, brandDna: any) {
-    if (prompt.includes('׳׳›׳™׳¨׳”') || prompt.includes('׳§׳•׳¨׳¡')) {
+    if (prompt.includes('מכירה') || prompt.includes('קורס')) {
       return [
         {
           sectionType: 'hero',
-          stepTitle: '׳‘׳ ׳™׳™׳× ׳׳–׳•׳¨ ׳׳›׳™׳¨׳” ׳¨׳׳©׳™',
-          statusText: '׳™׳•׳¦׳¨ ׳›׳•׳×׳¨׳× ׳¢׳ ׳§׳™׳×, ׳׳–׳•׳¨ split ׳•׳×׳—׳•׳©׳× ׳“׳—׳™׳₪׳•׳×...',
-          data: { title: `׳”׳”׳–׳“׳׳ ׳•׳× ׳©׳׳ ׳¢׳ ${companyName}`, subtitle: '׳”׳¦׳˜׳¨׳£ ׳¢׳›׳©׳™׳•', description: '׳׳ ׳×׳₪׳¡׳₪׳¡׳• ׳׳× ׳”׳”׳–׳“׳׳ ׳•׳× ׳׳©׳ ׳•׳× ׳׳× ׳”׳—׳™׳™׳ ׳©׳׳›׳.', layout: 'split', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: '׳”׳¦׳˜׳¨׳₪׳• ׳¢׳›׳©׳™׳•', url: '#pricing' } }
+          stepTitle: 'בניית אזור מכירה ראשי',
+          statusText: 'יוצר כותרת ענקית, אזור split ותחושת דחיפות...',
+          data: { title: `ההזדמנות שלך עם ${companyName}`, subtitle: 'הצטרף עכשיו', description: 'אל תפספסו את ההזדמנות לשנות את החיים שלכם.', layout: 'split', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'הצטרפו עכשיו', url: '#pricing' } }
         },
-        { sectionType: 'pricing', stepTitle: '׳׳—׳™׳¨׳•׳ ׳•׳׳¡׳׳•׳׳™׳', statusText: '׳‘׳•׳ ׳” ׳—׳‘׳™׳׳•׳× ׳×׳׳—׳•׳¨...', data: { title: '׳‘׳—׳¨׳• ׳׳× ׳”׳׳¡׳׳•׳ ׳©׳׳›׳', packages: [{id:'1', name:'VIP', priceMonthly:'ג‚×990', isFeatured:true, buttonText:'׳”׳¨׳©׳׳”'}] } },
+        { sectionType: 'pricing', stepTitle: 'מחירון ומסלולים', statusText: 'בונה חבילות תמחור...', data: { title: 'בחרו את המסלול שלכם', packages: [{id:'1', name:'VIP', priceMonthly:'₪990', isFeatured:true, buttonText:'הרשמה'}] } },
       ];
     }
     return [
       {
         sectionType: 'hero',
-        stepTitle: '׳‘׳ ׳™׳™׳× ׳׳–׳•׳¨ ׳¨׳׳©׳™ (Hero)',
-        statusText: '׳™׳•׳¦׳¨ ׳›׳•׳×׳¨׳× ׳׳¨׳©׳™׳׳”...',
-        data: { title: `׳”׳¦׳¢׳“ ׳”׳‘׳ ׳©׳׳›׳ ׳¢׳ ${companyName}`, description: '׳”׳₪׳׳˜׳₪׳•׳¨׳׳” ׳”׳׳•׳‘׳™׳׳” ׳‘׳׳¨׳¥.', layout: 'bento-hero', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: '׳”׳×׳—׳™׳׳• ׳¢׳›׳©׳™׳•', url: '#contact' } }
+        stepTitle: 'בניית אזור ראשי (Hero)',
+        statusText: 'יוצר כותרת מרשימה...',
+        data: { title: `הצעד הבא שלכם עם ${companyName}`, description: 'הפלטפורמה המובילה בארץ.', layout: 'bento-hero', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'התחילו עכשיו', url: '#contact' } }
       }
     ];
   }
