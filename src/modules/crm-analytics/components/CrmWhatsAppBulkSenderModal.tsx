@@ -4,7 +4,7 @@ import {
   Paperclip, Pause, Play, RefreshCw, MessageSquare, Check, ChevronDown, CheckSquare, Square
 } from 'lucide-react';
 import { Contact } from '../types';
-import { getGreenApiService } from '../../smart-form-builder/services/formWhatsAppService';
+import { getCrmWhatsAppService, buildWaMeUrl } from '../services/crmWhatsAppService';
 
 export interface CrmWhatsAppRecipient {
   contact: Contact;
@@ -113,9 +113,9 @@ export const CrmWhatsAppBulkSenderModal: React.FC<Props> = ({
       return;
     }
 
-    const greenService = getGreenApiService();
+    const greenService = getCrmWhatsAppService();
     if (!greenService || !greenService.isConfigured()) {
-      setErrorBanner('שירות Green-API אינו מוגדר או חסרים פרטי התחברות (Instance ID / Token)');
+      setErrorBanner('שירות Green-API אינו מוגדר או חסרים פרטי התחברות (Instance ID / Token). ניתן לשלוח פרטנית באמצעות קישורי WhatsApp ישירים.');
       return;
     }
 

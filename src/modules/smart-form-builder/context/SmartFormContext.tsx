@@ -10,6 +10,9 @@ import {
 } from '../services/formStorageService';
 import { generateSmartFormWithAI, AIBrainstormInput } from '../services/aiFormService';
 import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { FormBuilderContract } from '../../../core/contracts';
+import { FormSubmissionsTable } from '../components/analytics/FormSubmissionsTable';
 
 
 export interface SmartFormContextValue {
@@ -49,6 +52,30 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
+
+  // Register form-builder capability for sibling modules
+  useEffect(() => {
+    const contract: FormBuilderContract = {
+      getForms: async () => {
+        return forms.map(f => ({
+          id: f.id,
+          title: f.title,
+          submissionsCount: f.submissionsCount,
+        }));
+      },
+      renderSubmissionsTable: (formId: string) => {
+        const targetForm = forms.find(f => f.id === formId);
+        if (!targetForm) return null;
+        return <FormSubmissionsTable form={targetForm} />;
+      },
+    };
+    registerCapability('form-builder', contract);
+    return () => {
+      unregisterCapability('form-builder');
+    };
+  }, [forms, registerCapability, unregisterCapability]);
 
   // Subscribe to forms
   useEffect(() => {

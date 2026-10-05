@@ -1,8 +1,9 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
-  X, MessageSquare, Phone, Mail, Copy, Check 
+  X, MessageSquare, Phone, Mail, Copy, Check, UserCheck, Download 
 } from 'lucide-react';
 import { Contact } from '../../types';
+import { downloadVCard } from '../../services/vcardService';
 
 interface Props {
   contact: Contact;
@@ -85,6 +86,16 @@ export const ContactModalHeader: React.FC<Props> = ({ contact, onClose }) => {
             <Mail className="w-3.5 h-3.5" />
           </a>
         )}
+        {/* Mobile-First: Export to Native Phone Contacts (vCard) */}
+        <button
+          onClick={() => downloadVCard(contact)}
+          className="px-2.5 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300 flex items-center gap-1.5 transition"
+          title="שמור לאנשי הקשר בטלפון (vCard)"
+        >
+          <UserCheck className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">שמור בטלפון</span>
+        </button>
+
         <button
           onClick={handleCopyPhone}
           className="p-2 text-xs font-medium rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition"

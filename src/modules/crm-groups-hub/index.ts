@@ -17,5 +17,8 @@ export * from './components/GroupTransferModal';
 export * from './components/GroupAddMembersModal';
 export * from './components/WhatsAppBroadcastModal';
 export * from './components/WhatsAppGroupImportView';
+export * from './components/GroupEngagementRadar';
+export * from './components/CommunityMicroPortalView';
+export * from './components/CommunityChatRoomView';
 export * from './components/ColumnPickerDropdown';
 export * from './StandaloneView';

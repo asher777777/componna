@@ -4,7 +4,7 @@ import { useFormSubmissions } from '../../hooks/useFormSubmissions';
 import { FormAnalyticsSummary } from './FormAnalyticsSummary';
 import { SubmissionDetailModal } from './SubmissionDetailModal';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
-import { syncSmartFormSubmissionsToContacts } from '../../../crm-analytics/services/smartFormCrmSyncService';
+import { eventBus } from '../../../../core/bridge/EventBus';
 import {
   Search,
   Download,
@@ -45,11 +45,20 @@ export const FormSubmissionsTable: React.FC<FormSubmissionsTableProps> = ({
     setIsSyncing(true);
     setSyncStatus(null);
     try {
-      const res = await syncSmartFormSubmissionsToContacts(undefined, form.id);
-      setSyncStatus(`סונכרנו ${res.totalProcessed} הגשות בהצלחה ל-CRM!`);
+      // Broadcast submissions sync event via core eventBus without direct dependency on CRM
+      submissions.forEach(sub => {
+        eventBus.publish('smart_form:submitted', {
+          formId: form.id,
+          formTitle: form.title,
+          submissionId: sub.id,
+          data: sub.answers || {},
+          submittedAt: sub.submittedAt || new Date().toISOString(),
+        });
+      });
+      setSyncStatus(`שודרו ${submissions.length} הגשות ל-CRM בהצלחה!`);
       setTimeout(() => setSyncStatus(null), 4000);
     } catch (err: any) {
-      setSyncStatus('שגיאה בסנכרון ל-CRM');
+      setSyncStatus('שגיאה בשידור ל-CRM');
     } finally {
       setIsSyncing(false);
     }

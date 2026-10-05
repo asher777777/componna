@@ -8,16 +8,69 @@ const cors = corsLib({ origin: true });
 admin.initializeApp();
 const db = admin.firestore();
 
+// Fire-and-forget contact extraction
+async function extractAndSaveContact(geminiKey: string, phone: string, messages: any[]) {
+  try {
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
+    
+    const prompt = `
+    Extract contact information from the following chat log.
+    If the user mentions their name, email, or business type, extract it.
+    Return ONLY a raw JSON object with the following structure (no markdown tags, no backticks).
+    {
+      "name": "extracted name or null",
+      "email": "extracted email or null",
+      "businessType": "extracted business type or null"
+    }
+    
+    Chat:
+    ${chatText}
+    `;
+    
+    const result = await model.generateContent(prompt);
+    const text = result.response.text().trim().replace(/```json/g, '').replace(/```/g, '');
+    const data = JSON.parse(text);
+    
+    if (data.name || data.email || data.businessType) {
+      // Find existing contact
+      const contactSnap = await db.collection('contacts').where('phone', '==', phone).get();
+      if (contactSnap.empty) {
+        // Create new
+        await db.collection('contacts').add({
+          phone: phone,
+          name: data.name || phone,
+          email: data.email || '',
+          businessType: data.businessType || '',
+          source: 'WhatsApp AI Bot',
+          createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // Update existing
+        const docId = contactSnap.docs[0].id;
+        const existing = contactSnap.docs[0].data();
+        await db.collection('contacts').doc(docId).set({
+          name: data.name || existing.name,
+          email: data.email || existing.email,
+          businessType: data.businessType || existing.businessType,
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        }, { merge: true });
+      }
+    }
+  } catch (err) {
+    console.error('Extraction error:', err);
+  }
+}
+
 // Webhook for Green API
 export const whatsappWebhook = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
-    // Green API sends POST requests for webhooks
     if (req.method !== 'POST' && req.method !== 'GET') {
       res.status(405).send('Method Not Allowed');
       return;
     }
     
-    // For test ping or plain GET
     if (req.method === 'GET') {
       res.status(200).send('Webhook is running');
       return;
@@ -31,13 +84,17 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
 
   const messageText = body.messageData?.textMessageData?.textMessage;
   const sender = body.senderData?.sender;
-  if (!messageText || !sender) {
-    res.status(200).send('No text or sender');
+  const targetChatId = body.senderData?.chatId || sender;
+  
+  if (!messageText || !targetChatId) {
+    res.status(200).send('No text or targetChatId');
     return;
   }
 
+  const phone = targetChatId.split('@')[0];
+
   try {
-    // 1. Fetch API Keys from Firestore (system_settings/global)
+    // 1. Fetch API Keys
     const settingsDoc = await db.collection('system_settings').doc('global').get();
     const apiKeys = settingsDoc.data()?.apiKeys || {};
     const geminiKey = apiKeys.googleAiApiKey;
@@ -45,32 +102,46 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     const greenApiToken = apiKeys.greenApiToken;
 
     if (!geminiKey || !greenApiInstanceId || !greenApiToken) {
-      console.error('Missing API keys in system_settings/global');
       res.status(500).send('Missing keys');
       return;
     }
 
-    // 2. Fetch Active Bots from Firestore
-    // Note: The frontend needs to be updated to save bots to this collection!
-    const botsSnapshot = await db.collection('whatsapp_ai_bots').where('isActive', '==', true).get();
-    
+    // 2. Load Chat History
+    const chatDocRef = db.collection('wa_bot_chats').doc(targetChatId);
+    const chatDoc = await chatDocRef.get();
+    let chatHistory: any[] = [];
+    if (chatDoc.exists) {
+      chatHistory = chatDoc.data()?.messages || [];
+    }
+
+    // 3. Detect Bot Trigger (only if it's the start of a conversation, or if the bot is already engaged)
     let triggeredBot = null;
+    let activeBotId = chatDoc.data()?.botId;
+
+    const botsSnapshot = await db.collection('whatsapp_ai_bots').where('isActive', '==', true).get();
     const textLower = messageText.toLowerCase();
 
-    for (const doc of botsSnapshot.docs) {
-      const bot = doc.data();
-      
-      if (bot.triggerType === 'all') {
-        triggeredBot = bot;
-        break;
-      } else if (bot.triggerType === 'keyword' && Array.isArray(bot.triggerKeywords)) {
-        const matches = bot.triggerKeywords.some((kw: string) => {
-          const kwLower = kw.trim().toLowerCase();
-          return kwLower.length > 0 && textLower.includes(kwLower);
-        });
-        if (matches) {
+    // If bot was already engaged in this chat, keep using it
+    if (activeBotId) {
+      triggeredBot = botsSnapshot.docs.find(d => d.id === activeBotId)?.data() || null;
+    }
+    
+    // Otherwise check for keyword triggers
+    if (!triggeredBot) {
+      for (const doc of botsSnapshot.docs) {
+        const bot = doc.data();
+        if (bot.triggerType === 'all') {
           triggeredBot = bot;
           break;
+        } else if (bot.triggerType === 'keyword' && Array.isArray(bot.triggerKeywords)) {
+          const matches = bot.triggerKeywords.some((kw: string) => {
+            const kwLower = kw.trim().toLowerCase();
+            return kwLower.length > 0 && textLower.includes(kwLower);
+          });
+          if (matches) {
+            triggeredBot = bot;
+            break;
+          }
         }
       }
     }
@@ -80,48 +151,87 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
       return;
     }
 
-    console.log(`Bot ${triggeredBot.name} triggered by ${sender}`);
+    // 4. CRM Contact Check
+    const contactSnap = await db.collection('contacts').where('phone', '==', phone).get();
+    const contactName = contactSnap.empty ? null : (contactSnap.docs[0].data().name || null);
 
-    // 3. Generate AI Response
+    // 5. Append strict logic to System Prompt
+    let strictPrompt = triggeredBot.systemPrompt + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
+    strictPrompt += '1. התשובות שלך חייבות להיות **קצרות מאוד ותמציתיות** (עד 2-3 משפטים בלבד).\n';
+    strictPrompt += '2. אם הלקוח מבקש מידע ארוך (כמו חבילות), תן לו אותו מתומצת מאוד בנקודות קצרות.\n';
+    strictPrompt += '3. סיים כל הודעה שלך ב**שאלה ממוקדת** כדי להוביל את השיחה.\n';
+    
+    if (!contactName) {
+      strictPrompt += '4. הלקוח הזה חדש ואין לנו את השם שלו! הדבר הראשון שעליך לעשות עכשיו זה לשאול לשמו (בצורה טבעית וקצרה). אל תציע שום חבילה או מידע לפני שהוא מוסר את השם.\n';
+    } else {
+      strictPrompt += `4. שם הלקוח הוא "${contactName}". השתמש בו לפעמים בשיחה.\n`;
+    }
+    strictPrompt += '5. אם אין לך תשובה טובה, תגיד שאתה מעביר את הפנייה לנציג אנושי.\n';
+
+    // 6. Generate AI Response
     const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ 
       model: triggeredBot.model || 'gemini-1.5-flash',
-      systemInstruction: triggeredBot.systemPrompt
+      systemInstruction: strictPrompt
     });
 
+    const contents = chatHistory.map(msg => ({
+      role: msg.role === 'model' ? 'model' : 'user',
+      parts: [{ text: msg.text }]
+    }));
+    contents.push({ role: 'user', parts: [{ text: messageText }] });
+
     const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: messageText }] }],
+      contents,
       generationConfig: {
         temperature: triggeredBot.temperature || 0.7,
       }
     });
 
-    const replyText = result.response.text();
-
-    if (replyText) {
-      // 4. Send message back via Green API using correct cluster prefix
-      let host = 'https://api.green-api.com';
-      if (greenApiInstanceId && greenApiInstanceId.length >= 4) {
-        const cluster = greenApiInstanceId.slice(0, 4);
-        host = `https://${cluster}.api.greenapi.com`;
-      }
-      const greenApiUrl = `${host}/waInstance${greenApiInstanceId}/sendMessage/${greenApiToken}`;
-      
-      await fetch(greenApiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chatId: body.senderData?.chatId || sender,
-          message: replyText
-        })
-      });
-      console.log('Message sent successfully!');
+    let replyText = result.response.text();
+    
+    // Prevent empty loop
+    if (!replyText || replyText.trim() === '') {
+      replyText = 'אני מיד אבדוק את זה ואחזור אליך. בינתיים, האם יש עוד משהו שאוכל לעזור בו?';
     }
+
+    // 7. Update Chat History
+    chatHistory.push({ role: 'user', text: messageText, timestamp: Date.now() });
+    chatHistory.push({ role: 'model', text: replyText, timestamp: Date.now() });
+
+    await chatDocRef.set({
+      phone,
+      contactName: contactName || phone,
+      botId: triggeredBot.id,
+      botName: triggeredBot.name,
+      lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      messages: chatHistory
+    }, { merge: true });
+
+    // 8. Trigger Async Info Extraction
+    extractAndSaveContact(geminiKey, phone, chatHistory);
+
+    // 9. Send message back via Green API
+    let host = 'https://api.green-api.com';
+    if (greenApiInstanceId && greenApiInstanceId.length >= 4) {
+      const cluster = greenApiInstanceId.slice(0, 4);
+      host = `https://${cluster}.api.greenapi.com`;
+    }
+    const greenApiUrl = `${host}/waInstance${greenApiInstanceId}/sendMessage/${greenApiToken}`;
+    
+    await fetch(greenApiUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatId: targetChatId,
+        message: replyText
+      })
+    });
 
     res.status(200).send('Success');
   } catch (error) {
     console.error('Error processing webhook:', error);
     res.status(500).send('Internal Error');
   }
-  }); // End of cors wrapper
+  });
 });

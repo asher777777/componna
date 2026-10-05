@@ -29,6 +29,8 @@ function getCollNames(custom?: CrmGroupsCollectionsConfig) {
     pages: custom?.pages || DEFAULT_COLLECTIONS.pages,
     campaigns: custom?.campaigns || DEFAULT_COLLECTIONS.campaigns,
     interactions: custom?.interactions || DEFAULT_COLLECTIONS.interactions,
+    chatMessages: custom?.chatMessages || DEFAULT_COLLECTIONS.chatMessages,
+    videoRooms: custom?.videoRooms || DEFAULT_COLLECTIONS.videoRooms,
   };
 }
 
@@ -148,6 +150,24 @@ export async function fetchGroupsAndContactsData(
   const untaggedCount = contacts.filter((c) => {
     return !groups.some((g) => isContactInGroup(c, g));
   }).length;
+
+  // Fallback to rich mock data if Firestore has 0 contacts
+  if (contacts.length === 0 && savedGroups.size === 0) {
+    const mockGroupsWithCounts = MOCK_COMMUNITIES.map((g) => {
+      const count = MOCK_CONTACTS.filter((c) => isContactInGroup(c, g)).length;
+      return { ...g, count };
+    });
+    const mockUntagged = MOCK_CONTACTS.filter((c) => !mockGroupsWithCounts.some((g) => isContactInGroup(c, g))).length;
+    const mockCities = Array.from(new Set(MOCK_CONTACTS.map((c) => c.mh_crm_city).filter(Boolean) as string[])).sort();
+
+    return {
+      groups: mockGroupsWithCounts,
+      contacts: MOCK_CONTACTS,
+      totalContacts: MOCK_CONTACTS.length,
+      untaggedCount: mockUntagged,
+      availableCities: mockCities,
+    };
+  }
 
   return {
     groups,
@@ -605,3 +625,555 @@ export async function fetchCommunityInteractionsList(
 
   return interactions;
 }
+
+export async function addCommunityInteractionRecord(
+  db: Firestore | null,
+  interaction: Omit<CommunityInteraction, 'id'>,
+  customCollections?: CrmGroupsCollectionsConfig
+): Promise<string> {
+  const colls = getCollNames(customCollections);
+  const id = `act_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  if (!db) return id;
+
+  try {
+    const ref = doc(db, colls.interactions, id);
+    await setDoc(ref, {
+      id,
+      ...interaction,
+      createdAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('Could not save interaction:', err);
+  }
+  return id;
+}
+
+// ==========================================
+// Community Internal Chat & Video Services
+// ==========================================
+
+export async function fetchCommunityChatMessages(
+  db: Firestore | null,
+  communityId: string,
+  customCollections?: CrmGroupsCollectionsConfig
+): Promise<CommunityChatMessage[]> {
+  const colls = getCollNames(customCollections);
+  if (!db) {
+    return MOCK_CHAT_MESSAGES.filter((m) => m.communityId === communityId || m.communityName === communityId);
+  }
+
+  try {
+    const q = query(
+      collection(db, colls.chatMessages),
+      where('communityId', '==', communityId)
+    );
+    const snap = await getDocs(q);
+    const messages: CommunityChatMessage[] = [];
+    snap.forEach((d) => {
+      messages.push({ id: d.id, ...d.data() } as CommunityChatMessage);
+    });
+
+    messages.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+    return messages.length > 0
+      ? messages
+      : MOCK_CHAT_MESSAGES.filter((m) => m.communityId === communityId || m.communityName === communityId);
+  } catch (err) {
+    console.warn('Could not fetch community chat messages:', err);
+    return MOCK_CHAT_MESSAGES.filter((m) => m.communityId === communityId || m.communityName === communityId);
+  }
+}
+
+export async function sendCommunityChatMessage(
+  db: Firestore | null,
+  message: Omit<CommunityChatMessage, 'id' | 'createdAt'>,
+  customCollections?: CrmGroupsCollectionsConfig
+): Promise<CommunityChatMessage> {
+  const colls = getCollNames(customCollections);
+  const id = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+  const createdAt = new Date().toISOString();
+
+  const fullMessage: CommunityChatMessage = {
+    id,
+    ...message,
+    createdAt,
+  };
+
+  if (db) {
+    try {
+      const ref = doc(db, colls.chatMessages, id);
+      await setDoc(ref, fullMessage);
+    } catch (err) {
+      console.warn('Could not persist chat message to Firestore:', err);
+    }
+  }
+
+  return fullMessage;
+}
+
+export async function createOrGetCommunityVideoRoom(
+  db: Firestore | null,
+  community: SmartGroup,
+  hostName: string,
+  customCollections?: CrmGroupsCollectionsConfig
+): Promise<CommunityVideoCallRoom> {
+  const colls = getCollNames(customCollections);
+  const roomId = `room_${community.id || 'comm'}_${community.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const cleanRoomSlug = `comona_${community.id || 'comm'}_${Math.abs(
+    community.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  )}`;
+  const jitsiUrl = `https://meet.jit.si/${cleanRoomSlug}#config.startWithAudioMuted=false&config.prejoinPageEnabled=false`;
+
+  const roomData: CommunityVideoCallRoom = {
+    id: roomId,
+    communityId: community.id,
+    communityName: community.name,
+    roomName: `חדר וידאו - ${community.name}`,
+    hostName: hostName || community.leaderName || 'מנהל הקהילה',
+    isActive: true,
+    participantsCount: 1,
+    jitsiUrl,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (db) {
+    try {
+      const ref = doc(db, colls.videoRooms, roomId);
+      await setDoc(ref, roomData, { merge: true });
+    } catch (err) {
+      console.warn('Could not save video room to Firestore:', err);
+    }
+  }
+
+  return roomData;
+}
+
+export const MOCK_CHAT_MESSAGES: CommunityChatMessage[] = [
+  {
+    id: 'msg_demo_1',
+    communityId: 'comm_ambassadors',
+    communityName: 'קהילת שגרירים',
+    senderId: 'cnt_4',
+    senderName: 'אביגיל שפירא',
+    senderPhone: '0584567890',
+    content: 'שלום לכל חברי קהילת השגרירים! שמחה לפתוח את הצ\'אט הפנימי שלנו. כאן נוכל להחליף רעיונות, לשתף מסמכים ולתאם פגישות.',
+    type: 'text',
+    createdAt: new Date(Date.now() - 3600000 * 5).toISOString(),
+  },
+  {
+    id: 'msg_demo_2',
+    communityId: 'comm_ambassadors',
+    communityName: 'קהילת שגרירים',
+    senderId: 'cnt_1',
+    senderName: 'יוסי כהן',
+    senderPhone: '0501234567',
+    content: 'מעולה! מצרף את מצגת היעדים לחודש הקרוב לעיונכם:',
+    type: 'file',
+    fileName: 'מצגת_יעדי_גיוס_2026.pdf',
+    fileSize: '2.4 MB',
+    fileUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&auto=format&fit=crop&q=80',
+    createdAt: new Date(Date.now() - 3600000 * 4).toISOString(),
+  },
+  {
+    id: 'msg_demo_3',
+    communityId: 'comm_ambassadors',
+    communityName: 'קהילת שגרירים',
+    senderId: 'cnt_8',
+    senderName: 'דניאל מזרחי',
+    senderPhone: '0548901234',
+    content: 'עברתי על המצגת, נראה מצוין. האם נקבע שיחת וידאו קבוצתית ביום חמישי לסגירת פרטים?',
+    type: 'text',
+    createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+  },
+  {
+    id: 'msg_demo_4',
+    communityId: 'comm_north_volunteers',
+    communityName: 'מתנדבי צפון',
+    senderId: 'cnt_5',
+    senderName: 'רועי ברק',
+    senderPhone: '0505678901',
+    content: 'שלום לצוות צפון! החלוקה מחר יוצאת בשעה 09:00 ממרכז כרמיאל. אנא אשרו הגעה.',
+    type: 'text',
+    createdAt: new Date(Date.now() - 3600000 * 6).toISOString(),
+  },
+  {
+    id: 'msg_demo_5',
+    communityId: 'comm_gold_vip',
+    communityName: 'תורמי זהב VIP',
+    senderId: 'cnt_2',
+    senderName: 'מרים לוי',
+    senderPhone: '0522345678',
+    content: 'ברוכים הבאים לפורום תורמי VIP. שמחים לעדכן שהפרויקט השנתי מתקדם כמתוכנן.',
+    type: 'text',
+    createdAt: new Date(Date.now() - 3600000 * 8).toISOString(),
+  },
+];
+
+export const MOCK_COMMUNITIES: SmartGroup[] = [
+  {
+    id: 'comm_ambassadors',
+    name: 'קהילת שגרירים',
+    color: '#6366f1',
+    description: 'רשת השגרירים המובילים לקידום הפעילות וגיוס חברים',
+    type: 'manual',
+    isCommunity: true,
+    category: 'community',
+    leaderName: 'אביגיל שפירא',
+    targetGoal: 75000,
+    currentRaised: 52400,
+    engagementScore: 94,
+    pageSlug: 'ambassadors-hq',
+    pageUrl: '/ambassadors-hq',
+    vision: 'בניית רשת חברתית תומכת המחברת בין שגרירים מובילים לפעילות חסד ארצית.',
+    purpose: 'הרחבת מעגלי ההתנדבות, גיוס תרומות ממוקד וייצוג הפרויקט במוקדי השפעה.',
+    gallery: [
+      'https://images.unsplash.com/photo-1511632765486-a01980e01a18?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=800&auto=format&fit=crop&q=80',
+    ],
+    feedPosts: [
+      {
+        id: 'post_1',
+        authorName: 'אביגיל שפירא',
+        content: 'שלום לכל השגרירים! חצינו את רף ה-50,000 ₪ לקמפיין השנתי בזכות המאמץ המדהים שלכם.',
+        type: 'announcement',
+        createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
+        likesCount: 14,
+      },
+      {
+        id: 'post_2',
+        authorName: 'צוות הנהלה',
+        content: 'מפגש שגרירים מחוז מרכז יתקיים ביום שלישי הבא ב-19:30. לינק לזום נשלח בוואטסאפ.',
+        type: 'post',
+        createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
+        likesCount: 9,
+      },
+    ],
+    count: 5,
+  },
+  {
+    id: 'comm_gold_vip',
+    name: 'תורמי זהב VIP',
+    color: '#eab308',
+    description: 'פורום תורמים מרכזיים ושותפי חזון ארוך טווח',
+    type: 'manual',
+    isCommunity: true,
+    category: 'community',
+    leaderName: 'יהונתן גולדברג',
+    targetGoal: 200000,
+    currentRaised: 165000,
+    engagementScore: 88,
+    pageSlug: 'gold-donors-vip',
+    pageUrl: '/gold-donors-vip',
+    vision: 'השקעה אסטרטגית בפיתוח תשתיות חינוכיות וחברתיות מתקדמות.',
+    purpose: 'ליווי שוטף של פרויקטי הדגל ויצירת רשת תמיכה פיננסית איתנה.',
+    gallery: [
+      'https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&auto=format&fit=crop&q=80',
+    ],
+    feedPosts: [
+      {
+        id: 'post_3',
+        authorName: 'יהונתן גולדברג',
+        content: 'עדכון רבעוני: הושלמה הקמת המרכז הקהילתי החדש. תודה לכל חברי פורום הזהב!',
+        type: 'video',
+        createdAt: new Date(Date.now() - 3600000 * 72).toISOString(),
+        likesCount: 22,
+      },
+    ],
+    count: 4,
+  },
+  {
+    id: 'comm_north_volunteers',
+    name: 'מתנדבי צפון',
+    color: '#10b981',
+    description: 'חמ"ל מתנדבים פעיל בגליל, בגולן ובעמקים',
+    type: 'manual',
+    isCommunity: true,
+    category: 'community',
+    leaderName: 'רועי ברק',
+    targetGoal: 40000,
+    currentRaised: 31200,
+    engagementScore: 91,
+    pageSlug: 'north-volunteers',
+    pageUrl: '/north-volunteers',
+    vision: 'הגעה לכל קשיש ומשפחה מבודדת בצפון עם סיוע חם, ציוד ומזון שבועי.',
+    purpose: 'חלוקת סלי מזון, שיפוץ מועדוניות והפעלת מוקד חירום שוטף.',
+    gallery: [
+      'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?w=800&auto=format&fit=crop&q=80',
+    ],
+    feedPosts: [
+      {
+        id: 'post_4',
+        authorName: 'רועי ברק',
+        content: 'מבצע חלוקת חורף יוצא לדרך! זקוקים ל-4 רכבים נוספים ביום שישי בבוקר באזור כרמיאל.',
+        type: 'announcement',
+        createdAt: new Date(Date.now() - 3600000 * 12).toISOString(),
+        likesCount: 18,
+      },
+    ],
+    count: 6,
+  },
+  {
+    id: 'smart_vip_active',
+    name: 'תורמים פעילים מעל ₪1,000',
+    color: '#8b5cf6',
+    description: 'סגמנט אוטומטי של תורמים עם היקף תרומות כולל של 1,000 ₪ ומעלה',
+    type: 'smart',
+    rules: [{ field: 'total_spent', operator: 'gte', value: 1000 }],
+    matchType: 'all',
+    isCommunity: false,
+    category: 'group',
+    count: 6,
+  },
+  {
+    id: 'smart_center_leads',
+    name: 'חברי מרכז הארץ',
+    color: '#06b6d4',
+    description: 'אנשי קשר מאזור תל אביב, רמת גן, גבעתיים ופתח תקווה',
+    type: 'smart',
+    rules: [{ field: 'mh_crm_city', operator: 'contains', value: 'תל אביב' }],
+    matchType: 'all',
+    isCommunity: false,
+    category: 'group',
+    count: 4,
+  },
+];
+
+export const MOCK_CONTACTS: ContactRecord[] = [
+  {
+    id: 'cnt_1',
+    conta_name: 'יוסי כהן',
+    conta_phone: '0501234567',
+    email: 'yossi.cohen@example.com',
+    mh_crm_city: 'תל אביב',
+    company_name: 'כהן טכנולוגיות',
+    job_title: 'מנכ"ל',
+    total_spent: 8500,
+    campaign_amount: 5000,
+    lead_source: 'וואטסאפ',
+    status: 'פעיל',
+    tags: ['קהילת שגרירים', 'תורמי זהב VIP', 'VIP'],
+    community: 'קהילת שגרירים',
+    createdAt: '2026-01-10T10:00:00.000Z',
+  },
+  {
+    id: 'cnt_2',
+    conta_name: 'מרים לוי',
+    conta_phone: '0522345678',
+    email: 'miriam.levi@example.com',
+    mh_crm_city: 'ירושלים',
+    company_name: 'קרן תקווה',
+    job_title: 'מנהלת קשרי חוץ',
+    total_spent: 12400,
+    campaign_amount: 8000,
+    lead_source: 'כנס שנתי',
+    status: 'פעיל',
+    tags: ['תורמי זהב VIP'],
+    community: 'תורמי זהב VIP',
+    createdAt: '2026-01-12T11:30:00.000Z',
+  },
+  {
+    id: 'cnt_3',
+    conta_name: 'דוד אברהם',
+    conta_phone: '0543456789',
+    email: 'david.avraham@example.com',
+    mh_crm_city: 'חיפה',
+    company_name: 'אברהם פתרונות',
+    job_title: 'סמנכ"ל תפעול',
+    total_spent: 450,
+    campaign_amount: 300,
+    lead_source: 'דף נחיתה',
+    status: 'פעיל',
+    tags: ['מתנדבי צפון'],
+    community: 'מתנדבי צפון',
+    createdAt: '2026-02-01T09:15:00.000Z',
+  },
+  {
+    id: 'cnt_4',
+    conta_name: 'אביגיל שפירא',
+    conta_phone: '0584567890',
+    email: 'avigail.shapira@example.com',
+    mh_crm_city: 'תל אביב',
+    company_name: 'שגרירי חסד',
+    job_title: 'מובילת קהילה',
+    total_spent: 3200,
+    campaign_amount: 2500,
+    lead_source: 'שגריר',
+    status: 'פעיל',
+    tags: ['קהילת שגרירים'],
+    community: 'קהילת שגרירים',
+    createdAt: '2026-01-05T08:00:00.000Z',
+  },
+  {
+    id: 'cnt_5',
+    conta_name: 'רועי ברק',
+    conta_phone: '0505678901',
+    email: 'roei.barak@example.com',
+    mh_crm_city: 'כרמיאל',
+    company_name: 'עמותת הצפון',
+    job_title: 'רכז מתנדבים',
+    total_spent: 200,
+    campaign_amount: 0,
+    lead_source: 'וואטסאפ',
+    status: 'פעיל',
+    tags: ['מתנדבי צפון'],
+    community: 'מתנדבי צפון',
+    createdAt: '2026-02-10T14:20:00.000Z',
+  },
+  {
+    id: 'cnt_6',
+    conta_name: 'שרה גולד',
+    conta_phone: '0526789012',
+    email: 'sara.gold@example.com',
+    mh_crm_city: 'רעננה',
+    company_name: 'השקעות שרה',
+    job_title: 'משקיעה',
+    total_spent: 25000,
+    campaign_amount: 20000,
+    lead_source: 'המלצה',
+    status: 'פעיל',
+    tags: ['תורמי זהב VIP', 'קהילת שגרירים'],
+    community: 'תורמי זהב VIP',
+    createdAt: '2026-01-18T16:00:00.000Z',
+  },
+  {
+    id: 'cnt_7',
+    conta_name: 'יונתן ישראלי',
+    conta_phone: '0537890123',
+    email: 'yonatan.israeli@example.com',
+    mh_crm_city: 'קרית שמונה',
+    company_name: 'גליל לוגיסטיקה',
+    job_title: 'נהג חלוקה',
+    total_spent: 150,
+    campaign_amount: 50,
+    lead_source: 'פייסבוק',
+    status: 'פעיל',
+    tags: ['מתנדבי צפון'],
+    community: 'מתנדבי צפון',
+    createdAt: '2026-02-15T12:00:00.000Z',
+  },
+  {
+    id: 'cnt_8',
+    conta_name: 'דניאל מזרחי',
+    conta_phone: '0548901234',
+    email: 'daniel.mizrahi@example.com',
+    mh_crm_city: 'ראשון לציון',
+    company_name: 'מזרחי פרויקטים',
+    job_title: 'יועץ',
+    total_spent: 1800,
+    campaign_amount: 1200,
+    lead_source: 'טופס חכם',
+    status: 'פעיל',
+    tags: ['קהילת שגרירים'],
+    community: 'קהילת שגרירים',
+    createdAt: '2026-02-20T17:30:00.000Z',
+  },
+  {
+    id: 'cnt_9',
+    conta_name: 'מיכל פרידמן',
+    conta_phone: '0589012345',
+    email: 'michal.friedman@example.com',
+    mh_crm_city: 'טבריה',
+    company_name: 'חינוך גליל',
+    job_title: 'מורָה',
+    total_spent: 100,
+    campaign_amount: 0,
+    lead_source: 'וואטסאפ',
+    status: 'פעיל',
+    tags: ['מתנדבי צפון'],
+    community: 'מתנדבי צפון',
+    createdAt: '2026-02-22T08:45:00.000Z',
+  },
+  {
+    id: 'cnt_10',
+    conta_name: 'אליהו קליין',
+    conta_phone: '0501122334',
+    email: 'eliyahu.klein@example.com',
+    mh_crm_city: 'בני ברק',
+    company_name: 'קליין הפקות',
+    job_title: 'מפיק',
+    total_spent: 4200,
+    campaign_amount: 3500,
+    lead_source: 'העברה בנקאית',
+    status: 'פעיל',
+    tags: ['תורמי זהב VIP'],
+    community: 'תורמי זהב VIP',
+    createdAt: '2026-01-25T13:10:00.000Z',
+  },
+  {
+    id: 'cnt_11',
+    conta_name: 'נועה אטיאס',
+    conta_phone: '0522233445',
+    email: 'noa.atias@example.com',
+    mh_crm_city: 'תל אביב',
+    company_name: 'סטודיו אטיאס',
+    job_title: 'מעצבת',
+    total_spent: 600,
+    campaign_amount: 500,
+    lead_source: 'אינסטגרם',
+    status: 'פעיל',
+    tags: ['קהילת שגרירים'],
+    community: 'קהילת שגרירים',
+    createdAt: '2026-02-25T15:20:00.000Z',
+  },
+  {
+    id: 'cnt_12',
+    conta_name: 'אורי שוורץ',
+    conta_phone: '0543344556',
+    email: 'uri.schwartz@example.com',
+    mh_crm_city: 'נהריה',
+    company_name: 'שוורץ בנייה',
+    job_title: 'קבלן',
+    total_spent: 800,
+    campaign_amount: 600,
+    lead_source: 'קבוצת וואטסאפ',
+    status: 'פעיל',
+    tags: ['מתנדבי צפון'],
+    community: 'מתנדבי צפון',
+    createdAt: '2026-02-27T11:00:00.000Z',
+  },
+  {
+    id: 'cnt_13',
+    conta_name: 'יעל דגן',
+    conta_phone: '0584455667',
+    email: 'yael.dagan@example.com',
+    mh_crm_city: 'רמת גן',
+    company_name: 'דגן תקשורת',
+    job_title: 'אשת יחסי ציבור',
+    total_spent: 950,
+    campaign_amount: 950,
+    lead_source: 'לינקדין',
+    status: 'פעיל',
+    tags: [],
+    createdAt: '2026-03-01T09:00:00.000Z',
+  },
+  {
+    id: 'cnt_14',
+    conta_name: 'אלון חסון',
+    conta_phone: '0505566778',
+    email: 'alon.hasson@example.com',
+    mh_crm_city: 'פתח תקווה',
+    company_name: 'חסון השקעות',
+    job_title: 'אנליסט',
+    total_spent: 0,
+    campaign_amount: 0,
+    lead_source: 'טופס התעניינות',
+    status: 'פעיל',
+    tags: [],
+    createdAt: '2026-03-02T10:30:00.000Z',
+  },
+  {
+    id: 'cnt_15',
+    conta_name: 'רותי נאור',
+    conta_phone: '0526677889',
+    email: 'ruti.naor@example.com',
+    mh_crm_city: 'צפת',
+    company_name: 'נאור קולינריה',
+    job_title: 'שפית',
+    total_spent: 350,
+    campaign_amount: 250,
+    lead_source: 'וואטסאפ',
+    status: 'פעיל',
+    tags: ['מתנדבי צפון'],
+    community: 'מתנדבי צפון',
+    createdAt: '2026-03-03T14:00:00.000Z',
+  },
+];

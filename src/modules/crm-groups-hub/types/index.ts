@@ -62,6 +62,59 @@ export interface SmartGroup {
   mainCampaignId?: string;
   campaignTitle?: string;
   engagementScore?: number;
+  feedPosts?: CommunityPost[];
+}
+
+export interface CommunityPost {
+  id: string;
+  authorName: string;
+  content: string;
+  type: 'post' | 'audio' | 'video' | 'announcement';
+  mediaUrl?: string;
+  createdAt: string;
+  likesCount?: number;
+}
+
+export interface CommunitySurveyOption {
+  optionName: string;
+}
+
+export interface CommunitySurvey {
+  id?: string;
+  title: string;
+  options: string[];
+  multipleAnswers?: boolean;
+  targetGroupName?: string;
+  createdAt?: string;
+}
+
+export interface CommunityChatMessage {
+  id: string;
+  communityId: string;
+  communityName: string;
+  senderId: string;
+  senderName: string;
+  senderPhone?: string;
+  senderAvatar?: string;
+  content: string;
+  type: 'text' | 'image' | 'video' | 'file' | 'system' | 'call_invite';
+  fileUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  createdAt: string;
+  reactions?: Record<string, string[]>;
+}
+
+export interface CommunityVideoCallRoom {
+  id: string;
+  communityId: string;
+  communityName: string;
+  roomName: string;
+  hostName: string;
+  isActive: boolean;
+  participantsCount: number;
+  jitsiUrl: string;
+  createdAt: string;
 }
 
 export interface ContactRecord {
@@ -153,6 +206,8 @@ export interface CrmGroupsCollectionsConfig {
   pages?: string;
   campaigns?: string;
   interactions?: string;
+  chatMessages?: string;
+  videoRooms?: string;
 }
 
 export interface CrmGroupsModuleProps {

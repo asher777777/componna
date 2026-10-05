@@ -105,6 +105,16 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     ]
   },
   {
+    id: 'crm-groups-hub',
+    defaultTitle: 'ניהול קהילות וקבוצות CRM',
+    defaultSlug: '/crm-groups',
+    description: 'מערכת רב-שכבתית לניהול קהילות, סגמנטציה חכמה, עמודי שגרירים, גיוס כספי וייבוא מתקדם מוואטסאפ',
+    iconName: 'Users',
+    requiredKeys: [
+      { key: 'greenApiToken', label: 'GREEN-API Token', description: 'לייבוא קבוצות וואטסאפ ושידור מסרים', isSecret: true }
+    ]
+  },
+  {
     id: 'template',
     defaultTitle: 'מודול תבנית בסיסי',
     defaultSlug: '/template',
@@ -121,6 +131,15 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
   logoUrl: '',
   primaryColor: '#6366f1',
   modules: {
+    'crm-groups-hub': {
+      moduleId: 'crm-groups-hub',
+      isEnabled: true,
+      customSlug: '/crm-groups',
+      customTitle: 'ניהול קהילות וקבוצות CRM',
+      requiredRole: 'editor' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'crm_groups'
+    },
     'page-builder': {
       moduleId: 'page-builder',
       isEnabled: true,

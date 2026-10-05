@@ -20,8 +20,13 @@ import {
   bulkDeleteContactsRecord,
   moveContactsBetweenGroups,
   toggleContactTag,
+  addCommunityInteractionRecord,
+  MOCK_COMMUNITIES,
+  MOCK_CONTACTS,
 } from '../services/firestoreService';
 import { GreenApiConfig } from '../services/whatsappService';
+import { eventBus } from '../../../core/bridge/EventBus';
+import type { LeadPayload } from '../../../core/contracts';
 
 export interface CrmGroupsContextValue {
   db: Firestore | null;
@@ -69,6 +74,16 @@ export interface CrmGroupsContextValue {
   bulkDeleteContacts: (contactIds: string[]) => Promise<void>;
   bulkMoveBetweenGroups: (contactIds: string[], sourceGroupName: string, targetGroupName: string) => Promise<void>;
   toggleContactTag: (contactId: string, groupName: string) => Promise<void>;
+  recordInteraction: (interaction: {
+    contactId: string;
+    contactName?: string;
+    contactPhone?: string;
+    type: 'whatsapp' | 'call' | 'donation' | 'note' | 'system' | 'email';
+    title?: string;
+    content: string;
+    groupName?: string;
+    metadata?: Record<string, any>;
+  }) => Promise<string>;
 
   // Callbacks & Integrations
   onOpenContactDetail?: (contact: ContactRecord) => void;
@@ -143,6 +158,23 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   // Load Data
   const loadData = useCallback(async () => {
     if (!db) {
+      // Mock Fallback when Firestore is null / offline
+      const mockGroupsWithCounts = MOCK_COMMUNITIES.map((g) => {
+        const count = MOCK_CONTACTS.filter((c) => isContactInGroup(c, g)).length;
+        return { ...g, count };
+      });
+      const mockUntagged = MOCK_CONTACTS.filter((c) => !mockGroupsWithCounts.some((g) => isContactInGroup(c, g))).length;
+      const mockCities = Array.from(new Set(MOCK_CONTACTS.map((c) => c.mh_crm_city).filter(Boolean) as string[])).sort();
+
+      setContacts(MOCK_CONTACTS);
+      setGroups(mockGroupsWithCounts);
+      setTotalContacts(MOCK_CONTACTS.length);
+      setUntaggedCount(mockUntagged);
+      setAvailableCities(mockCities);
+      setCampaigns([
+        { id: 'camp_1', title: '🎯 קמפיין שגרירים שנתי', category: 'קמפיינים', type: 'campaign', url: '/c/camp_1', target: 100000, currentAmount: 72000 },
+        { id: 'camp_2', title: '🎯 חלוקת חורף למשפחות', category: 'קמפיינים', type: 'campaign', url: '/c/camp_2', target: 50000, currentAmount: 38000 },
+      ]);
       setLoading(false);
       return;
     }
@@ -168,6 +200,60 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
 
   useEffect(() => {
     loadData();
+  }, [loadData]);
+
+  // EventBus Subscriptions: Listen to crm:lead:created and smart_form:submitted
+  useEffect(() => {
+    const unsubLead = eventBus.subscribe('crm:lead:created', (payload: LeadPayload) => {
+      if (!payload || !payload.conta_phone) return;
+      setContacts((prev) => {
+        const existingIdx = prev.findIndex((c) => c.conta_phone === payload.conta_phone);
+        const tags = Array.isArray(payload.tags) ? payload.tags : [];
+        if (payload.community && !tags.includes(payload.community)) {
+          tags.push(payload.community);
+        }
+
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          const existing = updated[existingIdx];
+          const mergedTags = Array.from(new Set([...(existing.tags || []), ...tags]));
+          updated[existingIdx] = {
+            ...existing,
+            conta_name: payload.conta_name || existing.conta_name,
+            email: payload.email || existing.email,
+            community: payload.community || existing.community,
+            tags: mergedTags,
+            updatedAt: new Date().toISOString(),
+          };
+          return updated;
+        } else {
+          const newContact: ContactRecord = {
+            id: `lead_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            conta_name: payload.conta_name || 'ליד חדש',
+            conta_phone: payload.conta_phone,
+            email: payload.email,
+            lead_source: payload.source || 'EventBus',
+            community: payload.community,
+            tags,
+            status: 'פעיל',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          return [newContact, ...prev];
+        }
+      });
+    });
+
+    const unsubForm = eventBus.subscribe('smart_form:submitted', (evt) => {
+      if (evt?.leadPayload?.community || (evt?.leadPayload?.tags && evt.leadPayload.tags.length > 0)) {
+        loadData();
+      }
+    });
+
+    return () => {
+      unsubLead();
+      unsubForm();
+    };
   }, [loadData]);
 
   // Derived group lists
@@ -265,14 +351,41 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
 
   // Actions
   const saveGroup = async (groupData: Partial<SmartGroup> & { previousName?: string; createPage?: boolean }) => {
-    if (!db) throw new Error('Database not initialized');
+    if (!db) {
+      // Offline local save
+      const id = groupData.id || `group_${Date.now()}`;
+      const newGroup: SmartGroup = {
+        id,
+        name: groupData.name || 'קבוצה חדשה',
+        color: groupData.color || '#4f46e5',
+        type: groupData.type || 'manual',
+        isCommunity: Boolean(groupData.createPage || groupData.isCommunity),
+        ...groupData,
+      };
+      setGroups((prev) => {
+        const idx = prev.findIndex((g) => g.id === id || g.name === groupData.previousName);
+        if (idx >= 0) {
+          const next = [...prev];
+          next[idx] = newGroup;
+          return next;
+        }
+        return [...prev, newGroup];
+      });
+      return { success: true, id, pageUrl: newGroup.pageUrl };
+    }
     const res = await saveGroupOrCommunityRecord(db, ownerId, groupData, customCollections);
     await loadData();
     return res;
   };
 
   const deleteGroup = async (group: SmartGroup) => {
-    if (!db) return;
+    if (!db) {
+      setGroups((prev) => prev.filter((g) => g.id !== group.id));
+      if (activeGroupId === group.id || activeGroupId === group.name) {
+        setActiveGroupId('__all__');
+      }
+      return;
+    }
     await deleteGroupRecord(db, group, customCollections);
     if (activeGroupId === group.id || activeGroupId === group.name) {
       setActiveGroupId('__all__');
@@ -287,30 +400,99 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   };
 
   const bulkAssignToGroup = async (contactIds: string[], groupName: string) => {
-    if (!db) return;
-    await bulkAssignGroupToContacts(db, contactIds, groupName, customCollections);
+    if (db) {
+      await bulkAssignGroupToContacts(db, contactIds, groupName, customCollections);
+    }
+    // Update local state and publish events
+    setContacts((prev) =>
+      prev.map((c) => {
+        if (!contactIds.includes(c.id)) return c;
+        const currentTags: string[] = Array.isArray(c.tags) ? c.tags : [];
+        const nextTags = currentTags.includes(groupName) ? currentTags : [...currentTags, groupName];
+        eventBus.publish('crm:contact:updated', { id: c.id, tags: nextTags, community: groupName, conta_name: c.conta_name, email: c.email });
+        return { ...c, tags: nextTags, community: groupName };
+      })
+    );
     setSelectedContactIds([]);
-    await loadData();
+    if (db) await loadData();
   };
 
   const bulkDeleteContacts = async (contactIds: string[]) => {
-    if (!db) return;
-    await bulkDeleteContactsRecord(db, contactIds, customCollections);
+    if (db) {
+      await bulkDeleteContactsRecord(db, contactIds, customCollections);
+    }
+    setContacts((prev) => prev.filter((c) => !contactIds.includes(c.id)));
     setSelectedContactIds([]);
-    await loadData();
+    if (db) await loadData();
   };
 
   const bulkMoveBetweenGroups = async (contactIds: string[], sourceGroupName: string, targetGroupName: string) => {
-    if (!db) return;
-    await moveContactsBetweenGroups(db, contactIds, sourceGroupName, targetGroupName, customCollections);
+    if (db) {
+      await moveContactsBetweenGroups(db, contactIds, sourceGroupName, targetGroupName, customCollections);
+    }
+    setContacts((prev) =>
+      prev.map((c) => {
+        if (!contactIds.includes(c.id)) return c;
+        let tags: string[] = Array.isArray(c.tags) ? c.tags : [];
+        if (sourceGroupName) tags = tags.filter((t) => t !== sourceGroupName);
+        if (!tags.includes(targetGroupName)) tags.push(targetGroupName);
+        eventBus.publish('crm:contact:updated', { id: c.id, tags, community: targetGroupName, conta_name: c.conta_name, email: c.email });
+        return { ...c, tags, community: targetGroupName };
+      })
+    );
     setSelectedContactIds([]);
-    await loadData();
+    if (db) await loadData();
   };
 
   const toggleSingleTag = async (contactId: string, groupName: string) => {
-    if (!db) return;
-    await toggleContactTag(db, contactId, groupName, customCollections);
-    await loadData();
+    let nextTags: string[] = [];
+    if (db) {
+      nextTags = await toggleContactTag(db, contactId, groupName, customCollections);
+    } else {
+      const target = contacts.find((c) => c.id === contactId);
+      const curr = target?.tags || [];
+      nextTags = curr.includes(groupName) ? curr.filter((t) => t !== groupName) : [...curr, groupName];
+    }
+    setContacts((prev) =>
+      prev.map((c) => (c.id === contactId ? { ...c, tags: nextTags } : c))
+    );
+    eventBus.publish('crm:contact:updated', { id: contactId, tags: nextTags, community: groupName });
+    if (db) await loadData();
+  };
+
+  const recordInteraction = async (interaction: {
+    contactId: string;
+    contactName?: string;
+    contactPhone?: string;
+    type: 'whatsapp' | 'call' | 'donation' | 'note' | 'system' | 'email';
+    title?: string;
+    content: string;
+    groupName?: string;
+    metadata?: Record<string, any>;
+  }) => {
+    const id = await addCommunityInteractionRecord(
+      db,
+      {
+        ...interaction,
+        groupName: interaction.groupName || activeGroup.name,
+        date: new Date().toISOString(),
+        status: 'completed',
+      },
+      customCollections
+    );
+
+    // Also publish an event across the platform so CRM timeline updates immediately
+    eventBus.publish('crm:contact:updated', {
+      id: interaction.contactId,
+      lastInteraction: {
+        type: interaction.type,
+        title: interaction.title,
+        content: interaction.content,
+        date: new Date().toISOString(),
+      },
+    });
+
+    return id;
   };
 
   const value: CrmGroupsContextValue = {
@@ -349,6 +531,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     bulkDeleteContacts,
     bulkMoveBetweenGroups,
     toggleContactTag: toggleSingleTag,
+    recordInteraction,
     onOpenContactDetail,
     onOpenCampaignPage,
     greenApiConfig: greenApiCredentials,

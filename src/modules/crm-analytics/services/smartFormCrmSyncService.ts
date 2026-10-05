@@ -9,9 +9,6 @@ import {
 } from 'firebase/firestore';
 import { Contact } from '../types';
 import { DEFAULT_COLLECTIONS } from '../config';
-import { getSmartForms } from '../../smart-form-builder/services/formStorageService';
-import { getSubmissionsCollectionRef } from '../../smart-form-builder/services/submissionStorageService';
-import { SmartFormDefinition, SmartFormSubmission } from '../../smart-form-builder/types';
 import { eventBus } from '../../../core/bridge/EventBus';
 
 export interface SmartSyncResult {
@@ -19,6 +16,21 @@ export interface SmartSyncResult {
   createdCount: number;
   updatedCount: number;
   errors: string[];
+}
+
+export interface GenericFormSubmissionDoc {
+  id?: string;
+  formId?: string;
+  formTitle?: string;
+  submittedAt?: string;
+  answers?: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface GenericFormMeta {
+  id: string;
+  title: string;
+  [key: string]: any;
 }
 
 /**
@@ -37,8 +49,8 @@ export function normalizePhone(phone: any): string {
  * Extracts normalized contact info from a smart form submission
  */
 export function extractContactFromSubmission(
-  submission: SmartFormSubmission,
-  form: SmartFormDefinition
+  submission: GenericFormSubmissionDoc,
+  formTitle: string = 'פנייה מטופס דיגיטלי'
 ): {
   name: string;
   phone: string;
@@ -55,7 +67,7 @@ export function extractContactFromSubmission(
                answers['fullName'] || 
                answers['first_name'] || 
                answers['full_name'] || 
-               'פנייה מטופס דיגיטלי';
+               formTitle;
 
   // Find Phone
   const phone = answers['conta_phone'] || 
@@ -92,7 +104,8 @@ export function extractContactFromSubmission(
 }
 
 /**
- * Performs smart synchronization of all smart forms submissions into CRM contacts
+ * Performs smart synchronization of form submissions into CRM contacts directly via tenant Firestore
+ * collections, completely decoupled from smart-form-builder internal files.
  */
 export async function syncSmartFormSubmissionsToContacts(
   firebaseApp?: FirebaseApp,
@@ -127,8 +140,16 @@ export async function syncSmartFormSubmissionsToContacts(
       ...d.data(),
     } as Contact));
 
-    // 2. Fetch target forms or all smart forms
-    const allForms = await getSmartForms(db);
+    // 2. Fetch forms from the tenant forms collection
+    const formsCollName = collections.forms || 'mod_forms';
+    const formsCollRef = collection(db, formsCollName);
+    const formsSnap = await getDocs(formsCollRef);
+    const allForms: GenericFormMeta[] = formsSnap.docs.map(d => ({
+      id: d.id,
+      title: d.data().title || d.id,
+      ...d.data(),
+    }));
+
     const formsToSync = targetFormId 
       ? allForms.filter(f => f.id === targetFormId)
       : allForms;
@@ -137,16 +158,18 @@ export async function syncSmartFormSubmissionsToContacts(
       return result;
     }
 
-    // 3. Process each form's submissions
+    const subCollName = collections.formSubmissionsSubcollection || 'submissions';
+
+    // 3. Process each form's submissions directly from Firestore
     for (const form of formsToSync) {
       try {
-        const subCollRef = getSubmissionsCollectionRef(form.id, db);
+        const subCollRef = collection(db, formsCollName, form.id, subCollName);
         const subSnap = await getDocs(subCollRef);
 
         for (const subDoc of subSnap.docs) {
           result.totalProcessed += 1;
-          const subData = { id: subDoc.id, ...subDoc.data() } as SmartFormSubmission;
-          const extracted = extractContactFromSubmission(subData, form);
+          const subData = { id: subDoc.id, ...subDoc.data() } as GenericFormSubmissionDoc;
+          const extracted = extractContactFromSubmission(subData, form.title);
 
           const normPhone = normalizePhone(extracted.phone);
           const normEmail = (extracted.email || '').trim().toLowerCase();

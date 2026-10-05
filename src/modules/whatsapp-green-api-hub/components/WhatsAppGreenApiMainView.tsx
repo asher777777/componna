@@ -22,6 +22,7 @@ import { WhatsAppInstanceModal } from './WhatsAppInstanceModal';
 import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppWebChatView } from './WhatsAppWebChatView';
 import { WhatsAppAiBotTab } from './WhatsAppAiBotTab';
+import { WhatsAppAiBotChatsTab } from './WhatsAppAiBotChatsTab';
 import { WhatsAppStatusesTab } from './WhatsAppStatusesTab';
 import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
 import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
@@ -46,7 +47,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const isDark = theme === 'dark';
 
   // Active Tab - AI Bots is default landing tab
-  const [activeTab, setActiveTab] = useState<'webchat' | 'statuses' | 'aibots' | 'sender' | 'groups' | 'service'>('aibots');
+  const [activeTab, setActiveTab] = useState<'webchat' | 'statuses' | 'aibots' | 'aibotchats' | 'sender' | 'groups' | 'service'>('aibots');
 
   // Instance credentials pulled directly from central system connection
   const instanceId = apiKeys.greenApiInstanceId || '';
@@ -544,6 +545,11 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             onOpenSettings={() => openConnectorModal()}
             isDark={isDark}
           />
+        )}
+
+        {/* TAB 3.5: AI BOTS CHATS */}
+        {activeTab === 'aibotchats' && (
+          <WhatsAppAiBotChatsTab />
         )}
 
         {/* TAB 3: SENDER */}

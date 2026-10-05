@@ -26,6 +26,7 @@ interface GroupHeaderStatsBarProps {
   onOpenCreateGroup: (mode: 'group' | 'community' | 'smart') => void;
   onOpenWhatsAppBroadcast: () => void;
   onOpenWhatsAppImport: () => void;
+  onOpenCommunityPortal?: () => void;
   interactionsCount?: number;
 }
 
@@ -36,6 +37,7 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
   onOpenCreateGroup,
   onOpenWhatsAppBroadcast,
   onOpenWhatsAppImport,
+  onOpenCommunityPortal,
   interactionsCount = 0,
 }) => {
   const { activeGroupId, activeGroup, filteredContacts, onOpenCampaignPage } = useCrmGroups();
@@ -207,25 +209,37 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
             )}
           </div>
 
-          {/* Public Page Link */}
-          {activeGroup.pageUrl && (
-            <a
-              href={activeGroup.pageUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                if (onOpenCampaignPage) {
-                  e.preventDefault();
-                  onOpenCampaignPage(activeGroup.pageUrl!);
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold rounded-xl text-xs border border-indigo-200 transition-colors shadow-2xs"
-            >
-              <Globe className="w-3.5 h-3.5 text-indigo-600" />
-              <span>צפה בעמוד הקהילה הציבורי</span>
-              <ExternalLink className="w-3 h-3 opacity-70" />
-            </a>
-          )}
+          {/* Public Page Link / Portal View */}
+          <div className="flex items-center gap-2">
+            {onOpenCommunityPortal && (
+              <button
+                type="button"
+                onClick={onOpenCommunityPortal}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs cursor-pointer"
+              >
+                <Globe className="w-3.5 h-3.5" />
+                <span>פורטל קהילה ופיד</span>
+              </button>
+            )}
+
+            {activeGroup.pageUrl && (
+              <a
+                href={activeGroup.pageUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => {
+                  if (onOpenCampaignPage) {
+                    e.preventDefault();
+                    onOpenCampaignPage(activeGroup.pageUrl!);
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 transition-colors shadow-2xs"
+              >
+                <span>עמוד ציבורי</span>
+                <ExternalLink className="w-3 h-3 opacity-70" />
+              </a>
+            )}
+          </div>
         </div>
       )}
     </div>

@@ -6,6 +6,8 @@ export const DEFAULT_COLLECTIONS = {
   pages: 'pages',
   campaigns: 'campaigns',
   interactions: 'interactions',
+  chatMessages: 'crm_community_chats',
+  videoRooms: 'crm_community_video_rooms',
 };
 
 export const PRESET_COLORS = [

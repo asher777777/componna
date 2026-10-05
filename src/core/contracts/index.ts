@@ -31,6 +31,22 @@ export interface NotificationContract {
   notify: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
 
+export interface FormItemSummary {
+  id: string;
+  title: string;
+  submissionsCount?: number;
+}
+
+export interface FormBuilderContract {
+  getForms?: () => Promise<FormItemSummary[]>;
+  renderSubmissionsTable?: (formId: string, formTitle?: string) => React.ReactNode;
+}
+
+export interface WhatsAppContract {
+  sendMessage: (phone: string, text: string) => Promise<{ idMessage?: string; error?: string }>;
+  buildWaMeUrl: (phone: string, text?: string) => string;
+}
+
 export interface AuthSessionContract {
   uid: string;
   email: string;

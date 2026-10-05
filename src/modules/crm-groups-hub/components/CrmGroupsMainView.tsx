@@ -9,12 +9,14 @@ import { GroupTransferModal } from './GroupTransferModal';
 import { GroupAddMembersModal } from './GroupAddMembersModal';
 import { WhatsAppBroadcastModal } from './WhatsAppBroadcastModal';
 import { WhatsAppGroupImportView } from './WhatsAppGroupImportView';
+import { GroupEngagementRadar } from './GroupEngagementRadar';
+import { CommunityMicroPortalView } from './CommunityMicroPortalView';
 import { SmartGroup } from '../types';
 
 export const CrmGroupsMainView: React.FC = () => {
-  const { loading, onOpenContactDetail } = useCrmGroups();
+  const { loading, onOpenContactDetail, activeGroup, filteredContacts } = useCrmGroups();
 
-  const [mainMode, setMainMode] = useState<'manage' | 'whatsapp_import'>('manage');
+  const [mainMode, setMainMode] = useState<'manage' | 'whatsapp_import' | 'micro_portal'>('manage');
   const [currentTab, setCurrentTab] = useState<'contacts' | 'interactions'>('contacts');
 
   // Modal States
@@ -69,6 +71,18 @@ export const CrmGroupsMainView: React.FC = () => {
     );
   }
 
+  if (mainMode === 'micro_portal') {
+    return (
+      <div className="h-full w-full overflow-y-auto bg-slate-50/50 p-4 md:p-8 space-y-6 text-right font-sans" dir="rtl">
+        <CommunityMicroPortalView
+          community={activeGroup}
+          contacts={filteredContacts}
+          onBackToManage={() => setMainMode('manage')}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="h-full w-full overflow-y-auto bg-slate-50/50 p-4 md:p-8 space-y-6 text-right font-sans" dir="rtl">
       <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -87,7 +101,11 @@ export const CrmGroupsMainView: React.FC = () => {
             onOpenCreateGroup={handleOpenCreateGroup}
             onOpenWhatsAppBroadcast={() => handleOpenWhatsAppBroadcast()}
             onOpenWhatsAppImport={() => setMainMode('whatsapp_import')}
+            onOpenCommunityPortal={() => setMainMode('micro_portal')}
           />
+
+          {/* Community Engagement Radar & Advocate Heatmap */}
+          <GroupEngagementRadar />
 
           {currentTab === 'contacts' ? (
             <GroupContactsTable

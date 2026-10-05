@@ -202,3 +202,35 @@ export async function sendWhatsAppMessage(
     return false;
   }
 }
+
+export async function sendWhatsAppPoll(
+  chatIdOrPhone: string,
+  question: string,
+  options: string[],
+  multipleAnswers: boolean = false,
+  config?: GreenApiConfig
+): Promise<boolean> {
+  if (!config?.idInstance || !config?.apiTokenInstance || !chatIdOrPhone || !question) return false;
+
+  try {
+    const isGroup = chatIdOrPhone.includes('@');
+    const chatId = isGroup ? chatIdOrPhone : `${normalizePhoneNumber(chatIdOrPhone)}@c.us`;
+    const url = `${getGreenApiBaseUrl(config)}/sendPoll/${config.apiTokenInstance}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chatId,
+        message: question,
+        options: options.map((opt) => ({ optionName: opt })),
+        multipleAnswers,
+      }),
+    });
+
+    return res.ok;
+  } catch (err) {
+    console.warn('Error sending WhatsApp poll:', err);
+    return false;
+  }
+}

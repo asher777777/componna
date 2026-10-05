@@ -11,11 +11,15 @@ import { AdvancedFilterDrawer } from './AdvancedFilterDrawer';
 import { SavedViewsBar } from './SavedViewsBar';
 import { Contact360Modal } from './Contact360Modal';
 import { DatabaseConnectorModal } from './DatabaseConnectorModal';
-import { FormSubmissionsTable } from '../../smart-form-builder/components/analytics/FormSubmissionsTable';
-import { subscribeSmartForms } from '../../smart-form-builder/services/formStorageService';
-import { SmartFormDefinition } from '../../smart-form-builder/types';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { FormBuilderContract, FormItemSummary } from '../../../core/contracts';
 import { syncSmartFormSubmissionsToContacts } from '../services/smartFormCrmSyncService';
-import { FileText, Users } from 'lucide-react';
+import { getFirestore, collection, onSnapshot, query, where, orderBy } from 'firebase/firestore';
+import { FileText, Users, AlertCircle, Camera } from 'lucide-react';
+import { MobileQuickActionsFab } from './MobileQuickActionsFab';
+import { MobileBottomNavigation } from './MobileBottomNavigation';
+import { BusinessCardScannerModal } from './BusinessCardScannerModal';
+import { CrmWhatsAppBulkSenderModal } from './CrmWhatsAppBulkSenderModal';
 
 export const CrmAnalyticsMainView: React.FC = () => {
   const {
@@ -38,7 +42,11 @@ export const CrmAnalyticsMainView: React.FC = () => {
     ownerId,
   } = useCrmAnalyticsContext();
 
-  const [smartForms, setSmartForms] = useState<SmartFormDefinition[]>([]);
+  const { getCapability, hasCapability } = useHostCapabilities();
+  const formCapability = getCapability<FormBuilderContract>('form-builder');
+  const hasFormModule = hasCapability('form-builder');
+
+  const [smartForms, setSmartForms] = useState<FormItemSummary[]>([]);
   const [selectedFormId, setSelectedFormId] = useState<string>('');
   const [showCharts, setShowCharts] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -46,16 +54,43 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [isSyncingForms, setIsSyncingForms] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
-  // Subscribe to smart forms scoped by ownerId if provided
+  // Subscribe to forms: first try HostCapabilities, or Firestore fallback
   React.useEffect(() => {
-    const unsub = subscribeSmartForms((formsList) => {
-      setSmartForms(formsList);
-      if (formsList.length > 0 && !selectedFormId) {
-        setSelectedFormId(formsList[0].id);
+    let unsub = () => {};
+
+    if (formCapability?.getForms) {
+      formCapability.getForms().then((formsList) => {
+        setSmartForms(formsList);
+        if (formsList.length > 0 && !selectedFormId) {
+          setSelectedFormId(formsList[0].id);
+        }
+      }).catch(err => console.warn('Error fetching forms via capability:', err));
+    } else if (firebaseApp) {
+      try {
+        const db = getFirestore(firebaseApp);
+        const formsColl = collection(db, 'mod_forms');
+        const q = ownerId 
+          ? query(formsColl, where('ownerId', '==', ownerId)) 
+          : query(formsColl, orderBy('updatedAt', 'desc'));
+
+        unsub = onSnapshot(q, (snap) => {
+          const list: FormItemSummary[] = snap.docs.map(d => ({
+            id: d.id,
+            title: d.data().title || d.id,
+            submissionsCount: d.data().submissionsCount || 0,
+          }));
+          setSmartForms(list);
+          if (list.length > 0 && !selectedFormId) {
+            setSelectedFormId(list[0].id);
+          }
+        }, (err) => console.warn('Forms Firestore fallback snapshot err:', err));
+      } catch (err) {
+        console.warn('Could not set up Firestore forms subscription:', err);
       }
-    }, undefined, undefined, ownerId);
+    }
+
     return () => unsub();
-  }, [ownerId]);
+  }, [formCapability, firebaseApp, ownerId]);
 
   const handleSyncAllFormsToCrm = async () => {
     setIsSyncingForms(true);
@@ -77,6 +112,9 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
   const [activeDbProfile, setActiveDbProfile] = useState<DatabaseConnectionProfile | null>(null);
+  const [isCardScannerOpen, setIsCardScannerOpen] = useState(false);
+  const [isBulkWhatsAppOpen, setIsBulkWhatsAppOpen] = useState(false);
+  const [mobileActiveNavTab, setMobileActiveNavTab] = useState<'all' | 'leads' | 'charts' | 'filters'>('all');
 
   const toggleColumn = (colId: string) => {
     setSelectedColumns(prev => 
@@ -174,6 +212,16 @@ export const CrmAnalyticsMainView: React.FC = () => {
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isSyncingForms ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
             <span>{isSyncingForms ? 'מסנכרן טפסים...' : 'סנכרון טפסים ל-CRM'}</span>
+          </button>
+
+          {/* Scan Business Card Button */}
+          <button
+            onClick={() => setIsCardScannerOpen(true)}
+            className="px-3 py-1.5 text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            title="סרוק כרטיס ביקור במצלמה וחלוץ נתונים אוטומטית ב-AI"
+          >
+            <Camera className="w-3.5 h-3.5 text-amber-600" />
+            <span className="hidden sm:inline">סריקת כרטיס ביקור (AI)</span>
           </button>
 
           {/* Add Contact Button */}
@@ -314,7 +362,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
                 ) : (
                   smartForms.map((sf) => (
                     <option key={sf.id} value={sf.id}>
-                      {sf.title} ({sf.steps?.length || 0} שאלות)
+                      {sf.title} {sf.submissionsCount !== undefined ? `(${sf.submissionsCount} הגשות)` : ''}
                     </option>
                   ))
                 )}
@@ -327,8 +375,32 @@ export const CrmAnalyticsMainView: React.FC = () => {
             )}
           </div>
 
-          {smartForms.find((f) => f.id === selectedFormId) ? (
-            <FormSubmissionsTable form={smartForms.find((f) => f.id === selectedFormId)!} />
+          {selectedFormId ? (
+            formCapability?.renderSubmissionsTable ? (
+              formCapability.renderSubmissionsTable(selectedFormId, smartForms.find(f => f.id === selectedFormId)?.title)
+            ) : (
+              <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 space-y-3">
+                <div className="w-12 h-12 mx-auto rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
+                  <FileText className="w-6 h-6" />
+                </div>
+                <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                  טופס נבחר: {smartForms.find(f => f.id === selectedFormId)?.title || selectedFormId}
+                </h4>
+                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+                  רכיב תצוגת הטפסים המלאה (smart-form-builder) אינו מוטמע בחבילה זו או לא נטען. כל ההגשות והלידים מסונכרנים ומנוהלים אוטומטית בטבלת אנשי הקשר הראשית למטה.
+                </p>
+                <div className="flex items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={handleSyncAllFormsToCrm}
+                    disabled={isSyncingForms}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-2"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingForms ? 'animate-spin' : ''}`} />
+                    <span>סנכרן הגשות טופס זה ל-CRM עכשיו</span>
+                  </button>
+                </div>
+              </div>
+            )
           ) : (
             <div className="p-6 text-center text-xs text-gray-400">
               בחר טופס מהתפריט למעלה לצפייה בטבלת ההגשות.
@@ -372,6 +444,54 @@ export const CrmAnalyticsMainView: React.FC = () => {
         isOpen={isDbModalOpen}
         onClose={() => setIsDbModalOpen(false)}
         onApplyProfile={handleApplyDbProfile}
+      />
+
+      {/* Business Card AI Vision Scanner Modal */}
+      <BusinessCardScannerModal
+        isOpen={isCardScannerOpen}
+        onClose={() => setIsCardScannerOpen(false)}
+        onSaveContact={async (cardContact) => {
+          await createContact(cardContact);
+          refresh();
+        }}
+      />
+
+      {/* Bulk WhatsApp Sender Modal */}
+      <CrmWhatsAppBulkSenderModal
+        isOpen={isBulkWhatsAppOpen}
+        onClose={() => setIsBulkWhatsAppOpen(false)}
+        selectedContacts={data?.contacts || []}
+      />
+
+      {/* Mobile-First: Quick Actions Floating Action Button (FAB) */}
+      <MobileQuickActionsFab
+        onNewContact={handleOpenNewContact}
+        onOpenBulkWhatsApp={() => setIsBulkWhatsAppOpen(true)}
+        onOpenCardScanner={() => setIsCardScannerOpen(true)}
+        onToggleFilters={() => setShowFilters(prev => !prev)}
+        selectedCount={0}
+      />
+
+      {/* Mobile-First: Thumb-Friendly Bottom Navigation Bar */}
+      <MobileBottomNavigation
+        activeTab={mobileActiveNavTab}
+        onChangeTab={(tab) => {
+          setMobileActiveNavTab(tab);
+          if (tab === 'all') {
+            setFilter(prev => ({ ...prev, status: 'active', metricFilter: undefined }));
+            setActiveMetric(null);
+          } else if (tab === 'leads') {
+            setFilter(prev => ({ ...prev, metricFilter: undefined }));
+            setActiveMetric(null);
+          } else if (tab === 'charts') {
+            setShowCharts(true);
+            window.scrollTo({ top: 300, behavior: 'smooth' });
+          } else if (tab === 'filters') {
+            setShowFilters(true);
+          }
+        }}
+        leadsCount={data?.totalLeads || 0}
+        totalCount={data?.totalContacts || 0}
       />
     </div>
   );

@@ -17,6 +17,9 @@ import {
   MessageSquare,
   ChevronDown,
   UserPlus,
+  PhoneCall,
+  Send,
+  Share2,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { ContactRecord, SmartGroup } from '../types';
@@ -52,6 +55,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
     resetColumns,
     toggleContactTag,
     bulkDeleteContacts,
+    recordInteraction,
   } = useCrmGroups();
 
   const [openTagDropdownId, setOpenTagDropdownId] = useState<string | null>(null);
@@ -444,22 +448,95 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                       }
 
                       if (col.id === 'actions') {
+                        const cleanPhone = c.conta_phone ? c.conta_phone.replace(/\D/g, '') : '';
+                        const waPhone = cleanPhone.startsWith('0') ? `972${cleanPhone.substring(1)}` : cleanPhone;
+                        const inviteLink = activeGroup.pageUrl
+                          ? `${window.location.origin}${activeGroup.pageUrl}`
+                          : `${window.location.origin}/c/${activeGroup.pageSlug || activeGroup.id}`;
+
                         return (
                           <td key={col.id} className="p-3 text-center">
                             <div className="flex items-center justify-center gap-1">
+                              {/* Direct Call Button */}
                               {c.conta_phone && (
-                                <button
-                                  type="button"
+                                <a
+                                  href={`tel:${c.conta_phone}`}
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    onOpenWhatsAppBroadcast([c.id]);
+                                    recordInteraction({
+                                      contactId: c.id,
+                                      contactName: c.conta_name,
+                                      contactPhone: c.conta_phone,
+                                      type: 'call',
+                                      title: `שיחה טלפונית יזומה`,
+                                      content: `חיוג ישיר מהמערכת למספר ${c.conta_phone} (קהילת ${activeGroup.name})`,
+                                      groupName: activeGroup.name,
+                                    });
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-emerald-700 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
+                                  title={`חייג ישירות: ${c.conta_phone} (יתועד ב-CRM)`}
+                                >
+                                  <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                                </a>
+                              )}
+
+                              {/* WhatsApp Chat Button (wa.me) */}
+                              {c.conta_phone && (
+                                <a
+                                  href={`https://wa.me/${waPhone}?text=${encodeURIComponent(
+                                    `שלום ${c.conta_name || ''}, פונה אליך מקהילת ${activeGroup.name}`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    recordInteraction({
+                                      contactId: c.id,
+                                      contactName: c.conta_name,
+                                      contactPhone: c.conta_phone,
+                                      type: 'whatsapp',
+                                      title: `פתיחת שיחת WhatsApp פרטית`,
+                                      content: `נפתחה שיחת וואטסאפ אישית עם נוסח פנייה מובנה עבור קהילת ${activeGroup.name}`,
+                                      groupName: activeGroup.name,
+                                      metadata: { method: 'wa.me_direct' },
+                                    });
                                   }}
                                   className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors cursor-pointer"
-                                  title="שלח וואטסאפ"
+                                  title="פתח שיחת WhatsApp ישירה (יתועד ב-CRM)"
                                 >
-                                  <MessageSquare className="w-3.5 h-3.5" />
-                                </button>
+                                  <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                                </a>
                               )}
+
+                              {/* Send Community Invite via WhatsApp */}
+                              {c.conta_phone && (
+                                <a
+                                  href={`https://wa.me/${waPhone}?text=${encodeURIComponent(
+                                    `שלום ${c.conta_name || ''}! שמחים להזמין אותך לעמוד הקהילה של ${activeGroup.name}: ${inviteLink}`
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    recordInteraction({
+                                      contactId: c.id,
+                                      contactName: c.conta_name,
+                                      contactPhone: c.conta_phone,
+                                      type: 'whatsapp',
+                                      title: `שליחת הזמנה אישית לעמוד הקהילה`,
+                                      content: `נשלחה הזמנה אישית עם קישור דינמי לעמוד הקהילה: ${inviteLink}`,
+                                      groupName: activeGroup.name,
+                                      metadata: { method: 'community_invite_link', inviteUrl: inviteLink },
+                                    });
+                                  }}
+                                  className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
+                                  title="שלח הזמנה אישית לעמוד הקהילה (יתועד ב-CRM)"
+                                >
+                                  <Share2 className="w-3.5 h-3.5 text-indigo-500" />
+                                </a>
+                              )}
+
+                              {/* Contact 360 Detail View */}
                               <button
                                 type="button"
                                 onClick={(e) => {
@@ -467,10 +544,12 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                                   if (onOpenContactDetail) onOpenContactDetail(c);
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
-                                title="צפה בכרטיס איש קשר"
+                                title="צפה בכרטיס איש קשר 360"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
                               </button>
+
+                              {/* Delete Contact */}
                               <button
                                 type="button"
                                 onClick={(e) => {

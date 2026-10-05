@@ -10,6 +10,8 @@ export const DEFAULT_COLLECTIONS = {
   groups: 'crm_groups',
   customFields: 'crm_custom_fields',
   savedViews: 'crm_analytics_saved_views',
+  forms: 'mod_forms',
+  formSubmissionsSubcollection: 'submissions',
 };
 
 export const CHART_COLORS = [
