@@ -64,7 +64,7 @@ async function extractAndSaveContact(geminiKey, phone, messages) {
 // Webhook for Green API
 exports.whatsappWebhook = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        var _a, _b, _c, _d, _e, _f, _g, _h;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         if (req.method !== 'POST' && req.method !== 'GET') {
             res.status(405).send('Method Not Allowed');
             return;
@@ -140,8 +140,23 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             // 4. CRM Contact Check
             const contactSnap = await db.collection('contacts').where('phone', '==', phone).get();
             const contactName = contactSnap.empty ? null : (contactSnap.docs[0].data().name || null);
+            // 4.5 Fetch Brand DNA
+            const brandDnaSnap = await db.collection('settings').doc('brand_dna').get();
+            let brandContext = '';
+            if (brandDnaSnap.exists) {
+                const dna = brandDnaSnap.data();
+                brandContext = `\n\n=== רקע על המותג (Brand DNA) ===\n`;
+                if ((_j = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _j === void 0 ? void 0 : _j.name)
+                    brandContext += `שם המותג: ${dna.identity.name}\n`;
+                if ((_k = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _k === void 0 ? void 0 : _k.description)
+                    brandContext += `תיאור קצר: ${dna.identity.description}\n`;
+                if ((_l = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _l === void 0 ? void 0 : _l.toneOfVoice)
+                    brandContext += `סגנון דיבור: ${dna.voice.toneOfVoice}\n`;
+                if ((_o = (_m = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _m === void 0 ? void 0 : _m.brandValues) === null || _o === void 0 ? void 0 : _o.length)
+                    brandContext += `ערכי מותג: ${dna.voice.brandValues.join(', ')}\n`;
+            }
             // 5. Append strict logic to System Prompt
-            let strictPrompt = triggeredBot.systemPrompt + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
+            let strictPrompt = triggeredBot.systemPrompt + brandContext + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
             strictPrompt += '1. התשובות שלך חייבות להיות **קצרות מאוד ותמציתיות** (עד 2-3 משפטים בלבד).\n';
             strictPrompt += '2. אם הלקוח מבקש מידע ארוך (כמו חבילות), תן לו אותו מתומצת מאוד בנקודות קצרות.\n';
             strictPrompt += '3. סיים כל הודעה שלך ב**שאלה ממוקדת** כדי להוביל את השיחה.\n';

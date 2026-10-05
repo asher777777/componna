@@ -155,8 +155,20 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     const contactSnap = await db.collection('contacts').where('phone', '==', phone).get();
     const contactName = contactSnap.empty ? null : (contactSnap.docs[0].data().name || null);
 
+    // 4.5 Fetch Brand DNA
+    const brandDnaSnap = await db.collection('settings').doc('brand_dna').get();
+    let brandContext = '';
+    if (brandDnaSnap.exists) {
+      const dna = brandDnaSnap.data();
+      brandContext = `\n\n=== רקע על המותג (Brand DNA) ===\n`;
+      if (dna?.identity?.name) brandContext += `שם המותג: ${dna.identity.name}\n`;
+      if (dna?.identity?.description) brandContext += `תיאור קצר: ${dna.identity.description}\n`;
+      if (dna?.voice?.toneOfVoice) brandContext += `סגנון דיבור: ${dna.voice.toneOfVoice}\n`;
+      if (dna?.voice?.brandValues?.length) brandContext += `ערכי מותג: ${dna.voice.brandValues.join(', ')}\n`;
+    }
+
     // 5. Append strict logic to System Prompt
-    let strictPrompt = triggeredBot.systemPrompt + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
+    let strictPrompt = triggeredBot.systemPrompt + brandContext + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
     strictPrompt += '1. התשובות שלך חייבות להיות **קצרות מאוד ותמציתיות** (עד 2-3 משפטים בלבד).\n';
     strictPrompt += '2. אם הלקוח מבקש מידע ארוך (כמו חבילות), תן לו אותו מתומצת מאוד בנקודות קצרות.\n';
     strictPrompt += '3. סיים כל הודעה שלך ב**שאלה ממוקדת** כדי להוביל את השיחה.\n';
