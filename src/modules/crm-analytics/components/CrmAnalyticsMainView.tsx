@@ -33,7 +33,9 @@ export const CrmAnalyticsMainView: React.FC = () => {
     deleteView,
     refresh,
     updateField,
+    createContact,
     firebaseApp,
+    ownerId,
   } = useCrmAnalyticsContext();
 
   const [smartForms, setSmartForms] = useState<SmartFormDefinition[]>([]);
@@ -44,16 +46,16 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [isSyncingForms, setIsSyncingForms] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
-  // Subscribe to smart forms
+  // Subscribe to smart forms scoped by ownerId if provided
   React.useEffect(() => {
     const unsub = subscribeSmartForms((formsList) => {
       setSmartForms(formsList);
       if (formsList.length > 0 && !selectedFormId) {
         setSelectedFormId(formsList[0].id);
       }
-    });
+    }, undefined, undefined, ownerId);
     return () => unsub();
-  }, []);
+  }, [ownerId]);
 
   const handleSyncAllFormsToCrm = async () => {
     setIsSyncingForms(true);
@@ -113,12 +115,15 @@ export const CrmAnalyticsMainView: React.FC = () => {
 
   const handleSaveContact = async (updated: Contact) => {
     if (updated.id) {
-      Object.keys(updated).forEach(async key => {
+      for (const key of Object.keys(updated)) {
         if (key !== 'id') {
-          await updateField(updated.id!, key, (updated as any)[key]);
+          await updateField(updated.id, key, (updated as any)[key]);
         }
-      });
+      }
+    } else {
+      await createContact(updated);
     }
+    setIsContactModalOpen(false);
     return true;
   };
 

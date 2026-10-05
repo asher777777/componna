@@ -6,6 +6,7 @@ import {
   query, 
   where, 
   doc, 
+  addDoc,
   updateDoc, 
   writeBatch 
 } from 'firebase/firestore';
@@ -468,6 +469,9 @@ export async function fetchLiveCrmAnalytics(
   collections = DEFAULT_COLLECTIONS
 ): Promise<CRMAnalyticsData> {
   if (!firebaseApp) {
+    if (ownerId) {
+      return computeAnalyticsMetrics([], [], filter);
+    }
     // Fallback to rich mock data containing contacts and leads
     return computeAnalyticsMetrics(generateMockCrmData(), [], filter);
   }
@@ -497,7 +501,10 @@ export async function fetchLiveCrmAnalytics(
     try {
       const leadsColName = (collections as any).leads || 'mod_crm_leads';
       const leadsRef = collection(db, leadsColName);
-      const leadsSnap = await getDocs(leadsRef);
+      let leadsQuery = ownerId 
+        ? query(leadsRef, where('ownerId', '==', ownerId)) 
+        : query(leadsRef);
+      const leadsSnap = await getDocs(leadsQuery);
       leadsSnap.docs.forEach(d => {
         const raw = d.data();
         const inner = raw.data || raw;
@@ -532,7 +539,10 @@ export async function fetchLiveCrmAnalytics(
     let customFields: CustomField[] = [];
     try {
       const customFieldsRef = collection(db, collections.customFields);
-      const cfSnap = await getDocs(customFieldsRef);
+      let cfQuery = ownerId 
+        ? query(customFieldsRef, where('ownerId', '==', ownerId)) 
+        : query(customFieldsRef);
+      const cfSnap = await getDocs(cfQuery);
       customFields = cfSnap.docs.map(d => ({
         id: d.id,
         ...d.data(),
@@ -540,14 +550,58 @@ export async function fetchLiveCrmAnalytics(
     } catch {}
 
     if (contacts.length === 0) {
+      if (ownerId) {
+        // Authenticated user gets a completely CLEAN system!
+        return computeAnalyticsMetrics([], customFields, filter);
+      }
       return computeAnalyticsMetrics(generateMockCrmData(), customFields, filter);
     }
 
     return computeAnalyticsMetrics(contacts, customFields, filter);
   } catch (error) {
-    console.warn('Firestore fetch failed, falling back to mock dataset:', error);
+    console.warn('Firestore fetch failed, falling back to clean data or mock dataset:', error);
+    if (ownerId) {
+      return computeAnalyticsMetrics([], [], filter);
+    }
     return computeAnalyticsMetrics(generateMockCrmData(), [], filter);
   }
+}
+
+export async function createContact(
+  firebaseApp: FirebaseApp | undefined,
+  contactData: Partial<Contact>,
+  ownerId?: string,
+  collections = DEFAULT_COLLECTIONS
+): Promise<Contact> {
+  const newContact: Contact = {
+    id: `contact_${Date.now()}`,
+    status: 'active',
+    is_lead: contactData.is_lead ?? false,
+    contact_type: contactData.contact_type || (contactData.is_lead ? 'lead' : 'contact'),
+    conta_name: contactData.conta_name || '',
+    conta_phone: contactData.conta_phone || '',
+    email: contactData.email || '',
+    createdAt: new Date().toISOString(),
+    ownerId: ownerId,
+    ...contactData,
+  };
+
+  if (firebaseApp) {
+    try {
+      const db = getFirestore(firebaseApp);
+      const contactsRef = collection(db, collections.contacts);
+      const docRef = await addDoc(contactsRef, {
+        ...newContact,
+        ownerId: ownerId || null,
+        createdAt: new Date().toISOString(),
+      });
+      newContact.id = docRef.id;
+    } catch (e) {
+      console.warn('Failed to save contact to Firestore, kept locally:', e);
+    }
+  }
+
+  return newContact;
 }
 
 export async function updateContactField(

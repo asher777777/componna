@@ -15,7 +15,9 @@ import {
 } from '../config';
 import { 
   fetchLiveCrmAnalytics, 
-  updateContactField 
+  updateContactField,
+  createContact as createContactService,
+  computeAnalyticsMetrics
 } from '../services/crmAnalyticsService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -36,7 +38,9 @@ interface CrmAnalyticsContextValue {
   deleteView: (viewId: string) => void;
   refresh: () => Promise<void>;
   updateField: (contactId: string, field: string, value: any) => Promise<boolean>;
+  createContact: (contact: Partial<Contact>) => Promise<Contact>;
   firebaseApp?: FirebaseApp;
+  ownerId?: string;
 }
 
 const CrmAnalyticsContext = createContext<CrmAnalyticsContextValue | null>(null);
@@ -209,6 +213,16 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
     if (activeViewId === viewId) setActiveViewId(null);
   };
 
+  const createContact = async (contactData: Partial<Contact>) => {
+    const newContact = await createContactService(firebaseApp, contactData, ownerId, customCollections);
+    setData(prev => {
+      if (!prev) return computeAnalyticsMetrics([newContact], [], filter);
+      const updatedContacts = [newContact, ...prev.contacts];
+      return computeAnalyticsMetrics(updatedContacts, prev.customFields, filter);
+    });
+    return newContact;
+  };
+
   return (
     <CrmAnalyticsContext.Provider
       value={{
@@ -226,7 +240,9 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
         deleteView,
         refresh,
         updateField,
+        createContact,
         firebaseApp,
+        ownerId,
       }}
     >
       {children}

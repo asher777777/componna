@@ -52,6 +52,7 @@ export interface CoreEventMap {
     leadPayload?: LeadPayload;
     submittedAt: string;
   };
+  'crm:contact:updated': { id: string; conta_name?: string; email?: string; [key: string]: any };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
 }
 

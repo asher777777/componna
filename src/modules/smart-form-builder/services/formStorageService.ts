@@ -7,6 +7,7 @@ import {
   updateDoc,
   deleteDoc,
   query,
+  where,
   orderBy,
   onSnapshot,
   Firestore,
@@ -47,13 +48,16 @@ export async function getSmartForms(
 export function subscribeSmartForms(
   onData: (forms: SmartFormDefinition[]) => void,
   customFirestore?: Firestore,
-  collectionName: string = DEFAULT_FORMS_COLLECTION
+  collectionName: string = DEFAULT_FORMS_COLLECTION,
+  ownerId?: string
 ) {
   const targetDb = customFirestore || db;
   if (!targetDb) return () => {};
 
   const collRef = collection(targetDb, collectionName);
-  const q = query(collRef, orderBy('updatedAt', 'desc'));
+  const q = ownerId 
+    ? query(collRef, where('ownerId', '==', ownerId)) 
+    : query(collRef, orderBy('updatedAt', 'desc'));
 
   return onSnapshot(
     q,

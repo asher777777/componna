@@ -14,8 +14,15 @@ export const TenantAppResolver: React.FC = () => {
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
   const [isDevWorkbench, setIsDevWorkbench] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('dev') === 'true' || params.get('mode') === 'dev' || params.get('workbench') === 'true';
+    if (params.get('dev') === 'true' || params.get('mode') === 'dev' || params.get('workbench') === 'true') {
+      return true;
+    }
+    return sessionStorage.getItem('comona_is_dev_workbench') === 'true';
   });
+
+  useEffect(() => {
+    sessionStorage.setItem('comona_is_dev_workbench', String(isDevWorkbench));
+  }, [isDevWorkbench]);
 
   useEffect(() => {
     // 1. Detect from URL query param (e.g. ?tenant=landing) or hostname (e.g. landing.kosun.pro)

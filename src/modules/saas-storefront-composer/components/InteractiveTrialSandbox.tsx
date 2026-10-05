@@ -25,21 +25,57 @@ export const InteractiveTrialSandbox: React.FC = () => {
     toggleCartItem, 
     isInCart, 
     settings,
-    billingPlan 
+    billingPlan,
+    authState,
+    setIsAuthModalOpen
   } = useStorefront();
 
   if (!trialActiveModule) return null;
+
+  // Gate trial if not authenticated or anonymous guest
+  if (!authState.isAuthenticated || authState.isAnonymous) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gray-950/90 backdrop-blur-md flex items-center justify-center p-4 text-center" dir="rtl">
+        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-8 max-w-md w-full shadow-2xl space-y-5">
+          <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto">
+            <ShieldCheck className="w-7 h-7" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-bold text-white">נדרשת התחברות להתנסות ברכיב</h2>
+            <p className="text-xs text-gray-400">
+              כדי להתנסות ב-{trialActiveModule.name} בסביבה אישית ונקייה משלך, אנא התחבר או הירשם למערכת.
+            </p>
+          </div>
+          <div className="flex gap-3 justify-center pt-2">
+            <button
+              onClick={endTrial}
+              className="px-4 py-2.5 rounded-xl text-xs font-semibold text-gray-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition"
+            >
+              חזרה לחנות
+            </button>
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-500/30 transition transform active:scale-95"
+            >
+              התחבר עכשיו
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const currentPrice = billingPlan === 'annual' 
     ? trialActiveModule.annualMonthlyPrice 
     : trialActiveModule.monthlyPrice;
 
   const inCart = isInCart(trialActiveModule.id);
+  const currentOwnerId = authState.uid || 'isolated_user';
 
   const renderModuleLiveDemo = () => {
     switch (trialActiveModule.id) {
       case 'crm-analytics':
-        return <CrmAnalyticsStandaloneView />;
+        return <CrmAnalyticsStandaloneView ownerId={currentOwnerId} />;
       case 'page-builder':
         return <PageBuilderStandaloneView />;
       case 'smart-form-builder':
@@ -53,7 +89,7 @@ export const InteractiveTrialSandbox: React.FC = () => {
       case 'kesher-payments-hub':
         return <KesherPaymentsStandaloneView />;
       case 'crm-groups-hub':
-        return <CrmGroupsHubStandaloneView />;
+        return <CrmGroupsHubStandaloneView ownerId={currentOwnerId} />;
       case 'brand-dna-hub':
         return <BrandDnaHubStandaloneView />;
       case 'flow-player-engine':

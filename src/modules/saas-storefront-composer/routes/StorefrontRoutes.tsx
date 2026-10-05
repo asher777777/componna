@@ -17,8 +17,9 @@ export const StorefrontRoutes: React.FC = () => {
       return <MarketplaceCatalogView />;
     case 'sandbox_trial':
       return <InteractiveTrialSandbox />;
-    case 'sales_proposal':
     case 'checkout':
+      return <CheckoutAndPaymentStep />;
+    case 'sales_proposal':
       return <DynamicSalesProposalView />;
     case 'edit_proposal_form':
       return <ProposalFormStudioEditorWrapper />;

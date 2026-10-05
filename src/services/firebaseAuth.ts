@@ -99,6 +99,55 @@ export async function updateUserRole(uid: string, role: UserRole, app?: Firebase
   }
 }
 
+/**
+ * Automatically creates or updates a contact in the Admin CRM when a user logs in.
+ * Guarantees that every active user is reflected in the Admin's CRM contacts list.
+ */
+export async function syncUserToAdminCrm(user: User, app?: FirebaseApp): Promise<void> {
+  if (!user || user.isAnonymous) return;
+  try {
+    const targetApp = app || ensureDefaultFirebaseApp();
+    const db = getFirestore(targetApp);
+    const contactDocRef = doc(db, 'contacts', user.uid);
+
+    const displayName = user.displayName || user.email?.split('@')[0] || 'משתמש רשום';
+    const email = user.email || '';
+    const phone = user.phoneNumber || '';
+    const nowIso = new Date().toISOString();
+
+    await setDoc(contactDocRef, {
+      id: user.uid,
+      conta_name: displayName,
+      email: email,
+      conta_phone: phone,
+      status: 'active',
+      is_lead: false,
+      contact_type: 'contact',
+      lead_source: 'התחברות למערכת (Auth)',
+      last_login: nowIso,
+      updatedAt: nowIso,
+      createdAt: nowIso,
+      tags: ['משתמש רשום', 'Kosun Platform'],
+    }, { merge: true });
+
+    // Also notify central eventBus if loaded in browser
+    try {
+      const { eventBus } = await import('../core/bridge/EventBus');
+      eventBus.emit('crm:contact:updated' as any, {
+        id: user.uid,
+        conta_name: displayName,
+        email,
+        conta_phone: phone,
+        last_login: nowIso,
+      });
+    } catch {
+      // EventBus optional
+    }
+  } catch (err) {
+    console.warn('[FirebaseAuth] syncUserToAdminCrm notice:', err);
+  }
+}
+
 const authInstances = new WeakMap<FirebaseApp, Auth>();
 
 export function ensureDefaultFirebaseApp(): FirebaseApp {
@@ -326,6 +375,13 @@ export function subscribeToAuth(
           });
 
           if (user) {
+            // Synchronize authenticated user to Admin CRM contacts
+            if (!user.isAnonymous) {
+              syncUserToAdminCrm(user, app).catch(err => {
+                console.warn('[FirebaseAuth] syncUserToAdminCrm background notice:', err);
+              });
+            }
+
             fetchUserRole(user.uid, app).then((syncedRole) => {
               if (onState && syncedRole !== userRole) {
                 onState({

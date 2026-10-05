@@ -278,11 +278,11 @@ export const MarketplaceCatalogView: React.FC = () => {
 
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
-              onClick={() => setViewMode('sales_proposal')}
+              onClick={() => setViewMode('checkout')}
               className="w-full sm:w-auto flex items-center justify-center gap-2 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-6 py-3.5 rounded-xl font-bold text-xs shadow-lg shadow-indigo-500/30 transition transform active:scale-95"
             >
               <Sparkles className="w-4 h-4 text-amber-300" />
-              <span>המשך להפקת הצעה והזמנת סאב-דומיין</span>
+              <span>המשך לתשלום מאובטח והקמת מערכת</span>
               <ArrowLeft className="w-4 h-4" />
             </button>
           </div>

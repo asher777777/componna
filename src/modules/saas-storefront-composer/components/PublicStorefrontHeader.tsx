@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Sparkles, Globe, LogIn, Shield, Layers, HelpCircle, 
-  ChevronLeft, LayoutDashboard, ShoppingCart
+  ChevronLeft, LayoutDashboard, ShoppingCart, User, LogOut
 } from 'lucide-react';
 import { useStorefront } from '../context/StorefrontContext';
 import { CustomerLoginModal } from './CustomerLoginModal';
@@ -13,7 +13,7 @@ interface PublicStorefrontHeaderProps {
 export const PublicStorefrontHeader: React.FC<PublicStorefrontHeaderProps> = ({
   onEnterDevWorkbench
 }) => {
-  const { settings, cart, setViewMode, viewMode } = useStorefront();
+  const { settings, cart, setViewMode, viewMode, authState, setIsAuthModalOpen, logout } = useStorefront();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   return (
@@ -59,11 +59,38 @@ export const PublicStorefrontHeader: React.FC<PublicStorefrontHeaderProps> = ({
           {/* Cart Counter */}
           {cart.length > 0 && (
             <button
-              onClick={() => setViewMode('sales_proposal')}
+              onClick={() => setViewMode('checkout')}
               className="flex items-center gap-1.5 bg-indigo-600 text-white px-3 py-2 rounded-xl text-xs font-bold shadow-md shadow-indigo-500/20 hover:bg-indigo-500 transition"
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>{cart.length} בסל</span>
+            </button>
+          )}
+
+          {/* User Auth Profile / Login Button */}
+          {authState.isAuthenticated && !authState.isAnonymous ? (
+            <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 px-3 py-1.5 rounded-xl">
+              <div className="w-6 h-6 rounded-lg bg-indigo-600 text-white flex items-center justify-center text-xs font-bold">
+                {authState.displayName ? authState.displayName[0].toUpperCase() : (authState.email ? authState.email[0].toUpperCase() : 'U')}
+              </div>
+              <span className="text-xs font-semibold text-gray-800 dark:text-gray-200 hidden sm:inline max-w-[120px] truncate">
+                {authState.displayName || authState.email?.split('@')[0]}
+              </span>
+              <button
+                onClick={logout}
+                title="התנתק מהחשבון"
+                className="text-gray-400 hover:text-rose-500 p-1 transition"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-bold text-gray-700 dark:text-gray-200 hover:text-indigo-600 px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/60 transition"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>התחברות / הרשמה</span>
             </button>
           )}
 

@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { 
   Search, Download, Columns, ArrowUpDown, ArrowUp, ArrowDown, 
   Edit2, Check, X, Filter, ChevronLeft, ChevronRight, FileSpreadsheet,
-  MessageSquare, CheckSquare, Square, Send, Smartphone
+  MessageSquare, CheckSquare, Square, Send, Smartphone, Sparkles
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Contact, DynamicColumn } from '../types';
@@ -347,7 +347,20 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {paginated.map((contact, idx) => {
+            {paginated.length === 0 ? (
+              <tr>
+                <td colSpan={activeColumns.length + 3} className="p-12 text-center text-gray-500">
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 text-indigo-500 flex items-center justify-center">
+                      <Sparkles className="w-6 h-6" />
+                    </div>
+                    <p className="font-bold text-sm text-gray-800 dark:text-gray-200">המערכת נקייה ומוכנה לשימוש</p>
+                    <p className="text-xs text-gray-400">אין עדיין אנשי קשר או לידים בחשבון זה. לחץ על "איש קשר חדש" למעלה כדי להזין נתונים ראשונים.</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              paginated.map((contact, idx) => {
               const rowIndex = (currentPage - 1) * pageSize + idx + 1;
               const isLead = Boolean(contact.is_lead || contact.contact_type === 'lead');
               const isSelected = Boolean(contact.id && selectedIds.includes(contact.id));
@@ -484,7 +497,8 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
                   </td>
                 </tr>
               );
-            })}
+            })
+          )}
           </tbody>
         </table>
       </div>

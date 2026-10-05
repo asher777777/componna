@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { CrmAnalyticsProvider } from './context/CrmAnalyticsContext';
 import { CrmAnalyticsMainView } from './components/CrmAnalyticsMainView';
 import { getApps, initializeApp } from 'firebase/app';
@@ -20,9 +20,9 @@ try {
   console.warn('Could not initialize standalone Firebase App in CrmAnalytics:', e);
 }
 
-export const CrmAnalyticsStandaloneView: React.FC = () => {
+export const CrmAnalyticsStandaloneView: React.FC<{ ownerId?: string }> = ({ ownerId }) => {
   return (
-    <CrmAnalyticsProvider firebaseApp={standaloneApp}>
+    <CrmAnalyticsProvider firebaseApp={standaloneApp} ownerId={ownerId}>
       <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
         <CrmAnalyticsMainView />
       </div>

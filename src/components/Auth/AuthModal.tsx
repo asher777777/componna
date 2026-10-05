@@ -20,6 +20,7 @@ import {
   Send,
 } from 'lucide-react';
 import { FirebaseApp } from 'firebase/app';
+import { User } from 'firebase/auth';
 import {
   AuthState,
   UserRole,
@@ -38,12 +39,18 @@ interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   firebaseApp?: FirebaseApp;
+  onSuccess?: (user: User) => void;
+  title?: string;
+  subtitle?: string;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   firebaseApp,
+  onSuccess,
+  title,
+  subtitle,
 }) => {
   const [tab, setTab] = useState<'login' | 'register' | 'forgot' | 'profile'>('login');
   const [email, setEmail] = useState('');
@@ -105,11 +112,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg(null);
 
     try {
-      await loginWithEmail(email, password, firebaseApp);
+      const loggedUser = await loginWithEmail(email, password, firebaseApp);
       setSuccessMsg('התחברת בהצלחה למערכת!');
+      if (onSuccess && loggedUser) onSuccess(loggedUser);
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 700);
     } catch (err: any) {
       setErrorMsg(formatAuthError(err));
     } finally {
@@ -137,11 +145,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg(null);
 
     try {
-      await registerWithEmail(email, password, displayName, firebaseApp);
+      const regUser = await registerWithEmail(email, password, displayName, firebaseApp);
       setSuccessMsg('נרשמת בהצלחה והתחברת למערכת!');
+      if (onSuccess && regUser) onSuccess(regUser);
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 700);
     } catch (err: any) {
       setErrorMsg(formatAuthError(err));
     } finally {
@@ -155,11 +164,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg(null);
 
     try {
-      await loginWithGoogle(firebaseApp);
+      const gUser = await loginWithGoogle(firebaseApp);
       setSuccessMsg('התחברת בהצלחה באמצעות Google!');
+      if (onSuccess && gUser) onSuccess(gUser);
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 700);
     } catch (err: any) {
       setErrorMsg(formatAuthError(err));
     } finally {
@@ -173,11 +183,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg(null);
 
     try {
-      await loginAnonymously(firebaseApp);
+      const aUser = await loginAnonymously(firebaseApp);
       setSuccessMsg('התחברת בהצלחה במצב מהיר (אנונימי)!');
+      if (onSuccess && aUser) onSuccess(aUser);
       setTimeout(() => {
         onClose();
-      }, 1000);
+      }, 700);
     } catch (err: any) {
       setErrorMsg(formatAuthError(err));
     } finally {
@@ -243,8 +254,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white">אימות והתחברות למערכת</h2>
-              <p className="text-xs text-slate-400">גישה מאובטחת ל-Firebase, Firestore ו-Storage</p>
+              <h2 className="text-base font-bold text-white">{title || 'אימות והתחברות למערכת'}</h2>
+              <p className="text-xs text-slate-400">{subtitle || 'גישה מאובטחת ל-Firebase, Firestore ו-Storage'}</p>
             </div>
           </div>
           <button

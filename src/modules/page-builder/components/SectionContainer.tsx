@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { SectionType } from '../types/pageBuilder.types';
 import {
@@ -15,6 +15,7 @@ import {
   LayoutTemplate,
   Monitor,
   Check,
+  Sparkles,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -33,6 +34,7 @@ export interface SectionContainerProps {
   onToggleMobileHidden?: () => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
+  onAiDesign?: () => void;
   visible?: boolean;
   mobileHidden?: boolean;
   isFirst?: boolean;
@@ -57,6 +59,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
   onToggleMobileHidden,
   onDelete,
   onDuplicate,
+  onAiDesign,
   visible = true,
   mobileHidden = false,
   isFirst = false,
@@ -172,6 +175,17 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               title="שכפל אזור"
             >
               <Copy className="w-4 h-4" />
+            </button>
+          )}
+
+          {onAiDesign && (
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onAiDesign(); }}
+              className="p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:text-indigo-300 transition-colors hidden sm:block"
+              title="עצב מחדש בעזרת AI"
+            >
+              <Sparkles className="w-4 h-4" />
             </button>
           )}
 

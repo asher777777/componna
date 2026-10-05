@@ -18,6 +18,7 @@ import {
   FolderOpen,
   Plus,
   Trash2,
+  HelpCircle,
 } from 'lucide-react';
 
 const ORG_TYPES: OrganizationType[] = [
@@ -36,6 +37,17 @@ const PURPOSE_PRESETS = [
   'טכנולוגית - פיתוח מוצרים ומיזמים דיגיטליים',
 ];
 
+// Tooltip Component for Explanations
+const Tooltip: React.FC<{ text: string }> = ({ text }) => (
+  <div className="relative group inline-flex items-center justify-center mr-1.5 cursor-help">
+    <HelpCircle className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-500 transition-colors" />
+    <div className="absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-52 p-2.5 bg-slate-800 text-white text-[11px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all shadow-xl z-10 text-right pointer-events-none border border-slate-700">
+      {text}
+      <div className="absolute top-full right-1/2 translate-x-1/2 -mt-[1px] border-[5px] border-transparent border-t-slate-800"></div>
+    </div>
+  </div>
+);
+
 export const BrandIdentitySection: React.FC = () => {
   const { brandDna, updateIdentity, updateDesignTokens } = useBrandDna();
   const { apiKeys } = useSystemConnection();
@@ -53,7 +65,6 @@ export const BrandIdentitySection: React.FC = () => {
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiPreviewResult, setAiPreviewResult] = useState('');
 
-  // Process a selected image URL for color extraction and saving
   const handleProcessLogoUrl = async (url: string) => {
     updateIdentity({ logoUrl: url });
     setIsExtractingColors(true);
@@ -69,7 +80,6 @@ export const BrandIdentitySection: React.FC = () => {
     }
   };
 
-  // Open Media Gallery for Logo
   const handleOpenLogoFromGallery = async () => {
     if (mediaPicker) {
       const selected = await mediaPicker.openPicker({ accept: 'image/*' });
@@ -84,7 +94,6 @@ export const BrandIdentitySection: React.FC = () => {
     }
   };
 
-  // Open Media Gallery for Vibe Images (Multiple)
   const handleAddVibeImagesFromGallery = async () => {
     if (mediaPicker) {
       const selected = await mediaPicker.openPicker({
@@ -208,31 +217,34 @@ export const BrandIdentitySection: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* 1. Header & Identity Type */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
+      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
             <Building2 className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">זהות עסקית והתאגדות</h3>
-            <p className="text-xs text-slate-400">הגדר את סוג הישות המשפטית, שם המותג והסלוגן המוביל</p>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white">זהות עסקית והתאגדות</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">הגדר את סוג הישות המשפטית, שם המותג והסלוגן המוביל</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
           {/* Organization Type */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">סוג הישות המשפטית</label>
-            <div className="grid grid-cols-3 gap-2">
+            <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              סוג הישות המשפטית
+              <Tooltip text="חשוב להגדרות המשפטיות בדפי התשלום (למשל, האם להפיק קבלות עוסק פטור או חשבוניות מס)." />
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {ORG_TYPES.map((type) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => updateIdentity({ organizationType: type })}
-                  className={`py-2 px-3 rounded-xl text-xs font-medium border transition-all ${
+                  className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-medium border transition-all ${
                     brandDna.identity.organizationType === type
-                      ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300 shadow-sm'
-                      : 'bg-slate-900/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-600/20 dark:border-indigo-500 dark:text-indigo-300 shadow-sm'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-900/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/40'
                   }`}
                 >
                   {type}
@@ -243,24 +255,28 @@ export const BrandIdentitySection: React.FC = () => {
 
           {/* Company Name */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+            <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               שם {brandDna.identity.organizationType}
+              <Tooltip text="השם הרשמי של העסק כפי שיופיע בכותרות ובמסמכים רשמיים שה-AI כותב עבורך." />
             </label>
             <input
               type="text"
               value={brandDna.identity.companyName}
               onChange={(e) => updateIdentity({ companyName: e.target.value })}
               placeholder="לדוגמה: קומונה טכנולוגיות בע״מ"
-              className="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Member count */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">היקף כוח אדם / חברים</label>
-            <div className="grid grid-cols-4 gap-2">
+            <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              היקף כוח אדם / חברים
+              <Tooltip text="עוזר ל-AI להבין את גודל הארגון, כדי לשדר 'צוות מומחים' מול 'שירות בוטיק אישי'." />
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {['אני לבד', 'עד 10', 'עד 50', '50+'].map((count) => (
                 <button
                   key={count}
@@ -268,8 +284,8 @@ export const BrandIdentitySection: React.FC = () => {
                   onClick={() => updateIdentity({ memberCount: count })}
                   className={`py-2 px-2 rounded-xl text-xs font-medium border transition-all text-center ${
                     brandDna.identity.memberCount === count
-                      ? 'bg-indigo-600/20 border-indigo-500 text-indigo-300'
-                      : 'bg-slate-900/60 border-slate-700/60 text-slate-400 hover:text-slate-200 hover:bg-slate-700/40'
+                      ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-600/20 dark:border-indigo-500 dark:text-indigo-300'
+                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-900/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/40'
                   }`}
                 >
                   {count}
@@ -280,26 +296,32 @@ export const BrandIdentitySection: React.FC = () => {
 
           {/* Slogan */}
           <div>
-            <label className="block text-xs font-semibold text-slate-300 mb-1.5">סלוגן המותג (Tagline)</label>
+            <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              סלוגן המותג (Tagline)
+              <Tooltip text="המשפט הקצר שמופיע מתחת ללוגו, מייצג את ההבטחה שלך ללקוח." />
+            </label>
             <input
               type="text"
               value={brandDna.identity.slogan}
               onChange={(e) => updateIdentity({ slogan: e.target.value })}
               placeholder="לדוגמה: מובילים את המהפכה הדיגיטלית שלך"
-              className="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors"
             />
           </div>
         </div>
 
         {/* Purpose */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">מטרת וייעוד הארגון</label>
+          <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            מטרת וייעוד הארגון
+            <Tooltip text="מה העסק שלך עושה ולמה הוא קיים? ה-AI ישתמש בזה כרקע לייצור טקסטים מכירתיים." />
+          </label>
           <input
             type="text"
             value={brandDna.identity.organizationPurpose}
             onChange={(e) => updateIdentity({ organizationPurpose: e.target.value })}
             placeholder="תאר את ייעוד הארגון או בחר תבנית..."
-            className="w-full bg-slate-900/80 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors mb-2"
+            className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors mb-2"
           />
           <div className="flex flex-wrap gap-2">
             {PURPOSE_PRESETS.map((preset) => (
@@ -307,7 +329,7 @@ export const BrandIdentitySection: React.FC = () => {
                 key={preset}
                 type="button"
                 onClick={() => updateIdentity({ organizationPurpose: preset })}
-                className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-900/50 hover:bg-indigo-500/20 hover:text-indigo-300 text-slate-400 border border-slate-700/50 transition-colors"
+                className="text-[11px] px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-700 dark:bg-slate-900/50 dark:hover:bg-indigo-500/20 dark:hover:text-indigo-300 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700/50 transition-colors"
               >
                 + {preset}
               </button>
@@ -317,24 +339,27 @@ export const BrandIdentitySection: React.FC = () => {
       </div>
 
       {/* 2. Logo Upload & Automatic Color Extractor with Gallery Integration */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
+      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
               <ImageIcon className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">לוגו המותג וחילוץ צבעים אוטומטי</h3>
-              <p className="text-xs text-slate-400">בחר לוגו מגלריית המדיה המערכתית או העלה קובץ, ונשלוף ממנו פלטת צבעים</p>
+              <h3 className="flex items-center text-base font-bold text-slate-800 dark:text-white">
+                לוגו המותג 
+                <Tooltip text="העלה את הלוגו שלך. ה-AI שלנו יסרוק אותו ויחלץ ממנו אוטומטית צבעי מותג להתאמה מושלמת." />
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">בחר לוגו מגלריית המדיה המערכתית או העלה קובץ</p>
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-start">
           {/* Logo Area */}
-          <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-700 rounded-2xl bg-slate-900/40 hover:bg-slate-900/70 transition-colors relative min-h-[170px]">
+          <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors relative min-h-[170px]">
             {brandDna.identity.logoUrl ? (
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center gap-3 w-full">
                 <img
                   src={brandDna.identity.logoUrl}
                   alt="Brand Logo"
@@ -344,12 +369,12 @@ export const BrandIdentitySection: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleOpenLogoFromGallery}
-                    className="text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
+                    className="text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
                   >
                     <FolderOpen className="w-3.5 h-3.5" />
                     בחר מגלריה
                   </button>
-                  <label className="cursor-pointer text-xs font-semibold px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
+                  <label className="cursor-pointer text-xs font-semibold px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
                     <UploadCloud className="w-3.5 h-3.5" />
                     העלה קובץ
                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
@@ -360,7 +385,7 @@ export const BrandIdentitySection: React.FC = () => {
                       updateIdentity({ logoUrl: '' });
                       setExtractedColorsList([]);
                     }}
-                    className="text-xs px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg transition-colors"
+                    className="text-xs px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-500/10 dark:hover:bg-red-500/20 dark:text-red-400 rounded-lg transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -368,25 +393,25 @@ export const BrandIdentitySection: React.FC = () => {
               </div>
             ) : (
               <div className="flex flex-col items-center justify-center text-center w-full space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
                   <UploadCloud className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-xs font-bold text-slate-200 block">הגדר את לוגו המותג</span>
-                  <span className="text-[11px] text-slate-500">בחר מגלריית המדיה המערכתית או העלה ישירות</span>
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">הגדר את לוגו המותג</span>
+                  <span className="text-[11px] text-slate-500">בחר מגלריית המדיה או העלה ישירות</span>
                 </div>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={handleOpenLogoFromGallery}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
+                    className="px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
                   >
                     <FolderOpen className="w-4 h-4" />
-                    בחר מגלריית המדיה
+                    בחר מגלריה
                   </button>
-                  <label className="cursor-pointer px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-semibold border border-slate-700 transition-colors flex items-center gap-1.5">
+                  <label className="cursor-pointer px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5">
                     <UploadCloud className="w-4 h-4" />
-                    העלה מהמחשב
+                    העלה קובץ
                     <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
                   </label>
                 </div>
@@ -395,13 +420,13 @@ export const BrandIdentitySection: React.FC = () => {
           </div>
 
           {/* Color Extraction Palette Card */}
-          <div className="bg-slate-900/70 border border-slate-700/70 rounded-xl p-4 space-y-3">
+          <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700/70 rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
-                <Palette className="w-4 h-4 text-pink-400" />
-                צבעים שחולצו מהתמונה
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                <Palette className="w-4 h-4 text-pink-500 dark:text-pink-400" />
+                צבעים שחולצו
               </span>
-              {isExtractingColors && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
+              {isExtractingColors && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 dark:text-indigo-400" />}
             </div>
 
             {extractedColorsList.length > 0 ? (
@@ -410,11 +435,11 @@ export const BrandIdentitySection: React.FC = () => {
                   {extractedColorsList.map((hex, idx) => (
                     <div key={idx} className="flex flex-col items-center gap-1">
                       <div
-                        className="w-9 h-9 rounded-xl border border-white/20 shadow-sm cursor-pointer hover:scale-105 transition-transform"
+                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 dark:border-white/20 shadow-sm cursor-pointer hover:scale-105 transition-transform"
                         style={{ backgroundColor: hex }}
                         title={hex}
                       />
-                      <span className="text-[10px] font-mono text-slate-400">{hex}</span>
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{hex}</span>
                     </div>
                   ))}
                 </div>
@@ -422,10 +447,10 @@ export const BrandIdentitySection: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleApplyExtractedColors}
-                  className="w-full py-2 px-3 bg-pink-600/20 hover:bg-pink-600/30 border border-pink-500/40 text-pink-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
+                  className="w-full py-2 px-3 bg-pink-100 hover:bg-pink-200 border border-pink-300 text-pink-700 dark:bg-pink-600/20 dark:hover:bg-pink-600/30 dark:border-pink-500/40 dark:text-pink-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
                 >
                   <Palette className="w-3.5 h-3.5" />
-                  קבע כצבעי Design Tokens גלובליים
+                  קבע כצבעי Design Tokens
                 </button>
               </div>
             ) : (
@@ -438,22 +463,25 @@ export const BrandIdentitySection: React.FC = () => {
       </div>
 
       {/* 3. Vibe Images & Brand Media Gallery Section */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400">
+            <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
               <FolderOpen className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">תמונות אווירה ונכסי מדיה של המותג</h3>
-              <p className="text-xs text-slate-400">נהל את מאגר התמונות המרכזי של המותג לשימוש בדפי נחיתה, סרטונים וקמפיינים</p>
+              <h3 className="flex items-center text-base font-bold text-slate-800 dark:text-white">
+                תמונות אווירה 
+                <Tooltip text="תמונות אלו ישמשו את ה-AI כשהוא בונה עבורך דפי נחיתה או שולח הודעות עשירות בווייב של המותג." />
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">מאגר התמונות המרכזי של המותג</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={handleAddVibeImagesFromGallery}
-            className="text-xs px-3.5 py-2 bg-teal-600/20 hover:bg-teal-600/30 border border-teal-500/30 text-teal-300 rounded-xl font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            className="text-xs px-3.5 py-2 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 dark:bg-teal-600/20 dark:hover:bg-teal-600/30 dark:border-teal-500/30 dark:text-teal-300 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
           >
             <FolderOpen className="w-4 h-4" />
             בחר מגלריית המדיה
@@ -465,7 +493,7 @@ export const BrandIdentitySection: React.FC = () => {
           {(brandDna.identity.vibeImages || []).map((imgUrl, idx) => (
             <div
               key={idx}
-              className="relative group rounded-xl overflow-hidden border border-slate-700 bg-slate-950 aspect-video flex items-center justify-center shadow-md"
+              className="relative group rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 aspect-video flex items-center justify-center shadow-sm dark:shadow-md"
             >
               <img src={imgUrl} alt={`Vibe ${idx}`} className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 p-1">
@@ -493,31 +521,34 @@ export const BrandIdentitySection: React.FC = () => {
           <button
             type="button"
             onClick={handleAddVibeImagesFromGallery}
-            className="rounded-xl border-2 border-dashed border-slate-700 hover:border-teal-500/50 bg-slate-900/50 hover:bg-slate-900 text-slate-400 hover:text-teal-300 flex flex-col items-center justify-center aspect-video transition-all text-xs font-semibold gap-1 p-2"
+            className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-400 dark:hover:border-teal-500/50 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/50 dark:hover:bg-slate-900 text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-300 flex flex-col items-center justify-center aspect-video transition-all text-xs font-semibold gap-1 p-2"
           >
             <Plus className="w-4 h-4" />
-            <span>הוסף מגלריה</span>
+            <span>הוסף תמונה</span>
           </button>
         </div>
       </div>
 
       {/* 4. Company Vision & Short Vision AI */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
-        <div className="flex items-center justify-between">
+      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-500/10 border border-purple-200 dark:border-purple-500/20 flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
               <Sparkles className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">חזון המותג ועוזר ה-AI</h3>
-              <p className="text-xs text-slate-400">החזון מגדיר את שאיפת העסק ומשמש כעוגן לפרומפטים של Gemini</p>
+              <h3 className="flex items-center text-base font-bold text-slate-800 dark:text-white">
+                חזון המותג ועוזר ה-AI
+                <Tooltip text="שתף את ה'למה' של העסק. ה-AI ישתמש בחזון הזה כדי לוודא שכל הפוסטים והקמפיינים משדרים את הערכים העמוקים שלך." />
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">משמש כעוגן לפרומפטים של Gemini</p>
             </div>
           </div>
 
           <button
             type="button"
             onClick={handleOpenAiImprove}
-            className="text-xs px-3 py-1.5 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/30 text-purple-300 rounded-xl font-bold flex items-center gap-1.5 transition-colors"
+            className="text-xs px-3 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 dark:bg-purple-600/20 dark:hover:bg-purple-600/30 dark:border-purple-500/30 dark:text-purple-300 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors"
           >
             <Wand2 className="w-3.5 h-3.5" />
             שפר עם AI
@@ -526,25 +557,28 @@ export const BrandIdentitySection: React.FC = () => {
 
         {/* Vision textarea */}
         <div>
-          <label className="block text-xs font-semibold text-slate-300 mb-1.5">חזון מפורט</label>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">חזון מפורט</label>
           <textarea
             rows={4}
             value={brandDna.identity.companyVision}
             onChange={(e) => updateIdentity({ companyVision: e.target.value })}
             placeholder="הזן את חזון המותג בפירוט (ערכים מובילים, השפעה, ייחודיות)..."
-            className="w-full bg-slate-900/80 border border-slate-700 rounded-xl p-3.5 text-sm text-white focus:outline-none focus:border-indigo-500 transition-colors placeholder:text-slate-600"
+            className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600"
           />
         </div>
 
         {/* Short Vision Generator */}
-        <div className="p-4 bg-slate-900/60 border border-slate-700/60 rounded-xl space-y-2">
+        <div className="p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/60 rounded-xl space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-xs font-bold text-slate-200">תמצית חזון (עד 15 מילים)</label>
+            <label className="flex items-center text-xs font-bold text-slate-700 dark:text-slate-200">
+              תמצית חזון (עד 15 מילים)
+              <Tooltip text="משפט המחץ! ה-AI לוקח את החזון הארוך שלך ומזקק אותו למשפט אחד חזק עבור כותרות מודעות קמפיינים." />
+            </label>
             <button
               type="button"
               onClick={handleGenerateShortVision}
               disabled={isShortening}
-              className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-semibold disabled:opacity-50"
+              className="text-xs text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 flex items-center gap-1 font-semibold disabled:opacity-50"
             >
               {isShortening ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
               ייצר תמצית בעזרת AI
@@ -555,54 +589,54 @@ export const BrandIdentitySection: React.FC = () => {
             value={brandDna.identity.shortVision}
             onChange={(e) => updateIdentity({ shortVision: e.target.value })}
             placeholder="משפט תמציתי ומנצח עבור כותרות משנה..."
-            className="w-full bg-slate-950/60 border border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-200 focus:outline-none focus:border-indigo-500"
+            className="w-full bg-white dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500"
           />
         </div>
       </div>
 
       {/* AI Improvement Modal */}
       {showAiModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in" dir="rtl">
-          <div className="bg-slate-900 border border-slate-700 w-full max-w-lg rounded-2xl p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <h3 className="text-base font-bold text-white flex items-center gap-2">
-                <Wand2 className="w-5 h-5 text-purple-400" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/70 backdrop-blur-sm animate-in fade-in" dir="rtl">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 w-full max-w-lg rounded-2xl p-5 sm:p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="text-base font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                <Wand2 className="w-5 h-5 text-purple-500 dark:text-purple-400" />
                 שיפור ושדרוג חזון ב-Gemini AI
               </h3>
               <button
                 type="button"
                 onClick={() => setShowAiModal(false)}
-                className="text-slate-400 hover:text-white text-lg font-bold"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-lg font-bold"
               >
                 ✕
               </button>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">דגשים מיוחדים לשדרוג (אופציונלי)</label>
+              <label className="block text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">דגשים מיוחדים לשדרוג (אופציונלי)</label>
               <input
                 type="text"
                 value={customAiPrompt}
                 onChange={(e) => setCustomAiPrompt(e.target.value)}
                 placeholder="לדוגמה: הפוך את הטקסט ליותר מרגש, הדגש שירות אישי..."
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:border-purple-500"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50 dark:focus:border-purple-500"
               />
             </div>
 
             {aiPreviewResult ? (
               <div className="space-y-2">
-                <label className="block text-xs font-semibold text-emerald-400">התוצאה שנוצרה על ידי Gemini:</label>
-                <div className="p-3.5 bg-slate-950/90 border border-emerald-500/30 rounded-xl text-sm text-slate-200 leading-relaxed max-h-48 overflow-y-auto">
+                <label className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400">התוצאה שנוצרה על ידי Gemini:</label>
+                <div className="p-3.5 bg-emerald-50 dark:bg-slate-950/90 border border-emerald-200 dark:border-emerald-500/30 rounded-xl text-sm text-slate-800 dark:text-slate-200 leading-relaxed max-h-48 overflow-y-auto">
                   {aiPreviewResult}
                 </div>
               </div>
             ) : null}
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-slate-800">
               <button
                 type="button"
                 onClick={() => setShowAiModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white rounded-xl"
+                className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white rounded-xl"
               >
                 ביטול
               </button>
@@ -610,7 +644,7 @@ export const BrandIdentitySection: React.FC = () => {
                 <button
                   type="button"
                   onClick={handleAcceptAiResult}
-                  className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl flex items-center gap-1.5 shadow-md"
+                  className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 dark:hover:bg-emerald-500 text-white rounded-xl flex items-center gap-1.5 shadow-md"
                 >
                   <CheckCircle className="w-4 h-4" />
                   החלף טקסט קיים
@@ -620,7 +654,7 @@ export const BrandIdentitySection: React.FC = () => {
                   type="button"
                   onClick={handleRunAiImprove}
                   disabled={isImprovingVision}
-                  className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-500 text-white rounded-xl flex items-center gap-1.5 shadow-md disabled:opacity-50"
+                  className="px-5 py-2 text-xs font-bold bg-purple-600 hover:bg-purple-700 dark:hover:bg-purple-500 text-white rounded-xl flex items-center gap-1.5 shadow-md disabled:opacity-50"
                 >
                   {isImprovingVision ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />}
                   הפעל שיפור

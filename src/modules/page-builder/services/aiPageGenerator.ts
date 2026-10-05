@@ -1,4 +1,4 @@
-﻿import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
+import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../brand-dna-hub/types/brandDna';
 
 export interface GenerationStep {
@@ -13,14 +13,13 @@ export interface GenerationStep {
 export type OnStepCallback = (step: GenerationStep, partialConfig: PageBuilderConfig) => void;
 
 export const aiPageGenerator = {
-  // Preset prompts for quick generation
   presetPrompts: [
     {
       id: 'course-masterclass',
       title: 'קורס והכשרה מקצועית',
       description: 'דף נחיתה יוקרתי לקורס מאסטרקלס עם מחירון, ביקורות, שאלות נפוצות והרשמה.',
       icon: 'GraduationCap',
-      prompt: 'דף נחיתה יוקרתי וממיר לקורס הכשרה מעשי בדיגיטל, כולל הישגי בוגרים, מחירון חבילות, שאלות נפוצות וטופס הרשמה מוקדמת.',
+      prompt: 'דף נחיתה יוקרתי וממיר לקורס הכשרה מעשי בדיגיטל, כולל הישגי בוגרים, מחירון חבילות, שאלות נפוצות וטופס הרשמה מוקדמת. סגנון Layout: split.',
     },
     {
       id: 'saas-tech',
@@ -45,7 +44,6 @@ export const aiPageGenerator = {
     },
   ],
 
-  // Step-by-step live streaming builder
   async generatePageLive(
     userPrompt: string,
     brandDna?: BrandDna | null,
@@ -66,14 +64,14 @@ export const aiPageGenerator = {
 
     const pageConfig: PageBuilderConfig = {
       pageId,
-      pageTitle: `${companyName} - השקה רשמית`,
+      pageTitle: `${companyName} - דף חכם`,
       slug,
       published: false,
       isHomePage: false,
       viewsCount: 0,
       leadsCount: 0,
       globalSettings: {
-        siteTitle: `${companyName} | האתר הרשמי`,
+        siteTitle: `${companyName} | ${slogan}`,
         companyName,
         slogan,
         siteLogoUrl: logoUrl,
@@ -84,8 +82,8 @@ export const aiPageGenerator = {
         isFooterVisible: true,
         primaryColor,
         secondaryColor,
-        backgroundColor: '#0a0a0c',
-        textColor: '#f8fafc',
+        backgroundColor: brandDna?.designTokens?.backgroundColor || '#0a0a0c',
+        textColor: brandDna?.designTokens?.textColor || '#f8fafc',
         fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
         borderRadius: brandDna?.designTokens?.borderRadius || 'md',
         buttonStyle: brandDna?.designTokens?.buttonStyle || 'gradient',
@@ -104,7 +102,7 @@ export const aiPageGenerator = {
           targetCity: 'תל אביב',
           targetRegion: 'גוש דן והמרכז',
           targetCountry: 'ישראל',
-          serviceAreas: ['תל אביב והמרכז', 'ירושלים והסביבה', 'שרון', 'כל הארץ'],
+          serviceAreas: ['כל הארץ'],
           localBusinessName: companyName,
           businessAddress: address,
           businessPhone: phone,
@@ -116,319 +114,96 @@ export const aiPageGenerator = {
       sections: {},
     };
 
-    const steps = [
-      {
-        sectionType: 'hero' as SectionType,
-        stepTitle: 'בניית אזור ראשי (Hero 2.0)',
-        statusText: 'יוצר כותרת ענקית, הדגשות צבע, באדג׳ הכרזה ו-Social Proof Avatars...',
-        data: {
-          id: 'hero',
-          type: 'hero',
-          visible: true,
-          anchorId: 'hero',
-          title: `הצעד הבא שלכם עם ${companyName}`,
-          subtitle: 'השקה מיוחדת ל-2026',
-          description: brandDna?.identity?.shortVision || 'הפלטפורמה והשירותים המתקדמים ביותר שנועדו להזניק את התוצאות שלכם לגבהים חדשים.',
-          layout: 'bento-hero',
-          heroStyle: 'mesh-glow',
-          imageSrc: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
-          buttonsVisible: true,
-          primaryButton: { text: 'התחילו עכשיו בחינם', url: '#pricing' },
-          secondaryButton: { text: 'קראו המלצות לקוחות', url: '#testimonials' },
-          announcementBadge: { text: '🚀 מהדורה חדשה לשנת 2026 זמינה כעת', url: '#services' },
-          socialProofAvatars: {
-            visible: true,
-            ratingText: 'מדורג 4.9/5 על ידי יותר מ-1,200+ לקוחות',
-            starsCount: 5,
-            avatars: [
-              { id: '1', avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=120&q=80' },
-              { id: '2', avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&q=80' },
-              { id: '3', avatarUrl: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80' },
-              { id: '4', avatarUrl: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80' },
-            ],
-          },
-        },
-      },
-      {
-        sectionType: 'logoMarquee' as SectionType,
-        stepTitle: 'יצירת שורת שותפים ולוגואים נעה',
-        statusText: 'מחבר מותגים מובילים והוכחה חברתית אינסופית...',
-        data: {
-          id: 'logoMarquee',
-          type: 'logoMarquee',
-          visible: true,
-          anchorId: 'partners',
-          title: 'נבחר על ידי הארגונים והחברות המובילות במשק',
-          speed: 'medium',
-          direction: 'left',
-          grayscale: false,
-          logos: [
-            { id: '1', name: 'Google Partner', logoUrl: 'https://cdn.worldvectorlogo.com/logos/google-g-2015.svg' },
-            { id: '2', name: 'Microsoft Azure', logoUrl: 'https://cdn.worldvectorlogo.com/logos/microsoft-5.svg' },
-            { id: '3', name: 'Meta Verified', logoUrl: 'https://cdn.worldvectorlogo.com/logos/meta-1.svg' },
-            { id: '4', name: 'Stripe Security', logoUrl: 'https://cdn.worldvectorlogo.com/logos/stripe-4.svg' },
-            { id: '5', name: 'AWS Cloud', logoUrl: 'https://cdn.worldvectorlogo.com/logos/amazon-web-services-2.svg' },
-          ],
-        },
-      },
-      {
-        sectionType: 'services' as SectionType,
-        stepTitle: 'בניית Bento Grid 2.0 אינטראקטיבי',
-        statusText: 'יוצר כרטיסיות פיצ׳רים א-סימטריות עם נתונים חיים ומסגרות זוהרות...',
-        data: {
-          id: 'services',
-          type: 'services',
-          visible: true,
-          anchorId: 'services',
-          title: 'כל מה שאתם צריכים במקום אחד',
-          subtitle: 'פתרון שלם ואיכותי',
-          description: 'ארכיטקטורה חדישה, חיבור אוטומטי וניהול קל שחוסכים לכם שעות יקרות.',
-          layout: 'bento',
-          effect: 'border-beam',
-          items: [
-            {
-              id: '1',
-              title: 'מנוע AI מתקדם ויצירת תוכן מיידית',
-              description: 'מייצר דפים, תמונות וקופירייטינג ממיר תוך שניות בלחיצת כפתור אחת.',
-              icon: 'Sparkles',
-              badge: 'בלעדי לגרסה 2.0',
-              span: '2',
-              highlight: true,
-              imageSrc: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-            },
-            {
-              id: '2',
-              title: 'סנכרון CRM ו-WhatsApp',
-              description: 'כל פנייה מוזרמת מיידית לוואטסאפ ולמאגר הנתונים ללא עיכוב.',
-              icon: 'MessageCircle',
-              badge: 'חיבור מיידי',
-              span: '1',
-              statNumber: '100%',
-              statLabel: 'אוטומציה מלאה',
-            },
-            {
-              id: '3',
-              title: 'ביצועים מהירים במיוחד',
-              description: 'טעינה סופר-מהירה והתאמה של 100% לכל מכשירי המובייל ו-RTL.',
-              icon: 'Zap',
-              badge: 'Ultra Fast',
-              span: '1',
-              statNumber: '<0.5s',
-              statLabel: 'זמן טעינה',
-            },
-            {
-              id: '4',
-              title: 'אבטחה והגנה בתקן PCI-DSS',
-              description: 'הצפנה מתקדמת, גיבויים שוטפים ושקט נפשי מוחלט לכל פעילות.',
-              icon: 'ShieldCheck',
-              badge: 'בטוח לחלוטין',
-              span: '2',
-            },
-          ],
-        },
-      },
-      {
-        sectionType: 'statsBento' as SectionType,
-        stepTitle: 'הטמעת מדדי מפתח (Stats & Milestones)',
-        statusText: 'מייצר מספרים רצים והישגים מוכחים...',
-        data: {
-          id: 'statsBento',
-          type: 'statsBento',
-          visible: true,
-          anchorId: 'stats',
-          title: 'התוצאות מדברות בעד עצמן',
-          subtitle: 'מדדי ביצוע מובילים',
-          layout: 'bento-4',
-          stats: [
-            { id: '1', number: '99.8', suffix: '%', label: 'שביעות רצון לקוחות', description: 'מדד שירות מעולה', color: 'emerald', icon: 'Heart' },
-            { id: '2', number: '12,500', suffix: '+', label: 'משתמשים פעילים', description: 'קהילה בצמיחה מתמדת', color: 'indigo', icon: 'Users' },
-            { id: '3', number: '3.4', suffix: 'X', label: 'גידול ממוצע בהמרות', description: 'תוצאה מוכחת לכל לקוח', color: 'purple', icon: 'TrendingUp' },
-            { id: '4', number: '24/7', suffix: '', label: 'תמיכה וליווי אישי', description: 'מענה אנושי מהיר בוואטסאפ', color: 'amber', icon: 'Sparkles' },
-          ],
-        },
-      },
-      {
-        sectionType: 'testimonials' as SectionType,
-        stepTitle: 'הוספת ביקורות והמלצות לקוחות 2.0',
-        statusText: 'יוצר כרטיסי המלצה אותנטיים עם דירוגי 5 כוכבים ותגיות אימות...',
-        data: {
-          id: 'testimonials',
-          type: 'testimonials',
-          visible: true,
-          anchorId: 'testimonials',
-          title: 'מה אומרים הלקוחות שלנו?',
-          subtitle: 'ביקורות מאומתות',
-          description: 'ההצלחה שלכם היא המדד האמיתי למקצועיות שלנו.',
-          layout: 'grid',
-          showRatingSummary: true,
-          overallRating: 4.9,
-          totalReviewsCount: '250+ ביקורות בגוגל וברשת',
-          trustBadgeText: 'לקוחות מאומתים 100%',
-          items: [
-            {
-              id: '1',
-              name: 'רועי שפירא',
-              role: 'מנכ״ל ומייסד',
-              company: 'סטודיו דיגיטל פרו',
-              avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-              rating: 5,
-              content: '״המערכת שינתה לנו את כל תהליך העבודה! תוך פחות מיום אחד העלינו דף נחיתה מושלם שייצר לנו עשרות לידים איכותיים. שירות ברמה הכי גבוהה שפגשתי.״',
-              isVerified: true,
-              badge: 'לקוח VIP',
-            },
-            {
-              id: '2',
-              name: 'מיכל אברהמי',
-              role: 'מנהלת שיווק וקהילה',
-              company: 'עמותת שותפים לדרך',
-              avatarUrl: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80',
-              rating: 5,
-              content: '״החיבור לוואטסאפ ול-CRM עובד בצורה חלקה ומופלאה. הכל ברור, בעברית מלאה וברמת גימור שאין באף מערכת אחרת. פשוט תענוג לעבוד!״',
-              isVerified: true,
-              badge: 'קנייה מאומתת',
-            },
-            {
-              id: '3',
-              name: 'יונתן גולדשטיין',
-              role: 'יועץ אסטרטגי',
-              company: 'גולד ייעוץ עסקי',
-              avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
-              rating: 5,
-              content: '״העיצוב של ה-Bento Grid פשוט הפיל לנו את הלקוחות מהכיסא. מקצועי, יוקרתי וממיר בטירוף. ממליץ בחום לכל בעל עסק!״',
-              isVerified: true,
-              badge: 'שותף מוסמך',
-            },
-          ],
-        },
-      },
-      {
-        sectionType: 'pricing' as SectionType,
-        stepTitle: 'בניית מחירון מודרני עם מתג חודשי/שנתי',
-        statusText: 'מעצב 3 חבילות מחיר, תגית חיסכון שנתית והבלטת Pro זוהרת...',
-        data: {
-          id: 'pricing',
-          type: 'pricing',
-          visible: true,
-          anchorId: 'pricing',
-          title: 'תוכניות ומחירים שקופים',
-          subtitle: 'בחרו את המסלול המתאים בדיוק עבורכם',
-          description: 'ללא אותיות קטנות, ללא התחייבות, ואפשרות לשדרוג או ביטול בכל עת.',
-          showBillingToggle: true,
-          yearlyDiscountBadge: 'חיסכון של 20% 🎉',
-          packages: [
-            {
-              id: '1',
-              name: 'בסיסי (Starter)',
-              priceMonthly: '₪99',
-              priceYearly: '₪79',
-              period: '/ חודש',
-              description: 'מתאים לעסקים קטנים ויזמים בתחילת הדרך',
-              features: ['דפי נחיתה מעוצבים', 'חיבור דומיין עצמאי', 'סנכרון לידים בסיסי', 'תמיכה בדוא״ל'],
-              buttonText: 'התחל עכשיו',
-              buttonUrl: '#contact',
-            },
-            {
-              id: '2',
-              name: 'מקצועי (Pro 2026)',
-              priceMonthly: '₪249',
-              priceYearly: '₪199',
-              period: '/ חודש',
-              description: 'המסלול המוביל לעסקים, קהילות ויוצרי תוכן בצמיחה',
-              isFeatured: true,
-              badge: 'הכי מבוקש ⭐️',
-              features: [
-                'דפים בלתי מוגבלים',
-                'עיצובי Bento Grid מתקדמים',
-                'סנכרון מלא ל-WhatsApp ו-CRM',
-                'עוזר AI ליצירת תוכן ותמונות',
-                'ליווי VIP אישי 24/7',
-              ],
-              buttonText: 'בחר מסלול Pro',
-              buttonUrl: '#contact',
-            },
-            {
-              id: '3',
-              name: 'ארגוני (Enterprise)',
-              priceMonthly: '₪590',
-              priceYearly: '₪470',
-              period: '/ חודש',
-              description: 'פתרון מקיף ומותאם אישית לארגונים ורשתות',
-              features: [
-                'התאמה מלאה אישית (Custom SLA)',
-                'מנהל תיק לקוח ייעודי',
-                'אינטגרציות API בלתי מוגבלות',
-                'הדרכות צוות אישיות',
-              ],
-              buttonText: 'דברו עם מומחה',
-              buttonUrl: '#contact',
-            },
-          ],
-        },
-      },
-      {
-        sectionType: 'faq' as SectionType,
-        stepTitle: 'שאלות ותשובות (FAQ 2.0) בסגנון Notion',
-        statusText: 'יוצר שאלות נפוצות, סינון חי וכרטיס שיחה בוואטסאפ...',
-        data: {
-          id: 'faq',
-          type: 'faq',
-          visible: true,
-          anchorId: 'faq',
-          title: 'שאלות ותשובות נפוצות',
-          subtitle: 'כל מה שחשוב לדעת',
-          showSearchBar: true,
-          showContactCard: true,
-          whatsappContact: whatsapp,
-          items: [
-            {
-              id: '1',
-              question: 'כמה זמן לוקח להקים את העמוד ולהתחיל לקבל פניות?',
-              answer: 'ההקמה היא מיידית! תוך פחות מ-5 דקות העמוד מוכן לחלוטין לפרסום עם כל הקישורים, הטפסים והמיתוג שלכם.',
-            },
-            {
-              id: '2',
-              question: 'האם העמודים מותאמים לצפייה בטלפונים ניידים ו-RTL?',
-              answer: 'בהחלט! כל הרכיבים נבנו Mobile-First וכוללים תמיכה מלאה בעברית ו-RTL ברמה הגבוהה ביותר.',
-            },
-            {
-              id: '3',
-              question: 'איך הלידים והפניות מגיעים אליי?',
-              answer: 'כל פנייה נשלחת מיידית להתראת וואטסאפ, נשמרת במערכת ה-CRM ומועברת ישירות לדוא״ל שלכם.',
-            },
-            {
-              id: '4',
-              question: 'האם ניתן לחבר דומיין פרטי וכתובת מקוצרת?',
-              answer: 'כן, המערכת כוללת מקצר כתובות מובנה (cmn.to/...) וכן אפשרות חיבור קלה לכל דומיין פרטי שתבחרו.',
-            },
-          ],
-        },
-      },
-      {
-        sectionType: 'contact' as SectionType,
-        stepTitle: 'יצירת אזור צור קשר חכם ותמיכת GEO',
-        statusText: 'יוצר טופס לידים מהיר, פרטי התקשרות ומפת סניף מקומית...',
-        data: {
-          id: 'contact',
-          type: 'contact',
-          visible: true,
-          anchorId: 'contact',
-          title: 'בואו נעשה את הצעד הראשון יחד',
-          subtitle: 'השאירו פרטים ונציג בכיר יחזור אליכם תוך זמן קצר',
-          phone,
-          email,
-          address,
-          whatsapp,
-          showForm: true,
-          showMap: true,
-          openingHours: 'ימים א׳-ה׳: 09:00 - 19:00 | יום ו׳: 09:00 - 13:00',
-          directWhatsappChat: true,
-        },
-      },
-    ];
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+    
+    let generatedSteps: any[] = [];
+    
+    if (!apiKey) {
+      console.warn("No Gemini API key found, falling back to static dynamic logic.");
+      generatedSteps = this.getFallbackSteps(userPrompt, companyName, brandDna);
+    } else {
+      try {
+        const targetAudience = brandDna?.audience?.targetAudiences?.join(", ") || "לקוחות פוטנציאליים";
+        const systemPrompt = `
+You are an expert Web Page Layout Architect and UI/UX Designer.
+Your goal is to design a high-converting, beautiful landing page for a company named "${companyName}".
+The target audience is: ${targetAudience}.
+The brand's main UVP is: "${brandDna?.audience?.mainUvp || 'איכות ושירות'}".
+The user wants a page with the following description: "${userPrompt}"
+
+### YOUR TASK:
+1. Classify the page archetype based on the user's prompt (e.g., Sales Page, GEO/Local SEO Page, Info/Service Page, SaaS Launch).
+2. Follow strict marketing and UX rules for the chosen archetype to sequence the sections correctly.
+3. Configure each section's data, layout, style, and copy (in Hebrew) to match the brand and audience.
+
+### ARCHETYPES & RULES:
+- **Sales Page (עמוד מכירה):** Needs high conversion focus, urgency, and proof.
+  -> *Flow:* 'hero' (bento-hero, split) -> 'videoGallery' -> 'services' (cards, emphasizing pain/solution) -> 'testimonials' (masonry) -> 'pricing' -> 'timer' (urgency) -> 'faq' -> 'contact'.
+- **GEO / Local Business (עמוד שירות מקומי):** Needs trust, map, and immediate contact.
+  -> *Flow:* 'hero' (centered or spatial) -> 'geoLocal' -> 'services' (grid) -> 'testimonials' (carousel) -> 'contact'.
+- **Info / Corporate Service (עמוד תדמית ומידע):** Needs authority and clarity.
+  -> *Flow:* 'hero' (modern, minimal) -> 'logoMarquee' -> 'services' (bento) -> 'statsBento' -> 'richContent' -> 'contact'.
+- **SaaS / App Launch (השקת סטארטאפ):** Needs feature showcase and sleekness.
+  -> *Flow:* 'hero' (mesh-glow) -> 'logoMarquee' -> 'services' (bento with border-beam) -> 'statsBento' -> 'pricing' -> 'contact'.
+
+### DESIGN & LAYOUT OPTIONS TO CHOOSE FROM:
+- **hero**: layout: 'fz' | 'spatial' | 'centered' | 'split' | 'bento-hero', heroStyle: 'classic' | 'modern' | 'minimal' | 'card' | 'mesh-glow'
+- **services**: layout: 'grid' | 'bento' | 'cards' | 'minimal', effect: 'hover-scale' | 'hover-glow' | 'border-beam' | 'none'
+- **testimonials**: layout: 'grid' | 'carousel' | 'masonry'
+- **statsBento**: layout: 'bento-4' | 'row-4' | 'cards-3'
+- **pricing**: Make sure to highlight the best option.
+- **geoLocal**: Include the business city and address.
+- **timer**: Use this if the prompt implies a launch, discount, or deadline.
+- **contact**: Always include at the end or near the end.
+
+### OUTPUT FORMAT:
+Return ONLY a valid JSON array of section objects. NO markdown formatting.
+Each object MUST have:
+{
+  "sectionType": "hero" | "logoMarquee" | "services" | "statsBento" | "testimonials" | "pricing" | "faq" | "contact" | "geoLocal" | "timer" | "videoGallery" | "richContent",
+  "stepTitle": "A short description of this step in Hebrew (e.g. 'בניית אזור מסלולי תמחור')",
+  "statusText": "A short action text in Hebrew (e.g. 'מגדיר חבילות מחיר עם תגית פופולרי...')",
+  "data": { 
+     "title": "Main title for the section in Hebrew",
+     "layout": "The chosen layout",
+     // ... include other relevant configuration fields (like items, subtitle, description, packages, stats, etc.) based on the section type.
+  }
+}
+`;
+
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: systemPrompt }] }],
+            generationConfig: {
+              temperature: 0.7,
+              responseMimeType: "application/json",
+            }
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const text = result.candidates[0].content.parts[0].text;
+          generatedSteps = JSON.parse(text);
+        } else {
+          generatedSteps = this.getFallbackSteps(userPrompt, companyName, brandDna);
+        }
+      } catch (err) {
+        console.error("AI Generation failed:", err);
+        generatedSteps = this.getFallbackSteps(userPrompt, companyName, brandDna);
+      }
+    }
 
     // Stream through steps
-    for (let i = 0; i < steps.length; i++) {
-      const step = steps[i];
+    for (let i = 0; i < generatedSteps.length; i++) {
+      const step = generatedSteps[i];
+      // Ensure IDs are unique
+      step.data.id = `${step.sectionType}_${Date.now()}_${i}`;
+      step.data.type = step.sectionType;
+      step.data.visible = true;
+
       pageConfig.sectionOrder.push(step.data.id);
       pageConfig.sections[step.data.id] = step.data;
 
@@ -436,11 +211,11 @@ export const aiPageGenerator = {
         onStep(
           {
             stepIndex: i + 1,
-            totalSteps: steps.length,
+            totalSteps: generatedSteps.length,
             sectionType: step.sectionType,
-            stepTitle: step.stepTitle,
-            statusText: step.statusText,
-            progressPercent: Math.round(((i + 1) / steps.length) * 100),
+            stepTitle: step.stepTitle || `בניית אזור ${step.sectionType}`,
+            statusText: step.statusText || 'מייצר נתונים ועיצוב מותאם...',
+            progressPercent: Math.round(((i + 1) / generatedSteps.length) * 100),
           },
           JSON.parse(JSON.stringify(pageConfig))
         );
@@ -452,4 +227,107 @@ export const aiPageGenerator = {
 
     return pageConfig;
   },
+
+  async generateSectionLive(
+    sectionType: SectionType,
+    userPrompt: string,
+    brandDna?: BrandDna | null,
+    currentConfig?: any
+  ): Promise<any> {
+    const apiKey = import.meta.env.VITE_GEMINI_API_KEY as string;
+    if (!apiKey) {
+      console.warn("No Gemini API key found, returning current config.");
+      return currentConfig;
+    }
+
+    const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
+    const systemPrompt = `
+You are an expert UI/UX Designer.
+The user wants to redesign a specific "${sectionType}" section for the company "${companyName}".
+User prompt: "${userPrompt}"
+Current section config: ${JSON.stringify(currentConfig)}
+
+Return ONLY a valid JSON object for the section "data" config. NO markdown.
+For example, change layout to one of the available options (e.g. bento, grid, split, centered, spatial) or heroStyle (mesh-glow, modern, minimal) based on the user's prompt. Rewrite the text content in Hebrew to match.
+Output exactly ONE JSON object.
+`;
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: systemPrompt }] }],
+          generationConfig: { temperature: 0.7, responseMimeType: "application/json" }
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const text = result.candidates[0].content.parts[0].text;
+        const newConfig = JSON.parse(text);
+        // Ensure ID and Type are preserved
+        if (currentConfig?.id) newConfig.id = currentConfig.id;
+        newConfig.type = sectionType;
+        return newConfig;
+      }
+    } catch (err) {
+      console.error("AI Section Generation failed:", err);
+    }
+    return currentConfig;
+  },
+
+  getFallbackSteps(prompt: string, companyName: string, brandDna: any) {
+    // If it's a sales/course page
+    if (prompt.includes('מכירה') || prompt.includes('קורס')) {
+      return [
+        {
+          sectionType: 'hero',
+          stepTitle: 'בניית אזור מכירה ראשי',
+          statusText: 'יוצר כותרת ענקית, אזור split ותחושת דחיפות...',
+          data: { title: `ההזדמנות שלך עם ${companyName}`, subtitle: 'הצטרף עכשיו', description: 'אל תפספסו את ההזדמנות לשנות את החיים שלכם.', layout: 'split', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'הצטרפו עכשיו', url: '#pricing' } }
+        },
+        { sectionType: 'timer', stepTitle: 'הוספת טיימר השקה', statusText: 'מגדיר טיימר דחיפות...', data: { title: 'המבצע מסתיים בעוד:', targetDate: new Date(Date.now() + 86400000).toISOString() } },
+        { sectionType: 'services', stepTitle: 'פירוט יתרונות הקורס', statusText: 'מעצב גריד כרטיסיות...', data: { title: 'מה תקבלו?', layout: 'cards', effect: 'hover-scale', items: [{id:'1', title: 'גישה לכל החיים'}, {id:'2', title: 'ליווי אישי'}] } },
+        { sectionType: 'testimonials', stepTitle: 'הוכחה חברתית', statusText: 'מוסיף המלצות מבוגרים...', data: { title: 'בוגרים ממליצים', layout: 'masonry', items: [{id:'1', name:'ישראל', content:'שינה לי את החיים!', rating: 5}] } },
+        { sectionType: 'pricing', stepTitle: 'מחירון ומסלולים', statusText: 'בונה חבילות תמחור...', data: { title: 'בחרו את המסלול שלכם', packages: [{id:'1', name:'VIP', priceMonthly:'₪990', isFeatured:true, buttonText:'הרשמה'}, {id:'2', name:'בסיסי', priceMonthly:'₪490', buttonText:'הרשמה'}] } },
+      ];
+    }
+    
+    // If GEO/Local
+    if (prompt.includes('מקומי') || prompt.includes('שירות') || prompt.includes('אזור')) {
+      return [
+        {
+          sectionType: 'hero',
+          stepTitle: 'בניית אזור ראשי לוקאלי',
+          statusText: 'מגדיר סגנון קלאסי וממוקד שירות...',
+          data: { title: `שירות ${companyName} מנצח בעיר שלך`, description: 'המומחים שלנו בדרך אליכם תוך שעה בלבד.', layout: 'centered', heroStyle: 'modern', buttonsVisible: true, primaryButton: { text: 'חייגו עכשיו', url: 'tel:0500000000' } }
+        },
+        { sectionType: 'geoLocal', stepTitle: 'הוספת מפת הגעה ושירות', statusText: 'מטמיע אזורי שירות במפה...', data: { title: 'איפה אנחנו נמצאים?', businessName: companyName, address: brandDna?.trust?.officeAddress || 'תל אביב' } },
+        { sectionType: 'testimonials', stepTitle: 'ביקורות מקומיות', statusText: 'מייבא ביקורות מלקוחות באזור...', data: { title: 'לקוחות באזורכם ממליצים', layout: 'carousel', items: [{id:'1', name:'לקוח מרוצה', content:'שירות מצוין ומהיר!', rating: 5}] } },
+        { sectionType: 'contact', stepTitle: 'יצירת קשר מהירה', statusText: 'יוצר טופס לידים ישיר ל-WhatsApp...', data: { title: 'דברו איתנו בוואטסאפ', showForm: true, showMap: false } },
+      ];
+    }
+
+    // Default Fallback
+    return [
+      {
+        sectionType: 'hero',
+        stepTitle: 'בניית אזור ראשי (Hero)',
+        statusText: 'יוצר כותרת מרשימה...',
+        data: { title: `הצעד הבא שלכם עם ${companyName}`, description: 'הפלטפורמה המובילה בארץ.', layout: 'bento-hero', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'התחילו עכשיו', url: '#contact' } }
+      },
+      {
+        sectionType: 'services',
+        stepTitle: 'בניית אזור שירותים (Bento)',
+        statusText: 'מסדר שירותים בגריד חכם...',
+        data: { title: 'כל מה שצריך במקום אחד', layout: 'bento', effect: 'border-beam', items: [{id:'1', title:'מהירות'},{id:'2', title:'אבטחה'},{id:'3', title:'עיצוב'}] }
+      },
+      {
+        sectionType: 'contact',
+        stepTitle: 'אזור צור קשר',
+        statusText: 'מוסיף טופס יצירת קשר...',
+        data: { title: 'יצירת קשר', showForm: true }
+      }
+    ];
+  }
 };

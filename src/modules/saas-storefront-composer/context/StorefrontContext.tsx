@@ -18,6 +18,7 @@ import { TenantWelcomeNotificationService, WelcomeDispatchResult } from '../serv
 import { SmartFormDefinition } from '../../smart-form-builder/types';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { LeadPayload } from '../../../core/contracts';
+import { subscribeToAuth, AuthState, logoutUser } from '../../../services/firebaseAuth';
 
 interface StorefrontContextType {
   catalog: ModulePricingConfig[];
@@ -59,6 +60,14 @@ interface StorefrontContextType {
   completeCheckoutAndProvision: (overrideSubdomain?: string, discoveryData?: Record<string, any>) => Promise<TenantRecord | null>;
   resendWelcomeNotifications: () => Promise<WelcomeDispatchResult | null>;
   resetStorefront: () => void;
+
+  // Auth & Clean Sandbox
+  authState: AuthState;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  pendingTrialModule: ModulePricingConfig | null;
+  handleAuthSuccess: (user?: any) => void;
+  logout: () => Promise<void>;
 }
 
 const StorefrontContext = createContext<StorefrontContextType | undefined>(undefined);
@@ -66,17 +75,101 @@ const StorefrontContext = createContext<StorefrontContextType | undefined>(undef
 export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [catalog, setCatalog] = useState<ModulePricingConfig[]>(() => StorefrontService.getCatalog());
   const [settings, setSettings] = useState<StorefrontGeneralSettings>(() => StorefrontService.getSettings());
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const [cart, setCart] = useState<CartItem[]>(() => {
+    const saved = sessionStorage.getItem('comona_storefront_cart');
+    return saved ? JSON.parse(saved) : [];
+  });
   const [billingPlan, setBillingPlanState] = useState<BillingInterval>('monthly');
-  const [viewMode, setViewMode] = useState<StorefrontViewMode>('catalog');
-  const [trialActiveModule, setTrialActiveModule] = useState<ModulePricingConfig | null>(null);
+  const [viewMode, setViewMode] = useState<StorefrontViewMode>(() => {
+    const saved = sessionStorage.getItem('comona_storefront_view_mode');
+    return (saved as StorefrontViewMode) || 'catalog';
+  });
+  const [trialActiveModule, setTrialActiveModule] = useState<ModulePricingConfig | null>(() => {
+    const saved = sessionStorage.getItem('comona_storefront_trial_module');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [selectedSubdomain, setSelectedSubdomain] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [provisionedTenant, setProvisionedTenant] = useState<TenantRecord | null>(null);
+
+  useEffect(() => {
+    sessionStorage.setItem('comona_storefront_view_mode', viewMode);
+  }, [viewMode]);
+
+  useEffect(() => {
+    sessionStorage.setItem('comona_storefront_trial_module', JSON.stringify(trialActiveModule));
+  }, [trialActiveModule]);
+
+  useEffect(() => {
+    sessionStorage.setItem('comona_storefront_cart', JSON.stringify(cart));
+  }, [cart]);
+
   const [lastDispatchResult, setLastDispatchResult] = useState<WelcomeDispatchResult | null>(null);
   const [activeProposalForm, setActiveProposalForm] = useState<SmartFormDefinition | null>(null);
   const [aiOptimizationResult, setAiOptimizationResult] = useState<AiSalesOptimizationResult | null>(null);
   const [isOptimizingAi, setIsOptimizingAi] = useState(false);
+
+  // Authentication & Clean Sandbox Isolation
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null,
+    uid: null,
+    email: null,
+    displayName: null,
+    photoURL: null,
+    role: 'viewer',
+    isAuthenticated: false,
+    isAnonymous: false,
+    loading: true,
+    error: null,
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [pendingTrialModule, setPendingTrialModule] = useState<ModulePricingConfig | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToAuth(undefined, (state) => {
+      setAuthState(state);
+      if (state.isAuthenticated && !state.isAnonymous && state.user) {
+        setCustomerInfo(prev => ({
+          ...prev,
+          fullName: prev.fullName || state.displayName || (state.email ? state.email.split('@')[0] : ''),
+          email: prev.email || state.email || '',
+        }));
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // When user successfully authenticates and had clicked trial, automatically transition to sandbox
+  useEffect(() => {
+    if (pendingTrialModule && authState.isAuthenticated && !authState.isAnonymous) {
+      const mod = pendingTrialModule;
+      setPendingTrialModule(null);
+      setIsAuthModalOpen(false);
+      setTrialActiveModule(mod);
+      setViewMode('sandbox_trial');
+    }
+  }, [authState.isAuthenticated, authState.isAnonymous, pendingTrialModule]);
+
+  const handleAuthSuccess = (user?: any) => {
+    setIsAuthModalOpen(false);
+    if (pendingTrialModule) {
+      const mod = pendingTrialModule;
+      setPendingTrialModule(null);
+      setTrialActiveModule(mod);
+      setViewMode('sandbox_trial');
+    }
+  };
+
+  const logout = async () => {
+    try {
+      await logoutUser();
+      if (viewMode === 'sandbox_trial') {
+        endTrial();
+      }
+    } catch (e) {
+      console.warn('Logout failed:', e);
+    }
+  };
 
   const [customerInfo, setCustomerInfo] = useState<TenantCustomerInfo>({
     fullName: '',
@@ -128,6 +221,13 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   };
 
   const startTrial = (module: ModulePricingConfig) => {
+    // If guest (not authenticated or anonymous), open login modal to authenticate first
+    if (!authState.isAuthenticated || authState.isAnonymous) {
+      setPendingTrialModule(module);
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     setTrialActiveModule(module);
     setViewMode('sandbox_trial');
   };
@@ -370,6 +470,12 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
         completeCheckoutAndProvision,
         resendWelcomeNotifications,
         resetStorefront,
+        authState,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        pendingTrialModule,
+        handleAuthSuccess,
+        logout,
       }}
     >
       {children}

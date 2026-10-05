@@ -11,6 +11,7 @@ import { PublishPageModal } from './components/PublishPageModal';
 import { UrlShortenerModal } from './components/UrlShortenerModal';
 import { GeoSeoDrawer } from './components/GeoSeoDrawer';
 import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
+import { AiSectionDesignerModal } from './components/AiSectionDesignerModal';
 import { PageBuilderButton } from './ui/PageBuilderButton';
 import { Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -45,6 +46,16 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   const [isGeoDrawerOpen, setIsGeoDrawerOpen] = useState(false);
   const [isAiBuilderModalOpen, setIsAiBuilderModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [aiSectionTarget, setAiSectionTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   useEffect(() => {
     setConfig(initialConfig);
@@ -186,7 +197,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-[#09090b] text-white select-none">
+    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-white select-none transition-colors duration-300">
       {/* Top Navigation Bar */}
       <PageBuilderHeader
         config={config}
@@ -204,6 +215,8 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         onOpenGeo={() => setIsGeoDrawerOpen(true)}
         onGoToPagesList={onGoToPagesList}
         onConvertToVideo={onConvertToVideo}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
       />
 
       {/* Main Workspace based on Active Tab */}
@@ -249,6 +262,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                       onDelete={() => handleDeleteSection(sectionId)}
                       onMoveUp={() => handleMoveUp(index)}
                       onMoveDown={() => handleMoveDown(index)}
+                      onAiDesign={() => setAiSectionTarget(sectionId)}
                       isFirst={index === 0}
                       isLast={index === config.sectionOrder.length - 1}
                     >
@@ -317,6 +331,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                     onDelete={() => handleDeleteSection(sectionId)}
                     onMoveUp={() => handleMoveUp(index)}
                     onMoveDown={() => handleMoveDown(index)}
+                    onAiDesign={() => setAiSectionTarget(sectionId)}
                     isFirst={index === 0}
                     isLast={index === config.sectionOrder.length - 1}
                   >
@@ -444,6 +459,17 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
           }
         }}
       />
+
+      {aiSectionTarget && config.sections[aiSectionTarget] && (
+        <AiSectionDesignerModal
+          isOpen={true}
+          onClose={() => setAiSectionTarget(null)}
+          sectionId={aiSectionTarget}
+          sectionType={config.sections[aiSectionTarget].type as SectionType}
+          currentConfig={config.sections[aiSectionTarget]}
+          onApplyDesign={(newConfig) => handleUpdateSectionData(aiSectionTarget, newConfig)}
+        />
+      )}
     </div>
   );
 };
