@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Globe, Save, RefreshCw, CheckCircle, AlertCircle, X, Shield, Copy, Check, Sparkles, Send } from 'lucide-react';
 import { GreenApiService } from '../services/greenApiService';
 import { GreenApiInstanceSettings } from '../types';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 interface Props {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const WhatsAppWebhookConfigModal: React.FC<Props> = ({
   currentWebhookUrl,
   onSaved,
 }) => {
+  const { config } = useSystemConnection();
   const [webhookUrl, setWebhookUrl] = useState(currentWebhookUrl || '');
   const [webhookUrlToken, setWebhookUrlToken] = useState('');
   const [delayMs, setDelayMs] = useState(1000);
@@ -197,8 +199,11 @@ export const WhatsAppWebhookConfigModal: React.FC<Props> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://app.comona.io';
-                    setWebhookUrl(`${origin}/api/webhook/whatsapp`);
+                    if (config.projectId) {
+                      setWebhookUrl(`https://us-central1-${config.projectId}.cloudfunctions.net/whatsappWebhook`);
+                    } else {
+                      alert('חסר מזהה פרויקט (Project ID) בהגדרות');
+                    }
                   }}
                   className="text-[11px] text-purple-300 hover:text-purple-200 px-2 py-0.5 bg-purple-900/40 hover:bg-purple-900/60 border border-purple-500/30 rounded-lg flex items-center gap-1 transition cursor-pointer"
                 >
