@@ -1,17 +1,27 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import * as corsLib from 'cors';
+
+const cors = corsLib({ origin: true });
 
 admin.initializeApp();
 const db = admin.firestore();
 
 // Webhook for Green API
-export const whatsappWebhook = functions.https.onRequest(async (req, res) => {
-  // Green API sends POST requests for webhooks
-  if (req.method !== 'POST') {
-    res.status(405).send('Method Not Allowed');
-    return;
-  }
+export const whatsappWebhook = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    // Green API sends POST requests for webhooks
+    if (req.method !== 'POST' && req.method !== 'GET') {
+      res.status(405).send('Method Not Allowed');
+      return;
+    }
+    
+    // For test ping or plain GET
+    if (req.method === 'GET') {
+      res.status(200).send('Webhook is running');
+      return;
+    }
 
   const body = req.body;
   if (!body || body.typeWebhook !== 'incomingMessageReceived') {
@@ -107,4 +117,5 @@ export const whatsappWebhook = functions.https.onRequest(async (req, res) => {
     console.error('Error processing webhook:', error);
     res.status(500).send('Internal Error');
   }
+  }); // End of cors wrapper
 });

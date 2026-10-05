@@ -1,5 +1,6 @@
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
 import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 
 export interface WhatsAppBotButton {
   buttonId: string;
@@ -205,11 +206,11 @@ export class WhatsAppAiBotService {
   public static async saveBotsToFirestore(db: any, bots: WhatsAppAiBotConfig[]): Promise<void> {
     if (!db) return;
     try {
-      const batch = require('firebase/firestore').writeBatch(db);
+      const batch = writeBatch(db);
       
       // Update each bot
       for (const bot of bots) {
-        const docRef = require('firebase/firestore').doc(db, 'whatsapp_ai_bots', bot.id);
+        const docRef = doc(db, 'whatsapp_ai_bots', bot.id);
         batch.set(docRef, bot, { merge: true });
       }
       
@@ -225,8 +226,8 @@ export class WhatsAppAiBotService {
   public static async loadBotsFromFirestore(db: any): Promise<WhatsAppAiBotConfig[]> {
     if (!db) return [];
     try {
-      const coll = require('firebase/firestore').collection(db, 'whatsapp_ai_bots');
-      const snap = await require('firebase/firestore').getDocs(coll);
+      const coll = collection(db, 'whatsapp_ai_bots');
+      const snap = await getDocs(coll);
       if (snap.empty) return [];
       
       const bots: WhatsAppAiBotConfig[] = [];
@@ -243,8 +244,8 @@ export class WhatsAppAiBotService {
   public static async deleteBotFromFirestore(db: any, botId: string): Promise<void> {
     if (!db) return;
     try {
-      const docRef = require('firebase/firestore').doc(db, 'whatsapp_ai_bots', botId);
-      await require('firebase/firestore').deleteDoc(docRef);
+      const docRef = doc(db, 'whatsapp_ai_bots', botId);
+      await deleteDoc(docRef);
     } catch (err) {
       console.error('Failed to delete bot from Firestore:', err);
     }
