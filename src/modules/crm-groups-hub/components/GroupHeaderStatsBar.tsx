@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { SmartGroup } from '../types';
-import { exportContactsToCsv } from '../services/groupsUtils';
+import { exportContactsToExcel } from '../services/groupsUtils';
 
 interface GroupHeaderStatsBarProps {
   currentTab: 'contacts' | 'interactions';
@@ -152,15 +152,15 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
             <span className="hidden sm:inline">ייבוא מוואטסאפ</span>
           </button>
 
-          {/* Export CSV */}
+          {/* Export EXCEL */}
           <button
             type="button"
-            onClick={() => exportContactsToCsv(filteredContacts, activeGroup.name)}
+            onClick={() => exportContactsToExcel(filteredContacts, activeGroup.name)}
             className="h-9 px-3 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
-            title="ייצא רשימת אנשי קשר לקובץ CSV"
+            title="ייצוא רשימת אנשי קשר לקובץ Excel"
           >
             <Download className="w-3.5 h-3.5 text-slate-500" />
-            <span className="hidden sm:inline">CSV</span>
+            <span className="hidden sm:inline">EXCEL</span>
           </button>
         </div>
       </div>

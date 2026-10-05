@@ -17,6 +17,7 @@ import {
   deleteGroupRecord,
   deleteCommunityPageRecord,
   bulkAssignGroupToContacts,
+  bulkDeleteContactsRecord,
   moveContactsBetweenGroups,
   toggleContactTag,
 } from '../services/firestoreService';
@@ -65,6 +66,7 @@ export interface CrmGroupsContextValue {
   deleteGroup: (group: SmartGroup) => Promise<void>;
   deleteCommunityPage: (groupId: string) => Promise<void>;
   bulkAssignToGroup: (contactIds: string[], groupName: string) => Promise<void>;
+  bulkDeleteContacts: (contactIds: string[]) => Promise<void>;
   bulkMoveBetweenGroups: (contactIds: string[], sourceGroupName: string, targetGroupName: string) => Promise<void>;
   toggleContactTag: (contactId: string, groupName: string) => Promise<void>;
 
@@ -80,7 +82,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   children,
   firebaseApp,
   customCollections,
-  ownerId = 'default_user',
+  ownerId = '',
   onOpenContactDetail,
   onOpenCampaignPage,
   greenApiCredentials,
@@ -291,6 +293,13 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     await loadData();
   };
 
+  const bulkDeleteContacts = async (contactIds: string[]) => {
+    if (!db) return;
+    await bulkDeleteContactsRecord(db, contactIds, customCollections);
+    setSelectedContactIds([]);
+    await loadData();
+  };
+
   const bulkMoveBetweenGroups = async (contactIds: string[], sourceGroupName: string, targetGroupName: string) => {
     if (!db) return;
     await moveContactsBetweenGroups(db, contactIds, sourceGroupName, targetGroupName, customCollections);
@@ -337,6 +346,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     deleteGroup,
     deleteCommunityPage,
     bulkAssignToGroup,
+    bulkDeleteContacts,
     bulkMoveBetweenGroups,
     toggleContactTag: toggleSingleTag,
     onOpenContactDetail,

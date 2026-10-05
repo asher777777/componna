@@ -452,6 +452,35 @@ export async function deleteGroupRecord(
   }
 }
 
+export async function bulkDeleteContactsRecord(
+  db: Firestore,
+  contactIds: string[],
+  customCollections?: CrmGroupsCollectionsConfig
+): Promise<void> {
+  const colls = getCollNames(customCollections);
+  let batch = writeBatch(db);
+  let opCount = 0;
+
+  for (const cid of contactIds) {
+    const contactRef = doc(db, colls.contacts, cid);
+    batch.update(contactRef, {
+      status: 'trashed',
+      updatedAt: new Date().toISOString(),
+    });
+    opCount++;
+
+    if (opCount >= 450) {
+      await batch.commit();
+      batch = writeBatch(db);
+      opCount = 0;
+    }
+  }
+
+  if (opCount > 0) {
+    await batch.commit();
+  }
+}
+
 export async function bulkAssignGroupToContacts(
   db: Firestore,
   contactIds: string[],

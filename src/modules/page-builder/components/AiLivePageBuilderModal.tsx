@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { aiPageGenerator, GenerationStep } from '../services/aiPageGenerator';
 import { useBrandDna } from '../../brand-dna-hub/hooks/useBrandDna';
@@ -13,8 +13,11 @@ import {
   Heart,
   MapPin,
   Zap,
+  Image as ImageIcon,
+  Settings,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 interface AiLivePageBuilderModalProps {
   isOpen: boolean;
@@ -28,12 +31,45 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   onComplete,
 }) => {
   const { brandDna } = useBrandDna();
+  const { openConnectorModal } = useSystemConnection();
   const [promptText, setPromptText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [currentStep, setCurrentStep] = useState<GenerationStep | null>(null);
   const [streamedConfig, setStreamedConfig] = useState<PageBuilderConfig | null>(null);
+  const [generateImages, setGenerateImages] = useState(true);
+  const [ideas, setIdeas] = useState<Array<{id: string, title: string, description: string, prompt: string, icon: string}>>([]);
+  const [loadingIdeas, setLoadingIdeas] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPromptText('');
+      setCurrentStep(null);
+      setStreamedConfig(null);
+      setIsGenerating(false);
+      loadIdeas();
+    }
+  }, [isOpen, brandDna]);
+
+  const loadIdeas = async () => {
+    setLoadingIdeas(true);
+    const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna);
+    setIdeas(generatedIdeas);
+    setLoadingIdeas(false);
+  };
 
   if (!isOpen) return null;
+
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'Zap': return <Zap className="w-5 h-5" />;
+      case 'MapPin': return <MapPin className="w-5 h-5" />;
+      case 'Layers': return <Layers className="w-5 h-5" />;
+      case 'Heart': return <Heart className="w-5 h-5" />;
+      case 'Sparkles': return <Sparkles className="w-5 h-5" />;
+      case 'GraduationCap': return <GraduationCap className="w-5 h-5" />;
+      default: return <Sparkles className="w-5 h-5" />;
+    }
+  };
 
   const handleStartGeneration = async (customPrompt?: string) => {
     const finalPrompt = customPrompt || promptText;
@@ -44,8 +80,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       stepIndex: 0,
       totalSteps: 8,
       sectionType: 'hero',
-      stepTitle: 'מאתחל מסך ריק ושואב נתוני Brand DNA...',
-      statusText: 'מנתח פרומפט ומתאים פלטת צבעים...',
+      stepTitle: 'מנתח Brand DNA...',
+      statusText: 'מתחיל...',
       progressPercent: 5,
     });
 
@@ -56,7 +92,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
         (step, partialConfig) => {
           setCurrentStep(step);
           setStreamedConfig(partialConfig);
-        }
+        },
+        { generateImages }
       );
 
       // Finish & trigger completion
@@ -72,147 +109,163 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-xl" dir="rtl">
-      <div className="relative w-full max-w-4xl bg-slate-950 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl overflow-hidden flex flex-col text-right max-h-[90vh]">
-        {/* Background glow */}
-        <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-
-        {/* Close Button */}
-        {!isGenerating && (
-          <button
-            type="button"
-            onClick={onClose}
-            className="absolute top-6 left-6 text-slate-400 hover:text-white p-2 rounded-full bg-slate-900 border border-slate-800"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        )}
-
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm" dir="rtl">
+      <div className="relative w-full max-w-4xl bg-[#060608] border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+        
         {/* Header */}
-        <div className="flex items-center gap-3 mb-6 relative z-10">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-indigo-600/30">
-            <Sparkles className="w-6 h-6" />
+        <div className="flex items-center justify-between p-6 border-b border-slate-800/80 bg-slate-900/40">
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl sm:text-2xl font-black text-white">יוצר עמודים חי ב-AI (Live Streaming Builder)</h2>
+              <p className="text-sm text-slate-400">מתחילים ממסך ריק – המערכת תייצר עבורכם אזור אחר אזור בזמן אמת בלווי עיצוב ותוכן ממיר, מבוסס על צבעי המותג.</p>
+            </div>
           </div>
-          <div>
-            <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-              יוצר עמודים חי ב-AI (Live Streaming Builder)
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-400">
-              מתחילים ממסך ריק – המערכת תייצר עבורכם אזור אחר אזור בזמן אמת בליווי עיצוב ותוכן ממיר.
-            </p>
-          </div>
-        </div>
-
-        {/* Brand DNA Sync Notice */}
-        {brandDna && (
-          <div className="mb-6 p-3.5 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between text-xs text-indigo-300">
+          {!isGenerating && (
             <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span>
-                מחובר ל-Brand DNA: <strong>{brandDna.identity.companyName}</strong> (פלטת צבעים, פונטים ולוגו ישולבו אוטומטית)
-              </span>
-            </div>
-            <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-              מסונכרן
-            </span>
-          </div>
-        )}
-
-        {/* Live Generation Progress View vs. Input View */}
-        {isGenerating && currentStep ? (
-          <div className="flex flex-col gap-6 py-6 items-center text-center relative z-10">
-            {/* Progress Bar */}
-            <div className="w-full bg-slate-900 rounded-full h-3.5 overflow-hidden border border-slate-800 p-0.5 max-w-xl">
-              <div
-                className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 rounded-full transition-all duration-500"
-                style={{ width: `${currentStep.progressPercent}%` }}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 text-indigo-400 text-sm font-bold animate-pulse">
-              <Loader2 className="w-5 h-5 animate-spin" />
-              <span>{currentStep.stepTitle}</span>
-            </div>
-
-            <p className="text-xs text-slate-400 max-w-md">{currentStep.statusText}</p>
-
-            {/* Visual Live Stream Box */}
-            <div className="w-full max-w-2xl bg-slate-900/90 border border-slate-800 rounded-2xl p-4 flex flex-col gap-2 max-h-52 overflow-y-auto text-right text-xs text-slate-300 font-mono">
-              <div className="text-emerald-400 font-bold">✨ אבני בניין הנוצרות כעת על המסך:</div>
-              {streamedConfig?.sectionOrder.map((secId, i) => {
-                const sec = streamedConfig.sections[secId];
-                return (
-                  <div key={secId} className="flex items-center justify-between py-1 border-b border-slate-800/60">
-                    <span className="text-white font-semibold">
-                      #{i + 1} {sec?.title || sec?.type}
-                    </span>
-                    <span className="text-indigo-400 text-[10px] uppercase font-bold">[{sec?.type}] נוצר בהצלחה ✓</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-6 relative z-10 overflow-y-auto pr-1">
-            {/* Prompt Input */}
-            <div>
-              <label className="block text-xs font-bold text-slate-300 mb-2">
-                תארו את מטרת העמוד (או הקלידו מילות מפתח):
-              </label>
-              <textarea
-                rows={3}
-                value={promptText}
-                onChange={(e) => setPromptText(e.target.value)}
-                placeholder="למשל: דף נחיתה יוקרתי לקורס סייבר עם מחירונים, ביקורות, שאלות נפוצות וטופס הרשמה מוקדמת..."
-                className="w-full bg-slate-900 border border-slate-800 text-white rounded-2xl p-4 text-sm focus:outline-none focus:border-indigo-500 shadow-inner resize-none"
-              />
-            </div>
-
-            {/* Preset Ideas */}
-            <div>
-              <span className="text-xs font-bold text-slate-400 block mb-3">
-                או בחרו תבנית מוכנה להשקה מהירה:
-              </span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {aiPageGenerator.presetPrompts.map((preset) => (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    onClick={() => {
-                      setPromptText(preset.prompt);
-                      handleStartGeneration(preset.prompt);
-                    }}
-                    className="p-4 bg-slate-900/70 hover:bg-slate-900 border border-slate-800 hover:border-indigo-500/50 rounded-2xl flex items-start gap-3 text-right transition-all group cursor-pointer"
-                  >
-                    <div className="w-9 h-9 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-110 group-hover:bg-indigo-600 group-hover:text-white transition-all">
-                      <Sparkles className="w-4 h-4" />
-                    </div>
-                    <div>
-                      <h4 className="text-xs font-bold text-white group-hover:text-indigo-300 transition-colors">
-                        {preset.title}
-                      </h4>
-                      <p className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">
-                        {preset.description}
-                      </p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Action Button */}
-            <div className="pt-4 mt-2">
               <button
-                type="button"
-                disabled={!promptText.trim()}
-                onClick={() => handleStartGeneration()}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:opacity-95 disabled:opacity-50 text-white font-black text-sm sm:text-base shadow-2xl shadow-indigo-600/30 flex items-center justify-center gap-2 cursor-pointer transition-all hover:scale-[1.01]"
+                onClick={() => openConnectorModal('apiKeys')}
+                className="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                title="הגדרות מפתחות AI"
               >
-                <Sparkles className="w-5 h-5" />
-                <span>התחל יצירת עמוד בלייב ✨</span>
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                onClick={onClose}
+                className="p-2 rounded-xl bg-slate-800/50 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-5 h-5" />
               </button>
             </div>
+          )}
+        </div>
+
+        {/* Content Body */}
+        <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+          {!isGenerating ? (
+            <div className="flex flex-col gap-8 max-w-2xl mx-auto">
+              
+              {/* Brand DNA Status */}
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
+                <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+                <p className="text-sm text-slate-300">
+                  <strong className="text-indigo-400 font-bold">מחובר ל-Brand DNA:</strong> {brandDna?.identity?.companyName || 'מותג'} (פלטת צבעים, פונטים, ולוגו ישולבו אוטומטית בהתאם למטרת העמוד)
+                </p>
+                <div className="mr-auto px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
+                  מסונכרן
+                </div>
+              </div>
+
+              {/* Input Area */}
+              <div className="flex flex-col gap-3">
+                <label className="text-sm font-bold text-white">תארו את מטרת העמוד (או הקלידו מילות מפתח):</label>
+                <textarea
+                  value={promptText}
+                  onChange={(e) => setPromptText(e.target.value)}
+                  placeholder="למשל: דף נחיתה מקומי (GEO) למשרד שלי בתל אביב, עם שעות פתיחה, מפת הגעה והוכחה חברתית, או דף נחיתה למכירת קורס..."
+                  className="w-full h-32 px-5 py-4 rounded-2xl bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white placeholder-slate-500 text-base resize-none transition-all"
+                />
+                
+                <label className="flex items-center gap-3 mt-2 cursor-pointer group">
+                  <div className={clsx(
+                    "w-5 h-5 rounded flex items-center justify-center border transition-all",
+                    generateImages ? "bg-indigo-600 border-indigo-500" : "bg-slate-800 border-slate-700 group-hover:border-slate-500"
+                  )}>
+                    {generateImages && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
+                  </div>
+                  <span className="text-sm text-slate-300 flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-slate-400" />
+                    צור תמונות מתאימות ומדויקות (כולל תיאורי תמונה ו-ALT)
+                  </span>
+                </label>
+              </div>
+
+              {/* Dynamic Presets (Ideas) */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2 text-sm font-bold text-slate-400">
+                  <span>או בחרו רעיון מותאם אישית למותג שלכם:</span>
+                  {loadingIdeas && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {ideas.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => handleStartGeneration(preset.prompt)}
+                      className="flex flex-col gap-2 p-5 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 text-right transition-all group"
+                    >
+                      <div className="flex items-center justify-between w-full">
+                        <span className="font-bold text-white text-base">{preset.title}</span>
+                        <div className="w-8 h-8 rounded-full bg-slate-800 group-hover:bg-indigo-500/20 flex items-center justify-center text-slate-400 group-hover:text-indigo-400 transition-colors">
+                          {getIcon(preset.icon)}
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-400 leading-relaxed">{preset.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+            </div>
+          ) : (
+            // Stream Progress View
+            <div className="flex flex-col items-center justify-center py-12 gap-8">
+              
+              <div className="relative w-32 h-32 flex items-center justify-center">
+                <div className="absolute inset-0 border-4 border-slate-800 rounded-full"></div>
+                <div 
+                  className="absolute inset-0 border-4 border-indigo-500 rounded-full border-t-transparent animate-spin"
+                  style={{ animationDuration: '1.5s' }}
+                ></div>
+                <div className="absolute inset-0 flex items-center justify-center text-2xl font-black text-white">
+                  {currentStep?.progressPercent || 0}%
+                </div>
+              </div>
+
+              <div className="text-center flex flex-col gap-3">
+                <h3 className="text-2xl font-black text-white">
+                  {currentStep?.stepTitle || 'מכין תשתית...'}
+                </h3>
+                <p className="text-slate-400 text-sm flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{currentStep?.statusText || 'טוען נתונים...'}</span>
+                </p>
+              </div>
+
+              {/* Step indicator pills */}
+              <div className="flex flex-wrap items-center justify-center gap-2 max-w-lg mt-4">
+                {streamedConfig?.sectionOrder.map((secId, idx) => (
+                  <div key={secId} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold animate-fade-in-up">
+                    <CheckCircle2 className="w-3.5 h-3.5" />
+                    <span>אזור {idx + 1} הוקם</span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+          )}
+        </div>
+
+        {/* Footer Actions */}
+        {!isGenerating && (
+          <div className="p-6 border-t border-slate-800/80 bg-slate-900/60 flex justify-between items-center">
+            <button
+              onClick={onClose}
+              className="text-sm font-bold text-slate-400 hover:text-white transition-colors"
+            >
+              ביטול
+            </button>
+            
+            <button
+              onClick={() => handleStartGeneration()}
+              disabled={!promptText.trim()}
+              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>צור עמוד עכשיו ב-AI</span>
+              <ArrowLeft className="w-4 h-4" />
+            </button>
           </div>
         )}
       </div>

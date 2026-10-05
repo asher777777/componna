@@ -76,34 +76,29 @@ export function isContactInGroup(contact: ContactRecord, group: SmartGroup): boo
   return tags.includes(group.name) || tags.includes(group.id) || contact.community === group.name;
 }
 
+import * as XLSX from 'xlsx';
+
 /**
- * Export filtered contacts to a UTF-8 CSV file
+ * Export filtered contacts to an Excel (.xlsx) file
  */
-export function exportContactsToCsv(contacts: ContactRecord[], groupName: string) {
+export function exportContactsToExcel(contacts: ContactRecord[], groupName: string) {
   if (contacts.length === 0) return;
 
-  const headers = ['שם איש קשר', 'טלפון', 'אימייל', 'עיר', 'קבוצות וקהילות', 'סך תשלומים (₪)', 'סכום קמפיין (₪)', 'מקור הגעה', 'סטטוס'];
-  const rows = contacts.map((c) => [
-    c.conta_name || '',
-    c.conta_phone || '',
-    c.email || '',
-    c.mh_crm_city || '',
-    (c.tags || []).join(', '),
-    c.total_spent || 0,
-    c.campaign_amount || 0,
-    c.lead_source || '',
-    c.status || 'פעיל',
-  ]);
+  const data = contacts.map((c) => ({
+    'שם איש קשר': c.conta_name || '',
+    'טלפון': c.conta_phone || '',
+    'אימייל': c.email || '',
+    'עיר': c.mh_crm_city || '',
+    'קבוצות וקהילות': (c.tags || []).join(', '),
+    'סך תשלומים (₪)': c.total_spent || 0,
+    'סכום קמפיין (₪)': c.campaign_amount || 0,
+    'מקור הגעה': c.lead_source || '',
+    'סטטוס': c.status || 'פעיל',
+  }));
 
-  const csvContent =
-    'data:text/csv;charset=utf-8,\uFEFF' +
-    [headers.join(','), ...rows.map((e) => e.map((val) => `"${String(val).replace(/"/g, '""')}"`).join(','))].join('\n');
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'אנשי קשר');
 
-  const encodedUri = encodeURI(csvContent);
-  const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
-  link.setAttribute('download', `group_${groupName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
-  document.body.appendChild(link);
-  link.click();
-  document.body.removeChild(link);
+  XLSX.writeFile(workbook, `group_${groupName.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`);
 }

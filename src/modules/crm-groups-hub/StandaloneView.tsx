@@ -42,7 +42,7 @@ export const CrmGroupsHubStandaloneView: React.FC<{ ownerId?: string }> = ({ own
     <CrmGroupsProvider
       firebaseApp={systemFirebaseApp}
       greenApiCredentials={greenApiConfig}
-      ownerId={ownerId || 'default_user'}
+      ownerId={ownerId || ''}
     >
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">
         <CrmGroupsMainView />

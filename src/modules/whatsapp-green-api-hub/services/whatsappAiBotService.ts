@@ -21,6 +21,10 @@ export interface WhatsAppAiBotConfig {
   temperature: number;
   interactiveButtons: WhatsAppBotButton[];
   autoGenerateButtons: boolean;
+  knowledgeBase?: {
+    type: 'pdf' | 'collection' | 'url' | 'none';
+    source: string;
+  };
   createdAt: number;
 }
 

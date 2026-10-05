@@ -51,6 +51,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
     toggleColumn,
     resetColumns,
     toggleContactTag,
+    bulkDeleteContacts,
   } = useCrmGroups();
 
   const [openTagDropdownId, setOpenTagDropdownId] = useState<string | null>(null);
@@ -133,6 +134,19 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>וואטסאפ לנבחרים</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('האם אתה בטוח שברצונך למחוק את אנשי הקשר שנבחרו?')) {
+                  bulkDeleteContacts(selectedContactIds);
+                }
+              }}
+              className="h-8 px-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors shadow-xs"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>מחק נבחרים</span>
             </button>
 
             <button
@@ -456,6 +470,19 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                                 title="צפה בכרטיס איש קשר"
                               >
                                 <ExternalLink className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (window.confirm('האם אתה בטוח שברצונך למחוק איש קשר זה?')) {
+                                    bulkDeleteContacts([c.id]);
+                                  }
+                                }}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="מחיקת איש קשר"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           </td>

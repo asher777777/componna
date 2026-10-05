@@ -149,9 +149,9 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
     }
   };
 
-  // Load chats on mount
+  // Load chats on mount (removed to prevent automatic fetching and slowing down the view; user must click the refresh icon manually)
   useEffect(() => {
-    refreshChats();
+    // refreshChats();
   }, [service]);
 
   // Load chat history when selectedChatId changes

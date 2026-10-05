@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { PageBuilderConfig } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { MessageCircle, Phone, ArrowLeft, Heart, ShieldCheck, MapPin } from 'lucide-react';
@@ -92,38 +92,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               </div>
             </div>
 
-            {/* Nav Anchors */}
-            <nav className="hidden lg:flex items-center gap-6 text-sm font-bold text-slate-300">
-              {sectionOrder.slice(0, 6).map((secId) => {
-                const sec = sections[secId];
-                if (!sec || sec.visible === false) return null;
-                const reg = SECTION_REGISTRY[sec.type as keyof typeof SECTION_REGISTRY];
-                return (
-                  <a
-                    key={secId}
-                    href={`#${sec.anchorId || secId}`}
-                    className="hover:text-indigo-400 transition-colors"
-                  >
-                    {sec.title || reg?.name?.split(' ')[0] || secId}
-                  </a>
-                );
-              })}
-            </nav>
-
-            {/* Action Button */}
-            <div className="flex items-center gap-3">
-              {globalSettings.contactWhatsApp && (
-                <a
-                  href={`https://wa.me/${globalSettings.contactWhatsApp.replace(/[^0-9]/g, '')}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-black transition-all shadow-xl shadow-emerald-600/30 hover:scale-105"
-                >
-                  <MessageCircle className="w-4 h-4" />
-                  <span>שיחה בוואטסאפ</span>
-                </a>
-              )}
-            </div>
+            {/* Nav and header buttons removed per user request */}
           </div>
         </header>
       )}
@@ -158,28 +127,18 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
         })}
       </main>
 
-      {/* Mobile Floating Action Dock */}
+      {/* Global Floating WhatsApp Button */}
       {globalSettings.contactWhatsApp && (
-        <div className="md:hidden fixed bottom-4 left-4 right-4 z-40 flex items-center gap-2 p-2 rounded-2xl bg-slate-950/90 border border-slate-800 backdrop-blur-xl shadow-2xl">
-          <a
-            href={`https://wa.me/${globalSettings.contactWhatsApp.replace(/[^0-9]/g, '')}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex-1 py-3 rounded-xl bg-emerald-600 text-white font-black text-xs flex items-center justify-center gap-2 shadow-lg"
-          >
-            <MessageCircle className="w-4 h-4" />
-            <span>וואטסאפ מהיר</span>
-          </a>
-          {globalSettings.contactPhone && (
-            <a
-              href={`tel:${globalSettings.contactPhone.replace(/[^0-9]/g, '')}`}
-              className="p-3 rounded-xl bg-slate-900 text-slate-200 border border-slate-800"
-              title="חיוג"
-            >
-              <Phone className="w-4 h-4" />
-            </a>
-          )}
-        </div>
+        <a
+          href={`https://wa.me/${globalSettings.contactWhatsApp.replace(/[^0-9]/g, '')}`}
+          target="_blank"
+          rel="noreferrer"
+          className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-5 py-3.5 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-black transition-all shadow-2xl shadow-emerald-600/40 hover:scale-110"
+          title="שיחה בוואטסאפ"
+        >
+          <MessageCircle className="w-6 h-6" />
+          <span className="hidden sm:inline text-sm">שיחה בוואטסאפ</span>
+        </a>
       )}
 
       {/* Global Rich Footer */}

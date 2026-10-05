@@ -44,8 +44,8 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
   const isDark = theme === 'dark';
 
-  // Active Tab - WhatsApp Web is default landing tab
-  const [activeTab, setActiveTab] = useState<'webchat' | 'statuses' | 'aibots' | 'sender' | 'groups' | 'service'>('webchat');
+  // Active Tab - AI Bots is default landing tab
+  const [activeTab, setActiveTab] = useState<'webchat' | 'statuses' | 'aibots' | 'sender' | 'groups' | 'service'>('aibots');
 
   // Instance credentials pulled directly from central system connection
   const instanceId = apiKeys.greenApiInstanceId || '';
@@ -139,19 +139,8 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
       const res = await greenApiService.getStateInstance();
       setStateInstance(res.stateInstance);
       if (res.stateInstance === 'authorized') {
-        const [info, chatList] = await Promise.all([
-          greenApiService.getDeviceInfo(),
-          greenApiService.getChats(),
-        ]);
+        const info = await greenApiService.getDeviceInfo();
         setDeviceInfo(info);
-        if (chatList && chatList.length > 0) {
-          setChats(chatList);
-          setSelectedChatId((prev) => {
-            if (prev && chatList.some((c) => c.id === prev)) return prev;
-            const firstContact = chatList.find((c) => !c.isGroup);
-            return firstContact ? firstContact.id : chatList[0].id;
-          });
-        }
       }
     } catch {
       setStateInstance('unknown');
@@ -441,6 +430,18 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
         {/* Navigation Tabs */}
         <div className={`flex border ${themeClasses.navBg} rounded-2xl p-1 text-xs gap-1 overflow-x-auto no-scrollbar`}>
           <button
+            onClick={() => setActiveTab('aibots')}
+            title="בוטים מבוססי AI וכפתורים"
+            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
+              activeTab === 'aibots' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
+            }`}
+          >
+            <Bot className="w-4 h-4 text-amber-300" />
+            <span className="hidden sm:inline">בוטים מבוססי AI וכפתורים</span>
+            <span className="sm:hidden">בוטים</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('webchat')}
             title="שיחות וצ'אט חי"
             className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
@@ -462,18 +463,6 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             <Smartphone className="w-4 h-4 text-emerald-300" />
             <span className="hidden sm:inline">סטטוסים ו-Stories</span>
             <span className="sm:hidden">סטטוסים</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('aibots')}
-            title="בוטים מבוססי AI וכפתורים"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'aibots' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
-            }`}
-          >
-            <Bot className="w-4 h-4 text-amber-300" />
-            <span className="hidden sm:inline">בוטים מבוססי AI וכפתורים</span>
-            <span className="sm:hidden">בוטים</span>
           </button>
 
           <button
