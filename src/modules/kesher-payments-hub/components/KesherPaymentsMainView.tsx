@@ -20,6 +20,8 @@ import { KesherTerminalTab } from './KesherTerminalTab';
 import { KesherManualReceiptsTab } from './KesherManualReceiptsTab';
 import { KesherTransactionsLogTab } from './KesherTransactionsLogTab';
 import { KesherUtilitiesTab } from './KesherUtilitiesTab';
+import { QuickMetricsBar } from './QuickMetricsBar';
+import { KesherPaymentsProvider } from '../context/KesherPaymentsContext';
 
 export const KesherPaymentsMainView: React.FC = () => {
   const { openConnectorModal, apiKeys } = useSystemConnection();
@@ -43,8 +45,9 @@ export const KesherPaymentsMainView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-white p-4 sm:p-6 lg:p-8" dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <KesherPaymentsProvider>
+      <div className="min-h-screen bg-[#0b0f19] text-white p-4 sm:p-6 lg:p-8" dir="rtl">
+        <div className="max-w-7xl mx-auto space-y-6">
         {/* Header ראשי */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-800">
           <div className="flex items-center gap-3.5">
@@ -102,6 +105,9 @@ export const KesherPaymentsMainView: React.FC = () => {
             </button>
           </div>
         </div>
+
+        {/* באנר מדדים פיננסיים מהירים (Quick Metrics Bar) */}
+        <QuickMetricsBar />
 
         {/* תפריט לשוניות (Tabs) */}
         <div className="flex overflow-x-auto gap-2 p-1.5 bg-[#141824]/90 border border-slate-800/80 rounded-2xl backdrop-blur-md">
@@ -167,6 +173,7 @@ export const KesherPaymentsMainView: React.FC = () => {
         </div>
       </div>
     </div>
+    </KesherPaymentsProvider>
   );
 };
 

@@ -286,12 +286,11 @@ export const KesherTransactionsLogTab: React.FC<Props> = ({ refreshTrigger }) =>
       let importedCount = 0;
       let updatedCount = 0;
 
-      const { db: firestoreDb } = await import('../../../services/firebase');
-      const targetDb = db || firestoreDb;
+      const targetDb = db;
 
       if (targetDb) {
-        const { collection, getDocs, doc, setDoc, updateDoc } = await import('firebase/firestore');
-        const contactsRef = collection(targetDb, 'contacts');
+        const { collection: getCollection, getDocs, doc, setDoc, updateDoc } = await import('firebase/firestore');
+        const contactsRef = getCollection(targetDb, 'contacts');
         const snap = await getDocs(contactsRef);
         const existingContacts: any[] = [];
         snap.forEach((d) => existingContacts.push({ id: d.id, ...d.data() }));

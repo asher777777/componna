@@ -556,6 +556,14 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
           )}
         </div>
       )}
+
+      {/* TAB 4: Internal Community Chat & Video Calls */}
+      {activeTab === 'chat' && (
+        <CommunityChatRoomView
+          community={community}
+          contacts={contacts}
+        />
+      )}
     </div>
   );
 };

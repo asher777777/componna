@@ -1,21 +1,5 @@
-import { db } from '../../../services/firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  setDoc, 
-  updateDoc, 
-  onSnapshot, 
-  query, 
-  where 
-} from 'firebase/firestore';
-import { Contact, PaymentRecord } from '../../crm-analytics/types';
-import { generateMockCrmData } from '../../crm-analytics/services/crmAnalyticsService';
+import { CrmContactSummary } from '../../../core/contracts';
 
-/**
- * Normalizes Hebrew & English strings for robust fuzzy/tokenized searching.
- * Removes quotes, gershayim, punctuation, and trims extra spaces.
- */
 export function normalizeSearchText(text?: string | null): string {
   if (!text) return '';
   return String(text)
@@ -26,9 +10,6 @@ export function normalizeSearchText(text?: string | null): string {
     .trim();
 }
 
-/**
- * Clean phone numbers to pure digits for matching
- */
 export function cleanPhoneDigits(phone?: string | null): string {
   if (!phone) return '';
   let cleaned = String(phone).replace(/\D/g, '');
@@ -38,12 +19,6 @@ export function cleanPhoneDigits(phone?: string | null): string {
   return cleaned;
 }
 
-/**
- * Flexible name matching:
- * Matches whether the search is first name first, last name first, or partial tokens.
- * E.g., "ישראל כהן" matches "כהן ישראל", "ישראל" matches "כהן ישראל",
- * "חבד אחיעזר" matches "בית חבד אחיעזר שע"י צעירי חב"ד".
- */
 export function matchesFlexibleName(queryText: string, targetName: string): boolean {
   if (!queryText.trim()) return true;
   if (!targetName) return false;
@@ -58,16 +33,65 @@ export function matchesFlexibleName(queryText: string, targetName: string): bool
 
   if (queryTokens.length === 0) return true;
 
-  // Every token in the query must match either a token in target or substring in target
   return queryTokens.every(qToken =>
     targetTokens.some(tToken => tToken.includes(qToken)) || normTarget.includes(qToken)
   );
 }
 
-/**
- * Filters a list of contacts against a search query across name, phone, email, TZ/VAT, and company.
- */
-export function searchContacts(contacts: Contact[], searchTerm: string): Contact[] {
+export function generateKesherMockContacts(): CrmContactSummary[] {
+  return [
+    {
+      id: 'c1',
+      conta_name: 'ישראל ישראלי',
+      conta_phone: '050-1234567',
+      email: 'israel@example.com',
+      tg1: '012345678',
+      company_name: 'טכנולוגיות בע"מ',
+      total_spent: 4500,
+      order_count: 3,
+    },
+    {
+      id: 'c2',
+      conta_name: 'שרה כהן',
+      conta_phone: '052-7654321',
+      email: 'sara.cohen@example.com',
+      tg1: '023456789',
+      company_name: 'סטודיו לעיצוב',
+      total_spent: 8900,
+      order_count: 7,
+    },
+    {
+      id: 'c3',
+      conta_name: 'דוד לוי',
+      conta_phone: '054-9876543',
+      email: 'david.levi@example.com',
+      tg1: '034567890',
+      company_name: 'לוי ובניו',
+      total_spent: 1250,
+      order_count: 2,
+    },
+    {
+      id: 'c4',
+      conta_name: 'רחל גולדשטיין',
+      conta_phone: '053-3334455',
+      email: 'rachel.g@gmail.com',
+      tg1: '045678901',
+      total_spent: 3600,
+      order_count: 4,
+    },
+    {
+      id: 'c5',
+      conta_name: 'משה אברהמי',
+      conta_phone: '058-7778899',
+      email: 'moshe.av@outlook.com',
+      tg1: '056789012',
+      total_spent: 980,
+      order_count: 1,
+    }
+  ];
+}
+
+export function searchContacts(contacts: CrmContactSummary[], searchTerm: string): CrmContactSummary[] {
   if (!searchTerm || !searchTerm.trim()) return [];
   const term = searchTerm.trim();
   const cleanDigits = cleanPhoneDigits(term);
@@ -77,7 +101,7 @@ export function searchContacts(contacts: Contact[], searchTerm: string): Contact
     const phone = c.conta_phone || (c as any).phone || (c as any).mobile || '';
     const email = c.email || '';
     const tz = String(c.tg1 || (c as any).tz || (c as any).idNumber || (c as any).id_num || (c as any).vat || '').trim();
-    const company = c.company_name || (c as any).company || '';
+    const company = (c as any).company_name || (c as any).company || '';
 
     // 1. Check Name flexible match
     if (name && matchesFlexibleName(term, name)) return true;
@@ -103,59 +127,90 @@ export function searchContacts(contacts: Contact[], searchTerm: string): Contact
   });
 }
 
-class CrmContactSyncService {
-  private cachedContacts: Contact[] = [];
+const STORAGE_KEY = 'comona_kesher_cached_contacts';
+
+export class CrmContactSyncService {
+  private cachedContacts: CrmContactSummary[] = [];
   private isLoaded = false;
-  private listeners: Set<(contacts: Contact[]) => void> = new Set();
+  private listeners: Set<(contacts: CrmContactSummary[]) => void> = new Set();
   private unsubscribeFirestore: (() => void) | null = null;
+  private currentDb: any = null;
 
   constructor() {
-    this.init();
+    this.loadFromStorage();
   }
 
-  private init() {
+  private loadFromStorage() {
     try {
-      if (db) {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          this.cachedContacts = parsed;
+          this.isLoaded = true;
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[CrmContactSyncService] Storage read error:', e);
+    }
+    this.cachedContacts = generateKesherMockContacts();
+    this.isLoaded = true;
+  }
+
+  private saveToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.cachedContacts.slice(0, 500)));
+    } catch (e) {
+      console.warn('[CrmContactSyncService] Storage save error:', e);
+    }
+  }
+
+  /**
+   * Inject Firestore DB dynamically without static singleton imports
+   */
+  public attachFirestore(db: any) {
+    if (!db || this.currentDb === db) return;
+    this.currentDb = db;
+
+    if (this.unsubscribeFirestore) {
+      this.unsubscribeFirestore();
+      this.unsubscribeFirestore = null;
+    }
+
+    try {
+      import('firebase/firestore').then(({ collection, onSnapshot }) => {
         const contactsRef = collection(db, 'contacts');
         this.unsubscribeFirestore = onSnapshot(contactsRef, (snap) => {
-          const list: Contact[] = [];
+          const list: CrmContactSummary[] = [];
           snap.forEach((docSnap) => {
             const data = docSnap.data();
             list.push({
               id: docSnap.id,
-              status: data.status || 'active',
-              is_lead: data.is_lead ?? false,
-              contact_type: data.contact_type || (data.is_lead ? 'lead' : 'contact'),
+              conta_name: data.conta_name || data.name || data.fullName || 'ללא שם',
+              conta_phone: data.conta_phone || data.phone || data.mobile || '',
+              email: data.email || '',
+              tg1: data.tg1 || data.tz || data.idNumber || '',
+              total_spent: data.total_spent || 0,
+              order_count: data.order_count || 0,
               ...data,
-            } as Contact);
+            });
           });
 
           if (list.length > 0) {
             this.cachedContacts = list;
-          } else if (this.cachedContacts.length === 0) {
-            this.cachedContacts = generateMockCrmData();
+            this.saveToStorage();
           }
-
           this.isLoaded = true;
           this.notifyListeners();
         }, (err) => {
-          console.warn('[CrmContactSyncService] Firestore snapshot notice:', err);
-          if (this.cachedContacts.length === 0) {
-            this.cachedContacts = generateMockCrmData();
-          }
-          this.isLoaded = true;
-          this.notifyListeners();
+          console.warn('[CrmContactSyncService] Snapshot fallback:', err);
         });
-      } else {
-        this.cachedContacts = generateMockCrmData();
-        this.isLoaded = true;
-        this.notifyListeners();
-      }
+      }).catch(err => {
+        console.warn('[CrmContactSyncService] Firestore dynamic import error:', err);
+      });
     } catch (e) {
-      console.warn('[CrmContactSyncService] Init fallback:', e);
-      this.cachedContacts = generateMockCrmData();
-      this.isLoaded = true;
-      this.notifyListeners();
+      console.warn('[CrmContactSyncService] attachFirestore error:', e);
     }
   }
 
@@ -169,10 +224,7 @@ class CrmContactSyncService {
     });
   }
 
-  /**
-   * Subscribe to live contacts list
-   */
-  public subscribe(callback: (contacts: Contact[]) => void): () => void {
+  public subscribe(callback: (contacts: CrmContactSummary[]) => void): () => void {
     this.listeners.add(callback);
     if (this.cachedContacts.length > 0) {
       callback(this.cachedContacts);
@@ -182,28 +234,17 @@ class CrmContactSyncService {
     };
   }
 
-  /**
-   * Get current cached contacts immediately
-   */
-  public getContacts(): Contact[] {
+  public getContacts(): CrmContactSummary[] {
     if (this.cachedContacts.length === 0) {
-      return generateMockCrmData();
+      return generateKesherMockContacts();
     }
     return this.cachedContacts;
   }
 
-  /**
-   * Searches contacts with flexible Hebrew and multi-field matching
-   */
-  public search(query: string): Contact[] {
+  public search(query: string): CrmContactSummary[] {
     return searchContacts(this.getContacts(), query);
   }
 
-  /**
-   * Saves or updates a contact in the CRM (Firestore and local cache).
-   * If the contact already has an ID, updates that document.
-   * If not, searches for an existing contact by phone or TZ, and updates or creates a new one.
-   */
   public async saveOrUpdateContact(data: {
     id?: string;
     clientName: string;
@@ -214,7 +255,7 @@ class CrmContactSyncService {
     branchNumber?: string;
     accountNumber?: string;
     checkNumber?: string;
-  }): Promise<{ contact: Contact; isNew: boolean }> {
+  }): Promise<{ contact: CrmContactSummary; isNew: boolean }> {
     const cleanPhone = cleanPhoneDigits(data.phone);
     const cleanTz = (data.tz || '').replace(/\D/g, '').trim();
     const cleanEmail = (data.email || '').trim().toLowerCase();
@@ -223,7 +264,6 @@ class CrmContactSyncService {
     let targetId = data.id;
     let existingContact = targetId ? this.cachedContacts.find(c => c.id === targetId) : undefined;
 
-    // If no ID provided, try matching existing contact by phone / tz / email / name
     if (!existingContact) {
       existingContact = this.cachedContacts.find(c => {
         const cPhone = cleanPhoneDigits(c.conta_phone || (c as any).phone);
@@ -253,7 +293,7 @@ class CrmContactSyncService {
     const isNew = !existingContact;
     const finalId = targetId || `crm_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
-    const updatedContact: Contact = {
+    const updatedContact: CrmContactSummary = {
       ...(existingContact || {
         status: 'active',
         is_lead: false,
@@ -276,42 +316,47 @@ class CrmContactSyncService {
       updatedAt: new Date().toISOString(),
     };
 
-    // Update in-memory cache immediately
     const idx = this.cachedContacts.findIndex(c => c.id === finalId);
     if (idx >= 0) {
       this.cachedContacts[idx] = updatedContact;
     } else {
       this.cachedContacts.unshift(updatedContact);
     }
+    this.saveToStorage();
     this.notifyListeners();
 
-    // Persist to Firestore if available
-    try {
-      if (db) {
-        const docRef = doc(db, 'contacts', finalId);
+    if (this.currentDb) {
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const docRef = doc(this.currentDb, 'contacts', finalId);
         const cleanPayload = JSON.parse(JSON.stringify(updatedContact));
         await setDoc(docRef, cleanPayload, { merge: true });
+      } catch (err) {
+        console.warn('[CrmContactSyncService] Firestore save error:', err);
       }
-    } catch (err) {
-      console.warn('[CrmContactSyncService] Firestore save error:', err);
     }
 
     return { contact: updatedContact, isNew };
   }
 
-  /**
-   * Log transaction directly into the contact's CRM history
-   */
-  public async recordContactPayment(contactId: string, payment: PaymentRecord): Promise<void> {
+  public async recordContactPayment(contactId: string, payment: {
+    id?: string;
+    date: string;
+    amount: number;
+    paymentType: string;
+    receiptType?: string;
+    receiptLink?: string;
+    [key: string]: any;
+  }): Promise<void> {
     const contact = this.cachedContacts.find(c => c.id === contactId);
     if (!contact) return;
 
-    const currentPayments = Array.isArray(contact.payments) ? [...contact.payments] : [];
+    const currentPayments = Array.isArray((contact as any).payments) ? [...(contact as any).payments] : [];
     const updatedPayments = [payment, ...currentPayments];
     const newTotalSpent = (contact.total_spent || 0) + Number(payment.amount || 0);
     const newOrderCount = (contact.order_count || 0) + 1;
 
-    const updatedContact: Contact = {
+    const updatedContact: CrmContactSummary = {
       ...contact,
       payments: updatedPayments,
       total_spent: newTotalSpent,
@@ -324,21 +369,23 @@ class CrmContactSyncService {
     if (idx >= 0) {
       this.cachedContacts[idx] = updatedContact;
     }
+    this.saveToStorage();
     this.notifyListeners();
 
-    try {
-      if (db) {
-        const docRef = doc(db, 'contacts', contactId);
+    if (this.currentDb) {
+      try {
+        const { doc, updateDoc } = await import('firebase/firestore');
+        const docRef = doc(this.currentDb, 'contacts', contactId);
         await updateDoc(docRef, {
           payments: updatedPayments,
           total_spent: newTotalSpent,
           order_count: newOrderCount,
-          last_order_date: updatedContact.last_order_date,
+          last_order_date: (updatedContact as any).last_order_date,
           updatedAt: updatedContact.updatedAt,
         });
+      } catch (err) {
+        console.warn('[CrmContactSyncService] Firestore record payment error:', err);
       }
-    } catch (err) {
-      console.warn('[CrmContactSyncService] Firestore record payment error:', err);
     }
   }
 }

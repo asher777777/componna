@@ -115,6 +115,19 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     ]
   },
   {
+    id: 'kesher-payments-hub',
+    defaultTitle: 'סליקת אשראי והפקת חשבוניות',
+    defaultSlug: '/payments-terminal',
+    description: 'מסוף סליקה דיגיטלי (קשר), הוראות קבע, והפקת קבלות וחשבוניות אוטומטיות (איזי קאונט)',
+    iconName: 'CreditCard',
+    requiredKeys: [
+      { key: 'kesherUserName', label: 'שם משתמש קשר', description: 'שם המשתמש במסוף קשר', isSecret: false },
+      { key: 'kesherApiKey', label: 'מפתח API / סיסמת קשר', description: 'סיסמת המסוף או מפתח ה-API', isSecret: true },
+      { key: 'kesherPaymentPageId', label: 'מספר פרויקט / מסוף', description: 'מספר המסוף בקשר', isSecret: false },
+      { key: 'kesherEzCountToken', label: 'טוקן איזי קאונט (EasyCount)', description: 'טוקן API להפקת מסמכים מורשים', isSecret: true }
+    ]
+  },
+  {
     id: 'template',
     defaultTitle: 'מודול תבנית בסיסי',
     defaultSlug: '/template',

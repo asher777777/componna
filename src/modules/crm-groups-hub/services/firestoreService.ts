@@ -18,6 +18,8 @@ import {
   SmartGroup,
   GroupRule,
   CrmGroupsCollectionsConfig,
+  CommunityChatMessage,
+  CommunityVideoCallRoom,
 } from '../types';
 import { DEFAULT_COLLECTIONS, PRESET_COLORS } from '../config';
 import { isContactInGroup } from './groupsUtils';

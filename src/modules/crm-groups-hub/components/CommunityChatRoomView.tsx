@@ -217,30 +217,35 @@ export const CommunityChatRoomView: React.FC<CommunityChatRoomViewProps> = ({
 
   // Handle Media Picker from Host Capability if available
   const handleOpenMediaPicker = async () => {
-    if (mediaPicker) {
+    if (mediaPicker && typeof mediaPicker.openPicker === 'function') {
       try {
-        const result = await mediaPicker.pickMedia({
-          allowedTypes: ['image', 'video', 'document'],
+        const result = await mediaPicker.openPicker({
+          accept: '*/*',
           multiple: false,
         });
-        if (result && result.length > 0) {
-          const item = result[0];
-          const newMsg = await sendCommunityChatMessage(
-            db,
-            {
-              communityId: community.id || community.name,
-              communityName: community.name,
-              senderId: currentUser.id,
-              senderName: currentUser.name,
-              content: item.title || item.name || 'קובץ ששותף מהגלריה',
-              type: item.type === 'video' ? 'video' : item.type === 'image' ? 'image' : 'file',
-              fileUrl: item.url,
-              fileName: item.name || item.title,
-            },
-            customCollections
-          );
-          setMessages((prev) => [...prev, newMsg]);
-          return;
+        if (result) {
+          const url = Array.isArray(result) ? result[0] : result;
+          if (url) {
+            const fileName = url.split('/').pop() || 'קובץ משותף';
+            const isImage = /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(url);
+            const isVideo = /\.(mp4|webm|mov)$/i.test(url);
+            const newMsg = await sendCommunityChatMessage(
+              db,
+              {
+                communityId: community.id || community.name,
+                communityName: community.name,
+                senderId: currentUser.id,
+                senderName: currentUser.name,
+                content: fileName,
+                type: isImage ? 'image' : isVideo ? 'video' : 'file',
+                fileUrl: url,
+                fileName,
+              },
+              customCollections
+            );
+            setMessages((prev) => [...prev, newMsg]);
+            return;
+          }
         }
       } catch (err) {
         console.warn('Host media picker fallback to native file input:', err);

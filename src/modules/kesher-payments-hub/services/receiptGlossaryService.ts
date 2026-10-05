@@ -1,12 +1,3 @@
-import { db } from '../../../services/firebase';
-import { 
-  collection, 
-  getDocs, 
-  doc, 
-  setDoc, 
-  deleteDoc, 
-  onSnapshot 
-} from 'firebase/firestore';
 import { GlossaryItem, ReceiptLineItem } from '../types';
 import { normalizeSearchText, matchesFlexibleName } from './crmContactSyncService';
 
@@ -25,10 +16,11 @@ const DEFAULT_PRESET_ITEMS: GlossaryItem[] = [
   { id: 'item_10', name: 'רכישת ספרים ומוצרי קודש', defaultPrice: 120, category: 'מכירות', usageCount: 7 },
 ];
 
-class ReceiptGlossaryService {
+export class ReceiptGlossaryService {
   private items: GlossaryItem[] = [];
   private listeners: Set<(items: GlossaryItem[]) => void> = new Set();
   private unsubscribeFirestore: (() => void) | null = null;
+  private currentDb: any = null;
 
   constructor() {
     this.loadInitialData();
@@ -52,10 +44,22 @@ class ReceiptGlossaryService {
       this.items = [...DEFAULT_PRESET_ITEMS];
       this.saveLocal();
     }
+  }
 
-    // 2. Subscribe to Firestore
+  /**
+   * Inject Firestore DB dynamically without static singleton imports
+   */
+  public attachFirestore(db: any) {
+    if (!db || this.currentDb === db) return;
+    this.currentDb = db;
+
+    if (this.unsubscribeFirestore) {
+      this.unsubscribeFirestore();
+      this.unsubscribeFirestore = null;
+    }
+
     try {
-      if (db) {
+      import('firebase/firestore').then(({ collection, onSnapshot }) => {
         const collRef = collection(db, 'receipt_glossary_items');
         this.unsubscribeFirestore = onSnapshot(collRef, (snap) => {
           const list: GlossaryItem[] = [];
@@ -64,7 +68,6 @@ class ReceiptGlossaryService {
           });
 
           if (list.length > 0) {
-            // Merge with presets if needed
             const map = new Map<string, GlossaryItem>();
             list.forEach(item => map.set(item.name.trim().toLowerCase(), item));
             this.items.forEach(item => {
@@ -78,9 +81,11 @@ class ReceiptGlossaryService {
         }, (err) => {
           console.warn('[ReceiptGlossaryService] Firestore notice:', err);
         });
-      }
+      }).catch(err => {
+        console.warn('[ReceiptGlossaryService] Dynamic import error:', err);
+      });
     } catch (e) {
-      console.warn('[ReceiptGlossaryService] Firestore init notice:', e);
+      console.warn('[ReceiptGlossaryService] attachFirestore error:', e);
     }
   }
 
@@ -114,9 +119,6 @@ class ReceiptGlossaryService {
     return [...this.items];
   }
 
-  /**
-   * Search glossary items by name/token with fuzzy Hebrew matching
-   */
   public search(query: string): GlossaryItem[] {
     if (!query || !query.trim()) {
       return this.items.slice(0, 10);
@@ -128,9 +130,6 @@ class ReceiptGlossaryService {
     );
   }
 
-  /**
-   * Add or update an item in the glossary
-   */
   public async saveOrUpdateItem(data: {
     id?: string;
     name: string;
@@ -171,28 +170,24 @@ class ReceiptGlossaryService {
       this.items.unshift(finalItem);
     }
 
-    // Sort by usage count
     this.items.sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0));
     this.saveLocal();
     this.notifyListeners();
 
-    // Persist to Firestore
-    try {
-      if (db) {
-        const docRef = doc(db, 'receipt_glossary_items', finalItem.id);
+    if (this.currentDb) {
+      try {
+        const { doc, setDoc } = await import('firebase/firestore');
+        const docRef = doc(this.currentDb, 'receipt_glossary_items', finalItem.id);
         const cleanPayload = JSON.parse(JSON.stringify(finalItem));
         await setDoc(docRef, cleanPayload, { merge: true });
+      } catch (err) {
+        console.warn('[ReceiptGlossaryService] Firestore save error:', err);
       }
-    } catch (err) {
-      console.warn('[ReceiptGlossaryService] Firestore save error:', err);
     }
 
     return finalItem;
   }
 
-  /**
-   * Automatically saves all line items from an issued receipt into the glossary
-   */
   public async saveItemsFromReceipt(items: ReceiptLineItem[]): Promise<void> {
     if (!Array.isArray(items) || items.length === 0) return;
     for (const line of items) {
@@ -210,23 +205,22 @@ class ReceiptGlossaryService {
     }
   }
 
-  /**
-   * Delete an item from glossary
-   */
   public async deleteItem(id: string): Promise<boolean> {
     this.items = this.items.filter(i => i.id !== id);
     this.saveLocal();
     this.notifyListeners();
 
-    try {
-      if (db) {
-        await deleteDoc(doc(db, 'receipt_glossary_items', id));
+    if (this.currentDb) {
+      try {
+        const { doc, deleteDoc } = await import('firebase/firestore');
+        await deleteDoc(doc(this.currentDb, 'receipt_glossary_items', id));
+        return true;
+      } catch (e) {
+        console.warn('[ReceiptGlossaryService] Firestore delete notice:', e);
+        return true;
       }
-      return true;
-    } catch (e) {
-      console.warn('[ReceiptGlossaryService] Firestore delete notice:', e);
-      return true;
     }
+    return true;
   }
 }
 

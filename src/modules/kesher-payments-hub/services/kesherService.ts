@@ -16,6 +16,11 @@ const TRANSACTIONS_STORAGE_KEY = 'comona_kesher_local_transactions';
 
 export class KesherService {
   private settings: KesherSettings;
+  private currentDb: any = null;
+
+  public attachFirestore(db: any) {
+    if (db) this.currentDb = db;
+  }
 
   constructor(initialSettings?: Partial<KesherSettings>) {
     this.settings = {
@@ -1048,8 +1053,7 @@ export class KesherService {
 
     // סנכרון ל-Firestore (CRM Contacts + kesher_transactions)
     try {
-      const { db } = await import('../../../services/firebase');
-      const targetDb = customDb || db;
+      const targetDb = customDb || this.currentDb;
 
       if (targetDb) {
         const { collection, getDocs, doc, setDoc, updateDoc } = await import('firebase/firestore');
@@ -1248,8 +1252,7 @@ export class KesherService {
     this.recordLocalTransaction(item);
     try {
       // Direct Firestore sync if Firebase is available
-      const { db } = await import('../../../services/firebase');
-      const targetDb = customDb || db;
+      const targetDb = customDb || this.currentDb;
       if (targetDb) {
         const { doc, setDoc } = await import('firebase/firestore');
         const docId = item.id || `kesher_${item.transactionId || Date.now()}`;
@@ -1279,8 +1282,7 @@ export class KesherService {
   public async mergeTransactions(newItems: KesherTransactionItem[], customDb?: any): Promise<void> {
     this.mergeLocalTransactions(newItems);
     try {
-      const { db } = await import('../../../services/firebase');
-      const targetDb = customDb || db;
+      const targetDb = customDb || this.currentDb;
       if (targetDb && newItems.length > 0) {
         const { doc, setDoc } = await import('firebase/firestore');
         for (const item of newItems.slice(0, 100)) {

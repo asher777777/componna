@@ -23,12 +23,14 @@ import {
 } from 'lucide-react';
 import { kesherService } from '../services/kesherService';
 import { KesherDocumentType, ReceiptLineItem, GlossaryItem } from '../types';
-import { Contact } from '../../crm-analytics/types';
+import { CrmContactSummary } from '../../../core/contracts';
+import { eventBus } from '../../../core/bridge/EventBus';
 import { crmContactSyncService } from '../services/crmContactSyncService';
 import { CrmContactAutocomplete } from './CrmContactAutocomplete';
 import { ReceiptItemGlossaryAutocomplete } from './ReceiptItemGlossaryAutocomplete';
 import { ReceiptGlossaryManagerModal } from './ReceiptGlossaryManagerModal';
 import { receiptGlossaryService } from '../services/receiptGlossaryService';
+import { WhatsAppReceiptShareButton } from './WhatsAppReceiptShareButton';
 
 export const KesherManualReceiptsTab: React.FC = () => {
   const settings = kesherService.getSettings();
@@ -154,7 +156,7 @@ export const KesherManualReceiptsTab: React.FC = () => {
   };
 
   // CRM Sync State
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<CrmContactSummary | null>(null);
   const [isSavingCrm, setIsSavingCrm] = useState<boolean>(false);
   const [crmToast, setCrmToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
@@ -176,7 +178,7 @@ export const KesherManualReceiptsTab: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   // Handle contact selection from CRM autocomplete
-  const handleSelectContact = (contact: Contact) => {
+  const handleSelectContact = (contact: CrmContactSummary) => {
     setSelectedContact(contact);
     setClientName(contact.conta_name || '');
     setPhone(contact.conta_phone || (contact as any).phone || (contact as any).mobile || '');
@@ -262,7 +264,7 @@ export const KesherManualReceiptsTab: React.FC = () => {
 
     try {
       // 1. Auto-save / sync missing or updated details to CRM
-      let activeCrmContact: Contact | null = null;
+      let activeCrmContact: CrmContactSummary | null = null;
       try {
         const syncRes = await crmContactSyncService.saveOrUpdateContact({
           id: selectedContact?.id,
@@ -314,6 +316,24 @@ export const KesherManualReceiptsTab: React.FC = () => {
 
       const receiptNum = res.ReceiptNumber || res.TransactionId || res.Id || `rcpt_${Date.now()}`;
       const docUrl = res.DocUrl || res.Url;
+
+      // Publish to eventBus
+      try {
+        eventBus.publish('payment:completed', {
+          transactionId: receiptNum,
+          amount: Number(amount),
+          clientName,
+          phone,
+          email,
+          tz,
+          paymentMethod: paymentType,
+          documentType: receiptType,
+          receiptUrl: docUrl,
+          timestamp: new Date().toISOString()
+        });
+      } catch (eBusErr) {
+        console.warn('[EventBus] Manual receipt completed notice:', eBusErr);
+      }
 
       // 3. Record payment in Contact CRM profile
       if (activeCrmContact?.id) {
@@ -375,18 +395,28 @@ export const KesherManualReceiptsTab: React.FC = () => {
             </div>
           </div>
 
-          {successResult.docUrl && (
-            <a
-              href={successResult.docUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer shrink-0"
-            >
-              <FileText className="w-4 h-4" />
-              צפה בקבלה (PDF באיזי קאונט)
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {successResult.docUrl && (
+              <a
+                href={successResult.docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700 shadow-md transition-all cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-emerald-400" />
+                צפה בקבלה (PDF)
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+
+            <WhatsAppReceiptShareButton
+              phone={phone}
+              clientName={clientName}
+              amount={amount}
+              receiptUrl={successResult.docUrl}
+              transactionId={successResult.receiptNumber}
+            />
+          </div>
         </div>
       )}
 

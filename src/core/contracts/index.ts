@@ -55,6 +55,17 @@ export interface AuthSessionContract {
   isAuthenticated: boolean;
 }
 
+export interface CrmContactSummary {
+  id: string;
+  conta_name: string;
+  conta_phone?: string;
+  email?: string;
+  tg1?: string; // ת.ז. / ח.פ.
+  total_spent?: number;
+  order_count?: number;
+  [key: string]: any;
+}
+
 export interface CoreEventMap {
   'crm:lead:created': LeadPayload;
   'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };
@@ -69,6 +80,18 @@ export interface CoreEventMap {
     submittedAt: string;
   };
   'crm:contact:updated': { id: string; conta_name?: string; email?: string; [key: string]: any };
+  'payment:completed': {
+    transactionId: string;
+    amount: number;
+    clientName: string;
+    phone?: string;
+    email?: string;
+    tz?: string;
+    paymentMethod: string;
+    documentType?: number | string;
+    receiptUrl?: string;
+    timestamp: string;
+  };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
 }

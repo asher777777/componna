@@ -21,9 +21,12 @@ import {
 } from 'lucide-react';
 import { kesherService } from '../services/kesherService';
 import { KesherDocumentType, KesherCreditType } from '../types';
-import { Contact } from '../../crm-analytics/types';
+import { CrmContactSummary } from '../../../core/contracts';
+import { eventBus } from '../../../core/bridge/EventBus';
 import { crmContactSyncService } from '../services/crmContactSyncService';
 import { CrmContactAutocomplete } from './CrmContactAutocomplete';
+import { WhatsAppReceiptShareButton } from './WhatsAppReceiptShareButton';
+import { MobileTerminalPad } from './MobileTerminalPad';
 
 export const KesherTerminalTab: React.FC = () => {
   const settings = kesherService.getSettings();
@@ -33,13 +36,14 @@ export const KesherTerminalTab: React.FC = () => {
 
   // Form State
   const [amount, setAmount] = useState<string>('');
+  const [showMobilePad, setShowMobilePad] = useState<boolean>(false);
   const [clientName, setClientName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [tz, setTz] = useState<string>('');
 
   // CRM Sync State
-  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<CrmContactSummary | null>(null);
   const [isSavingCrm, setIsSavingCrm] = useState<boolean>(false);
   const [crmToast, setCrmToast] = useState<{ message: string; type: 'success' | 'info' } | null>(null);
 
@@ -68,7 +72,7 @@ export const KesherTerminalTab: React.FC = () => {
   const cardValidation = cardNumber.length >= 8 ? kesherService.validateCreditCard(cardNumber) : null;
 
   // Handle contact selection from CRM autocomplete
-  const handleSelectContact = (contact: Contact) => {
+  const handleSelectContact = (contact: CrmContactSummary) => {
     setSelectedContact(contact);
     setClientName(contact.conta_name || '');
     setPhone(contact.conta_phone || (contact as any).phone || (contact as any).mobile || '');
@@ -135,7 +139,7 @@ export const KesherTerminalTab: React.FC = () => {
 
     try {
       // 1. Auto-save / sync missing or updated details to CRM
-      let activeCrmContact: Contact | null = null;
+      let activeCrmContact: CrmContactSummary | null = null;
       try {
         const syncRes = await crmContactSyncService.saveOrUpdateContact({
           id: selectedContact?.id,
@@ -165,7 +169,25 @@ export const KesherTerminalTab: React.FC = () => {
         const txId = res.BitTransactionId || res.TransactionId || `bit_${Date.now()}`;
         const docUrl = res.DocUrl || res.Url;
 
-        // 2. Record payment in Contact CRM profile
+        // 2. Publish to eventBus
+        try {
+          eventBus.publish('payment:completed', {
+            transactionId: txId,
+            amount: Number(amount),
+            clientName,
+            phone,
+            email,
+            tz,
+            paymentMethod: 'Bit',
+            documentType,
+            receiptUrl: docUrl,
+            timestamp: new Date().toISOString()
+          });
+        } catch (eBusErr) {
+          console.warn('[EventBus] Payment completed event notice:', eBusErr);
+        }
+
+        // 3. Record payment in Contact CRM profile
         if (activeCrmContact?.id) {
           await crmContactSyncService.recordContactPayment(activeCrmContact.id, {
             id: `pay_${txId}`,
@@ -223,7 +245,25 @@ export const KesherTerminalTab: React.FC = () => {
         const authNum = res.AuthNumber || res.ApprovalNumber;
         const docUrl = res.DocUrl || res.Url;
 
-        // 2. Record payment in Contact CRM profile
+        // 2. Publish to eventBus
+        try {
+          eventBus.publish('payment:completed', {
+            transactionId: txId,
+            amount: Number(amount),
+            clientName,
+            phone,
+            email,
+            tz,
+            paymentMethod: dealType === 'standing_order' ? 'StandingOrder' : 'CreditCard',
+            documentType,
+            receiptUrl: docUrl,
+            timestamp: new Date().toISOString()
+          });
+        } catch (eBusErr) {
+          console.warn('[EventBus] Payment completed event notice:', eBusErr);
+        }
+
+        // 3. Record payment in Contact CRM profile
         if (activeCrmContact?.id) {
           await crmContactSyncService.recordContactPayment(activeCrmContact.id, {
             id: `pay_${txId}`,
@@ -273,18 +313,28 @@ export const KesherTerminalTab: React.FC = () => {
             </div>
           </div>
 
-          {successResult.docUrl && (
-            <a
-              href={successResult.docUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-lg shadow-emerald-600/30 transition-all cursor-pointer shrink-0"
-            >
-              <FileText className="w-4 h-4" />
-              צפה בקבלה / חשבונית (PDF)
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {successResult.docUrl && (
+              <a
+                href={successResult.docUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 border border-slate-700 shadow-md transition-all cursor-pointer"
+              >
+                <FileText className="w-4 h-4 text-indigo-400" />
+                צפה בקבלה (PDF)
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+
+            <WhatsAppReceiptShareButton
+              phone={phone}
+              clientName={clientName}
+              amount={amount}
+              receiptUrl={successResult.docUrl}
+              transactionId={successResult.transactionId}
+            />
+          </div>
         </div>
       )}
 
@@ -423,9 +473,19 @@ export const KesherTerminalTab: React.FC = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                סכום לחיוב (₪) *
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-slate-300">
+                  סכום לחיוב (₪) *
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setShowMobilePad(!showMobilePad)}
+                  className="text-[11px] font-bold text-indigo-400 hover:text-indigo-300 flex items-center gap-1 transition"
+                >
+                  <Smartphone className="w-3 h-3" />
+                  <span>{showMobilePad ? 'הסתר קופה ניידת' : 'מקלדת קופה ניידת'}</span>
+                </button>
+              </div>
               <input
                 type="number"
                 value={amount}
@@ -436,6 +496,15 @@ export const KesherTerminalTab: React.FC = () => {
                 step="0.01"
                 required
               />
+
+              {showMobilePad && (
+                <div className="mt-3">
+                  <MobileTerminalPad
+                    value={amount}
+                    onChange={(val) => setAmount(val)}
+                  />
+                </div>
+              )}
             </div>
 
             <div>

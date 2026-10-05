@@ -12,14 +12,14 @@ import {
   FileText,
   UserCheck
 } from 'lucide-react';
-import { Contact } from '../../crm-analytics/types';
+import { CrmContactSummary } from '../../../core/contracts';
 import { crmContactSyncService } from '../services/crmContactSyncService';
 
 interface Props {
   value: string;
   onChange: (val: string) => void;
-  onSelectContact: (contact: Contact) => void;
-  selectedContact: Contact | null;
+  onSelectContact: (contact: CrmContactSummary) => void;
+  selectedContact: CrmContactSummary | null;
   onClearSelection?: () => void;
   placeholder?: string;
   required?: boolean;
@@ -34,7 +34,7 @@ export const CrmContactAutocomplete: React.FC<Props> = ({
   placeholder = 'ישראל ישראלי (הקלד לחיפוש מהיר ב-CRM)',
   required = true,
 }) => {
-  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contacts, setContacts] = useState<CrmContactSummary[]>([]);
   const [isOpen, setIsOpen] = useState<boolean>(false);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -64,7 +64,7 @@ export const CrmContactAutocomplete: React.FC<Props> = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSelect = (contact: Contact) => {
+  const handleSelect = (contact: CrmContactSummary) => {
     onSelectContact(contact);
     setIsOpen(false);
     setHighlightedIndex(-1);

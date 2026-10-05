@@ -10,7 +10,8 @@ interface Props {
 }
 
 export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
-  const { db, isDark } = useSystemConnection();
+  const { db } = useSystemConnection();
+  const isDark = false;
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
