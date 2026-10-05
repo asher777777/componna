@@ -20,23 +20,23 @@ export const aiPageGenerator = {
     
     // Default fallback ideas
     const fallback = [
-      { id: 'sales-funnel', title: 'משפך מכירות יוקרתי', description: 'דף נחיתה למכירת השירות המרכזי עם פירוט תוכניות והוכחה חברתית.', prompt: 'דף נחיתה יוקרתי וממיר למכירת השירות המוביל, כולל מסלולים, ביקורות והנעה לפעולה ברורה.', icon: 'Zap' },
-      { id: 'geo-local', title: 'דף שירות מקומי (GEO)', description: 'דף ממוקד אזור פעילות עם מפה, שעות פתיחה ויצירת קשר מהירה לוואטסאפ.', prompt: 'דף שירות אזורי (GEO) עם מיקוד בלקוחות מקומיים, מפה, שעות פעילות והוכחה חברתית מאומתת.', icon: 'MapPin' },
-      { id: 'lead-gen', title: 'קמפיין מגנט לידים', description: 'דף השארת פרטים קצר להורדת מדריך או הרשמה לוובינר.', prompt: 'דף נחיתה קצר וממוקד לאיסוף לידים, המציע מדריך חינמי או הרשמה להרצאה קרובה.', icon: 'Layers' },
+      { id: 'sales-funnel', title: '׳׳©׳₪׳ ׳׳›׳™׳¨׳•׳× ׳™׳•׳§׳¨׳×׳™', description: '׳“׳£ ׳ ׳—׳™׳×׳” ׳׳׳›׳™׳¨׳× ׳”׳©׳™׳¨׳•׳× ׳”׳׳¨׳›׳–׳™ ׳¢׳ ׳₪׳™׳¨׳•׳˜ ׳×׳•׳›׳ ׳™׳•׳× ׳•׳”׳•׳›׳—׳” ׳—׳‘׳¨׳×׳™׳×.', prompt: '׳“׳£ ׳ ׳—׳™׳×׳” ׳™׳•׳§׳¨׳×׳™ ׳•׳׳׳™׳¨ ׳׳׳›׳™׳¨׳× ׳”׳©׳™׳¨׳•׳× ׳”׳׳•׳‘׳™׳, ׳›׳•׳׳ ׳׳¡׳׳•׳׳™׳, ׳‘׳™׳§׳•׳¨׳•׳× ׳•׳”׳ ׳¢׳” ׳׳₪׳¢׳•׳׳” ׳‘׳¨׳•׳¨׳”.', icon: 'Zap' },
+      { id: 'geo-local', title: '׳“׳£ ׳©׳™׳¨׳•׳× ׳׳§׳•׳׳™ (GEO)', description: '׳“׳£ ׳׳׳•׳§׳“ ׳׳–׳•׳¨ ׳₪׳¢׳™׳׳•׳× ׳¢׳ ׳׳₪׳”, ׳©׳¢׳•׳× ׳₪׳×׳™׳—׳” ׳•׳™׳¦׳™׳¨׳× ׳§׳©׳¨ ׳׳”׳™׳¨׳” ׳׳•׳•׳׳˜׳¡׳׳₪.', prompt: '׳“׳£ ׳©׳™׳¨׳•׳× ׳׳–׳•׳¨׳™ (GEO) ׳¢׳ ׳׳™׳§׳•׳“ ׳‘׳׳§׳•׳—׳•׳× ׳׳§׳•׳׳™׳™׳, ׳׳₪׳”, ׳©׳¢׳•׳× ׳₪׳¢׳™׳׳•׳× ׳•׳”׳•׳›׳—׳” ׳—׳‘׳¨׳×׳™׳× ׳׳׳•׳׳×׳×.', icon: 'MapPin' },
+      { id: 'lead-gen', title: '׳§׳׳₪׳™׳™׳ ׳׳’׳ ׳˜ ׳׳™׳“׳™׳', description: '׳“׳£ ׳”׳©׳׳¨׳× ׳₪׳¨׳˜׳™׳ ׳§׳¦׳¨ ׳׳”׳•׳¨׳“׳× ׳׳“׳¨׳™׳ ׳׳• ׳”׳¨׳©׳׳” ׳׳•׳•׳‘׳™׳ ׳¨.', prompt: '׳“׳£ ׳ ׳—׳™׳×׳” ׳§׳¦׳¨ ׳•׳׳׳•׳§׳“ ׳׳׳™׳¡׳•׳£ ׳׳™׳“׳™׳, ׳”׳׳¦׳™׳¢ ׳׳“׳¨׳™׳ ׳—׳™׳ ׳׳™ ׳׳• ׳”׳¨׳©׳׳” ׳׳”׳¨׳¦׳׳” ׳§׳¨׳•׳‘׳”.', icon: 'Layers' },
     ];
 
     if (!apiKey) return fallback;
 
     const systemPrompt = `
 You are an expert Marketing Strategist. 
-The brand name is "${brandDna?.identity?.companyName || 'החברה'}". 
+The brand name is "${brandDna?.identity?.companyName || '׳”׳—׳‘׳¨׳”'}". 
 Their purpose: "${brandDna?.identity?.organizationPurpose || ''}".
-Their target audience: "${brandDna?.audience?.targetAudiences?.join(',') || 'לקוחות'}".
+Their target audience: "${brandDna?.audience?.targetAudiences?.join(',') || '׳׳§׳•׳—׳•׳×'}".
 
 Suggest 3 completely different landing page concepts/goals this brand should build right now to grow their business.
 Output ONLY a valid JSON array of objects, each with:
 - id: short english id (e.g. "webinar-funnel")
-- title: short catchy title in Hebrew (e.g. "הרשמה לוובינר קהילתי")
+- title: short catchy title in Hebrew (e.g. "׳”׳¨׳©׳׳” ׳׳•׳•׳‘׳™׳ ׳¨ ׳§׳”׳™׳׳×׳™")
 - description: short description in Hebrew
 - prompt: a detailed prompt in Hebrew that the user can use to generate this page
 - icon: one of these Lucide icon names: ['Zap', 'MapPin', 'Layers', 'Heart', 'Sparkles', 'GraduationCap', 'Star']
@@ -80,20 +80,20 @@ NO MARKDOWN. ONLY JSON.`;
   ): Promise<PageBuilderConfig> {
     const primaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
     const secondaryColor = brandDna?.designTokens?.secondaryColor || '#0ea5e9';
-    const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
-    const slogan = brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
+    const companyName = brandDna?.identity?.companyName || '׳”׳—׳‘׳¨׳” ׳”׳׳•׳‘׳™׳׳”';
+    const slogan = brandDna?.identity?.slogan || '׳—׳“׳©׳ ׳•׳×, ׳׳™׳›׳•׳× ׳•׳¦׳׳™׳—׳” ׳׳×׳׳“׳×';
     const logoUrl = brandDna?.identity?.logoUrl || '';
     const phone = brandDna?.trust?.contactPhone || '03-1234567';
     const email = brandDna?.trust?.contactEmail || 'contact@example.com';
     const whatsapp = brandDna?.trust?.whatsappSupportNumber || '0501234567';
-    const address = brandDna?.trust?.officeAddress || 'תל אביב, ישראל';
+    const address = brandDna?.trust?.officeAddress || '׳×׳ ׳׳‘׳™׳‘, ׳™׳©׳¨׳׳';
 
     const pageId = `page_ai_${Date.now()}`;
     
     // Initial config shell, will be updated by AI response
     let pageConfig: PageBuilderConfig = {
       pageId,
-      pageTitle: `${companyName} - דף חכם`,
+      pageTitle: `${companyName} - ׳“׳£ ׳—׳›׳`,
       slug: 'launch',
       published: false,
       isHomePage: false,
@@ -124,19 +124,19 @@ NO MARKDOWN. ONLY JSON.`;
       },
       seoSettings: {
         title: `${companyName} - ${slogan}`,
-        description: brandDna?.identity?.shortVision || `${companyName} מציגה פתרונות מתקדמים ואיכותיים ללא פשרות.`,
-        keywords: ['שירותים מקצועיים', 'חדשנות', 'דיגיטל', companyName],
+        description: brandDna?.identity?.shortVision || `${companyName} ׳׳¦׳™׳’׳” ׳₪׳×׳¨׳•׳ ׳•׳× ׳׳×׳§׳“׳׳™׳ ׳•׳׳™׳›׳•׳×׳™׳™׳ ׳׳׳ ׳₪׳©׳¨׳•׳×.`,
+        keywords: ['׳©׳™׳¨׳•׳×׳™׳ ׳׳§׳¦׳•׳¢׳™׳™׳', '׳—׳“׳©׳ ׳•׳×', '׳“׳™׳’׳™׳˜׳', companyName],
         geo: {
           enabled: true,
-          targetCity: 'תל אביב',
-          targetRegion: 'גוש דן והמרכז',
-          targetCountry: 'ישראל',
-          serviceAreas: ['כל הארץ'],
+          targetCity: '׳×׳ ׳׳‘׳™׳‘',
+          targetRegion: '׳’׳•׳© ׳“׳ ׳•׳”׳׳¨׳›׳–',
+          targetCountry: '׳™׳©׳¨׳׳',
+          serviceAreas: ['׳›׳ ׳”׳׳¨׳¥'],
           localBusinessName: companyName,
           businessAddress: address,
           businessPhone: phone,
           businessEmail: email,
-          openingHours: 'א-ה 09:00-18:00',
+          openingHours: '׳-׳” 09:00-18:00',
         },
       },
       sectionOrder: [],
@@ -159,48 +159,52 @@ NO MARKDOWN. ONLY JSON.`;
       };
     } else {
       try {
-        const targetAudience = brandDna?.audience?.targetAudiences?.join(", ") || "לקוחות פוטנציאליים";
+        const targetAudience = brandDna?.audience?.targetAudiences?.join(", ") || "׳׳§׳•׳—׳•׳× ׳₪׳•׳˜׳ ׳¦׳™׳׳׳™׳™׳";
         const brandColors = `Primary: ${primaryColor}, BG: ${brandDna?.designTokens?.backgroundColor || '#ffffff'}`;
         
         const systemPrompt = `
-You are an expert Web Page Layout Architect and UI/UX Designer.
-Company: "${companyName}".
-Audience: ${targetAudience}.
-Brand UVP: "${brandDna?.audience?.mainUvp || 'איכות ושירות'}".
-Brand Colors Context: ${brandColors}.
+You are an expert Web Page Architect and Conversion Rate Optimizer.
+Brand Context:
+- Company: "${companyName}"
+- Audience: ${targetAudience}
+- Core UVP: "${brandDna?.audience?.mainUvp || '׳”׳—׳‘׳¨׳” ׳”׳׳•׳‘׳™׳׳”'}"
+- Goal: Create a high-converting, deeply immersive page. DO NOT output a generic one-section page. Build a rich page with 4-8 interconnected sections (like Hero -> Marquee -> Services -> Bento -> Testimonials -> FAQ -> Contact).
+
 User Prompt: "${userPrompt}"
 
 ### YOUR TASK:
-1. Generate exactly one English word for the page "slug" (e.g. "sales", "local", "webinar").
-2. Decide the BEST background color (backgroundColor) and text color (textColor) for this specific page. DO NOT just output black. If the brand feels medical/clean, use white/light gray bg and dark text. If it's a tech launch, maybe dark bg. Use valid HEX colors.
-3. Classify the archetype (Sales, GEO/Local, Info, SaaS). 
-4. Pick the EXACT BEST sections to include.
-   CRITICAL FOR GEO/LOCAL: If this is a local/GEO page, you MUST generate at least 4-5 distinct sections to build local trust (e.g., hero, richContent for local story, services for local offerings, geoLocal for map/hours, testimonials for local reviews, contact).
-5. ${options?.generateImages ? 'For every image requested in the sections, provide an "imagePrompt" (in English) describing the image for an AI generator, and "imageAlt" (in Hebrew). DO NOT provide imageSrc, just the prompt.' : 'Do not generate image prompts.'}
+1. Generate an English "slug" (e.g. "sales-funnel").
+2. Pick "backgroundColor" and "textColor" that fit the brand vibe. DO NOT default to black! Use #hex.
+3. Choose the best sequence of sections.
+4. ${options?.generateImages ? 'For sections needing images, add "imagePrompt" (in English, for AI generation) and "imageAlt" (Hebrew). DO NOT add "imageSrc".' : 'Do not generate images.'}
 
-### DESIGN & LAYOUT OPTIONS TO CHOOSE FROM:
-- hero: layout: 'fz' | 'spatial' | 'centered' | 'split' | 'bento-hero', heroStyle: 'classic' | 'modern' | 'minimal' | 'card' | 'mesh-glow'
-- services: layout: 'grid' | 'bento' | 'cards' | 'minimal'
-- testimonials: layout: 'grid' | 'carousel' | 'masonry'
-- statsBento: layout: 'bento-4' | 'row-4' | 'cards-3'
-- richContent: layout: 'standard' | 'two-columns'
+### AVAILABLE SECTIONS AND REQUIRED "data" PROPERTIES (Use EXACT property names):
+- hero: layout ('fz'|'spatial'|'centered'|'split'|'bento-hero'), heroStyle ('classic'|'modern'|'mesh-glow'), title, description, primaryButton {text, url}
+- services: layout ('grid'|'bento'|'cards'|'minimal'), title, description, items [{title, description, icon}]
+- testimonials: layout ('grid'|'carousel'|'masonry'), title, items [{name, role, quote}]
+- statsBento: layout ('bento-4'|'row-4'|'cards-3'), title, stats [{number, label}]
+- richContent: layout ('standard'|'two-columns'), heading, body
+- pricing: title, packages [{name, priceMonthly, features: []}]
+- geoLocal: title, subtitle, city, address, serviceAreas: []
+- faq: title, items [{question, answer}] (Ensure questions are highly relevant and solve real user objections!)
+- contact: title, subtitle, phone, email, address, showForm (boolean), directWhatsappChat (boolean)
+- logoMarquee: title, speed ('slow'|'medium'), logos [{name}]
+- smartForm: sectionTitle, sectionSubtitle, formId (leave empty string to auto-generate), formMode ('lead'|'contact')
 
-### OUTPUT FORMAT:
-Return ONLY a valid JSON object. NO markdown formatting.
+### STRICT JSON OUTPUT FORMAT (NO COMMENTS inside JSON!):
 {
-  "slug": "oneword",
-  "backgroundColor": "#hexcode",
-  "textColor": "#hexcode",
+  "slug": "page-slug",
+  "backgroundColor": "#ffffff",
+  "textColor": "#0f172a",
   "sections": [
     {
-      "sectionType": "hero" | "logoMarquee" | "services" | "statsBento" | "testimonials" | "pricing" | "faq" | "contact" | "geoLocal" | "timer" | "videoGallery" | "richContent",
-      "stepTitle": "A short description of this step in Hebrew",
-      "statusText": "A short action text in Hebrew",
-      "data": { 
-         "title": "Main title for the section in Hebrew",
-         "layout": "The chosen layout",
-         // include all needed text, buttons, items etc.
-         ${options?.generateImages ? '"imagePrompt": "Detailed english description for midjourney/dalle", "imageAlt": "Hebrew alt text"' : ''}
+      "sectionType": "hero",
+      "stepTitle": "׳›׳•׳×׳¨׳× ׳§׳¦׳¨׳” ׳‘׳¢׳‘׳¨׳™׳×",
+      "statusText": "׳₪׳¢׳•׳׳” ׳§׳¦׳¨׳” ׳‘׳¢׳‘׳¨׳™׳×",
+      "data": {
+        "title": "Main title",
+        "layout": "split",
+        "heroStyle": "mesh-glow"
       }
     }
   ]
@@ -264,8 +268,8 @@ Return ONLY a valid JSON object. NO markdown formatting.
             stepIndex: i + 1,
             totalSteps: generatedSteps.length,
             sectionType: step.sectionType,
-            stepTitle: step.stepTitle || `בניית אזור ${step.sectionType}`,
-            statusText: step.statusText || 'מייצר נתונים ועיצוב מותאם...',
+            stepTitle: step.stepTitle || `׳‘׳ ׳™׳™׳× ׳׳–׳•׳¨ ${step.sectionType}`,
+            statusText: step.statusText || '׳׳™׳™׳¦׳¨ ׳ ׳×׳•׳ ׳™׳ ׳•׳¢׳™׳¦׳•׳‘ ׳׳•׳×׳׳...',
             progressPercent: Math.round(((i + 1) / generatedSteps.length) * 100),
           },
           JSON.parse(JSON.stringify(pageConfig))
@@ -295,16 +299,29 @@ Return ONLY a valid JSON object. NO markdown formatting.
       return currentConfig;
     }
 
-    const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
+    const companyName = brandDna?.identity?.companyName || '׳”׳—׳‘׳¨׳” ׳”׳׳•׳‘׳™׳׳”';
     const systemPrompt = `
-You are an expert UI/UX Designer.
+You are an expert UI/UX Designer and Conversion Rate Optimizer.
 The user wants to redesign a specific "${sectionType}" section for the company "${companyName}".
 User prompt: "${userPrompt}"
 Current section config: ${JSON.stringify(currentConfig)}
 
-Return ONLY a valid JSON object for the section "data" config. NO markdown.
-For example, change layout to one of the available options (e.g. bento, grid, split, centered, spatial) or heroStyle (mesh-glow, modern, minimal) based on the user's prompt. Rewrite the text content in Hebrew to match.
-Output exactly ONE JSON object.
+### AVAILABLE SECTIONS AND REQUIRED "data" PROPERTIES (Use EXACT property names):
+- hero: layout ('fz'|'spatial'|'centered'|'split'|'bento-hero'), heroStyle ('classic'|'modern'|'mesh-glow'), title, description, primaryButton {text, url}
+- services: layout ('grid'|'bento'|'cards'|'minimal'), title, description, items [{title, description, icon}]
+- testimonials: layout ('grid'|'carousel'|'masonry'), title, items [{name, role, quote}]
+- statsBento: layout ('bento-4'|'row-4'|'cards-3'), title, stats [{number, label}]
+- richContent: layout ('standard'|'two-columns'), heading, body
+- pricing: title, packages [{name, priceMonthly, features: []}]
+- geoLocal: title, subtitle, city, address, serviceAreas: []
+- faq: title, items [{question, answer}] (Ensure questions are highly relevant and solve real user objections!)
+- contact: title, subtitle, phone, email, address, showForm (boolean), directWhatsappChat (boolean)
+- logoMarquee: title, speed ('slow'|'medium'), logos [{name}]
+- smartForm: sectionTitle, sectionSubtitle, formId (leave empty string to auto-generate), formMode ('lead'|'contact')
+
+Return ONLY a valid JSON object for the section "data" config. NO markdown. NO COMMENTS inside the JSON.
+Output exactly ONE JSON object matching the required properties for the "${sectionType}" section.
+Rewrite the text content in Hebrew to match the user's prompt.
 `;
     try {
       const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
@@ -341,23 +358,23 @@ Output exactly ONE JSON object.
   },
 
   getFallbackSteps(prompt: string, companyName: string, brandDna: any) {
-    if (prompt.includes('מכירה') || prompt.includes('קורס')) {
+    if (prompt.includes('׳׳›׳™׳¨׳”') || prompt.includes('׳§׳•׳¨׳¡')) {
       return [
         {
           sectionType: 'hero',
-          stepTitle: 'בניית אזור מכירה ראשי',
-          statusText: 'יוצר כותרת ענקית, אזור split ותחושת דחיפות...',
-          data: { title: `ההזדמנות שלך עם ${companyName}`, subtitle: 'הצטרף עכשיו', description: 'אל תפספסו את ההזדמנות לשנות את החיים שלכם.', layout: 'split', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'הצטרפו עכשיו', url: '#pricing' } }
+          stepTitle: '׳‘׳ ׳™׳™׳× ׳׳–׳•׳¨ ׳׳›׳™׳¨׳” ׳¨׳׳©׳™',
+          statusText: '׳™׳•׳¦׳¨ ׳›׳•׳×׳¨׳× ׳¢׳ ׳§׳™׳×, ׳׳–׳•׳¨ split ׳•׳×׳—׳•׳©׳× ׳“׳—׳™׳₪׳•׳×...',
+          data: { title: `׳”׳”׳–׳“׳׳ ׳•׳× ׳©׳׳ ׳¢׳ ${companyName}`, subtitle: '׳”׳¦׳˜׳¨׳£ ׳¢׳›׳©׳™׳•', description: '׳׳ ׳×׳₪׳¡׳₪׳¡׳• ׳׳× ׳”׳”׳–׳“׳׳ ׳•׳× ׳׳©׳ ׳•׳× ׳׳× ׳”׳—׳™׳™׳ ׳©׳׳›׳.', layout: 'split', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: '׳”׳¦׳˜׳¨׳₪׳• ׳¢׳›׳©׳™׳•', url: '#pricing' } }
         },
-        { sectionType: 'pricing', stepTitle: 'מחירון ומסלולים', statusText: 'בונה חבילות תמחור...', data: { title: 'בחרו את המסלול שלכם', packages: [{id:'1', name:'VIP', priceMonthly:'₪990', isFeatured:true, buttonText:'הרשמה'}] } },
+        { sectionType: 'pricing', stepTitle: '׳׳—׳™׳¨׳•׳ ׳•׳׳¡׳׳•׳׳™׳', statusText: '׳‘׳•׳ ׳” ׳—׳‘׳™׳׳•׳× ׳×׳׳—׳•׳¨...', data: { title: '׳‘׳—׳¨׳• ׳׳× ׳”׳׳¡׳׳•׳ ׳©׳׳›׳', packages: [{id:'1', name:'VIP', priceMonthly:'ג‚×990', isFeatured:true, buttonText:'׳”׳¨׳©׳׳”'}] } },
       ];
     }
     return [
       {
         sectionType: 'hero',
-        stepTitle: 'בניית אזור ראשי (Hero)',
-        statusText: 'יוצר כותרת מרשימה...',
-        data: { title: `הצעד הבא שלכם עם ${companyName}`, description: 'הפלטפורמה המובילה בארץ.', layout: 'bento-hero', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'התחילו עכשיו', url: '#contact' } }
+        stepTitle: '׳‘׳ ׳™׳™׳× ׳׳–׳•׳¨ ׳¨׳׳©׳™ (Hero)',
+        statusText: '׳™׳•׳¦׳¨ ׳›׳•׳×׳¨׳× ׳׳¨׳©׳™׳׳”...',
+        data: { title: `׳”׳¦׳¢׳“ ׳”׳‘׳ ׳©׳׳›׳ ׳¢׳ ${companyName}`, description: '׳”׳₪׳׳˜׳₪׳•׳¨׳׳” ׳”׳׳•׳‘׳™׳׳” ׳‘׳׳¨׳¥.', layout: 'bento-hero', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: '׳”׳×׳—׳™׳׳• ׳¢׳›׳©׳™׳•', url: '#contact' } }
       }
     ];
   }

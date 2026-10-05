@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bot, Sparkles, Plus, Trash2, Edit3, Check, Play, MessageSquare,
   ShieldCheck, Send, KeyRound, ExternalLink, RefreshCw, Smartphone,
@@ -14,6 +14,7 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { MediaPickerContract } from '../../../core/contracts';
 import { PREDEFINED_COLLECTIONS } from '../../db-collections-hub/config';
 import { useBrandDna } from '../../brand-dna-hub/context/BrandDnaContext';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 interface Props {
   googleAiApiKey?: string;
@@ -44,10 +45,29 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
   const [simInput, setSimInput] = useState('');
   const [isSimLoading, setIsSimLoading] = useState(false);
 
+  const { db } = useSystemConnection();
+  
+  // Load from Firestore on mount
+  useEffect(() => {
+    if (db) {
+      WhatsAppAiBotService.loadBotsFromFirestore(db).then((cloudBots) => {
+        if (cloudBots && cloudBots.length > 0) {
+          setBots(cloudBots);
+          if (!cloudBots.find(b => b.id === selectedBotId)) {
+            setSelectedBotId(cloudBots[0].id);
+          }
+        }
+      });
+    }
+  }, [db]);
+
   const saveBotChanges = (updatedBot: WhatsAppAiBotConfig) => {
     const updated = bots.map((b) => (b.id === updatedBot.id ? updatedBot : b));
     setBots(updated);
-    WhatsAppAiBotService.saveBots(updated);
+    WhatsAppAiBotService.saveBots(updated); // Save locally for UI speed
+    if (db) {
+      WhatsAppAiBotService.saveBotsToFirestore(db, updated); // Save to cloud for functions
+    }
   };
 
   const handleCreateNewBot = () => {
@@ -73,6 +93,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     setBots(updated);
     setSelectedBotId(newBot.id);
     WhatsAppAiBotService.saveBots(updated);
+    if (db) WhatsAppAiBotService.saveBotsToFirestore(db, updated);
   };
 
   const handleDeleteBot = (id: string) => {
@@ -85,6 +106,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       setBots(updated);
       setSelectedBotId(updated[0].id);
       WhatsAppAiBotService.saveBots(updated);
+      if (db) WhatsAppAiBotService.deleteBotFromFirestore(db, id);
     }
   };
 
@@ -94,6 +116,39 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     const newHistory = [...simChat, { role: 'user' as const, text: userMsgText }];
     setSimChat(newHistory);
     setSimInput('');
+
+    // Check Trigger Logic before activating AI
+    let shouldTrigger = false;
+    
+    if (activeBot.triggerType === 'all') {
+      shouldTrigger = true;
+    } else if (activeBot.triggerType === 'welcome') {
+      // Welcome triggers only on the very first user message in a chat
+      const userMessageCount = newHistory.filter(h => h.role === 'user').length;
+      shouldTrigger = userMessageCount === 1;
+    } else if (activeBot.triggerType === 'keyword') {
+      if (activeBot.triggerKeywords && activeBot.triggerKeywords.length > 0) {
+        const textLower = userMsgText.toLowerCase();
+        shouldTrigger = activeBot.triggerKeywords.some(keyword => {
+          const kw = keyword.trim().toLowerCase();
+          return kw.length > 0 && textLower.includes(kw);
+        });
+      } else {
+        shouldTrigger = false;
+      }
+    }
+
+    if (!shouldTrigger) {
+      setSimChat((prev) => [
+        ...prev,
+        {
+          role: 'model',
+          text: `[מערכת סימולציה: הבוט לא הופעל - תנאי טריגר (${activeBot.triggerType === 'keyword' ? 'מילות מפתח' : 'הודעת פתיחה בלבד'}) לא התקיים]`,
+        },
+      ]);
+      return;
+    }
+
     setIsSimLoading(true);
 
     try {
@@ -374,12 +429,20 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                   <div className="mt-3">
                     <label className={`block mb-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>מילות מפתח (מופרדות בפסיק)</label>
                     <input
+                      key={`kw-${activeBot.id}`}
                       type="text"
-                      value={activeBot.triggerKeywords.join(', ')}
-                      onChange={(e) => saveBotChanges({ ...activeBot, triggerKeywords: e.target.value.split(',').map(k => k.trim()).filter(Boolean) })}
+                      defaultValue={activeBot.triggerKeywords.join(', ')}
+                      onBlur={(e) => {
+                        const val = e.target.value;
+                        saveBotChanges({ 
+                          ...activeBot, 
+                          triggerKeywords: val.split(',').map(k => k.trim()).filter(Boolean) 
+                        });
+                      }}
                       placeholder="למשל: תמיכה, מחיר, עזרה"
                       className={`w-full p-2.5 rounded-xl border ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                     />
+                    <span className="text-[10px] text-slate-500 mt-1 block">לחץ מחוץ לתיבה (או לחץ Tab) כדי לשמור את המילים.</span>
                   </div>
                 )}
               </div>

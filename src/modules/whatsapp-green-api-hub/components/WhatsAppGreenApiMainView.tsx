@@ -25,6 +25,7 @@ import { WhatsAppAiBotTab } from './WhatsAppAiBotTab';
 import { WhatsAppStatusesTab } from './WhatsAppStatusesTab';
 import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
 import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
+import { useWhatsAppAutoResponder } from '../services/useWhatsAppAutoResponder';
 
 export const WhatsAppGreenApiMainView: React.FC = () => {
   const { apiKeys, openConnectorModal, db, collections, firebaseApp } = useSystemConnection();
@@ -59,6 +60,9 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
       apiUrl,
     });
   }, [instanceId, token, apiUrl]);
+
+  // Mount the auto-responder background process
+  useWhatsAppAutoResponder(greenApiService, apiKeys.googleAiApiKey);
 
   // Instance Live State
   const [stateInstance, setStateInstance] = useState<GreenApiState>('unknown');

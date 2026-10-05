@@ -923,4 +923,33 @@ export class GreenApiService {
     }
     return [];
   }
+
+  public async receiveNotification(): Promise<any | null> {
+    if (!this.isConfigured()) return null;
+    try {
+      const res = await fetch(`${this.baseUrl}/receiveNotification/${this.token}?receiveTimeout=5`, {
+        method: 'GET'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        return data || null;
+      }
+    } catch (e) {
+      console.warn('Error receiving notification:', e);
+    }
+    return null;
+  }
+
+  public async deleteNotification(receiptId: number): Promise<boolean> {
+    if (!this.isConfigured()) return false;
+    try {
+      const res = await fetch(`${this.baseUrl}/deleteNotification/${this.token}/${receiptId}`, {
+        method: 'DELETE'
+      });
+      return res.ok;
+    } catch (e) {
+      console.warn('Error deleting notification:', e);
+      return false;
+    }
+  }
 }

@@ -202,6 +202,54 @@ export class WhatsAppAiBotService {
     }
   }
 
+  public static async saveBotsToFirestore(db: any, bots: WhatsAppAiBotConfig[]): Promise<void> {
+    if (!db) return;
+    try {
+      const batch = require('firebase/firestore').writeBatch(db);
+      
+      // Update each bot
+      for (const bot of bots) {
+        const docRef = require('firebase/firestore').doc(db, 'whatsapp_ai_bots', bot.id);
+        batch.set(docRef, bot, { merge: true });
+      }
+      
+      // Optional: Delete bots that were removed
+      // (Skipping for now to avoid accidental deletions of old bots)
+      
+      await batch.commit();
+    } catch (err) {
+      console.error('Failed to sync bots to Firestore:', err);
+    }
+  }
+
+  public static async loadBotsFromFirestore(db: any): Promise<WhatsAppAiBotConfig[]> {
+    if (!db) return [];
+    try {
+      const coll = require('firebase/firestore').collection(db, 'whatsapp_ai_bots');
+      const snap = await require('firebase/firestore').getDocs(coll);
+      if (snap.empty) return [];
+      
+      const bots: WhatsAppAiBotConfig[] = [];
+      snap.forEach((d: any) => bots.push(d.data() as WhatsAppAiBotConfig));
+      
+      // Sort by creation time if available
+      return bots.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    } catch (err) {
+      console.error('Failed to load bots from Firestore:', err);
+      return [];
+    }
+  }
+
+  public static async deleteBotFromFirestore(db: any, botId: string): Promise<void> {
+    if (!db) return;
+    try {
+      const docRef = require('firebase/firestore').doc(db, 'whatsapp_ai_bots', botId);
+      await require('firebase/firestore').deleteDoc(docRef);
+    } catch (err) {
+      console.error('Failed to delete bot from Firestore:', err);
+    }
+  }
+
   /**
    * Resilient Gemini API Caller using Comona's Next-Gen 3.x Flash/Pro model hierarchy
    */
