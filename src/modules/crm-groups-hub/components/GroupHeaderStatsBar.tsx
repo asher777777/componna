@@ -27,6 +27,7 @@ interface GroupHeaderStatsBarProps {
   onOpenWhatsAppBroadcast: () => void;
   onOpenWhatsAppImport: () => void;
   onOpenCommunityPortal?: () => void;
+  onOpenCommunityChat?: () => void;
   interactionsCount?: number;
 }
 
@@ -38,6 +39,7 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
   onOpenWhatsAppBroadcast,
   onOpenWhatsAppImport,
   onOpenCommunityPortal,
+  onOpenCommunityChat,
   interactionsCount = 0,
 }) => {
   const { activeGroupId, activeGroup, filteredContacts, onOpenCampaignPage } = useCrmGroups();
@@ -144,6 +146,19 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
             <span>וואטסאפ לקהילה</span>
           </button>
 
+          {/* Internal Community Chat & Video Room */}
+          {onOpenCommunityChat && (
+            <button
+              type="button"
+              onClick={onOpenCommunityChat}
+              className="h-9 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm shadow-indigo-200 transition-all cursor-pointer"
+              title="צ'אט פנימי לחברי הקהילה ושיחות וידאו"
+            >
+              <Sparkles className="w-4 h-4" />
+              <span>צ'אט ווידאו קהילתי</span>
+            </button>
+          )}
+
           {/* WhatsApp Import */}
           <button
             type="button"
@@ -211,6 +226,18 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
 
           {/* Public Page Link / Portal View */}
           <div className="flex items-center gap-2">
+            {onOpenCommunityChat && (
+              <button
+                type="button"
+                onClick={onOpenCommunityChat}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white font-bold rounded-xl text-xs transition-colors shadow-2xs cursor-pointer"
+                title="כניסה לצ'אט הפנימי של הקהילה"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+                <span>צ'אט ווידאו</span>
+              </button>
+            )}
+
             {onOpenCommunityPortal && (
               <button
                 type="button"

@@ -23,6 +23,8 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { LeadCaptureContract, NotificationContract } from '../../../core/contracts';
 import { eventBus } from '../../../core/bridge/EventBus';
 
+import { CommunityChatRoomView } from './CommunityChatRoomView';
+
 interface CommunityMicroPortalViewProps {
   community: SmartGroup;
   contacts: ContactRecord[];
@@ -40,7 +42,7 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
   const leadService = getCapability<LeadCaptureContract>('lead-capture');
   const notifyService = getCapability<NotificationContract>('notification');
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'feed' | 'join'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'feed' | 'chat' | 'join'>('overview');
 
   // Posts Feed State
   const [posts, setPosts] = useState<CommunityPost[]>(community.feedPosts || [
@@ -248,6 +250,19 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
         >
           <MessageSquare className="w-3.5 h-3.5" />
           <span>פיד עדכונים בלעדי ({posts.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('chat')}
+          className={`px-4 py-2 rounded-2xl text-xs font-extrabold transition-all cursor-pointer flex items-center gap-1.5 ${
+            activeTab === 'chat'
+              ? 'bg-indigo-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+          }`}
+        >
+          <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+          <span>צ'אט ווידאו קהילתי</span>
         </button>
 
         <button
