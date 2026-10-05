@@ -3,6 +3,9 @@ import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, 
 import { loadBrandDna, saveBrandDna } from '../services/brandDnaFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { buildBrandSystemContext } from '../services/geminiBrandPrompt';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { eventBus } from '../../../core/bridge/EventBus';
+import { BrandDnaContract } from '../../../core/contracts';
 
 export interface BrandDnaContextValue {
   brandDna: BrandDna;
@@ -25,9 +28,24 @@ const BrandDnaContext = createContext<BrandDnaContextValue | undefined>(undefine
 
 export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
   const [brandDna, setBrandDna] = useState<BrandDna>(DEFAULT_BRAND_DNA);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Register brand-dna capability to host context
+  useEffect(() => {
+    const contract: BrandDnaContract = {
+      getBrandDna: () => brandDna,
+      getSystemPrompt: (moduleRole?: string) => buildBrandSystemContext(brandDna, moduleRole),
+      getDesignTokens: () => brandDna.designTokens,
+    };
+    registerCapability('brand-dna', contract);
+    return () => {
+      unregisterCapability('brand-dna');
+    };
+  }, [brandDna, registerCapability, unregisterCapability]);
+
 
   // Load initially
   useEffect(() => {
@@ -89,15 +107,26 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setIsSaving(true);
     const res = await saveBrandDna(brandDna, db);
     setIsSaving(false);
+    if (res.success) {
+      eventBus.publish('brand:updated', {
+        brandDna,
+        updatedAt: new Date().toISOString(),
+      });
+    }
     return res.success;
   }, [brandDna, db]);
 
-  const resetToDefaults = useCallback(() => {
+  const resetToDefaults = useCallback(async () => {
     if (window.confirm('האם לאפס את נתוני ה-DNA להגדרות ברירת המחדל?')) {
       setBrandDna(DEFAULT_BRAND_DNA);
-      saveBrandDna(DEFAULT_BRAND_DNA, db);
+      await saveBrandDna(DEFAULT_BRAND_DNA, db);
+      eventBus.publish('brand:updated', {
+        brandDna: DEFAULT_BRAND_DNA,
+        updatedAt: new Date().toISOString(),
+      });
     }
   }, [db]);
+
 
   // Brand Completeness Score & Missing Recommendations calculation
   const { completenessScore, missingRecommendations } = useMemo(() => {

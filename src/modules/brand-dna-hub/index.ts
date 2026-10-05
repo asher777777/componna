@@ -1,6 +1,12 @@
-export { BrandDnaHubStandaloneView } from './StandaloneView';
+export { BrandDnaHubStandaloneView, BrandDnaContent, TAB_CONFIG } from './StandaloneView';
+export type { TabType, BrandDnaViewProps } from './StandaloneView';
+export { BrandDnaRoutes } from './routes/BrandDnaRoutes';
 export { BrandDnaProvider, useBrandDna } from './context/BrandDnaContext';
-export * from './types/brandDna';
+export type { BrandDnaContextValue } from './context/BrandDnaContext';
+export * from './config';
+export * from './prompts';
+export * from './api/functionsApi';
+export * from './types';
 export * from './services/geminiBrandPrompt';
 export * from './services/colorExtractor';
 export * from './services/brandDnaFirestore';

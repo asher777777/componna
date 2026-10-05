@@ -23,9 +23,9 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-type TabType = 'identity' | 'voice' | 'audience' | 'design' | 'trust';
+export type TabType = 'identity' | 'voice' | 'audience' | 'design' | 'trust';
 
-const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+export const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'identity', label: '1. זהות עסקית', icon: Building2 },
   { id: 'voice', label: '2. שפת מותג וטון', icon: Sliders },
   { id: 'audience', label: '3. קהלי יעד ובידול', icon: Target },
@@ -33,7 +33,11 @@ const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.ComponentType<
   { id: 'trust', label: '5. אמינות וסליקה', icon: ShieldCheck },
 ];
 
-const BrandDnaContent: React.FC = () => {
+export interface BrandDnaViewProps {
+  initialTab?: TabType;
+}
+
+export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({ initialTab = 'identity' }) => {
   const {
     brandDna,
     isLoading,
@@ -44,7 +48,8 @@ const BrandDnaContent: React.FC = () => {
     resetToDefaults,
   } = useBrandDna();
 
-  const [activeTab, setActiveTab] = useState<TabType>('identity');
+  const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
 
@@ -215,10 +220,11 @@ const BrandDnaContent: React.FC = () => {
   );
 };
 
-export const BrandDnaHubStandaloneView: React.FC = () => {
+export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = ({ initialTab = 'identity' }) => {
   return (
     <BrandDnaProvider>
-      <BrandDnaContent />
+      <BrandDnaContent initialTab={initialTab} />
     </BrandDnaProvider>
   );
 };
+

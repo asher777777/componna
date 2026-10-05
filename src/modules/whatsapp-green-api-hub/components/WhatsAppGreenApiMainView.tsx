@@ -61,8 +61,8 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
     });
   }, [instanceId, token, apiUrl]);
 
-  // Mount the auto-responder background process
-  useWhatsAppAutoResponder(greenApiService, apiKeys.googleAiApiKey);
+  // We no longer mount the client-side auto-responder because Firebase Cloud Functions handles it 24/7!
+  // useWhatsAppAutoResponder(greenApiService, apiKeys.googleAiApiKey);
 
   // Instance Live State
   const [stateInstance, setStateInstance] = useState<GreenApiState>('unknown');
@@ -143,8 +143,8 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
       const res = await greenApiService.getStateInstance();
       setStateInstance(res.stateInstance);
       if (res.stateInstance === 'authorized') {
-        const info = await greenApiService.getDeviceInfo();
-        setDeviceInfo(info);
+        // const info = await greenApiService.getDeviceInfo();
+        // setDeviceInfo(info);
       }
     } catch {
       setStateInstance('unknown');

@@ -9,8 +9,10 @@ import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
 import { UrlShortenerModal } from './components/UrlShortenerModal';
 import { pageBuilderFirestore } from './services/pageBuilderFirestore';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
-import { useBrandDna } from '../brand-dna-hub/hooks/useBrandDna';
+import { useHostCapabilities } from '../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../core/contracts';
 import { Layers, Edit3, Sparkles } from 'lucide-react';
+
 
 const STORAGE_KEY = 'comona_pagebuilder_current_page';
 
@@ -89,7 +91,10 @@ const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
 export const PageBuilderStandaloneView: React.FC = () => {
   const navigate = useNavigate();
   const { db } = useSystemConnection();
-  const { brandDna } = useBrandDna();
+  const { getCapability } = useHostCapabilities();
+  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+
+
 
   const [viewMode, setViewMode] = useState<'pages' | 'editor' | 'public'>('pages');
   const [pages, setPages] = useState<PageBuilderConfig[]>([DEMO_INITIAL_CONFIG]);

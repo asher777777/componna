@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { aiPageGenerator, GenerationStep } from '../services/aiPageGenerator';
-import { useBrandDna } from '../../brand-dna-hub/hooks/useBrandDna';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 import {
   Sparkles,
   Layers,
@@ -30,7 +31,9 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   onClose,
   onComplete,
 }) => {
-  const { brandDna } = useBrandDna();
+  const { getCapability } = useHostCapabilities();
+  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+
   const { openConnectorModal } = useSystemConnection();
   const [promptText, setPromptText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);

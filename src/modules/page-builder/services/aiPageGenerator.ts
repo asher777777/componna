@@ -1,5 +1,5 @@
 import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
-import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { BrandDna } from '../../../core/contracts';
 
 export interface GenerationStep {
   stepIndex: number;

@@ -54,5 +54,108 @@ export interface CoreEventMap {
   };
   'crm:contact:updated': { id: string; conta_name?: string; email?: string; [key: string]: any };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
+  'brand:updated': { brandDna: BrandDna; updatedAt: string };
 }
+
+// ========================
+// Brand DNA Hub Contracts
+// ========================
+
+export type OrganizationType = 'חברה' | 'עמותה' | 'שותפות' | 'עוסק מורשה' | 'עוסק פטור' | 'אחר';
+
+export type GenderAddressing = 'male' | 'female' | 'plural' | 'neutral' | 'direct';
+
+export type SectorCompliance = 'general' | 'religious' | 'ultra_orthodox' | 'business';
+
+export type BorderRadiusStyle = 'none' | 'sm' | 'md' | 'lg' | 'full';
+
+export type ButtonStyleType = 'solid' | 'gradient' | 'outline' | 'glass';
+
+export interface PersonaItem {
+  id: string;
+  name: string;
+  roleOrProfile: string;
+  mainPain: string;
+  dreamOutcome: string;
+}
+
+export interface ObjectionItem {
+  id: string;
+  objection: string;
+  rebuttal: string;
+}
+
+export interface BrandIdentity {
+  companyName: string;
+  organizationType: OrganizationType;
+  organizationPurpose: string;
+  memberCount: string;
+  slogan: string;
+  companyVision: string;
+  shortVision: string;
+  logoUrl?: string;
+  vibeImages?: string[];
+}
+
+export interface BrandVoice {
+  personality: {
+    formality: number;
+    warmth: number;
+    luxury: number;
+    energy: number;
+  };
+  genderAddressing: GenderAddressing;
+  sectorCompliance: SectorCompliance;
+  powerWords: string[];
+  forbiddenWords: string[];
+  shabbatObservant: boolean;
+}
+
+export interface BrandAudience {
+  mainUvp: string;
+  targetAudiences: string[];
+  personas: PersonaItem[];
+  commonObjections: ObjectionItem[];
+}
+
+export interface BrandDesignTokens {
+  primaryColor: string;
+  secondaryColor: string;
+  backgroundColor: string;
+  textColor: string;
+  textColorH1: string;
+  textColorH2: string;
+  buttonBgColor: string;
+  buttonTextColor: string;
+  fontFamily: string;
+  borderRadius: BorderRadiusStyle;
+  buttonStyle: ButtonStyleType;
+}
+
+export interface BrandTrustAndCheckout {
+  legalEntityId: string;
+  contactPhone: string;
+  contactEmail: string;
+  officeAddress: string;
+  refundPolicySummary: string;
+  securityBadgeText: string;
+  securityBadgeImageUrl?: string;
+  whatsappSupportNumber?: string;
+}
+
+export interface BrandDna {
+  identity: BrandIdentity;
+  voice: BrandVoice;
+  audience: BrandAudience;
+  designTokens: BrandDesignTokens;
+  trust: BrandTrustAndCheckout;
+  updatedAt?: string;
+}
+
+export interface BrandDnaContract {
+  getBrandDna: () => BrandDna;
+  getSystemPrompt: (moduleRole?: string) => string;
+  getDesignTokens: () => BrandDesignTokens;
+}
+
 

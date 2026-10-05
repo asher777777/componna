@@ -27,8 +27,9 @@ import { exportVideoProjectToFlowPlayer, convertVideoProjectToCampaign } from '.
 import { CampaignConfig } from '../../flow-player-engine/types';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { TokenUsageReport } from '../../../core/ai';
-import { BrandDna } from '../../brand-dna-hub/types/brandDna';
-import { loadBrandDna } from '../../brand-dna-hub/services/brandDnaFirestore';
+import { BrandDna, BrandDnaContract } from '../../../core/contracts';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+
 import { PageBuilderConfig } from '../../page-builder/types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
 import { extractPageContentForVideo, ExtractedPageSummary } from '../services/pageContentExtractor';
@@ -85,7 +86,8 @@ interface VideoStudioContextValue {
 
   // Brand DNA & Page Builder Integration
   brandDna: BrandDna | null;
-  refreshBrandDna: () => Promise<BrandDna>;
+  refreshBrandDna: () => Promise<BrandDna | null>;
+
   availablePages: PageBuilderConfig[];
   refreshPages: () => Promise<PageBuilderConfig[]>;
   selectedPageForWizard: PageBuilderConfig | null;
@@ -97,6 +99,7 @@ const VideoStudioContext = createContext<VideoStudioContextValue | null>(null);
 
 export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db, config, apiKeys, openConnectorModal } = useSystemConnection();
+  const { getCapability } = useHostCapabilities();
   const [tab, setTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<VideoProject[]>([]);
   const [activeProject, setActiveProject] = useState<VideoProject | null>(null);
@@ -125,12 +128,27 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
   const [availablePages, setAvailablePages] = useState<PageBuilderConfig[]>([]);
   const [selectedPageForWizard, setSelectedPageForWizard] = useState<PageBuilderConfig | null>(null);
 
-  // Load Brand DNA
-  const refreshBrandDna = useCallback(async (): Promise<BrandDna> => {
-    const data = await loadBrandDna(db as any);
-    setBrandDna(data);
-    return data;
-  }, [db]);
+  // Load Brand DNA via Capability with LocalStorage fallback
+  const refreshBrandDna = useCallback(async (): Promise<BrandDna | null> => {
+    const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
+    if (brandDnaContract) {
+      const data = brandDnaContract.getBrandDna();
+      setBrandDna(data);
+      return data;
+    }
+    try {
+      const local = localStorage.getItem('comona_brand_dna_settings');
+      if (local) {
+        const data = JSON.parse(local) as BrandDna;
+        setBrandDna(data);
+        return data;
+      }
+    } catch (e) {
+      console.warn('Fallback load brand DNA error:', e);
+    }
+    return null;
+  }, [getCapability]);
+
 
   // Load Page Builder Pages
   const refreshPages = useCallback(async (): Promise<PageBuilderConfig[]> => {

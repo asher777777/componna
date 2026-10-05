@@ -4,7 +4,8 @@ import { PageBuilderInput, PageBuilderTextarea } from '../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../ui/PageBuilderImageUpload';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
-import { useBrandDna } from '../../brand-dna-hub/hooks/useBrandDna';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 import { X, Settings2, Palette, Globe, Sparkles, Layout, Phone, MapPin, CheckCircle2 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -27,7 +28,9 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   onUpdateSeoSettings,
   onOpenGeoDrawer,
 }) => {
-  const { brandDna } = useBrandDna();
+  const { getCapability } = useHostCapabilities();
+  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+
   const [activeTab, setActiveTab] = useState<'general' | 'design' | 'seo' | 'contact'>('general');
   const [isAiGeneratingSeo, setIsAiGeneratingSeo] = useState(false);
   const [isBrandSynced, setIsBrandSynced] = useState(false);

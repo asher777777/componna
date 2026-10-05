@@ -1,67 +1,12 @@
 import { BrandDna } from '../types/brandDna';
+import {
+  buildBrandSystemContext,
+  buildBrandRephrasePrompt,
+  buildBrandDiscoveryPrompt,
+} from '../prompts';
 
-/**
- * Builds an enriched system context block based on Brand DNA to inject into any Gemini AI prompt
- */
-export function buildBrandSystemContext(brand: BrandDna, moduleRole?: string): string {
-  const personalityMap: Record<string, string> = {
-    formality: brand.voice.personality.formality >= 4 ? 'רשמי, מוקפד ומכובד' : brand.voice.personality.formality <= 2 ? 'קליל, יומיומי וסחבקי' : 'מאוזן, נגיש ומקצועי',
-    warmth: brand.voice.personality.warmth >= 4 ? 'חם, אמפתי, משפחתי ומקרב' : 'ענייני, ישיר ותכליתי',
-    luxury: brand.voice.personality.luxury >= 4 ? 'יוקרתי, אקסקלוסיבי, פרימיום' : 'עממי, פשוט ונגיש לכל כיס',
-    energy: brand.voice.personality.energy >= 4 ? 'אנרגטי, נלהב וסוחף' : 'שלו, מדוד ומרגיע',
-  };
+export { buildBrandSystemContext };
 
-  const genderMap: Record<string, string> = {
-    male: 'פנייה בלשון זכר יחיד ("אתה", "שלך")',
-    female: 'פנייה בלשון נקבה יחיד ("את", "שלך")',
-    plural: 'פנייה בלשון רבים כוללת ("אתם", "שלכם", "אנו מזמינים אתכם")',
-    neutral: 'פנייה נייטרלית / פסיבית ("ניתן להצטרף", "מומלץ לבחור")',
-    direct: 'פנייה חדה ומניעה לפעולה ("בוא לקבל", "קבל עכשיו")',
-  };
-
-  const sectorMap: Record<string, string> = {
-    general: 'עברית ישראלית מודרנית וטבעית',
-    religious: 'שפה מכבדת, ערכית, מותאמת לציבור הדתי/מסורתי (לשון נקייה)',
-    ultra_orthodox: 'שפה מותאמת לציבור החרדי, צנועה, שמורה, ללא סלנג חילוני ובהקפדה על לשון נקייה',
-    business: 'עברית עסקית מקצועית (B2B), מונחים תכליתיים וממוקדי ROI',
-  };
-
-  const personasSummary = brand.audience.personas
-    .map((p) => `- ${p.name}: כאב מרכזי: "${p.mainPain}", תוצאה רצויה: "${p.dreamOutcome}"`)
-    .join('\n');
-
-  const objectionsSummary = brand.audience.commonObjections
-    .map((o) => `- חשש: "${o.objection}" -> מענה המותג: "${o.rebuttal}"`)
-    .join('\n');
-
-  return `
-=== [הוראות ליבת מותג קבועות - BRAND DNA & VOICE SYSTEM] ===
-1. זהות המותג:
-   - שם המותג: ${brand.identity.companyName} (${brand.identity.organizationType})
-   - סלוגן מוביל: ${brand.identity.slogan}
-   - חזון ותמצית: ${brand.identity.shortVision || brand.identity.companyVision}
-   - הצעת הערך הייחודית (UVP): ${brand.audience.mainUvp}
-
-2. שפת המותג, טון ואישיות (קריטי לדיוק הקופי):
-   - אופי הדיבור: ${personalityMap.formality}, ${personalityMap.warmth}, ${personalityMap.luxury}, ${personalityMap.energy}.
-   - כלל לשון פנייה: ${genderMap[brand.voice.genderAddressing] || genderMap.plural}.
-   - התאמה מגזרית ותרבותית: ${sectorMap[brand.voice.sectorCompliance] || sectorMap.general}.
-   ${brand.voice.shabbatObservant ? '- עסק שומר שבת: אין לעודד פעילות או רכישות בשבת.' : ''}
-
-3. מילות כוח ומונחי מפתח (העדף להשתמש בהם בעדינות):
-   ${brand.voice.powerWords.length > 0 ? brand.voice.powerWords.join(', ') : 'איכות, מקצועיות, תוצאות'}
-
-4. קווי גבול שליליים (Negative Constraints - אסור לחלוטין להשתמש במילים אלו):
-   ${brand.voice.forbiddenWords.length > 0 ? brand.voice.forbiddenWords.join(', ') : 'ללא הגבלות מיוחדות'}
-
-5. פרופילי קהל היעד והתנגדויות לטיפול:
-${personasSummary || '- בעלי עסקים וקהל רלוונטי'}
-${objectionsSummary ? `מענה מובלע לחששות:\n${objectionsSummary}` : ''}
-
-${moduleRole ? `תפקיד המודול הנוכחי: ${moduleRole}` : ''}
-============================================================
-`.trim();
-}
 
 /**
  * Call Gemini AI to improve text with brand voice

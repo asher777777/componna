@@ -95,6 +95,16 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     requiredKeys: []
   },
   {
+    id: 'brand-dna-hub',
+    defaultTitle: 'מרכז מיתוג גלובלי (Brand DNA & AI)',
+    defaultSlug: '/brand-dna',
+    description: 'הגדרת זהות עסקית, שפת מותג, פרופילי פרסונות, Design Tokens וסנכרון הנחיות שפת מותג לכלל מודולי ה-AI',
+    iconName: 'Fingerprint',
+    requiredKeys: [
+      { key: 'geminiApiKey', label: 'מפתח Google Gemini API', description: 'למחולל ראיון AI ושכתוב שפת מותג', isSecret: true }
+    ]
+  },
+  {
     id: 'template',
     defaultTitle: 'מודול תבנית בסיסי',
     defaultSlug: '/template',
@@ -103,6 +113,7 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     requiredKeys: []
   }
 ];
+
 
 export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
   clientId: 'client_demo_77',
@@ -190,7 +201,17 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
       requiredRole: 'viewer' as const,
       thirdPartyKeys: {},
       collectionPrefix: 'mod_template_'
+    },
+    'brand-dna-hub': {
+      moduleId: 'brand-dna-hub',
+      isEnabled: true,
+      customSlug: '/brand-dna',
+      customTitle: 'מרכז מיתוג גלובלי',
+      requiredRole: 'editor' as const,
+      thirdPartyKeys: {},
+      collectionPrefix: 'brand_dna_'
     }
   },
+
   updatedAt: new Date().toISOString()
 };

@@ -1,93 +1,22 @@
-export type OrganizationType = 'חברה' | 'עמותה' | 'שותפות' | 'עוסק מורשה' | 'עוסק פטור' | 'אחר';
+export type {
+  OrganizationType,
+  GenderAddressing,
+  SectorCompliance,
+  BorderRadiusStyle,
+  ButtonStyleType,
+  PersonaItem,
+  ObjectionItem,
+  BrandIdentity,
+  BrandVoice,
+  BrandAudience,
+  BrandDesignTokens,
+  BrandTrustAndCheckout,
+  BrandDna,
+  BrandDnaContract,
+} from '../../../core/contracts';
 
-export type GenderAddressing = 'male' | 'female' | 'plural' | 'neutral' | 'direct';
+import type { BrandDna } from '../../../core/contracts';
 
-export type SectorCompliance = 'general' | 'religious' | 'ultra_orthodox' | 'business';
-
-export type BorderRadiusStyle = 'none' | 'sm' | 'md' | 'lg' | 'full';
-
-export type ButtonStyleType = 'solid' | 'gradient' | 'outline' | 'glass';
-
-export interface PersonaItem {
-  id: string;
-  name: string;
-  roleOrProfile: string;
-  mainPain: string;
-  dreamOutcome: string;
-}
-
-export interface ObjectionItem {
-  id: string;
-  objection: string;
-  rebuttal: string;
-}
-
-export interface BrandIdentity {
-  companyName: string;
-  organizationType: OrganizationType;
-  organizationPurpose: string;
-  memberCount: string;
-  slogan: string;
-  companyVision: string;
-  shortVision: string;
-  logoUrl?: string;
-  vibeImages?: string[];
-}
-
-export interface BrandVoice {
-  personality: {
-    formality: number; // 1 (קליל וחברי) עד 5 (רשמי ומוקפד)
-    warmth: number;    // 1 (ענייני וממוקד) עד 5 (חם ומשפחתי)
-    luxury: number;    // 1 (עממי ונגיש) עד 5 (יוקרתי ובלעדי)
-    energy: number;    // 1 (שלו ומרגיע) עד 5 (אנרגטי וסוחף)
-  };
-  genderAddressing: GenderAddressing;
-  sectorCompliance: SectorCompliance;
-  powerWords: string[];
-  forbiddenWords: string[];
-  shabbatObservant: boolean;
-}
-
-export interface BrandAudience {
-  mainUvp: string; // Unique Value Proposition
-  targetAudiences: string[];
-  personas: PersonaItem[];
-  commonObjections: ObjectionItem[];
-}
-
-export interface BrandDesignTokens {
-  primaryColor: string;
-  secondaryColor: string;
-  backgroundColor: string;
-  textColor: string;
-  textColorH1: string;
-  textColorH2: string;
-  buttonBgColor: string;
-  buttonTextColor: string;
-  fontFamily: string;
-  borderRadius: BorderRadiusStyle;
-  buttonStyle: ButtonStyleType;
-}
-
-export interface BrandTrustAndCheckout {
-  legalEntityId: string;
-  contactPhone: string;
-  contactEmail: string;
-  officeAddress: string;
-  refundPolicySummary: string;
-  securityBadgeText: string;
-  securityBadgeImageUrl?: string;
-  whatsappSupportNumber?: string;
-}
-
-export interface BrandDna {
-  identity: BrandIdentity;
-  voice: BrandVoice;
-  audience: BrandAudience;
-  designTokens: BrandDesignTokens;
-  trust: BrandTrustAndCheckout;
-  updatedAt?: string;
-}
 
 export const DEFAULT_BRAND_DNA: BrandDna = {
   identity: {
