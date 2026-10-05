@@ -1,5 +1,5 @@
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
-import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { BrandDna } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 
 export interface WhatsAppBotButton {

@@ -11,7 +11,7 @@ import {
 } from '../types';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
 import { VISUAL_STYLES_CATALOG, PRODUCTION_TYPES_CATALOG, TTS_LANGUAGES } from '../config/catalogs';
-import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { BrandDna } from '../../../core/contracts';
 import { ExtractedPageSummary } from './pageContentExtractor';
 import { cleanSubtitleText } from './subtitleService';
 

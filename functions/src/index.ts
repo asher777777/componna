@@ -99,13 +99,19 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     const replyText = result.response.text();
 
     if (replyText) {
-      // 4. Send message back via Green API
-      const greenApiUrl = `https://api.green-api.com/waInstance${greenApiInstanceId}/sendMessage/${greenApiToken}`;
+      // 4. Send message back via Green API using correct cluster prefix
+      let host = 'https://api.green-api.com';
+      if (greenApiInstanceId && greenApiInstanceId.length >= 4) {
+        const cluster = greenApiInstanceId.slice(0, 4);
+        host = `https://${cluster}.api.greenapi.com`;
+      }
+      const greenApiUrl = `${host}/waInstance${greenApiInstanceId}/sendMessage/${greenApiToken}`;
+      
       await fetch(greenApiUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          chatId: sender,
+          chatId: body.senderData?.chatId || sender,
           message: replyText
         })
       });

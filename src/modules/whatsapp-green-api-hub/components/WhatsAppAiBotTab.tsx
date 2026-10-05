@@ -11,10 +11,10 @@ import {
   DEFAULT_AI_BOTS
 } from '../services/whatsappAiBotService';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { MediaPickerContract } from '../../../core/contracts';
+import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
 import { PREDEFINED_COLLECTIONS } from '../../db-collections-hub/config';
-import { useBrandDna } from '../../brand-dna-hub/context/BrandDnaContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+
 
 interface Props {
   googleAiApiKey?: string;
@@ -28,7 +28,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
   isDark,
 }) => {
   const { getCapability } = useHostCapabilities();
-  const { getGeminiSystemContext } = useBrandDna();
+
   const [bots, setBots] = useState<WhatsAppAiBotConfig[]>(() => WhatsAppAiBotService.getStoredBots());
   const [selectedBotId, setSelectedBotId] = useState<string>(bots[0]?.id || 'bot_customer_service');
 
@@ -205,10 +205,12 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
         { buttonId: 'b_afternoon', buttonText: '🌆 תור אחה"צ (14:00-18:00)', actionType: 'prompt', actionValue: 'מתאים לי אחה"צ' },
       ];
     } else if (presetKey === 'brand') {
-      // Sync with Brand DNA
-      const dnaContext = getGeminiSystemContext('נציג שירות בוואטסאפ');
+      // Sync with Brand DNA via Host Capabilities
+      const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
+      const dnaContext = brandDnaContract ? brandDnaContract.getSystemPrompt('נציג שירות בוואטסאפ') : '';
       newPrompt = `${activeBot.systemPrompt}\n\n${dnaContext}`;
     }
+
 
     if (newPrompt) {
       saveBotChanges({
