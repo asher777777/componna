@@ -1,3 +1,4 @@
+import { eventBus } from '../../../core/bridge/EventBus';
 import {
   Firestore,
   collection,
@@ -251,4 +252,35 @@ export async function syncContactsToCrm(
   }
 
   return result;
+}
+
+
+let isSyncSetup = false;
+
+export function setupWhatsappStatusViewersSync(db: Firestore, ownerId?: string) {
+  if (isSyncSetup) return;
+  isSyncSetup = true;
+
+  eventBus.subscribe('whatsapp:status:viewed', async (payload: { phone: string; statusId: string }) => {
+    if (!payload.phone) return;
+    
+    // Trigger sync for this single contact to add to the "צופי הסטטוסים שלנו" group and "צופה בסטטוס" tag
+    try {
+      await syncContactsToCrm(
+        db,
+        'crm_contacts',
+        [{
+          phone: payload.phone,
+          name: payload.phone, // Will be overridden or ignored if already exists with real name
+        }],
+        'System_Automated',
+        'צופי הסטטוסים שלנו',
+        ['צופה בסטטוס'],
+        'crm_groups',
+        ownerId
+      );
+    } catch (err) {
+      console.warn('Failed to sync status viewer to CRM', err);
+    }
+  });
 }

@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles, Send, Image, Type, Eye, Clock, CheckCircle,
   AlertCircle, RefreshCw, Trash2, ExternalLink, Play, Film,
@@ -10,6 +10,8 @@ import {
 import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 import { GreenApiService } from '../services/greenApiService';
 import {
   GreenApiStatusFont,
@@ -32,6 +34,7 @@ import {
 import { normalizePhone } from '../services/whatsappCrmSyncService';
 import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
 import { WhatsAppImageStudio } from './WhatsAppImageStudio';
+import { WhatsAppStatusAutomationsTab } from './WhatsAppStatusAutomationsTab';
 
 interface MediaItem { id: string; url: string; type: string; name: string; description?: string; }
 
@@ -120,8 +123,12 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   connectedAccountName = 'חשבון WhatsApp',
   googleAiApiKey,
 }) => {
+  const { getCapability } = useHostCapabilities();
+  const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
+  const brandDna = brandDnaContract ? brandDnaContract.getBrandDna() : null;
+
   // Mode: 'create' | 'archive'
-  const [activeSubTab, setActiveSubTab] = useState<'create' | 'archive'>('create');
+  const [activeSubTab, setActiveSubTab] = useState<'create' | 'archive' | 'automations'>('create');
 
   // Creator state
   const [statusType, setStatusType] = useState<'text' | 'media'>('text');
@@ -443,6 +450,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         apiKey: googleAiApiKey || '',
         topic: topicToUse,
         tone: selectedTone,
+        brandDna: brandDna,
       });
 
       setGeneratedVariations(result.variations);
@@ -1750,7 +1758,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                         {st.status === 'read' ? <CheckCheck className="w-3.5 h-3.5" /> : <CheckCircle className="w-3.5 h-3.5" />}
                       </div>
                       <div>
-                        <span className="font-mono font-bold block text-[11px]" dir="ltr">{st.participant}</span>
+                        {(() => {
+                          const crmContact = crmContacts.find(c => normalizePhone(c.phone) === normalizePhone(st.participant) || normalizePhone(c.phone) === normalizePhone(st.participant));
+                          const displayName = crmContact?.name ? `${crmContact.name} (${st.participant})` : st.participant;
+                          return <span className="font-mono font-bold block text-[11px]" dir="ltr">{displayName}</span>
+                        })()}
                         <span className="text-[10px] text-slate-400 flex items-center gap-1">
                           {st.status === 'read' ? (
                             <>
@@ -1793,6 +1805,11 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
             </div>
           </div>
         </div>
+      )}
+
+      
+      {activeSubTab === "automations" && (
+        <WhatsAppStatusAutomationsTab db={db} isDark={isDark} />
       )}
 
       {/* MEDIA GALLERY PICKER MODAL (Isolated to current logged in user) */}

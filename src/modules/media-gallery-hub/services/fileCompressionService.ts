@@ -336,19 +336,32 @@ export class FileCompressionService {
       return { type: 'audio', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'audio/mp3' };
     }
 
-    // 4. Document
+    // 4. PDF specific
+    if (ext === 'pdf' || mime.includes('pdf')) {
+      return { type: 'pdf', mimeType: 'application/pdf' };
+    }
+
+    // 5. Spreadsheet
     if (
-      ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'ods', 'odp'].includes(ext) ||
-      mime.includes('pdf') ||
-      mime.includes('word') ||
+      ['xls', 'xlsx', 'csv', 'ods', 'tsv'].includes(ext) ||
       mime.includes('excel') ||
+      mime.includes('spreadsheet') ||
+      mime.includes('csv')
+    ) {
+      return { type: 'spreadsheet', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+    }
+
+    // 6. Document (Word, text, presentations)
+    if (
+      ['doc', 'docx', 'ppt', 'pptx', 'txt', 'rtf', 'odt', 'odp'].includes(ext) ||
+      mime.includes('word') ||
       mime.includes('presentation') ||
       mime.includes('officedocument')
     ) {
-      return { type: 'document', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'application/pdf' };
+      return { type: 'document', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'application/msword' };
     }
 
-    // 5. Archive / Compressed
+    // 7. Archive / Compressed
     if (
       ['zip', 'rar', '7z', 'tar', 'gz', 'bz2', 'xz', 'iso'].includes(ext) ||
       mime.includes('zip') ||
@@ -358,9 +371,9 @@ export class FileCompressionService {
       return { type: 'archive', mimeType: mime && mime !== 'application/octet-stream' ? mime : 'application/zip' };
     }
 
-    // 6. Code / Data
+    // 8. Code / Data
     if (
-      ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'scss', 'py', 'sql', 'sh', 'xml', 'yaml', 'yml', 'md', 'csv'].includes(ext) ||
+      ['js', 'jsx', 'ts', 'tsx', 'json', 'html', 'css', 'scss', 'py', 'sql', 'sh', 'xml', 'yaml', 'yml', 'md'].includes(ext) ||
       mime.includes('javascript') ||
       mime.includes('json') ||
       mime.includes('xml') ||

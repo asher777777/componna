@@ -1,7 +1,16 @@
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 
-export type MediaType = 'video' | 'image' | 'audio' | 'document' | 'archive' | 'code' | 'other';
+export type MediaType =
+  | 'image'
+  | 'video'
+  | 'audio'
+  | 'document'
+  | 'pdf'
+  | 'spreadsheet'
+  | 'archive'
+  | 'code'
+  | 'other';
 export type MediaCategoryFilter = 'all' | MediaType | 'heygen';
 
 export interface MediaFolder {
@@ -27,6 +36,9 @@ export interface MediaItem {
   durationSec?: number; // For video & audio
   width?: number; // For image & video
   height?: number; // For image & video
+  extension?: string;
+  pageCount?: number;
+  extractedText?: string;
   createdAt: number;
   updatedAt?: number;
   tags?: string[];

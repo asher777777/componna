@@ -94,6 +94,15 @@ export interface CoreEventMap {
   };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
+  'whatsapp:status:viewed': { phone: string; statusId: string };
+  'landing_page:generated_from_doc': {
+    sourceFileId: string;
+    sourceFileName: string;
+    pageTitle: string;
+    sections: any[];
+    brandStyles?: any;
+    createdAt: string;
+  };
 }
 
 // ========================
