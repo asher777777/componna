@@ -225,7 +225,7 @@ export const KesherTransactionsLogTab: React.FC<Props> = ({ refreshTrigger }) =>
 
       setSyncResult({
         success: res.success,
-        message: res.message || res.error || 'הסנכרון הושלם בהצלחה'
+        message: res.success ? (res.message || 'הסנכרון הושלם בהצלחה') : (res.error || res.message || 'שגיאה בסנכרון מול שרת קשר')
       });
       loadData();
     } catch (err: any) {

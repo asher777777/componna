@@ -39,6 +39,39 @@ function getSmartPlaceholderImage(category: string, index: number = 0): string {
   return pool[index % pool.length];
 }
 
+/**
+ * Resolves the real-time Brand DNA from context, LocalStorage, or populated defaults
+ */
+export function resolveLiveBrandDna(provided?: BrandDna | null): BrandDna | null {
+  if (provided && (provided.identity?.companyName || provided.trust?.contactPhone)) {
+    // If provided has contact details, still check if localStorage has more specific ones
+    try {
+      const raw = localStorage.getItem('comona_brand_dna_settings');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.trust?.contactPhone || parsed?.trust?.whatsappSupportNumber) {
+          return {
+            ...provided,
+            ...parsed,
+            trust: { ...provided.trust, ...parsed.trust },
+            identity: { ...provided.identity, ...parsed.identity },
+            designTokens: { ...provided.designTokens, ...parsed.designTokens },
+          };
+        }
+      }
+    } catch {}
+    return provided;
+  }
+  try {
+    const raw = localStorage.getItem('comona_brand_dna_settings');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed) return parsed;
+    }
+  } catch {}
+  return provided || null;
+}
+
 export const aiPageGenerator = {
   /**
    * Generates 6 marketing angles derived continuously from Brand DNA and existing pages
@@ -48,12 +81,13 @@ export const aiPageGenerator = {
     providedApiKey?: string,
     existingPages?: PageBuilderConfig[]
   ): Promise<MarketingIdea[]> {
-    const companyName = brandDna?.identity?.companyName || 'העסק המוביל';
-    const purpose = brandDna?.identity?.organizationPurpose || '';
-    const targetAudiences = brandDna?.audience?.targetAudiences || [];
-    const uvp = brandDna?.audience?.mainUvp || '';
-    const objections = brandDna?.audience?.commonObjections || [];
-    const personas = brandDna?.audience?.personas || [];
+    const effectiveDna = resolveLiveBrandDna(brandDna);
+    const companyName = effectiveDna?.identity?.companyName || 'העסק המוביל';
+    const purpose = effectiveDna?.identity?.organizationPurpose || '';
+    const targetAudiences = effectiveDna?.audience?.targetAudiences || [];
+    const uvp = effectiveDna?.audience?.mainUvp || '';
+    const objections = effectiveDna?.audience?.commonObjections || [];
+    const personas = effectiveDna?.audience?.personas || [];
 
     const existingPagesSummary = (existingPages || []).map((p) => ({
       title: p.pageTitle,
@@ -157,15 +191,19 @@ export const aiPageGenerator = {
     onStep?: OnStepCallback,
     options?: { generateImages?: boolean; apiKey?: string }
   ): Promise<PageBuilderConfig> {
-    const primaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
-    const secondaryColor = brandDna?.designTokens?.secondaryColor || '#0ea5e9';
-    const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
-    const slogan = brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
-    const logoUrl = brandDna?.identity?.logoUrl || '';
-    const phone = brandDna?.trust?.contactPhone || '03-1234567';
-    const email = brandDna?.trust?.contactEmail || 'contact@example.com';
-    const whatsapp = brandDna?.trust?.whatsappSupportNumber || '0501234567';
-    const address = brandDna?.trust?.officeAddress || 'תל אביב, ישראל';
+    const effectiveDna = resolveLiveBrandDna(brandDna);
+
+    const primaryColor = effectiveDna?.designTokens?.primaryColor || '#6366f1';
+    const secondaryColor = effectiveDna?.designTokens?.secondaryColor || '#0ea5e9';
+    const companyName = effectiveDna?.identity?.companyName || 'החברה המובילה';
+    const slogan = effectiveDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
+    const logoUrl = effectiveDna?.identity?.logoUrl || '';
+
+    // Precise contact details resolution: prioritize real inputs from Brand DNA
+    const phone = effectiveDna?.trust?.contactPhone || '052-6968008';
+    const email = effectiveDna?.trust?.contactEmail || 'ovt5771@gmail.com';
+    const whatsapp = effectiveDna?.trust?.whatsappSupportNumber || '0526968008';
+    const address = effectiveDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
 
     const pageId = `page_${Date.now()}`;
 
@@ -190,16 +228,16 @@ export const aiPageGenerator = {
         isFooterVisible: true,
         primaryColor,
         secondaryColor,
-        backgroundColor: brandDna?.designTokens?.backgroundColor || '#ffffff',
-        textColor: brandDna?.designTokens?.textColor || '#0f172a',
-        fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
-        borderRadius: brandDna?.designTokens?.borderRadius || 'md',
-        buttonStyle: brandDna?.designTokens?.buttonStyle || 'gradient',
+        backgroundColor: effectiveDna?.designTokens?.backgroundColor || '#ffffff',
+        textColor: effectiveDna?.designTokens?.textColor || '#0f172a',
+        fontFamily: effectiveDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+        borderRadius: effectiveDna?.designTokens?.borderRadius || 'md',
+        buttonStyle: effectiveDna?.designTokens?.buttonStyle || 'gradient',
         contactWhatsApp: whatsapp,
         contactPhone: phone,
         contactEmail: email,
         address,
-        brandDnaSynced: !!brandDna,
+        brandDnaSynced: !!effectiveDna,
       },
       seoSettings: {
         title: `${companyName} - ${slogan}`,

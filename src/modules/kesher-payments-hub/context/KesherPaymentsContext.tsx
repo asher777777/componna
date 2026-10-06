@@ -107,6 +107,13 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
 
   // Sync settings when system api keys change
   useEffect(() => {
+    if (apiKeys && (apiKeys.kesherUserName || apiKeys.kesherApiKey || apiKeys.kesherEzCountToken)) {
+      kesherService.saveSettings({
+        userName: apiKeys.kesherUserName || kesherService.getSettings().userName,
+        apiKey: apiKeys.kesherApiKey || kesherService.getSettings().apiKey,
+        ezCountToken: apiKeys.kesherEzCountToken || kesherService.getSettings().ezCountToken,
+      });
+    }
     const fresh = kesherService.loadSettings();
     setSettings(fresh);
     setIsConfigured(kesherService.isConfigured());

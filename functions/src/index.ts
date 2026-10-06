@@ -266,7 +266,7 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
       if (target === 'connect') {
         destUrl = 'https://kesherhk.info/ConnectToKesher/ConnectToKesher';
       } else if (target === 'ezcount') {
-        destUrl = 'https://api.ezcount.co.il/api/get-docs';
+        destUrl = 'https://www.ezcount.co.il/api/get-docs';
       } else if (target.startsWith('KesherAPI/')) {
         destUrl = `https://kesherhk.info/${target}`;
       } else if (req.query.url) {
@@ -289,7 +289,7 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
       });
 
       const responseText = await response.text();
-      // If upstream returned error (e.g. 500 InvalidSecurity or 404), return 200 with JSON payload so client can parse Kesher's specific message
+      // Always return JSON with _upstreamStatus so client fetch() can parse cleanly without failing
       try {
         const json = JSON.parse(responseText);
         res.status(200).json({
@@ -297,15 +297,13 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
           ...json
         });
       } catch {
-        if (response.ok) {
-          res.status(200).send(responseText);
-        } else {
-          res.status(200).json({
-            status: 'error',
-            _upstreamStatus: response.status,
-            error: responseText || `Upstream returned status ${response.status}`
-          });
-        }
+        res.status(200).json({
+          status: response.ok ? 'success' : 'error',
+          _upstreamStatus: response.status,
+          isRawText: true,
+          error: response.ok ? undefined : (responseText.slice(0, 500) || `Upstream returned status ${response.status}`),
+          data: responseText.slice(0, 1000)
+        });
       }
     } catch (err: any) {
       console.error('[kesherProxy] Proxy forwarding failed:', err);

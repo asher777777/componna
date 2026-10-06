@@ -1209,10 +1209,11 @@ export const MediaGalleryGrid: React.FC = () => {
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs">
         {[
           { id: 'all', label: 'הכל', count: mediaItems.length },
-          { id: 'image', label: 'תמונות ווידאו', count: mediaItems.filter((i) => i.type === 'image' || i.type === 'video').length },
+          { id: 'video', label: 'וידאו וסרטונים', count: mediaItems.filter((i) => i.type === 'video' || i.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)).length },
+          { id: 'image', label: 'תמונות', count: mediaItems.filter((i) => i.type === 'image' || i.name.match(/\.(png|jpe?g|webp|gif|svg|avif)$/i)).length },
           { id: 'pdf', label: 'מסמכי PDF וחוזים', count: mediaItems.filter((i) => i.type === 'pdf' || i.name.toLowerCase().endsWith('.pdf')).length },
           { id: 'spreadsheet', label: 'טבלאות וחשבוניות', count: mediaItems.filter((i) => i.type === 'spreadsheet' || i.name.match(/\.(xlsx?|csv|ods)$/i)).length },
-          { id: 'audio', label: 'הקלטות שמע', count: mediaItems.filter((i) => i.type === 'audio').length },
+          { id: 'audio', label: 'הקלטות שמע', count: mediaItems.filter((i) => i.type === 'audio' || i.name.match(/\.(mp3|wav|ogg|aac|m4a)$/i)).length },
           { id: 'heygen', label: 'סרטוני HeyGen AI', count: mediaItems.filter((i) => isHeyGenItem(i)).length },
         ].map((tab) => {
           const isActive = filters.typeFilter === tab.id;

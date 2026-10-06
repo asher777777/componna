@@ -108,29 +108,35 @@ const KesherPaymentsInnerContent: React.FC = () => {
               <span className="hidden sm:inline font-semibold">{isDark ? 'יום' : 'לילה'}</span>
             </button>
 
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+            <button
+              type="button"
+              onClick={() => openConnectorModal('kesher_payments')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                 isConfigured
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-500'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'
+                  : 'bg-amber-500/10 border-amber-500/30 text-amber-500 hover:bg-amber-500/20'
               }`}
+              title={isConfigured ? 'מסוף קשר מחובר - לחץ לעריכת הגדרות' : 'לחץ להגדרת שם משתמש וסיסמה לקשר'}
             >
               <div className={`w-2 h-2 rounded-full ${isConfigured ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-              <span>{isConfigured ? 'מסוף קשר מחובר' : 'קשר: לא מוגדר'}</span>
-            </div>
+              <span>{isConfigured ? 'מסוף קשר מחובר' : 'קשר: לא מוגדר (הגדר)'}</span>
+            </button>
 
-            <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold ${
+            <button
+              type="button"
+              onClick={() => openConnectorModal('kesher_payments')}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-semibold transition cursor-pointer ${
                 isEasyCountConnected
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500 hover:bg-emerald-500/20'
                   : isDark
-                  ? 'bg-slate-800 border-slate-700 text-slate-400'
-                  : 'bg-slate-100 border-slate-200 text-slate-500'
+                  ? 'bg-slate-800 border-slate-700 text-slate-400 hover:border-slate-600'
+                  : 'bg-slate-100 border-slate-200 text-slate-500 hover:border-slate-300'
               }`}
+              title={isEasyCountConnected ? 'איזי קאונט פעיל ומחובר' : 'לחץ להזנת טוקן איזי קאונט'}
             >
               <div className={`w-2 h-2 rounded-full ${isEasyCountConnected ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-              <span>{isEasyCountConnected ? 'איזי קאונט פעיל' : 'איזי קאונט מנותק'}</span>
-            </div>
+              <span>{isEasyCountConnected ? 'איזי קאונט פעיל' : 'איזי קאונט (הגדר)'}</span>
+            </button>
 
             <button
               type="button"

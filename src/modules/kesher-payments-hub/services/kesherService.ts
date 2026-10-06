@@ -93,7 +93,6 @@ export class KesherService {
    * ביצוע קריאה מאובטחת לשרת קשר עם תמיכת Proxy ו-Timeout נגד תקיעות
    */
   public async postToConnect(payload: any, timeoutMs: number = 15000): Promise<any> {
-    const targetUrl = 'https://kesherhk.info/ConnectToKesher/ConnectToKesher';
     const urlsToTry: string[] = [];
 
     // 1. Custom proxy if configured
@@ -101,18 +100,13 @@ export class KesherService {
       urlsToTry.push(`${this.settings.proxyUrl.replace(/\/$/, '')}/ConnectToKesher/ConnectToKesher`);
     }
 
-    // 2. Built-in Firebase / Hosting Proxy rewrite
+    // 2. Built-in Firebase / Hosting Proxy rewrite (Server-to-Server via Cloud Function)
     urlsToTry.push('/api/kesher-proxy?target=connect');
 
-    // 3. Relative local proxy (Vite dev server)
-    urlsToTry.push('/ConnectToKesher/ConnectToKesher');
-
-    // 4. Direct target (works when CORS is permitted or in native/webview)
-    urlsToTry.push(targetUrl);
-
-    // 5. Multi-proxy fallback services
-    urlsToTry.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-    urlsToTry.push(`https://thingproxy.freeboard.io/fetch/${targetUrl}`);
+    // 3. Localhost dev proxy
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      urlsToTry.push('/ConnectToKesher/ConnectToKesher');
+    }
 
     let lastError: any = null;
 
@@ -130,29 +124,30 @@ export class KesherService {
         clearTimeout(timer);
 
         if (!res.ok && res.status !== 200) {
-          continue;
+          throw new Error(`שרת הפרוקסי החזיר קוד ${res.status}`);
         }
 
         const text = await res.text();
+        let parsed: any;
         try {
-          const parsed = JSON.parse(text);
-          if (parsed.status === 'error' && parsed.error && typeof parsed.error === 'string') {
-            if (parsed.error.includes('InvalidSecurity') || parsed.error.includes('verifying security')) {
-              console.error('[KesherService] שגיאת אבטחה ואימות במסוף קשר:', parsed.error);
-              throw new Error('שגיאת אימות במסוף קשר (שם משתמש או מפתח API שגויים בקשר)');
-            }
-          }
-          return parsed;
-        } catch (parseErr: any) {
-          if (parseErr.message && parseErr.message.includes('אימות')) {
-            throw parseErr;
-          }
-          return text;
+          parsed = JSON.parse(text);
+        } catch {
+          parsed = { Message: text };
         }
+
+        if (parsed.status === 'error' || (parsed._upstreamStatus && parsed._upstreamStatus >= 400)) {
+          const errText = String(parsed.error || parsed.Description || parsed.Message || `שגיאת שרת (${parsed._upstreamStatus})`);
+          if (errText.includes('InvalidSecurity') || errText.includes('verifying security') || errText.includes('אימות')) {
+            throw new Error('שגיאת אימות במסוף קשר: שם משתמש או מפתח API שגויים');
+          }
+          throw new Error(errText);
+        }
+
+        return parsed;
       } catch (err: any) {
         clearTimeout(timer);
         lastError = err;
-        if (err.message && err.message.includes('אימות במסוף קשר')) {
+        if (err.message && (err.message.includes('אימות') || err.message.includes('InvalidSecurity'))) {
           throw err;
         }
       }
@@ -166,7 +161,6 @@ export class KesherService {
    */
   public async getFromKesherApi(apiPath: string, queryParams: Record<string, string>, timeoutMs: number = 15000): Promise<any> {
     const searchParams = new URLSearchParams(queryParams).toString();
-    const targetUrl = `https://kesherhk.info/KesherAPI/${apiPath}?${searchParams}`;
     const urlsToTry: string[] = [];
 
     if (this.settings.proxyUrl) {
@@ -177,14 +171,9 @@ export class KesherService {
     urlsToTry.push(`/api/kesher-proxy?target=${encodeURIComponent(`KesherAPI/${apiPath}?${searchParams}`)}`);
 
     // Vite local dev proxy
-    urlsToTry.push(`/KesherAPI/${apiPath}?${searchParams}`);
-
-    // Direct
-    urlsToTry.push(targetUrl);
-
-    // Fallbacks
-    urlsToTry.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-    urlsToTry.push(`https://thingproxy.freeboard.io/fetch/${targetUrl}`);
+    if (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')) {
+      urlsToTry.push(`/KesherAPI/${apiPath}?${searchParams}`);
+    }
 
     let lastError: any = null;
 
@@ -551,6 +540,12 @@ export class KesherService {
     const extractTxArray = (resp: any): any[] => {
       if (!resp) return [];
       if (Array.isArray(resp)) return resp;
+      if (typeof resp.Data === 'string' && (resp.Data.trim().startsWith('[') || resp.Data.trim().startsWith('{'))) {
+        try { return extractTxArray(JSON.parse(resp.Data)); } catch {}
+      }
+      if (typeof resp.data === 'string' && (resp.data.trim().startsWith('[') || resp.data.trim().startsWith('{'))) {
+        try { return extractTxArray(JSON.parse(resp.data)); } catch {}
+      }
       if (resp.Transaction) return Array.isArray(resp.Transaction) ? resp.Transaction : [resp.Transaction];
       if (resp.Transactions) return Array.isArray(resp.Transactions) ? resp.Transactions : [resp.Transactions];
       if (resp.trans) return Array.isArray(resp.trans) ? resp.trans : [resp.trans];
@@ -567,6 +562,7 @@ export class KesherService {
     };
 
     let authErrorMessage = '';
+    let lastGeneralError = '';
 
     const fetchEndpoint = async (funcName: string, extraParams: Record<string, any> = {}): Promise<any[]> => {
       const payloadDirect = {
@@ -586,7 +582,8 @@ export class KesherService {
         const list = extractTxArray(res);
         if (list.length > 0) return list;
       } catch (e: any) {
-        if (e?.message?.includes('אימות')) {
+        lastGeneralError = e?.message || String(e);
+        if (e?.message?.includes('אימות') || e?.message?.includes('InvalidSecurity')) {
           authErrorMessage = e.message;
         }
       }
@@ -594,19 +591,21 @@ export class KesherService {
       try {
         const payloadWrapped = { Json: payloadDirect, format: 'json' };
         const res = await this.postToConnect(payloadWrapped, 15000);
-        return extractTxArray(res);
+        const list = extractTxArray(res);
+        if (list.length > 0) return list;
       } catch (e: any) {
-        if (e?.message?.includes('אימות')) {
+        lastGeneralError = e?.message || String(e);
+        if (e?.message?.includes('אימות') || e?.message?.includes('InvalidSecurity')) {
           authErrorMessage = e.message;
         }
         return [];
       }
+      return [];
     };
 
-    // שליפה של מסמכי איזי קאונט במידה ומוגדר טוקן
+    // שליפה של מסמכי איזי קאונט במידה ומוגדר טוקן דרך שרת הפרוקסי בלבד
     const fetchEasyCountDocs = async (): Promise<any[]> => {
       if (!this.settings.ezCountToken) return [];
-      const targetApiUrl = 'https://api.ezcount.co.il/api/get-docs';
       const ezUrls: string[] = [];
 
       // 1. Custom proxy if defined in settings
@@ -626,7 +625,7 @@ export class KesherService {
 
       for (const url of ezUrls) {
         const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 3500);
+        const timer = setTimeout(() => controller.abort(), 4000);
         try {
           const res = await fetch(url, {
             method: 'POST',
@@ -642,7 +641,6 @@ export class KesherService {
           }
         } catch {
           clearTimeout(timer);
-          // Gracefully continue to next URL or Kesher endpoints
         }
       }
       return [];
@@ -659,8 +657,17 @@ export class KesherService {
       fetchEasyCountDocs()
     ]);
 
-    if (authErrorMessage && results.every(r => r.status === 'rejected' || (r.status === 'fulfilled' && (!r.value || r.value.length === 0)))) {
-      throw new Error(authErrorMessage);
+    const hasAnySuccess = results.some(
+      r => r.status === 'fulfilled' && Array.isArray(r.value) && r.value.length > 0
+    );
+
+    if (!hasAnySuccess) {
+      if (authErrorMessage) {
+        throw new Error(authErrorMessage);
+      }
+      if (lastGeneralError) {
+        throw new Error(lastGeneralError);
+      }
     }
 
     const allTransactionsMap = new Map<string, any>();
@@ -911,7 +918,22 @@ export class KesherService {
     }
 
     onProgress?.('שולף עסקאות ומסמכים מכל ערוצי קשר...');
-    const rawTransactions = await this.getTransactions(timeframe);
+    let rawTransactions: any[] = [];
+    try {
+      rawTransactions = await this.getTransactions(timeframe);
+    } catch (err: any) {
+      console.error('[KesherService] getTransactions error in syncCustomersToCRM:', err);
+      return {
+        success: false,
+        totalFetched: 0,
+        createdContactsCount: 0,
+        updatedContactsCount: 0,
+        totalTransactions: 0,
+        countsByMethod: methodCounts,
+        message: '',
+        error: err?.message || 'שגיאה בשליפת עסקאות מקשר'
+      };
+    }
 
     if (!rawTransactions || rawTransactions.length === 0) {
       return {
@@ -921,7 +943,7 @@ export class KesherService {
         updatedContactsCount: 0,
         totalTransactions: 0,
         countsByMethod: methodCounts,
-        message: 'לא התקבלו עסקאות מקשר בטווח הזמן שנבחר. (בסביבת דפדפן מאובטחת, ייתכן ששרת קשר חסם גישה ישירה עקב מגבלות CORS/SSL - ניתן להעלות קובץ אקסל מקשר או להגדיר כתובת שרת פרוקסי בהגדרות).'
+        message: 'הסנכרון הסתיים: לא נמצאו עסקאות מקשר בטווח הזמן שנבחר.'
       };
     }
 
@@ -1374,9 +1396,15 @@ export class KesherService {
       const merged = Array.from(map.values()).sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
       );
-      localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(merged.slice(0, 500)));
+      try {
+        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(merged.slice(0, 300)));
+      } catch {
+        // Fallback: strip heavy raw object to stay well within quota
+        const stripped = merged.slice(0, 100).map(({ raw, ...rest }) => rest);
+        localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(stripped));
+      }
     } catch (e) {
-      console.warn('Failed to merge transactions', e);
+      console.warn('Failed to merge transactions to storage', e);
     }
   }
 
