@@ -1,5 +1,5 @@
 import { Firestore, collection, getDocs, getCountFromServer, limit, query, orderBy } from 'firebase/firestore';
-import { SYSTEM_COLLECTIONS, GLOBAL_PLATFORM_COLLECTIONS } from '../../core/contracts/collections';
+import { SYSTEM_COLLECTIONS, GLOBAL_PLATFORM_COLLECTIONS } from '../../../core/contracts/collections';
 import { LiveSystemMetrics } from '../types';
 
 /**
@@ -7,7 +7,7 @@ import { LiveSystemMetrics } from '../types';
  * Uses getCountFromServer when available for efficiency, falling back to query snapshot size.
  */
 export async function getLiveCollectionCount(
-  db: Firestore | null,
+  db: Firestore | null | undefined,
   collectionName: string
 ): Promise<number> {
   if (!db || !collectionName) return 0;
@@ -33,7 +33,7 @@ export async function getLiveCollectionCount(
  * ZERO MOCK DATA - Real counts only.
  */
 export async function fetchLiveSystemMetrics(
-  db: Firestore | null,
+  db: Firestore | null | undefined,
   scopedResolver?: (colName: string) => string
 ): Promise<LiveSystemMetrics> {
   if (!db) {

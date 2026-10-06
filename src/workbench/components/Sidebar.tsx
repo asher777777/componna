@@ -28,6 +28,7 @@ import { SystemSettingsModal } from './SystemSettingsModal';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 
 const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  'control-center-hub': { icon: Sparkles, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'brand-dna-hub': { icon: Sparkles, color: 'text-purple-400 group-hover:text-purple-300' },
   'kesher-payments-hub': { icon: CreditCard, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'whatsapp-green-api-hub': { icon: MessageSquare, color: 'text-emerald-400 group-hover:text-emerald-300' },

@@ -9,10 +9,11 @@ import { MobileSimulatorLayout } from './layouts/MobileSimulatorLayout';
 import { QuickLeadModal } from './modals/QuickLeadModal';
 import { ModuleDetailsDrawer } from './modals/ModuleDetailsDrawer';
 import { useControlCenter } from '../context/ControlCenterContext';
-import { Sparkles, Layers, ShieldCheck, Heart } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 export const ControlCenterMainView: React.FC = () => {
-  const { layout } = useControlCenter();
+  const { layout, theme } = useControlCenter();
+  const isLight = theme === 'light';
 
   const renderActiveLayout = () => {
     switch (layout) {
@@ -31,14 +32,17 @@ export const ControlCenterMainView: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#07070a] text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white" dir="rtl">
-      
+    <div
+      className={`min-h-screen flex flex-col font-sans transition-colors duration-300 selection:bg-indigo-500 selection:text-white ${
+        isLight ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#07070a] text-slate-100'
+      }`}
+      dir="rtl"
+    >
       {/* Top Main Navigation Bar */}
       <HeaderControlBar />
 
       {/* Main Container */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-8 py-6 space-y-6">
-        
         {/* Sub-bar: Category Tabs & Quick Action Buttons */}
         <QuickActionsPillBar />
 
@@ -46,20 +50,29 @@ export const ControlCenterMainView: React.FC = () => {
         <div className="pt-2">
           {renderActiveLayout()}
         </div>
-
       </main>
 
       {/* Sleek Minimal Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-3">
+      <footer
+        className={`border-t px-6 py-4 text-xs transition-colors duration-300 flex flex-col sm:flex-row items-center justify-between gap-3 ${
+          isLight
+            ? 'border-slate-200 bg-white/90 text-slate-500 shadow-inner'
+            : 'border-slate-900 bg-slate-950/80 text-slate-500'
+        }`}
+      >
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-indigo-400" />
-          <span className="font-medium text-slate-400">Comona Modular Workspace — Control Center Hub</span>
-          <span className="text-slate-600">|</span>
-          <span className="text-[11px] font-mono text-emerald-400">Zero Mock Data • Clean Full Screen</span>
+          <Sparkles className="w-4 h-4 text-indigo-500" />
+          <span className={`font-medium ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
+            Comona Modular Workspace — Control Center Hub
+          </span>
+          <span className="text-slate-400">|</span>
+          <span className="text-[11px] font-mono text-emerald-600 font-semibold">
+            Zero Mock Data • Clean Full Screen • Day Mode Default
+          </span>
         </div>
         <div className="flex items-center gap-4 text-[11px]">
           <span>תקן 11 שכבות מודולרי</span>
-          <span className="text-slate-600">•</span>
+          <span className="text-slate-400">•</span>
           <span>עצמאי לחלוטין</span>
         </div>
       </footer>
@@ -67,7 +80,6 @@ export const ControlCenterMainView: React.FC = () => {
       {/* Overlays / Modals */}
       <QuickLeadModal />
       <ModuleDetailsDrawer />
-
     </div>
   );
 };

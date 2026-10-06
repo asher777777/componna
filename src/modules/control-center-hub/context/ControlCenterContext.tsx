@@ -22,6 +22,9 @@ interface ControlCenterContextValue {
   apiKeys: Record<string, any>;
   mobileDevice: 'iphone' | 'android' | 'fluid';
   setMobileDevice: (device: 'iphone' | 'android' | 'fluid') => void;
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  setTheme: (t: 'light' | 'dark') => void;
 }
 
 const ControlCenterContext = createContext<ControlCenterContextValue | null>(null);
@@ -37,6 +40,23 @@ export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedModule, setSelectedModule] = useState<ControlCenterModuleItem | null>(null);
   const [quickLeadModalOpen, setQuickLeadModalOpen] = useState<boolean>(false);
   const [mobileDevice, setMobileDevice] = useState<'iphone' | 'android' | 'fluid'>('iphone');
+  
+  // Theme state: defaults to 'light' (Day Mode)
+  const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('comona_ctrl_theme') as 'light' | 'dark';
+    return saved === 'dark' ? 'dark' : 'light';
+  });
+
+  const setTheme = (t: 'light' | 'dark') => {
+    setThemeState(t);
+    try {
+      localStorage.setItem('comona_ctrl_theme', t);
+    } catch {}
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'light' ? 'dark' : 'light');
+  };
 
   const { metrics, moduleDocCounts, isConnected, apiKeys, refreshStats } = useLiveModuleStats();
 
@@ -80,6 +100,9 @@ export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({
         apiKeys,
         mobileDevice,
         setMobileDevice,
+        theme,
+        toggleTheme,
+        setTheme,
       }}
     >
       {children}

@@ -9,7 +9,6 @@ import {
   Image,
   ChevronLeft,
   ArrowUpRight,
-  Shield,
   Activity,
   Sparkles
 } from 'lucide-react';
@@ -17,8 +16,9 @@ import { useControlCenter } from '../../context/ControlCenterContext';
 import { ControlCenterModuleItem } from '../../types';
 
 export const ExecutiveKpiLayout: React.FC = () => {
-  const { filteredModules, metrics, moduleDocCounts } = useControlCenter();
+  const { filteredModules, metrics, moduleDocCounts, theme } = useControlCenter();
   const navigate = useNavigate();
+  const isLight = theme === 'light';
 
   const kpis = [
     {
@@ -28,7 +28,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       change: 'זמן אמת',
       icon: Users,
       color: 'from-emerald-500 to-teal-500',
-      textColor: 'text-emerald-400',
+      textColor: isLight ? 'text-emerald-700' : 'text-emerald-400',
       actionRoute: '/crm-analytics',
     },
     {
@@ -38,7 +38,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       change: 'זמן אמת',
       icon: Layout,
       color: 'from-blue-500 to-indigo-500',
-      textColor: 'text-blue-400',
+      textColor: isLight ? 'text-blue-700' : 'text-blue-400',
       actionRoute: '/page-builder',
     },
     {
@@ -48,7 +48,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       change: 'זמן אמת',
       icon: FileText,
       color: 'from-amber-500 to-orange-500',
-      textColor: 'text-amber-400',
+      textColor: isLight ? 'text-amber-700' : 'text-amber-400',
       actionRoute: '/smart-forms',
     },
     {
@@ -58,7 +58,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       change: 'זמן אמת',
       icon: CreditCard,
       color: 'from-indigo-500 to-purple-500',
-      textColor: 'text-indigo-400',
+      textColor: isLight ? 'text-indigo-700' : 'text-indigo-400',
       actionRoute: '/kesher-payments',
     },
     {
@@ -68,7 +68,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       change: 'זמן אמת',
       icon: Image,
       color: 'from-sky-500 to-cyan-500',
-      textColor: 'text-sky-400',
+      textColor: isLight ? 'text-sky-700' : 'text-sky-400',
       actionRoute: '/media-gallery-hub',
     },
     {
@@ -78,7 +78,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       change: 'זמן אמת',
       icon: Activity,
       color: 'from-rose-500 to-pink-500',
-      textColor: 'text-rose-400',
+      textColor: isLight ? 'text-rose-700' : 'text-rose-400',
       actionRoute: '/crm-groups',
     },
   ];
@@ -97,11 +97,15 @@ export const ExecutiveKpiLayout: React.FC = () => {
       {/* Top Executive KPI Grid */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-emerald-400" />
+          <h2 className={`text-sm font-bold flex items-center gap-2 ${
+            isLight ? 'text-slate-900' : 'text-white'
+          }`}>
+            <TrendingUp className="w-4 h-4 text-emerald-500" />
             <span>מדדי ביצוע עסקיים (Executive Overview)</span>
           </h2>
-          <span className="text-xs text-slate-400">נתוני אמת מ-Firestore</span>
+          <span className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+            נתוני אמת מ-Firestore
+          </span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -111,10 +115,16 @@ export const ExecutiveKpiLayout: React.FC = () => {
               <div
                 key={idx}
                 onClick={() => navigate(kpi.actionRoute)}
-                className="bg-slate-900/60 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 backdrop-blur-xl transition hover:shadow-lg hover:scale-[1.01] cursor-pointer group flex flex-col justify-between"
+                className={`rounded-3xl p-5 backdrop-blur-xl transition hover:shadow-lg hover:scale-[1.01] cursor-pointer group flex flex-col justify-between border ${
+                  isLight
+                    ? 'bg-white border-slate-200/90 shadow-sm hover:border-indigo-300'
+                    : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                }`}
               >
                 <div className="flex items-start justify-between">
-                  <span className="text-xs font-medium text-slate-400 group-hover:text-slate-200 transition">
+                  <span className={`text-xs font-medium transition ${
+                    isLight ? 'text-slate-600 group-hover:text-slate-900' : 'text-slate-400 group-hover:text-slate-200'
+                  }`}>
                     {kpi.title}
                   </span>
                   <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${kpi.color} flex items-center justify-center text-white shadow-md shrink-0`}>
@@ -124,21 +134,27 @@ export const ExecutiveKpiLayout: React.FC = () => {
 
                 <div className="my-3">
                   <div className="flex items-baseline gap-2">
-                    <span className="text-3xl font-black text-white font-mono tracking-tight">
+                    <span className={`text-3xl font-black font-mono tracking-tight ${
+                      isLight ? 'text-slate-900' : 'text-white'
+                    }`}>
                       {kpi.value}
                     </span>
-                    <span className="text-xs text-slate-400 font-medium">
+                    <span className={`text-xs font-medium ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                       {kpi.unit}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                <div className={`pt-2 border-t flex items-center justify-between text-[11px] ${
+                  isLight ? 'border-slate-100' : 'border-slate-800/80'
+                }`}>
                   <span className={`${kpi.textColor} font-medium flex items-center gap-1`}>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     {kpi.change}
                   </span>
-                  <span className="text-slate-500 group-hover:text-indigo-400 flex items-center gap-0.5 transition font-semibold">
+                  <span className={`flex items-center gap-0.5 transition font-semibold ${
+                    isLight ? 'text-slate-400 group-hover:text-indigo-600' : 'text-slate-500 group-hover:text-indigo-400'
+                  }`}>
                     <span>כניסה לרכיב</span>
                     <ArrowUpRight className="w-3.5 h-3.5" />
                   </span>
@@ -156,10 +172,15 @@ export const ExecutiveKpiLayout: React.FC = () => {
           if (mods.length === 0) return null;
 
           return (
-            <div key={cat.id} className="bg-slate-900/40 border border-slate-800/80 rounded-3xl p-6 backdrop-blur-md">
+            <div
+              key={cat.id}
+              className={`rounded-3xl p-6 backdrop-blur-md border ${
+                isLight ? 'bg-white/80 border-slate-200/90 shadow-sm' : 'bg-slate-900/40 border-slate-800/80'
+              }`}
+            >
               <div className="mb-4">
-                <h3 className="text-base font-bold text-white">{cat.title}</h3>
-                <p className="text-xs text-slate-400">{cat.subtitle}</p>
+                <h3 className={`text-base font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>{cat.title}</h3>
+                <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>{cat.subtitle}</p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -170,23 +191,31 @@ export const ExecutiveKpiLayout: React.FC = () => {
                     <div
                       key={mod.id}
                       onClick={() => navigate(mod.route)}
-                      className="bg-slate-950/60 border border-slate-800/90 hover:border-indigo-500/50 p-4 rounded-2xl flex items-center justify-between transition hover:shadow-md cursor-pointer group"
+                      className={`p-4 rounded-2xl flex items-center justify-between transition hover:shadow-md cursor-pointer group border ${
+                        isLight
+                          ? 'bg-slate-50/70 border-slate-200/80 hover:bg-white hover:border-indigo-300'
+                          : 'bg-slate-950/60 border-slate-800/90 hover:border-indigo-500/50'
+                      }`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${mod.colorScheme.from} ${mod.colorScheme.to} flex items-center justify-center text-white shrink-0`}>
+                        <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${mod.colorScheme.from} ${mod.colorScheme.to} flex items-center justify-center text-white shrink-0 shadow-sm`}>
                           <Sparkles className="w-4 h-4" />
                         </div>
                         <div>
-                          <div className="font-bold text-xs text-white group-hover:text-indigo-300 transition">
+                          <div className={`font-bold text-xs transition ${
+                            isLight ? 'text-slate-900 group-hover:text-indigo-600' : 'text-white group-hover:text-indigo-300'
+                          }`}>
                             {mod.shortTitle}
                           </div>
-                          <div className="text-[10px] text-slate-400">
+                          <div className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                             {docCount !== undefined ? `${docCount} מסמכים במסד` : 'מוכן לשימוש'}
                           </div>
                         </div>
                       </div>
 
-                      <ChevronLeft className="w-4 h-4 text-slate-500 group-hover:text-white group-hover:-translate-x-1 transition" />
+                      <ChevronLeft className={`w-4 h-4 group-hover:-translate-x-1 transition ${
+                        isLight ? 'text-slate-400 group-hover:text-slate-900' : 'text-slate-500 group-hover:text-white'
+                      }`} />
                     </div>
                   );
                 })}

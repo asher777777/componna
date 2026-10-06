@@ -17,6 +17,9 @@ export const TenantAppResolver: React.FC = () => {
     if (params.get('dev') === 'true' || params.get('mode') === 'dev' || params.get('workbench') === 'true') {
       return true;
     }
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return true;
+    }
     return sessionStorage.getItem('comona_is_dev_workbench') === 'true';
   });
 

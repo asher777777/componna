@@ -1,5 +1,6 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, NavLink } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { REGISTERED_MODULES } from '../moduleRegistry';
 import { DatabaseConnectorModal } from '../../modules/db-connector-hub';
 
@@ -24,7 +25,13 @@ export const Header: React.FC = () => {
       </div>
 
       <div className="flex items-center gap-3">
-        {/* Placeholder for future header items */}
+        <NavLink
+          to="/control-center"
+          className="flex items-center gap-1.5 text-xs bg-slate-900 hover:bg-indigo-600 text-slate-300 hover:text-white px-3 py-1.5 rounded-xl border border-slate-800 transition shadow-sm"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+          <span>מרכז השליטה</span>
+        </NavLink>
       </div>
 
       <DatabaseConnectorModal />

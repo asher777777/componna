@@ -1,4 +1,4 @@
-import { SYSTEM_COLLECTIONS, GLOBAL_PLATFORM_COLLECTIONS } from '../../core/contracts/collections';
+import { SYSTEM_COLLECTIONS, GLOBAL_PLATFORM_COLLECTIONS } from '../../../core/contracts/collections';
 import { ControlCenterModuleItem } from '../types';
 
 export const MODULE_CATALOG: ControlCenterModuleItem[] = [

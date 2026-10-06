@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
-import { useTenantScope } from '../../core/tenant/TenantScopeContext';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
 import { LiveSystemMetrics } from '../types';
 import { fetchLiveSystemMetrics, getLiveCollectionCount } from '../services/controlCenterFirestore';
 import { MODULE_CATALOG } from '../config';

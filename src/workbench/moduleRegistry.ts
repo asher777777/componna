@@ -1,6 +1,8 @@
 import React from 'react';
 
-// Lazy-loaded standalone views to ensure full runtime isolation
+const ControlCenterStandaloneView = React.lazy(() =>
+  import('../modules/control-center-hub').then((m) => ({ default: m.ControlCenterStandaloneView }))
+);
 const SaasStorefrontComposerStandaloneView = React.lazy(() =>
   import('../modules/saas-storefront-composer').then((m) => ({ default: m.SaasStorefrontComposerStandaloneView }))
 );
@@ -60,6 +62,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'control-center-hub',
+    name: 'מרכז השליטה והבקרה (Control Center Hub)',
+    description: 'לוח בקרה מרכזי בסטנדרט יוקרתי לניהול, ניטור והפעלת כל רכיבי המערכת בממשק אחיד עם 5 סוגי פריסות',
+    component: ControlCenterStandaloneView,
+    route: '/control-center',
+    collectionPrefix: 'mod_ctrlcenter_',
+  },
   {
     id: 'saas-storefront-composer',
     name: 'חנות רכיבים, סאב-דומיינים ו-SaaS (Storefront)',

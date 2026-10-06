@@ -9,10 +9,11 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { SYSTEM_COLLECTIONS } from '../../../../core/contracts/collections';
 
 export const QuickLeadModal: React.FC = () => {
-  const { quickLeadModalOpen, setQuickLeadModalOpen, refreshStats } = useControlCenter();
+  const { quickLeadModalOpen, setQuickLeadModalOpen, refreshStats, theme } = useControlCenter();
   const { getCapability } = useHostCapabilities();
   const { db } = useSystemConnection();
   const { getScopedCollectionName } = useTenantScope();
+  const isLight = theme === 'light';
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -80,23 +81,31 @@ export const QuickLeadModal: React.FC = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm" dir="rtl">
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden text-right">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" dir="rtl">
+      <div className={`rounded-3xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden text-right border transition-colors ${
+        isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-white'
+      }`}>
         
         {/* Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+        <div className={`flex items-center justify-between pb-4 border-b mb-5 ${
+          isLight ? 'border-slate-100' : 'border-slate-800'
+        }`}>
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600/20 text-emerald-400 flex items-center justify-center">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+              isLight ? 'bg-emerald-100 text-emerald-700' : 'bg-emerald-600/20 text-emerald-400'
+            }`}>
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base">הזנת ליד מהיר למסד</h3>
-              <p className="text-[11px] text-slate-400">שמירה ישירה לקולקציית contacts</p>
+              <h3 className={`font-bold text-base ${isLight ? 'text-slate-900' : 'text-white'}`}>הזנת ליד מהיר למסד</h3>
+              <p className={`text-[11px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>שמירה ישירה לקולקציית contacts</p>
             </div>
           </div>
           <button
             onClick={() => setQuickLeadModalOpen(false)}
-            className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition"
+            className={`p-1.5 rounded-lg transition ${
+              isLight ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+            }`}
           >
             <X className="w-4 h-4" />
           </button>
@@ -104,7 +113,7 @@ export const QuickLeadModal: React.FC = () => {
 
         {/* Success Alert */}
         {success && (
-          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl flex items-center gap-2 text-xs">
+          <div className="mb-4 p-3 bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 rounded-2xl flex items-center gap-2 text-xs">
             <CheckCircle2 className="w-4 h-4 shrink-0" />
             <span>הליד נשמר בהצלחה במסד הנתונים וספירות הלוח עודכנו!</span>
           </div>
@@ -112,7 +121,7 @@ export const QuickLeadModal: React.FC = () => {
 
         {/* Error Alert */}
         {error && (
-          <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-400 rounded-2xl flex items-center gap-2 text-xs">
+          <div className="mb-4 p-3 bg-rose-500/10 border border-rose-500/30 text-rose-500 rounded-2xl flex items-center gap-2 text-xs">
             <AlertCircle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
@@ -121,8 +130,8 @@ export const QuickLeadModal: React.FC = () => {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              שם מלא <span className="text-rose-400">*</span>
+            <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+              שם מלא <span className="text-rose-500">*</span>
             </label>
             <input
               type="text"
@@ -130,13 +139,17 @@ export const QuickLeadModal: React.FC = () => {
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="למשל: דניאל כהן"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+              className={`w-full rounded-xl px-3.5 py-2 text-xs focus:outline-none transition border ${
+                isLight
+                  ? 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-indigo-500'
+                  : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
-              מספר טלפון / וואטסאפ <span className="text-rose-400">*</span>
+            <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
+              מספר טלפון / וואטסאפ <span className="text-rose-500">*</span>
             </label>
             <input
               type="tel"
@@ -144,12 +157,16 @@ export const QuickLeadModal: React.FC = () => {
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
               placeholder="למשל: 050-1234567"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+              className={`w-full rounded-xl px-3.5 py-2 text-xs focus:outline-none transition border ${
+                isLight
+                  ? 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-indigo-500'
+                  : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
               כתובת אימייל (אופציונלי)
             </label>
             <input
@@ -157,12 +174,16 @@ export const QuickLeadModal: React.FC = () => {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="name@example.com"
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition"
+              className={`w-full rounded-xl px-3.5 py-2 text-xs focus:outline-none transition border ${
+                isLight
+                  ? 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-indigo-500'
+                  : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500'
+              }`}
             />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-300 mb-1.5">
+            <label className={`block text-xs font-medium mb-1.5 ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
               הערות (אופציונלי)
             </label>
             <textarea
@@ -170,7 +191,11 @@ export const QuickLeadModal: React.FC = () => {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="פרטים נוספים לגבי הליד..."
-              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 transition resize-none"
+              className={`w-full rounded-xl px-3.5 py-2 text-xs focus:outline-none transition resize-none border ${
+                isLight
+                  ? 'bg-slate-50 border-slate-200 text-slate-800 focus:bg-white focus:border-indigo-500'
+                  : 'bg-slate-950 border-slate-800 text-white placeholder-slate-500 focus:border-indigo-500'
+              }`}
             />
           </div>
 
@@ -178,7 +203,9 @@ export const QuickLeadModal: React.FC = () => {
             <button
               type="button"
               onClick={() => setQuickLeadModalOpen(false)}
-              className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white rounded-xl transition"
+              className={`px-4 py-2 text-xs font-medium rounded-xl transition ${
+                isLight ? 'text-slate-500 hover:text-slate-800' : 'text-slate-400 hover:text-white'
+              }`}
             >
               ביטול
             </button>

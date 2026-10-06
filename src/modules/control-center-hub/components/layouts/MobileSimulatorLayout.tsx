@@ -4,19 +4,13 @@ import {
   Smartphone,
   Wifi,
   Battery,
-  Search,
   ChevronLeft,
   Sparkles,
   Users,
   Layout,
   FileText,
   CreditCard,
-  Settings,
-  Info,
-  Layers,
-  ArrowUpRight,
-  Maximize2,
-  Minimize2
+  Layers
 } from 'lucide-react';
 import { useControlCenter } from '../../context/ControlCenterContext';
 import { ControlCenterModuleItem } from '../../types';
@@ -25,14 +19,15 @@ export const MobileSimulatorLayout: React.FC = () => {
   const {
     filteredModules,
     moduleDocCounts,
-    setSelectedModule,
     metrics,
     mobileDevice,
     setMobileDevice,
     selectedCategory,
-    setSelectedCategory
+    setSelectedCategory,
+    theme
   } = useControlCenter();
 
+  const isLight = theme === 'light';
   const navigate = useNavigate();
   const [currentTime] = useState(() => {
     const d = new Date();
@@ -43,14 +38,18 @@ export const MobileSimulatorLayout: React.FC = () => {
     <div className="flex flex-col items-center justify-center py-4">
       
       {/* Device Viewport Selector Bar (Desktop control) */}
-      <div className="mb-6 flex items-center gap-2 bg-slate-900/90 border border-slate-800 p-1.5 rounded-2xl shadow-lg">
-        <span className="text-[11px] text-slate-400 px-2 font-medium">רזולוציית מובייל:</span>
+      <div className={`mb-6 flex items-center gap-2 p-1.5 rounded-2xl shadow-md border transition-colors ${
+        isLight ? 'bg-white border-slate-200 shadow-slate-200/50' : 'bg-slate-900/90 border-slate-800 shadow-lg'
+      }`}>
+        <span className={`text-[11px] px-2 font-medium ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
+          רזולוציית מובייל:
+        </span>
         <button
           onClick={() => setMobileDevice('iphone')}
           className={`px-3 py-1 text-xs rounded-xl transition cursor-pointer ${
             mobileDevice === 'iphone'
               ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
-              : 'text-slate-400 hover:text-white'
+              : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
           }`}
         >
           iPhone 16 Pro Max (מסגרת)
@@ -60,7 +59,7 @@ export const MobileSimulatorLayout: React.FC = () => {
           className={`px-3 py-1 text-xs rounded-xl transition cursor-pointer ${
             mobileDevice === 'android'
               ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
-              : 'text-slate-400 hover:text-white'
+              : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
           }`}
         >
           Android Flat (מסגרת)
@@ -70,7 +69,7 @@ export const MobileSimulatorLayout: React.FC = () => {
           className={`px-3 py-1 text-xs rounded-xl transition cursor-pointer ${
             mobileDevice === 'fluid'
               ? 'bg-indigo-600 text-white font-semibold shadow-md shadow-indigo-600/30'
-              : 'text-slate-400 hover:text-white'
+              : isLight ? 'text-slate-600 hover:text-slate-900' : 'text-slate-400 hover:text-white'
           }`}
         >
           מובייל רחב (Canvas)
@@ -88,13 +87,17 @@ export const MobileSimulatorLayout: React.FC = () => {
         }`}
       >
         {/* Device Inner Screen */}
-        <div className={`w-full h-full bg-[#0a0a0f] text-white flex flex-col justify-between overflow-hidden relative ${
-          mobileDevice === 'fluid' ? 'rounded-3xl border border-slate-800' : 'rounded-[42px]'
+        <div className={`w-full h-full flex flex-col justify-between overflow-hidden relative transition-colors ${
+          isLight ? 'bg-slate-50 text-slate-800' : 'bg-[#0a0a0f] text-white'
+        } ${
+          mobileDevice === 'fluid' ? 'rounded-3xl border border-slate-200' : 'rounded-[42px]'
         }`}>
           
           {/* Mobile Status Bar with Dynamic Island */}
           {mobileDevice !== 'fluid' && (
-            <div className="pt-3 px-6 pb-2 flex items-center justify-between text-xs text-slate-300 shrink-0 select-none">
+            <div className={`pt-3 px-6 pb-2 flex items-center justify-between text-xs shrink-0 select-none ${
+              isLight ? 'text-slate-700' : 'text-slate-300'
+            }`}>
               <span className="font-semibold text-[13px] tracking-tight">{currentTime}</span>
               
               {/* Dynamic Island */}
@@ -103,7 +106,7 @@ export const MobileSimulatorLayout: React.FC = () => {
                 <span className="text-[9px] text-slate-400 font-mono">Comona</span>
               </div>
 
-              <div className="flex items-center gap-1.5 text-slate-300">
+              <div className="flex items-center gap-1.5">
                 <Wifi className="w-3.5 h-3.5" />
                 <Battery className="w-4 h-4" />
               </div>
@@ -111,36 +114,44 @@ export const MobileSimulatorLayout: React.FC = () => {
           )}
 
           {/* Mobile Top Header */}
-          <div className="p-4 border-b border-slate-800/80 shrink-0 bg-slate-950/60 backdrop-blur-md">
+          <div className={`p-4 border-b shrink-0 backdrop-blur-md ${
+            isLight ? 'bg-white/80 border-slate-200' : 'bg-slate-950/60 border-slate-800/80'
+          }`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white text-xs font-bold">
                   C
                 </div>
                 <div>
-                  <h3 className="font-bold text-xs text-white">לוח בקרה נייד</h3>
-                  <p className="text-[9px] text-slate-400">מרכז השליטה במגע</p>
+                  <h3 className={`font-bold text-xs ${isLight ? 'text-slate-900' : 'text-white'}`}>לוח בקרה נייד</h3>
+                  <p className={`text-[9px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>מרכז השליטה במגע</p>
                 </div>
               </div>
 
-              <span className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-2 py-0.5 rounded-full font-mono">
                 {metrics.activeModulesCount} פעילים
               </span>
             </div>
 
             {/* Quick Metrics Bar in Mobile */}
             <div className="grid grid-cols-3 gap-2 text-center text-[10px]">
-              <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                <div className="text-slate-400">לידים</div>
-                <div className="font-bold text-emerald-400 font-mono text-sm">{metrics.totalLeadsCount}</div>
+              <div className={`p-2 rounded-xl border ${
+                isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className={isLight ? 'text-slate-500' : 'text-slate-400'}>לידים</div>
+                <div className="font-bold text-emerald-600 font-mono text-sm">{metrics.totalLeadsCount}</div>
               </div>
-              <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                <div className="text-slate-400">עמודים</div>
-                <div className="font-bold text-blue-400 font-mono text-sm">{metrics.totalPagesCount}</div>
+              <div className={`p-2 rounded-xl border ${
+                isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className={isLight ? 'text-slate-500' : 'text-slate-400'}>עמודים</div>
+                <div className="font-bold text-blue-600 font-mono text-sm">{metrics.totalPagesCount}</div>
               </div>
-              <div className="bg-slate-900/80 p-2 rounded-xl border border-slate-800">
-                <div className="text-slate-400">עסקאות</div>
-                <div className="font-bold text-indigo-400 font-mono text-sm">{metrics.totalTransactionsCount}</div>
+              <div className={`p-2 rounded-xl border ${
+                isLight ? 'bg-white border-slate-200' : 'bg-slate-900/80 border-slate-800'
+              }`}>
+                <div className={isLight ? 'text-slate-500' : 'text-slate-400'}>עסקאות</div>
+                <div className="font-bold text-indigo-600 font-mono text-sm">{metrics.totalTransactionsCount}</div>
               </div>
             </div>
           </div>
@@ -154,25 +165,31 @@ export const MobileSimulatorLayout: React.FC = () => {
                 <div
                   key={mod.id}
                   onClick={() => navigate(mod.route)}
-                  className="bg-slate-900/80 border border-slate-800/90 active:scale-[0.98] transition p-3 rounded-2xl flex items-center justify-between cursor-pointer group"
+                  className={`active:scale-[0.98] transition p-3 rounded-2xl flex items-center justify-between cursor-pointer group border ${
+                    isLight
+                      ? 'bg-white border-slate-200/90 hover:border-indigo-300 shadow-sm'
+                      : 'bg-slate-900/80 border-slate-800/90'
+                  }`}
                 >
                   <div className="flex items-center gap-2.5 truncate">
                     <div className={`w-9 h-9 rounded-xl bg-gradient-to-tr ${mod.colorScheme.from} ${mod.colorScheme.to} flex items-center justify-center text-white shrink-0 shadow-md`}>
                       <Sparkles className="w-4 h-4" />
                     </div>
                     <div className="truncate">
-                      <div className="font-bold text-xs text-white group-hover:text-indigo-300 transition truncate">
+                      <div className={`font-bold text-xs transition truncate ${
+                        isLight ? 'text-slate-900 group-hover:text-indigo-600' : 'text-white group-hover:text-indigo-300'
+                      }`}>
                         {mod.shortTitle}
                       </div>
-                      <div className="text-[10px] text-slate-400 truncate">
+                      <div className={`text-[10px] truncate ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                         {docCount !== undefined ? `${docCount} מסמכים במסד` : mod.categoryTitle}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
-                    <span className="text-[10px] font-semibold text-indigo-400">פתח</span>
-                    <ChevronLeft className="w-3.5 h-3.5 text-indigo-400" />
+                    <span className="text-[10px] font-semibold text-indigo-600">פתח</span>
+                    <ChevronLeft className="w-3.5 h-3.5 text-indigo-600" />
                   </div>
                 </div>
               );
@@ -180,31 +197,33 @@ export const MobileSimulatorLayout: React.FC = () => {
           </div>
 
           {/* Mobile Bottom Navigation Bar */}
-          <div className="p-2 border-t border-slate-800 bg-slate-950/90 flex items-center justify-around text-slate-400 text-[10px] shrink-0">
+          <div className={`p-2 border-t flex items-center justify-around text-[10px] shrink-0 ${
+            isLight ? 'bg-white border-slate-200 text-slate-500' : 'bg-slate-950/90 border-slate-800 text-slate-400'
+          }`}>
             <button
               onClick={() => setSelectedCategory('all')}
-              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'all' ? 'text-indigo-400 font-bold' : ''}`}
+              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'all' ? 'text-indigo-600 font-bold' : ''}`}
             >
               <Layers className="w-4 h-4" />
               <span>הכל</span>
             </button>
             <button
               onClick={() => setSelectedCategory('marketing')}
-              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'marketing' ? 'text-blue-400 font-bold' : ''}`}
+              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'marketing' ? 'text-blue-600 font-bold' : ''}`}
             >
               <Layout className="w-4 h-4" />
               <span>שיווק</span>
             </button>
             <button
               onClick={() => setSelectedCategory('crm')}
-              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'crm' ? 'text-emerald-400 font-bold' : ''}`}
+              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'crm' ? 'text-emerald-600 font-bold' : ''}`}
             >
               <Users className="w-4 h-4" />
               <span>CRM</span>
             </button>
             <button
               onClick={() => setSelectedCategory('finance')}
-              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'finance' ? 'text-indigo-400 font-bold' : ''}`}
+              className={`flex flex-col items-center gap-0.5 p-1 ${selectedCategory === 'finance' ? 'text-indigo-600 font-bold' : ''}`}
             >
               <CreditCard className="w-4 h-4" />
               <span>סליקה</span>
@@ -214,7 +233,7 @@ export const MobileSimulatorLayout: React.FC = () => {
           {/* Bottom Home Indicator Bar (iPhone) */}
           {mobileDevice === 'iphone' && (
             <div className="pb-1.5 flex justify-center shrink-0">
-              <div className="w-32 h-1 bg-slate-600 rounded-full" />
+              <div className={`w-32 h-1 rounded-full ${isLight ? 'bg-slate-300' : 'bg-slate-600'}`} />
             </div>
           )}
 

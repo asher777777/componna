@@ -128,7 +128,7 @@ export const pageBuilderFirestore = {
   },
 
   // Duplicate page
-  async duplicatePage(sourcePage: PageBuilderConfig, db?: Firestore | null): Promise<PageBuilderConfig> {
+  async duplicatePage(sourcePage: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig> {
     const newId = `page_${Date.now()}`;
     const duplicated: PageBuilderConfig = {
       ...JSON.parse(JSON.stringify(sourcePage)),
@@ -151,7 +151,7 @@ export const pageBuilderFirestore = {
   },
 
   // Set page as homepage
-  async setHomePage(targetPageId: string, db?: Firestore | null): Promise<void> {
+  async setHomePage(targetPageId: string, db?: Firestore | null, tenantId?: string): Promise<void> {
     const allPages = await this.getAllPages(db, tenantId);
     for (const page of allPages) {
       const isTarget = page.pageId === targetPageId;

@@ -1,5 +1,6 @@
 import React, { Suspense } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, NavLink } from 'react-router-dom';
+import { Sparkles } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { REGISTERED_MODULES } from './moduleRegistry';
@@ -21,6 +22,13 @@ export const WorkbenchApp: React.FC = () => {
     location.pathname.startsWith('/preview/') ||
     location.hash.startsWith('#/p/') ||
     location.hash.startsWith('#/page/');
+
+  const isControlCenter =
+    location.pathname.startsWith('/control-center') ||
+    location.pathname === '/';
+
+  // Sidebar is disabled by default across all workbench and modules unless ?sidebar=true is passed
+  const showSidebar = searchParams.get('sidebar') === 'true';
 
   const isStandalone =
     searchParams.get('mode') === 'live' ||
@@ -109,7 +117,7 @@ export const WorkbenchApp: React.FC = () => {
                 />
               );
             })}
-            <Route path="/" element={<Navigate to="/flow-player-engine" replace />} />
+            <Route path="/" element={<Navigate to="/control-center" replace />} />
           </Routes>
         </main>
       </div>
@@ -117,16 +125,18 @@ export const WorkbenchApp: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-900 text-slate-100" dir="rtl">
-      {/* Sidebar */}
-      <Sidebar />
+    <div className="flex h-screen w-screen overflow-hidden bg-slate-900 text-slate-100 relative" dir="rtl">
+      {/* Optional Sidebar only if explicitly requested with ?sidebar=true */}
+      {showSidebar && <Sidebar />}
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto bg-slate-900/50">
+        {/* Workbench Header rendered only when NOT in control center and NOT public page */}
+        {!isControlCenter && !isPublicPage && <Header />}
+        
+        <main className="flex-1 overflow-y-auto bg-slate-900/50 relative">
           <Routes>
-            <Route path="/" element={<Navigate to={REGISTERED_MODULES[0]?.route || '/'} replace />} />
+            <Route path="/" element={<Navigate to="/control-center" replace />} />
             
             {/* Public Page Routes */}
             <Route
@@ -209,6 +219,18 @@ export const WorkbenchApp: React.FC = () => {
           </Routes>
         </main>
       </div>
+
+      {/* Floating Return Pill for other modules (when not in control center and not public page) */}
+      {!isControlCenter && !isPublicPage && (
+        <NavLink
+          to="/control-center"
+          className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-slate-950/90 hover:bg-indigo-600 text-white rounded-2xl border border-indigo-500/30 hover:border-indigo-400 shadow-2xl backdrop-blur-xl transition group text-xs font-bold cursor-pointer"
+          title="חזרה מהירה למרכז השליטה"
+        >
+          <Sparkles className="w-4 h-4 text-indigo-400 group-hover:text-white" />
+          <span>מרכז השליטה</span>
+        </NavLink>
+      )}
     </div>
   );
 };
