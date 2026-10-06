@@ -3,21 +3,29 @@ import { GeoLocalSectionConfig } from '../../types/sectionConfigs';
 import { MapPin, Phone, Mail, Clock, MessageCircle, Navigation, Sparkles } from 'lucide-react';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../../core/contracts';
+import { resolveLiveBrandDna } from '../../services/aiPageGenerator';
 
 export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ config }) => {
   const { getCapability } = useHostCapabilities();
-  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const brandDna = resolveLiveBrandDna(rawBrandDna);
+
+  const fallbackPhone = brandDna?.trust?.contactPhone || '052-6968008';
+  const fallbackEmail = brandDna?.trust?.contactEmail || 'ovt5771@gmail.com';
+  const fallbackAddress = brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
+  const fallbackWhatsapp = brandDna?.trust?.whatsappSupportNumber || '0526968008';
+  const fallbackBusinessName = brandDna?.identity?.companyName || 'העסק המוביל';
 
   const {
     anchorId,
     title = 'הסניף והפעילות המקומית שלנו',
     subtitle = 'שירות מקומי בפריסה רחבה',
-    businessName = brandDna?.identity?.companyName || 'העסק המוביל',
+    businessName = fallbackBusinessName,
     city = 'תל אביב',
-    address = brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
-    phone = brandDna?.trust?.contactPhone || '03-1234567',
-    email = brandDna?.trust?.contactEmail || 'contact@example.com',
-    whatsapp = brandDna?.trust?.whatsappSupportNumber || '0501234567',
+    address = fallbackAddress,
+    phone = fallbackPhone,
+    email = fallbackEmail,
+    whatsapp = fallbackWhatsapp,
     serviceAreas = ['תל אביב וגוש דן', 'ירושלים והסביבה', 'שרון והמרכז', 'צפון ודרום'],
     openingHours = ['א׳ - ה׳: 09:00 - 19:00', 'יום ו׳: 09:00 - 13:00', 'שבת: סגור'],
     mapEmbedUrl = 'https://maps.google.com/maps?q=Tel%20Aviv&t=&z=13&ie=UTF8&iwloc=&output=embed',
@@ -25,11 +33,15 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
     backgroundColor = 'transparent',
   } = config;
 
-  const resolvedBusinessName = config.businessName || brandDna?.identity?.companyName || businessName;
-  const resolvedAddress = config.address || brandDna?.trust?.officeAddress || address;
-  const resolvedPhone = config.phone || brandDna?.trust?.contactPhone || phone;
-  const resolvedEmail = config.email || brandDna?.trust?.contactEmail || email;
-  const resolvedWhatsapp = config.whatsapp || brandDna?.trust?.whatsappSupportNumber || whatsapp;
+  const isDummyPhone = (p?: string) => !p || p === '03-1234567';
+  const isDummyEmail = (e?: string) => !e || e === 'contact@example.com';
+  const isDummyAddress = (a?: string) => !a || a === 'תל אביב, ישראל';
+
+  const resolvedBusinessName = config.businessName || fallbackBusinessName;
+  const resolvedAddress = (!isDummyAddress(config.address) ? config.address : null) || fallbackAddress;
+  const resolvedPhone = (!isDummyPhone(config.phone) ? config.phone : null) || fallbackPhone;
+  const resolvedEmail = (!isDummyEmail(config.email) ? config.email : null) || fallbackEmail;
+  const resolvedWhatsapp = config.whatsapp && config.whatsapp !== '0501234567' ? config.whatsapp : fallbackWhatsapp;
 
   return (
     <section

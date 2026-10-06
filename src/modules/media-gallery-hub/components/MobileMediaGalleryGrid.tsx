@@ -16,6 +16,7 @@ import {
   CheckSquare,
   Square,
   MoreVertical,
+  Play,
 } from 'lucide-react';
 import { MediaItem } from '../types';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -114,7 +115,7 @@ export const MobileMediaGalleryGrid: React.FC<MobileMediaGalleryGridProps> = ({
                 </button>
 
                 {/* Media thumbnail or type icon */}
-                <div className="w-11 h-11 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                   {isImage ? (
                     <img
                       src={item.thumbnailUrl || item.url}
@@ -122,6 +123,13 @@ export const MobileMediaGalleryGrid: React.FC<MobileMediaGalleryGridProps> = ({
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
+                  ) : item.type === 'video' ? (
+                    <div className="relative w-full h-full flex items-center justify-center bg-black">
+                      <video src={item.url} poster={item.thumbnailUrl} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                        <Play className="w-3.5 h-3.5 fill-amber-400 text-amber-400 ml-0.5" />
+                      </div>
+                    </div>
                   ) : (
                     renderIcon(item)
                   )}
@@ -216,10 +224,27 @@ export const MobileMediaGalleryGrid: React.FC<MobileMediaGalleryGridProps> = ({
                   loading="lazy"
                 />
               ) : isVideo ? (
-                <div className="relative w-full h-full flex items-center justify-center bg-slate-950">
-                  <FileVideo className="w-10 h-10 text-indigo-400" />
-                  <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 rounded bg-black/70 text-[10px] font-mono text-white">
-                    וידאו
+                <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
+                  <video
+                    src={item.url}
+                    poster={item.thumbnailUrl}
+                    muted
+                    playsInline
+                    preload="metadata"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30 flex items-center justify-center pointer-events-none">
+                    <div className="w-10 h-10 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-lg backdrop-blur-sm">
+                      <Play className="w-4 h-4 ml-0.5 fill-black" />
+                    </div>
+                  </div>
+                  <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-lg bg-black/80 backdrop-blur-sm text-[10px] font-mono text-amber-300 font-bold border border-white/10 flex items-center gap-1 z-10 pointer-events-none">
+                    <Play className="w-2.5 h-2.5 fill-amber-300" />
+                    <span>
+                      {item.durationSec
+                        ? `${Math.floor(item.durationSec / 60)}:${(item.durationSec % 60).toString().padStart(2, '0')}`
+                        : 'וידאו'}
+                    </span>
                   </span>
                 </div>
               ) : (

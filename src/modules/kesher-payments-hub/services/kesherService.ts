@@ -537,27 +537,94 @@ export class KesherService {
     const fromDateStr = this.formatDateForKesher(pastDate);
     const toDateStr = this.formatDateForKesher(tomorrow);
 
+    // בדיקת תקינות קפדנית של רשומת עסקה (סינון מחרוזות HTML, אובייקטי שגיאה או רשומות ריקות)
+    const isValidTxObject = (item: any): boolean => {
+      if (!item || typeof item !== 'object' || Array.isArray(item)) return false;
+      // חייב לכלול לפחות שדה מזהה, סכום, כרטיס אשראי או תאריך עסקה
+      return (
+        item.NumTransaction !== undefined ||
+        item.TranId !== undefined ||
+        item.TransactionId !== undefined ||
+        item.Total !== undefined ||
+        item.Sum !== undefined ||
+        item.Amount !== undefined ||
+        item.CreditNum !== undefined ||
+        item.CardNumber !== undefined ||
+        item.TranDate !== undefined ||
+        item.DocNumber !== undefined ||
+        item.doc_number !== undefined
+      );
+    };
+
     const extractTxArray = (resp: any): any[] => {
       if (!resp) return [];
-      if (Array.isArray(resp)) return resp;
-      if (typeof resp.Data === 'string' && (resp.Data.trim().startsWith('[') || resp.Data.trim().startsWith('{'))) {
-        try { return extractTxArray(JSON.parse(resp.Data)); } catch {}
+
+      // אם התקבלה מחרוזת בלבד (למשל HTML של שגיאה 404 או דף כניסה) - אין עסקאות
+      if (typeof resp === 'string') {
+        const trimmed = resp.trim();
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            return extractTxArray(JSON.parse(trimmed));
+          } catch {
+            return [];
+          }
+        }
+        return [];
       }
-      if (typeof resp.data === 'string' && (resp.data.trim().startsWith('[') || resp.data.trim().startsWith('{'))) {
-        try { return extractTxArray(JSON.parse(resp.data)); } catch {}
+
+      if (Array.isArray(resp)) {
+        return resp.filter(isValidTxObject);
       }
-      if (resp.Transaction) return Array.isArray(resp.Transaction) ? resp.Transaction : [resp.Transaction];
-      if (resp.Transactions) return Array.isArray(resp.Transactions) ? resp.Transactions : [resp.Transactions];
-      if (resp.trans) return Array.isArray(resp.trans) ? resp.trans : [resp.trans];
-      if (resp.Trans) return Array.isArray(resp.Trans) ? resp.Trans : [resp.Trans];
-      if (resp.data) return Array.isArray(resp.data) ? resp.data : [resp.data];
-      if (resp.Data) return Array.isArray(resp.Data) ? resp.Data : [resp.Data];
-      if (resp.docs) return Array.isArray(resp.docs) ? resp.docs : [resp.docs];
-      if (resp.Documents) return Array.isArray(resp.Documents) ? resp.Documents : [resp.Documents];
-      if (resp.Table) return Array.isArray(resp.Table) ? resp.Table : [resp.Table];
-      if (resp.Rows) return Array.isArray(resp.Rows) ? resp.Rows : [resp.Rows];
-      if (resp.Items) return Array.isArray(resp.Items) ? resp.Items : [resp.Items];
-      if (resp.List) return Array.isArray(resp.List) ? resp.List : [resp.List];
+
+      // טיפול במחרוזות JSON מוטמעות בתוך שדות Data / Result / GetTransResult
+      for (const field of ['Data', 'data', 'GetTransResult', 'Result', 'd']) {
+        if (typeof resp[field] === 'string' && resp[field].trim().length > 1) {
+          const trimmed = resp[field].trim();
+          if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+            try {
+              const parsed = JSON.parse(trimmed);
+              const extracted = extractTxArray(parsed);
+              if (extracted.length > 0) return extracted;
+            } catch {}
+          }
+        }
+      }
+
+      // פירוק שדות עטיפה מוכרים של WCF / SOAP / REST
+      const candidateArrays = [
+        resp.GetTransResult,
+        resp.Result,
+        resp.d,
+        resp.Transaction,
+        resp.Transactions,
+        resp.trans,
+        resp.Trans,
+        resp.Table,
+        resp.Rows,
+        resp.Items,
+        resp.List,
+        resp.docs,
+        resp.Documents,
+        resp.data,
+        resp.Data
+      ];
+
+      for (const candidate of candidateArrays) {
+        if (candidate) {
+          if (Array.isArray(candidate)) {
+            const valid = candidate.filter(isValidTxObject);
+            if (valid.length > 0) return valid;
+          } else if (typeof candidate === 'object' && isValidTxObject(candidate)) {
+            return [candidate];
+          }
+        }
+      }
+
+      // אם האובייקט עצמו הוא רשומת עסקה תקנית בודדת
+      if (isValidTxObject(resp)) {
+        return [resp];
+      }
+
       return [];
     };
 
@@ -572,8 +639,6 @@ export class KesherService {
         password: this.settings.apiKey,
         fromDate: fromDateStr,
         toDate: toDateStr,
-        FromDate: fromDateStr,
-        ToDate: toDateStr,
         ...extraParams
       };
 
@@ -636,8 +701,11 @@ export class KesherService {
           clearTimeout(timer);
           if (res.ok) {
             const data = await res.json();
-            const list = extractTxArray(data);
-            if (list.length > 0) return list;
+            // ודא שלא מדובר בהודעת שגיאה מעוצבת של פרוקסי או טקסט HTML
+            if (data && data._upstreamStatus !== 404 && data.status !== 'error') {
+              const list = extractTxArray(data);
+              if (list.length > 0) return list;
+            }
           }
         } catch {
           clearTimeout(timer);
@@ -646,14 +714,24 @@ export class KesherService {
       return [];
     };
 
-    // שליפה מהירה במקביל של כל ערוצי המידע בקשר:
+    // שליפה מקבילית וממוקדת אך ורק מול הפעולות הנתמכות בשרת קשר
+    // GetTrans היא הפונקציה המרכזית בחוזה של ConnectToKesher לשליפת עסקאות
     const results = await Promise.allSettled([
-      fetchEndpoint('GetTrans', { TranType: 0, IncludeCash: true, isAll: true }),
-      fetchEndpoint('GetCompanyTransactions'),
-      fetchEndpoint('GetCashTransactions'),
-      fetchEndpoint('GetCashTrans'),
-      fetchEndpoint('GetDocs'),
-      fetchEndpoint('GetHKTrans'),
+      // 1. GetTrans רגיל עם טווח תאריכים
+      fetchEndpoint('GetTrans'),
+      // 2. GetTrans עם הגדרת TranType = 0 (כל העסקאות)
+      fetchEndpoint('GetTrans', { TranType: 0, isAll: true }),
+      // 3. GetTrans בפורמט תאריכים ישראלי (DD/MM/YYYY)
+      fetchEndpoint('GetTrans', {
+        fromDate: `${String(pastDate.getDate()).padStart(2, '0')}/${String(pastDate.getMonth() + 1).padStart(2, '0')}/${pastDate.getFullYear()}`,
+        toDate: `${String(tomorrow.getDate()).padStart(2, '0')}/${String(tomorrow.getMonth() + 1).padStart(2, '0')}/${tomorrow.getFullYear()}`
+      }),
+      // 4. GetTransSite (במידה ומשתמשים באתר/פורטל)
+      fetchEndpoint('GetTransSite', {
+        from: fromDateStr,
+        to: toDateStr
+      }),
+      // 5. EasyCount Docs (רק אם מוגדר טוקן תקין)
       fetchEasyCountDocs()
     ]);
 
@@ -673,12 +751,10 @@ export class KesherService {
     const allTransactionsMap = new Map<string, any>();
 
     const endpointNames = [
-      'GetTrans',
-      'GetCompanyTransactions',
-      'GetCashTransactions',
-      'GetCashTrans',
-      'GetDocs',
-      'GetHKTrans',
+      'GetTrans_Standard',
+      'GetTrans_AllTypes',
+      'GetTrans_AltDateFormat',
+      'GetTransSite',
       'EasyCountDocs'
     ];
 

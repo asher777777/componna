@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { TenantAppResolver } from './core/tenant/TenantAppResolver';
+import { TenantScopeProvider } from './core/tenant';
 import { HostCapabilitiesProvider } from './core/bridge/HostCapabilitiesContext';
 import { SystemConnectionProvider } from './core/connection/SystemConnectionContext';
 import { MediaPickerHostBridge } from './modules/media-gallery-hub';
@@ -10,12 +11,14 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <SystemConnectionProvider>
-        <BrandDnaProvider>
-          <HostCapabilitiesProvider>
-            <TenantAppResolver />
-            <MediaPickerHostBridge />
-          </HostCapabilitiesProvider>
-        </BrandDnaProvider>
+        <TenantScopeProvider>
+          <BrandDnaProvider>
+            <HostCapabilitiesProvider>
+              <TenantAppResolver />
+              <MediaPickerHostBridge />
+            </HostCapabilitiesProvider>
+          </BrandDnaProvider>
+        </TenantScopeProvider>
       </SystemConnectionProvider>
     </BrowserRouter>
   );

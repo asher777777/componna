@@ -382,8 +382,8 @@ export const aiPageGenerator = {
         );
       }
 
-      // Smooth step pacing for streaming experience
-      await new Promise((resolve) => setTimeout(resolve, 450));
+      // Smooth and realistic step pacing for rich visual AI streaming
+      await new Promise((resolve) => setTimeout(resolve, 850));
     }
 
     return pageConfig;
@@ -431,7 +431,8 @@ export const aiPageGenerator = {
   },
 
   /**
-   * NEVER returns 1 section! Always produces a rich, interconnected 6-section blueprint.
+   * NEVER returns 1 section! Produces diverse, rich multi-section architectures (5-7 sections)
+   * tailored to the chosen objective with real Brand DNA contact details.
    */
   getFullSkeletonFallback(
     prompt: string,
@@ -439,31 +440,380 @@ export const aiPageGenerator = {
     slogan: string,
     brandDna?: BrandDna | null
   ): any[] {
-    const isSales = prompt.includes('מכיר') || prompt.includes('מחיר') || prompt.includes('חבילה');
+    const effectiveDna = resolveLiveBrandDna(brandDna);
+    const phone = effectiveDna?.trust?.contactPhone || '052-6968008';
+    const email = effectiveDna?.trust?.contactEmail || 'ovt5771@gmail.com';
+    const whatsapp = effectiveDna?.trust?.whatsappSupportNumber || '0526968008';
+    const address = effectiveDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
+
+    const isSales = prompt.includes('מכיר') || prompt.includes('מחיר') || prompt.includes('חבילה') || prompt.includes('השקה');
     const isGeo = prompt.includes('מקומי') || prompt.includes('אזור') || prompt.includes('עיר') || prompt.includes('GEO');
     const isCommunity = prompt.includes('קהילה') || prompt.includes('מועדון') || prompt.includes('חברים');
+    const isCourseOrKnowledge = prompt.includes('קורס') || prompt.includes('מדריך') || prompt.includes('ידע') || prompt.includes('סדנה');
 
-    const primaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
+    // 1. High-Converting Sales Funnel Architecture (Hero -> LogoMarquee -> Services -> Pricing -> Testimonials -> Timer -> Contact)
+    if (isSales) {
+      return [
+        {
+          sectionType: 'hero',
+          stepTitle: 'השקת הצעה מנצחת (Sales Hero)',
+          statusText: 'מעצב כותרת פרימיום, באדג׳ ספיישל, וכפתור רכישה מהיר...',
+          data: {
+            title: `ההזדמנות הבלעדית שלכם עם ${companyName}`,
+            subtitle: slogan || 'החבילה המושלמת לשדרוג התוצאות שלכם כבר החודש',
+            description: 'פתרון מוכח מקצה לקצה בליווי אישי צמוד, כלים בלעדיים ואחריות מלאה להצלחה.',
+            layout: 'split',
+            heroStyle: 'mesh-glow',
+            badgeText: '🔥 הטבת השקה מוגבלת בזמן',
+            buttonsVisible: true,
+            primaryButton: { text: 'בחרו חבילה עכשיו', url: '#pricing' },
+            secondaryButton: { text: 'למידע נוסף', url: '#services' },
+            socialProofEnabled: true,
+            socialProofText: 'מעל 2,500 לקוחות מרוצים כבר איתנו',
+            imageUrl: getSmartPlaceholderImage('hero', 0),
+            imageSrc: getSmartPlaceholderImage('hero', 0),
+          },
+        },
+        {
+          sectionType: 'logoMarquee',
+          stepTitle: 'באנר הוכחה חברתית (Logo Marquee)',
+          statusText: 'מציג שותפים עסקיים וסמלי אמון להגברת סמכות המותג...',
+          data: {
+            title: 'נבחר על ידי הארגונים והעסקים המובילים בישראל',
+            speed: 30,
+            direction: 'left',
+            grayscale: true,
+          },
+        },
+        {
+          sectionType: 'services',
+          stepTitle: 'כרטיסי ערך ויתרונות תחרותיים (Services Grid)',
+          statusText: 'מבליט את היתרונות הייחודיים שהופכים את ההצעה לבלתי ניתנת לסירוב...',
+          data: {
+            title: 'למה כולם בוחרים בנו?',
+            subtitle: 'ארבעה יתרונות ברורים שמביאים תוצאות אמיתיות',
+            layout: 'grid',
+            items: [
+              { id: 's1', title: 'תוצאות מוכחות בשטח', description: 'שיטות עבודה שעברו בדיקות קפדניות ומביאות הצלחה עקבית.', icon: 'ShieldCheck' },
+              { id: 's2', title: 'ליווי וזמינות מלאה', description: 'תמיכה אנושית אישית ומהירה בוואטסאפ ובטלפון לכל שאלה.', icon: 'Zap' },
+              { id: 's3', title: 'חדשנות וטכנולוגיה', description: 'כלים אוטומטיים מתקדמים שחוסכים לכם שעות של עבודה.', icon: 'Sparkles' },
+              { id: 's4', title: 'אחריות ושקיפות מלאה', description: 'בלי אותיות קטנות – אתם יודעים בדיוק מה אתם מקבלים.', icon: 'CheckCircle2' },
+            ],
+          },
+        },
+        {
+          sectionType: 'pricing',
+          stepTitle: 'מחירון חבילות ומסלולים (Pricing Table)',
+          statusText: 'מרכיב 3 מסלולי השקעה שקופים עם הדגשת המסלול המומלץ...',
+          data: {
+            title: 'חבילות ומסלולי הצטרפות',
+            subtitle: 'בחרו את המסלול המתאים ביותר עבורכם',
+            layout: 'grid',
+            plans: [
+              {
+                id: 'p1',
+                name: 'חבילת בסיס',
+                price: '₪490',
+                period: 'חד פעמי',
+                description: 'מתאים לעסקים בתחילת הדרך',
+                features: ['גישה מלאה למערכת', 'תמיכה בדוא״ל תוך 24 שעות', 'מדריכי וידאו מפורטים'],
+                buttonText: 'להצטרפות למסלול',
+                buttonUrl: '#contact',
+                isPopular: false,
+              },
+              {
+                id: 'p2',
+                name: 'חבילת VIP Pro',
+                price: '₪990',
+                period: 'חד פעמי',
+                description: 'המסלול הנבחר על ידי 80% מהלקוחות',
+                features: ['כל מה שבבסיס', 'ליווי אישי ממוקד 1-על-1', 'תמיכת WhatsApp ישירה', 'הטבות והנחות בלעדיות'],
+                buttonText: 'להצטרפות מועדפת 🔥',
+                buttonUrl: '#contact',
+                isPopular: true,
+                badge: 'הכי משתלם',
+              },
+              {
+                id: 'p3',
+                name: 'חבילת Enterprise',
+                price: '₪1,990',
+                period: 'חד פעמי',
+                description: 'ליווי מקיף מקצה לקצה',
+                features: ['הכל ללא הגבלה', 'הטמעה מלאה על ידי הצוות', 'זמינות טלפונית עדיפה', 'התאמות אישיות מיוחדות'],
+                buttonText: 'לשיחת התאמה',
+                buttonUrl: '#contact',
+                isPopular: false,
+              },
+            ],
+          },
+        },
+        {
+          sectionType: 'timer',
+          stepTitle: 'שעון ספירה לאחור (Urgency Timer)',
+          statusText: 'יוצר דחיפות אמיתית לסגירת המבצע ומניעת נטישה...',
+          data: {
+            title: 'מחיר ההשקה המיוחד מסתיים בקרוב!',
+            subtitle: 'לאחר סיום הספירה לאחור המחיר יחזור למחירון הרגיל',
+            targetDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+            buttonText: 'תפסו את ההטבה עכשיו',
+            buttonUrl: '#pricing',
+          },
+        },
+        {
+          sectionType: 'testimonials',
+          stepTitle: 'הוכחה חברתית וחוות דעת (Testimonials)',
+          statusText: 'משלב המלצות חמות מלקוחות מאומתים...',
+          data: {
+            title: 'מה אומרים הלקוחות שכבר הצטרפו?',
+            subtitle: 'סיפורי הצלחה אמיתיים מתוך השטח',
+            layout: 'grid',
+            items: [
+              { id: 't1', name: 'אורן ברק', role: 'בעל עסק', quote: 'ההשקעה החזירה את עצמה תוך פחות משבועיים. שירות מעולה!', rating: 5 },
+              { id: 't2', name: 'שירה אלון', role: 'מנהלת שיווק', quote: 'הכל עובד חלק ובקלות, חסך לי המון עבודה וזמן יקר.', rating: 5 },
+              { id: 't3', name: 'רועי נווה', role: 'יזם', quote: 'המקצועיות והזמינות של הצוות פשוט ברמה אחרת.', rating: 5 },
+            ],
+          },
+        },
+        {
+          sectionType: 'contact',
+          stepTitle: 'הנעה לפעולה ויצירת קשר (Contact)',
+          statusText: 'מחבר את נתוני הקשר האמיתיים של המותג...',
+          data: {
+            title: 'מעוניינים לשמוע עוד או להצטרף?',
+            subtitle: 'השאירו פרטים ונחזור אליכם מיידית, או פנו ישירות בוואטסאפ',
+            phone,
+            email,
+            address,
+            whatsapp,
+            directWhatsappChat: true,
+            showForm: true,
+          },
+        },
+      ];
+    }
 
+    // 2. Local GEO Service Architecture (Hero -> Services -> GeoLocal -> StatsBento -> FAQ -> Contact)
+    if (isGeo) {
+      return [
+        {
+          sectionType: 'hero',
+          stepTitle: 'בניית Hero מקומי (GEO Focus)',
+          statusText: 'מדגיש זמינות מיידית באזור השירות ופריסה מקומית...',
+          data: {
+            title: `השירות המקצועי המוביל באזורכם - ${companyName}`,
+            subtitle: slogan || 'הגעה מהירה, שירות מוסמך ומחירים הוגנים',
+            description: `צוות המומחים של ${companyName} מציע מענה מהיר בכל אזור המרכז וגוש דן עם 100% אחריות.`,
+            layout: 'centered',
+            heroStyle: 'gradient',
+            badgeText: '📍 שירות מהיר באזורכם',
+            buttonsVisible: true,
+            primaryButton: { text: 'חייגו עכשיו לייעוץ', url: `tel:${phone}` },
+            secondaryButton: { text: 'הודעה בוואטסאפ', url: `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}` },
+            imageUrl: getSmartPlaceholderImage('hero', 1),
+            imageSrc: getSmartPlaceholderImage('hero', 1),
+          },
+        },
+        {
+          sectionType: 'geoLocal',
+          stepTitle: 'הגדרת אזורי שירות ומיקום (GEO Local)',
+          statusText: 'מייצר מפת הגעה, פרטי התקשרות ואיזורי הגעה מהירים...',
+          data: {
+            businessName: companyName,
+            targetCity: 'תל אביב והמרכז',
+            targetRegion: 'גוש דן והשרון',
+            serviceAreas: ['תל אביב', 'רמת גן', 'גבעתיים', 'פתח תקווה', 'הרצליה', 'חולון'],
+            address,
+            phone,
+            email,
+            whatsapp,
+            workingHours: 'א׳-ה׳: 08:30 - 19:30 | ו׳: 08:30 - 13:30',
+          },
+        },
+        {
+          sectionType: 'services',
+          stepTitle: 'סל השירותים המקומי (Services)',
+          statusText: 'מפרט תחומי התמחות עם אייקונים מקצועיים...',
+          data: {
+            title: 'השירותים שאנחנו מספקים',
+            subtitle: 'פתרון מותאם אישית לכל לקוח עם אחריות מלאה',
+            layout: 'grid',
+            items: [
+              { id: 'g1', title: 'שירות ואבחון מהיר', description: 'הגעה בזמנים קצרים ומענה מקיף במקום.', icon: 'Zap' },
+              { id: 'g2', title: 'צוות מוסמך ומנוסה', description: 'שנים של ידע וניסיון עם הציוד המוביל.', icon: 'ShieldCheck' },
+              { id: 'g3', title: 'שקיפות והצעת מחיר הוגנת', description: 'בלי הפתעות במחיר – הכל גלוי ומוסכם מראש.', icon: 'CheckCircle2' },
+              { id: 'g4', title: 'אחריות מקיפה על העבודה', description: 'שקט נפשי מלא לאורך זמן.', icon: 'Award' },
+            ],
+          },
+        },
+        {
+          sectionType: 'statsBento',
+          stepTitle: 'הישגים ומספרים מקומיים (Stats Bento)',
+          statusText: 'מציג מדדי אמינות ומהירות...',
+          data: {
+            title: 'העוצמה שלנו במספרים',
+            subtitle: 'עובדות מדויקות שמדברות בעד עצמן',
+            layout: 'bento-4',
+            stats: [
+              { number: '15 דק׳', label: 'זמן מענה ממוצע', description: 'פניות WhatsApp וטלפון' },
+              { number: '99%', label: 'שביעות רצון', description: 'לפי דירוג לקוחות מאומת' },
+              { number: '10+', label: 'שנות ניסיון', description: 'פעילות רצופה ומובילה' },
+              { number: '100%', label: 'אחריות מלאה', description: 'על כל שירות וביצוע' },
+            ],
+          },
+        },
+        {
+          sectionType: 'faq',
+          stepTitle: 'שאלות נפוצות של לקוחות (FAQ)',
+          statusText: 'מענה על זמני הגעה, מחירים ואחריות...',
+          data: {
+            title: 'שאלות נפוצות על השירות',
+            subtitle: 'כל מה שחשוב לדעת לפני שיוצרים קשר',
+            items: [
+              { question: 'מהם זמני המענה וההגעה שלכם?', answer: `אנחנו זמינים בימים א׳-ה׳ בין 08:30 ל-19:30 ומספקים מענה טלפוני מהיר בטלפון ${phone}.` },
+              { question: 'באילו אזורים אתם נותנים שירות?', answer: `אזור הפעילות המרכזי הוא ${address} וסביבתה, כולל גוש דן והמרכז.` },
+              { question: 'האם ניתן לפנות ישירות בוואטסאפ?', answer: `בהחלט, ניתן ללחוץ על כפתור הוואטסאפ ולשלוח הודעה ישירה למספר ${whatsapp}.` },
+            ],
+          },
+        },
+        {
+          sectionType: 'contact',
+          stepTitle: 'יצירת קשר מהירה (Contact)',
+          statusText: 'מחבר כפתור וואטסאפ ישיר וטופס...',
+          data: {
+            title: 'צריכים שירות מיידי או הצעת מחיר?',
+            subtitle: 'צרו איתנו קשר עכשיו ונשמח לעמוד לשירותכם',
+            phone,
+            email,
+            address,
+            whatsapp,
+            directWhatsappChat: true,
+            showForm: true,
+          },
+        },
+      ];
+    }
+
+    // 3. Knowledge / Course / Lead-Magnet Architecture (Hero -> RichContent -> BeforeAfter -> Testimonials -> FAQ -> Contact)
+    if (isCourseOrKnowledge) {
+      return [
+        {
+          sectionType: 'hero',
+          stepTitle: 'בניית Hero לימודי / מגנט לידים',
+          statusText: 'יוצר כותרת ידע מסקרנת, באדג׳ מדריך, והנעה להורדה...',
+          data: {
+            title: `המדריך המלא להצלחה מבית ${companyName}`,
+            subtitle: slogan || 'כל הידע, הכלים והשיטות במקום אחד מסודר',
+            description: 'גלו את הסודות והתובנות המעשיות שיאפשרו לכם לחסוך טעויות יקרות ולהתקדם במהירות.',
+            layout: 'split',
+            heroStyle: 'mesh-glow',
+            badgeText: '📘 מדריך והכשרה מקצועית',
+            buttonsVisible: true,
+            primaryButton: { text: 'קבלו גישה מיידית', url: '#contact' },
+            secondaryButton: { text: 'קראו על התוכנית', url: '#richContent' },
+            socialProofEnabled: true,
+            socialProofText: 'מעל 1,800 נרשמים כבר לומדים ומיישמים',
+            imageUrl: getSmartPlaceholderImage('course', 0),
+            imageSrc: getSmartPlaceholderImage('course', 0),
+          },
+        },
+        {
+          sectionType: 'richContent',
+          stepTitle: 'תוכן עומק וסילבוס מקצועי (Rich Content)',
+          statusText: 'פורס את שלבי הלמידה והערך המקצועי...',
+          data: {
+            title: 'מה תלמדו ומה תפיקו מהתוכנית?',
+            subtitle: 'שלב אחר שלב – מתיאוריה לפרקטיקה מעשית',
+            content: `בתוכנית זו ריכזנו עבורכם את כל הניסיון שנצבר ב-${companyName}. תוכלו ליישם מיד את הכלים, לשפר את הביצועים ולקבל ליווי ותשובות לכל שאלה.`,
+            features: [
+              'מודול 1: יסודות ועקרונות מפתח להצלחה',
+              'מודול 2: שיטות עבודה וכלים פרקטיים',
+              'מודול 3: מניעת טעויות נפוצות וקיצור זמנים',
+              'מודול 4: תוכנית פעולה מותאמת אישית',
+            ],
+          },
+        },
+        {
+          sectionType: 'beforeAfter',
+          stepTitle: 'השוואת לפני ואחרי (Before / After Transformation)',
+          statusText: 'מדגים את השינוי הדרמטי שהמשתתפים חווים...',
+          data: {
+            title: 'הטרנספורמציה שלכם איתנו',
+            subtitle: 'ההבדל בין עבודה עצמאית לבין שימוש בשיטה המוכחת',
+            beforeTitle: 'לפני התוכנית',
+            beforePoints: [
+              'תחושת בלבול וחוסר בהירות לגבי הצעד הבא',
+              'בזבוז זמן על ניסוי וטעייה מיותרים',
+              'היעדר שיטה מסודרת ועקבית',
+            ],
+            afterTitle: 'אחרי התוכנית איתנו',
+            afterPoints: [
+              'בהירות מלאה ותוכנית עבודה יומית ברורה',
+              'חיסכון משמעותי בזמן ומשאבים',
+              'תוצאות מדודות ויכולת שכפול לאורך זמן',
+            ],
+          },
+        },
+        {
+          sectionType: 'testimonials',
+          stepTitle: 'חוות דעת של בוגרים (Testimonials)',
+          statusText: 'מציג הצלחות של בוגרים...',
+          data: {
+            title: 'מה מספרים הבוגרים שלנו?',
+            subtitle: 'חוויות אמיתיות של אלו שכבר עשו את התהליך',
+            layout: 'grid',
+            items: [
+              { id: 'km1', name: 'מיכל לוי', role: 'בוגרת התוכנית', quote: 'ההסברים חדים, מדויקים ופרקטיים. שינה לי את כל דרך העבודה.', rating: 5 },
+              { id: 'km2', name: 'איתי שגב', role: 'יזם', quote: 'שווה פי עשרה מהעלות. קיבלתי כלים שלא מצאתי בשום מקום אחר.', rating: 5 },
+            ],
+          },
+        },
+        {
+          sectionType: 'faq',
+          stepTitle: 'שאלות ותשובות על התוכנית (FAQ)',
+          statusText: 'מענה על פורמט התוכן, גישה ותמיכה...',
+          data: {
+            title: 'שאלות נפוצות',
+            subtitle: 'כל מה שחשוב לדעת',
+            items: [
+              { question: 'האם התוכן מתאים גם למתחילים?', answer: 'כן, התוכנית בנויה בהדרגה כך שכל אחד יכול להבין וליישם בקלות.' },
+              { question: 'לכמה זמן יש לי גישה לחומרים?', answer: 'הגישה הינה ללא הגבלת זמן, כולל עדכונים עתידיים ללא עלות נוספת.' },
+              { question: 'איך יוצרים קשר אם משהו לא ברור?', answer: `ניתן לפנות ישירות לצוות התמיכה בטלפון ${phone} או בדוא״ל ${email}.` },
+            ],
+          },
+        },
+        {
+          sectionType: 'contact',
+          stepTitle: 'טופס הצטרפות וקבלת גישה (Contact)',
+          statusText: 'הזנת פרטי התקשרות אמיתיים...',
+          data: {
+            title: 'הירשמו עכשיו וקבלו גישה מיידית',
+            subtitle: 'מלאו את הפרטים והתוכן יישלח אליכם ישירות לדוא״ל',
+            phone,
+            email,
+            address,
+            whatsapp,
+            directWhatsappChat: true,
+            showForm: true,
+          },
+        },
+      ];
+    }
+
+    // 4. Default Holistic Dynamic Architecture (Hero -> Services -> StatsBento -> Testimonials -> FAQ -> Contact)
     return [
-      // 1. Hero
       {
         sectionType: 'hero',
         stepTitle: 'בניית אזור ראשי ממיר (Hero 2.0)',
         statusText: 'יוצר כותרת ענק, באדג׳ הכרזה, והוכחה חברתית...',
         data: {
-          title: isSales
-            ? `ההזדמנות הבלעדית שלכם עם ${companyName}`
-            : isGeo
-            ? `השירות המקצועי המוביל באזורכם - ${companyName}`
-            : `הפתרון השלם מבית ${companyName}`,
+          title: `הפתרון השלם מבית ${companyName}`,
           subtitle: slogan || 'איכות, מקצועיות ותוצאות מוכחות בשטח',
           description: 'פתרון הוליסטי ומקיף המותאם לצרכים שלכם, עם שירות ללא פשרות וליווי מלא לאורך כל הדרך.',
           layout: 'split',
           heroStyle: 'mesh-glow',
-          badgeText: isSales ? 'הטבה מוגבלת בזמן' : 'המובילים בישראל לשנת 2026',
+          badgeText: 'המובילים בישראל לשנת 2026',
           buttonsVisible: true,
-          primaryButton: { text: isSales ? 'לרכישה מיידית' : 'התחילו עכשיו', url: isSales ? '#pricing' : '#contact' },
+          primaryButton: { text: 'התחילו עכשיו', url: '#contact' },
           secondaryButton: { text: 'למידע נוסף', url: '#services' },
           socialProofEnabled: true,
           socialProofText: 'מעל 2,400 לקוחות מרוצים כבר איתנו',
@@ -471,7 +821,6 @@ export const aiPageGenerator = {
           imageSrc: getSmartPlaceholderImage('hero', 0),
         },
       },
-      // 2. Services / Value Grid
       {
         sectionType: 'services',
         stepTitle: 'הקמת רשת יתרונות ושירותים (Services Grid)',
@@ -481,34 +830,13 @@ export const aiPageGenerator = {
           subtitle: 'ארבעה עמודי תווך שהופכים אותנו לבחירה הטבעית של לקוחותינו',
           layout: 'grid',
           items: [
-            {
-              id: 'srv-1',
-              title: 'מקצועיות ומומחיות מוכחת',
-              description: 'צוות מוסמך עם שנים של ניסיון והצלחות בשטח.',
-              icon: 'ShieldCheck',
-            },
-            {
-              id: 'srv-2',
-              title: 'מענה מהיר וזמינות גבוהה',
-              description: 'אנחנו כאן בשבילכם עם תמיכה מסורה ויחס אישי מהיר.',
-              icon: 'Zap',
-            },
-            {
-              id: 'srv-3',
-              title: 'טכנולוגיה וחדשנות מתקדמת',
-              description: 'הכלים והפתרונות החדשניים ביותר שחוסכים לכם זמן וכסף.',
-              icon: 'Sparkles',
-            },
-            {
-              id: 'srv-4',
-              title: 'שקיפות ואחריות מלאה',
-              description: 'בלי אותיות קטנות – הכל גלוי, מוגדר וברור מראש.',
-              icon: 'CheckCircle2',
-            },
+            { id: 'srv-1', title: 'מקצועיות ומומחיות מוכחת', description: 'צוות מוסמך עם שנים של ניסיון והצלחות בשטח.', icon: 'ShieldCheck' },
+            { id: 'srv-2', title: 'מענה מהיר וזמינות גבוהה', description: 'אנחנו כאן בשבילכם עם תמיכה מסורה ויחס אישי מהיר.', icon: 'Zap' },
+            { id: 'srv-3', title: 'טכנולוגיה וחדשנות מתקדמת', description: 'הכלים והפתרונות החדשניים ביותר שחוסכים לכם זמן וכסף.', icon: 'Sparkles' },
+            { id: 'srv-4', title: 'שקיפות ואחריות מלאה', description: 'בלי אותיות קטנות – הכל גלוי, מוגדר וברור מראש.', icon: 'CheckCircle2' },
           ],
         },
       },
-      // 3. Stats Bento
       {
         sectionType: 'statsBento',
         stepTitle: 'בניית אזור נתונים והישגים (Stats Bento)',
@@ -525,7 +853,6 @@ export const aiPageGenerator = {
           ],
         },
       },
-      // 4. Testimonials (Social Proof)
       {
         sectionType: 'testimonials',
         stepTitle: 'הטמעת ביקורות והוכחה חברתית (Testimonials)',
@@ -535,31 +862,12 @@ export const aiPageGenerator = {
           subtitle: 'חוויות אמיתיות של אלו שכבר עשו את הצעד',
           layout: 'grid',
           items: [
-            {
-              id: 'test-1',
-              name: 'יוסי כהן',
-              role: 'מנכ״ל ובעלים',
-              quote: 'העבודה מול הצוות שינתה לנו את כל תפיסת השירות. המקצועיות והמהירות פשוט יוצאות דופן.',
-              rating: 5,
-            },
-            {
-              id: 'test-2',
-              name: 'מיכל לוי',
-              role: 'מנהלת תפעול',
-              quote: 'חיפשנו פתרון אמין לאורך זמן ומצאנו שותפים אמיתיים לדרך. מומלץ בחום לכל מי שמעריך איכות.',
-              rating: 5,
-            },
-            {
-              id: 'test-3',
-              name: 'דניאל שרון',
-              role: 'יזם עצמאי',
-              quote: 'התוצאות הגיעו הרבה יותר מהר ממה שציפינו. השקיפות והיחס האישי שווים כל שקל.',
-              rating: 5,
-            },
+            { id: 'test-1', name: 'יוסי כהן', role: 'מנכ״ל ובעלים', quote: 'העבודה מול הצוות שינתה לנו את כל תפיסת השירות. המקצועיות והמהירות פשוט יוצאות דופן.', rating: 5 },
+            { id: 'test-2', name: 'מיכל לוי', role: 'מנהלת תפעול', quote: 'חיפשנו פתרון אמין לאורך זמן ומצאנו שותפים אמיתיים לדרך. מומלץ בחום לכל מי שמעריך איכות.', rating: 5 },
+            { id: 'test-3', name: 'דניאל שרון', role: 'יזם עצמאי', quote: 'התוצאות הגיעו הרבה יותר מהר ממה שציפינו. השקיפות והיחס האישי שווים כל שקל.', rating: 5 },
           ],
         },
       },
-      // 5. FAQ (Addressing Objections)
       {
         sectionType: 'faq',
         stepTitle: 'מענה על שאלות נפוצות והתנגדויות (FAQ)',
@@ -568,26 +876,13 @@ export const aiPageGenerator = {
           title: 'שאלות ותשובות נפוצות',
           subtitle: 'כל מה שחשוב לדעת לפני שמקבלים החלטה',
           items: [
-            {
-              question: 'איך מתחילים וכמה זמן לוקח התהליך?',
-              answer: 'ההצטרפות פשוטה ומהירה – מיד עם השארת הפרטים או ההרשמה, נציג מטעמנו יוצר קשר ומספק גישה מיידית.',
-            },
-            {
-              question: 'האם יש התחייבות לתקופה ארוכה?',
-              answer: 'ממש לא. אנחנו מאמינים בחופש בחירה ובאיכות השירות שלנו, לכן ניתן לבטל או לשנות מסלול בכל עת ללא אותיות קטנות.',
-            },
-            {
-              question: 'מה קורה אם יש לי שאלה או בעיה?',
-              answer: 'מוקד השירות והתמיכה שלנו זמין עבורכם בערוצי WhatsApp, דוא״ל וטלפון עם זמני מענה קצרים במיוחד.',
-            },
-            {
-              question: 'האם המערכת מאובטחת ועומדת בתקנים?',
-              answer: 'בהחלט. כל הנתונים מוצפנים לפי תקני האבטחה המחמירים ביותר (SSL/TLS) וסליקה מאובטחת בתקן PCI.',
-            },
+            { question: 'איך מתחילים וכמה זמן לוקח התהליך?', answer: `ההצטרפות פשוטה ומהירה – צרו קשר בטלפון ${phone} או בטופס ונחזור אליכם מיידית.` },
+            { question: 'האם יש התחייבות לתקופה ארוכה?', answer: 'ממש לא. אנחנו מאמינים בחופש בחירה ובאיכות השירות שלנו, לכן ניתן לבטל או לשנות מסלול בכל עת.' },
+            { question: 'מה קורה אם יש לי שאלה או בעיה?', answer: `מוקד השירות והתמיכה שלנו זמין עבורכם בערוצי WhatsApp (${whatsapp}), דוא״ל וטלפון עם זמני מענה קצרים במיוחד.` },
+            { question: 'האם המערכת מאובטחת ועומדת בתקנים?', answer: 'בהחלט. כל הנתונים מוצפנים לפי תקני האבטחה המחמירים ביותר (SSL/TLS).' },
           ],
         },
       },
-      // 6. Contact / Call to Action
       {
         sectionType: 'contact',
         stepTitle: 'הקמת אזור יצירת קשר והנעה לפעולה (Contact)',
@@ -595,10 +890,10 @@ export const aiPageGenerator = {
         data: {
           title: 'מוכנים לעשות את הצעד הבא?',
           subtitle: 'השאירו פרטים ונחזור אליכם בהקדם, או צרו קשר ישיר בוואטסאפ',
-          phone: brandDna?.trust?.contactPhone || '03-1234567',
-          email: brandDna?.trust?.contactEmail || 'contact@example.com',
-          address: brandDna?.trust?.officeAddress || 'תל אביב, ישראל',
-          whatsapp: brandDna?.trust?.whatsappSupportNumber || '0501234567',
+          phone,
+          email,
+          address,
+          whatsapp,
           directWhatsappChat: true,
           showForm: true,
         },

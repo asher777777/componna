@@ -52,6 +52,11 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const [ideas, setIdeas] = useState<MarketingIdea[]>([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
 
+  // Wizard step state: 1 = Brainstorm & Goal, 2 = Architecture & Template, 3 = Generating/Streaming
+  const [wizardStep, setWizardStep] = useState<1 | 2>(1);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('sales-funnel');
+  const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
+
   const hasApiKey = !!resolveApiKey();
 
   useEffect(() => {
@@ -60,6 +65,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       setCurrentStep(null);
       setStreamedConfig(null);
       setIsGenerating(false);
+      setWizardStep(1);
+      setSelectedIdeaId(null);
       loadIdeas();
     }
   }, [isOpen, brandDna]);
@@ -98,23 +105,32 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
     }
   };
 
-  const handleStartGeneration = async (customPrompt?: string) => {
-    const finalPrompt = customPrompt || promptText;
-    if (!finalPrompt.trim()) return;
+  const handleSelectIdea = (idea: MarketingIdea) => {
+    setSelectedIdeaId(idea.id);
+    setPromptText(idea.prompt);
+  };
+
+  const handleStartGeneration = async () => {
+    const finalPrompt = promptText.trim() || 'דף נחיתה מקצועי וממיר';
+    // Incorporate the chosen template blueprint guidance into the prompt
+    const templateBlueprint = PAGE_BLUEPRINTS.find((b) => b.id === selectedTemplateId);
+    const enrichedPrompt = templateBlueprint
+      ? `${finalPrompt}. מבוסס על שלד ארכיטקטוני של ${templateBlueprint.title} עם אזורים מגוונים ואפקטים מותאמים.`
+      : finalPrompt;
 
     setIsGenerating(true);
     setCurrentStep({
       stepIndex: 0,
       totalSteps: 6,
       sectionType: 'hero',
-      stepTitle: 'מנתח Brand DNA...',
-      statusText: 'מגבש ארכיטקטורת עמוד מלאה (לפחות 5-6 אזורים)...',
+      stepTitle: 'מנתח Brand DNA ומגבש אסטרטגיה...',
+      statusText: 'בונה ארכיטקטורה עשירה מבוססת על המיתוג ושלד התבנית שנבחרה...',
       progressPercent: 5,
     });
 
     try {
       const result = await aiPageGenerator.generatePageLive(
-        finalPrompt,
+        enrichedPrompt,
         brandDna,
         (step, partialConfig) => {
           setCurrentStep(step);
@@ -146,10 +162,10 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
             </div>
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-white">
-                יוצר עמודים אוטונומי ב-AI (Live Streaming Engine)
+                סיעור מוחות ויצירת עמוד ב-AI
               </h2>
               <p className="text-sm text-slate-400">
-                המנוע מזרים בזמן אמת שלד שלם בן 5 עד 8 אזורים מקושרים, מסונכרן עם ה-Brand DNA.
+                תהליך תכנון חכם מבוסס Brand DNA, בחירת ארכיטקטורה והזרמת עמוד חי בזמן אמת.
               </p>
             </div>
           </div>
@@ -174,54 +190,173 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
           )}
         </div>
 
+        {/* Wizard Steps Bar (if not actively streaming) */}
+        {!isGenerating && (
+          <div className="flex items-center justify-center gap-8 py-3 px-6 bg-slate-950 border-b border-slate-800/60 text-xs">
+            <div
+              className={clsx(
+                'flex items-center gap-2 font-bold cursor-pointer transition-colors',
+                wizardStep === 1 ? 'text-indigo-400' : 'text-slate-400'
+              )}
+              onClick={() => setWizardStep(1)}
+            >
+              <span className="w-5 h-5 rounded-full flex items-center justify-center bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 text-[11px]">
+                1
+              </span>
+              <span>שלב 1: סיעור מוחות ומטרת העמוד</span>
+            </div>
+            <div className="w-8 h-px bg-slate-800" />
+            <div
+              className={clsx(
+                'flex items-center gap-2 font-bold cursor-pointer transition-colors',
+                wizardStep === 2 ? 'text-indigo-400' : 'text-slate-400'
+              )}
+              onClick={() => {
+                if (promptText.trim()) setWizardStep(2);
+              }}
+            >
+              <span className="w-5 h-5 rounded-full flex items-center justify-center bg-slate-800 text-slate-300 border border-slate-700 text-[11px]">
+                2
+              </span>
+              <span>שלב 2: סגנון ושלד תבנית מנחה</span>
+            </div>
+          </div>
+        )}
+
         {/* Content Body */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">
           {!isGenerating ? (
-            <div className="flex flex-col gap-6 max-w-2xl mx-auto">
-              {/* Gentle Notification if no API key is resolved */}
-              {!hasApiKey && (
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
-                  <div className="flex-1">
-                    <span>
-                      מפתח Gemini AI טרם הוגדר. המערכת תייצר <strong>שלד עמוד עשיר ומלא של 6 אזורים</strong> באופן מיידי.
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => openConnectorModal('apiKeys')}
-                    className="underline text-[11px] font-bold text-amber-200 hover:text-white shrink-0"
-                  >
-                    הגדר מפתח
-                  </button>
+            wizardStep === 1 ? (
+              // STEP 1: Brainstorming & Goal
+              <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+                {/* Brand DNA Notification */}
+                <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
+                  <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
+                  <p className="text-sm text-slate-300">
+                    <strong className="text-indigo-400 font-bold">מסונכרן עם ה-Brand DNA:</strong>{' '}
+                    פרטי הקשר, יעדי המותג, נקודות הכאב וההתנגדויות מוזנים אוטומטית לסיעור המוחות.
+                  </p>
                 </div>
-              )}
 
-              {/* Brand DNA Status */}
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/20">
-                <Sparkles className="w-5 h-5 text-indigo-400 shrink-0" />
-                <p className="text-sm text-slate-300">
-                  <strong className="text-indigo-400 font-bold">מחובר ל-Brand DNA:</strong>{' '}
-                  {brandDna?.identity?.companyName || 'המותג שלך'} (צבעי מותג, פונטים, UVP וערכים מוזנים אוטומטית)
-                </p>
-                <div className="mr-auto px-2 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
-                  מסונכרן
+                {/* Brainstorming Ideas Cards */}
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between text-sm font-bold text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <Lightbulb className="w-4 h-4 text-amber-400" />
+                      <span>רעיונות שיווקיים מותאמים למותג שלך (לחצו לבחירה):</span>
+                      {loadingIdeas && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {ideas.slice(0, 4).map((idea) => {
+                      const isSelected = selectedIdeaId === idea.id;
+                      return (
+                        <div
+                          key={idea.id}
+                          onClick={() => handleSelectIdea(idea)}
+                          className={clsx(
+                            'flex flex-col gap-2 p-4 rounded-2xl border text-right transition-all cursor-pointer relative',
+                            isSelected
+                              ? 'bg-indigo-950/40 border-indigo-500 shadow-lg shadow-indigo-500/10'
+                              : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
+                          )}
+                        >
+                          {isSelected && (
+                            <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between w-full">
+                            <span className="font-bold text-white text-sm">{idea.title}</span>
+                            <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center text-indigo-400">
+                              {getIcon(idea.icon)}
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
+                            {idea.description}
+                          </p>
+                          <span className="text-[10px] text-indigo-400 font-bold self-start mt-1">
+                            {idea.badge || idea.targetObjective}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Custom Goal Input */}
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-bold text-white">
+                    או הגדירו במילים שלכם את מטרת העמוד:
+                  </label>
+                  <textarea
+                    value={promptText}
+                    onChange={(e) => {
+                      setPromptText(e.target.value);
+                      setSelectedIdeaId(null);
+                    }}
+                    placeholder="למשל: דף מכירה ממוקד לחבילות ליווי, או דף שירות מקומי מהיר עם ווטסאפ, או דף הורדת מדריך ידע..."
+                    className="w-full h-24 px-5 py-3.5 rounded-2xl bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white placeholder-slate-500 text-sm resize-none transition-all"
+                  />
                 </div>
               </div>
+            ) : (
+              // STEP 2: Architectural Template & Style
+              <div className="flex flex-col gap-6 max-w-2xl mx-auto">
+                <div className="flex flex-col gap-2">
+                  <h3 className="text-base font-bold text-white flex items-center gap-2">
+                    <LayoutTemplate className="w-5 h-5 text-purple-400" />
+                    <span>בחרו שלד ארכיטקטוני מנחה עבור ה-AI:</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 leading-relaxed">
+                    ה-AI ייקח את התבנית שנבחרה כבסיס ארכיטקטוני, ויעצב עמוד שלם ומותאם אישית למיתוג שלכם עם מגוון אזורים.
+                  </p>
+                </div>
 
-              {/* Input Area */}
-              <div className="flex flex-col gap-3">
-                <label className="text-sm font-bold text-white">
-                  תארו את מטרת העמוד (או הקלידו מילות מפתח):
-                </label>
-                <textarea
-                  value={promptText}
-                  onChange={(e) => setPromptText(e.target.value)}
-                  placeholder="למשל: דף מכירה עם מחירון חבילות וביקורות לקוחות, או דף שירות מקומי ממוקד GEO עם מפה ו-WhatsApp, או דף הורדת מדריך ידע..."
-                  className="w-full h-28 px-5 py-4 rounded-2xl bg-slate-900 border border-slate-700 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 text-white placeholder-slate-500 text-base resize-none transition-all"
-                />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                  {PAGE_BLUEPRINTS.map((bp) => {
+                    const isSelected = selectedTemplateId === bp.id;
+                    return (
+                      <div
+                        key={bp.id}
+                        onClick={() => setSelectedTemplateId(bp.id)}
+                        className={clsx(
+                          'flex flex-col gap-2.5 p-4 rounded-2xl border text-right transition-all cursor-pointer relative',
+                          isSelected
+                            ? 'bg-purple-950/40 border-purple-500 shadow-lg shadow-purple-500/10'
+                            : 'bg-slate-900 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40'
+                        )}
+                      >
+                        {isSelected && (
+                          <div className="absolute top-3 left-3 w-5 h-5 rounded-full bg-purple-500 text-white flex items-center justify-center">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-white text-sm">{bp.title}</span>
+                          <div className="w-7 h-7 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center">
+                            {getIcon(bp.icon)}
+                          </div>
+                        </div>
+                        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
+                          {bp.description}
+                        </p>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 font-bold border border-purple-500/20">
+                            {bp.badge}
+                          </span>
+                          <span className="text-[10px] text-slate-500">
+                            {bp.sectionTypes.length} אזורים
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
 
-                <label className="flex items-center gap-3 mt-1 cursor-pointer group">
+                {/* Image Generation Toggle */}
+                <label className="flex items-center gap-3 p-3.5 rounded-2xl bg-slate-900 border border-slate-800 cursor-pointer group">
                   <div
                     className={clsx(
                       'w-5 h-5 rounded flex items-center justify-center border transition-all',
@@ -232,92 +367,13 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
                   >
                     {generateImages && <CheckCircle2 className="w-3.5 h-3.5 text-white" />}
                   </div>
-                  <span className="text-sm text-slate-300 flex items-center gap-2">
+                  <span className="text-xs text-slate-300 flex items-center gap-2">
                     <ImageIcon className="w-4 h-4 text-slate-400" />
                     סנכרן תמונות איכותיות והתאם תיאורי ALT ל-SEO
                   </span>
                 </label>
               </div>
-
-              {/* Choice: AI Prompt OR Premium Template (Question to User) */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between text-sm font-bold text-white">
-                  <span className="flex items-center gap-2">
-                    <LayoutTemplate className="w-4 h-4 text-purple-400" />
-                    <span>רוצים להתחיל מתבנית מוכנה? (5 תבניות פרימיום מובנות)</span>
-                  </span>
-                  <span className="text-xs text-purple-400 font-normal">מוכנה מיידית</span>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                  {PAGE_BLUEPRINTS.map((bp) => (
-                    <button
-                      key={bp.id}
-                      type="button"
-                      onClick={() => {
-                        const hydrated = hydrateBlueprintWithBrandDna(bp.config, brandDna);
-                        const freshConfig: PageBuilderConfig = {
-                          ...hydrated,
-                          pageId: `page_bp_${Date.now()}`,
-                          createdAt: new Date().toISOString(),
-                          updatedAt: new Date().toISOString(),
-                        };
-                        onComplete(freshConfig);
-                        onClose();
-                      }}
-                      className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500 hover:bg-purple-950/20 text-center transition-all group cursor-pointer"
-                    >
-                      <div className="w-8 h-8 rounded-xl bg-slate-800 group-hover:bg-purple-500/20 flex items-center justify-center text-slate-300 group-hover:text-purple-300 mb-2 transition-colors">
-                        {getIcon(bp.icon)}
-                      </div>
-                      <span className="font-bold text-white text-xs line-clamp-1">{bp.title.split(' ')[0]} {bp.title.split(' ')[1]}</span>
-                      <span className="text-[10px] text-slate-400 mt-1 line-clamp-1">{bp.badge}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Dynamic Presets (Ideas from Brand DNA & Existing Pages Brainstorming) */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between text-sm font-bold text-slate-400">
-                  <div className="flex items-center gap-2">
-                    <span>סיעור מוחות שיווקי מתוך ה-Brand DNA והעמודים הקיימים:</span>
-                    {loadingIdeas && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
-                  </div>
-                  {onOpenMarketingDrawer && (
-                    <button
-                      type="button"
-                      onClick={onOpenMarketingDrawer}
-                      className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1 font-normal"
-                    >
-                      <Lightbulb className="w-3.5 h-3.5" />
-                      <span>פתח מרכז רעיונות מלא</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {ideas.slice(0, 4).map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => handleStartGeneration(preset.prompt)}
-                      className="flex flex-col gap-2 p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/50 hover:bg-slate-800/50 text-right transition-all group cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between w-full">
-                        <span className="font-bold text-white text-sm">{preset.title}</span>
-                        <div className="w-7 h-7 rounded-full bg-slate-800 group-hover:bg-indigo-500/20 flex items-center justify-center text-slate-400 group-hover:text-indigo-400 transition-colors">
-                          {getIcon(preset.icon)}
-                        </div>
-                      </div>
-                      <p className="text-xs text-slate-400 leading-relaxed line-clamp-2">
-                        {preset.description}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            )
           ) : (
             // Stream Progress View
             <div className="flex flex-col items-center justify-center py-12 gap-8">
@@ -361,24 +417,46 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
         {/* Footer Actions */}
         {!isGenerating && (
           <div className="p-6 border-t border-slate-800/80 bg-slate-900/60 flex justify-between items-center">
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-sm font-bold text-slate-400 hover:text-white transition-colors"
-            >
-              ביטול
-            </button>
+            {wizardStep === 1 ? (
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-sm font-bold text-slate-400 hover:text-white transition-colors"
+              >
+                ביטול
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setWizardStep(1)}
+                className="text-sm font-bold text-slate-400 hover:text-white transition-colors flex items-center gap-1"
+              >
+                <ArrowLeft className="w-4 h-4 rotate-180" />
+                <span>חזרה לסיעור מוחות</span>
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => handleStartGeneration()}
-              disabled={!promptText.trim()}
-              className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 disabled:cursor-not-allowed cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>צור עמוד מלא עכשיו ב-AI</span>
-              <ArrowLeft className="w-4 h-4" />
-            </button>
+            {wizardStep === 1 ? (
+              <button
+                type="button"
+                onClick={() => setWizardStep(2)}
+                disabled={!promptText.trim()}
+                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-xl shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+              >
+                <span>המשך לבחירת שלד וסגנון</span>
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleStartGeneration}
+                className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>צור עמוד מלא ב-AI (הזרמה חיה)</span>
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+            )}
           </div>
         )}
       </div>

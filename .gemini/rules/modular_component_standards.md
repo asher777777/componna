@@ -58,6 +58,21 @@ Every module MUST contain:
 - In `WorkbenchApp.tsx`, every module view is wrapped inside `<ModuleErrorBoundary>` and `<Suspense>`.
 - A module's internal crash or missing API key must gracefully degrade and never break sibling modules or the shell workbench layout.
 
-## 7. Verification
+## 7. Multi-Tenant Scoped Subcollections & Storage (Zero Cross-Tenant Leakage)
+- **MANDATORY**: Modules are strictly forbidden from writing to or querying flat global collections (`collection(db, 'contacts')` is BANNED).
+- All Firestore queries must use the system collections registry from `src/core/contracts/collections.ts` and the tenant subcollection scope:
+  ```typescript
+  import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+  import { useTenantScope } from '../../../core/tenant';
+
+  const { getScopedCollectionRef } = useTenantScope();
+  const contactsRef = getScopedCollectionRef(db, SYSTEM_COLLECTIONS.CONTACTS);
+  // Yields: collection(db, 'tenants', tenantId, 'contacts')
+  ```
+- **Apex / Root Domain Handling**: When running on the apex domain without a subdomain, `tenantId` is automatically `_master`.
+- **Cloud Storage**: File uploads must be isolated to `tenants/${tenantId}/${folder}/${fileName}`.
+
+## 8. Verification
 - Always verify clean compilation with `npm run build` after changes.
+
 

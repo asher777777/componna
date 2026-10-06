@@ -4,28 +4,39 @@ import { Phone, Mail, MapPin, MessageCircle, Send, CheckCircle2 } from 'lucide-r
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../../core/contracts';
+import { resolveLiveBrandDna } from '../../services/aiPageGenerator';
 
 export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ config }) => {
   const { getCapability } = useHostCapabilities();
-  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const brandDna = resolveLiveBrandDna(rawBrandDna);
+
+  const fallbackPhone = brandDna?.trust?.contactPhone || '052-6968008';
+  const fallbackEmail = brandDna?.trust?.contactEmail || 'ovt5771@gmail.com';
+  const fallbackAddress = brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
+  const fallbackWhatsapp = brandDna?.trust?.whatsappSupportNumber || '0526968008';
 
   const {
     anchorId,
     title = 'צרו איתנו קשר',
     subtitle = 'נשמח לעמוד לשירותכם לכל שאלה, פנייה או התייעצות',
-    phone = brandDna?.trust?.contactPhone || '03-1234567',
-    email = brandDna?.trust?.contactEmail || 'info@example.com',
-    address = brandDna?.trust?.officeAddress || 'רחוב הרצל 1, תל אביב',
-    whatsapp = brandDna?.trust?.whatsappSupportNumber || '972545947701',
+    phone = fallbackPhone,
+    email = fallbackEmail,
+    address = fallbackAddress,
+    whatsapp = fallbackWhatsapp,
     showForm = true,
     backgroundColor = 'transparent',
   } = config;
 
-  // Resolved dynamic values prioritize config if custom, else brandDna
-  const resolvedPhone = config.phone || brandDna?.trust?.contactPhone || phone;
-  const resolvedEmail = config.email || brandDna?.trust?.contactEmail || email;
-  const resolvedAddress = config.address || brandDna?.trust?.officeAddress || address;
-  const resolvedWhatsapp = config.whatsapp || brandDna?.trust?.whatsappSupportNumber || whatsapp;
+  // Filter out any stale dummy placeholders that might have been saved in earlier configs
+  const isDummyPhone = (p?: string) => !p || p === '03-1234567' || p === '050-0000000';
+  const isDummyEmail = (e?: string) => !e || e === 'contact@example.com' || e === 'info@example.com';
+  const isDummyAddress = (a?: string) => !a || a === 'רחוב הרצל 1, תל אביב' || a === 'תל אביב, ישראל';
+
+  const resolvedPhone = (!isDummyPhone(config.phone) ? config.phone : null) || fallbackPhone;
+  const resolvedEmail = (!isDummyEmail(config.email) ? config.email : null) || fallbackEmail;
+  const resolvedAddress = (!isDummyAddress(config.address) ? config.address : null) || fallbackAddress;
+  const resolvedWhatsapp = config.whatsapp && config.whatsapp !== '0501234567' && config.whatsapp !== '972545947701' ? config.whatsapp : fallbackWhatsapp;
 
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });

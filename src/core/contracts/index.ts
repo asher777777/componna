@@ -206,4 +206,7 @@ export interface BrandDnaContract {
   getDesignTokens: () => BrandDesignTokens;
 }
 
+export * from './collections';
+
+
 

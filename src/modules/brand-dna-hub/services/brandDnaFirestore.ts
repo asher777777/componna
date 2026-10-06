@@ -1,16 +1,21 @@
 import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
 import { BrandDna, DEFAULT_BRAND_DNA } from '../types/brandDna';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { getTenantStorageKey } from '../../../core/tenant';
 
-const LOCAL_STORAGE_KEY = 'comona_brand_dna_settings';
+const BASE_LOCAL_STORAGE_KEY = 'brand_dna_settings';
 
 /**
- * Load Brand DNA from Firestore or LocalStorage
+ * Load Brand DNA from Firestore (scoped to tenant) or LocalStorage
+ * Path in Firestore: `tenants/{tenantId}/settings/brand_dna`
  */
-export async function loadBrandDna(db?: Firestore): Promise<BrandDna> {
-  // 1. Try Firestore if connected
+export async function loadBrandDna(db?: Firestore, tenantId: string = '_master'): Promise<BrandDna> {
+  const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
+
+  // 1. Try Firestore if connected (tenants/{tenantId}/settings/brand_dna)
   if (db) {
     try {
-      const docRef = doc(db, 'settings', 'brand_dna');
+      const docRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data() as BrandDna;
@@ -26,18 +31,18 @@ export async function loadBrandDna(db?: Firestore): Promise<BrandDna> {
         };
         // Also update local storage cache
         try {
-          localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(merged));
+          localStorage.setItem(localStorageKey, JSON.stringify(merged));
         } catch {}
         return merged;
       }
     } catch (err) {
-      console.warn('Could not fetch brand_dna from Firestore, falling back to local storage:', err);
+      console.warn(`[BrandDNA] Could not fetch brand_dna for tenant "${tenantId}" from Firestore, falling back to local storage:`, err);
     }
   }
 
-  // 2. Fallback to LocalStorage
+  // 2. Fallback to LocalStorage scoped to this tenant
   try {
-    const local = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const local = localStorage.getItem(localStorageKey);
     if (local) {
       const data = JSON.parse(local) as BrandDna;
       return {
@@ -51,39 +56,42 @@ export async function loadBrandDna(db?: Firestore): Promise<BrandDna> {
       };
     }
   } catch (e) {
-    console.warn('Error reading from local storage:', e);
+    console.warn('[BrandDNA] Error reading from local storage:', e);
   }
 
   return DEFAULT_BRAND_DNA;
 }
 
 /**
- * Save Brand DNA to Firestore and LocalStorage
+ * Save Brand DNA to Firestore (scoped to tenant) and LocalStorage
+ * Path in Firestore: `tenants/{tenantId}/settings/brand_dna`
  */
 export async function saveBrandDna(
   brandDna: BrandDna,
-  db?: Firestore
+  db?: Firestore,
+  tenantId: string = '_master'
 ): Promise<{ success: boolean; error?: string }> {
+  const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
   const payload: BrandDna = {
     ...brandDna,
     updatedAt: new Date().toISOString(),
   };
 
-  // 1. Save to LocalStorage immediately
+  // 1. Save to LocalStorage immediately (tenant scoped)
   try {
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+    localStorage.setItem(localStorageKey, JSON.stringify(payload));
   } catch (err: any) {
-    console.warn('Failed saving brand_dna to local storage:', err);
+    console.warn(`[BrandDNA] Failed saving brand_dna for tenant "${tenantId}" to local storage:`, err);
   }
 
-  // 2. Save to Firestore if available
+  // 2. Save to Firestore if available: tenants/{tenantId}/settings/brand_dna
   if (db) {
     try {
-      const docRef = doc(db, 'settings', 'brand_dna');
+      const docRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
       await setDoc(docRef, payload, { merge: true });
       return { success: true };
     } catch (err: any) {
-      console.error('Error saving brand_dna to Firestore:', err);
+      console.error(`[BrandDNA] Error saving brand_dna for tenant "${tenantId}" to Firestore:`, err);
       return { success: false, error: err.message || 'שגיאה בשמירה בענן' };
     }
   }

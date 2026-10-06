@@ -6,6 +6,7 @@ import { buildBrandSystemContext } from '../services/geminiBrandPrompt';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { BrandDnaContract } from '../../../core/contracts';
+import { useTenantScope } from '../../../core/tenant';
 
 export interface BrandDnaContextValue {
   brandDna: BrandDna;
@@ -28,6 +29,7 @@ const BrandDnaContext = createContext<BrandDnaContextValue | undefined>(undefine
 
 export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const { registerCapability, unregisterCapability } = useHostCapabilities();
   const [brandDna, setBrandDna] = useState<BrandDna>(DEFAULT_BRAND_DNA);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,12 +49,12 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [brandDna, registerCapability, unregisterCapability]);
 
 
-  // Load initially
+  // Load initially or when tenant changes
   useEffect(() => {
     let mounted = true;
     async function init() {
       setIsLoading(true);
-      const data = await loadBrandDna(db);
+      const data = await loadBrandDna(db, tenantId);
       if (mounted) {
         setBrandDna(data);
         setIsLoading(false);
@@ -62,7 +64,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return () => {
       mounted = false;
     };
-  }, [db]);
+  }, [db, tenantId]);
 
   const updateIdentity = useCallback((partial: Partial<BrandIdentity>) => {
     setBrandDna((prev) => ({
@@ -105,7 +107,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const saveNow = useCallback(async (): Promise<boolean> => {
     setIsSaving(true);
-    const res = await saveBrandDna(brandDna, db);
+    const res = await saveBrandDna(brandDna, db, tenantId);
     setIsSaving(false);
     if (res.success) {
       eventBus.publish('brand:updated', {

@@ -140,7 +140,7 @@ export const MediaDriveSidebar: React.FC<{
     isHighlight?: boolean;
   }[] = [
     { id: 'image', label: 'תמונות', icon: ImageIcon, count: imagesCount },
-    { id: 'video', label: 'סרטוני מערכת', icon: FileVideo, count: systemVideosCount },
+    { id: 'video', label: 'סרטוני וידאו', icon: FileVideo, count: mediaItems.filter((i) => i.type === 'video' || i.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)).length },
     { id: 'heygen', label: 'סרטוני HEYGEN AI', icon: Sparkles, count: heygenVideosCount, badge: 'AI', isHighlight: true },
     { id: 'pdf', label: 'מסמכי PDF וחוזים', icon: FileText, count: pdfCount },
     { id: 'spreadsheet', label: 'טבלאות וחשבוניות', icon: FileText, count: spreadsheetCount },

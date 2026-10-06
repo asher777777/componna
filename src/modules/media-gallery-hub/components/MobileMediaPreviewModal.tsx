@@ -99,7 +99,15 @@ export const MobileMediaPreviewModal: React.FC<MobileMediaPreviewModalProps> = (
     FileCompressionService.downloadMedia(currentItem.url, currentItem.name);
   };
 
-  const isImage = currentItem.type === 'image';
+  const isImage =
+    currentItem.type === 'image' ||
+    currentItem.mimeType?.startsWith('image/') ||
+    Boolean(currentItem.name.match(/\.(png|jpe?g|webp|gif|svg|avif|bmp)$/i));
+
+  const isVideo =
+    currentItem.type === 'video' ||
+    currentItem.mimeType?.startsWith('video/') ||
+    Boolean(currentItem.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i));
 
   return (
     <div
@@ -199,7 +207,7 @@ export const MobileMediaPreviewModal: React.FC<MobileMediaPreviewModalProps> = (
               alt={currentItem.name}
               className="max-h-[75vh] max-w-full object-contain rounded-lg shadow-2xl"
             />
-          ) : currentItem.type === 'video' ? (
+          ) : isVideo ? (
             <video
               src={currentItem.url}
               controls
