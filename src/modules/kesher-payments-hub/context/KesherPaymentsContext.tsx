@@ -51,6 +51,12 @@ export interface KesherPaymentsContextType {
     checkNumber?: string;
   }) => Promise<{ contact: CrmContactSummary; isNew: boolean }>;
 
+  // Theme support
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  toggleTheme: () => void;
+  isDark: boolean;
+
   // Quick Metrics
   metrics: {
     totalRevenueToday: number;
@@ -70,6 +76,25 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
   const [isEasyCountConnected, setIsEasyCountConnected] = useState<boolean>(() => kesherService.isEasyCountConnected());
   const [transactions, setTransactions] = useState<KesherTransactionItem[]>(() => kesherService.getLocalTransactions());
   const [glossaryItems, setGlossaryItems] = useState<GlossaryItem[]>(() => receiptGlossaryService.getItems());
+
+  // Day / Night Theme State
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    try {
+      return (localStorage.getItem('comona_kesher_theme') as 'dark' | 'light') || 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    try {
+      localStorage.setItem('comona_kesher_theme', nextTheme);
+    } catch {}
+  };
+
+  const isDark = theme === 'dark';
 
   // Attach Firestore when connection provides db
   useEffect(() => {
@@ -194,6 +219,10 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
         processBitPayment,
         searchContacts,
         saveContact,
+        theme,
+        setTheme,
+        toggleTheme,
+        isDark,
         metrics,
       }}
     >

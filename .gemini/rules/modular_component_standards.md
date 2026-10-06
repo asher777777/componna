@@ -26,18 +26,20 @@ Whenever creating, refactoring, or extending any module in this workspace, you M
   ```
 - Modules subscribe only if active. Publishers never depend on subscribers existing.
 
-## 4. Strict 10-Layer Self-Contained Anatomy
+## 4. Strict 11-Layer Self-Contained Anatomy
 Every module MUST contain:
 1. `types/index.ts` - Strict TypeScript definitions.
 2. `config/index.ts` - Scoped collection prefixes (`mod_[name]_[coll]`) and constants.
 3. `context/ModuleContext.tsx` - React Context Provider for DI.
-4. `services/` - Scoped Firestore/backend CRUD services with mock data fallback.
-5. `api/` - Cloud Function callers / proxy.
-6. `prompts/` - AI system prompts & schemas (if AI-enabled).
-7. `routes/` - Internal relative sub-routing.
-8. `components/` - Tailwind UI components with strict RTL support (`dir="rtl"`).
-9. `StandaloneView.tsx` - Standalone test runner for Workbench.
-10. `index.ts` & `README.md` - Clean public export and Firestore security rules.
+4. `hooks/` - Internal scoped React hooks.
+5. `services/` - Scoped Firestore/backend CRUD services with mock data fallback.
+6. `api/functionsApi.ts` - Cloud Function callers / proxy.
+7. `prompts/index.ts` - AI system prompts & schemas (if AI-enabled).
+8. `routes/` - Internal relative sub-routing.
+9. `components/` - Tailwind UI components with strict RTL support (`dir="rtl"`).
+10. `StandaloneView.tsx`, `index.ts` & `README.md` - Clean public export and test runner.
+11. `.gemini/` (`rules.md` & `skills.md`) - **MANDATORY**: Module-specific rules, isolation boundaries, EventBus contracts, and agent skills definition.
+
 
 ## 5. Master Registration & Dynamic Lazy Loading
 - Always register the new module in:
