@@ -566,6 +566,8 @@ export class KesherService {
       return [];
     };
 
+    let authErrorMessage = '';
+
     const fetchEndpoint = async (funcName: string, extraParams: Record<string, any> = {}): Promise<any[]> => {
       const payloadDirect = {
         func: funcName,
@@ -583,15 +585,20 @@ export class KesherService {
         const res = await this.postToConnect(payloadDirect, 15000);
         const list = extractTxArray(res);
         if (list.length > 0) return list;
-      } catch (e) {
-        // try wrapped
+      } catch (e: any) {
+        if (e?.message?.includes('אימות')) {
+          authErrorMessage = e.message;
+        }
       }
 
       try {
         const payloadWrapped = { Json: payloadDirect, format: 'json' };
         const res = await this.postToConnect(payloadWrapped, 15000);
         return extractTxArray(res);
-      } catch (e) {
+      } catch (e: any) {
+        if (e?.message?.includes('אימות')) {
+          authErrorMessage = e.message;
+        }
         return [];
       }
     };
@@ -642,12 +649,6 @@ export class KesherService {
     };
 
     // שליפה מהירה במקביל של כל ערוצי המידע בקשר:
-    // 1. GetTrans (כולל מזומן, אשראי והעברות)
-    // 2. GetCompanyTransactions (דוח עסקאות לפי חברה)
-    // 3. GetCashTransactions (דוח עסקאות מזומן וצ'קים)
-    // 4. GetHKTrans (הוראות קבע)
-    // 5. GetDocs (מסמכים וקבלות)
-    // 6. EasyCount Get-Docs
     const results = await Promise.allSettled([
       fetchEndpoint('GetTrans', { TranType: 0, IncludeCash: true, isAll: true }),
       fetchEndpoint('GetCompanyTransactions'),
@@ -657,6 +658,10 @@ export class KesherService {
       fetchEndpoint('GetHKTrans'),
       fetchEasyCountDocs()
     ]);
+
+    if (authErrorMessage && results.every(r => r.status === 'rejected' || (r.status === 'fulfilled' && (!r.value || r.value.length === 0)))) {
+      throw new Error(authErrorMessage);
+    }
 
     const allTransactionsMap = new Map<string, any>();
 

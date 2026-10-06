@@ -290,7 +290,7 @@ export const MediaGalleryProvider: React.FC<{
       if (allowedTypes.includes('image')) return 'image';
       return allowedTypes[0];
     }
-    return 'image';
+    return 'all';
   }, [allowedTypes]);
 
   const [filters, setFilters] = useState<MediaFilterOptions>({
@@ -1107,8 +1107,9 @@ export const MediaGalleryProvider: React.FC<{
           if (filters.typeFilter === 'heygen') {
             if (!isHeyGenItem(item)) return false;
           } else if (filters.typeFilter === 'video') {
-            // System videos only: exclude HeyGen videos
-            if (item.type !== 'video' || isHeyGenItem(item)) return false;
+            if (item.type !== 'video' && !item.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)) return false;
+          } else if (filters.typeFilter === 'image') {
+            if (item.type !== 'image' && !item.name.match(/\.(png|jpe?g|webp|gif|svg|avif|bmp)$/i)) return false;
           } else if (filters.typeFilter === 'pdf') {
             if (item.type !== 'pdf' && !item.name.toLowerCase().endsWith('.pdf')) return false;
           } else if (filters.typeFilter === 'spreadsheet') {
@@ -1124,6 +1125,8 @@ export const MediaGalleryProvider: React.FC<{
               !item.name.match(/\.(docx?|pdf|pptx?|odt|txt)$/i)
             )
               return false;
+          } else if (filters.typeFilter === 'audio') {
+            if (item.type !== 'audio' && !item.name.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/i)) return false;
           } else {
             if (item.type !== filters.typeFilter) return false;
           }

@@ -107,7 +107,7 @@ const isHeyGenItem = (item: MediaItem) => {
   );
 };
 
-// Optimized thumbnail component with skeleton shimmer and smooth lazy loading
+// Optimized thumbnail component with skeleton shimmer, smooth lazy loading, and direct video hover preview
 const OptimizedMediaThumbnail: React.FC<{
   item: MediaItem;
   viewMode: 'grid' | 'dense' | 'list';
@@ -116,6 +116,8 @@ const OptimizedMediaThumbnail: React.FC<{
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [currentSrc, setCurrentSrc] = useState<string>(item.thumbnailUrl || item.url);
+  const [isVideoHovered, setIsVideoHovered] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
     setCurrentSrc(item.thumbnailUrl || item.url);
@@ -123,7 +125,7 @@ const OptimizedMediaThumbnail: React.FC<{
     setIsLoaded(false);
   }, [item.url, item.thumbnailUrl]);
 
-  const handleImageError = async () => {
+  const handleMediaError = async () => {
     // 1. Try to recover from local IndexedDB binary blob
     try {
       const blob = (await MediaIndexedDbService.getBlob(item.id)) || (await MediaIndexedDbService.getBlob(item.name));
@@ -145,9 +147,24 @@ const OptimizedMediaThumbnail: React.FC<{
     setHasError(true);
   };
 
+  const handleVideoMouseEnter = () => {
+    setIsVideoHovered(true);
+    if (videoRef.current) {
+      videoRef.current.play().catch(() => {});
+    }
+  };
+
+  const handleVideoMouseLeave = () => {
+    setIsVideoHovered(false);
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+  };
+
   if (item.type === 'image') {
     return (
-      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
+      <div className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950/40">
         {!isLoaded && !hasError && (
           <div
             className={`absolute inset-0 animate-pulse ${
@@ -156,9 +173,9 @@ const OptimizedMediaThumbnail: React.FC<{
           />
         )}
         {hasError ? (
-          <div className="flex flex-col items-center justify-center text-slate-400 space-y-1">
-            <ImageIcon className="w-8 h-8 opacity-40" />
-            <span className="text-[9px] font-mono">תמונה</span>
+          <div className="flex flex-col items-center justify-center text-slate-400 p-2 text-center">
+            <ImageIcon className="w-8 h-8 opacity-40 text-amber-500 mb-1" />
+            <span className="text-[10px] font-mono truncate max-w-[120px]">{item.name}</span>
           </div>
         ) : (
           <img
@@ -167,8 +184,8 @@ const OptimizedMediaThumbnail: React.FC<{
             loading="lazy"
             decoding="async"
             onLoad={() => setIsLoaded(true)}
-            onError={handleImageError}
-            className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
+            onError={handleMediaError}
+            className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-108 ${
               isLoaded ? 'opacity-100' : 'opacity-0'
             }`}
           />
@@ -179,43 +196,42 @@ const OptimizedMediaThumbnail: React.FC<{
 
   if (item.type === 'video') {
     return (
-      <div className="relative w-full h-full flex items-center justify-center overflow-hidden">
-        {item.thumbnailUrl && !hasError ? (
-          <>
-            {!isLoaded && (
-              <div
-                className={`absolute inset-0 animate-pulse ${
-                  isLight ? 'bg-slate-200' : 'bg-slate-800'
-                }`}
-              />
-            )}
-            <img
-              src={item.thumbnailUrl}
-              alt={item.name}
-              loading="lazy"
-              decoding="async"
-              onLoad={() => setIsLoaded(true)}
-              onError={() => setHasError(true)}
-              className={`w-full h-full object-cover transition-all duration-300 group-hover:scale-105 ${
-                isLoaded ? 'opacity-100' : 'opacity-0'
-              }`}
-            />
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center group-hover:bg-black/45 transition-colors">
-              <div className="w-8 h-8 rounded-full bg-amber-500 text-black flex items-center justify-center shadow-lg transform group-hover:scale-110 transition-transform">
-                <Play className="w-3.5 h-3.5 mr-0.5 fill-black" />
-              </div>
+      <div
+        className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950"
+        onMouseEnter={handleVideoMouseEnter}
+        onMouseLeave={handleVideoMouseLeave}
+      >
+        <video
+          ref={videoRef}
+          src={item.url}
+          poster={item.thumbnailUrl}
+          muted
+          playsInline
+          loop
+          preload="metadata"
+          onError={handleMediaError}
+          onLoadedData={() => setIsLoaded(true)}
+          className={`w-full h-full object-cover transition-transform duration-500 group-hover:scale-105 ${
+            isLoaded ? 'opacity-100' : 'opacity-90'
+          }`}
+        />
+
+        {/* Video duration & badge */}
+        <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/75 backdrop-blur-md text-[10px] font-mono text-amber-300 font-bold border border-white/10 flex items-center gap-1 z-10 pointer-events-none">
+          <Play className="w-2.5 h-2.5 fill-amber-300" />
+          <span>
+            {item.durationSec
+              ? `${Math.floor(item.durationSec / 60)}:${(item.durationSec % 60).toString().padStart(2, '0')}`
+              : 'וידאו'}
+          </span>
+        </div>
+
+        {/* Play Icon Overlay (hidden when hovered playing) */}
+        {!isVideoHovered && (
+          <div className="absolute inset-0 bg-black/25 flex items-center justify-center transition-opacity pointer-events-none">
+            <div className="w-10 h-10 rounded-full bg-amber-500/90 text-black flex items-center justify-center shadow-xl backdrop-blur-sm transform group-hover:scale-110 transition-transform">
+              <Play className="w-4 h-4 ml-0.5 fill-black" />
             </div>
-          </>
-        ) : (
-          <div className="w-full h-full bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-950 flex flex-col items-center justify-center p-3 text-center relative overflow-hidden group-hover:from-slate-850 group-hover:to-purple-950 transition-colors">
-            <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 flex items-center justify-center mb-1 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-black transition-all shadow-md">
-              <Play className="w-4 h-4 fill-current ml-0.5" />
-            </div>
-            <span className="text-[10px] font-mono text-amber-300/80 font-semibold truncate max-w-[90%]">
-              {item.durationSec
-                ? `${Math.floor(item.durationSec / 60)}:${(item.durationSec % 60).toString().padStart(2, '0')}`
-                : 'סרטון וידאו'}
-            </span>
           </div>
         )}
       </div>

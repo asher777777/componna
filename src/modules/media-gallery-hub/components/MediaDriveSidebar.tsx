@@ -65,7 +65,7 @@ export const MediaDriveSidebar: React.FC<{
     setActiveFolderId(null);
     setFilters((prev) => ({
       ...prev,
-      typeFilter: 'image',
+      typeFilter: 'all',
       sourceModuleFilter: 'all',
       searchQuery: '',
     }));
@@ -153,7 +153,7 @@ export const MediaDriveSidebar: React.FC<{
   const isRootActive =
     activeFolderId === null &&
     (!filters.sourceModuleFilter || filters.sourceModuleFilter === 'all') &&
-    filters.typeFilter === 'image';
+    filters.typeFilter === 'all';
 
   return (
     <aside

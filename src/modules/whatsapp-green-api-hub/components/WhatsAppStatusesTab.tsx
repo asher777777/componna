@@ -160,44 +160,47 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [isEnhancingAi, setIsEnhancingAi] = useState(false);
   const [aiPromptTopic, setAiPromptTopic] = useState('');
-  const [selectedTone, setSelectedTone] = useState<StatusTone>('chasidic');
   const [generatedVariations, setGeneratedVariations] = useState<StatusVariation[]>([]);
   const [aiFeedbackMessage, setAiFeedbackMessage] = useState<string | null>(null);
 
-  const dynamicPresets = useMemo(() => {
-    const base = [...STATUS_PRESETS];
-    if (brandDna) {
-      if (brandDna.audience?.mainUvp) {
-        base.push({
-          id: 'dna_uvp',
-          label: 'מכירות ומסר שיווקי (DNA)',
-          icon: '??',
-          defaultTopic: 'כתוב סטטוס שיווקי המדגיש את הצעת הערך המרכזית שלנו: ' + brandDna.audience.mainUvp,
-          tone: 'marketing' as StatusTone
-        });
-      }
-      if (brandDna.identity?.slogan) {
-        base.push({
-          id: 'dna_slogan',
-          label: 'סלוגן והשראה (DNA)',
-          icon: '??',
-          defaultTopic: 'סטטוס קצר וקולע בהשראת הסלוגן שלנו: ' + brandDna.identity.slogan,
-          tone: 'viral' as StatusTone
-        });
-      }
-      if (brandDna.audience?.targetAudiences?.length) {
-        brandDna.audience.targetAudiences.forEach((aud, i) => {
-          base.push({
-            id: 'dna_aud_' + i,
-            label: 'קהל יעד ספציפי (DNA)',
-            icon: '??',
-            defaultTopic: 'כתוב סטטוס פנייה ישירה וייעודית לקהל היעד: ' + aud,
-            tone: 'warm' as StatusTone
-          });
-        });
-      }
+  const dynamicCategories = useMemo(() => {
+    if (!brandDna) return [];
+    const cats = [];
+    if (brandDna.audience?.mainUvp) {
+      cats.push({
+        id: 'uvp',
+        label: 'הצעת ערך',
+        icon: <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />,
+        preset: { id: 'dna_uvp', label: 'צור סטטוס להצעת הערך', icon: '??', defaultTopic: 'כתוב סטטוס שיווקי המדגיש את הצעת הערך המרכזית שלנו: ' + brandDna.audience.mainUvp }
+      });
     }
-    return base;
+    if (brandDna.identity?.slogan) {
+      cats.push({
+        id: 'slogan',
+        label: 'סלוגן והשראה',
+        icon: <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />,
+        preset: { id: 'dna_slogan', label: 'סטטוס בהשראת הסלוגן', icon: '??', defaultTopic: 'סטטוס קצר וקולע בהשראת הסלוגן שלנו: ' + brandDna.identity.slogan }
+      });
+    }
+    if (brandDna.audience?.targetAudiences?.length) {
+      brandDna.audience.targetAudiences.forEach((aud, i) => {
+        cats.push({
+          id: 'aud_' + i,
+          label: 'קהל: ' + (aud.length > 15 ? aud.substring(0, 15) + '...' : aud),
+          icon: <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />,
+          preset: { id: 'dna_aud_' + i, label: 'סטטוס ייעודי ל' + aud, icon: '??', defaultTopic: 'כתוב סטטוס פנייה ישירה וייעודית לקהל היעד: ' + aud }
+        });
+      });
+    }
+    if (brandDna.identity?.organizationPurpose) {
+      cats.push({
+        id: 'purpose',
+        label: 'חזון ומטרה',
+        icon: <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />,
+        preset: { id: 'dna_purpose', label: 'סטטוס על חזון העסק', icon: '??', defaultTopic: 'כתוב סטטוס שמספר על מטרת העל והחזון של העסק: ' + brandDna.identity.organizationPurpose }
+      });
+    }
+    return cats;
   }, [brandDna]);
 
   const [isPublishing, setIsPublishing] = useState(false);
@@ -448,7 +451,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
       const result = await WhatsAppAiBotService.enhanceStatusText({
         apiKey: googleAiApiKey || '',
         originalText: currentText,
-        tone: selectedTone,
+        
       });
 
       if (statusType === 'text') {
@@ -485,7 +488,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
       const result = await WhatsAppAiBotService.generateStatusVariations({
         apiKey: googleAiApiKey || '',
         topic: topicToUse,
-        tone: selectedTone,
+        
         brandDna: brandDna,
       });
 
@@ -834,53 +837,31 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                     <span className="text-[9px] sm:text-[10px] text-slate-400 hidden xs:block">׳׳—׳•׳׳ ׳×׳•׳›׳ ׳—׳¡׳™׳“׳™, ׳©׳™׳•׳•׳§׳™ ׳•׳§׳”׳™׳׳×׳™</span>
                   </div>
                 </div>
-
-                {/* Tone Selector with Lucide icons */}
-                <div className="flex items-center gap-1 overflow-x-auto custom-scrollbar py-0.5">
-                  {(Object.keys(STATUS_TONE_LABELS) as StatusTone[]).map((t) => (
-                    <button
-                      key={t}
-                      type="button"
-                      onClick={() => setSelectedTone(t)}
-                      className={`px-2 py-1 rounded-xl text-[11px] font-bold transition flex items-center gap-1 cursor-pointer shrink-0 ${
-                        selectedTone === t
-                          ? 'bg-indigo-600 text-white shadow'
-                          : isDark ? 'bg-slate-900/80 text-slate-400 hover:text-white border border-slate-800' : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-300'
-                      }`}
-                      title={STATUS_TONE_LABELS[t].desc}
-                      aria-label={STATUS_TONE_LABELS[t].label}
-                    >
-                      {getToneIcon(t)}
-                      <span className="hidden md:inline">{STATUS_TONE_LABELS[t].label}</span>
-                    </button>
-                  ))}
-                </div>
               </div>
 
-              {/* AI Quick Preset Topics with Lucide icons */}
-              <div>
-                <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">׳×׳‘׳ ׳™׳•׳× ׳׳”׳™׳¨׳•׳× ׳׳•׳›׳ ׳•׳×:</span>
-                <div className="flex flex-wrap gap-1.5">
-                  {dynamicPresets.filter(p => p.tone === selectedTone).map((preset) => (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => {
-                        setAiPromptTopic(preset.defaultTopic);
-                        setSelectedTone(preset.tone);
-                        handleGenerateAiStatus(preset.defaultTopic);
-                      }}
-                      className={`px-2.5 py-1 rounded-xl text-[11px] font-medium flex items-center gap-1.5 transition cursor-pointer ${
-                        isDark ? 'bg-slate-900 hover:bg-indigo-900/60 border border-slate-800 text-slate-300 hover:text-white' : 'bg-white hover:bg-indigo-50 border border-slate-300 text-slate-700 hover:text-indigo-900 shadow-xs'
-                      }`}
-                      title={preset.defaultTopic}
-                    >
-                      {getPresetIcon(preset.id)}
-                      <span>{preset.label}</span>
-                    </button>
-                  ))}
+              {/* AI Quick Preset Topics */}
+              {dynamicCategories.length > 0 && (
+                <div>
+                  <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">תבניות AI אוטומטיות מה-DNA של העסק:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {dynamicCategories.map((cat) => (
+                      <button
+                        key={cat.preset.id}
+                        type="button"
+                        onClick={() => {
+                          setAiPromptTopic(cat.preset.defaultTopic);
+                          handleGenerateAiStatus(cat.preset.defaultTopic);
+                        }}
+                        className={`px-3 py-2 rounded-xl text-[12px] font-bold flex items-center gap-2 transition cursor-pointer shadow-sm ${isDark ? "bg-indigo-900/40 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-100 hover:text-white" : "bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 text-indigo-900 hover:text-white shadow-xs"}`}
+                        title={cat.preset.defaultTopic}
+                      >
+                        <span className="text-[16px]">{cat.preset.icon}</span>
+                        <span>{cat.preset.label}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* AI Prompt Input Bar */}
               <div className="flex items-center gap-2">
@@ -1882,6 +1863,17 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     </div>
   );
 };
+
+
+
+
+
+
+
+
+
+
+
 
 
 

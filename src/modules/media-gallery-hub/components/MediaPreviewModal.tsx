@@ -162,7 +162,7 @@ export const MediaPreviewModal: React.FC = () => {
       dir="rtl"
     >
       <div
-        className={`w-full max-w-4xl max-h-[92vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scale-up border ${
+        className={`w-full max-w-5xl h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden animate-scale-up border ${
           isLight
             ? 'bg-white border-slate-200 text-slate-800'
             : 'bg-slate-900 border-slate-700 text-slate-100'
@@ -170,7 +170,7 @@ export const MediaPreviewModal: React.FC = () => {
       >
         {/* Header */}
         <div
-          className={`p-4 sm:p-5 border-b flex items-center justify-between ${
+          className={`p-4 sm:p-5 border-b flex items-center justify-between flex-shrink-0 ${
             isLight ? 'bg-slate-50 border-slate-200' : 'bg-slate-800/90 border-slate-700/80'
           }`}
         >
@@ -265,15 +265,17 @@ export const MediaPreviewModal: React.FC = () => {
           </button>
         </div>
 
-        {/* Media Viewer Area */}
-        <div className="flex-1 bg-black/95 flex items-center justify-center p-4 min-h-[300px] sm:min-h-[420px] max-h-[55vh] overflow-auto relative">
+        {/* Media Viewer Area - Full Height & Crisp Aspect Ratio */}
+        <div className="flex-1 min-h-0 bg-black/95 flex items-center justify-center p-2 sm:p-6 overflow-hidden relative">
           {/* VIDEO */}
           {previewItem.type === 'video' && (
             <video
               src={previewItem.url}
               controls
               autoPlay
-              className="max-w-full max-h-[50vh] rounded-xl object-contain shadow-2xl"
+              playsInline
+              preload="auto"
+              className="w-full h-full max-h-full rounded-2xl object-contain shadow-2xl"
             />
           )}
 
@@ -282,7 +284,7 @@ export const MediaPreviewModal: React.FC = () => {
             <img
               src={previewItem.url}
               alt={previewItem.name}
-              className="max-w-full max-h-[50vh] rounded-xl object-contain shadow-2xl"
+              className="w-full h-full max-h-full rounded-2xl object-contain shadow-2xl select-none"
             />
           )}
 
