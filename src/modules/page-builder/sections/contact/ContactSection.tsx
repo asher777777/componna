@@ -2,19 +2,30 @@ import React, { useState } from 'react';
 import { ContactSectionConfig } from '../../types/sectionConfigs';
 import { Phone, Mail, MapPin, MessageCircle, Send, CheckCircle2 } from 'lucide-react';
 import { eventBus } from '../../../../core/bridge/EventBus';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../../core/contracts';
 
 export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ config }) => {
+  const { getCapability } = useHostCapabilities();
+  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+
   const {
     anchorId,
     title = 'צרו איתנו קשר',
     subtitle = 'נשמח לעמוד לשירותכם לכל שאלה, פנייה או התייעצות',
-    phone = '03-1234567',
-    email = 'info@example.com',
-    address = 'רחוב הרצל 1, תל אביב',
-    whatsapp = '972545947701',
+    phone = brandDna?.trust?.contactPhone || '03-1234567',
+    email = brandDna?.trust?.contactEmail || 'info@example.com',
+    address = brandDna?.trust?.officeAddress || 'רחוב הרצל 1, תל אביב',
+    whatsapp = brandDna?.trust?.whatsappSupportNumber || '972545947701',
     showForm = true,
     backgroundColor = 'transparent',
   } = config;
+
+  // Resolved dynamic values prioritize config if custom, else brandDna
+  const resolvedPhone = config.phone || brandDna?.trust?.contactPhone || phone;
+  const resolvedEmail = config.email || brandDna?.trust?.contactEmail || email;
+  const resolvedAddress = config.address || brandDna?.trust?.officeAddress || address;
+  const resolvedWhatsapp = config.whatsapp || brandDna?.trust?.whatsappSupportNumber || whatsapp;
 
   const [submitted, setSubmitted] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', message: '' });
@@ -58,21 +69,21 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Contact Details Cards */}
           <div className="lg:col-span-5 flex flex-col gap-4">
-            {phone && (
+            {resolvedPhone && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex items-center gap-4 text-right">
                 <div className="w-12 h-12 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
                   <Phone className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 block font-medium">טלפון ישיר</span>
-                  <a href={`tel:${phone}`} className="text-base font-bold text-white hover:text-indigo-400 transition-colors" dir="ltr">
-                    {phone}
+                  <a href={`tel:${resolvedPhone}`} className="text-base font-bold text-white hover:text-indigo-400 transition-colors" dir="ltr">
+                    {resolvedPhone}
                   </a>
                 </div>
               </div>
             )}
 
-            {whatsapp && (
+            {resolvedWhatsapp && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex items-center gap-4 text-right">
                 <div className="w-12 h-12 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
                   <MessageCircle className="w-5 h-5" />
@@ -80,7 +91,7 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                 <div>
                   <span className="text-xs text-slate-400 block font-medium">וואטסאפ לבירורים מהירים</span>
                   <a
-                    href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`}
+                    href={`https://wa.me/${resolvedWhatsapp.replace(/[^0-9]/g, '')}`}
                     target="_blank"
                     rel="noreferrer"
                     className="text-base font-bold text-emerald-400 hover:text-emerald-300 transition-colors"
@@ -91,28 +102,28 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
               </div>
             )}
 
-            {email && (
+            {resolvedEmail && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex items-center gap-4 text-right">
                 <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 text-purple-400 flex items-center justify-center shrink-0">
                   <Mail className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 block font-medium">דואר אלקטרוני</span>
-                  <a href={`mailto:${email}`} className="text-base font-bold text-white hover:text-purple-400 transition-colors" dir="ltr">
-                    {email}
+                  <a href={`mailto:${resolvedEmail}`} className="text-base font-bold text-white hover:text-purple-400 transition-colors" dir="ltr">
+                    {resolvedEmail}
                   </a>
                 </div>
               </div>
             )}
 
-            {address && (
+            {resolvedAddress && (
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 flex items-center gap-4 text-right">
                 <div className="w-12 h-12 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center shrink-0">
                   <MapPin className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="text-xs text-slate-400 block font-medium">כתובת ומיקום</span>
-                  <span className="text-base font-bold text-white">{address}</span>
+                  <span className="text-base font-bold text-white">{resolvedAddress}</span>
                 </div>
               </div>
             )}

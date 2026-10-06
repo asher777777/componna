@@ -3,6 +3,9 @@ import { MarketingIdea } from '../types';
 import { aiPageGenerator } from '../services/aiPageGenerator';
 import { usePageBuilderContext } from '../context/PageBuilderContext';
 
+import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+
 export interface UseMarketingIdeasResult {
   ideas: MarketingIdea[];
   loading: boolean;
@@ -11,6 +14,7 @@ export interface UseMarketingIdeasResult {
 
 export const useMarketingIdeas = (): UseMarketingIdeasResult => {
   const { brandDna } = usePageBuilderContext();
+  const { db } = useSystemConnection();
   const [ideas, setIdeas] = useState<MarketingIdea[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -18,7 +22,8 @@ export const useMarketingIdeas = (): UseMarketingIdeasResult => {
     async (apiKey?: string) => {
       setLoading(true);
       try {
-        const result = await aiPageGenerator.generatePageIdeas(brandDna, apiKey);
+        const pages = await pageBuilderFirestore.getAllPages(db);
+        const result = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, pages);
         setIdeas(result);
       } catch (err) {
         console.warn('[useMarketingIdeas] Failed to fetch marketing ideas:', err);
@@ -26,7 +31,7 @@ export const useMarketingIdeas = (): UseMarketingIdeasResult => {
         setLoading(false);
       }
     },
-    [brandDna]
+    [brandDna, db]
   );
 
   useEffect(() => {

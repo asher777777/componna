@@ -20,9 +20,12 @@ import {
   Settings,
   AlertCircle,
   Lightbulb,
+  LayoutTemplate,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { PAGE_BLUEPRINTS, hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
+import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 
 interface AiLivePageBuilderModalProps {
   isOpen: boolean;
@@ -64,7 +67,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const loadIdeas = async () => {
     setLoadingIdeas(true);
     try {
-      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna);
+      const existingPages = await pageBuilderFirestore.getAllPages();
+      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, undefined, existingPages);
       setIdeas(generatedIdeas);
     } catch {
       // fallback handled in generator
@@ -235,11 +239,49 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
                 </label>
               </div>
 
-              {/* Dynamic Presets (Ideas from Brand DNA) */}
+              {/* Choice: AI Prompt OR Premium Template (Question to User) */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between text-sm font-bold text-white">
+                  <span className="flex items-center gap-2">
+                    <LayoutTemplate className="w-4 h-4 text-purple-400" />
+                    <span>רוצים להתחיל מתבנית מוכנה? (5 תבניות פרימיום מובנות)</span>
+                  </span>
+                  <span className="text-xs text-purple-400 font-normal">מוכנה מיידית</span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+                  {PAGE_BLUEPRINTS.map((bp) => (
+                    <button
+                      key={bp.id}
+                      type="button"
+                      onClick={() => {
+                        const hydrated = hydrateBlueprintWithBrandDna(bp.config, brandDna);
+                        const freshConfig: PageBuilderConfig = {
+                          ...hydrated,
+                          pageId: `page_bp_${Date.now()}`,
+                          createdAt: new Date().toISOString(),
+                          updatedAt: new Date().toISOString(),
+                        };
+                        onComplete(freshConfig);
+                        onClose();
+                      }}
+                      className="flex flex-col items-center justify-center p-3 rounded-2xl bg-slate-900 border border-slate-800 hover:border-purple-500 hover:bg-purple-950/20 text-center transition-all group cursor-pointer"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-slate-800 group-hover:bg-purple-500/20 flex items-center justify-center text-slate-300 group-hover:text-purple-300 mb-2 transition-colors">
+                        {getIcon(bp.icon)}
+                      </div>
+                      <span className="font-bold text-white text-xs line-clamp-1">{bp.title.split(' ')[0]} {bp.title.split(' ')[1]}</span>
+                      <span className="text-[10px] text-slate-400 mt-1 line-clamp-1">{bp.badge}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Dynamic Presets (Ideas from Brand DNA & Existing Pages Brainstorming) */}
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between text-sm font-bold text-slate-400">
                   <div className="flex items-center gap-2">
-                    <span>או בחרו זווית שיווקית מומלצת:</span>
+                    <span>סיעור מוחות שיווקי מתוך ה-Brand DNA והעמודים הקיימים:</span>
                     {loadingIdeas && <Loader2 className="w-4 h-4 animate-spin text-indigo-400" />}
                   </div>
                   {onOpenMarketingDrawer && (

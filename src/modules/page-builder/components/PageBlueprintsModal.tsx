@@ -16,6 +16,10 @@ import {
   Layers,
 } from 'lucide-react';
 
+import { hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
+
 interface PageBlueprintsModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -27,6 +31,8 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
   onClose,
   onSelectBlueprint,
 }) => {
+  const { getCapability } = useHostCapabilities();
+  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   if (!isOpen) return null;
@@ -53,8 +59,9 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
   };
 
   const handleApply = (blueprint: PageTemplateBlueprint) => {
+    const hydrated = hydrateBlueprintWithBrandDna(blueprint.config, brandDna);
     const freshConfig: PageBuilderConfig = {
-      ...JSON.parse(JSON.stringify(blueprint.config)),
+      ...hydrated,
       pageId: `page_bp_${Date.now()}`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),

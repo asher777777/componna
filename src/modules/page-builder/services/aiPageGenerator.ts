@@ -41,17 +41,25 @@ function getSmartPlaceholderImage(category: string, index: number = 0): string {
 
 export const aiPageGenerator = {
   /**
-   * Generates 6 marketing angles derived continuously from Brand DNA
+   * Generates 6 marketing angles derived continuously from Brand DNA and existing pages
    */
   async generatePageIdeas(
     brandDna?: BrandDna | null,
-    providedApiKey?: string
+    providedApiKey?: string,
+    existingPages?: PageBuilderConfig[]
   ): Promise<MarketingIdea[]> {
     const companyName = brandDna?.identity?.companyName || 'העסק המוביל';
     const purpose = brandDna?.identity?.organizationPurpose || '';
     const targetAudiences = brandDna?.audience?.targetAudiences || [];
     const uvp = brandDna?.audience?.mainUvp || '';
     const objections = brandDna?.audience?.commonObjections || [];
+    const personas = brandDna?.audience?.personas || [];
+
+    const existingPagesSummary = (existingPages || []).map((p) => ({
+      title: p.pageTitle,
+      slug: p.slug,
+      sectionTypes: p.sectionOrder.map((id) => p.sections[id]?.type).filter(Boolean),
+    }));
 
     // Fallback set of 6 distinct concepts (Rule: NEVER return only 1 or empty)
     const fallbackIdeas: MarketingIdea[] = [
@@ -59,7 +67,7 @@ export const aiPageGenerator = {
         id: 'sales-ultimatum',
         title: 'משפך מכירה והשקת VIP',
         description: 'דף נחיתה ישיר וממיר עם חבילות מחיר שקופות, ביקורות לקוחות ותחושת דחיפות לסגירת החודש.',
-        prompt: `דף מכירה והשקה יוקרתי וממיר עבור ${companyName}, כולל כותרת Hero מפוצלת, כרטיסי יתרונות, מחירון חבילות, הוכחה חברתית וטופס הצטרפות מהיר.`,
+        prompt: `דף מכירה והשקה יוקרתי וממיר עבור ${companyName}, כולל כותרת Hero מפוצלת עם תמונת Showcase, כרטיסי יתרונות, מחירון חבילות, הוכחה חברתית וטופס הצטרפות מהיר.`,
         icon: 'Zap',
         targetObjective: 'מכירות והמרות',
         badge: 'הכי ממיר 🔥',
@@ -122,6 +130,8 @@ export const aiPageGenerator = {
       targetAudiences,
       uvp,
       objections,
+      personas,
+      existingPages: existingPagesSummary,
     });
 
     const response = await callGeminiApi<MarketingIdea[]>({
@@ -263,23 +273,55 @@ export const aiPageGenerator = {
       const sectionType: SectionType = step.sectionType || 'hero';
       const secId = `${sectionType}_${Date.now()}_${i + 1}`;
 
-      const secData = {
+      const secData: any = {
         ...step.data,
         id: secId,
         type: sectionType,
         visible: true,
       };
 
-      // Ensure rich visual assets are attached if needed
+      // Guarantee strict Brand DNA contact details for contact and geoLocal sections
+      if (sectionType === 'contact') {
+        secData.phone = phone;
+        secData.email = email;
+        secData.address = address;
+        secData.whatsapp = whatsapp;
+        secData.directWhatsappChat = true;
+        if (secData.showForm === undefined) secData.showForm = true;
+      } else if (sectionType === 'geoLocal') {
+        secData.phone = phone;
+        secData.email = email;
+        secData.address = address;
+        secData.whatsapp = whatsapp;
+        secData.businessName = companyName;
+      }
+
+      // Ensure rich visual assets are attached to both imageSrc and imageUrl
       if (options?.generateImages ?? true) {
-        if (sectionType === 'hero' && !secData.imageUrl) {
-          secData.imageUrl = getSmartPlaceholderImage('hero', i);
+        if (sectionType === 'hero') {
+          const heroImg = secData.imageSrc || secData.imageUrl || getSmartPlaceholderImage('hero', i);
+          secData.imageSrc = heroImg;
+          secData.imageUrl = heroImg;
         }
         if (sectionType === 'services' && Array.isArray(secData.items)) {
-          secData.items = secData.items.map((it: any, itemIdx: number) => ({
-            ...it,
-            imageUrl: it.imageUrl || getSmartPlaceholderImage('service', itemIdx),
-          }));
+          secData.items = secData.items.map((it: any, itemIdx: number) => {
+            const srvImg = it.imageSrc || it.imageUrl || getSmartPlaceholderImage('service', itemIdx);
+            return {
+              ...it,
+              imageSrc: srvImg,
+              imageUrl: srvImg,
+            };
+          });
+        }
+        if (sectionType === 'testimonials' && Array.isArray(secData.items)) {
+          secData.items = secData.items.map((it: any, itemIdx: number) => {
+            const avatarUrl = it.avatarUrl || `https://images.unsplash.com/photo-${1534528741775 + itemIdx * 1000}?auto=format&fit=crop&w=120&q=80`;
+            return {
+              ...it,
+              avatarUrl,
+              content: it.content || it.quote || 'שירות יוצא דופן!',
+            };
+          });
         }
       }
 
@@ -388,6 +430,7 @@ export const aiPageGenerator = {
           socialProofEnabled: true,
           socialProofText: 'מעל 2,400 לקוחות מרוצים כבר איתנו',
           imageUrl: getSmartPlaceholderImage('hero', 0),
+          imageSrc: getSmartPlaceholderImage('hero', 0),
         },
       },
       // 2. Services / Value Grid
@@ -517,6 +560,7 @@ export const aiPageGenerator = {
           phone: brandDna?.trust?.contactPhone || '03-1234567',
           email: brandDna?.trust?.contactEmail || 'contact@example.com',
           address: brandDna?.trust?.officeAddress || 'תל אביב, ישראל',
+          whatsapp: brandDna?.trust?.whatsappSupportNumber || '0501234567',
           directWhatsappChat: true,
           showForm: true,
         },

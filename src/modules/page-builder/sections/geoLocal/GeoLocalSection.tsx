@@ -1,24 +1,35 @@
-﻿import React from 'react';
+import React from 'react';
 import { GeoLocalSectionConfig } from '../../types/sectionConfigs';
 import { MapPin, Phone, Mail, Clock, MessageCircle, Navigation, Sparkles } from 'lucide-react';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../../core/contracts';
 
 export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ config }) => {
+  const { getCapability } = useHostCapabilities();
+  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+
   const {
     anchorId,
     title = 'הסניף והפעילות המקומית שלנו',
     subtitle = 'שירות מקומי בפריסה רחבה',
-    businessName = 'העסק המוביל',
+    businessName = brandDna?.identity?.companyName || 'העסק המוביל',
     city = 'תל אביב',
-    address = 'דרך מנחם בגין 144, תל אביב',
-    phone = '03-1234567',
-    email = 'contact@example.com',
-    whatsapp = '0501234567',
+    address = brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
+    phone = brandDna?.trust?.contactPhone || '03-1234567',
+    email = brandDna?.trust?.contactEmail || 'contact@example.com',
+    whatsapp = brandDna?.trust?.whatsappSupportNumber || '0501234567',
     serviceAreas = ['תל אביב וגוש דן', 'ירושלים והסביבה', 'שרון והמרכז', 'צפון ודרום'],
     openingHours = ['א׳ - ה׳: 09:00 - 19:00', 'יום ו׳: 09:00 - 13:00', 'שבת: סגור'],
     mapEmbedUrl = 'https://maps.google.com/maps?q=Tel%20Aviv&t=&z=13&ie=UTF8&iwloc=&output=embed',
     directionsUrl = 'https://maps.google.com',
     backgroundColor = 'transparent',
   } = config;
+
+  const resolvedBusinessName = config.businessName || brandDna?.identity?.companyName || businessName;
+  const resolvedAddress = config.address || brandDna?.trust?.officeAddress || address;
+  const resolvedPhone = config.phone || brandDna?.trust?.contactPhone || phone;
+  const resolvedEmail = config.email || brandDna?.trust?.contactEmail || email;
+  const resolvedWhatsapp = config.whatsapp || brandDna?.trust?.whatsappSupportNumber || whatsapp;
 
   return (
     <section
@@ -46,10 +57,10 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
             <div className="flex flex-col gap-6">
               <div>
                 <span className="text-xs font-bold text-indigo-400 block mb-1">סניף מרכזי</span>
-                <h3 className="text-2xl font-black text-white">{businessName}</h3>
+                <h3 className="text-2xl font-black text-white">{resolvedBusinessName}</h3>
                 <p className="text-sm text-slate-300 flex items-center gap-2 mt-1">
                   <MapPin className="w-4 h-4 text-rose-400 shrink-0" />
-                  <span>{address}</span>
+                  <span>{resolvedAddress}</span>
                 </p>
               </div>
 
@@ -90,9 +101,9 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
 
             {/* Actions */}
             <div className="flex flex-wrap gap-3 pt-6 mt-6 border-t border-slate-800">
-              {whatsapp && (
+              {resolvedWhatsapp && (
                 <a
-                  href={`https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}`}
+                  href={`https://wa.me/${resolvedWhatsapp.replace(/[^0-9]/g, '')}`}
                   target="_blank"
                   rel="noreferrer"
                   className="flex-1 min-w-[130px] py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-lg"
@@ -101,9 +112,9 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
                   <span>שיחה בוואטסאפ</span>
                 </a>
               )}
-              {phone && (
+              {resolvedPhone && (
                 <a
-                  href={`tel:${phone.replace(/[^0-9]/g, '')}`}
+                  href={`tel:${resolvedPhone.replace(/[^0-9]/g, '')}`}
                   className="flex-1 min-w-[130px] py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all border border-slate-700"
                 >
                   <Phone className="w-4 h-4" />

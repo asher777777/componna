@@ -66,32 +66,37 @@ export const GENERATE_MARKETING_IDEAS_PROMPT = (context: {
   targetAudiences?: string[];
   uvp?: string;
   objections?: Array<{ objection: string; rebuttal: string }>;
+  personas?: Array<{ name: string; mainPain?: string; dreamOutcome?: string }>;
+  existingPages?: Array<{ title: string; slug?: string; sectionTypes?: string[] }>;
 }) => `
-You are a World-Class Chief Marketing Officer and Funnel Strategist.
-Brand Identity:
+You are a World-Class Chief Marketing Officer and Conversion Funnel Strategist conducting a deep architectural brainstorming session.
+Brand Identity & DNA:
 - Company Name: "${context.companyName}"
-- Purpose: "${context.purpose || ''}"
-- Target Audiences: "${context.targetAudiences?.join(', ') || 'לקוחות פוטנציאליים'}"
-- UVP: "${context.uvp || 'מובילות בתחום'}"
-- Known Objections: "${context.objections?.map(o => o.objection).join('; ') || 'מחיר, חוסר זמן, אמון'}"
+- Purpose / Mission: "${context.purpose || ''}"
+- Target Audiences: "${context.targetAudiences?.join(', ') || 'קהל יעד איכותי'}"
+- Unique Value Proposition (UVP): "${context.uvp || 'פתרונות מובילים'}"
+- Deep Buyer Personas: ${context.personas && context.personas.length > 0 ? context.personas.map(p => `[${p.name}: כאב: "${p.mainPain || ''}", תוצאה נכספת: "${p.dreamOutcome || ''}"]`).join('; ') : 'לא הוגדרו פרסונות ספציפיות'}
+- Key Customer Objections to Conquer: ${context.objections && context.objections.length > 0 ? context.objections.map(o => `[התנגדות: "${o.objection}", מענה: "${o.rebuttal}"]`).join('; ') : 'אין התנגדויות ידועות'}
+- Existing Pages in the System: ${context.existingPages && context.existingPages.length > 0 ? context.existingPages.map(p => `"${p.title}" (/p/${p.slug || ''})`).join(', ') : 'אין עדיין עמודים קיימים'}
 
 TASK:
+Analyze the brand DNA, customer personas, objections, and existing pages to avoid cannibalization and find massive growth opportunities.
 Generate exactly 6 distinctive, high-converting landing page concepts for this brand.
-Each concept must address a different strategic angle:
-1. Sales & Launch Funnel (מכירה ישירה ודחיפות)
-2. Lead Magnet & Knowledge Guide (מגנט לידים להורדת מדריך / ידע)
-3. VIP Digital Course / Exclusive Offer (קורס / הדרכה בלעדית)
+Each concept must address a different strategic angle that directly addresses the brand's personas and solves their pain points:
+1. Sales & Launch Funnel (משפך מכירה ישירה ודחיפות)
+2. Lead Magnet & Knowledge Guide (מגנט לידים להורדת מדריך / ידע בלעדי)
+3. VIP Digital Course / Exclusive Offer (קורס / הדרכה בלעדית מותאמת לפרסונות)
 4. Local GEO Authority (דף שירות אזורי מקומי עם מפה ו-WhatsApp)
-5. Community & VIP Members Club (מועדון חברים וקהילה)
-6. Presale Countdown Campaign (השקה בלעדית עם ספירה לאחור)
+5. Community & VIP Members Club (מועדון חברים וקהילת לקוחות)
+6. Presale Countdown Campaign (השקת פריסייל דחופה עם ספירה לאחור)
 
 Return ONLY a valid JSON array of 6 objects with NO MARKDOWN:
 [
   {
     "id": "concept-id",
     "title": "כותרת מושכת בעברית (3-5 מילים)",
-    "description": "הסבר שיווקי מתומצת (1-2 משפטים בעברית)",
-    "prompt": "פרומפט מפורט בעברית לבניית הדף כולו",
+    "description": "הסבר שיווקי מתומצת המתייחס לכאבי הלקוח וה-DNA (1-2 משפטים בעברית)",
+    "prompt": "פרומפט מפורט בעברית לבניית הדף כולו הכולל הנחיות מדויקות לסעיפי האתר",
     "icon": "Zap" | "MapPin" | "Layers" | "Heart" | "Sparkles" | "GraduationCap" | "Clock" | "Users",
     "targetObjective": "מכירות / לידים / סמכות / קהילה",
     "badge": "הכי מומלץ / המרה מהירה / סמכות"

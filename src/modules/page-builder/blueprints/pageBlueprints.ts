@@ -479,3 +479,61 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
     },
   },
 ];
+
+/**
+ * Hydrates a blueprint with live Brand DNA contact details, colors and identity
+ */
+export function hydrateBlueprintWithBrandDna(
+  blueprintConfig: PageBuilderConfig,
+  brandDna?: any
+): PageBuilderConfig {
+  const cloned: PageBuilderConfig = JSON.parse(JSON.stringify(blueprintConfig));
+  if (!brandDna) return cloned;
+
+  const companyName = brandDna?.identity?.companyName;
+  const slogan = brandDna?.identity?.slogan;
+  const logoUrl = brandDna?.identity?.logoUrl;
+  const primaryColor = brandDna?.designTokens?.primaryColor;
+  const secondaryColor = brandDna?.designTokens?.secondaryColor;
+  const phone = brandDna?.trust?.contactPhone;
+  const email = brandDna?.trust?.contactEmail;
+  const whatsapp = brandDna?.trust?.whatsappSupportNumber;
+  const address = brandDna?.trust?.officeAddress;
+
+  if (companyName) cloned.globalSettings.companyName = companyName;
+  if (slogan) cloned.globalSettings.slogan = slogan;
+  if (logoUrl) cloned.globalSettings.siteLogoUrl = logoUrl;
+  if (primaryColor) cloned.globalSettings.primaryColor = primaryColor;
+  if (secondaryColor) cloned.globalSettings.secondaryColor = secondaryColor;
+  if (phone) cloned.globalSettings.contactPhone = phone;
+  if (email) cloned.globalSettings.contactEmail = email;
+  if (whatsapp) cloned.globalSettings.contactWhatsApp = whatsapp;
+  if (address) cloned.globalSettings.address = address;
+  cloned.globalSettings.brandDnaSynced = true;
+
+  // Sync sections contact info
+  Object.keys(cloned.sections).forEach((secKey) => {
+    const sec = cloned.sections[secKey];
+    if (sec.type === 'contact') {
+      if (phone) sec.phone = phone;
+      if (email) sec.email = email;
+      if (whatsapp) sec.whatsapp = whatsapp;
+      if (address) sec.address = address;
+    } else if (sec.type === 'geoLocal') {
+      if (phone) sec.phone = phone;
+      if (email) sec.email = email;
+      if (whatsapp) sec.whatsapp = whatsapp;
+      if (address) sec.address = address;
+      if (companyName) sec.businessName = companyName;
+    } else if (sec.type === 'hero') {
+      if (companyName && !sec.title.includes(companyName)) {
+        sec.title = `${companyName} - ${sec.title}`;
+      }
+      if (slogan && !sec.subtitle) {
+        sec.subtitle = slogan;
+      }
+    }
+  });
+
+  return cloned;
+}
