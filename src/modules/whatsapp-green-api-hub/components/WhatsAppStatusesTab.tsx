@@ -11,7 +11,8 @@ import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { BrandDnaContract } from '../../../core/contracts';
+import { BrandDnaContract, SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { useTenantScope } from '../../../core/tenant';
 import { GreenApiService } from '../services/greenApiService';
 import {
   GreenApiStatusFont,
@@ -124,6 +125,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   googleAiApiKey,
 }) => {
   const { getCapability } = useHostCapabilities();
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+  const contactsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS);
+  const groupsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS);
   const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
   const brandDna = brandDnaContract ? brandDnaContract.getBrandDna() : null;
 
@@ -169,35 +173,35 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     if (brandDna.audience?.mainUvp) {
       cats.push({
         id: 'uvp',
-        label: 'дцтъ тшк',
+        label: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ',
         icon: <Sparkles className="w-3.5 h-3.5 text-emerald-400 shrink-0" />,
-        preset: { id: 'dna_uvp', label: 'цеш сииес мдцтъ дтшк', icon: '??', defaultTopic: 'лъеб сииес щйеечй догвйщ аъ дцтъ дтшк дошлжйъ щмре: ' + brandDna.audience.mainUvp }
+        preset: { id: 'dna_uvp', label: 'пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ', icon: '??', defaultTopic: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: ' + brandDna.audience.mainUvp }
       });
     }
     if (brandDna.identity?.slogan) {
       cats.push({
         id: 'slogan',
-        label: 'смевп едщшад',
+        label: 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ',
         icon: <Zap className="w-3.5 h-3.5 text-yellow-400 shrink-0" />,
-        preset: { id: 'dna_slogan', label: 'сииес бдщшаъ дсмевп', icon: '??', defaultTopic: 'сииес чцш ечемт бдщшаъ дсмевп щмре: ' + brandDna.identity.slogan }
+        preset: { id: 'dna_slogan', label: 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ', icon: '??', defaultTopic: 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: ' + brandDna.identity.slogan }
       });
     }
     if (brandDna.audience?.targetAudiences?.length) {
       brandDna.audience.targetAudiences.forEach((aud, i) => {
         cats.push({
           id: 'aud_' + i,
-          label: 'чдм: ' + (aud.length > 15 ? aud.substring(0, 15) + '...' : aud),
+          label: 'пїЅпїЅпїЅ: ' + (aud.length > 15 ? aud.substring(0, 15) + '...' : aud),
           icon: <Users className="w-3.5 h-3.5 text-blue-400 shrink-0" />,
-          preset: { id: 'dna_aud_' + i, label: 'сииес ййтегй м' + aud, icon: '??', defaultTopic: 'лъеб сииес фрййд йщйшд еййтегйъ мчдм дйтг: ' + aud }
+          preset: { id: 'dna_aud_' + i, label: 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ' + aud, icon: '??', defaultTopic: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ: ' + aud }
         });
       });
     }
     if (brandDna.identity?.organizationPurpose) {
       cats.push({
         id: 'purpose',
-        label: 'зжеп еоишд',
+        label: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ',
         icon: <ShieldCheck className="w-3.5 h-3.5 text-indigo-400 shrink-0" />,
-        preset: { id: 'dna_purpose', label: 'сииес тм зжеп дтсч', icon: '??', defaultTopic: 'лъеб сииес щосфш тм оишъ дтм едзжеп щм дтсч: ' + brandDna.identity.organizationPurpose }
+        preset: { id: 'dna_purpose', label: 'пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ', icon: '??', defaultTopic: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅ: ' + brandDna.identity.organizationPurpose }
       });
     }
     return cats;
@@ -242,7 +246,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     const fetchCrmData = async () => {
       try {
         // 1. Fetch CRM Groups
-        const groupsSnap = await getDocs(collection(db, 'crm_groups')).catch(() => null);
+        const groupsSnap = await getDocs(collection(db, groupsCollectionPath)).catch(() => null);
         const loadedGroups: CrmGroupInfo[] = [];
         if (groupsSnap) {
           groupsSnap.forEach((docSnap) => {
@@ -257,7 +261,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
         }
 
         // 2. Fetch CRM Contacts
-        const contactsSnap = await getDocs(collection(db, 'contacts')).catch(() => null);
+        const contactsSnap = await getDocs(collection(db, contactsCollectionPath)).catch(() => null);
         const loadedContacts: CrmContactInfo[] = [];
         const tagSet = new Set<string>();
 
@@ -592,7 +596,8 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               fileToUpload = await blobRes.blob();
             }
 
-            const storageRef = ref(getStorage(firebaseApp), `whatsapp_statuses/${finalFileName}`);
+            const storagePath = tenantId ? `tenants/${tenantId}/whatsapp_statuses/${finalFileName}` : `whatsapp_statuses/${finalFileName}`;
+            const storageRef = ref(getStorage(firebaseApp), storagePath);
             await uploadBytes(storageRef, fileToUpload);
             const storageUrl = await getDownloadURL(storageRef);
             finalMediaUrl = storageUrl;
@@ -842,7 +847,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               {/* AI Quick Preset Topics */}
               {dynamicCategories.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">ъбрйеъ AI аеиеоийеъ од-DNA щм дтсч:</span>
+                  <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">пїЅпїЅпїЅпїЅпїЅпїЅ AI пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ-DNA пїЅпїЅ пїЅпїЅпїЅпїЅ:</span>
                   <div className="flex flex-wrap gap-2">
                     {dynamicCategories.map((cat) => (
                       <button

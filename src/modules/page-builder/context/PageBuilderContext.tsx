@@ -11,6 +11,8 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { BrandDnaContract, BrandDna } from '../../../core/contracts';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { PAGE_BUILDER_MODULE_CONFIG } from '../config';
+import { useTenantScope } from '../../../core/tenant';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 export interface PageBuilderContextValue {
   // Page Configuration
@@ -61,6 +63,8 @@ export const PageBuilderProvider: React.FC<{
   children: React.ReactNode;
 }> = ({ initialConfig = null, children }) => {
   const { getCapability } = useHostCapabilities();
+  const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
   const [brandDna, setBrandDna] = useState<BrandDna | null>(() => brandDnaContract?.getBrandDna() || null);
 
@@ -318,7 +322,7 @@ export const PageBuilderProvider: React.FC<{
     if (!currentPageConfig) return;
     setIsSaving(true);
     try {
-      await pageBuilderFirestore.savePage(currentPageConfig);
+      await pageBuilderFirestore.savePage(currentPageConfig, db, tenantId);
       setIsSaved(true);
       setLastSavedAt(new Date());
     } catch (err) {
@@ -338,7 +342,7 @@ export const PageBuilderProvider: React.FC<{
           published: isPublished,
           publishedAt: isPublished ? new Date().toISOString() : undefined,
         };
-        await pageBuilderFirestore.savePage(updated);
+        await pageBuilderFirestore.savePage(updated, db, tenantId);
         setCurrentPageConfigState(updated);
         setIsSaved(true);
         setLastSavedAt(new Date());

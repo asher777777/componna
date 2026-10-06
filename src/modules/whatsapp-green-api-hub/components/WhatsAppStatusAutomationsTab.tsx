@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Firestore, collection, getDocs, setDoc, doc, deleteDoc } from "firebase/firestore";
 import { Clock, Plus, Trash2, Calendar, Target, Zap, Settings, Tag } from "lucide-react";
+import { useTenantScope } from "../../../core/tenant";
 
 export interface StatusAutomation {
   id: string;
@@ -28,6 +29,8 @@ const DAYS_OF_WEEK = [
 ];
 
 export const WhatsAppStatusAutomationsTab: React.FC<Props> = ({ db, isDark }) => {
+  const { tenantId } = useTenantScope();
+  const automationsCollectionPath = tenantId ? `tenants/${tenantId}/whatsapp_status_automations` : "whatsapp_status_automations";
   const [automations, setAutomations] = useState<StatusAutomation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -45,7 +48,7 @@ export const WhatsAppStatusAutomationsTab: React.FC<Props> = ({ db, isDark }) =>
     if (!db) return;
     setIsLoading(true);
     try {
-      const snap = await getDocs(collection(db, "whatsapp_status_automations"));
+      const snap = await getDocs(collection(db, automationsCollectionPath));
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() } as StatusAutomation));
       setAutomations(items.sort((a, b) => b.createdAt - a.createdAt));
     } catch (err) {
@@ -60,7 +63,7 @@ export const WhatsAppStatusAutomationsTab: React.FC<Props> = ({ db, isDark }) =>
     setIsSaving(true);
     try {
       const newId = "auto_" + Date.now();
-      const docRef = doc(db, "whatsapp_status_automations", newId);
+      const docRef = doc(db, automationsCollectionPath, newId);
       const newAuto: StatusAutomation = {
         id: newId,
         goal,
@@ -85,7 +88,7 @@ export const WhatsAppStatusAutomationsTab: React.FC<Props> = ({ db, isDark }) =>
   const handleDelete = async (id: string) => {
     if (!db) return;
     try {
-      await deleteDoc(doc(db, "whatsapp_status_automations", id));
+      await deleteDoc(doc(db, automationsCollectionPath, id));
       setAutomations(automations.filter(a => a.id !== id));
     } catch (err) {
       console.error("Failed to delete automation", err);

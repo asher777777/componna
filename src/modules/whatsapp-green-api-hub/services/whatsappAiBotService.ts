@@ -203,14 +203,15 @@ export class WhatsAppAiBotService {
     }
   }
 
-  public static async saveBotsToFirestore(db: any, bots: WhatsAppAiBotConfig[]): Promise<void> {
+  public static async saveBotsToFirestore(db: any, bots: WhatsAppAiBotConfig[], tenantId?: string): Promise<void> {
     if (!db) return;
     try {
       const batch = writeBatch(db);
+      const collectionPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
       
       // Update each bot
       for (const bot of bots) {
-        const docRef = doc(db, 'whatsapp_ai_bots', bot.id);
+        const docRef = doc(db, collectionPath, bot.id);
         batch.set(docRef, bot, { merge: true });
       }
       
@@ -223,10 +224,11 @@ export class WhatsAppAiBotService {
     }
   }
 
-  public static async loadBotsFromFirestore(db: any): Promise<WhatsAppAiBotConfig[]> {
+  public static async loadBotsFromFirestore(db: any, tenantId?: string): Promise<WhatsAppAiBotConfig[]> {
     if (!db) return [];
     try {
-      const coll = collection(db, 'whatsapp_ai_bots');
+      const collectionPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+      const coll = collection(db, collectionPath);
       const snap = await getDocs(coll);
       if (snap.empty) return [];
       
@@ -241,10 +243,11 @@ export class WhatsAppAiBotService {
     }
   }
 
-  public static async deleteBotFromFirestore(db: any, botId: string): Promise<void> {
+  public static async deleteBotFromFirestore(db: any, botId: string, tenantId?: string): Promise<void> {
     if (!db) return;
     try {
-      const docRef = doc(db, 'whatsapp_ai_bots', botId);
+      const collectionPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+      const docRef = doc(db, collectionPath, botId);
       await deleteDoc(docRef);
     } catch (err) {
       console.error('Failed to delete bot from Firestore:', err);

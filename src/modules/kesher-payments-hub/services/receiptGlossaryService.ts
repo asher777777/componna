@@ -49,8 +49,8 @@ export class ReceiptGlossaryService {
   /**
    * Inject Firestore DB dynamically without static singleton imports
    */
-  public attachFirestore(db: any) {
-    if (!db || this.currentDb === db) return;
+  public attachFirestore(db: any, tenantId: string = '_master') {
+    if (!db) return;
     this.currentDb = db;
 
     if (this.unsubscribeFirestore) {
@@ -60,7 +60,8 @@ export class ReceiptGlossaryService {
 
     try {
       import('firebase/firestore').then(({ collection, onSnapshot }) => {
-        const collRef = collection(db, 'receipt_glossary_items');
+        // Scoped Subcollection: tenants/{tenantId}/kesher_receipt_glossary
+        const collRef = collection(db, 'tenants', tenantId, 'kesher_receipt_glossary');
         this.unsubscribeFirestore = onSnapshot(collRef, (snap) => {
           const list: GlossaryItem[] = [];
           snap.forEach((docSnap) => {

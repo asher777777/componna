@@ -240,7 +240,8 @@ export async function submitFormResponse(
   if (form.isCrmSyncEnabled && leadPayload && (conta_phone || email)) {
     try {
       const contactDocId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      const contactRef = doc(targetDb, 'contacts', contactDocId);
+      const contactsPath = collectionName.startsWith('tenants/') ? collectionName.split('/').slice(0, 2).join('/') + '/contacts' : 'contacts';
+      const contactRef = doc(targetDb, contactsPath, contactDocId);
       const contactPayload = JSON.parse(JSON.stringify({
         id: contactDocId,
         conta_name: leadPayload.conta_name,

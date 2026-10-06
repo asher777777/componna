@@ -23,12 +23,13 @@ export class FirebaseStorageMediaService {
     file: File | Blob,
     fileName: string,
     onProgress?: (percent: number) => void,
-    existingItemMeta?: Partial<MediaItem>
+    existingItemMeta?: Partial<MediaItem>,
+    tenantId?: string
   ): Promise<string> {
     const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
     const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_').trim();
     const timeStamp = existingItemMeta?.createdAt || Date.now();
-    const storagePath = `sdo_media_vault/${timeStamp}_${safeName}`;
+    const storagePath = tenantId ? `tenants/${tenantId}/media/${timeStamp}_${safeName}` : `sdo_media_vault/${timeStamp}_${safeName}`;
     const directUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
     const workingLocalUrl = URL.createObjectURL(file);
 
@@ -77,8 +78,10 @@ export class FirebaseStorageMediaService {
 
     try {
       const db = getFirestore(app);
-      const vaultDocRef = doc(db, 'sdo_media_vault', `${timeStamp}_${safeName}`);
-      const itemsDocRef = doc(db, 'sdo_media_items', localMediaItem.id);
+      const vaultColl = tenantId ? `tenants/${tenantId}/sdo_media_vault` : 'sdo_media_vault';
+      const itemsColl = tenantId ? `tenants/${tenantId}/sdo_media_items` : 'sdo_media_items';
+      const vaultDocRef = doc(db, vaultColl, `${timeStamp}_${safeName}`);
+      const itemsDocRef = doc(db, itemsColl, localMediaItem.id);
       
       const payload = {
         ...localMediaItem,
@@ -118,8 +121,10 @@ export class FirebaseStorageMediaService {
         // Update Firestore with verified permanent URL
         try {
           const db = getFirestore(app);
-          const vaultDocRef = doc(db, 'sdo_media_vault', `${timeStamp}_${safeName}`);
-          const itemsDocRef = doc(db, 'sdo_media_items', localMediaItem.id);
+          const vaultColl = tenantId ? `tenants/${tenantId}/sdo_media_vault` : 'sdo_media_vault';
+          const itemsColl = tenantId ? `tenants/${tenantId}/sdo_media_items` : 'sdo_media_items';
+          const vaultDocRef = doc(db, vaultColl, `${timeStamp}_${safeName}`);
+          const itemsDocRef = doc(db, itemsColl, localMediaItem.id);
           setDoc(vaultDocRef, { url: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
           setDoc(itemsDocRef, { url: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
         } catch {}

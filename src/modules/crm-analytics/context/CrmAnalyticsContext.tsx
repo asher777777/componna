@@ -21,7 +21,8 @@ import {
 } from '../services/crmAnalyticsService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { LeadCaptureContract, LeadPayload } from '../../../core/contracts';
+import { LeadCaptureContract, LeadPayload, SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { useTenantScope } from '../../../core/tenant';
 
 interface CrmAnalyticsContextValue {
   data: CRMAnalyticsData | null;
@@ -57,9 +58,21 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
   children,
   firebaseApp,
   ownerId,
-  customCollections = DEFAULT_COLLECTIONS,
+  customCollections,
   initialFilter = { status: 'active' },
 }) => {
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+
+  const resolvedCollections = React.useMemo(() => ({
+    contacts: customCollections?.contacts || getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS),
+    leads: customCollections?.leads || getScopedCollectionPath('mod_crm_leads'),
+    groups: customCollections?.groups || getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS),
+    customFields: customCollections?.customFields || getScopedCollectionPath('crm_custom_fields'),
+    savedViews: customCollections?.savedViews || getScopedCollectionPath('crm_analytics_saved_views'),
+    forms: customCollections?.forms || getScopedCollectionPath(SYSTEM_COLLECTIONS.SMART_FORMS),
+    formSubmissionsSubcollection: customCollections?.formSubmissionsSubcollection || 'submissions',
+  }), [customCollections, getScopedCollectionPath]);
+
   const [data, setData] = useState<CRMAnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<CRMAnalyticsFilter>(initialFilter);
@@ -70,14 +83,14 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetchLiveCrmAnalytics(firebaseApp, ownerId, filter, customCollections);
+      const res = await fetchLiveCrmAnalytics(firebaseApp, ownerId, filter, resolvedCollections);
       setData(res);
     } catch (err) {
       console.error('Error fetching analytics data:', err);
     } finally {
       setLoading(false);
     }
-  }, [firebaseApp, ownerId, filter, customCollections]);
+  }, [firebaseApp, ownerId, filter, resolvedCollections]);
 
   useEffect(() => {
     refresh();
@@ -162,7 +175,7 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
   }, [data?.customFields]);
 
   const updateField = async (contactId: string, field: string, value: any) => {
-    const ok = await updateContactField(firebaseApp, contactId, field, value, customCollections);
+    const ok = await updateContactField(firebaseApp, contactId, field, value, resolvedCollections);
     if (ok) {
       setData(prev => {
         if (!prev) return null;
@@ -214,7 +227,7 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
   };
 
   const createContact = async (contactData: Partial<Contact>) => {
-    const newContact = await createContactService(firebaseApp, contactData, ownerId, customCollections);
+    const newContact = await createContactService(firebaseApp, contactData, ownerId, resolvedCollections);
     setData(prev => {
       if (!prev) return computeAnalyticsMetrics([newContact], [], filter);
       const updatedContacts = [newContact, ...prev.contacts];

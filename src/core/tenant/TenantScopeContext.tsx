@@ -14,6 +14,7 @@ export interface TenantScopeContextValue {
   isRootTenant: boolean;
   setTenantId: (id: string) => void;
   getScopedCollectionName: (collectionName: string) => string;
+  getScopedCollectionPath: (collectionName: string) => string;
   getScopedCollectionRef: <T = DocumentData>(db: Firestore, collectionName: string) => CollectionReference<T>;
   getScopedStoragePath: (folder: string, fileName: string) => string;
   getScopedStorageKey: (key: string) => string;
@@ -61,6 +62,7 @@ export const TenantScopeProvider: React.FC<{ children: React.ReactNode; initialT
     isRootTenant,
     setTenantId,
     getScopedCollectionName,
+    getScopedCollectionPath: getScopedCollectionName,
     getScopedCollectionRef,
     getScopedStoragePath,
     getScopedStorageKey,
@@ -83,6 +85,7 @@ export function useTenantScope(): TenantScopeContextValue {
       isRootTenant: defaultTenant === ROOT_TENANT_ID,
       setTenantId: () => {},
       getScopedCollectionName: (name: string) => getTenantCollectionPath(name, defaultTenant),
+      getScopedCollectionPath: (name: string) => getTenantCollectionPath(name, defaultTenant),
       getScopedCollectionRef: <T = DocumentData>(db: Firestore, name: string) =>
         collection(db, 'tenants', defaultTenant, name) as CollectionReference<T>,
       getScopedStoragePath: (folder: string, file: string) => getTenantStoragePath(folder, file, defaultTenant),

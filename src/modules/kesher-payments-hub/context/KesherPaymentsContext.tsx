@@ -13,6 +13,7 @@ import {
 } from '../types';
 import { CrmContactSummary } from '../../../core/contracts';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { eventBus } from '../../../core/bridge/EventBus';
 
 export interface KesherPaymentsContextType {
@@ -96,14 +97,15 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
 
   const isDark = theme === 'dark';
 
-  // Attach Firestore when connection provides db
+  // Attach Firestore when connection provides db (scoped to current tenant)
+  const { tenantId } = useTenantScope();
   useEffect(() => {
     if (db) {
-      kesherService.attachFirestore(db);
-      crmContactSyncService.attachFirestore(db);
-      receiptGlossaryService.attachFirestore(db);
+      kesherService.attachFirestore(db, tenantId);
+      crmContactSyncService.attachFirestore(db, tenantId);
+      receiptGlossaryService.attachFirestore(db, tenantId);
     }
-  }, [db]);
+  }, [db, tenantId]);
 
   // Sync settings when system api keys change
   useEffect(() => {

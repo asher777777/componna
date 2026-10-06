@@ -1,15 +1,25 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, orderBy, updateDoc, increment } from 'firebase/firestore';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 
-const COLLECTION_NAME = 'mod_pagebuilder_pages';
+const DEFAULT_COLLECTION_NAME = 'mod_pages_documents';
+
+function getCollectionName(tenantId?: string) {
+  return tenantId ? `tenants/${tenantId}/mod_pages_documents` : DEFAULT_COLLECTION_NAME;
+}
+
+function getStorageKey(tenantId?: string) {
+  return tenantId ? `comona_${tenantId}_pagebuilder_all_pages` : 'comona_pagebuilder_all_pages';
+}
 const LOCAL_STORAGE_KEY_PAGES = 'comona_pagebuilder_all_pages';
 
 export const pageBuilderFirestore = {
   // Get all saved pages
-  async getAllPages(db?: Firestore | null): Promise<PageBuilderConfig[]> {
+  async getAllPages(db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig[]> {
+    const collPath = getCollectionName(tenantId);
+    const storeKey = getStorageKey(tenantId);
     if (db) {
       try {
-        const colRef = collection(db, COLLECTION_NAME);
+        const colRef = collection(db, collPath);
         const snap = await getDocs(colRef);
         const pages: PageBuilderConfig[] = [];
         snap.forEach((d) => {
@@ -17,7 +27,7 @@ export const pageBuilderFirestore = {
         });
         if (pages.length > 0) {
           try {
-            localStorage.setItem(LOCAL_STORAGE_KEY_PAGES, JSON.stringify(pages));
+            localStorage.setItem(storeKey, JSON.stringify(pages));
           } catch {}
           return pages;
         }
@@ -28,7 +38,7 @@ export const pageBuilderFirestore = {
 
     // Fallback to local storage
     try {
-      const saved = localStorage.getItem(LOCAL_STORAGE_KEY_PAGES);
+      const saved = localStorage.getItem(storeKey);
       if (saved) {
         return JSON.parse(saved);
       }
@@ -38,10 +48,11 @@ export const pageBuilderFirestore = {
   },
 
   // Get single page by id
-  async getPage(pageId: string, db?: Firestore | null): Promise<PageBuilderConfig | null> {
+  async getPage(pageId: string, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig | null> {
+    const collPath = getCollectionName(tenantId);
     if (db) {
       try {
-        const docRef = doc(db, COLLECTION_NAME, pageId);
+        const docRef = doc(db, collPath, pageId);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           return { ...(snap.data() as PageBuilderConfig), pageId: snap.id };
@@ -52,7 +63,7 @@ export const pageBuilderFirestore = {
     }
 
     try {
-      const pages = await this.getAllPages(null);
+      const pages = await this.getAllPages(null, tenantId);
       return pages.find((p) => p.pageId === pageId) || null;
     } catch {}
 
@@ -60,7 +71,9 @@ export const pageBuilderFirestore = {
   },
 
   // Save or update a page
-  async savePage(config: PageBuilderConfig, db?: Firestore | null): Promise<void> {
+  async savePage(config: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<void> {
+    const collPath = getCollectionName(tenantId);
+    const storeKey = getStorageKey(tenantId);
     const pageId = config.pageId || `page_${Date.now()}`;
     const now = new Date().toISOString();
     const payload: PageBuilderConfig = {
@@ -73,20 +86,20 @@ export const pageBuilderFirestore = {
 
     // Save in localStorage
     try {
-      const localPages = await this.getAllPages(null);
+      const localPages = await this.getAllPages(null, tenantId);
       const existingIdx = localPages.findIndex((p) => p.pageId === pageId);
       if (existingIdx >= 0) {
         localPages[existingIdx] = payload;
       } else {
         localPages.push(payload);
       }
-      localStorage.setItem(LOCAL_STORAGE_KEY_PAGES, JSON.stringify(localPages));
+      localStorage.setItem(storeKey, JSON.stringify(localPages));
     } catch {}
 
     // Save in Firestore
     if (db) {
       try {
-        const docRef = doc(db, COLLECTION_NAME, pageId);
+        const docRef = doc(db, collPath, pageId);
         const cleanData = JSON.parse(JSON.stringify(payload));
         await setDoc(docRef, cleanData, { merge: true });
       } catch (err) {
@@ -96,15 +109,17 @@ export const pageBuilderFirestore = {
   },
 
   // Delete page
-  async deletePage(pageId: string, db?: Firestore | null): Promise<void> {
+  async deletePage(pageId: string, db?: Firestore | null, tenantId?: string): Promise<void> {
+    const collPath = getCollectionName(tenantId);
+    const storeKey = getStorageKey(tenantId);
     try {
-      const localPages = (await this.getAllPages(null)).filter((p) => p.pageId !== pageId);
-      localStorage.setItem(LOCAL_STORAGE_KEY_PAGES, JSON.stringify(localPages));
+      const localPages = (await this.getAllPages(null, tenantId)).filter((p) => p.pageId !== pageId);
+      localStorage.setItem(storeKey, JSON.stringify(localPages));
     } catch {}
 
     if (db) {
       try {
-        const docRef = doc(db, COLLECTION_NAME, pageId);
+        const docRef = doc(db, collPath, pageId);
         await deleteDoc(docRef);
       } catch (err) {
         console.warn('[PageBuilder] Firestore deletePage error:', err);
@@ -131,24 +146,24 @@ export const pageBuilderFirestore = {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.savePage(duplicated, db);
+    await this.savePage(duplicated, db, tenantId);
     return duplicated;
   },
 
   // Set page as homepage
   async setHomePage(targetPageId: string, db?: Firestore | null): Promise<void> {
-    const allPages = await this.getAllPages(db);
+    const allPages = await this.getAllPages(db, tenantId);
     for (const page of allPages) {
       const isTarget = page.pageId === targetPageId;
       if (page.isHomePage !== isTarget) {
         page.isHomePage = isTarget;
-        await this.savePage(page, db);
+        await this.savePage(page, db, tenantId);
       }
     }
   },
 
   // Toggle publish status
-  async togglePublish(config: PageBuilderConfig, db?: Firestore | null): Promise<PageBuilderConfig> {
+  async togglePublish(config: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig> {
     const willPublish = !config.published;
     const now = new Date().toISOString();
     const publicSlug = config.slug || config.pageId;
@@ -162,15 +177,16 @@ export const pageBuilderFirestore = {
       publishedUrl: willPublish ? publishedUrl : undefined,
     };
 
-    await this.savePage(updated, db);
+    await this.savePage(updated, db, tenantId);
     return updated;
   },
 
   // Track page view
-  async incrementViews(pageId: string, db?: Firestore | null): Promise<void> {
+  async incrementViews(pageId: string, db?: Firestore | null, tenantId?: string): Promise<void> {
+    const collPath = getCollectionName(tenantId);
     if (db) {
       try {
-        const docRef = doc(db, COLLECTION_NAME, pageId);
+        const docRef = doc(db, collPath, pageId);
         await updateDoc(docRef, {
           viewsCount: increment(1),
         });

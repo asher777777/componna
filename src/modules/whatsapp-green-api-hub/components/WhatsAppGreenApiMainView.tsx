@@ -7,6 +7,8 @@ import {
 } from 'lucide-react';
 import { collection, getDocs, query } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { GreenApiService } from '../services/greenApiService';
 import {
   GreenApiState,
@@ -29,7 +31,11 @@ import { WhatsAppImageStudio } from './WhatsAppImageStudio';
 import { useWhatsAppAutoResponder } from '../hooks/useWhatsAppAutoResponder';
 
 export const WhatsAppGreenApiMainView: React.FC = () => {
-  const { apiKeys, openConnectorModal, db, collections, firebaseApp } = useSystemConnection();
+  const { apiKeys, openConnectorModal, db, firebaseApp } = useSystemConnection();
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+  const contactsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS);
+  const groupsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS);
+  const statusesCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.WHATSAPP_STATUSES);
 
   // Day / Night Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -192,7 +198,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const loadCrmContacts = async () => {
     if (!db) return;
     try {
-      const coll = collection(db, collections?.contacts || 'contacts');
+      const coll = collection(db, contactsCollectionPath);
       const snap = await getDocs(query(coll));
       const items: Array<{ id: string; name: string; phone: string; company?: string }> = [];
       snap.forEach((d) => {
@@ -519,8 +525,8 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             setSelectedChatId={setSelectedChatId}
             db={db}
             firebaseApp={firebaseApp}
-            contactsCollectionName={collections?.contacts || 'contacts'}
-            groupsCollectionName={collections?.groups || 'crm_groups'}
+            contactsCollectionName={contactsCollectionPath}
+            groupsCollectionName={groupsCollectionPath}
             connectedAccountName={connectedAccountDisplayName}
           />
         )}
@@ -531,7 +537,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             service={greenApiService}
             db={db}
             firebaseApp={firebaseApp}
-            collectionName={collections?.whatsappStatuses || 'whatsapp_statuses'}
+            collectionName={statusesCollectionPath}
             isDark={isDark}
             connectedAccountName={connectedAccountDisplayName}
             googleAiApiKey={apiKeys.googleAiApiKey}

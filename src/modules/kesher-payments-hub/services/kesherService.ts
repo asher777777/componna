@@ -17,9 +17,11 @@ const TRANSACTIONS_STORAGE_KEY = 'comona_kesher_local_transactions';
 export class KesherService {
   private settings: KesherSettings;
   private currentDb: any = null;
+  private currentTenantId: string = '_master';
 
-  public attachFirestore(db: any) {
+  public attachFirestore(db: any, tenantId: string = '_master') {
     if (db) this.currentDb = db;
+    if (tenantId) this.currentTenantId = tenantId;
   }
 
   constructor(initialSettings?: Partial<KesherSettings>) {
@@ -1415,16 +1417,19 @@ export class KesherService {
     }
   }
 
-  public async recordTransaction(item: KesherTransactionItem, customDb?: any): Promise<void> {
+  public async recordTransaction(item: KesherTransactionItem, customDb?: any, customTenantId?: string): Promise<void> {
     this.recordLocalTransaction(item);
     try {
       // Direct Firestore sync if Firebase is available
       const targetDb = customDb || this.currentDb;
+      const tenantId = customTenantId || this.currentTenantId || '_master';
       if (targetDb) {
         const { doc, setDoc } = await import('firebase/firestore');
         const docId = item.id || `kesher_${item.transactionId || Date.now()}`;
         const cleanPayload = JSON.parse(JSON.stringify(item));
-        await setDoc(doc(targetDb, 'kesher_transactions', docId), cleanPayload, { merge: true });
+        // Scoped Subcollection: tenants/{tenantId}/kesher_transactions/{docId}
+        const docRef = doc(targetDb, 'tenants', tenantId, 'kesher_transactions', docId);
+        await setDoc(docRef, cleanPayload, { merge: true });
       }
     } catch (e) {
       console.warn('[KesherService] Firestore recordTransaction notice:', e);
@@ -1446,16 +1451,18 @@ export class KesherService {
     }
   }
 
-  public async mergeTransactions(newItems: KesherTransactionItem[], customDb?: any): Promise<void> {
+  public async mergeTransactions(newItems: KesherTransactionItem[], customDb?: any, customTenantId?: string): Promise<void> {
     this.mergeLocalTransactions(newItems);
     try {
       const targetDb = customDb || this.currentDb;
+      const tenantId = customTenantId || this.currentTenantId || '_master';
       if (targetDb && newItems.length > 0) {
         const { doc, setDoc } = await import('firebase/firestore');
         for (const item of newItems.slice(0, 100)) {
           const docId = item.id || `kesher_${item.transactionId || Date.now()}`;
           const cleanPayload = JSON.parse(JSON.stringify(item));
-          await setDoc(doc(targetDb, 'kesher_transactions', docId), cleanPayload, { merge: true });
+          // Scoped Subcollection: tenants/{tenantId}/kesher_transactions/{docId}
+          await setDoc(doc(targetDb, 'tenants', tenantId, 'kesher_transactions', docId), cleanPayload, { merge: true });
         }
       }
     } catch (e) {

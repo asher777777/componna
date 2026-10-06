@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Bot, Sparkles, Plus, Trash2, Edit3, Check, Play, MessageSquare,
   ShieldCheck, Send, KeyRound, ExternalLink, RefreshCw, Smartphone,
@@ -14,6 +14,7 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
 const PREDEFINED_COLLECTIONS = [{ id: 'products', label: '������', collectionName: 'products' }, { id: 'articles', label: '������', collectionName: 'articles' }, { id: 'leads', label: '�����', collectionName: 'leads' }, { id: 'services', label: '�������', collectionName: 'services' }];
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 
 
 interface Props {
@@ -46,11 +47,12 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
   const [isSimLoading, setIsSimLoading] = useState(false);
 
   const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   
   // Load from Firestore on mount
   useEffect(() => {
     if (db) {
-      WhatsAppAiBotService.loadBotsFromFirestore(db).then((cloudBots) => {
+      WhatsAppAiBotService.loadBotsFromFirestore(db, tenantId).then((cloudBots) => {
         if (cloudBots && cloudBots.length > 0) {
           setBots(cloudBots);
           if (!cloudBots.find(b => b.id === selectedBotId)) {
@@ -59,14 +61,14 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
         }
       });
     }
-  }, [db]);
+  }, [db, tenantId]);
 
   const saveBotChanges = (updatedBot: WhatsAppAiBotConfig) => {
     const updated = bots.map((b) => (b.id === updatedBot.id ? updatedBot : b));
     setBots(updated);
     WhatsAppAiBotService.saveBots(updated); // Save locally for UI speed
     if (db) {
-      WhatsAppAiBotService.saveBotsToFirestore(db, updated); // Save to cloud for functions
+      WhatsAppAiBotService.saveBotsToFirestore(db, updated, tenantId); // Save to cloud for functions
     }
   };
 
@@ -93,7 +95,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     setBots(updated);
     setSelectedBotId(newBot.id);
     WhatsAppAiBotService.saveBots(updated);
-    if (db) WhatsAppAiBotService.saveBotsToFirestore(db, updated);
+    if (db) WhatsAppAiBotService.saveBotsToFirestore(db, updated, tenantId);
   };
 
   const handleDeleteBot = (id: string) => {
@@ -106,7 +108,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       setBots(updated);
       setSelectedBotId(updated[0].id);
       WhatsAppAiBotService.saveBots(updated);
-      if (db) WhatsAppAiBotService.deleteBotFromFirestore(db, id);
+      if (db) WhatsAppAiBotService.deleteBotFromFirestore(db, id, tenantId);
     }
   };
 

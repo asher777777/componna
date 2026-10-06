@@ -1,21 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { Bot, User, Trash2, Clock, Phone, AlertCircle } from 'lucide-react';
 
 
 export const WhatsAppAiBotChatsTab: React.FC = () => {
   const system = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const db = system?.db;
   const isDark = Boolean((system as any)?.isDark);
   const [chats, setChats] = useState<any[]>([]);
   const [selectedChat, setSelectedChat] = useState<any | null>(null);
 
+  const chatsCollectionPath = tenantId ? `tenants/${tenantId}/wa_bot_chats` : 'wa_bot_chats';
+
   useEffect(() => {
     if (!db) return;
     
     const q = query(
-      collection(db, 'wa_bot_chats'),
+      collection(db, chatsCollectionPath),
       orderBy('lastUpdatedAt', 'desc')
     );
 
@@ -35,7 +39,7 @@ export const WhatsAppAiBotChatsTab: React.FC = () => {
 
   const handleDelete = async (id: string) => {
     if (!db || !confirm('האם למחוק שיחה זו?')) return;
-    await deleteDoc(doc(db, 'wa_bot_chats', id));
+    await deleteDoc(doc(db, chatsCollectionPath, id));
   };
 
   return (

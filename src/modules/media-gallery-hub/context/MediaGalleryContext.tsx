@@ -19,6 +19,8 @@ import { HeyGenSyncService } from '../services/heygenSyncService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { subscribeToAuth } from '../../../services/firebaseAuth';
+import { useTenantScope } from '../../../core/tenant';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 
 export const isHeyGenItem = (item?: MediaItem | null): boolean => {
   if (!item) return false;
@@ -183,6 +185,7 @@ export const MediaGalleryProvider: React.FC<{
   const systemConn = useSystemConnection();
   const firebaseApp = config.firebaseApp || systemConn.firebaseApp;
   const db = config.db || systemConn.db;
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
 
   const {
     customCollections,
@@ -195,10 +198,10 @@ export const MediaGalleryProvider: React.FC<{
     onClosePicker,
   } = config;
 
-  const collections = useMemo(
-    () => resolveMediaCollections(collectionPrefix, customCollections),
-    [collectionPrefix, customCollections]
-  );
+  const collections = useMemo(() => ({
+    mediaItems: customCollections?.mediaItems || getScopedCollectionPath(SYSTEM_COLLECTIONS.MEDIA_ITEMS),
+    folders: customCollections?.folders || getScopedCollectionPath(SYSTEM_COLLECTIONS.MEDIA_FOLDERS),
+  }), [customCollections, getScopedCollectionPath]);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [folders, setFolders] = useState<MediaFolder[]>([]);
@@ -696,7 +699,8 @@ export const MediaGalleryProvider: React.FC<{
             file,
             initialItem.name,
             (pct) => onProgress && onProgress(index, pct),
-            initialItem
+            initialItem,
+            tenantId
           );
           finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
         } catch (storageErr) {
@@ -820,7 +824,8 @@ export const MediaGalleryProvider: React.FC<{
           file,
           finalItem.name,
           undefined,
-          finalItem
+          finalItem,
+          tenantId
         );
         finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
       } catch (storageErr) {

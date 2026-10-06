@@ -6,6 +6,7 @@ import { PagesDashboardTab } from '../components/PagesDashboardTab';
 import { PublicPageView } from '../components/PublicPageView';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { Loader2 } from 'lucide-react';
 
@@ -13,13 +14,14 @@ const PageEditorRouteWrapper: React.FC = () => {
   const { pageId } = useParams<{ pageId: string }>();
   const navigate = useNavigate();
   const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const { currentPageConfig, setCurrentPageConfig } = usePageBuilderContext();
   const [loading, setLoading] = React.useState(!currentPageConfig || currentPageConfig.pageId !== pageId);
 
   React.useEffect(() => {
     if (pageId && (!currentPageConfig || currentPageConfig.pageId !== pageId)) {
       setLoading(true);
-      pageBuilderFirestore.getPage(pageId, db).then((config) => {
+      pageBuilderFirestore.getPage(pageId, db, tenantId).then((config) => {
         if (config) {
           setCurrentPageConfig(config);
         }
@@ -86,11 +88,12 @@ const PagePreviewRouteWrapper: React.FC = () => {
 const DashboardRouteWrapper: React.FC = () => {
   const navigate = useNavigate();
   const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const [pages, setPages] = React.useState<PageBuilderConfig[]>([]);
   const { currentPageConfig, setCurrentPageConfig } = usePageBuilderContext();
 
   const loadPages = React.useCallback(async () => {
-    const list = await pageBuilderFirestore.getAllPages(db);
+    const list = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(list);
   }, [db]);
 
@@ -116,7 +119,7 @@ const DashboardRouteWrapper: React.FC = () => {
           navigate(`/edit/${freshId}?ai=true`);
         }}
         onDeletePage={async (pageId) => {
-          await pageBuilderFirestore.deletePage(pageId, db);
+          await pageBuilderFirestore.deletePage(pageId, db, tenantId);
           loadPages();
         }}
         onDuplicatePage={async (page) => {
@@ -127,15 +130,15 @@ const DashboardRouteWrapper: React.FC = () => {
             slug: `${page.slug}-copy`,
             published: false,
           };
-          await pageBuilderFirestore.savePage(copy, db);
+          await pageBuilderFirestore.savePage(copy, db, tenantId);
           loadPages();
         }}
         onSetHomePage={async (pageId) => {
-          await pageBuilderFirestore.setHomePage(pageId, db);
+          await pageBuilderFirestore.setHomePage(pageId, db, tenantId);
           loadPages();
         }}
         onTogglePublish={async (page) => {
-          await pageBuilderFirestore.savePage({ ...page, published: !page.published }, db);
+          await pageBuilderFirestore.savePage({ ...page, published: !page.published }, db, tenantId);
           loadPages();
         }}
         onOpenShortener={(page) => {

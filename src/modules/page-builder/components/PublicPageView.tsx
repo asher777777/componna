@@ -4,6 +4,7 @@ import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { PageBuilderRenderer } from '../PageBuilderRenderer';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home } from 'lucide-react';
 
 export const PublicPageView: React.FC = () => {
@@ -11,6 +12,7 @@ export const PublicPageView: React.FC = () => {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
 
   const [page, setPage] = useState<PageBuilderConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -48,7 +50,7 @@ export const PublicPageView: React.FC = () => {
       setNotFound(false);
 
       try {
-        const allPages = await pageBuilderFirestore.getAllPages(db);
+        const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
         
         let foundPage: PageBuilderConfig | undefined;
 
@@ -74,7 +76,7 @@ export const PublicPageView: React.FC = () => {
             }
             // Track page view for published pages
             if (foundPage.published) {
-              pageBuilderFirestore.incrementViews(foundPage.pageId, db);
+              pageBuilderFirestore.incrementViews(foundPage.pageId, db, tenantId);
             }
           } else {
             setNotFound(true);

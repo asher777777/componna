@@ -24,6 +24,7 @@ import {
 import { kesherService } from '../services/kesherService';
 import { KesherTransactionItem } from '../types';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { collection, onSnapshot, query, orderBy } from 'firebase/firestore';
 
 interface Props {
@@ -141,11 +142,14 @@ export const KesherTransactionsLogTab: React.FC<Props> = ({ refreshTrigger }) =>
     loadData();
   }, [refreshTrigger]);
 
-  // Real-time Firestore Listener
+  const { tenantId } = useTenantScope();
+
+  // Real-time Firestore Listener (scoped to tenant: tenants/{tenantId}/kesher_transactions)
   useEffect(() => {
     if (!db) return;
     try {
-      const q = query(collection(db, 'kesher_transactions'), orderBy('date', 'desc'));
+      const collRef = collection(db, 'tenants', tenantId, 'kesher_transactions');
+      const q = query(collRef, orderBy('date', 'desc'));
       const unsub = onSnapshot(
         q,
         (snapshot) => {
@@ -165,7 +169,7 @@ export const KesherTransactionsLogTab: React.FC<Props> = ({ refreshTrigger }) =>
     } catch (e) {
       console.warn('[KesherTransactionsLogTab] Firestore subscription setup notice:', e);
     }
-  }, [db]);
+  }, [db, tenantId]);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((t) => {

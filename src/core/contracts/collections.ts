@@ -34,6 +34,8 @@ export const SYSTEM_COLLECTIONS = {
   WHATSAPP_CHATS: 'wa_chats',
   WHATSAPP_MESSAGES: 'wa_messages',
   WHATSAPP_BOT_RULES: 'wa_bot_rules',
+  WHATSAPP_AI_BOTS: 'whatsapp_ai_bots',
+  WHATSAPP_BOT_CHATS: 'wa_bot_chats',
   WHATSAPP_STATUSES: 'wa_statuses',
   WHATSAPP_TEMPLATES: 'wa_templates',
   

@@ -8,6 +8,8 @@ import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
 import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
 import { normalizePhone } from '../services/whatsappCrmSyncService';
+import { useTenantScope } from '../../../core/tenant';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 
 export interface BulkSendItemResult {
   phone: string;
@@ -34,6 +36,10 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
   isDark,
   onRecipientSent,
 }) => {
+  const { getScopedCollectionPath } = useTenantScope();
+  const contactsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS);
+  const groupsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS);
+
   if (!isOpen) return null;
 
   const [phoneListRaw, setPhoneListRaw] = useState('');
@@ -60,7 +66,7 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
 
     const loadGroups = async () => {
       try {
-        const groupsSnap = await getDocs(collection(db, 'crm_groups')).catch(() => null);
+        const groupsSnap = await getDocs(collection(db, groupsCollectionPath)).catch(() => null);
         const list: { id: string; name: string; memberCount?: number }[] = [];
         if (groupsSnap) {
           groupsSnap.forEach((d) => {
@@ -86,7 +92,7 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
   const handleLoadCrmGroup = async (groupName: string) => {
     if (!db || !groupName) return;
     try {
-      const contactsSnap = await getDocs(collection(db, 'contacts'));
+      const contactsSnap = await getDocs(collection(db, contactsCollectionPath));
       const groupPhones: string[] = [];
       contactsSnap.forEach((d) => {
         const data = d.data();

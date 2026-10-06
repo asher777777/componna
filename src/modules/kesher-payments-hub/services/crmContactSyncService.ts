@@ -191,8 +191,8 @@ export class CrmContactSyncService {
   /**
    * Inject Firestore DB dynamically without static singleton imports
    */
-  public attachFirestore(db: any) {
-    if (!db || this.currentDb === db) return;
+  public attachFirestore(db: any, tenantId: string = '_master') {
+    if (!db) return;
     this.currentDb = db;
 
     if (this.unsubscribeFirestore) {
@@ -202,7 +202,8 @@ export class CrmContactSyncService {
 
     try {
       import('firebase/firestore').then(({ collection, onSnapshot }) => {
-        const contactsRef = collection(db, 'contacts');
+        // Scoped Subcollection: tenants/{tenantId}/contacts
+        const contactsRef = collection(db, 'tenants', tenantId, 'contacts');
         this.unsubscribeFirestore = onSnapshot(contactsRef, (snap) => {
           const list: CrmContactSummary[] = [];
           snap.forEach((docSnap) => {

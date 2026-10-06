@@ -10,6 +10,8 @@ import {
 } from '../types';
 import { DEFAULT_VISIBLE_COLUMNS } from '../config';
 import { isContactInGroup } from '../services/groupsUtils';
+import { useTenantScope } from '../../../core/tenant';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import {
   fetchGroupsAndContactsData,
   fetchSelectableCampaignsList,
@@ -89,6 +91,7 @@ export interface CrmGroupsContextValue {
   onOpenContactDetail?: (contact: ContactRecord) => void;
   onOpenCampaignPage?: (url: string) => void;
   greenApiConfig?: GreenApiConfig;
+  customCollections?: CrmGroupsCollectionsConfig;
 }
 
 const CrmGroupsContext = createContext<CrmGroupsContextValue | null>(null);
@@ -103,6 +106,17 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   greenApiCredentials,
 }) => {
   const db = useMemo(() => (firebaseApp ? getFirestore(firebaseApp) : null), [firebaseApp]);
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+
+  const resolvedCustomCollections: CrmGroupsCollectionsConfig = useMemo(() => ({
+    groups: customCollections?.groups || getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS),
+    contacts: customCollections?.contacts || getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS),
+    pages: customCollections?.pages || getScopedCollectionPath(SYSTEM_COLLECTIONS.PAGES),
+    campaigns: customCollections?.campaigns || getScopedCollectionPath('campaigns'),
+    interactions: customCollections?.interactions || getScopedCollectionPath(SYSTEM_COLLECTIONS.INTERACTIONS),
+    chatMessages: customCollections?.chatMessages || getScopedCollectionPath(SYSTEM_COLLECTIONS.CHAT_MESSAGES),
+    videoRooms: customCollections?.videoRooms || getScopedCollectionPath('crm_community_video_rooms'),
+  }), [customCollections, getScopedCollectionPath]);
 
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<ContactRecord[]>([]);
@@ -122,7 +136,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem('crm_groups_columns');
+        const saved = localStorage.getItem(`comona_${tenantId}_crm_groups_columns`);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -142,7 +156,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
         next = [...prev, colId];
       }
       try {
-        localStorage.setItem('crm_groups_columns', JSON.stringify(next));
+        localStorage.setItem(`comona_${tenantId}_crm_groups_columns`, JSON.stringify(next));
       } catch (e) {}
       return next;
     });
@@ -151,7 +165,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   const resetColumns = () => {
     setSelectedColumns(DEFAULT_VISIBLE_COLUMNS);
     try {
-      localStorage.setItem('crm_groups_columns', JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
+      localStorage.setItem(`comona_${tenantId}_crm_groups_columns`, JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
     } catch (e) {}
   };
 
@@ -181,8 +195,8 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     try {
       setLoading(true);
       const [res, campList] = await Promise.all([
-        fetchGroupsAndContactsData(db, ownerId, customCollections),
-        fetchSelectableCampaignsList(db, ownerId, customCollections),
+        fetchGroupsAndContactsData(db, ownerId, resolvedCustomCollections),
+        fetchSelectableCampaignsList(db, ownerId, resolvedCustomCollections),
       ]);
 
       setContacts(res.contacts);
@@ -196,7 +210,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     } finally {
       setLoading(false);
     }
-  }, [db, ownerId, customCollections]);
+  }, [db, ownerId, resolvedCustomCollections]);
 
   useEffect(() => {
     loadData();
@@ -373,7 +387,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
       });
       return { success: true, id, pageUrl: newGroup.pageUrl };
     }
-    const res = await saveGroupOrCommunityRecord(db, ownerId, groupData, customCollections);
+    const res = await saveGroupOrCommunityRecord(db, ownerId, groupData, resolvedCustomCollections);
     await loadData();
     return res;
   };
@@ -386,7 +400,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
       }
       return;
     }
-    await deleteGroupRecord(db, group, customCollections);
+    await deleteGroupRecord(db, group, resolvedCustomCollections);
     if (activeGroupId === group.id || activeGroupId === group.name) {
       setActiveGroupId('__all__');
     }
@@ -395,13 +409,13 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
 
   const deleteCommunityPage = async (groupId: string) => {
     if (!db) return;
-    await deleteCommunityPageRecord(db, groupId, customCollections);
+    await deleteCommunityPageRecord(db, groupId, resolvedCustomCollections);
     await loadData();
   };
 
   const bulkAssignToGroup = async (contactIds: string[], groupName: string) => {
     if (db) {
-      await bulkAssignGroupToContacts(db, contactIds, groupName, customCollections);
+      await bulkAssignGroupToContacts(db, contactIds, groupName, resolvedCustomCollections);
     }
     // Update local state and publish events
     setContacts((prev) =>
@@ -419,7 +433,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
 
   const bulkDeleteContacts = async (contactIds: string[]) => {
     if (db) {
-      await bulkDeleteContactsRecord(db, contactIds, customCollections);
+      await bulkDeleteContactsRecord(db, contactIds, resolvedCustomCollections);
     }
     setContacts((prev) => prev.filter((c) => !contactIds.includes(c.id)));
     setSelectedContactIds([]);
@@ -428,7 +442,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
 
   const bulkMoveBetweenGroups = async (contactIds: string[], sourceGroupName: string, targetGroupName: string) => {
     if (db) {
-      await moveContactsBetweenGroups(db, contactIds, sourceGroupName, targetGroupName, customCollections);
+      await moveContactsBetweenGroups(db, contactIds, sourceGroupName, targetGroupName, resolvedCustomCollections);
     }
     setContacts((prev) =>
       prev.map((c) => {
@@ -447,7 +461,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   const toggleSingleTag = async (contactId: string, groupName: string) => {
     let nextTags: string[] = [];
     if (db) {
-      nextTags = await toggleContactTag(db, contactId, groupName, customCollections);
+      nextTags = await toggleContactTag(db, contactId, groupName, resolvedCustomCollections);
     } else {
       const target = contacts.find((c) => c.id === contactId);
       const curr = target?.tags || [];
@@ -535,6 +549,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     onOpenContactDetail,
     onOpenCampaignPage,
     greenApiConfig: greenApiCredentials,
+    customCollections: resolvedCustomCollections,
   };
 
   return <CrmGroupsContext.Provider value={value}>{children}</CrmGroupsContext.Provider>;
