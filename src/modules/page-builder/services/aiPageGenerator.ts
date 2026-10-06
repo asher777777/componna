@@ -1,77 +1,146 @@
-﻿import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
-import { BrandDna } from '../../brand-dna-hub/types/brandDna';
+import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
+import { BrandDna } from '../../../core/contracts';
+import { resolveApiKey, callGeminiApi } from '../api/functionsApi';
+import {
+  GENERATE_MULTI_SECTION_PAGE_PROMPT,
+  GENERATE_MARKETING_IDEAS_PROMPT,
+  REFINE_SECTION_PROMPT,
+} from '../prompts';
+import { MarketingIdea, GenerationStep } from '../types';
 
-export interface GenerationStep {
-  stepIndex: number;
-  totalSteps: number;
-  sectionType: SectionType;
-  stepTitle: string;
-  statusText: string;
-  progressPercent: number;
-}
-
+export type { GenerationStep };
 export type OnStepCallback = (step: GenerationStep, partialConfig: PageBuilderConfig) => void;
 
+/**
+ * High-Converting Unsplash image seed generator matched to context
+ */
+function getSmartPlaceholderImage(category: string, index: number = 0): string {
+  const images: Record<string, string[]> = {
+    hero: [
+      'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1200&q=80',
+    ],
+    service: [
+      'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80',
+    ],
+    community: [
+      'https://images.unsplash.com/photo-1528605248644-14dd04022da1?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1511632765486-a01980e01a18?auto=format&fit=crop&w=1200&q=80',
+    ],
+    course: [
+      'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1200&q=80',
+      'https://images.unsplash.com/photo-1434030216411-0b793f4b4173?auto=format&fit=crop&w=1200&q=80',
+    ],
+  };
+  const pool = images[category] || images.hero;
+  return pool[index % pool.length];
+}
+
 export const aiPageGenerator = {
-  async generatePageIdeas(brandDna?: BrandDna | null, providedApiKey?: string): Promise<Array<{id: string, title: string, description: string, prompt: string, icon: string}>> {
-    const storedKeys = localStorage.getItem('comona_system_apikeys_config');
-    const parsedKeys = storedKeys ? JSON.parse(storedKeys) : {};
-    const apiKey = providedApiKey || parsedKeys.googleAiApiKey || import.meta.env.VITE_GEMINI_API_KEY as string;
-    
-    // Default fallback ideas
-    const fallback = [
-      { id: 'sales-funnel', title: 'משפך מכירות יוקרתי', description: 'דף נחיתה למכירת השירות המרכזי עם פירוט תוכניות והוכחה חברתית.', prompt: 'דף נחיתה יוקרתי וממיר למכירת השירות המוביל, כולל מסלולים, ביקורות והנעה לפעולה ברורה.', icon: 'Zap' },
-      { id: 'geo-local', title: 'דף שירות מקומי (GEO)', description: 'דף ממוקד אזור פעילות עם מפה, שעות פתיחה ויצירת קשר מהירה לוואטסאפ.', prompt: 'דף שירות אזורי (GEO) עם מיקוד בלקוחות מקומיים, מפה, שעות פעילות והוכחה חברתית מאומתת.', icon: 'MapPin' },
-      { id: 'lead-gen', title: 'קמפיין מגנט לידים', description: 'דף השארת פרטים קצר להורדת מדריך או הרשמה לוובינר.', prompt: 'דף נחיתה קצר וממוקד לאיסוף לידים, המציע מדריך חינמי או הרשמה להרצאה קרובה.', icon: 'Layers' },
+  /**
+   * Generates 6 marketing angles derived continuously from Brand DNA
+   */
+  async generatePageIdeas(
+    brandDna?: BrandDna | null,
+    providedApiKey?: string
+  ): Promise<MarketingIdea[]> {
+    const companyName = brandDna?.identity?.companyName || 'העסק המוביל';
+    const purpose = brandDna?.identity?.organizationPurpose || '';
+    const targetAudiences = brandDna?.audience?.targetAudiences || [];
+    const uvp = brandDna?.audience?.mainUvp || '';
+    const objections = brandDna?.audience?.commonObjections || [];
+
+    // Fallback set of 6 distinct concepts (Rule: NEVER return only 1 or empty)
+    const fallbackIdeas: MarketingIdea[] = [
+      {
+        id: 'sales-ultimatum',
+        title: 'משפך מכירה והשקת VIP',
+        description: 'דף נחיתה ישיר וממיר עם חבילות מחיר שקופות, ביקורות לקוחות ותחושת דחיפות לסגירת החודש.',
+        prompt: `דף מכירה והשקה יוקרתי וממיר עבור ${companyName}, כולל כותרת Hero מפוצלת, כרטיסי יתרונות, מחירון חבילות, הוכחה חברתית וטופס הצטרפות מהיר.`,
+        icon: 'Zap',
+        targetObjective: 'מכירות והמרות',
+        badge: 'הכי ממיר 🔥',
+      },
+      {
+        id: 'lead-magnet-guide',
+        title: 'דף מגנט לידים להורדת מדריך',
+        description: 'עמוד ידע אלגנטי שמציע תוכן מקצועי בעל ערך ענק בתמורה להשארת פרטי קשר.',
+        prompt: `דף נחיתה ממוקד למגנט לידים עבור ${companyName}, המציע הורדת מדריך אסטרטגי חינמי (PDF), מפרט את עיקרי הידע וכולל טופס הרשמה קצר.`,
+        icon: 'Layers',
+        targetObjective: 'איסוף לידים איכותיים',
+        badge: 'לידים מהירים 🧲',
+      },
+      {
+        id: 'geo-fast-response',
+        title: 'דף שירות מקומי ו-SEO (GEO)',
+        description: 'מיקוד אזורי מדויק לפי עיר ומחוז, עם מפת הגעה, שעות פתיחה, וחיבור מיידי לוואטסאפ.',
+        prompt: `דף שירות מקומי ממוקד GEO עבור ${companyName}, כולל כותרת מקומית, אזורי שירות, ביקורות מקומיות מאומתות, מפה וכפתור WhatsApp ישיר.`,
+        icon: 'MapPin',
+        targetObjective: 'פניות מקומיות',
+        badge: 'SEO מקומי 📍',
+      },
+      {
+        id: 'vip-digital-course',
+        title: 'דף קורס דיגיטלי / סדנה בלעדית',
+        description: 'הצגת סילבוס מודולרי, הישגי בוגרים, וידאו היכרות וספירה לאחור לסגירת ההרשמה.',
+        prompt: `דף נחיתה לקורס דיגיטלי והכשרה בלעדית של ${companyName}, עם סילבוס מודולרי, הישגי בוגרים, שאלות נפוצות ומסלולי הרשמה.`,
+        icon: 'GraduationCap',
+        targetObjective: 'הרשמה להדרכות',
+        badge: 'סמכות ומקצועיות 🎓',
+      },
+      {
+        id: 'community-vip-club',
+        title: 'דף מועדון חברים וקהילת VIP',
+        description: 'עמוד שייכות והרשמה לקהילת לקוחות אקסקלוסיבית עם הטבות חודשיות ונטוורקינג.',
+        prompt: `דף קהילה ומועדון לקוחות יוקרתי עבור ${companyName}, עם מונה חברים חי, הטבות בלעדיות, לוח אירועים וטופס הצטרפות מהיר.`,
+        icon: 'Heart',
+        targetObjective: 'חיזוק מועדון לקוחות',
+        badge: 'שייכות ונאמנות 👥',
+      },
+      {
+        id: 'presale-countdown-launch',
+        title: 'דף השקת פריסייל עם טיימר',
+        description: 'קמפיין השקה מוגבל בכמות ובזמן, עם שעון ספירה לאחור והטבה בלעדית למקדימים להירשם.',
+        prompt: `דף השקה עם ספירה לאחור והנחת פריסייל עבור ${companyName}, המשלב טיימר דחיפות, מסלול VIP מוגבל ומענה על התנגדויות מרכזיות.`,
+        icon: 'Sparkles',
+        targetObjective: 'באזז והשקה מהירה',
+        badge: 'דחיפות וסקרנות ⏳',
+      },
     ];
 
-    if (!apiKey) return fallback;
-
-    const systemPrompt = `
-You are an expert Marketing Strategist. 
-The brand name is "${brandDna?.identity?.companyName || 'החברה'}". 
-Their purpose: "${brandDna?.identity?.organizationPurpose || ''}".
-Their target audience: "${brandDna?.audience?.targetAudiences?.join(',') || 'לקוחות'}".
-
-Suggest 3 completely different landing page concepts/goals this brand should build right now to grow their business.
-Output ONLY a valid JSON array of objects, each with:
-- id: short english id (e.g. "webinar-funnel")
-- title: short catchy title in Hebrew (e.g. "הרשמה לוובינר קהילתי")
-- description: short description in Hebrew
-- prompt: a detailed prompt in Hebrew that the user can use to generate this page
-- icon: one of these Lucide icon names: ['Zap', 'MapPin', 'Layers', 'Heart', 'Sparkles', 'GraduationCap', 'Star']
-NO MARKDOWN. ONLY JSON.`;
-
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { temperature: 0.8, responseMimeType: "application/json" }
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        let text = result.candidates[0].content.parts[0].text;
-        
-        text = text.trim();
-        if (text.startsWith('```')) {
-          text = text.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
-        }
-
-        return JSON.parse(text);
-      } else {
-        const errText = await response.text();
-        console.error("Gemini API Error (generatePageIdeas):", response.status, errText);
-      }
-    } catch (err) {
-      console.error("AI Page Ideas Generation failed:", err);
+    const apiKey = resolveApiKey(providedApiKey);
+    if (!apiKey) {
+      return fallbackIdeas;
     }
-    return fallback;
+
+    const prompt = GENERATE_MARKETING_IDEAS_PROMPT({
+      companyName,
+      purpose,
+      targetAudiences,
+      uvp,
+      objections,
+    });
+
+    const response = await callGeminiApi<MarketingIdea[]>({
+      prompt,
+      providedApiKey: apiKey,
+      temperature: 0.85,
+    });
+
+    if (response.success && Array.isArray(response.data) && response.data.length >= 3) {
+      return response.data;
+    }
+
+    return fallbackIdeas;
   },
 
+  /**
+   * Generates a complete 4-8 sections page with streaming live updates.
+   * GUARANTEE: Never generates a single section!
+   */
   async generatePageLive(
     userPrompt: string,
     brandDna?: BrandDna | null,
@@ -88,12 +157,12 @@ NO MARKDOWN. ONLY JSON.`;
     const whatsapp = brandDna?.trust?.whatsappSupportNumber || '0501234567';
     const address = brandDna?.trust?.officeAddress || 'תל אביב, ישראל';
 
-    const pageId = `page_ai_${Date.now()}`;
-    
-    // Initial config shell, will be updated by AI response
-    let pageConfig: PageBuilderConfig = {
+    const pageId = `page_${Date.now()}`;
+
+    // Base scaffold for the page
+    const pageConfig: PageBuilderConfig = {
       pageId,
-      pageTitle: `${companyName} - דף חכם`,
+      pageTitle: `${companyName} - דף אינטרנט חכם`,
       slug: 'launch',
       published: false,
       isHomePage: false,
@@ -124,166 +193,125 @@ NO MARKDOWN. ONLY JSON.`;
       },
       seoSettings: {
         title: `${companyName} - ${slogan}`,
-        description: brandDna?.identity?.shortVision || `${companyName} מציגה פתרונות מתקדמים ואיכותיים ללא פשרות.`,
-        keywords: ['שירותים מקצועיים', 'חדשנות', 'דיגיטל', companyName],
+        description: brandDna?.identity?.shortVision || `${companyName} מציעה פתרונות מתקדמים ואיכותיים בהתאמה אישית.`,
+        keywords: ['שירותים מקצועיים', 'חדשנות', companyName],
         geo: {
           enabled: true,
           targetCity: 'תל אביב',
           targetRegion: 'גוש דן והמרכז',
           targetCountry: 'ישראל',
-          serviceAreas: ['כל הארץ'],
+          serviceAreas: ['כל הארץ', 'גוש דן', 'השרון'],
           localBusinessName: companyName,
           businessAddress: address,
           businessPhone: phone,
           businessEmail: email,
-          openingHours: 'א-ה 09:00-18:00',
         },
       },
       sectionOrder: [],
       sections: {},
     };
 
-    const storedKeys = localStorage.getItem('comona_system_apikeys_config');
-    const parsedKeys = storedKeys ? JSON.parse(storedKeys) : {};
-    const apiKey = options?.apiKey || parsedKeys.googleAiApiKey || import.meta.env.VITE_GEMINI_API_KEY as string;
-    
-    let aiResponse: any = null;
-    
-    if (!apiKey) {
-      console.warn("No Gemini API key found, falling back to static dynamic logic.");
-      aiResponse = {
-        slug: 'welcome',
-        backgroundColor: '#0a0a0c',
-        textColor: '#f8fafc',
-        sections: this.getFallbackSteps(userPrompt, companyName, brandDna)
-      };
-    } else {
+    let generatedSectionsData: any[] = [];
+    const apiKey = resolveApiKey(options?.apiKey);
+
+    if (apiKey) {
       try {
-        const targetAudience = brandDna?.audience?.targetAudiences?.join(", ") || "לקוחות פוטנציאליים";
-        const brandColors = `Primary: ${primaryColor}, BG: ${brandDna?.designTokens?.backgroundColor || '#ffffff'}`;
-        
-        const systemPrompt = `
-You are an expert Web Page Architect and Conversion Rate Optimizer.
-Brand Context:
-- Company: "${companyName}"
-- Audience: ${targetAudience}
-- Core UVP: "${brandDna?.audience?.mainUvp || 'החברה המובילה'}"
-- Voice/Tone: "${(brandDna?.identity as any)?.brandPersonality || 'מקצועי, אמין וחדשני'}"
-- Goal: Create a high-converting, deeply immersive page. DO NOT output a generic one-section page. Build a rich page with 4-8 interconnected sections (like Hero -> Marquee -> Services -> Bento -> Testimonials -> FAQ -> Contact).
-
-User Prompt: "${userPrompt}"
-
-### YOUR TASK:
-1. Generate an English "slug" (e.g. "sales-funnel").
-2. Pick "backgroundColor" and "textColor" that fit the brand vibe. DO NOT default to black! Use #hex.
-3. Choose the best sequence of sections.
-4. ${options?.generateImages ? 'For sections needing images, add "imagePrompt" (in English, for AI generation) and "imageAlt" (Hebrew). DO NOT add "imageSrc".' : 'Do not generate images.'}
-
-### AVAILABLE SECTIONS AND REQUIRED "data" PROPERTIES (Use EXACT property names):
-- hero: layout ('fz'|'spatial'|'centered'|'split'|'bento-hero'), heroStyle ('classic'|'modern'|'mesh-glow'), title, description, primaryButton {text, url}
-- services: layout ('grid'|'bento'|'cards'|'minimal'), title, description, items [{title, description, icon}]
-- testimonials: layout ('grid'|'carousel'|'masonry'), title, items [{name, role, quote}]
-- statsBento: layout ('bento-4'|'row-4'|'cards-3'), title, stats [{number, label}]
-- richContent: layout ('standard'|'two-columns'), heading, body
-- pricing: title, packages [{name, priceMonthly, features: []}]
-- geoLocal: title, subtitle, city, address, serviceAreas: []
-- faq: title, items [{question, answer}] (Ensure questions are highly relevant and solve real user objections!)
-- contact: title, subtitle, phone, email, address, showForm (boolean), directWhatsappChat (boolean)
-- logoMarquee: title, speed ('slow'|'medium'), logos [{name}]
-- smartForm: sectionTitle, sectionSubtitle, formId (leave empty string to auto-generate), formMode ('lead'|'contact')
-
-### STRICT JSON OUTPUT FORMAT (NO COMMENTS inside JSON!):
-{
-  "slug": "page-slug",
-  "backgroundColor": "#ffffff",
-  "textColor": "#0f172a",
-  "sections": [
-    {
-      "sectionType": "hero",
-      "stepTitle": "כותרת קצרה בעברית",
-      "statusText": "פעולה קצרה בעברית",
-      "data": {
-        "title": "Main title",
-        "layout": "split",
-        "heroStyle": "mesh-glow"
-      }
-    }
-  ]
-}
-`;
-
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }],
-            generationConfig: {
-              temperature: 0.7,
-              responseMimeType: "application/json",
-            }
-          })
+        const fullPrompt = GENERATE_MULTI_SECTION_PAGE_PROMPT({
+          companyName,
+          slogan,
+          targetAudience: brandDna?.audience?.targetAudiences?.join(', '),
+          uvp: brandDna?.audience?.mainUvp,
+          voiceTone: (brandDna?.identity as any)?.brandPersonality || 'מקצועי, מוביל ומשכנע',
+          primaryColor,
+          backgroundColor: pageConfig.globalSettings.backgroundColor,
+          userPrompt,
+          generateImages: options?.generateImages ?? true,
         });
 
-        if (response.ok) {
-          const result = await response.json();
-          let text = result.candidates[0].content.parts[0].text;
-          
-          text = text.trim();
-          if (text.startsWith('```')) {
-            text = text.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
-          }
+        const apiResult = await callGeminiApi<any>({
+          prompt: fullPrompt,
+          providedApiKey: apiKey,
+          temperature: 0.75,
+        });
 
-          aiResponse = JSON.parse(text);
-        } else {
-          const errText = await response.text();
-          console.error("Gemini API Error (generatePageLive):", response.status, errText);
-          aiResponse = { slug: 'page', backgroundColor: '#0a0a0c', textColor: '#f8fafc', sections: this.getFallbackSteps(userPrompt, companyName, brandDna) };
+        if (apiResult.success && apiResult.data) {
+          const aiData = apiResult.data;
+          if (aiData.slug) pageConfig.slug = aiData.slug;
+          if (aiData.pageTitle) pageConfig.pageTitle = aiData.pageTitle;
+          if (aiData.backgroundColor) pageConfig.globalSettings.backgroundColor = aiData.backgroundColor;
+          if (aiData.textColor) pageConfig.globalSettings.textColor = aiData.textColor;
+
+          if (Array.isArray(aiData.sections) && aiData.sections.length >= 3) {
+            generatedSectionsData = aiData.sections;
+          }
         }
       } catch (err) {
-        console.error("AI Generation failed:", err);
-        aiResponse = { slug: 'page', backgroundColor: '#0a0a0c', textColor: '#f8fafc', sections: this.getFallbackSteps(userPrompt, companyName, brandDna) };
+        console.warn('[AI Page Generator] API live call encountered issue, falling back to full skeleton:', err);
       }
     }
 
-    // Apply global generated settings
-    if (aiResponse.slug) pageConfig.slug = aiResponse.slug;
-    if (aiResponse.backgroundColor) pageConfig.globalSettings.backgroundColor = aiResponse.backgroundColor;
-    if (aiResponse.textColor) pageConfig.globalSettings.textColor = aiResponse.textColor;
+    // MANDATORY RULE: If AI didn't return at least 4 sections, use the rich 5-7 section fallback skeleton!
+    if (!generatedSectionsData || generatedSectionsData.length < 4) {
+      generatedSectionsData = this.getFullSkeletonFallback(userPrompt, companyName, slogan, brandDna);
+    }
 
-    const generatedSteps = aiResponse.sections || [];
+    // Live Streaming Simulation: build each section step-by-step
+    const totalSteps = generatedSectionsData.length;
 
-    // Stream through steps
-    for (let i = 0; i < generatedSteps.length; i++) {
-      const step = generatedSteps[i];
-      // Ensure IDs are unique
-      step.data.id = `${step.sectionType}_${Date.now()}_${i}`;
-      step.data.type = step.sectionType;
-      step.data.visible = true;
+    for (let i = 0; i < totalSteps; i++) {
+      const step = generatedSectionsData[i];
+      const sectionType: SectionType = step.sectionType || 'hero';
+      const secId = `${sectionType}_${Date.now()}_${i + 1}`;
 
-      pageConfig.sectionOrder.push(step.data.id);
-      pageConfig.sections[step.data.id] = step.data;
+      const secData = {
+        ...step.data,
+        id: secId,
+        type: sectionType,
+        visible: true,
+      };
+
+      // Ensure rich visual assets are attached if needed
+      if (options?.generateImages ?? true) {
+        if (sectionType === 'hero' && !secData.imageUrl) {
+          secData.imageUrl = getSmartPlaceholderImage('hero', i);
+        }
+        if (sectionType === 'services' && Array.isArray(secData.items)) {
+          secData.items = secData.items.map((it: any, itemIdx: number) => ({
+            ...it,
+            imageUrl: it.imageUrl || getSmartPlaceholderImage('service', itemIdx),
+          }));
+        }
+      }
+
+      pageConfig.sectionOrder.push(secId);
+      pageConfig.sections[secId] = secData;
+
+      const progressPercent = Math.min(100, Math.round(((i + 1) / totalSteps) * 100));
 
       if (onStep) {
         onStep(
           {
             stepIndex: i + 1,
-            totalSteps: generatedSteps.length,
-            sectionType: step.sectionType,
-            stepTitle: step.stepTitle || `בניית אזור ${step.sectionType}`,
-            statusText: step.statusText || 'מייצר נתונים ועיצוב מותאם...',
-            progressPercent: Math.round(((i + 1) / generatedSteps.length) * 100),
+            totalSteps,
+            sectionType,
+            stepTitle: step.stepTitle || `הקמת אזור ${sectionType}`,
+            statusText: step.statusText || 'מעצב ומזרים תוכן מדויק...',
+            progressPercent,
           },
           JSON.parse(JSON.stringify(pageConfig))
         );
       }
 
-      // Small natural pause for real-time visual streaming experience
-      await new Promise((r) => setTimeout(r, 600));
+      // Smooth step pacing for streaming experience
+      await new Promise((resolve) => setTimeout(resolve, 450));
     }
 
     return pageConfig;
   },
 
+  /**
+   * Refines a specific section using AI
+   */
   async generateSectionLive(
     sectionType: SectionType,
     userPrompt: string,
@@ -291,93 +319,208 @@ User Prompt: "${userPrompt}"
     currentConfig?: any,
     providedApiKey?: string
   ): Promise<any> {
-    const storedKeys = localStorage.getItem('comona_system_apikeys_config');
-    const parsedKeys = storedKeys ? JSON.parse(storedKeys) : {};
-    const apiKey = providedApiKey || parsedKeys.googleAiApiKey || import.meta.env.VITE_GEMINI_API_KEY as string;
-
+    const apiKey = resolveApiKey(providedApiKey);
     if (!apiKey) {
-      console.warn("No Gemini API key found, returning current config.");
       return currentConfig;
     }
 
     const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
-    const systemPrompt = `
-You are an expert UI/UX Designer and Conversion Rate Optimizer.
-The user wants to redesign a specific "${sectionType}" section for the company "${companyName}".
-User prompt: "${userPrompt}"
-Current section config: ${JSON.stringify(currentConfig)}
+    const prompt = REFINE_SECTION_PROMPT({
+      sectionType,
+      userPrompt,
+      companyName,
+      currentConfig,
+    });
 
-### AVAILABLE SECTIONS AND REQUIRED "data" PROPERTIES (Use EXACT property names):
-- hero: layout ('fz'|'spatial'|'centered'|'split'|'bento-hero'), heroStyle ('classic'|'modern'|'mesh-glow'), title, description, primaryButton {text, url}
-- services: layout ('grid'|'bento'|'cards'|'minimal'), title, description, items [{title, description, icon}]
-- testimonials: layout ('grid'|'carousel'|'masonry'), title, items [{name, role, quote}]
-- statsBento: layout ('bento-4'|'row-4'|'cards-3'), title, stats [{number, label}]
-- richContent: layout ('standard'|'two-columns'), heading, body
-- pricing: title, packages [{name, priceMonthly, features: []}]
-- geoLocal: title, subtitle, city, address, serviceAreas: []
-- faq: title, items [{question, answer}] (Ensure questions are highly relevant and solve real user objections!)
-- contact: title, subtitle, phone, email, address, showForm (boolean), directWhatsappChat (boolean)
-- logoMarquee: title, speed ('slow'|'medium'), logos [{name}]
-- smartForm: sectionTitle, sectionSubtitle, formId (leave empty string to auto-generate), formMode ('lead'|'contact')
+    const response = await callGeminiApi<any>({
+      prompt,
+      providedApiKey: apiKey,
+      temperature: 0.7,
+    });
 
-Return ONLY a valid JSON object for the section "data" config. NO markdown. NO COMMENTS inside the JSON.
-Output exactly ONE JSON object matching the required properties for the "${sectionType}" section.
-Rewrite the text content in Hebrew to match the user's prompt.
-`;
-    try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: systemPrompt }] }],
-          generationConfig: { temperature: 0.7, responseMimeType: "application/json" }
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        let text = result.candidates[0].content.parts[0].text;
-        
-        text = text.trim();
-        if (text.startsWith('```')) {
-          text = text.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
-        }
-
-        const newConfig = JSON.parse(text);
-        // Ensure ID and Type are preserved
-        if (currentConfig?.id) newConfig.id = currentConfig.id;
-        newConfig.type = sectionType;
-        return newConfig;
-      } else {
-        const errText = await response.text();
-        console.error("Gemini API Error (generateSectionLive):", response.status, errText);
-      }
-    } catch (err) {
-      console.error("AI Section Generation failed:", err);
+    if (response.success && response.data) {
+      const updated = {
+        ...response.data,
+        id: currentConfig?.id || `${sectionType}_${Date.now()}`,
+        type: sectionType,
+      };
+      return updated;
     }
+
     return currentConfig;
   },
 
-  getFallbackSteps(prompt: string, companyName: string, brandDna: any) {
-    if (prompt.includes('מכירה') || prompt.includes('קורס')) {
-      return [
-        {
-          sectionType: 'hero',
-          stepTitle: 'בניית אזור מכירה ראשי',
-          statusText: 'יוצר כותרת ענקית, אזור split ותחושת דחיפות...',
-          data: { title: `ההזדמנות שלך עם ${companyName}`, subtitle: 'הצטרף עכשיו', description: 'אל תפספסו את ההזדמנות לשנות את החיים שלכם.', layout: 'split', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'הצטרפו עכשיו', url: '#pricing' } }
-        },
-        { sectionType: 'pricing', stepTitle: 'מחירון ומסלולים', statusText: 'בונה חבילות תמחור...', data: { title: 'בחרו את המסלול שלכם', packages: [{id:'1', name:'VIP', priceMonthly:'₪990', isFeatured:true, buttonText:'הרשמה'}] } },
-      ];
-    }
+  /**
+   * NEVER returns 1 section! Always produces a rich, interconnected 6-section blueprint.
+   */
+  getFullSkeletonFallback(
+    prompt: string,
+    companyName: string,
+    slogan: string,
+    brandDna?: BrandDna | null
+  ): any[] {
+    const isSales = prompt.includes('מכיר') || prompt.includes('מחיר') || prompt.includes('חבילה');
+    const isGeo = prompt.includes('מקומי') || prompt.includes('אזור') || prompt.includes('עיר') || prompt.includes('GEO');
+    const isCommunity = prompt.includes('קהילה') || prompt.includes('מועדון') || prompt.includes('חברים');
+
+    const primaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
+
     return [
+      // 1. Hero
       {
         sectionType: 'hero',
-        stepTitle: 'בניית אזור ראשי (Hero)',
-        statusText: 'יוצר כותרת מרשימה...',
-        data: { title: `הצעד הבא שלכם עם ${companyName}`, description: 'הפלטפורמה המובילה בארץ.', layout: 'bento-hero', heroStyle: 'mesh-glow', buttonsVisible: true, primaryButton: { text: 'התחילו עכשיו', url: '#contact' } }
-      }
+        stepTitle: 'בניית אזור ראשי ממיר (Hero 2.0)',
+        statusText: 'יוצר כותרת ענק, באדג׳ הכרזה, והוכחה חברתית...',
+        data: {
+          title: isSales
+            ? `ההזדמנות הבלעדית שלכם עם ${companyName}`
+            : isGeo
+            ? `השירות המקצועי המוביל באזורכם - ${companyName}`
+            : `הפתרון השלם מבית ${companyName}`,
+          subtitle: slogan || 'איכות, מקצועיות ותוצאות מוכחות בשטח',
+          description: 'פתרון הוליסטי ומקיף המותאם לצרכים שלכם, עם שירות ללא פשרות וליווי מלא לאורך כל הדרך.',
+          layout: 'split',
+          heroStyle: 'mesh-glow',
+          badgeText: isSales ? 'הטבה מוגבלת בזמן' : 'המובילים בישראל לשנת 2026',
+          buttonsVisible: true,
+          primaryButton: { text: isSales ? 'לרכישה מיידית' : 'התחילו עכשיו', url: isSales ? '#pricing' : '#contact' },
+          secondaryButton: { text: 'למידע נוסף', url: '#services' },
+          socialProofEnabled: true,
+          socialProofText: 'מעל 2,400 לקוחות מרוצים כבר איתנו',
+          imageUrl: getSmartPlaceholderImage('hero', 0),
+        },
+      },
+      // 2. Services / Value Grid
+      {
+        sectionType: 'services',
+        stepTitle: 'הקמת רשת יתרונות ושירותים (Services Grid)',
+        statusText: 'מרכיב כרטיסי שירות עם אייקונים ותיאורי ערך מנצחים...',
+        data: {
+          title: 'למה לבחור דווקא בנו?',
+          subtitle: 'ארבעה עמודי תווך שהופכים אותנו לבחירה הטבעית של לקוחותינו',
+          layout: 'grid',
+          items: [
+            {
+              id: 'srv-1',
+              title: 'מקצועיות ומומחיות מוכחת',
+              description: 'צוות מוסמך עם שנים של ניסיון והצלחות בשטח.',
+              icon: 'ShieldCheck',
+            },
+            {
+              id: 'srv-2',
+              title: 'מענה מהיר וזמינות גבוהה',
+              description: 'אנחנו כאן בשבילכם עם תמיכה מסורה ויחס אישי מהיר.',
+              icon: 'Zap',
+            },
+            {
+              id: 'srv-3',
+              title: 'טכנולוגיה וחדשנות מתקדמת',
+              description: 'הכלים והפתרונות החדשניים ביותר שחוסכים לכם זמן וכסף.',
+              icon: 'Sparkles',
+            },
+            {
+              id: 'srv-4',
+              title: 'שקיפות ואחריות מלאה',
+              description: 'בלי אותיות קטנות – הכל גלוי, מוגדר וברור מראש.',
+              icon: 'CheckCircle2',
+            },
+          ],
+        },
+      },
+      // 3. Stats Bento
+      {
+        sectionType: 'statsBento',
+        stepTitle: 'בניית אזור נתונים והישגים (Stats Bento)',
+        statusText: 'יוצר מדדי הצלחה ויזואליים להגברת האמון...',
+        data: {
+          title: 'העוצמה שלנו במספרים',
+          subtitle: 'תוצאות מדויקות שמדברות בעד עצמן',
+          layout: 'bento-4',
+          stats: [
+            { number: '98%', label: 'שביעות רצון לקוחות', description: 'לפי סקר איכות שירות חודשי' },
+            { number: '15k+', label: 'פעולות מוצלחות', description: 'נמדדו במערכת' },
+            { number: '24/7', label: 'תמיכה וזמינות', description: 'מענה אנושי מהיר' },
+            { number: '100%', label: 'אחריות לתוצאה', description: 'עמידה בסטנדרטים הגבוהים ביותר' },
+          ],
+        },
+      },
+      // 4. Testimonials (Social Proof)
+      {
+        sectionType: 'testimonials',
+        stepTitle: 'הטמעת ביקורות והוכחה חברתית (Testimonials)',
+        statusText: 'בונה ציטוטים ודירוגי כוכבים מלקוחות מאומתים...',
+        data: {
+          title: 'מה הלקוחות שלנו מספרים?',
+          subtitle: 'חוויות אמיתיות של אלו שכבר עשו את הצעד',
+          layout: 'grid',
+          items: [
+            {
+              id: 'test-1',
+              name: 'יוסי כהן',
+              role: 'מנכ״ל ובעלים',
+              quote: 'העבודה מול הצוות שינתה לנו את כל תפיסת השירות. המקצועיות והמהירות פשוט יוצאות דופן.',
+              rating: 5,
+            },
+            {
+              id: 'test-2',
+              name: 'מיכל לוי',
+              role: 'מנהלת תפעול',
+              quote: 'חיפשנו פתרון אמין לאורך זמן ומצאנו שותפים אמיתיים לדרך. מומלץ בחום לכל מי שמעריך איכות.',
+              rating: 5,
+            },
+            {
+              id: 'test-3',
+              name: 'דניאל שרון',
+              role: 'יזם עצמאי',
+              quote: 'התוצאות הגיעו הרבה יותר מהר ממה שציפינו. השקיפות והיחס האישי שווים כל שקל.',
+              rating: 5,
+            },
+          ],
+        },
+      },
+      // 5. FAQ (Addressing Objections)
+      {
+        sectionType: 'faq',
+        stepTitle: 'מענה על שאלות נפוצות והתנגדויות (FAQ)',
+        statusText: 'מסיר חסמי המרה באמצעות תשובות מפורטות...',
+        data: {
+          title: 'שאלות ותשובות נפוצות',
+          subtitle: 'כל מה שחשוב לדעת לפני שמקבלים החלטה',
+          items: [
+            {
+              question: 'איך מתחילים וכמה זמן לוקח התהליך?',
+              answer: 'ההצטרפות פשוטה ומהירה – מיד עם השארת הפרטים או ההרשמה, נציג מטעמנו יוצר קשר ומספק גישה מיידית.',
+            },
+            {
+              question: 'האם יש התחייבות לתקופה ארוכה?',
+              answer: 'ממש לא. אנחנו מאמינים בחופש בחירה ובאיכות השירות שלנו, לכן ניתן לבטל או לשנות מסלול בכל עת ללא אותיות קטנות.',
+            },
+            {
+              question: 'מה קורה אם יש לי שאלה או בעיה?',
+              answer: 'מוקד השירות והתמיכה שלנו זמין עבורכם בערוצי WhatsApp, דוא״ל וטלפון עם זמני מענה קצרים במיוחד.',
+            },
+            {
+              question: 'האם המערכת מאובטחת ועומדת בתקנים?',
+              answer: 'בהחלט. כל הנתונים מוצפנים לפי תקני האבטחה המחמירים ביותר (SSL/TLS) וסליקה מאובטחת בתקן PCI.',
+            },
+          ],
+        },
+      },
+      // 6. Contact / Call to Action
+      {
+        sectionType: 'contact',
+        stepTitle: 'הקמת אזור יצירת קשר והנעה לפעולה (Contact)',
+        statusText: 'מחבר כפתור WhatsApp ישיר וטופס לידים מותאם...',
+        data: {
+          title: 'מוכנים לעשות את הצעד הבא?',
+          subtitle: 'השאירו פרטים ונחזור אליכם בהקדם, או צרו קשר ישיר בוואטסאפ',
+          phone: brandDna?.trust?.contactPhone || '03-1234567',
+          email: brandDna?.trust?.contactEmail || 'contact@example.com',
+          address: brandDna?.trust?.officeAddress || 'תל אביב, ישראל',
+          directWhatsappChat: true,
+          showForm: true,
+        },
+      },
     ];
-  }
+  },
 };
-

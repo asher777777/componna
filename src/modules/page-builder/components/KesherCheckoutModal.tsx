@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { PricingPackageItem } from '../types/sectionConfigs';
-import { KesherService } from '../../kesher-payments-hub/services/kesherService';
-import { crmContactSyncService } from '../../kesher-payments-hub/services/crmContactSyncService';
-import { KesherDocumentType } from '../../kesher-payments-hub/types';
+import { KesherDocumentType } from '../types';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { eventBus } from '../../../core/bridge/EventBus';
 import {
   CreditCard,
   ShieldCheck,
@@ -37,6 +37,7 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
   pageTitle,
   onPaymentSuccess,
 }) => {
+  const { getCapability } = useHostCapabilities();
   const [paymentMethod, setPaymentMethod] = useState<'credit' | 'bit' | 'transfer'>('credit');
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -85,7 +86,7 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
     setIsProcessing(true);
 
     try {
-      const kesherService = new KesherService();
+      const paymentTerminal = getCapability<any>('kesher-terminal') || getCapability<any>('payment-service');
       let trxResult: any = null;
       let usedMethodLabel = 'כרטיס אשראי';
 
@@ -101,8 +102,9 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
           throw new Error('נא להזין קוד CVV בגב הכרטיס');
         }
 
-        try {
-          trxResult = await kesherService.sendTransaction({
+        if (paymentTerminal?.sendTransaction) {
+          try {
+            trxResult = await paymentTerminal.sendTransaction({
             cardNumber: cleanCard,
             expiry,
             cvv,
@@ -125,21 +127,36 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
             ApprovalNumber: mockAuth,
             AuthNumber: mockAuth,
             DocUrl: `https://app.ezcount.co.il/doc-preview/${Math.floor(Math.random() * 100000)}`,
-            Message: 'אושר בהצלחה',
+          };
+        }
+        } else {
+          const mockAuth = `AP-${Math.floor(100000 + Math.random() * 900000)}`;
+          trxResult = {
+            Status: true,
+            TransactionId: `trx_${Date.now()}`,
+            ApprovalNumber: mockAuth,
+            AuthNumber: mockAuth,
+            DocUrl: `https://app.ezcount.co.il/doc-preview/${Math.floor(Math.random() * 100000)}`,
+            Message: 'אושר בהצלחה (ללא סליקה)',
           };
         }
         usedMethodLabel = isStandingOrder ? 'הוראת קבע אשראי' : 'כרטיס אשראי';
       } else if (paymentMethod === 'bit') {
         const targetBitPhone = bitPhone.trim() || phone.trim();
-        try {
-          trxResult = await kesherService.sendBitTransaction({
-            phoneNumber: targetBitPhone,
-            amount: numericPrice,
-            clientName,
-            description: `רכישת ${pkg.name} (${billingCycleLabel})`,
-            documentType,
-          });
-        } catch {
+        if (paymentTerminal?.sendBitTransaction) {
+          try {
+            trxResult = await paymentTerminal.sendBitTransaction({
+              phoneNumber: targetBitPhone,
+              amount: numericPrice,
+              clientName,
+              description: `רכישת ${pkg.name} (${billingCycleLabel})`,
+              documentType: documentType as any,
+            });
+          } catch (apiErr) {
+            console.warn('[KesherCheckout] Bit transaction warning, generating fallback:', apiErr);
+          }
+        }
+        if (!trxResult) {
           trxResult = {
             Status: true,
             TransactionId: `bit_${Date.now()}`,
@@ -150,95 +167,75 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
         usedMethodLabel = 'Bit';
       } else {
         // Bank transfer / manual invoice
-        try {
-          trxResult = await kesherService.sendCashTransaction({
-            paymentType: 'BankTransfer',
-            amount: numericPrice,
-            clientName,
-            phone,
-            email,
-            tz,
-            receiptType: String(documentType),
-          });
-        } catch {
+        if (paymentTerminal?.sendCashTransaction) {
+          try {
+            trxResult = await paymentTerminal.sendCashTransaction({
+              paymentType: 'BankTransfer',
+              amount: numericPrice,
+              clientName,
+              phone,
+              email,
+              tz,
+              receiptType: String(documentType),
+            });
+          } catch (apiErr) {
+            console.warn('[KesherCheckout] Bank transfer terminal warning:', apiErr);
+          }
+        }
+        if (!trxResult) {
           trxResult = {
             Status: true,
             ReceiptNumber: `DOC-${Math.floor(100000 + Math.random() * 900000)}`,
-            Message: 'מסמך הופק בהצלחה',
+            Message: 'פרטי הבקשה והעברה נקלטו בהצלחה',
           };
         }
         usedMethodLabel = 'העברה בנקאית';
       }
 
       // ==========================================
-      // AUTOMATIC CRM CONTACT INGESTION & SYNC
+      // AUTOMATIC CRM CONTACT & EVENTBUS BROADCAST
       // ==========================================
       const transactionId = trxResult.TransactionId || trxResult.Id || trxResult.ReceiptNumber || `trx_${Date.now()}`;
       const approvalCode = trxResult.ApprovalNumber || trxResult.AuthNumber || 'OK-9921';
       const docLink = trxResult.DocUrl || trxResult.Url || '';
       const docTypeLabel = documentType === 320 ? 'חשבונית מס קבלה' : documentType === 405 ? 'קבלה על תרומה (סעיף 46)' : 'קבלה';
 
-      // 1. Save or enrich contact in CRM
-      const { contact } = await crmContactSyncService.saveOrUpdateContact({
+      // Publish Payment Completed Event
+      eventBus.publish('payment:completed', {
+        transactionId,
+        amount: numericPrice,
         clientName,
         phone,
         email,
         tz,
+        paymentMethod: usedMethodLabel,
+        documentType,
+        receiptUrl: docLink,
+        timestamp: new Date().toISOString(),
       });
 
-      // 2. Attach comprehensive payment record & events to the contact card
-      const paymentRecord = {
-        id: transactionId,
-        date: new Date().toISOString(),
-        amount: numericPrice,
-        paymentType: usedMethodLabel,
-        receiptType: `${documentType} - ${docTypeLabel}`,
-        kesherStatus: 'Approved',
-        receiptLink: docLink,
-        description: `חבילת ${pkg.name} (${billingCycleLabel})`,
-        authNumber: approvalCode,
-        last4: cardNumber ? cardNumber.replace(/\s+/g, '').slice(-4) : undefined,
-      };
-
-      if (contact.id) {
-        // Record payment in CRM contact history
-        await crmContactSyncService.recordContactPayment(contact.id, paymentRecord as any);
-
-        // Enrich contact attributes (Company, Address, Tags, Lead Source)
-        const updatedTags = Array.from(
-          new Set([
-            ...(contact.tags || []),
-            'רוכש דרך דף נחיתה',
-            `חבילה: ${pkg.name}`,
-            isYearly ? 'מנוי שנתי' : 'מנוי חודשי',
-            'לקוח קשר / סליקה',
-          ])
-        );
-
-        const newEvent = {
-          time: new Date().toISOString(),
-          title: `רכישת חבילת ${pkg.name}`,
-          text: `בוצע תשלום בסך ₪${numericPrice.toLocaleString()} ב-${usedMethodLabel}. מס' אישור: ${approvalCode}.`,
-        };
-
-        const existingEvents = Array.isArray(contact.events) ? contact.events : [];
-
-        await crmContactSyncService.saveOrUpdateContact({
-          id: contact.id,
-          clientName,
-          phone,
-          email,
-          tz,
-          ...(companyName ? { company_name: companyName } : {}),
-          ...(city ? { mh_crm_city: city } : {}),
-          ...(street ? { mh_crm_street: street } : {}),
-          tags: updatedTags,
-          is_lead: false,
-          contact_type: 'contact',
-          lead_source: 'עמוד נחיתה / Page Builder',
-          events: [newEvent, ...existingEvents],
-        } as any);
-      }
+      // Publish CRM Lead Created Event
+      eventBus.publish('crm:lead:created', {
+        conta_name: clientName,
+        conta_phone: phone,
+        email,
+        source: 'עמוד נחיתה / Page Builder',
+        tags: [
+          'רוכש דרך דף נחיתה',
+          `חבילה: ${pkg.name}`,
+          isYearly ? 'מנוי שנתי' : 'מנוי חודשי',
+          'לקוח קשר / סליקה',
+        ],
+        metadata: {
+          transactionId,
+          amount: numericPrice,
+          paymentMethod: usedMethodLabel,
+          docTypeLabel,
+          companyName,
+          city,
+          street,
+        },
+      });
 
       setSuccessData({
         transactionId,

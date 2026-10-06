@@ -89,13 +89,22 @@ const renderFileTypeIcon = (type: MediaCategoryFilter | MediaType | string, clas
       return <Music className={`${className} text-amber-500`} />;
     case 'document':
       return <FileText className={`${className} text-blue-500`} />;
-    case 'archive':
-      return <Archive className={`${className} text-purple-500`} />;
     case 'code':
       return <Code2 className={`${className} text-pink-500`} />;
     default:
       return <HardDrive className={`${className} text-slate-500`} />;
   }
+};
+
+// Helper to detect HeyGen items
+const isHeyGenItem = (item: MediaItem) => {
+  return (
+    item.sourceModule === 'heygen' ||
+    item.metadata?.isHeyGen ||
+    item.metadata?.heygenVideoId ||
+    item.tags?.includes('heygen') ||
+    item.name?.toLowerCase().includes('heygen')
+  );
 };
 
 // Optimized thumbnail component with skeleton shimmer and smooth lazy loading
@@ -1179,6 +1188,41 @@ export const MediaGalleryGrid: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* Quick Filter Bar for Universal File Categories */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs">
+        {[
+          { id: 'all', label: 'הכל', count: mediaItems.length },
+          { id: 'image', label: 'תמונות ווידאו', count: mediaItems.filter((i) => i.type === 'image' || i.type === 'video').length },
+          { id: 'pdf', label: 'מסמכי PDF וחוזים', count: mediaItems.filter((i) => i.type === 'pdf' || i.name.toLowerCase().endsWith('.pdf')).length },
+          { id: 'spreadsheet', label: 'טבלאות וחשבוניות', count: mediaItems.filter((i) => i.type === 'spreadsheet' || i.name.match(/\.(xlsx?|csv|ods)$/i)).length },
+          { id: 'audio', label: 'הקלטות שמע', count: mediaItems.filter((i) => i.type === 'audio').length },
+          { id: 'heygen', label: 'סרטוני HeyGen AI', count: mediaItems.filter((i) => isHeyGenItem(i)).length },
+        ].map((tab) => {
+          const isActive = filters.typeFilter === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setFilters((prev) => ({ ...prev, typeFilter: tab.id as any }))}
+              className={`px-3 py-1.5 rounded-xl font-bold flex-shrink-0 flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer ${
+                isActive
+                  ? isLight
+                    ? 'bg-amber-500 text-black shadow'
+                    : 'bg-yellow-500 text-black shadow-md shadow-yellow-500/20'
+                  : isLight
+                  ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                  : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+              }`}
+            >
+              <span>{tab.label}</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-black/20 text-black' : 'bg-slate-800/80 text-slate-400'}`}>
+                {tab.count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
 
       {/* 2. Folders Bar (Pills shelf inside current location) */}
       {!activeFolderId && folders.length > 0 && (

@@ -164,6 +164,42 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   const [generatedVariations, setGeneratedVariations] = useState<StatusVariation[]>([]);
   const [aiFeedbackMessage, setAiFeedbackMessage] = useState<string | null>(null);
 
+  const dynamicPresets = useMemo(() => {
+    const base = [...STATUS_PRESETS];
+    if (brandDna) {
+      if (brandDna.audience?.mainUvp) {
+        base.push({
+          id: 'dna_uvp',
+          label: 'מכירות ומסר שיווקי (DNA)',
+          icon: '??',
+          defaultTopic: 'כתוב סטטוס שיווקי המדגיש את הצעת הערך המרכזית שלנו: ' + brandDna.audience.mainUvp,
+          tone: 'marketing' as StatusTone
+        });
+      }
+      if (brandDna.identity?.slogan) {
+        base.push({
+          id: 'dna_slogan',
+          label: 'סלוגן והשראה (DNA)',
+          icon: '??',
+          defaultTopic: 'סטטוס קצר וקולע בהשראת הסלוגן שלנו: ' + brandDna.identity.slogan,
+          tone: 'viral' as StatusTone
+        });
+      }
+      if (brandDna.audience?.targetAudiences?.length) {
+        brandDna.audience.targetAudiences.forEach((aud, i) => {
+          base.push({
+            id: 'dna_aud_' + i,
+            label: 'קהל יעד ספציפי (DNA)',
+            icon: '??',
+            defaultTopic: 'כתוב סטטוס פנייה ישירה וייעודית לקהל היעד: ' + aud,
+            tone: 'warm' as StatusTone
+          });
+        });
+      }
+    }
+    return base;
+  }, [brandDna]);
+
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishResult, setPublishResult] = useState<{ success: boolean; msg: string; idMessage?: string } | null>(null);
 
@@ -825,7 +861,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               <div>
                 <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">׳×׳‘׳ ׳™׳•׳× ׳׳”׳™׳¨׳•׳× ׳׳•׳›׳ ׳•׳×:</span>
                 <div className="flex flex-wrap gap-1.5">
-                  {STATUS_PRESETS.map((preset) => (
+                  {dynamicPresets.filter(p => p.tone === selectedTone).map((preset) => (
                     <button
                       key={preset.id}
                       type="button"
@@ -1846,4 +1882,6 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     </div>
   );
 };
+
+
 

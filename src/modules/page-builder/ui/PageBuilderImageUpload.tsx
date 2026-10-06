@@ -5,7 +5,6 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
-import { MediaPickerModal } from '../../media-gallery-hub';
 
 interface PageBuilderImageUploadProps {
   label?: string;
@@ -36,7 +35,6 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   const [tab, setTab] = useState<'gallery' | 'url' | 'samples' | 'ai'>('gallery');
   const [urlInput, setUrlInput] = useState(value || '');
   const [isEditingUrl, setIsEditingUrl] = useState(false);
-  const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -53,10 +51,11 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
           }
         }
       } catch (err) {
-        console.warn('Host media picker fallback to direct modal:', err);
+        console.warn('Host media picker fallback to direct file input:', err);
       }
     }
-    setIsGalleryModalOpen(true);
+    // Graceful fallback to local file upload input
+    fileInputRef.current?.click();
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -347,24 +346,6 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
             </div>
           )}
         </div>
-      )}
-
-      {/* Direct Media Gallery Hub Modal */}
-      {isGalleryModalOpen && (
-        <MediaPickerModal
-          isOpen={isGalleryModalOpen}
-          onClose={() => setIsGalleryModalOpen(false)}
-          title="בחירת תמונה מגלריית המדיה"
-          allowedTypes={['image']}
-          onSelectMedia={(items) => {
-            const first = items[0];
-            if (first?.url) {
-              onChange(first.url);
-              setUrlInput(first.url);
-            }
-            setIsGalleryModalOpen(false);
-          }}
-        />
       )}
     </div>
   );

@@ -12,6 +12,8 @@ import { useSystemConnection } from '../../core/connection/SystemConnectionConte
 import { useHostCapabilities } from '../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../core/contracts';
 import { Layers, Edit3, Sparkles } from 'lucide-react';
+import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
+import { PageBuilderProvider } from './context/PageBuilderContext';
 
 
 const STORAGE_KEY = 'comona_pagebuilder_current_page';
@@ -88,7 +90,7 @@ const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
   },
 };
 
-export const PageBuilderStandaloneView: React.FC = () => {
+const PageBuilderStandaloneViewInner: React.FC = () => {
   const navigate = useNavigate();
   const { db } = useSystemConnection();
   const { getCapability } = useHostCapabilities();
@@ -101,6 +103,7 @@ export const PageBuilderStandaloneView: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(DEMO_INITIAL_CONFIG);
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
   const [isShortenerModalOpen, setIsShortenerModalOpen] = useState(false);
   const [selectedShortPage, setSelectedShortPage] = useState<PageBuilderConfig | null>(null);
 
@@ -259,6 +262,10 @@ export const PageBuilderStandaloneView: React.FC = () => {
           setCurrentPage(generatedConfig);
           setViewMode('editor');
         }}
+        onOpenMarketingDrawer={() => {
+          setIsAiModalOpen(false);
+          setIsMarketingDrawerOpen(true);
+        }}
       />
 
       {/* URL Shortener Modal */}
@@ -275,7 +282,25 @@ export const PageBuilderStandaloneView: React.FC = () => {
           }}
         />
       )}
+
+      {/* Brand DNA Marketing Ideas Drawer */}
+      <ContinuousMarketingIdeasDrawer
+        isOpen={isMarketingDrawerOpen}
+        onClose={() => setIsMarketingDrawerOpen(false)}
+        onSelectIdea={(prompt) => {
+          setIsMarketingDrawerOpen(false);
+          setIsAiModalOpen(true);
+        }}
+      />
     </div>
+  );
+};
+
+export const PageBuilderStandaloneView: React.FC = () => {
+  return (
+    <PageBuilderProvider>
+      <PageBuilderStandaloneViewInner />
+    </PageBuilderProvider>
   );
 };
 

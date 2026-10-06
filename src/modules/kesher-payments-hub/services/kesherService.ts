@@ -135,13 +135,26 @@ export class KesherService {
 
         const text = await res.text();
         try {
-          return JSON.parse(text);
-        } catch {
+          const parsed = JSON.parse(text);
+          if (parsed.status === 'error' && parsed.error && typeof parsed.error === 'string') {
+            if (parsed.error.includes('InvalidSecurity') || parsed.error.includes('verifying security')) {
+              console.error('[KesherService] שגיאת אבטחה ואימות במסוף קשר:', parsed.error);
+              throw new Error('שגיאת אימות במסוף קשר (שם משתמש או מפתח API שגויים בקשר)');
+            }
+          }
+          return parsed;
+        } catch (parseErr: any) {
+          if (parseErr.message && parseErr.message.includes('אימות')) {
+            throw parseErr;
+          }
           return text;
         }
       } catch (err: any) {
         clearTimeout(timer);
         lastError = err;
+        if (err.message && err.message.includes('אימות במסוף קשר')) {
+          throw err;
+        }
       }
     }
 
@@ -594,15 +607,8 @@ export class KesherService {
         ezUrls.push(`${this.settings.proxyUrl.replace(/\/$/, '')}/ezcount/get-docs`);
       }
 
-      // 2. Built-in Firebase / Hosting Proxy rewrite
+      // 2. Built-in Firebase / Hosting Proxy rewrite (Server-to-Server)
       ezUrls.push('/api/kesher-proxy?target=ezcount');
-
-      // 3. Alternative CORS proxies (safe, non-blocking)
-      ezUrls.push(`https://thingproxy.freeboard.io/fetch/${targetApiUrl}`);
-      ezUrls.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetApiUrl)}`);
-
-      // 4. Direct API call (works if allowed or same origin)
-      ezUrls.push(targetApiUrl);
 
       const ezPayload = {
         api_key: this.settings.ezCountToken,

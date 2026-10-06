@@ -1,20 +1,54 @@
 import React from 'react';
-import { SaasStorefrontComposerStandaloneView } from '../modules/saas-storefront-composer';
-import { BrandDnaHubStandaloneView } from '../modules/brand-dna-hub';
-import { AuthPortalStandaloneView } from '../modules/auth-portal';
-import { DbCollectionsHubStandaloneView } from '../modules/db-collections-hub';
-import { MediaGalleryHubStandaloneView } from '../modules/media-gallery-hub';
-import { FlowPlayerEngineStandaloneView } from '../modules/flow-player-engine';
-import { TemplateStandaloneView } from '../modules/_template';
-import { PageBuilderStandaloneView } from '../modules/page-builder';
-import { CrmAnalyticsStandaloneView } from '../modules/crm-analytics';
-import { ClientReceiverPlatformStandaloneView } from '../modules/client-receiver-platform';
-import { DbConnectorHubStandaloneView } from '../modules/db-connector-hub';
-import { VideoProducerStudioView } from '../modules/video-producer-studio';
-import { SmartFormBuilderStandaloneView } from '../modules/smart-form-builder';
-import { CrmGroupsHubStandaloneView } from '../modules/crm-groups-hub';
-import { WhatsAppGreenApiStandaloneView } from '../modules/whatsapp-green-api-hub';
-import { KesherPaymentsStandaloneView } from '../modules/kesher-payments-hub';
+
+// Lazy-loaded standalone views to ensure full runtime isolation
+const SaasStorefrontComposerStandaloneView = React.lazy(() =>
+  import('../modules/saas-storefront-composer').then((m) => ({ default: m.SaasStorefrontComposerStandaloneView }))
+);
+const BrandDnaHubStandaloneView = React.lazy(() =>
+  import('../modules/brand-dna-hub').then((m) => ({ default: m.BrandDnaHubStandaloneView }))
+);
+const KesherPaymentsStandaloneView = React.lazy(() =>
+  import('../modules/kesher-payments-hub').then((m) => ({ default: m.KesherPaymentsStandaloneView }))
+);
+const WhatsAppGreenApiStandaloneView = React.lazy(() =>
+  import('../modules/whatsapp-green-api-hub').then((m) => ({ default: m.WhatsAppGreenApiStandaloneView }))
+);
+const CrmGroupsHubStandaloneView = React.lazy(() =>
+  import('../modules/crm-groups-hub').then((m) => ({ default: m.CrmGroupsHubStandaloneView }))
+);
+const SmartFormBuilderStandaloneView = React.lazy(() =>
+  import('../modules/smart-form-builder').then((m) => ({ default: m.SmartFormBuilderStandaloneView }))
+);
+const VideoProducerStudioView = React.lazy(() =>
+  import('../modules/video-producer-studio').then((m) => ({ default: m.VideoProducerStudioView }))
+);
+const DbConnectorHubStandaloneView = React.lazy(() =>
+  import('../modules/db-connector-hub').then((m) => ({ default: m.DbConnectorHubStandaloneView }))
+);
+const ClientReceiverPlatformStandaloneView = React.lazy(() =>
+  import('../modules/client-receiver-platform').then((m) => ({ default: m.ClientReceiverPlatformStandaloneView }))
+);
+const CrmAnalyticsStandaloneView = React.lazy(() =>
+  import('../modules/crm-analytics').then((m) => ({ default: m.CrmAnalyticsStandaloneView }))
+);
+const PageBuilderStandaloneView = React.lazy(() =>
+  import('../modules/page-builder').then((m) => ({ default: m.PageBuilderStandaloneView }))
+);
+const AuthPortalStandaloneView = React.lazy(() =>
+  import('../modules/auth-portal').then((m) => ({ default: m.AuthPortalStandaloneView }))
+);
+const FlowPlayerEngineStandaloneView = React.lazy(() =>
+  import('../modules/flow-player-engine').then((m) => ({ default: m.FlowPlayerEngineStandaloneView }))
+);
+const MediaGalleryHubStandaloneView = React.lazy(() =>
+  import('../modules/media-gallery-hub').then((m) => ({ default: m.MediaGalleryHubStandaloneView }))
+);
+const DbCollectionsHubStandaloneView = React.lazy(() =>
+  import('../modules/db-collections-hub').then((m) => ({ default: m.DbCollectionsHubStandaloneView }))
+);
+const TemplateStandaloneView = React.lazy(() =>
+  import('../modules/_template').then((m) => ({ default: m.TemplateStandaloneView }))
+);
 
 export interface ModuleDefinition {
   id: string;
@@ -74,7 +108,6 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     route: '/smart-forms',
     collectionPrefix: 'mod_forms',
   },
-
   {
     id: 'video-producer-studio',
     name: 'סטודיו וידאו ואווטאר (SDO Video Producer & HeyGen)',
@@ -156,5 +189,3 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'mod_template_',
   },
 ];
-
-

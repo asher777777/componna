@@ -12,6 +12,8 @@ import { UrlShortenerModal } from './components/UrlShortenerModal';
 import { GeoSeoDrawer } from './components/GeoSeoDrawer';
 import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
 import { AiSectionDesignerModal } from './components/AiSectionDesignerModal';
+import { PageBlueprintsModal } from './components/PageBlueprintsModal';
+import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderButton } from './ui/PageBuilderButton';
 import { Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -45,6 +47,8 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   const [isShortenerModalOpen, setIsShortenerModalOpen] = useState(false);
   const [isGeoDrawerOpen, setIsGeoDrawerOpen] = useState(false);
   const [isAiBuilderModalOpen, setIsAiBuilderModalOpen] = useState(false);
+  const [isBlueprintsModalOpen, setIsBlueprintsModalOpen] = useState(false);
+  const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [aiSectionTarget, setAiSectionTarget] = useState<string | null>(null);
@@ -210,6 +214,8 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenAddSection={() => setIsAddModalOpen(true)}
         onOpenAiBuilder={() => setIsAiBuilderModalOpen(true)}
+        onOpenBlueprints={() => setIsBlueprintsModalOpen(true)}
+        onOpenMarketingIdeas={() => setIsMarketingDrawerOpen(true)}
         onOpenPublish={() => setIsPublishModalOpen(true)}
         onOpenShortener={() => setIsShortenerModalOpen(true)}
         onOpenGeo={() => setIsGeoDrawerOpen(true)}
@@ -457,6 +463,30 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
           if (onSaveConfig) {
             onSaveConfig(generated);
           }
+        }}
+        onOpenMarketingDrawer={() => {
+          setIsAiBuilderModalOpen(false);
+          setIsMarketingDrawerOpen(true);
+        }}
+      />
+
+      <PageBlueprintsModal
+        isOpen={isBlueprintsModalOpen}
+        onClose={() => setIsBlueprintsModalOpen(false)}
+        onSelectBlueprint={(bpConfig) => {
+          setConfig(bpConfig);
+          if (onSaveConfig) {
+            onSaveConfig(bpConfig);
+          }
+        }}
+      />
+
+      <ContinuousMarketingIdeasDrawer
+        isOpen={isMarketingDrawerOpen}
+        onClose={() => setIsMarketingDrawerOpen(false)}
+        onSelectIdea={(prompt) => {
+          setIsMarketingDrawerOpen(false);
+          setIsAiBuilderModalOpen(true);
         }}
       />
 

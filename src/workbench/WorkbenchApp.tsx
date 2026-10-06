@@ -1,9 +1,15 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { REGISTERED_MODULES } from './moduleRegistry';
-import { PublicPageView } from '../modules/page-builder';
+import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
+import { ModuleLoadingFallback } from './components/ModuleLoadingFallback';
+
+// PublicPageView loaded lazily to isolate page-builder from shell
+const PublicPageView = React.lazy(() =>
+  import('../modules/page-builder').then((m) => ({ default: m.PublicPageView }))
+);
 
 export const WorkbenchApp: React.FC = () => {
   const location = useLocation();
@@ -26,12 +32,66 @@ export const WorkbenchApp: React.FC = () => {
       <div className="w-screen min-h-screen bg-[#09090b] flex items-center justify-center p-0 m-0 text-white" dir="rtl">
         <main className="w-full min-h-screen">
           <Routes>
-            <Route path="/p/:slug" element={<PublicPageView />} />
-            <Route path="/p/*" element={<PublicPageView />} />
-            <Route path="/page/:slug" element={<PublicPageView />} />
-            <Route path="/page/*" element={<PublicPageView />} />
-            <Route path="/preview/:slug" element={<PublicPageView />} />
-            <Route path="/preview/*" element={<PublicPageView />} />
+            <Route
+              path="/p/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/p/*"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/page/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/page/*"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/preview/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/preview/*"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
 
             {REGISTERED_MODULES.map((module) => {
               const Component = module.component;
@@ -39,7 +99,13 @@ export const WorkbenchApp: React.FC = () => {
                 <Route
                   key={module.id}
                   path={`${module.route}/*`}
-                  element={<Component />}
+                  element={
+                    <ModuleErrorBoundary moduleName={module.name}>
+                      <Suspense fallback={<ModuleLoadingFallback moduleName={module.name} />}>
+                        <Component />
+                      </Suspense>
+                    </ModuleErrorBoundary>
+                  }
                 />
               );
             })}
@@ -63,12 +129,66 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/" element={<Navigate to={REGISTERED_MODULES[0]?.route || '/'} replace />} />
             
             {/* Public Page Routes */}
-            <Route path="/p/:slug" element={<PublicPageView />} />
-            <Route path="/p/*" element={<PublicPageView />} />
-            <Route path="/page/:slug" element={<PublicPageView />} />
-            <Route path="/page/*" element={<PublicPageView />} />
-            <Route path="/preview/:slug" element={<PublicPageView />} />
-            <Route path="/preview/*" element={<PublicPageView />} />
+            <Route
+              path="/p/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/p/*"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/page/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/page/*"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/preview/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
+            <Route
+              path="/preview/*"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
 
             {REGISTERED_MODULES.map((module) => {
               const Component = module.component;
@@ -76,7 +196,13 @@ export const WorkbenchApp: React.FC = () => {
                 <Route
                   key={module.id}
                   path={`${module.route}/*`}
-                  element={<Component />}
+                  element={
+                    <ModuleErrorBoundary moduleName={module.name}>
+                      <Suspense fallback={<ModuleLoadingFallback moduleName={module.name} />}>
+                        <Component />
+                      </Suspense>
+                    </ModuleErrorBoundary>
+                  }
                 />
               );
             })}
@@ -86,4 +212,3 @@ export const WorkbenchApp: React.FC = () => {
     </div>
   );
 };
-

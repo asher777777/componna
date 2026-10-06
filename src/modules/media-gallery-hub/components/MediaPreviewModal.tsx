@@ -478,6 +478,23 @@ export const MediaPreviewModal: React.FC = () => {
               <span>תיקייה</span>
             </button>
 
+            {/* Share WhatsApp */}
+            <button
+              onClick={() => {
+                const text = encodeURIComponent(`מצורף קובץ: ${previewItem.name}\n${previewItem.url}`);
+                window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+              }}
+              className={`px-3 py-2 rounded-xl font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+                isLight
+                  ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                  : 'bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border-emerald-800/60'
+              }`}
+              title="שתף בוואטסאפ"
+            >
+              <span>💬</span>
+              <span>וואטסאפ</span>
+            </button>
+
             {/* Copy Link */}
             <button
               onClick={handleCopyUrl}
@@ -486,7 +503,7 @@ export const MediaPreviewModal: React.FC = () => {
                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
               }`}
-              title="העתק קישור לקובץ"
+              title="העתק קישור ישיר לקובץ"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
               <span>{copied ? 'הועתק!' : 'העתק קישור'}</span>

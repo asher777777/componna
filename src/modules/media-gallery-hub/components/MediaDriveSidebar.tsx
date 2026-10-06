@@ -123,6 +123,10 @@ export const MediaDriveSidebar: React.FC<{
   const systemVideosCount = mediaItems.filter((i) => i.type === 'video' && !isHeyGenItem(i)).length;
   const heygenVideosCount = mediaItems.filter((i) => isHeyGenItem(i)).length;
   const audioCount = mediaItems.filter((i) => i.type === 'audio').length;
+  const pdfCount = mediaItems.filter((i) => i.type === 'pdf' || i.name.toLowerCase().endsWith('.pdf')).length;
+  const spreadsheetCount = mediaItems.filter(
+    (i) => i.type === 'spreadsheet' || i.name.match(/\.(xlsx?|csv|ods)$/i)
+  ).length;
   const docCount = mediaItems.filter((i) => i.type === 'document').length;
   const archiveCount = mediaItems.filter((i) => i.type === 'archive' || i.type === 'code').length;
   const allCount = mediaItems.length;
@@ -138,8 +142,10 @@ export const MediaDriveSidebar: React.FC<{
     { id: 'image', label: 'תמונות', icon: ImageIcon, count: imagesCount },
     { id: 'video', label: 'סרטוני מערכת', icon: FileVideo, count: systemVideosCount },
     { id: 'heygen', label: 'סרטוני HEYGEN AI', icon: Sparkles, count: heygenVideosCount, badge: 'AI', isHighlight: true },
-    { id: 'audio', label: 'שמע וקול', icon: Music, count: audioCount },
-    { id: 'document', label: 'מסמכי PDF ו-Office', icon: FileText, count: docCount },
+    { id: 'pdf', label: 'מסמכי PDF וחוזים', icon: FileText, count: pdfCount },
+    { id: 'spreadsheet', label: 'טבלאות וחשבוניות', icon: FileText, count: spreadsheetCount },
+    { id: 'document', label: 'מסמכי Office ו-Word', icon: FileText, count: docCount },
+    { id: 'audio', label: 'הקלטות שמע וקול', icon: Music, count: audioCount },
     { id: 'archive', label: 'ארכיונים וקוד', icon: Archive, count: archiveCount },
     { id: 'all', label: 'כל הקבצים', icon: HardDrive, count: allCount },
   ];

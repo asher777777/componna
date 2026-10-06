@@ -289,16 +289,27 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
       });
 
       const responseText = await response.text();
-      res.status(response.status);
+      // If upstream returned error (e.g. 500 InvalidSecurity or 404), return 200 with JSON payload so client can parse Kesher's specific message
       try {
         const json = JSON.parse(responseText);
-        res.json(json);
+        res.status(200).json({
+          _upstreamStatus: response.status,
+          ...json
+        });
       } catch {
-        res.send(responseText);
+        if (response.ok) {
+          res.status(200).send(responseText);
+        } else {
+          res.status(200).json({
+            status: 'error',
+            _upstreamStatus: response.status,
+            error: responseText || `Upstream returned status ${response.status}`
+          });
+        }
       }
     } catch (err: any) {
       console.error('[kesherProxy] Proxy forwarding failed:', err);
-      res.status(502).json({ error: 'Proxy request failed', details: err?.message || String(err) });
+      res.status(200).json({ status: 'error', error: 'Proxy request failed: ' + (err?.message || String(err)) });
     }
   });
 });

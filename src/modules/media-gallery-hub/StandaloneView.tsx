@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
 import {
@@ -11,6 +11,7 @@ import {
   SlidersHorizontal,
   Sun,
   Moon,
+  Sparkles,
 } from 'lucide-react';
 import { MediaGalleryProvider } from './context/MediaGalleryContext';
 import { MediaDriveSidebar } from './components/MediaDriveSidebar';
@@ -24,11 +25,26 @@ import { MoveToFolderModal } from './components/MoveToFolderModal';
 import { BulkActionBar } from './components/BulkActionBar';
 import { GeminiImageStudioModal } from './components/GeminiImageStudioModal';
 
+// New Mobile & Editing Components
+import { MobileUploadFab } from './components/MobileUploadFab';
+import { MobileDriveBottomNav, MobileDriveTab } from './components/MobileDriveBottomNav';
+import { MobileMediaPreviewModal } from './components/MobileMediaPreviewModal';
+import { DocumentViewerModal } from './components/DocumentViewerModal';
+import { QuickImageEditorModal } from './components/QuickImageEditorModal';
+import { QuickTextEditorModal } from './components/QuickTextEditorModal';
+import { DocToLandingPageModal } from './components/DocToLandingPageModal';
+
 import { useMediaGallery } from './context/MediaGalleryContext';
+import { useMediaUploader } from './hooks/useMediaUploader';
+import { MediaItem } from './types';
 
 const MediaGalleryHubContent: React.FC = () => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [mobileActiveTab, setMobileActiveTab] = useState<MobileDriveTab>('recents');
+
   const {
+    mediaItems,
+    filteredItems,
     isSidebarOpen,
     setIsSidebarOpen,
     theme,
@@ -36,18 +52,82 @@ const MediaGalleryHubContent: React.FC = () => {
     isAiGeneratorOpen,
     setIsAiGeneratorOpen,
     aiGeneratorInitialImage,
+    openAiImageGenerator,
+    setFilters,
+    setActiveFolderId,
+    deleteMediaItems,
   } = useMediaGallery();
   const isLight = theme === 'light';
+
+  // New Modals State
+  const [docViewerItem, setDocViewerItem] = useState<MediaItem | null>(null);
+  const [imageEditorItem, setImageEditorItem] = useState<MediaItem | null>(null);
+  const [textEditorOpen, setTextEditorOpen] = useState(false);
+  const [textEditorItem, setTextEditorItem] = useState<MediaItem | null>(null);
+  const [docToLandingItem, setDocToLandingItem] = useState<MediaItem | null>(null);
+
+  // Hidden native file inputs for Mobile FAB triggers
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const scanInputRef = useRef<HTMLInputElement>(null);
+
+  const { processAndUploadFiles } = useMediaUploader();
+
+  const handleMobileTabChange = (tab: MobileDriveTab) => {
+    setMobileActiveTab(tab);
+    if (tab === 'recents') {
+      setActiveFolderId(null);
+      setFilters((prev) => ({ ...prev, typeFilter: 'all', sortBy: 'date_desc' }));
+    } else if (tab === 'folders') {
+      setActiveFolderId(null);
+      setIsMobileSidebarOpen(true);
+    } else if (tab === 'documents') {
+      setActiveFolderId(null);
+      setFilters((prev) => ({ ...prev, typeFilter: 'pdf' }));
+    } else if (tab === 'ai_studio') {
+      openAiImageGenerator();
+    }
+  };
+
+  const handleFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      await processAndUploadFiles(e.target.files);
+      e.target.value = '';
+    }
+  };
 
   return (
     <div
       className={`flex flex-col h-screen max-h-screen overflow-hidden font-sans selection:bg-yellow-500 selection:text-black transition-colors duration-200 ${
-        isLight
-          ? 'bg-slate-100 text-slate-900'
-          : 'bg-slate-950 text-slate-100'
+        isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
       }`}
       dir="rtl"
     >
+      {/* Hidden File Inputs for Native Mobile Camera & Picker */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+      <input
+        ref={scanInputRef}
+        type="file"
+        accept="image/*,application/pdf"
+        capture="environment"
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
       {/* 1. Ultra-Sleek Top Bar (Only 52px height) */}
       <header
         className={`h-14 px-4 border-b flex items-center justify-between flex-shrink-0 z-20 transition-colors ${
@@ -86,13 +166,29 @@ const MediaGalleryHubContent: React.FC = () => {
                   : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
               }`}
             >
-              Universal Storage
+              Universal Cloud & AI Studio
             </span>
           </div>
         </div>
 
         {/* Top Right Controls & Status */}
         <div className="flex items-center space-x-2.5 rtl:space-x-reverse text-xs">
+          {/* Create Text Note Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setTextEditorItem(null);
+              setTextEditorOpen(true);
+            }}
+            className={`hidden sm:flex px-2.5 py-1.5 rounded-xl border text-xs font-bold items-center space-x-1.5 rtl:space-x-reverse transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-white hover:bg-slate-50 border-slate-300 text-slate-800'
+                : 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
+            }`}
+          >
+            <span>📝 פתק חדש</span>
+          </button>
+
           {/* Day / Night Mode Toggle */}
           <button
             type="button"
@@ -157,7 +253,7 @@ const MediaGalleryHubContent: React.FC = () => {
 
         {/* Center Explorer Main View */}
         <main
-          className={`flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 custom-scrollbar transition-colors ${
+          className={`flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 pb-20 md:pb-4 custom-scrollbar transition-colors ${
             isLight ? 'bg-slate-100/70' : 'bg-slate-950'
           }`}
         >
@@ -172,12 +268,61 @@ const MediaGalleryHubContent: React.FC = () => {
         <MediaFileInspector />
       </div>
 
-      {/* 3. Global Modals & Bulk Actions */}
+      {/* 3. Mobile FAB & Bottom Navigation Bar */}
+      <MobileUploadFab
+        onCaptureCamera={() => cameraInputRef.current?.click()}
+        onScanReceipt={() => scanInputRef.current?.click()}
+        onUploadFile={() => fileInputRef.current?.click()}
+        onOpenAiStudio={() => openAiImageGenerator()}
+        onCreateNewNote={() => {
+          setTextEditorItem(null);
+          setTextEditorOpen(true);
+        }}
+        theme={theme}
+      />
+      <MobileDriveBottomNav
+        activeTab={mobileActiveTab}
+        onTabChange={handleMobileTabChange}
+        theme={theme}
+      />
+
+      {/* 4. Global Modals & Bulk Actions */}
       <MediaPreviewModal />
       <ImageConverterModal />
       <FolderManagerModal />
       <MoveToFolderModal />
       <BulkActionBar />
+
+      {/* 5. New In-Drive Editing & AI Modals */}
+      <DocumentViewerModal
+        item={docViewerItem}
+        isOpen={Boolean(docViewerItem)}
+        onClose={() => setDocViewerItem(null)}
+        onOpenDocToLandingPage={(it) => setDocToLandingItem(it)}
+        theme={theme}
+      />
+      <QuickImageEditorModal
+        item={imageEditorItem}
+        isOpen={Boolean(imageEditorItem)}
+        onClose={() => setImageEditorItem(null)}
+        theme={theme}
+      />
+      <QuickTextEditorModal
+        item={textEditorItem}
+        isOpen={textEditorOpen}
+        onClose={() => {
+          setTextEditorOpen(false);
+          setTextEditorItem(null);
+        }}
+        theme={theme}
+      />
+      <DocToLandingPageModal
+        item={docToLandingItem}
+        isOpen={Boolean(docToLandingItem)}
+        onClose={() => setDocToLandingItem(null)}
+        theme={theme}
+      />
+
       <GeminiImageStudioModal
         isOpen={isAiGeneratorOpen}
         onClose={() => setIsAiGeneratorOpen(false)}

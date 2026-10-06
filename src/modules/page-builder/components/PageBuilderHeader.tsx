@@ -19,7 +19,9 @@ import {
   ArrowRight,
   Film,
   Sun,
-  Moon
+  Moon,
+  LayoutTemplate,
+  Lightbulb,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -34,6 +36,8 @@ interface PageBuilderHeaderProps {
   onOpenSettings: () => void;
   onOpenAddSection: () => void;
   onOpenAiBuilder?: () => void;
+  onOpenBlueprints?: () => void;
+  onOpenMarketingIdeas?: () => void;
   onOpenPublish?: () => void;
   onOpenShortener?: () => void;
   onOpenGeo?: () => void;
@@ -54,6 +58,8 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
   onOpenSettings,
   onOpenAddSection,
   onOpenAiBuilder,
+  onOpenBlueprints,
+  onOpenMarketingIdeas,
   onOpenPublish,
   onOpenShortener,
   onOpenGeo,
@@ -227,6 +233,32 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
             >
               <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
               <span className="hidden lg:inline">AI Builder</span>
+            </button>
+          )}
+
+          {/* Premium Blueprints Button */}
+          {onOpenBlueprints && (
+            <button
+              type="button"
+              onClick={onOpenBlueprints}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-white text-xs font-bold transition-all"
+              title="תבניות פרימיום מוכנות מראש"
+            >
+              <LayoutTemplate className="w-3.5 h-3.5 text-indigo-400" />
+              <span className="hidden xl:inline">תבניות</span>
+            </button>
+          )}
+
+          {/* Marketing Ideas from Brand DNA */}
+          {onOpenMarketingIdeas && (
+            <button
+              type="button"
+              onClick={onOpenMarketingIdeas}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:text-white text-xs font-bold transition-all"
+              title="זוויות שיווקיות מתוך Brand DNA"
+            >
+              <Lightbulb className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden xl:inline">רעיונות</span>
             </button>
           )}
 

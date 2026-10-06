@@ -160,9 +160,31 @@ export class CrmContactSyncService {
 
   private saveToStorage() {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.cachedContacts.slice(0, 500)));
-    } catch (e) {
-      console.warn('[CrmContactSyncService] Storage save error:', e);
+      // Store a compact summary of max 200 contacts to prevent filling up the 5MB browser quota
+      const compactList = this.cachedContacts.slice(0, 200).map(c => ({
+        id: c.id,
+        conta_name: c.conta_name,
+        conta_phone: c.conta_phone,
+        email: c.email,
+        tg1: c.tg1,
+      }));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(compactList));
+    } catch (e: any) {
+      if (e?.name === 'QuotaExceededError' || e?.code === 22) {
+        try {
+          // If still exceeding, try saving only top 50
+          const minList = this.cachedContacts.slice(0, 50).map(c => ({
+            id: c.id,
+            conta_name: c.conta_name,
+            conta_phone: c.conta_phone,
+          }));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(minList));
+        } catch {
+          // Fail gracefully without flooding console, contacts remain in memory
+        }
+      } else {
+        console.warn('[CrmContactSyncService] Storage save notice:', e?.message || e);
+      }
     }
   }
 
@@ -193,7 +215,6 @@ export class CrmContactSyncService {
               tg1: data.tg1 || data.tz || data.idNumber || '',
               total_spent: data.total_spent || 0,
               order_count: data.order_count || 0,
-              ...data,
             });
           });
 

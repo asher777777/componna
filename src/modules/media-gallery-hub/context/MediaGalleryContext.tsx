@@ -1109,6 +1109,21 @@ export const MediaGalleryProvider: React.FC<{
           } else if (filters.typeFilter === 'video') {
             // System videos only: exclude HeyGen videos
             if (item.type !== 'video' || isHeyGenItem(item)) return false;
+          } else if (filters.typeFilter === 'pdf') {
+            if (item.type !== 'pdf' && !item.name.toLowerCase().endsWith('.pdf')) return false;
+          } else if (filters.typeFilter === 'spreadsheet') {
+            if (
+              item.type !== 'spreadsheet' &&
+              !item.name.match(/\.(xlsx?|csv|ods|tsv)$/i)
+            )
+              return false;
+          } else if (filters.typeFilter === 'document') {
+            if (
+              item.type !== 'document' &&
+              item.type !== 'pdf' &&
+              !item.name.match(/\.(docx?|pdf|pptx?|odt|txt)$/i)
+            )
+              return false;
           } else {
             if (item.type !== filters.typeFilter) return false;
           }

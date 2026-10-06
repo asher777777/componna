@@ -1,4 +1,4 @@
-﻿# Project Rule: Modular Component Standards (חוק פיתוח רכיבים עצמאיים)
+# Project Rule: Modular Component Standards (חוק פיתוח רכיבים עצמאיים)
 
 Whenever creating, refactoring, or extending any module in this workspace, you MUST strictly adhere to the following 6 Golden Principles:
 
@@ -39,11 +39,23 @@ Every module MUST contain:
 9. `StandaloneView.tsx` - Standalone test runner for Workbench.
 10. `index.ts` & `README.md` - Clean public export and Firestore security rules.
 
-## 5. Master Registration & Exporter Compatibility
+## 5. Master Registration & Dynamic Lazy Loading
 - Always register the new module in:
-  - `src/workbench/moduleRegistry.ts` (for Workbench development preview).
+  - `src/workbench/moduleRegistry.ts`: **MANDATORY**: Register standalone views **ONLY** via dynamic `React.lazy()` imports to ensure code-splitting and prevent one module's runtime issues from crashing others:
+    ```typescript
+    const MyModuleStandaloneView = React.lazy(() =>
+      import('../modules/my-module').then((m) => ({ default: m.MyModuleStandaloneView }))
+    );
+    ```
+    *(Never use static `import { ... }` at the top of `moduleRegistry.ts`!)*
   - `src/modules/client-receiver-platform/config/index.ts` (for Client Platform Checklist Table).
 - Ensure the module is exportable via `npm run export-client -- --client=X --modules=Y`.
 
-## 6. Verification
+## 6. True Runtime Isolation & Error Boundaries
+- Modules must be completely self-resilient at runtime.
+- In `WorkbenchApp.tsx`, every module view is wrapped inside `<ModuleErrorBoundary>` and `<Suspense>`.
+- A module's internal crash or missing API key must gracefully degrade and never break sibling modules or the shell workbench layout.
+
+## 7. Verification
 - Always verify clean compilation with `npm run build` after changes.
+
