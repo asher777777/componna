@@ -138,11 +138,14 @@ export const CollectionListSidebar: React.FC = () => {
       return acc;
     },
     {
+      crm: [],
+      payments: [],
+      forms: [],
+      whatsapp: [],
       video_studio: [],
       flow_player: [],
       media: [],
       page_builder: [],
-      crm: [],
       client_platform: [],
       auth: [],
       system: [],

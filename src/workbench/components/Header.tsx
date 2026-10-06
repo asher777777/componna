@@ -11,6 +11,11 @@ export const Header: React.FC = () => {
     location.pathname.startsWith(m.route)
   );
 
+  // במידה ונמצאים במסוף התשלומים, אין צורך בבר העליון הכפול
+  if (location.pathname.startsWith('/kesher-payments')) {
+    return null;
+  }
+
   return (
     <header className="h-16 bg-slate-950/60 border-b border-slate-800/80 flex items-center justify-between px-6 backdrop-blur" dir="rtl">
       <div>
