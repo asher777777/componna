@@ -177,10 +177,16 @@ export const MediaFileInspector: React.FC = () => {
           isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/80 border-slate-800'
         }`}
       >
-        {focusedItem.type === 'video' && (
-          <video src={focusedItem.url} className="w-full h-full object-cover" />
+        {(focusedItem.type === 'video' || focusedItem.name.match(/\.(mp4|webm|mov|mkv)$/i)) && (
+          <video
+            src={focusedItem.url}
+            controls
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-contain bg-black"
+          />
         )}
-        {focusedItem.type === 'image' && (
+        {(focusedItem.type === 'image' || focusedItem.name.match(/\.(png|jpe?g|webp|gif|svg|avif)$/i)) && (
           <img src={focusedItem.url} alt={focusedItem.name} className="w-full h-full object-contain" />
         )}
         {focusedItem.type === 'audio' && (
