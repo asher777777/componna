@@ -9,6 +9,10 @@
     ],
     "rewrites": [
       {
+        "source": "/api/kesher-proxy",
+        "function": "kesherProxy"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

@@ -1,4 +1,4 @@
-import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
+﻿import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../brand-dna-hub/types/brandDna';
 
 export interface GenerationStep {
@@ -168,7 +168,7 @@ Brand Context:
 - Company: "${companyName}"
 - Audience: ${targetAudience}
 - Core UVP: "${brandDna?.audience?.mainUvp || 'החברה המובילה'}"
-- Voice/Tone: "${brandDna?.identity?.brandPersonality || 'מקצועי, אמין וחדשני'}"
+- Voice/Tone: "${(brandDna?.identity as any)?.brandPersonality || 'מקצועי, אמין וחדשני'}"
 - Goal: Create a high-converting, deeply immersive page. DO NOT output a generic one-section page. Build a rich page with 4-8 interconnected sections (like Hero -> Marquee -> Services -> Bento -> Testimonials -> FAQ -> Contact).
 
 User Prompt: "${userPrompt}"
@@ -380,3 +380,4 @@ Rewrite the text content in Hebrew to match the user's prompt.
     ];
   }
 };
+

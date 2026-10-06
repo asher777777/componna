@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import {
   Bot, Sparkles, Plus, Trash2, Edit3, Check, Play, MessageSquare,
   ShieldCheck, Send, KeyRound, ExternalLink, RefreshCw, Smartphone,
@@ -12,7 +12,7 @@ import {
 } from '../services/whatsappAiBotService';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
-import { PREDEFINED_COLLECTIONS } from '../../db-collections-hub/config';
+const PREDEFINED_COLLECTIONS = [{ id: 'products', label: '������', collectionName: 'products' }, { id: 'articles', label: '������', collectionName: 'articles' }, { id: 'leads', label: '�����', collectionName: 'leads' }, { id: 'services', label: '�������', collectionName: 'services' }];
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 
@@ -535,7 +535,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                         >
                           <option value="">-- בחר קולקציה --</option>
                           {PREDEFINED_COLLECTIONS.map(c => (
-                            <option key={c.id} value={c.id}>{c.name}</option>
+                            <option key={c.id} value={c.id}>{c.label}</option>
                           ))}
                         </select>
                       ) : activeBot.knowledgeBase.type === 'pdf' ? (
@@ -797,3 +797,4 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     </div>
   );
 };
+

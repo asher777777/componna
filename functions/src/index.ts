@@ -247,3 +247,58 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
   }
   });
 });
+
+/**
+ * Proxy Cloud Function for Kesher and EasyCount APIs
+ * Prevents ERR_CERT_COMMON_NAME_INVALID and CORS blocking in production (kosun.pro).
+ */
+export const kesherProxy = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    try {
+      const target = String(req.query.target || req.body?.target || '');
+      let destUrl = '';
+
+      if (target === 'connect') {
+        destUrl = 'https://kesherhk.info/ConnectToKesher/ConnectToKesher';
+      } else if (target === 'ezcount') {
+        destUrl = 'https://api.ezcount.co.il/api/get-docs';
+      } else if (target.startsWith('KesherAPI/')) {
+        destUrl = `https://kesherhk.info/${target}`;
+      } else if (req.query.url) {
+        destUrl = String(req.query.url);
+      } else {
+        res.status(400).json({ error: 'Missing valid target parameter (connect, ezcount, KesherAPI/...)' });
+        return;
+      }
+
+      // Forward request to destination
+      const forwardBody = req.body?.payload !== undefined ? req.body.payload : req.body;
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json'
+      };
+
+      const response = await fetch(destUrl, {
+        method: req.method === 'GET' ? 'GET' : 'POST',
+        headers,
+        body: req.method === 'GET' ? undefined : JSON.stringify(forwardBody)
+      });
+
+      const responseText = await response.text();
+      res.status(response.status);
+      try {
+        const json = JSON.parse(responseText);
+        res.json(json);
+      } catch {
+        res.send(responseText);
+      }
+    } catch (err: any) {
+      console.error('[kesherProxy] Proxy forwarding failed:', err);
+      res.status(502).json({ error: 'Proxy request failed', details: err?.message || String(err) });
+    }
+  });
+});

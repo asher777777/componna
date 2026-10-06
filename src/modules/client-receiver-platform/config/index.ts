@@ -14,6 +14,18 @@ export interface MasterModuleMetadata {
 
 export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
   {
+    id: 'whatsapp-green-api-hub',
+    defaultTitle: 'מרכז וואטסאפ ובוט AI',
+    defaultSlug: '/whatsapp-hub',
+    description: 'חיבור WhatsApp Web מלא, בוט מענה אוטומטי חכם (Gemini AI), שליחת הודעות בתפוצה והעלאת סטטוסים',
+    iconName: 'MessageSquare',
+    requiredKeys: [
+      { key: 'greenApiIdInstance', label: 'Green API ID Instance', description: 'מזהה מופע Green API', isSecret: false },
+      { key: 'greenApiApiToken', label: 'Green API Token Instance', description: 'טוקן גישה למופע', isSecret: true },
+      { key: 'geminiApiKey', label: 'מפתח Google Gemini AI', description: 'עבור מענה אוטומטי של בוט השיחות', isSecret: true }
+    ]
+  },
+  {
     id: 'video-producer-studio',
     defaultTitle: '׳¡׳˜׳•׳“׳™׳• ׳•׳™׳“׳׳• ׳•׳׳•׳•׳˜׳׳¨ (HeyGen & Studio)',
     defaultSlug: '/video-producer',
@@ -247,3 +259,4 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
 
   updatedAt: new Date().toISOString()
 };
+

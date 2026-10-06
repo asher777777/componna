@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+﻿import React, { useState, useEffect, useMemo } from 'react';
 import {
   Sparkles, Send, Image, Type, Eye, Clock, CheckCircle,
   AlertCircle, RefreshCw, Trash2, ExternalLink, Play, Film,
@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { GreenApiService } from '../services/greenApiService';
 import {
   GreenApiStatusFont,
@@ -29,10 +30,10 @@ import {
   StatusVariation
 } from '../services/whatsappAiBotService';
 import { normalizePhone } from '../services/whatsappCrmSyncService';
-import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
-import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
-import { FirebaseStorageMediaService } from '../../media-gallery-hub/services/firebaseStorageMediaService';
-import { MediaItem } from '../../media-gallery-hub/types';
+import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
+import { WhatsAppImageStudio } from './WhatsAppImageStudio';
+
+interface MediaItem { id: string; url: string; type: string; name: string; description?: string; }
 
 // Crisp Lucide Icon Mappings replacing raw emojis
 const getToneIcon = (tone: StatusTone) => {
@@ -544,11 +545,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               fileToUpload = await blobRes.blob();
             }
 
-            const storageUrl = await FirebaseStorageMediaService.uploadFileToStorage(
-              firebaseApp,
-              fileToUpload,
-              finalFileName
-            );
+            const storageRef = ref(getStorage(firebaseApp), `whatsapp_statuses/${finalFileName}`);
+            await uploadBytes(storageRef, fileToUpload);
+            const storageUrl = await getDownloadURL(storageRef);
             finalMediaUrl = storageUrl;
             setMediaUrl(storageUrl);
           } catch (storageErr: any) {
@@ -1798,7 +1797,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
 
       {/* MEDIA GALLERY PICKER MODAL (Isolated to current logged in user) */}
       {isMediaPickerOpen && (
-        <MediaPickerModal
+        <WhatsAppMediaPicker
           isOpen={true}
           onClose={() => setIsMediaPickerOpen(false)}
           title="בחר מדיה לסטטוס וואטסאפ מתוך הגלריה האישית"
@@ -1810,7 +1809,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
       )}
 
       {/* GEMINI AI IMAGE STUDIO MODAL (PRO Feature) */}
-      <GeminiImageStudioModal
+      <WhatsAppImageStudio
         isOpen={isAiImageStudioOpen}
         onClose={() => setIsAiImageStudioOpen(false)}
         title="סטודיו יצירת תמונות AI לסטטוסים ו-Stories"
@@ -1830,3 +1829,4 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     </div>
   );
 };
+

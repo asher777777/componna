@@ -93,12 +93,26 @@ export class KesherService {
    * ביצוע קריאה מאובטחת לשרת קשר עם תמיכת Proxy ו-Timeout נגד תקיעות
    */
   public async postToConnect(payload: any, timeoutMs: number = 15000): Promise<any> {
-    const urlsToTry = [
-      '/ConnectToKesher/ConnectToKesher',
-      'https://kesherhk.info/ConnectToKesher/ConnectToKesher',
-      'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://kesherhk.info/ConnectToKesher/ConnectToKesher'),
-      'https://corsproxy.io/?url=' + encodeURIComponent('https://kesherhk.info/ConnectToKesher/ConnectToKesher')
-    ];
+    const targetUrl = 'https://kesherhk.info/ConnectToKesher/ConnectToKesher';
+    const urlsToTry: string[] = [];
+
+    // 1. Custom proxy if configured
+    if (this.settings.proxyUrl) {
+      urlsToTry.push(`${this.settings.proxyUrl.replace(/\/$/, '')}/ConnectToKesher/ConnectToKesher`);
+    }
+
+    // 2. Built-in Firebase / Hosting Proxy rewrite
+    urlsToTry.push('/api/kesher-proxy?target=connect');
+
+    // 3. Relative local proxy (Vite dev server)
+    urlsToTry.push('/ConnectToKesher/ConnectToKesher');
+
+    // 4. Direct target (works when CORS is permitted or in native/webview)
+    urlsToTry.push(targetUrl);
+
+    // 5. Multi-proxy fallback services
+    urlsToTry.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+    urlsToTry.push(`https://thingproxy.freeboard.io/fetch/${targetUrl}`);
 
     let lastError: any = null;
 
@@ -139,12 +153,25 @@ export class KesherService {
    */
   public async getFromKesherApi(apiPath: string, queryParams: Record<string, string>, timeoutMs: number = 15000): Promise<any> {
     const searchParams = new URLSearchParams(queryParams).toString();
-    const urlsToTry = [
-      `/KesherAPI/${apiPath}?${searchParams}`,
-      `https://kesherhk.info/KesherAPI/${apiPath}?${searchParams}`,
-      `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://kesherhk.info/KesherAPI/${apiPath}?${searchParams}`)}`,
-      `https://corsproxy.io/?url=${encodeURIComponent(`https://kesherhk.info/KesherAPI/${apiPath}?${searchParams}`)}`
-    ];
+    const targetUrl = `https://kesherhk.info/KesherAPI/${apiPath}?${searchParams}`;
+    const urlsToTry: string[] = [];
+
+    if (this.settings.proxyUrl) {
+      urlsToTry.push(`${this.settings.proxyUrl.replace(/\/$/, '')}/KesherAPI/${apiPath}?${searchParams}`);
+    }
+
+    // Built-in Hosting proxy
+    urlsToTry.push(`/api/kesher-proxy?target=${encodeURIComponent(`KesherAPI/${apiPath}?${searchParams}`)}`);
+
+    // Vite local dev proxy
+    urlsToTry.push(`/KesherAPI/${apiPath}?${searchParams}`);
+
+    // Direct
+    urlsToTry.push(targetUrl);
+
+    // Fallbacks
+    urlsToTry.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
+    urlsToTry.push(`https://thingproxy.freeboard.io/fetch/${targetUrl}`);
 
     let lastError: any = null;
 
@@ -556,14 +583,27 @@ export class KesherService {
       }
     };
 
-    // שליפה ישירה של מסמכי איזי קאונט במידה ומוגדר טוקן
+    // שליפה של מסמכי איזי קאונט במידה ומוגדר טוקן
     const fetchEasyCountDocs = async (): Promise<any[]> => {
       if (!this.settings.ezCountToken) return [];
-      const ezUrls = [
-        'https://api.ezcount.co.il/api/get-docs',
-        'https://corsproxy.io/?url=' + encodeURIComponent('https://api.ezcount.co.il/api/get-docs'),
-        'https://api.allorigins.win/raw?url=' + encodeURIComponent('https://api.ezcount.co.il/api/get-docs')
-      ];
+      const targetApiUrl = 'https://api.ezcount.co.il/api/get-docs';
+      const ezUrls: string[] = [];
+
+      // 1. Custom proxy if defined in settings
+      if (this.settings.proxyUrl) {
+        ezUrls.push(`${this.settings.proxyUrl.replace(/\/$/, '')}/ezcount/get-docs`);
+      }
+
+      // 2. Built-in Firebase / Hosting Proxy rewrite
+      ezUrls.push('/api/kesher-proxy?target=ezcount');
+
+      // 3. Alternative CORS proxies (safe, non-blocking)
+      ezUrls.push(`https://thingproxy.freeboard.io/fetch/${targetApiUrl}`);
+      ezUrls.push(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetApiUrl)}`);
+
+      // 4. Direct API call (works if allowed or same origin)
+      ezUrls.push(targetApiUrl);
+
       const ezPayload = {
         api_key: this.settings.ezCountToken,
         token: this.settings.ezCountToken,
@@ -589,6 +629,7 @@ export class KesherService {
           }
         } catch {
           clearTimeout(timer);
+          // Gracefully continue to next URL or Kesher endpoints
         }
       }
       return [];
@@ -613,23 +654,40 @@ export class KesherService {
 
     const allTransactionsMap = new Map<string, any>();
 
+    const endpointNames = [
+      'GetTrans',
+      'GetCompanyTransactions',
+      'GetCashTransactions',
+      'GetCashTrans',
+      'GetDocs',
+      'GetHKTrans',
+      'EasyCountDocs'
+    ];
+
     results.forEach((res, resIdx) => {
-      if (res.status === 'fulfilled' && Array.isArray(res.value)) {
-        res.value.forEach((tx: any, idx: number) => {
-          const key = String(
-            tx.NumTransaction ||
-            tx.Id ||
-            tx.TranId ||
-            tx.TransactionId ||
-            tx.DocNumber ||
-            tx.doc_number ||
-            tx.number ||
-            `${tx.Date || tx.TranDate || tx.doc_date}_${tx.Total || tx.Sum || tx.amount}_${resIdx}_${idx}`
-          ).trim();
-          if (key && !allTransactionsMap.has(key)) {
-            allTransactionsMap.set(key, tx);
-          }
-        });
+      const epName = endpointNames[resIdx] || `Endpoint_${resIdx}`;
+      if (res.status === 'fulfilled') {
+        const items = Array.isArray(res.value) ? res.value : [];
+        if (items.length > 0) {
+          console.log(`[KesherService] ${epName} fetched ${items.length} records.`);
+          items.forEach((tx: any, idx: number) => {
+            const key = String(
+              tx.NumTransaction ||
+              tx.Id ||
+              tx.TranId ||
+              tx.TransactionId ||
+              tx.DocNumber ||
+              tx.doc_number ||
+              tx.number ||
+              `${tx.Date || tx.TranDate || tx.doc_date}_${tx.Total || tx.Sum || tx.amount}_${resIdx}_${idx}`
+            ).trim();
+            if (key && !allTransactionsMap.has(key)) {
+              allTransactionsMap.set(key, tx);
+            }
+          });
+        }
+      } else {
+        console.warn(`[KesherService] ${epName} query non-fatal notice:`, res.reason);
       }
     });
 
@@ -852,7 +910,7 @@ export class KesherService {
         updatedContactsCount: 0,
         totalTransactions: 0,
         countsByMethod: methodCounts,
-        message: 'לא נמצאו עסקאות או מסמכים במסוף קשר בטווח הזמן שנבחר.'
+        message: 'לא התקבלו עסקאות מקשר בטווח הזמן שנבחר. (בסביבת דפדפן מאובטחת, ייתכן ששרת קשר חסם גישה ישירה עקב מגבלות CORS/SSL - ניתן להעלות קובץ אקסל מקשר או להגדיר כתובת שרת פרוקסי בהגדרות).'
       };
     }
 

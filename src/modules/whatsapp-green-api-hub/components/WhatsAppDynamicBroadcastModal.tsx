@@ -6,7 +6,7 @@ import {
 import { Firestore } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
 import { GreenApiChat } from '../types';
-import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
 
 interface Props {
   isOpen: boolean;
@@ -323,7 +323,7 @@ export const WhatsAppDynamicBroadcastModal: React.FC<Props> = ({
 
       </div>
 
-      <MediaPickerModal
+      <WhatsAppMediaPicker
         isOpen={isMediaPickerOpen}
         onClose={() => setIsMediaPickerOpen(false)}
         onSelectMedia={(items) => {

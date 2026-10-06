@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   MessageSquare, Send, Search, Users, Phone, Video, MoreVertical,
   Paperclip, Smile, Check, CheckCheck, RefreshCw, Plus, Sparkles,
@@ -12,9 +12,9 @@ import { GreenApiChat, GreenApiChatMessage } from '../types';
 import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppCrmExportModal } from './WhatsAppCrmExportModal';
 import { WhatsAppDynamicBroadcastModal } from './WhatsAppDynamicBroadcastModal';
-import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
-import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
-import { MediaItem } from '../../media-gallery-hub/types';
+import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
+import { WhatsAppImageStudio } from './WhatsAppImageStudio';
+interface MediaItem { id: string; url: string; type: string; name: string; }
 
 interface Props {
   service: GreenApiService;
@@ -932,6 +932,19 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
               <div ref={messagesEndRef} />
             </div>
 
+                        {/* Smart Reply Chips */}
+            <div className="flex gap-2 overflow-x-auto pb-2 px-3 pt-2 scrollbar-hide">
+              {['����, ����� ������ ����', '����� ��� ��� �� �����?', '����� �� ����� ������'].map(chip => (
+                <button
+                  key={chip}
+                  onClick={() => setInputMessage(chip)}
+                  className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[11px] font-medium border transition cursor-pointer ${isDark ? 'bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+
             {/* Composer Bar */}
             <div
               className={`p-3 border-t flex items-center gap-2 ${
@@ -1252,7 +1265,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
       {/* Media Picker Modal for Attachment */}
       {isAttachMediaPickerOpen && (
-        <MediaPickerModal
+        <WhatsAppMediaPicker
           isOpen={true}
           onClose={() => setIsAttachMediaPickerOpen(false)}
           title="בחר מדיה לשליחה בצ'אט מתוך הגלריה האישית"
@@ -1448,7 +1461,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
       )}
 
       {/* Gemini AI Image & Prompt Studio Modal (PRO Feature) */}
-      <GeminiImageStudioModal
+      <WhatsAppImageStudio
         isOpen={isAiImageStudioOpen}
         onClose={() => setIsAiImageStudioOpen(false)}
         title="סטודיו יצירת תמונות AI ל-WhatsApp"
@@ -1492,3 +1505,6 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
     </div>
   );
 };
+
+
+

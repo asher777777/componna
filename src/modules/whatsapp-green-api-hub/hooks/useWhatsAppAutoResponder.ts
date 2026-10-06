@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { GreenApiService } from './greenApiService';
-import { WhatsAppAiBotService } from './whatsappAiBotService';
+import { GreenApiService } from '../services/greenApiService';
+import { WhatsAppAiBotService } from '../services/whatsappAiBotService';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 export const useWhatsAppAutoResponder = (
   greenApiService: GreenApiService,

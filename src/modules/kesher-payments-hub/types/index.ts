@@ -18,6 +18,7 @@ export interface KesherSettings {
   paymentPageId?: string; // ProjectNumber / Terminal
   ezCountToken?: string;
   baseUrl?: string;
+  proxyUrl?: string; // Optional custom proxy URL or server function
   isDemo?: boolean;
   defaultReceiptType?: KesherDocumentType;
   autoSyncToCrm?: boolean;

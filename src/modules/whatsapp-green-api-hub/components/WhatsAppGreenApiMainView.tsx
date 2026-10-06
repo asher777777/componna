@@ -24,9 +24,9 @@ import { WhatsAppWebChatView } from './WhatsAppWebChatView';
 import { WhatsAppAiBotTab } from './WhatsAppAiBotTab';
 import { WhatsAppAiBotChatsTab } from './WhatsAppAiBotChatsTab';
 import { WhatsAppStatusesTab } from './WhatsAppStatusesTab';
-import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
-import { GeminiImageStudioModal } from '../../media-gallery-hub/components/GeminiImageStudioModal';
-import { useWhatsAppAutoResponder } from '../services/useWhatsAppAutoResponder';
+import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
+import { WhatsAppImageStudio } from './WhatsAppImageStudio';
+import { useWhatsAppAutoResponder } from '../hooks/useWhatsAppAutoResponder';
 
 export const WhatsAppGreenApiMainView: React.FC = () => {
   const { apiKeys, openConnectorModal, db, collections, firebaseApp } = useSystemConnection();
@@ -1149,7 +1149,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
         />
 
         {/* 6. Media Gallery Picker for Sender Tab */}
-        <MediaPickerModal
+        <WhatsAppMediaPicker
           isOpen={isMediaPickerOpen}
           onClose={() => setIsMediaPickerOpen(false)}
           onSelectMedia={(items) => {
@@ -1167,7 +1167,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
         />
 
         {/* 7. Gemini AI Image & Prompt Studio Modal (PRO Feature) */}
-        <GeminiImageStudioModal
+        <WhatsAppImageStudio
           isOpen={isAiImageStudioOpen}
           onClose={() => setIsAiImageStudioOpen(false)}
           title="סטודיו יצירת תמונות AI ל-WhatsApp"

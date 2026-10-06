@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.whatsappWebhook = void 0;
+exports.kesherProxy = exports.whatsappWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
@@ -222,6 +222,62 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
         catch (error) {
             console.error('Error processing webhook:', error);
             res.status(500).send('Internal Error');
+        }
+    });
+});
+/**
+ * Proxy Cloud Function for Kesher and EasyCount APIs
+ * Prevents ERR_CERT_COMMON_NAME_INVALID and CORS blocking in production (kosun.pro).
+ */
+exports.kesherProxy = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        var _a, _b;
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+        try {
+            const target = String(req.query.target || ((_a = req.body) === null || _a === void 0 ? void 0 : _a.target) || '');
+            let destUrl = '';
+            if (target === 'connect') {
+                destUrl = 'https://kesherhk.info/ConnectToKesher/ConnectToKesher';
+            }
+            else if (target === 'ezcount') {
+                destUrl = 'https://api.ezcount.co.il/api/get-docs';
+            }
+            else if (target.startsWith('KesherAPI/')) {
+                destUrl = `https://kesherhk.info/${target}`;
+            }
+            else if (req.query.url) {
+                destUrl = String(req.query.url);
+            }
+            else {
+                res.status(400).json({ error: 'Missing valid target parameter (connect, ezcount, KesherAPI/...)' });
+                return;
+            }
+            // Forward request to destination
+            const forwardBody = ((_b = req.body) === null || _b === void 0 ? void 0 : _b.payload) !== undefined ? req.body.payload : req.body;
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            const response = await fetch(destUrl, {
+                method: req.method === 'GET' ? 'GET' : 'POST',
+                headers,
+                body: req.method === 'GET' ? undefined : JSON.stringify(forwardBody)
+            });
+            const responseText = await response.text();
+            res.status(response.status);
+            try {
+                const json = JSON.parse(responseText);
+                res.json(json);
+            }
+            catch (_c) {
+                res.send(responseText);
+            }
+        }
+        catch (err) {
+            console.error('[kesherProxy] Proxy forwarding failed:', err);
+            res.status(502).json({ error: 'Proxy request failed', details: (err === null || err === void 0 ? void 0 : err.message) || String(err) });
         }
     });
 });

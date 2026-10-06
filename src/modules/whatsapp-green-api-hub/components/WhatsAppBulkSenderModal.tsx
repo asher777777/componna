@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { Firestore, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
-import { MediaPickerModal } from '../../media-gallery-hub/components/MediaPickerModal';
+import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
 import { normalizePhone } from '../services/whatsappCrmSyncService';
 
 export interface BulkSendItemResult {
@@ -456,7 +456,7 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
 
       {/* Media Gallery Picker Modal */}
       {isMediaPickerOpen && (
-        <MediaPickerModal
+        <WhatsAppMediaPicker
           isOpen={true}
           onClose={() => setIsMediaPickerOpen(false)}
           title="בחר מדיה לקמפיין תפוצה מתוך הגלריה האישית"
