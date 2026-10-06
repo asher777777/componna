@@ -17,15 +17,30 @@ import {
   Layers,
   ShieldCheck,
   Smartphone,
-  Info
+  Info,
+  UserPlus,
+  Key,
+  Play
 } from 'lucide-react';
 import { useControlCenter } from '../../context/ControlCenterContext';
 import { ControlCenterModuleItem } from '../../types';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../../core/contracts';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 
 export const BentoGridLayout: React.FC = () => {
-  const { filteredModules, moduleDocCounts, setSelectedModule, theme } = useControlCenter();
-  const navigate = useNavigate();
+  const {
+    filteredModules,
+    moduleDocCounts,
+    setSelectedModule,
+    theme,
+    setQuickLeadModalOpen,
+    setQuickWhatsAppModalOpen
+  } = useControlCenter();
 
+  const { getCapability } = useHostCapabilities();
+  const { openConnectorModal } = useSystemConnection();
+  const navigate = useNavigate();
   const isLight = theme === 'light';
 
   const getModuleIcon = (iconName: string) => {
@@ -60,9 +75,10 @@ export const BentoGridLayout: React.FC = () => {
           return (
             <div
               key={mod.id}
-              className={`rounded-3xl p-5 flex flex-col justify-between backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:shadow-xl group relative overflow-hidden border ${
+              onClick={() => setSelectedModule(mod)}
+              className={`rounded-3xl p-5 flex flex-col justify-between backdrop-blur-md transition-all duration-300 hover:scale-[1.01] hover:shadow-xl group relative overflow-hidden border cursor-pointer ${
                 isLight
-                  ? 'bg-white/80 border-slate-200/90 shadow-sm hover:border-indigo-300 hover:bg-white'
+                  ? 'bg-white/85 border-slate-200/90 shadow-sm hover:border-indigo-300 hover:bg-white'
                   : `bg-slate-900/60 border-slate-800/80 hover:border-slate-700 ${mod.colorScheme.bgHover}`
               }`}
             >
@@ -93,7 +109,7 @@ export const BentoGridLayout: React.FC = () => {
                           ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
                           : 'text-slate-500 hover:text-white hover:bg-slate-800'
                       }`}
-                      title="פרטים טכניים על הרכיב"
+                      title="פרטים טכניים ופעולות חיות"
                     >
                       <Info className="w-3.5 h-3.5" />
                     </button>
@@ -114,12 +130,66 @@ export const BentoGridLayout: React.FC = () => {
                   {mod.description}
                 </p>
 
-                {/* Features Mini Tags */}
-                <div className="flex flex-wrap gap-1 mb-4">
+                {/* Direct Action Chips on the Card */}
+                <div className="flex flex-wrap gap-1.5 mb-4">
+                  {mod.id === 'whatsapp-green-api-hub' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setQuickWhatsAppModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-green-500/10 hover:bg-green-600 hover:text-white text-green-700 border border-green-500/20 transition cursor-pointer"
+                    >
+                      <MessageSquare className="w-3 h-3" />
+                      <span>שיגור הודעה</span>
+                    </button>
+                  )}
+
+                  {(mod.category === 'crm' || mod.id === 'smart-form-builder') && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setQuickLeadModalOpen(true);
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-emerald-500/10 hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-500/20 transition cursor-pointer"
+                    >
+                      <UserPlus className="w-3 h-3" />
+                      <span>+ ליד</span>
+                    </button>
+                  )}
+
+                  {mod.id === 'media-gallery-hub' && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+                        if (mediaPicker) await mediaPicker.openPicker({ accept: '*/*' });
+                        else navigate('/media-gallery-hub');
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-sky-500/10 hover:bg-sky-600 hover:text-white text-sky-700 border border-sky-500/20 transition cursor-pointer"
+                    >
+                      <Image className="w-3 h-3" />
+                      <span>העלאה</span>
+                    </button>
+                  )}
+
+                  {mod.id === 'db-connector-hub' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openConnectorModal('apiKeys');
+                      }}
+                      className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-amber-500/10 hover:bg-amber-600 hover:text-white text-amber-700 border border-amber-500/20 transition cursor-pointer"
+                    >
+                      <Key className="w-3 h-3" />
+                      <span>מפתחות</span>
+                    </button>
+                  )}
+
                   {mod.features.slice(0, 2).map((feat, i) => (
                     <span
                       key={i}
-                      className={`text-[10px] px-2 py-0.5 rounded-lg border truncate max-w-[140px] ${
+                      className={`text-[10px] px-2 py-0.5 rounded-lg border truncate max-w-[130px] ${
                         isLight
                           ? 'bg-slate-50 text-slate-600 border-slate-200'
                           : 'bg-slate-950/60 text-slate-400 border-slate-800/80'
@@ -149,7 +219,10 @@ export const BentoGridLayout: React.FC = () => {
 
                 {/* Direct Clean Launch Button (Without Dev Sidebar) */}
                 <button
-                  onClick={() => navigate(mod.route)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigate(mod.route);
+                  }}
                   className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl transition shadow-sm cursor-pointer ${
                     isLight
                       ? 'bg-slate-100 hover:bg-indigo-600 hover:text-white text-slate-700'

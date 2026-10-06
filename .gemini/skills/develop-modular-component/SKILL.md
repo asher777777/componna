@@ -47,7 +47,18 @@ When creating a new module, the agent MUST immediately present to the user:
    ```
 2. **Client Platform Shell**: Add entry to `MASTER_AVAILABLE_MODULES` in `src/modules/client-receiver-platform/config/index.ts`.
 
-### Step 4: Verification & Compilation
+### Step 4: Full DB Component & Core Contract Synchronization (סנכרון מלא עם רכיב ה-DB)
+**MANDATORY**: Whenever a module introduces or relies on Firestore collections:
+1. **Core Registry (`src/core/contracts/collections.ts`)**:
+   - Register all collection identifiers in `SYSTEM_COLLECTIONS` (e.g. `MY_MODULE_ITEMS: 'mod_my_module_items'`).
+2. **DB Collections Hub Metadata (`src/modules/db-collections-hub/config/index.ts`)**:
+   - Add entry to `PREDEFINED_COLLECTIONS` with user-friendly Hebrew title, clear description, Lucide icon, and correct `category`.
+3. **Seed & Explorer Mock Data (`src/modules/db-collections-hub/config/seedData.ts`)**:
+   - Add realistic seed records under `PROJECT_SEED_DATA[collectionId]` so developers and tenant admins can inspect and seed sample documents immediately in the DB explorer.
+4. **Tenant-Scoped Access**:
+   - Ensure all service queries use `useTenantScope().getScopedCollectionRef(db, SYSTEM_COLLECTIONS.X)`.
+
+### Step 5: Verification & Compilation
 1. Run `npm run build` to verify clean TypeScript compilation with zero broken references.
 2. Test exportability via `node scripts/export-client-platform.js --client=test --modules=[module-name]`.
 

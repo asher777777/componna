@@ -27,23 +27,35 @@ import {
   BarChart3,
   Smartphone,
   ShieldCheck,
+  CreditCard,
+  CheckSquare,
+  MessageSquare,
+  Send,
 } from 'lucide-react';
 import { useDbContext } from '../context/DbContext';
 import { CollectionCategory, CollectionMetadata } from '../types';
 
 const CATEGORY_NAMES: Record<CollectionCategory, string> = {
+  crm: '👥 אנשי קשר, קבוצות ו-CRM',
+  payments: '💳 עסקאות קשר ותשלומים',
+  forms: '📝 טפסים חכמים והרשמות',
+  whatsapp: '💬 וואטסאפ ובוטים (Green API)',
   video_studio: '🎬 סטודיו וידאו ותסריטים',
   flow_player: '🎮 נגן זרימה אינטראקטיבי',
   media: '🖼️ מדיה וגלריה',
   page_builder: '📄 יוצר עמודים ואתרים',
-  crm: '📊 אנליטיקה ו-CRM',
   client_platform: '📱 פלטפורמת מקלט לקוח',
   auth: '🔐 אימות ומשתמשים',
-  system: '⚙️ מערכת ותבניות',
+  system: '⚙️ מערכת, מיתוג ותשתיות',
   custom: '📂 קולקציות מותאמות אישית',
 };
 
 const ICON_MAP: Record<string, React.ReactNode> = {
+  Users: <Users className="w-4 h-4 text-emerald-400" />,
+  CreditCard: <CreditCard className="w-4 h-4 text-emerald-400" />,
+  CheckSquare: <CheckSquare className="w-4 h-4 text-amber-400" />,
+  MessageSquare: <MessageSquare className="w-4 h-4 text-green-400" />,
+  Send: <Send className="w-4 h-4 text-teal-400" />,
   Film: <Film className="w-4 h-4 text-purple-400" />,
   Video: <Video className="w-4 h-4 text-pink-400" />,
   Sparkles: <Sparkles className="w-4 h-4 text-amber-400" />,
@@ -57,7 +69,6 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Layout: <Layout className="w-4 h-4 text-blue-400" />,
   Layers: <Layers className="w-4 h-4 text-indigo-400" />,
   FolderArchive: <FolderArchive className="w-4 h-4 text-purple-300" />,
-  Users: <Users className="w-4 h-4 text-teal-400" />,
   BarChart3: <BarChart3 className="w-4 h-4 text-emerald-400" />,
   FileText: <FileText className="w-4 h-4 text-slate-400" />,
   Smartphone: <Smartphone className="w-4 h-4 text-cyan-400" />,
@@ -67,11 +78,14 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 };
 
 const CATEGORY_ORDER: CollectionCategory[] = [
+  'crm',
+  'payments',
+  'forms',
+  'whatsapp',
   'video_studio',
   'flow_player',
   'media',
   'page_builder',
-  'crm',
   'client_platform',
   'auth',
   'system',

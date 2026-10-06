@@ -12,7 +12,127 @@ export const DEFAULT_ENV_CREDENTIALS: FirebaseCredentialsConfig = {
 };
 
 export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
-  // 1. SDO Video Producer Studio
+  // 1. CRM, Contacts & Community Collections
+  {
+    id: 'contacts',
+    name: 'אנשי קשר ולידים ראשיים (Contacts & CRM)',
+    description: 'מאגר אנשי הקשר והלידים המרכזי של הדייר, פילוחי קהילות, תגיות ופרטי תקשורת',
+    category: 'crm',
+    icon: 'Users',
+  },
+  {
+    id: 'crm_groups',
+    name: 'קבוצות וקהילות חכמות (Smart Groups & Communities)',
+    description: 'קבוצות חכמות, קהילות דייר, יעדי גיוס, חוקי סינון דינמיים ופילוחי לקוחות',
+    category: 'crm',
+    icon: 'Users',
+  },
+  {
+    id: 'crm_interactions',
+    name: 'אינטראקציות ותיעוד לקוח (CRM Interactions)',
+    description: 'תיעוד שיחות טלפוניות, הודעות, הערכות AI והיסטוריית קשר',
+    category: 'crm',
+    icon: 'FileText',
+  },
+  {
+    id: 'crm_chat_messages',
+    name: 'הודעות צ׳אט CRM (Chat Messages)',
+    description: 'תכתובות לקוח, צ׳אט פנימי ומסרים ישירים',
+    category: 'crm',
+    icon: 'MessageSquare',
+  },
+  {
+    id: 'mod_crm_leads',
+    name: 'לידים ייעודיים (CRM Leads)',
+    description: 'לידים בתהליך משפך, מקורות הגעה וסטטוסי מכירה',
+    category: 'crm',
+    icon: 'Users',
+  },
+  {
+    id: 'mod_crm_campaigns',
+    name: 'קמפיינים שיווקיים (CRM Campaigns)',
+    description: 'מעקב ביצועי קמפיינים, יחסי המרה ונתוני חשיפה',
+    category: 'crm',
+    icon: 'BarChart3',
+  },
+
+  // 2. Financials & EasyCount Transactions (קשר & איזיקאונט)
+  {
+    id: 'kesher_transactions',
+    name: 'עסקאות וסליקה (Kesher Transactions)',
+    description: 'עסקאות אשראי, קבלות דיגיטליות, חשבוניות מס ותרומות לפי סעיף 46',
+    category: 'payments',
+    icon: 'CreditCard',
+  },
+  {
+    id: 'kesher_receipt_glossary',
+    name: 'מילון סעיפי קבלה (Receipt Glossary)',
+    description: 'סעיפי תקציב, קודי הכנסה ומילון קבלות מותאם',
+    category: 'payments',
+    icon: 'FileText',
+  },
+  {
+    id: 'kesher_standing_orders',
+    name: 'הוראות קבע ותשלומים חוזרים (Standing Orders)',
+    description: 'הוראות קבע פעילות, מעקב חיובים חודשיים והרשאות',
+    category: 'payments',
+    icon: 'CreditCard',
+  },
+
+  // 3. Smart Form Builder (טפסים חכמים)
+  {
+    id: 'mod_forms',
+    name: 'טפסים חכמים ושאלונים (Smart Forms)',
+    description: 'מבנה טפסים רב-שלביים, הגדרות עיצוב יוקרתי, שדות דינמיים וטריגרים',
+    category: 'forms',
+    icon: 'CheckSquare',
+  },
+  {
+    id: 'submissions',
+    name: 'הגשות טפסים ופניות (Form Submissions)',
+    description: 'נתוני מילוי טפסים, תשובות משתמשים וסנכרון לידים ל-CRM',
+    category: 'forms',
+    icon: 'CheckSquare',
+  },
+
+  // 4. WhatsApp Green API & AI Bots
+  {
+    id: 'whatsapp_ai_bots',
+    name: 'בוטים וסוכני AI (WhatsApp AI Bots)',
+    description: 'הגדרות סוכני שיחה, הנחיות מותג, מודלי שפה והתנהגות מענה',
+    category: 'whatsapp',
+    icon: 'MessageSquare',
+  },
+  {
+    id: 'wa_chats',
+    name: 'שיחות וואטסאפ (WhatsApp Chats)',
+    description: 'ערוצי שיחה פעילים עם לקוחות דרך Green API',
+    category: 'whatsapp',
+    icon: 'MessageSquare',
+  },
+  {
+    id: 'wa_messages',
+    name: 'הודעות וואטסאפ (WhatsApp Messages)',
+    description: 'היסטוריית הודעות נכנסות ויוצאות, סטטוסי מסירה וזמנים',
+    category: 'whatsapp',
+    icon: 'Send',
+  },
+  {
+    id: 'wa_bot_chats',
+    name: 'שיחות בוט AI פעילות (Bot Conversations)',
+    description: 'לוג שיחות מנוהלות ע״י מנוע הבינה המלאכותית',
+    category: 'whatsapp',
+    icon: 'Sparkles',
+  },
+  {
+    id: 'wa_statuses',
+    name: 'סטטוסי שיחה ותורים (Chat Statuses)',
+    description: 'סטטוסי שיחות, ניתוב נציגים ותורים פעילים',
+    category: 'whatsapp',
+    icon: 'Activity',
+  },
+
+  // 5. Video Producer Studio
   {
     id: 'sdo_video_projects',
     name: 'פרויקטי וידאו ותסריטים (Video Projects)',
@@ -35,7 +155,7 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'Sparkles',
   },
 
-  // 2. Flow Player Engine Collections
+  // 6. Flow Player Engine
   {
     id: 'sdo_player_campaign_configs',
     name: 'קונפיגורציית קמפיינים (Flow Player)',
@@ -65,7 +185,7 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'UserCheck',
   },
 
-  // 3. Media Gallery Collections
+  // 7. Media Gallery Collections
   {
     id: 'sdo_media_items',
     name: 'קבצי מדיה וגלריה (Media Items)',
@@ -88,7 +208,7 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'Tag',
   },
 
-  // 4. Page Builder Collections
+  // 8. Page Builder Collections
   {
     id: 'mod_pagebuilder_pages',
     name: 'דפים ואתרים (Page Builder Pages)',
@@ -111,30 +231,7 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'FolderArchive',
   },
 
-  // 5. CRM & Analytics Collections
-  {
-    id: 'mod_crm_leads',
-    name: 'לידים ואנשי קשר (CRM Leads)',
-    description: 'רשימת לידים, פילוח קהילות, סטטוסים ותגיות',
-    category: 'crm',
-    icon: 'Users',
-  },
-  {
-    id: 'mod_crm_campaigns',
-    name: 'קמפיינים שיווקיים (CRM Campaigns)',
-    description: 'מעקב ביצועי קמפיינים, יחסי המרה ונתוני חשיפה',
-    category: 'crm',
-    icon: 'BarChart3',
-  },
-  {
-    id: 'mod_crm_interactions',
-    name: 'אינטראקציות לקוחות (Interactions)',
-    description: 'תיעוד פניות, שיחות, הודעות ומפגשים',
-    category: 'crm',
-    icon: 'FileText',
-  },
-
-  // 6. Client Receiver Platform
+  // 9. Client Receiver Platform
   {
     id: 'client_platform_configs',
     name: 'קונפיגורציית מקלט לקוח (Platform Config)',
@@ -157,7 +254,7 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'Activity',
   },
 
-  // 7. Auth Portal & Users
+  // 10. Auth Portal & Users
   {
     id: 'users',
     name: 'משתמשים וחשבונות (Users)',
@@ -180,11 +277,18 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'ShieldCheck',
   },
 
-  // 8. Template & System Collections
+  // 11. System, Brand DNA & Platform Infrastructure
   {
     id: 'settings',
-    name: 'הגדרות מערכת (System Settings)',
-    description: 'הגדרות גלובליות של הפרויקט, חיבורי DB וסביבה',
+    name: 'הגדרות מותג ודייר (Tenant Brand DNA)',
+    description: 'קולקציית הגדרות הדייר: מסמך brand_dna (זהות, צבעים, לוגו, קול וערכים)',
+    category: 'system',
+    icon: 'Settings',
+  },
+  {
+    id: 'system_settings',
+    name: 'תשתיות מערכת גלובליות (Global Platform Settings)',
+    description: 'קונפיגורציית תשתית מערכתית: מפתחות Firebase, חיבורי AI ומאגרי מידע',
     category: 'system',
     icon: 'Settings',
   },

@@ -72,7 +72,14 @@ Every module MUST contain:
 - **Apex / Root Domain Handling**: When running on the apex domain without a subdomain, `tenantId` is automatically `_master`.
 - **Cloud Storage**: File uploads must be isolated to `tenants/${tenantId}/${folder}/${fileName}`.
 
-## 8. Verification
+## 8. Database Collections Hub & Seed Registration (סנכרון רכיב DB)
+- Whenever a module introduces persistent collections:
+  - Register the collection string in `SYSTEM_COLLECTIONS` (`src/core/contracts/collections.ts`).
+  - Add metadata to `PREDEFINED_COLLECTIONS` in `src/modules/db-collections-hub/config/index.ts`.
+  - Add sample seed records to `PROJECT_SEED_DATA` in `src/modules/db-collections-hub/config/seedData.ts`.
+  - Distinguish tenant collections (e.g. `settings/brand_dna`, `contacts`, `crm_groups`) from platform-wide infrastructure (`system_settings/global`).
+
+## 9. Verification
 - Always verify clean compilation with `npm run build` after changes.
 
 

@@ -7,12 +7,13 @@ import { ExecutiveKpiLayout } from './layouts/ExecutiveKpiLayout';
 import { WorkflowPipelineLayout } from './layouts/WorkflowPipelineLayout';
 import { MobileSimulatorLayout } from './layouts/MobileSimulatorLayout';
 import { QuickLeadModal } from './modals/QuickLeadModal';
+import { QuickWhatsAppModal } from './modals/QuickWhatsAppModal';
 import { ModuleDetailsDrawer } from './modals/ModuleDetailsDrawer';
 import { useControlCenter } from '../context/ControlCenterContext';
 import { Sparkles } from 'lucide-react';
 
 export const ControlCenterMainView: React.FC = () => {
-  const { layout, theme } = useControlCenter();
+  const { layout, theme, quickWhatsAppModalOpen, setQuickWhatsAppModalOpen } = useControlCenter();
   const isLight = theme === 'light';
 
   const renderActiveLayout = () => {
@@ -79,6 +80,7 @@ export const ControlCenterMainView: React.FC = () => {
 
       {/* Overlays / Modals */}
       <QuickLeadModal />
+      <QuickWhatsAppModal isOpen={quickWhatsAppModalOpen} onClose={() => setQuickWhatsAppModalOpen(false)} />
       <ModuleDetailsDrawer />
     </div>
   );

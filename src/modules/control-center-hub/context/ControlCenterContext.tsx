@@ -15,6 +15,8 @@ interface ControlCenterContextValue {
   setSelectedModule: (mod: ControlCenterModuleItem | null) => void;
   quickLeadModalOpen: boolean;
   setQuickLeadModalOpen: (open: boolean) => void;
+  quickWhatsAppModalOpen: boolean;
+  setQuickWhatsAppModalOpen: (open: boolean) => void;
   metrics: LiveSystemMetrics;
   moduleDocCounts: Record<string, number>;
   refreshStats: () => Promise<void>;
@@ -39,6 +41,7 @@ export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedModule, setSelectedModule] = useState<ControlCenterModuleItem | null>(null);
   const [quickLeadModalOpen, setQuickLeadModalOpen] = useState<boolean>(false);
+  const [quickWhatsAppModalOpen, setQuickWhatsAppModalOpen] = useState<boolean>(false);
   const [mobileDevice, setMobileDevice] = useState<'iphone' | 'android' | 'fluid'>('iphone');
   
   // Theme state: defaults to 'light' (Day Mode)
@@ -93,6 +96,8 @@ export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({
         setSelectedModule,
         quickLeadModalOpen,
         setQuickLeadModalOpen,
+        quickWhatsAppModalOpen,
+        setQuickWhatsAppModalOpen,
         metrics,
         moduleDocCounts,
         refreshStats,

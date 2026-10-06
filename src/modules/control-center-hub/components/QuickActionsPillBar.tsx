@@ -9,6 +9,7 @@ import {
   Sparkles,
   UserPlus,
   Image,
+  MessageSquare,
   FilePlus,
   Key
 } from 'lucide-react';
@@ -24,6 +25,7 @@ export const QuickActionsPillBar: React.FC = () => {
     selectedCategory,
     setSelectedCategory,
     setQuickLeadModalOpen,
+    setQuickWhatsAppModalOpen,
     theme,
   } = useControlCenter();
 
@@ -111,6 +113,19 @@ export const QuickActionsPillBar: React.FC = () => {
         >
           <UserPlus className="w-3.5 h-3.5" />
           <span>הזנת ליד</span>
+        </button>
+
+        {/* Quick WhatsApp */}
+        <button
+          onClick={() => setQuickWhatsAppModalOpen(true)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer shrink-0 border ${
+            isLight
+              ? 'bg-white hover:bg-green-50 text-green-700 border-green-200 shadow-sm'
+              : 'bg-slate-900 hover:bg-slate-800 text-green-400 border-green-500/20'
+          }`}
+        >
+          <MessageSquare className="w-3.5 h-3.5" />
+          <span>שיגור וואטסאפ</span>
         </button>
 
         {/* Media Picker */}

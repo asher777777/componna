@@ -6,18 +6,47 @@ import {
   Sparkles,
   CheckCircle2,
   ChevronLeft,
-  Zap
+  Zap,
+  MessageSquare,
+  UserPlus,
+  Image,
+  Key,
+  ExternalLink,
+  Play
 } from 'lucide-react';
 import { useControlCenter } from '../../context/ControlCenterContext';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../../core/contracts';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 
 export const ModuleDetailsDrawer: React.FC = () => {
-  const { selectedModule, setSelectedModule, moduleDocCounts, theme } = useControlCenter();
+  const {
+    selectedModule,
+    setSelectedModule,
+    moduleDocCounts,
+    theme,
+    setQuickLeadModalOpen,
+    setQuickWhatsAppModalOpen
+  } = useControlCenter();
+
+  const { getCapability } = useHostCapabilities();
+  const { openConnectorModal } = useSystemConnection();
   const navigate = useNavigate();
   const isLight = theme === 'light';
 
   if (!selectedModule) return null;
 
   const docCount = selectedModule.collectionName ? moduleDocCounts[selectedModule.id] : undefined;
+
+  const handleMediaUpload = async () => {
+    const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+    if (mediaPicker) {
+      await mediaPicker.openPicker({ accept: '*/*' });
+    } else {
+      setSelectedModule(null);
+      navigate('/media-gallery-hub');
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden bg-black/50 backdrop-blur-sm" dir="rtl">
@@ -26,7 +55,7 @@ export const ModuleDetailsDrawer: React.FC = () => {
           isLight ? 'bg-white border-slate-200 text-slate-800' : 'bg-slate-900 border-slate-800 text-white'
         }`}>
           
-          <div>
+          <div className="overflow-y-auto pr-1">
             {/* Drawer Header */}
             <div className={`flex items-center justify-between pb-4 border-b mb-6 ${
               isLight ? 'border-slate-100' : 'border-slate-800'
@@ -55,8 +84,92 @@ export const ModuleDetailsDrawer: React.FC = () => {
               </button>
             </div>
 
+            {/* Quick Action Buttons Directly Inside Drawer */}
+            <div className="mb-5">
+              <label className={`text-xs font-bold block mb-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
+                ⚡ פעולות חיות להפעלה מיידית:
+              </label>
+              
+              <div className="grid grid-cols-1 gap-2">
+                {selectedModule.id === 'whatsapp-green-api-hub' && (
+                  <button
+                    onClick={() => {
+                      setSelectedModule(null);
+                      setQuickWhatsAppModalOpen(true);
+                    }}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-green-500/10 hover:bg-green-600 hover:text-white text-green-700 border border-green-500/20 font-bold text-xs transition cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <MessageSquare className="w-4 h-4" />
+                      <span>שיגור הודעת וואטסאפ מהירה</span>
+                    </span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+
+                {(selectedModule.category === 'crm' || selectedModule.id === 'smart-form-builder') && (
+                  <button
+                    onClick={() => {
+                      setSelectedModule(null);
+                      setQuickLeadModalOpen(true);
+                    }}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-emerald-500/10 hover:bg-emerald-600 hover:text-white text-emerald-700 border border-emerald-500/20 font-bold text-xs transition cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <UserPlus className="w-4 h-4" />
+                      <span>הוספת ליד חדש למסד</span>
+                    </span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+
+                {selectedModule.id === 'media-gallery-hub' && (
+                  <button
+                    onClick={handleMediaUpload}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-sky-500/10 hover:bg-sky-600 hover:text-white text-sky-700 border border-sky-500/20 font-bold text-xs transition cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Image className="w-4 h-4" />
+                      <span>העלאת קובץ למאגר המדיה</span>
+                    </span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+
+                {selectedModule.id === 'db-connector-hub' && (
+                  <button
+                    onClick={() => {
+                      setSelectedModule(null);
+                      openConnectorModal('apiKeys');
+                    }}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-amber-500/10 hover:bg-amber-600 hover:text-white text-amber-700 border border-amber-500/20 font-bold text-xs transition cursor-pointer"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Key className="w-4 h-4" />
+                      <span>הגדרת מפתחות API ומסד</span>
+                    </span>
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  onClick={() => {
+                    setSelectedModule(null);
+                    navigate(selectedModule.route);
+                  }}
+                  className="flex items-center justify-between p-3 rounded-2xl bg-indigo-500/10 hover:bg-indigo-600 hover:text-white text-indigo-700 border border-indigo-500/20 font-bold text-xs transition cursor-pointer"
+                >
+                  <span className="flex items-center gap-2">
+                    <Play className="w-4 h-4" />
+                    <span>פתיחת המודול המלא (ללא סיידבר)</span>
+                  </span>
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             {/* Content Body */}
-            <div className="space-y-5">
+            <div className="space-y-4">
               
               {/* Description */}
               <div>
@@ -136,7 +249,7 @@ export const ModuleDetailsDrawer: React.FC = () => {
           </div>
 
           {/* Bottom Launch Bar */}
-          <div className={`pt-4 border-t ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
+          <div className={`pt-4 border-t mt-4 ${isLight ? 'border-slate-100' : 'border-slate-800'}`}>
             <button
               onClick={() => {
                 setSelectedModule(null);
