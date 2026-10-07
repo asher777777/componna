@@ -11,7 +11,9 @@ import {
   Sun,
   Moon,
   Home,
-  ArrowRight
+  ArrowRight,
+  Database,
+  CheckCircle2
 } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { useControlCenter } from '../context/ControlCenterContext';
@@ -130,7 +132,20 @@ export const HeaderControlBar: React.FC = () => {
             <span className="hidden sm:inline">+ ליד מהיר</span>
           </button>
 
-          {/* Connector Modal Button */}
+          {/* Database / Collections Connector Button */}
+          <button
+            onClick={() => openConnectorModal('collections')}
+            className={`flex items-center gap-1.5 p-2 border rounded-xl transition cursor-pointer shrink-0 ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-indigo-600 border-slate-200'
+                : 'bg-slate-900 hover:bg-slate-800 text-indigo-400 border-slate-800'
+            }`}
+            title="הגדרות קולקציות ומסד נתונים (Firestore Collections)"
+          >
+            <Database className="w-4 h-4" />
+          </button>
+
+          {/* API Keys Button */}
           <button
             onClick={() => openConnectorModal('apiKeys')}
             className={`flex items-center gap-1.5 p-2 border rounded-xl transition cursor-pointer shrink-0 ${

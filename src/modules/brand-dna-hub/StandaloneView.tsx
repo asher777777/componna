@@ -7,6 +7,7 @@ import { DesignTokensSection } from './components/DesignTokensSection';
 import { TrustCheckoutSection } from './components/TrustCheckoutSection';
 import { LiveOmnichannelPreview } from './components/LiveOmnichannelPreview';
 import { AiDiscoveryWizardModal } from './components/AiDiscoveryWizardModal';
+import { AiStepWizardView } from './components/AiStepWizardView';
 import {
   Fingerprint,
   Building2,
@@ -21,6 +22,7 @@ import {
   AlertCircle,
   Loader2,
   Sparkles,
+  Compass,
 } from 'lucide-react';
 
 export type TabType = 'identity' | 'voice' | 'audience' | 'design' | 'trust';
@@ -35,9 +37,13 @@ export const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.Compone
 
 export interface BrandDnaViewProps {
   initialTab?: TabType;
+  initialMode?: 'stepper' | 'tabs';
 }
 
-export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({ initialTab = 'identity' }) => {
+export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
+  initialTab = 'identity',
+  initialMode = 'stepper',
+}) => {
   const {
     brandDna,
     isLoading,
@@ -48,7 +54,9 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({ initialTab = 'ide
     resetToDefaults,
   } = useBrandDna();
 
+  const [viewMode, setViewMode] = useState<'stepper' | 'tabs'>(initialMode);
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
+
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
@@ -174,45 +182,98 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({ initialTab = 'ide
         </div>
       )}
 
-      {/* 2. Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-800">
-        {TAB_CONFIG.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
-                isActive
-                  ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 border border-indigo-500'
-                  : 'bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/50'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* 3. Main Two-Column Layout (Form Section + Live 360° Preview) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Active Tab Form Content (7 Cols on desktop) */}
-        <div className="lg:col-span-7 space-y-6">
-          {activeTab === 'identity' && <BrandIdentitySection />}
-          {activeTab === 'voice' && <BrandVoiceSection />}
-          {activeTab === 'audience' && <TargetAudienceSection />}
-          {activeTab === 'design' && <DesignTokensSection />}
-          {activeTab === 'trust' && <TrustCheckoutSection />}
+      {/* 2. Mode Switcher (Stepper vs Full Tabs) */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/80 p-2 rounded-2xl border border-slate-800">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800/80">
+          <button
+            type="button"
+            onClick={() => setViewMode('stepper')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              viewMode === 'stepper'
+                ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-lg shadow-purple-600/20'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+            <span>שאלון AI מודרך (שאלה אחר שאלה)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('tabs')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+              viewMode === 'tabs'
+                ? 'bg-slate-800 text-white shadow-sm border border-slate-700'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>לוח עריכה מתקדם 360°</span>
+          </button>
         </div>
 
-        {/* Live Preview Dock (5 Cols on desktop) */}
-        <div className="lg:col-span-5 sticky top-6 space-y-6">
-          <LiveOmnichannelPreview />
+        <div className="text-[11px] text-slate-400 font-medium px-2 hidden md:block">
+          {viewMode === 'stepper' ? (
+            <span>💡 שאלה אחת בכל שלב עם אפשרויות סיוע AI והמלצות חכמות</span>
+          ) : (
+            <span>🔧 עריכה ישירה ומעבר חופשי בין כל תחומי המותג</span>
+          )}
         </div>
       </div>
+
+      {/* 3. Stepper Mode View */}
+      {viewMode === 'stepper' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          <div className="lg:col-span-7 space-y-6">
+            <AiStepWizardView onSwitchToTabs={() => setViewMode('tabs')} />
+          </div>
+          <div className="lg:col-span-5 sticky top-6 space-y-6">
+            <LiveOmnichannelPreview />
+          </div>
+        </div>
+      )}
+
+      {/* 4. Full Tabbed Editor View */}
+      {viewMode === 'tabs' && (
+        <div className="space-y-6 animate-in fade-in">
+          {/* Category Tabs */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-800">
+            {TAB_CONFIG.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/20 border border-indigo-500'
+                      : 'bg-slate-800/60 hover:bg-slate-800 text-slate-400 hover:text-slate-200 border border-slate-700/50'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Tabbed Content + Live 360 Preview */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            <div className="lg:col-span-7 space-y-6">
+              {activeTab === 'identity' && <BrandIdentitySection />}
+              {activeTab === 'voice' && <BrandVoiceSection />}
+              {activeTab === 'audience' && <TargetAudienceSection />}
+              {activeTab === 'design' && <DesignTokensSection />}
+              {activeTab === 'trust' && <TrustCheckoutSection />}
+            </div>
+
+            <div className="lg:col-span-5 sticky top-6 space-y-6">
+              <LiveOmnichannelPreview />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* AI Discovery Wizard Modal */}
       <AiDiscoveryWizardModal isOpen={isWizardOpen} onClose={() => setIsWizardOpen(false)} />
@@ -220,11 +281,15 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({ initialTab = 'ide
   );
 };
 
-export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = ({ initialTab = 'identity' }) => {
+export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = ({
+  initialTab = 'identity',
+  initialMode = 'stepper',
+}) => {
   return (
     <BrandDnaProvider>
-      <BrandDnaContent initialTab={initialTab} />
+      <BrandDnaContent initialTab={initialTab} initialMode={initialMode} />
     </BrandDnaProvider>
   );
 };
+
 

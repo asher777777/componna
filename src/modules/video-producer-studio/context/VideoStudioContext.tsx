@@ -215,7 +215,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
       const res = await generateClarificationQuestionsWithAI(
         geminiKey,
-        apiKeys.geminiModel || 'gemini-3.6-flash',
+        apiKeys.geminiModel || 'gemini-3.8-flash',
         {
           ...params,
           brandDna: dna,
@@ -241,7 +241,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const dna = params.brandDna || brandDna;
       const pageSummary = params.sourcePageSummary || (selectedPageForWizard ? extractPageContentForVideo(selectedPageForWizard) : null);
 
-      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', {
+      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.8-flash', {
         ...params,
         brandDna: dna,
         sourcePageSummary: pageSummary
@@ -318,7 +318,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       const dna = params.brandDna || brandDna;
       const pageSummary = params.sourcePageSummary || (selectedPageForWizard ? extractPageContentForVideo(selectedPageForWizard) : null);
 
-      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.6-flash', {
+      const res = await generateStoryboardWithAI(geminiKey, apiKeys.geminiModel || 'gemini-3.8-flash', {
         ...params,
         brandDna: dna,
         sourcePageSummary: pageSummary,
@@ -455,7 +455,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
     try {
       const res = await generateNextSceneWithAI(
         geminiKey,
-        apiKeys.geminiModel || 'gemini-3.6-flash',
+        apiKeys.geminiModel || 'gemini-3.8-flash',
         activeProject,
         customInstruction
       );

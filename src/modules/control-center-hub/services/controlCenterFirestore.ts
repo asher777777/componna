@@ -4,26 +4,47 @@ import { LiveSystemMetrics } from '../types';
 
 /**
  * Safely fetches exact document count for a collection without mock data.
- * Uses getCountFromServer when available for efficiency, falling back to query snapshot size.
+ * Tries the given path (e.g., tenants/_master/contacts), and if count is 0,
+ * also checks root collection (e.g. contacts) as fallback for multi-tenant / apex compatibility.
  */
 export async function getLiveCollectionCount(
   db: Firestore | null | undefined,
   collectionName: string
 ): Promise<number> {
   if (!db || !collectionName) return 0;
-  try {
-    const colRef = collection(db, collectionName);
-    // Attempt aggregate server count
+
+  const countFromPath = async (targetPath: string): Promise<number> => {
     try {
-      const snap = await getCountFromServer(colRef);
-      return snap.data().count;
+      const colRef = collection(db, targetPath);
+      try {
+        const snap = await getCountFromServer(colRef);
+        return snap.data().count;
+      } catch {
+        const docsSnap = await getDocs(query(colRef, limit(100)));
+        return docsSnap.size;
+      }
     } catch {
-      // Fallback for rules or older emulators
-      const docsSnap = await getDocs(query(colRef, limit(100)));
-      return docsSnap.size;
+      return 0;
     }
+  };
+
+  try {
+    let count = await countFromPath(collectionName);
+    
+    // If scoped path returned 0, check root collection name (e.g. 'tenants/_master/contacts' -> 'contacts')
+    if (count === 0 && collectionName.includes('/')) {
+      const parts = collectionName.split('/');
+      const rootColName = parts[parts.length - 1];
+      if (rootColName) {
+        const rootCount = await countFromPath(rootColName);
+        if (rootCount > 0) {
+          count = rootCount;
+        }
+      }
+    }
+
+    return count;
   } catch (err) {
-    // If collection does not exist or permission denied, actual count is 0
     return 0;
   }
 }

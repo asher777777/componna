@@ -174,3 +174,65 @@ ${interviewNotes}
 }
 `.trim();
 }
+
+/**
+ * Builds step-specific AI prompt for single-question guidance with dynamic recommendations
+ */
+export function buildStepAssistancePrompt(
+  stepId: string,
+  brand: BrandDna,
+  userDraft?: string
+): string {
+  const currentContext = `
+נתוני המותג שהוזנו עד כה:
+- שם המותג: ${brand.identity.companyName || 'טרם נקבע'}
+- סוג הארגון: ${brand.identity.organizationType}
+- תכלית / תחום: ${brand.identity.organizationPurpose || 'טרם נקבע'}
+- סלוגן: ${brand.identity.slogan || 'טרם נקבע'}
+- אופי: רשמיות ${brand.voice.personality.formality}/5, חמימות ${brand.voice.personality.warmth}/5, יוקרה ${brand.voice.personality.luxury}/5, אנרגיה ${brand.voice.personality.energy}/5
+- מגזר: ${brand.voice.sectorCompliance}, לשון פנייה: ${brand.voice.genderAddressing}
+- הצעת ערך ייחודית (UVP): ${brand.audience.mainUvp || 'טרם נקבע'}
+${userDraft ? `- טיוטה ראשונית שהמשתמש החל להקליד: "${userDraft}"` : ''}
+`.trim();
+
+  return `
+אתה מנהל מיתוג ראשי (CMO) ואסטרטג שיווקי בכיר.
+המשתמש ממלא כעת שאלון מיתוג מודרך, והוא נמצא בשלב: "${stepId}".
+
+${currentContext}
+
+עליך לספק סיוע מותאם אישית ברמה הגבוהה ביותר (לא גינרי, חד, משכנע וקולע בעברית מעולה).
+הצע בדיוק 3 אפשרויות איכותיות שונות, סמן אחת מהן כהמלצה המובהקת (isRecommended: true) ונמק מדוע היא המומלצת ביותר על בסיס הנתונים שהמשתמש הזין קודם לכן.
+
+החזר אך ורק JSON תקין במבנה הבא (ללא Markdown או טקסט מקדים):
+{
+  "suggestions": [
+    {
+      "title": "כותרת קצרה של האפשרות (או שם הסגנון/הכיוון)",
+      "value": "התוכן המלא המוצע (טקסט, מערך מילים או נתון מותאם)",
+      "subtitle": "הסבר קצר על הכיוון",
+      "rationale": "הערך השיווקי של כיוון זה",
+      "isRecommended": false
+    },
+    {
+      "title": "כותרת קצרה",
+      "value": "התוכן המלא",
+      "subtitle": "הסבר קצר",
+      "rationale": "הערך השיווקי",
+      "isRecommended": true
+    },
+    {
+      "title": "כותרת קצרה",
+      "value": "התוכן המלא",
+      "subtitle": "הסבר קצר",
+      "rationale": "הערך השיווקי",
+      "isRecommended": false
+    }
+  ],
+  "recommendedIndex": 1,
+  "recommendationReason": "הסבר משכנע מדוע אופציה זו מומלצת במיוחד על בסיס התשובות הקודמות של המשתמש (2-3 משפטים בעברית קולחת)",
+  "smartInsight": "תובנה אסטרטגית קצרה על החשיבות של שלב זה באחוזי ההמרה ואיכות הלידים"
+}
+`.trim();
+}
+

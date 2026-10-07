@@ -79,7 +79,13 @@ Every module MUST contain:
   - Add sample seed records to `PROJECT_SEED_DATA` in `src/modules/db-collections-hub/config/seedData.ts`.
   - Distinguish tenant collections (e.g. `settings/brand_dna`, `contacts`, `crm_groups`) from platform-wide infrastructure (`system_settings/global`).
 
-## 9. Verification
+## 10. Official Google AI Studio & Gemini API Standards (חוק שימוש בבינה מלאכותית)
+- **Zero Hallucinated Models**: Only use active Google AI Studio models documented in `@skill:google-ai-studio-gemini` (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-pro`). Calling non-existent (`gemini-3.6-flash`) or shut-down models (`gemini-2.0-flash`, `gemini-1.5-flash`) is strictly forbidden.
+- **Mandatory Fallback Chain**: Every service or AI agent calling Gemini MUST implement automatic model fallback cascading (`['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash-lite']`).
+- **Token & Cost Tracking**: Every generation call must extract `usageMetadata` and calculate costs with `calculateGeminiCost` from `src/core/ai`.
+- **System Prompt & Brand DNA**: Inject brand voice and enforce RTL-compliant Hebrew without mixing disruptive English terms.
+
+## 11. Verification
 - Always verify clean compilation with `npm run build` after changes.
 
 

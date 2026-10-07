@@ -1,6 +1,8 @@
 export { BrandDnaHubStandaloneView, BrandDnaContent, TAB_CONFIG } from './StandaloneView';
 export type { TabType, BrandDnaViewProps } from './StandaloneView';
+export { AiStepWizardView, STEP_DEFINITIONS } from './components/AiStepWizardView';
 export { BrandDnaRoutes } from './routes/BrandDnaRoutes';
+
 export { BrandDnaProvider, useBrandDna } from './context/BrandDnaContext';
 export type { BrandDnaContextValue } from './context/BrandDnaContext';
 export * from './config';
