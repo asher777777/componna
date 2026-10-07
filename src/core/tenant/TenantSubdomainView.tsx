@@ -7,7 +7,8 @@ import { pageBuilderFirestore } from '../../modules/page-builder/services/pageBu
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
-import { Globe, Lock, ArrowRight, Eye } from 'lucide-react';
+import { ControlCenterStandaloneView } from '../../modules/control-center-hub/StandaloneView';
+import { Globe, Lock, ArrowRight, Eye, LayoutDashboard } from 'lucide-react';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -175,14 +176,9 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           </div>
         </header>
 
-        {/* Dynamic Client Shell with ONLY active modules and Page Builder Editor */}
-        <div className="flex-1">
-          <ClientPlatformProvider 
-            tenantRecord={tenantRecord} 
-            initialRoute={tenantRecord.activeModules && tenantRecord.activeModules.length > 0 ? tenantRecord.activeModules[0] : 'page-builder'}
-          >
-            <DynamicClientShell onExitToPublic={() => setMode('public')} />
-          </ClientPlatformProvider>
+        {/* Modern Control Center Hub (No legacy sidebar, live active modules, no mock data) */}
+        <div className="flex-1 overflow-auto bg-slate-950">
+          <ControlCenterStandaloneView />
         </div>
       </div>
     );

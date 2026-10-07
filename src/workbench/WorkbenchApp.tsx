@@ -12,6 +12,10 @@ const PublicPageView = React.lazy(() =>
   import('../modules/page-builder').then((m) => ({ default: m.PublicPageView }))
 );
 
+const HomePage = React.lazy(() =>
+  import('../pages/HomePage').then((m) => ({ default: m.HomePage }))
+);
+
 export const WorkbenchApp: React.FC = () => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
@@ -23,9 +27,8 @@ export const WorkbenchApp: React.FC = () => {
     location.hash.startsWith('#/p/') ||
     location.hash.startsWith('#/page/');
 
-  const isControlCenter =
-    location.pathname.startsWith('/control-center') ||
-    location.pathname === '/';
+  const isControlCenter = location.pathname.startsWith('/control-center');
+  const isHomePage = location.pathname === '/';
 
   // Sidebar is disabled by default across all workbench and modules unless ?sidebar=true is passed
   const showSidebar = searchParams.get('sidebar') === 'true';
@@ -117,7 +120,14 @@ export const WorkbenchApp: React.FC = () => {
                 />
               );
             })}
-            <Route path="/" element={<Navigate to="/control-center" replace />} />
+            <Route
+              path="/"
+              element={
+                <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-indigo-400 font-bold">טוען עמוד הבית...</div>}>
+                  <HomePage />
+                </Suspense>
+              }
+            />
           </Routes>
         </main>
       </div>
@@ -131,12 +141,19 @@ export const WorkbenchApp: React.FC = () => {
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Workbench Header rendered only when NOT in control center and NOT public page */}
-        {!isControlCenter && !isPublicPage && <Header />}
+        {/* Workbench Header rendered only when NOT in control center and NOT public page and NOT home */}
+        {!isControlCenter && !isPublicPage && location.pathname !== '/' && <Header />}
         
         <main className="flex-1 overflow-y-auto bg-slate-900/50 relative">
           <Routes>
-            <Route path="/" element={<Navigate to="/control-center" replace />} />
+            <Route
+              path="/"
+              element={
+                <Suspense fallback={<div className="min-h-screen bg-slate-950 flex items-center justify-center text-indigo-400 font-bold">טוען עמוד הבית...</div>}>
+                  <HomePage />
+                </Suspense>
+              }
+            />
             
             {/* Public Page Routes */}
             <Route
@@ -220,8 +237,8 @@ export const WorkbenchApp: React.FC = () => {
         </main>
       </div>
 
-      {/* Floating Return Pill for other modules (when not in control center and not public page) */}
-      {!isControlCenter && !isPublicPage && (
+      {/* Floating Return Pill for other modules (when not in control center and not public page and not home) */}
+      {!isControlCenter && !isPublicPage && !isHomePage && (
         <NavLink
           to="/control-center"
           className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-slate-950/90 hover:bg-indigo-600 text-white rounded-2xl border border-indigo-500/30 hover:border-indigo-400 shadow-2xl backdrop-blur-xl transition group text-xs font-bold cursor-pointer"

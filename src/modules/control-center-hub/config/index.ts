@@ -175,6 +175,30 @@ export const MODULE_CATALOG: ControlCenterModuleItem[] = [
     features: ['מסוף תשלום אשראי ו-Bit', 'הפקת מסמכים חוקיים באיזי קאונט', 'הוראות קבע ממוחשבות', 'יומן עסקאות מלא'],
     actionLabel: 'מסוף תשלומים',
   },
+  {
+    id: 'ambassador-campaigns-hub',
+    name: 'מערכת גיוס ושגרירים (Crowdfunding & Ambassadors Hub)',
+    shortTitle: 'מערכת גיוס ושגרירים',
+    description: 'קמפיינים לגיוס המונים מבוססי שגרירים, לוח מובילים בזמן אמת, דפי שגריר אישיים, מדרגות תרומה והתראות חיות',
+    route: '/ambassador-campaigns',
+    category: 'finance',
+    categoryTitle: 'פיננסים וסליקה',
+    pipelineStage: 'monetize',
+    pipelineStageTitle: '3. סליקה והכנסות',
+    collectionName: SYSTEM_COLLECTIONS.CAMPAIGNS,
+    iconName: 'Sparkles',
+    badge: 'גיוס ושגרירים',
+    colorScheme: {
+      from: 'from-amber-500',
+      to: 'to-yellow-500',
+      border: 'border-amber-500/40',
+      text: 'text-amber-400',
+      glow: 'shadow-amber-500/20',
+      bgHover: 'hover:bg-amber-950/30',
+    },
+    features: ['דפי שגרירים אישיים עם יעדים', 'לוח מובילים חי עם דירוג גיימיפיקציה', 'התראות תרומה מיידיות (Live Ticker)', 'מדרגות תרומה מותאמות אישית'],
+    actionLabel: 'מרכז גיוס',
+  },
 
   // 4. Media & AI Production
   {

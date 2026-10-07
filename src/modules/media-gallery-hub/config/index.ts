@@ -1,4 +1,4 @@
-﻿import { MediaGalleryCollectionsConfig, MediaItem, MediaType } from '../types';
+import { MediaGalleryCollectionsConfig, MediaItem, MediaType } from '../types';
 
 export const DEFAULT_COLLECTION_PREFIX = 'sdo_media_';
 
@@ -54,6 +54,46 @@ export const INITIAL_SERVER_MEDIA: MediaItem[] = [
     sizeBytes: 679055,
     createdAt: 1788094365029,
     tags: ['firebase_storage', 'תמונה'],
+  },
+  {
+    id: 'media_crm_showcase',
+    name: 'crm_showcase.jpg',
+    type: 'image',
+    mimeType: 'image/jpeg',
+    url: '/images/crm_showcase.jpg',
+    sizeBytes: 680245,
+    createdAt: Date.now() - 4000,
+    tags: ['crm', 'גלריה', 'תמונה', 'לוח בקרה'],
+  },
+  {
+    id: 'media_whatsapp_automation',
+    name: 'whatsapp_automation.jpg',
+    type: 'image',
+    mimeType: 'image/jpeg',
+    url: '/images/whatsapp_automation.jpg',
+    sizeBytes: 677024,
+    createdAt: Date.now() - 3000,
+    tags: ['whatsapp', 'בוטים', 'גלריה', 'תמונה'],
+  },
+  {
+    id: 'media_page_builder_mockup',
+    name: 'page_builder_mockup.jpg',
+    type: 'image',
+    mimeType: 'image/jpeg',
+    url: '/images/page_builder_mockup.jpg',
+    sizeBytes: 719288,
+    createdAt: Date.now() - 2000,
+    tags: ['page-builder', 'אתרים', 'גלריה', 'תמונה'],
+  },
+  {
+    id: 'media_campaign_fundraising',
+    name: 'campaign_fundraising.jpg',
+    type: 'image',
+    mimeType: 'image/jpeg',
+    url: '/images/campaign_fundraising.jpg',
+    sizeBytes: 689607,
+    createdAt: Date.now() - 1000,
+    tags: ['campaigns', 'גיוס', 'שגרירים', 'גלריה', 'תמונה'],
   },
 ];
 

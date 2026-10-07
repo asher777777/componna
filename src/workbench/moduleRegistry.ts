@@ -209,4 +209,12 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     route: '/template',
     collectionPrefix: 'mod_template_',
   },
+  {
+    id: 'ambassador-campaigns-hub',
+    name: 'מערכת גיוס ושגרירים (Crowdfunding & Ambassadors Hub)',
+    description: 'מערכת גיוס המונים חכמה, דפי שגרירים אישיים, יעדי גיוס, לוח מובילים והתראות תרומה חיות',
+    component: AmbassadorCampaignsStandaloneView,
+    route: '/ambassador-campaigns',
+    collectionPrefix: 'mod_campaigns_',
+  },
 ];
