@@ -142,10 +142,10 @@ export function getValidGeminiModel(requestedModel?: string): string {
   if (!requestedModel) return 'gemini-2.5-flash';
   const clean = requestedModel.toLowerCase().trim();
 
-  if (clean.includes('pro')) return 'gemini-1.5-pro';
+  if (clean.includes('pro')) return 'gemini-3.8-pro';
   if (clean.includes('2.5-flash')) return 'gemini-2.5-flash';
   if (clean.includes('2.0-flash')) return 'gemini-2.0-flash';
-  if (clean.includes('1.5-flash')) return 'gemini-1.5-flash';
+  if (clean.includes('3.8-flash')) return 'gemini-3.8-flash';
   if (clean.includes('flash')) return 'gemini-2.5-flash';
 
   return 'gemini-2.5-flash';
@@ -289,9 +289,9 @@ export class WhatsAppAiBotService {
     const modelsToTry = [
       primaryModel,
       'gemini-2.5-flash',
-      'gemini-1.5-flash',
+      'gemini-3.8-flash',
       'gemini-2.0-flash',
-      'gemini-1.5-pro',
+      'gemini-3.8-pro',
     ];
 
     const uniqueModels = Array.from(new Set(modelsToTry));

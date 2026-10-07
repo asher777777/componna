@@ -19,7 +19,7 @@ export const PAGE_BUILDER_MODULE_CONFIG = {
     buttonStyle: 'gradient' as const,
   },
   ai: {
-    defaultModel: 'gemini-1.5-flash',
+    defaultModel: 'gemini-3.8-flash',
     fallbackSectionsCount: 6,
     streamingStepDelayMs: 450,
   }

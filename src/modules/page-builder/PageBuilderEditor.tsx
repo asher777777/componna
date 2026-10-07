@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab, SectionType } from './types/pageBuilder.types';
+import { BuilderCopilotProvider } from './context/BuilderCopilotContext';
+import { CopilotChatDrawer } from './components/CopilotChatDrawer';
+import { FloatingCopilotButton } from './components/FloatingCopilotButton';
+
+
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { PageBuilderHeader } from './components/PageBuilderHeader';
 import { SectionNavigator } from './components/SectionNavigator';
@@ -200,8 +205,11 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
     }
   };
 
-  return (
-    <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-white select-none transition-colors duration-300">
+    return (
+    <BuilderCopilotProvider config={config} setConfig={setConfig}>
+      <CopilotChatDrawer />
+      <FloatingCopilotButton />
+      <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-white select-none transition-colors duration-300">
       {/* Top Navigation Bar */}
       <PageBuilderHeader
         config={config}
@@ -500,6 +508,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
           onApplyDesign={(newConfig) => handleUpdateSectionData(aiSectionTarget, newConfig)}
         />
       )}
-    </div>
+        </div>
+    </BuilderCopilotProvider>
   );
 };

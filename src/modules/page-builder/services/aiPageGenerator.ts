@@ -172,6 +172,7 @@ export const aiPageGenerator = {
       prompt,
       providedApiKey: apiKey,
       temperature: 0.85,
+      timeoutMs: 45000,
     });
 
     if (response.success && Array.isArray(response.data) && response.data.length >= 3) {
@@ -283,6 +284,7 @@ export const aiPageGenerator = {
         prompt: fullPrompt,
         providedApiKey: apiKey,
         temperature: 0.75,
+        timeoutMs: 90000, // 90 seconds for large full-page generation
       });
 
       if (!apiResult.success) {
@@ -425,6 +427,7 @@ export const aiPageGenerator = {
       prompt,
       providedApiKey: apiKey,
       temperature: 0.7,
+      timeoutMs: 45000, // 45 seconds for a single section
     });
 
     if (response.success && response.data) {

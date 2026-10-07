@@ -172,6 +172,32 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
       setCampaignsList((prev) => [res.campaign!, ...prev]);
       setCampaign(res.campaign);
       setActiveCampaignId(res.campaign.id);
+
+      // Auto-create ambassadors for connected CRM groups
+      if (Array.isArray(payload.connectedCrmGroups) && payload.connectedCrmGroups.length > 0) {
+        for (const grp of payload.connectedCrmGroups) {
+          try {
+            await createAmbassadorRecord(
+              db,
+              collections.AMBASSADORS,
+              collections.GROUPS,
+              collections.CONTACTS,
+              {
+                campaignId: res.campaign.id,
+                name: grp.name,
+                leaderName: grp.leaderName || 'מוביל קהילה',
+                targetGoal: Number(grp.targetGoal || Math.round((res.campaign.targetGoal || 100000) / payload.connectedCrmGroups.length)),
+                customSlug: `${res.campaign.slug}-${grp.name.replace(/[^a-zA-Z0-9\u0590-\u05FF]/g, '-').slice(0, 20)}`,
+                message: `קהילת ${grp.name} מתגייסת להצלחת קמפיין ${res.campaign.title}`,
+              }
+            );
+          } catch (e) {
+            console.warn('[CampaignContext] Could not auto-create ambassador for group:', grp.name, e);
+          }
+        }
+        const updatedAmbs = await fetchAmbassadorsRecord(db, collections.AMBASSADORS, res.campaign.id);
+        setAmbassadors(updatedAmbs);
+      }
     }
     return res;
   };

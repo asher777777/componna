@@ -7,8 +7,15 @@ function getCollectionName(tenantId?: string) {
   return tenantId ? `tenants/${tenantId}/mod_pages_documents` : DEFAULT_COLLECTION_NAME;
 }
 
+function getDraftCollectionName(tenantId?: string) {
+  return tenantId ? `tenants/${tenantId}/mod_pages_drafts` : 'mod_pages_drafts';
+}
+
 function getStorageKey(tenantId?: string) {
   return tenantId ? `comona_${tenantId}_pagebuilder_all_pages` : 'comona_pagebuilder_all_pages';
+}
+function getDraftStorageKey(tenantId?: string) {
+  return tenantId ? `comona_${tenantId}_pagebuilder_drafts` : 'comona_pagebuilder_drafts';
 }
 const LOCAL_STORAGE_KEY_PAGES = 'comona_pagebuilder_all_pages';
 
@@ -193,4 +200,53 @@ export const pageBuilderFirestore = {
       } catch {}
     }
   },
+
+  // Draft Management
+  async saveDraftConfig(config: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<boolean> {
+    const draftPath = getDraftCollectionName(tenantId);
+    const storeKey = getDraftStorageKey(tenantId);
+
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(config));
+    } catch {}
+
+    if (db) {
+      try {
+        const docRef = doc(db, draftPath, config.pageId || 'active_draft');
+        await setDoc(docRef, { ...config, updatedAt: new Date().toISOString() }, { merge: true });
+        return true;
+      } catch (err) {
+        console.error('[PageBuilder] Failed saving draft', err);
+        return false;
+      }
+    }
+    return true;
+  },
+
+  async loadDraftConfig(db?: Firestore | null, tenantId?: string, pageId: string = 'active_draft'): Promise<PageBuilderConfig | null> {
+    const draftPath = getDraftCollectionName(tenantId);
+    const storeKey = getDraftStorageKey(tenantId);
+
+    if (db) {
+      try {
+        const docRef = doc(db, draftPath, pageId);
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const data = snap.data() as PageBuilderConfig;
+          localStorage.setItem(storeKey, JSON.stringify(data));
+          return data;
+        }
+      } catch (err) {
+        console.warn('[PageBuilder] Could not fetch draft from firestore', err);
+      }
+    }
+
+    // fallback local
+    try {
+      const local = localStorage.getItem(storeKey);
+      if (local) return JSON.parse(local) as PageBuilderConfig;
+    } catch {}
+
+    return null;
+  }
 };

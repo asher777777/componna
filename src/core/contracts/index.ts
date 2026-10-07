@@ -229,10 +229,18 @@ export interface BrandTrustAndCheckout {
   whatsappSupportNumber?: string;
 }
 
+export interface BrandEcosystem {
+  services: string[];
+  products: string[];
+  annualEvents: string[];
+  communities: string[];
+}
+
 export interface BrandDna {
   identity: BrandIdentity;
   voice: BrandVoice;
   audience: BrandAudience;
+  ecosystem?: BrandEcosystem;
   designTokens: BrandDesignTokens;
   trust: BrandTrustAndCheckout;
   updatedAt?: string;

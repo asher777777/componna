@@ -5,6 +5,7 @@ import { BrandVoiceSection } from './components/BrandVoiceSection';
 import { TargetAudienceSection } from './components/TargetAudienceSection';
 import { DesignTokensSection } from './components/DesignTokensSection';
 import { TrustCheckoutSection } from './components/TrustCheckoutSection';
+import { BrandEcosystemSection } from './components/BrandEcosystemSection';
 import { BrandDashboardSection } from './components/BrandDashboardSection';
 import { AiDiscoveryWizardModal } from './components/AiDiscoveryWizardModal';
 import { AiStepWizardView } from './components/AiStepWizardView';
@@ -28,17 +29,19 @@ import {
   Sun,
   Moon,
   Globe,
+  Layers,
   FileSpreadsheet,
 } from 'lucide-react';
 
-export type TabType = 'identity' | 'voice' | 'audience' | 'design' | 'trust';
+export type TabType = 'identity' | 'voice' | 'audience' | 'ecosystem' | 'design' | 'trust';
 
 export const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'identity', label: '1. זהות עסקית', icon: Building2 },
   { id: 'voice', label: '2. שפת מותג וטון', icon: Sliders },
   { id: 'audience', label: '3. קהלי יעד ובידול', icon: Target },
-  { id: 'design', label: '4. שפה חזותית', icon: Palette },
-  { id: 'trust', label: '5. אמינות וסליקה', icon: ShieldCheck },
+  { id: 'ecosystem', label: '4. מבנה שירותים', icon: Layers },
+  { id: 'design', label: '5. שפה חזותית', icon: Palette },
+  { id: 'trust', label: '6. אמינות וסליקה', icon: ShieldCheck },
 ];
 
 export interface BrandDnaViewProps {

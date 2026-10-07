@@ -353,9 +353,15 @@ export const CampaignDonorsWidget: React.FC<CampaignDonorsWidgetProps> = ({
       {/* Tab 3 Content: Campaign Story & Vision */}
       {activeTab === 'about' && (
         <div className="pt-6 space-y-4 text-slate-800 leading-relaxed text-sm sm:text-base">
-          <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80">
+          <div className="p-5 bg-slate-50 rounded-2xl border border-slate-200/80">
+            {campaign?.brandName && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-bold mb-3">
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>קמפיין ממותג רשמי ע"י {campaign.brandName}</span>
+              </div>
+            )}
             <h4 className="font-black text-lg text-slate-900 mb-2">
-              {campaign?.storyContent?.heading || 'חזון הקמפיין'}
+              {campaign?.storyContent?.heading || 'חזון הקמפיין והמטרות'}
             </h4>
             <p className="whitespace-pre-line text-slate-700">
               {campaign?.storyContent?.body ||

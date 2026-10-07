@@ -11,6 +11,7 @@ export interface GeminiApiOptions {
   providedApiKey?: string;
   model?: string;
   timeoutMs?: number;
+  imageParts?: Array<{ inlineData: { data: string; mimeType: string } }>;
 }
 
 export interface ApiResponse<T = any> {
@@ -47,7 +48,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
     };
   }
 
-  const model = options.model || 'gemini-1.5-flash';
+  const model = options.model || 'gemini-3.8-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const controller = new AbortController();
@@ -55,17 +56,22 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
 
   try {
     const contents: any[] = [];
+    const parts: any[] = [];
+    
     if (options.systemInstruction) {
-      contents.push({
-        role: 'user',
-        parts: [{ text: `SYSTEM DIRECTIVE:\n${options.systemInstruction}\n\nUSER PROMPT:\n${options.prompt}` }],
-      });
+      parts.push({ text: `SYSTEM DIRECTIVE:\n${options.systemInstruction}\n\nUSER PROMPT:\n${options.prompt}` });
     } else {
-      contents.push({
-        role: 'user',
-        parts: [{ text: options.prompt }],
-      });
+      parts.push({ text: options.prompt });
     }
+
+    if (options.imageParts && options.imageParts.length > 0) {
+      parts.push(...options.imageParts);
+    }
+
+    contents.push({
+      role: 'user',
+      parts,
+    });
 
     const response = await fetch(url, {
       method: 'POST',

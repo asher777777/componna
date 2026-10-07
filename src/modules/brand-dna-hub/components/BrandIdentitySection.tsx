@@ -129,11 +129,16 @@ export const BrandIdentitySection: React.FC = () => {
 
     setIsExtractingColors(true);
     try {
-      const reader = new FileReader();
-      reader.onload = async (event) => {
-        const dataUrl = event.target?.result as string;
-        handleProcessLogoUrl(dataUrl);
-      };
+                      const reader = new FileReader();
+        reader.onload = async (event) => {
+          const dataUrl = event.target?.result as string;
+          if (dataUrl.length > 1024 * 1024 * 2) {
+             alert('התמונה גדולה מידי, אנא העלה תמונה קטנה מ-1MB');
+             setIsExtractingColors(false);
+             return;
+          }
+          handleProcessLogoUrl(dataUrl);
+        };
       reader.readAsDataURL(file);
     } catch (err) {
       console.error('Logo upload error:', err);

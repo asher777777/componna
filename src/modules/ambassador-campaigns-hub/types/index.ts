@@ -103,6 +103,15 @@ export interface Campaign {
   branding?: CampaignBranding;
   storyContent?: CampaignStoryContent;
   testMode?: boolean;
+  themeMode?: 'brand_dna' | 'custom';
+  brandName?: string;
+  connectedCrmGroups?: {
+    id: string;
+    name: string;
+    leaderName?: string;
+    targetGoal?: number;
+    color?: string;
+  }[];
   ownerId?: string;
   slug?: string;
   featuredImageUrl?: string;
@@ -173,6 +182,15 @@ export interface CreateCampaignPayload {
   videoGallery?: CampaignVideoGallery;
   branding?: CampaignBranding;
   ownerId?: string;
+  themeMode?: 'brand_dna' | 'custom';
+  brandName?: string;
+  connectedCrmGroups?: {
+    id: string;
+    name: string;
+    leaderName?: string;
+    targetGoal?: number;
+    color?: string;
+  }[];
 }
 
 export interface CreateAmbassadorPayload {

@@ -20,15 +20,21 @@ import type { BrandDna } from '../../../core/contracts';
 
 export const DEFAULT_BRAND_DNA: BrandDna = {
   identity: {
-    companyName: 'קמונה פתרונות דיגיטליים',
+    companyName: 'קשואן',
     organizationType: 'חברה',
     organizationPurpose: 'כספית - מתן שירותים ופתרונות דיגיטליים מתקדמים',
     memberCount: 'עד 10',
-    slogan: 'חדשנות, איכות וצמיחה מתמדת',
+    slogan: 'כל אדם זה נכנס',
     companyVision: 'להוביל את תחום השירותים והפתרונות הדיגיטליים תוך מתן יחס אישי, מקצועיות ללא פשרות, וערך אמיתי ומתמשך לכל לקוח ושותף לדרך.',
-    shortVision: 'שירותים דיגיטליים מתקדמים המניעים תוצאות ומעניקים שקט נפשי.',
+    shortVision: 'כל אדם זה נכנס.',
     logoUrl: '',
     vibeImages: [],
+  },
+  ecosystem: {
+    services: [],
+    products: [],
+    annualEvents: [],
+    communities: [],
   },
   voice: {
     personality: {

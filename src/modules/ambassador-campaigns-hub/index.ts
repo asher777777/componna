@@ -6,6 +6,8 @@ export * from './types';
 export * from './config';
 export * from './context/CampaignModuleContext';
 export * from './services/campaignFirestoreService';
+export * from './services/campaignBrandIntegrationService';
+export * from './services/campaignAiService';
 export * from './api/functionsApi';
 export * from './prompts';
 export * from './routes/CampaignModuleRoutes';

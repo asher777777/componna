@@ -21,7 +21,8 @@ export type SectionType =
   | 'landingSection'
   | 'contact'
   | 'smartForm'
-  | 'flowPlayer';
+  | 'flowPlayer'
+  | 'customHtml';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

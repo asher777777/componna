@@ -10,17 +10,14 @@ const BASE_LOCAL_STORAGE_KEY = 'brand_dna_settings';
  * Path in Firestore: `tenants/{tenantId}/settings/brand_dna`
  */
 export async function loadBrandDna(db?: Firestore, tenantId: string = '_master'): Promise<BrandDna> {
-  const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
-
-  // 1. Try Firestore if connected (tenants/{tenantId}/settings/brand_dna)
+  // 1. Try Firestore (tenants/{tenantId}/settings/brand_dna)
   if (db) {
     try {
       const docRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data() as BrandDna;
-        // Merge with default to ensure all fields exist
-        const merged: BrandDna = {
+        return {
           ...DEFAULT_BRAND_DNA,
           ...data,
           identity: { ...DEFAULT_BRAND_DNA.identity, ...data.identity },
@@ -29,34 +26,28 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
           designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...data.designTokens },
           trust: { ...DEFAULT_BRAND_DNA.trust, ...data.trust },
         };
-        // Also update local storage cache
-        try {
-          localStorage.setItem(localStorageKey, JSON.stringify(merged));
-        } catch {}
-        return merged;
+      }
+
+      // If specific tenant has no doc, try master tenant in DB
+      if (tenantId !== '_master') {
+        const masterRef = doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
+        const masterSnap = await getDoc(masterRef);
+        if (masterSnap.exists()) {
+          const masterData = masterSnap.data() as BrandDna;
+          return {
+            ...DEFAULT_BRAND_DNA,
+            ...masterData,
+            identity: { ...DEFAULT_BRAND_DNA.identity, ...masterData.identity },
+            voice: { ...DEFAULT_BRAND_DNA.voice, ...masterData.voice },
+            audience: { ...DEFAULT_BRAND_DNA.audience, ...masterData.audience },
+            designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...masterData.designTokens },
+            trust: { ...DEFAULT_BRAND_DNA.trust, ...masterData.trust },
+          };
+        }
       }
     } catch (err) {
-      console.warn(`[BrandDNA] Could not fetch brand_dna for tenant "${tenantId}" from Firestore, falling back to local storage:`, err);
+      console.warn(`[BrandDNA] Could not fetch brand_dna for tenant "${tenantId}" from Firestore:`, err);
     }
-  }
-
-  // 2. Fallback to LocalStorage scoped to this tenant
-  try {
-    const local = localStorage.getItem(localStorageKey);
-    if (local) {
-      const data = JSON.parse(local) as BrandDna;
-      return {
-        ...DEFAULT_BRAND_DNA,
-        ...data,
-        identity: { ...DEFAULT_BRAND_DNA.identity, ...data.identity },
-        voice: { ...DEFAULT_BRAND_DNA.voice, ...data.voice },
-        audience: { ...DEFAULT_BRAND_DNA.audience, ...data.audience },
-        designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...data.designTokens },
-        trust: { ...DEFAULT_BRAND_DNA.trust, ...data.trust },
-      };
-    }
-  } catch (e) {
-    console.warn('[BrandDNA] Error reading from local storage:', e);
   }
 
   return DEFAULT_BRAND_DNA;
@@ -79,9 +70,17 @@ export async function saveBrandDna(
 
   // 1. Save to LocalStorage immediately (tenant scoped)
   try {
-    localStorage.setItem(localStorageKey, JSON.stringify(payload));
+    const jsonPayload = JSON.stringify(payload);
+    if (jsonPayload.length > 1024 * 1024 * 4) { // > 4MB, strip logo to avoid crash
+      payload.identity.logoUrl = '';
+      localStorage.setItem(localStorageKey, JSON.stringify(payload));
+    } else {
+      localStorage.setItem(localStorageKey, jsonPayload);
+    }
   } catch (err: any) {
-    console.warn(`[BrandDNA] Failed saving brand_dna for tenant "${tenantId}" to local storage:`, err);
+    if (err.name !== 'QuotaExceededError') {
+      console.warn(`[BrandDNA] Failed saving brand_dna for tenant "${tenantId}" to local storage:`, err);
+    }
   }
 
   // 2. Save to Firestore if available: tenants/{tenantId}/settings/brand_dna

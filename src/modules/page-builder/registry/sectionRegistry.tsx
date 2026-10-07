@@ -666,7 +666,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     },
   },
 
-  flowPlayer: {
+    flowPlayer: {
     type: 'flowPlayer',
     name: 'נגן זרימה אינטראקטיבי (Flow Player)',
     category: 'marketing',
@@ -681,15 +681,29 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       campaignId: 'sales_rep_interactive_01',
       campaignSlug: 'sales_rep_interactive_01',
       showSectionHeader: false,
-      sectionTitle: '',
-      sectionSubtitle: '',
-      containerWidth: 'lg',
-      aspectRatio: '9:16',
-      backgroundColor: 'transparent',
-      desktopBgImage: '',
-      desktopBgStyle: 'blur-ambient',
-      desktopBgOverlayOpacity: 40,
-      mode: 'live',
+      title: 'הנציג הדיגיטלי שלנו',
+      subtitle: 'שוחחו עם נציג ה-AI שלנו בלייב',
+    },
+  },
+
+  customHtml: {
+    type: 'customHtml',
+    name: 'קוד AI מותאם אישית',
+    category: 'content',
+    description: 'אזור שנבנה אוטומטית על ידי ה-AI באמצעות HTML/Tailwind',
+    icon: LayoutTemplate,
+    viewComponent: ({ config }: any) => (
+      <div 
+        dangerouslySetInnerHTML={{ __html: config.rawHtmlTemplate || '<div class="p-8 text-center text-slate-500">No custom code provided</div>' }} 
+        className={config.customClasses}
+        style={{ backgroundColor: config.backgroundColor }}
+      />
+    ),
+    editorComponent: () => <div className="p-4 text-center text-slate-500 text-sm">אזור זה נוצר על ידי ה-AI ומכיל קוד HTML דינמי.</div>,
+    defaultConfig: {
+      type: 'customHtml',
+      visible: true,
+      rawHtmlTemplate: '',
     },
   },
 };

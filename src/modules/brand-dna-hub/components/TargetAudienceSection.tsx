@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { PersonaItem, ObjectionItem } from '../types/brandDna';
+import { generateAiPersona, generateAiObjection } from '../services/geminiBrandPrompt';
 import {
   Target,
   Users2,
@@ -23,11 +24,25 @@ export const TargetAudienceSection: React.FC = () => {
   const [newPersonaPain, setNewPersonaPain] = useState('');
   const [newPersonaDream, setNewPersonaDream] = useState('');
   const [showPersonaForm, setShowPersonaForm] = useState(false);
+  const [isGeneratingPersona, setIsGeneratingPersona] = useState(false);
 
   // New Objection form
   const [newObjection, setNewObjection] = useState('');
   const [newRebuttal, setNewRebuttal] = useState('');
   const [showObjectionForm, setShowObjectionForm] = useState(false);
+  const [isGeneratingObjection, setIsGeneratingObjection] = useState(false);
+
+    const handleGeneratePersonaAi = async () => {
+    setIsGeneratingPersona(true);
+    const result = await generateAiPersona(brandDna);
+    setIsGeneratingPersona(false);
+    if (result) {
+      setNewPersonaName(result.name || '');
+      setNewPersonaRole(result.role || '');
+      setNewPersonaPain(result.pain || '');
+      setNewPersonaDream(result.dream || '');
+    }
+  };
 
   const handleAddAudienceTag = (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,6 +95,16 @@ export const TargetAudienceSection: React.FC = () => {
     setNewObjection('');
     setNewRebuttal('');
     setShowObjectionForm(false);
+  };
+
+    const handleGenerateObjectionAi = async () => {
+    setIsGeneratingObjection(true);
+    const result = await generateAiObjection(brandDna);
+    setIsGeneratingObjection(false);
+    if (result) {
+      setNewObjection(result.objection || '');
+      setNewRebuttal(result.rebuttal || '');
+    }
   };
 
   const handleDeleteObjection = (id: string) => {
@@ -175,8 +200,19 @@ export const TargetAudienceSection: React.FC = () => {
 
         {/* Persona Form */}
         {showPersonaForm && (
-          <div className="p-4 bg-slate-900/90 border border-cyan-500/30 rounded-xl space-y-3 animate-in fade-in">
-            <h4 className="text-xs font-bold text-cyan-300">הגדרת פרסונה חדשה</h4>
+                      <div className="p-4 bg-slate-900/90 border border-cyan-500/30 rounded-xl space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold text-cyan-300">הגדרת פרסונה חדשה</h4>
+                <button
+                  type="button"
+                  onClick={handleGeneratePersonaAi}
+                  disabled={isGeneratingPersona}
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {isGeneratingPersona ? 'מייצר עם AI...' : 'מלא אוטומטית עם AI'}
+                </button>
+              </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] text-slate-400 mb-1">שם הפרסונה ופרופיל</label>
@@ -297,8 +333,20 @@ export const TargetAudienceSection: React.FC = () => {
 
         {/* Objection Form */}
         {showObjectionForm && (
-          <div className="p-4 bg-slate-900/90 border border-orange-500/30 rounded-xl space-y-3 animate-in fade-in">
-            <div>
+                      <div className="p-4 bg-slate-900/90 border border-orange-500/30 rounded-xl space-y-3 animate-in fade-in">
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-bold text-orange-300">הגדרת התנגדות חדשה</h4>
+                <button
+                  type="button"
+                  onClick={handleGenerateObjectionAi}
+                  disabled={isGeneratingObjection}
+                  className="flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  {isGeneratingObjection ? 'מייצר עם AI...' : 'מלא אוטומטית עם AI'}
+                </button>
+              </div>
+              <div>
               <label className="block text-[11px] text-slate-400 mb-1">החשש או השאלה של הלקוח</label>
               <input
                 type="text"

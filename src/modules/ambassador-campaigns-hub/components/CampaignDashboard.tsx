@@ -36,6 +36,7 @@ import {
   ArrowUpRight,
   TrendingUp,
   Edit3,
+  Wand2,
 } from 'lucide-react';
 import { useCampaignModule } from '../context/CampaignModuleContext';
 import { AmbassadorsManagementTable } from './AmbassadorsManagementTable';
@@ -317,10 +318,10 @@ export const CampaignDashboard: React.FC = () => {
 
                 <button
                   onClick={() => setIsCreateCampaignOpen(true)}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-700 to-indigo-800 hover:opacity-95 text-white text-xs font-bold shadow-md shadow-indigo-600/20 transition-all cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" />
-                  הוסף קמפיין
+                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                  <span>קמפיין AI ומיתוג</span>
                 </button>
               </div>
             </div>
@@ -370,10 +371,16 @@ export const CampaignDashboard: React.FC = () => {
                             <Trophy className="w-10 h-10 text-indigo-400/40" />
                           </div>
                         )}
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                        <div className="absolute top-3 right-3 flex items-center gap-1.5 flex-wrap">
                           <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-black/60 backdrop-blur-md text-white border border-white/20">
                             {camp.status === 'active' ? 'פעיל' : 'טיוטה'}
                           </span>
+                          {camp.themeMode === 'brand_dna' && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/90 backdrop-blur-md text-white shadow-xs flex items-center gap-1">
+                              <Sparkles className="w-2.5 h-2.5" />
+                              Brand DNA
+                            </span>
+                          )}
                           {isActive && (
                             <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white shadow-xs">
                               נבחר
@@ -473,7 +480,16 @@ export const CampaignDashboard: React.FC = () => {
                   <tbody className="divide-y divide-slate-100">
                     {effectiveCampaigns.map((camp) => (
                       <tr key={camp.id} className="hover:bg-slate-50/80 transition-colors">
-                        <td className="py-3 pr-2 font-bold text-slate-900">{camp.title}</td>
+                        <td className="py-3 pr-2">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="font-bold text-slate-900">{camp.title}</span>
+                            {camp.themeMode === 'brand_dna' && (
+                              <span className="px-1.5 py-0.2 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">
+                                Brand DNA
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="py-3 font-mono text-slate-500 dir-ltr">/{camp.slug}</td>
                         <td className="py-3 font-bold">₪{camp.targetGoal.toLocaleString()}</td>
                         <td className="py-3 font-black text-emerald-700">₪{(camp.totalRaised || 0).toLocaleString()}</td>

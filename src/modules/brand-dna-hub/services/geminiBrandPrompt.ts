@@ -1187,3 +1187,115 @@ export async function scrapeBrandFromUrlOrSocial(
 }
 
 
+
+
+export async function generateAiPersona(brand: BrandDna, apiKey?: string): Promise<any> {
+  const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
+  if (!finalKey) return null;
+
+  const systemPrompt = buildBrandSystemContext(brand);
+  const userPrompt = `Based on our Brand DNA, generate a completely new, realistic, and highly detailed Target Audience Persona.
+Do not repeat the ones we already have: ${brand.audience.personas.map(p => p.name).join(', ')}.
+
+Return ONLY a valid JSON object with EXACTLY these keys:
+{
+  "name": "e.g. דן, בעל עסק",
+  "role": "e.g. מנהל שיווק",
+  "pain": "The main pain point",
+  "dream": "The ultimate dream outcome"
+}`;
+
+  try {
+    const response = await executeWithGeminiFallback(finalKey, {
+      systemInstruction: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+      responseSchema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          role: { type: 'string' },
+          pain: { type: 'string' },
+          dream: { type: 'string' }
+        },
+        required: ['name', 'role', 'pain', 'dream']
+      }
+    });
+    if (!response.success || !response.text) return null;
+    return JSON.parse(response.text);
+  } catch(e) {
+    console.error('Failed to generate Persona:', e);
+    return null;
+  }
+}
+
+export async function generateAiObjection(brand: BrandDna, apiKey?: string): Promise<any> {
+  const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
+  if (!finalKey) return null;
+
+  const systemPrompt = buildBrandSystemContext(brand);
+  const userPrompt = `Based on our Brand DNA, generate a completely new, realistic, and challenging customer objection, along with an excellent, persuasive rebuttal.
+Do not repeat existing ones: ${brand.audience.commonObjections.map(o => o.objection).join(' | ')}.
+
+Return ONLY a valid JSON object with EXACTLY these keys:
+{
+  "objection": "e.g. זה יקר לי מדי",
+  "rebuttal": "The perfect answer to overcome this objection"
+}`;
+
+  try {
+    const response = await executeWithGeminiFallback(finalKey, {
+      systemInstruction: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+      responseSchema: {
+        type: 'object',
+        properties: {
+          objection: { type: 'string' },
+          rebuttal: { type: 'string' }
+        },
+        required: ['objection', 'rebuttal']
+      }
+    });
+    if (!response.success || !response.text) return null;
+    return JSON.parse(response.text);
+  } catch(e) {
+    console.error('Failed to generate Objection:', e);
+    return null;
+  }
+}
+
+export async function generateAiEcosystemItems(brand: BrandDna, category: string, currentItems: string[], apiKey?: string): Promise<string[]> {
+  const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
+  if (!finalKey) return [];
+
+  const systemPrompt = buildBrandSystemContext(brand);
+  const userPrompt = `Based on our Brand DNA, suggest 3 completely new, highly relevant '${category}' for our brand ecosystem.
+Do not repeat any of our existing ${category}: ${currentItems.join(', ')}.
+
+Return ONLY a valid JSON object with EXACTLY this key:
+{
+  "items": ["item 1", "item 2", "item 3"]
+}`;
+
+  try {
+    const response = await executeWithGeminiFallback(finalKey, {
+      systemInstruction: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+      responseSchema: {
+        type: 'object',
+        properties: {
+          items: { type: 'array', items: { type: 'string' } }
+        },
+        required: ['items']
+      }
+    });
+    if (!response.success || !response.text) return [];
+    const parsed = JSON.parse(response.text);
+    return parsed.items || [];
+  } catch(e) {
+    console.error('Failed to generate Ecosystem items:', e);
+    return [];
+  }
+}
