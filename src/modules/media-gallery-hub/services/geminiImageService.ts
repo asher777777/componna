@@ -6,6 +6,7 @@
 
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 import { translateHebrewPromptToEnglish } from './geminiPromptAssistant';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 export interface GeminiImageOptions {
   prompt: string;
@@ -135,65 +136,73 @@ export async function generateGeminiImage(
   const aspectRatio = options.aspectRatio || '1:1';
   const { width, height } = getDimensionsForAspectRatio(aspectRatio);
 
-  const effectiveKey = (options.customApiKey || apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '').trim();
+  const effectiveKey = (options.customApiKey || apiKey || getModuleGeminiKey('media-gallery-hub') || '').trim();
 
   // 1. Google Gemini Native Image Endpoints (Google AI Studio / Vertex AI)
   if (effectiveKey) {
     // A. Imagen 3 predict endpoint
-    const imagenEndpoints = [
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`,
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${effectiveKey}`,
-    ];
+    if (model === 'imagen-3.0-generate-002') {
+      const imagenEndpoints = [
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${effectiveKey}`,
+      ];
 
-    for (const endpoint of imagenEndpoints) {
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': effectiveKey,
-          },
-          body: JSON.stringify({
-            instances: [{ prompt: englishPrompt }],
-            parameters: {
-              sampleCount: 1,
-              aspectRatio: aspectRatio,
-              personGeneration: 'ALLOW_ADULT',
-              outputMimeType: 'image/jpeg',
+      for (const endpoint of imagenEndpoints) {
+        try {
+          const res = await fetch(endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': effectiveKey,
             },
-          }),
-        });
+            body: JSON.stringify({
+              instances: [{ prompt: englishPrompt }],
+              parameters: {
+                sampleCount: 1,
+                aspectRatio: aspectRatio,
+                personGeneration: 'ALLOW_ADULT',
+                outputMimeType: 'image/jpeg',
+              },
+            }),
+          });
 
-        if (res.ok) {
-          const data = await res.json();
-          const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-          const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
-          if (b64) {
-            const usageReport = calculateGeminiCost({
-              model: 'imagen-3.0-generate-002',
-              promptTokens: 50,
-              candidatesTokens: 1120,
-            });
+          if (res.ok) {
+            const data = await res.json();
+            const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
+            const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
+            if (b64) {
+              const usageReport = calculateGeminiCost({
+                model: 'imagen-3.0-generate-002',
+                promptTokens: 50,
+                candidatesTokens: 1120,
+              });
 
-            return {
-              imageUrl: `data:${mime};base64,${b64}`,
-              base64Data: b64,
-              mimeType: mime,
-              width,
-              height,
-              model: 'imagen-3.0-generate-002',
-              usageReport,
-            };
+              return {
+                imageUrl: `data:${mime};base64,${b64}`,
+                base64Data: b64,
+                mimeType: mime,
+                width,
+                height,
+                model: 'imagen-3.0-generate-002',
+                usageReport,
+              };
+            }
           }
+        } catch (err) {
+          console.warn('[Imagen 3 predict call notice]:', err);
         }
-      } catch (err) {
-        console.warn('[Imagen 3 predict call notice]:', err);
       }
     }
 
-    // B. Gemini generateContent endpoints with image modality
-    const geminiModels = ['gemini-2.0-flash-exp', 'gemini-3.1-flash-image', 'gemini-3-pro-image'];
-    for (const targetModel of geminiModels) {
+    // B. Gemini generateContent endpoints with image modality (2026 models only)
+    const preferredModels = [
+      model,
+      'gemini-3.1-flash-image',
+      'gemini-3.1-flash-lite-image',
+      'gemini-3-pro-image',
+    ].filter((m, idx, arr) => m && arr.indexOf(m) === idx && m !== 'imagen-3.0-generate-002');
+
+    for (const targetModel of preferredModels) {
       try {
         const parts: any[] = [];
         if (options.referenceImageBase64) {

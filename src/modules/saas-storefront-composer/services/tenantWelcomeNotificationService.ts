@@ -1,7 +1,7 @@
 import { TenantRecord } from '../types';
 import { GreenApiService } from '../../whatsapp-green-api-hub/services/greenApiService';
 import { eventBus } from '../../../core/bridge/EventBus';
-
+import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 export interface TenantCredentials {
   username: string;
   temporaryPassword: string;
@@ -112,14 +112,9 @@ ${modulesText}
 
     // 1. Send via Green API if configured
     try {
-      const apiKeysRaw = localStorage.getItem('comona_system_apikeys_config');
-      let instanceId = '';
-      let token = '';
-      if (apiKeysRaw) {
-        const parsed = JSON.parse(apiKeysRaw);
-        instanceId = parsed.greenApiInstanceId || '';
-        token = parsed.greenApiToken || '';
-      }
+      const greenApiCreds = getModuleGreenApiCredentials('whatsapp-green-api-hub') || {};
+      const instanceId = greenApiCreds.instanceId || '';
+      const token = greenApiCreds.token || '';
 
       if (instanceId && token && cleanPhone) {
         const greenApi = new GreenApiService({

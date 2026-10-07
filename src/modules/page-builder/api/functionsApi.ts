@@ -1,6 +1,7 @@
 /**
  * API client layer for Gemini / AI calls with Smart Key Resolver and error handling.
  */
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 export interface GeminiApiOptions {
   prompt: string;
@@ -19,55 +20,14 @@ export interface ApiResponse<T = any> {
   isFallback?: boolean;
 }
 
-/**
- * Smart Key Resolver: checks in order
- * 1. Provided parameter
- * 2. LocalStorage: 'googleAiApiKey'
- * 3. LocalStorage: 'geminiApiKey'
- * 4. LocalStorage: 'comona_system_apikeys_config' object
- * 5. Environment variables (VITE_GEMINI_API_KEY, GEMINI_API_KEY, VITE_GOOGLE_AI_API_KEY)
- */
 export function resolveApiKey(providedApiKey?: string): string | null {
   if (providedApiKey && providedApiKey.trim().length > 5) {
     return providedApiKey.trim();
   }
 
-  try {
-    const rawGoogleKey = localStorage.getItem('googleAiApiKey');
-    if (rawGoogleKey && rawGoogleKey.trim().length > 5) {
-      return rawGoogleKey.trim();
-    }
-
-    const rawGeminiKey = localStorage.getItem('geminiApiKey');
-    if (rawGeminiKey && rawGeminiKey.trim().length > 5) {
-      return rawGeminiKey.trim();
-    }
-
-    const systemConfig = localStorage.getItem('comona_system_apikeys_config');
-    if (systemConfig) {
-      try {
-        const parsed = JSON.parse(systemConfig);
-        if (parsed.googleAiApiKey && typeof parsed.googleAiApiKey === 'string' && parsed.googleAiApiKey.trim().length > 5) {
-          return parsed.googleAiApiKey.trim();
-        }
-        if (parsed.geminiApiKey && typeof parsed.geminiApiKey === 'string' && parsed.geminiApiKey.trim().length > 5) {
-          return parsed.geminiApiKey.trim();
-        }
-      } catch {
-        // continue
-      }
-    }
-  } catch {
-    // LocalStorage access might fail in restricted environments
-  }
-
-  const envKey =
-    (import.meta.env?.VITE_GEMINI_API_KEY as string | undefined) ||
-    (import.meta.env?.GEMINI_API_KEY as string | undefined) ||
-    (import.meta.env?.VITE_GOOGLE_AI_API_KEY as string | undefined);
-
-  if (envKey && envKey.trim().length > 5) {
-    return envKey.trim();
+  const systemKey = getModuleGeminiKey('page-builder');
+  if (systemKey && systemKey.trim().length > 5) {
+    return systemKey.trim();
   }
 
   return null;

@@ -1,7 +1,7 @@
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
 import { BrandDna } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
-
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 export interface WhatsAppBotButton {
   buttonId: string;
   buttonText: string;
@@ -275,8 +275,7 @@ export class WhatsAppAiBotService {
     } = params;
 
     const effectiveApiKey = (apiKey && apiKey.trim()) ||
-      (typeof window !== 'undefined' && ((window as any).__COMONA_GEMINI_API_KEY || (window as any).__GEMINI_API_KEY)) ||
-      import.meta.env.VITE_GEMINI_API_KEY ||
+      getModuleGeminiKey('whatsapp-green-api-hub') ||
       '';
 
     if (!effectiveApiKey) {
@@ -493,8 +492,7 @@ export class WhatsAppAiBotService {
     const { apiKey, botConfig, userMessage, chatHistory = [], brandDna } = params;
 
     const effectiveApiKey = (apiKey && apiKey.trim()) ||
-      (typeof window !== 'undefined' && ((window as any).__COMONA_GEMINI_API_KEY || (window as any).__GEMINI_API_KEY)) ||
-      import.meta.env.VITE_GEMINI_API_KEY ||
+      getModuleGeminiKey('whatsapp-green-api-hub') ||
       '';
 
     if (!effectiveApiKey) {

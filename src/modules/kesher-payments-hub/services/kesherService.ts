@@ -10,6 +10,7 @@ import {
   KesherSyncResult,
   KesherDocumentType
 } from '../types';
+import { getModuleApiKeys } from '../../../core/connection/tenantApiKeys';
 
 const SETTINGS_STORAGE_KEY = 'comona_kesher_settings';
 const TRANSACTIONS_STORAGE_KEY = 'comona_kesher_local_transactions';
@@ -55,20 +56,18 @@ export class KesherService {
 
   public loadSettings(): KesherSettings {
     try {
-      // First check central system API keys storage
-      const systemKeys = localStorage.getItem('comona_system_apikeys_config');
-      if (systemKeys) {
-        const parsed = JSON.parse(systemKeys);
-        if (parsed.kesherUserName || parsed.kesherApiKey || parsed.kesherEzCountToken) {
-          this.settings = {
-            ...this.settings,
-            userName: parsed.kesherUserName || this.settings.userName,
-            apiKey: parsed.kesherApiKey || this.settings.apiKey,
-            paymentPageId: parsed.kesherPaymentPageId || this.settings.paymentPageId,
-            ezCountToken: parsed.kesherEzCountToken || this.settings.ezCountToken,
-            defaultReceiptType: parsed.kesherDefaultReceiptType || this.settings.defaultReceiptType || 405,
-          };
-        }
+      // First check central system API keys storage via tenantApiKeys
+      const moduleKeys = getModuleApiKeys('kesher-payments-hub') || {};
+      
+      if (moduleKeys.kesherUserName || moduleKeys.kesherApiKey || moduleKeys.kesherEzCountToken) {
+        this.settings = {
+          ...this.settings,
+          userName: moduleKeys.kesherUserName || this.settings.userName,
+          apiKey: moduleKeys.kesherApiKey || this.settings.apiKey,
+          paymentPageId: moduleKeys.kesherPaymentPageId || this.settings.paymentPageId,
+          ezCountToken: moduleKeys.kesherEzCountToken || this.settings.ezCountToken,
+          defaultReceiptType: moduleKeys.kesherDefaultReceiptType || this.settings.defaultReceiptType || (405 as any),
+        };
       }
 
       // Also check direct settings storage
@@ -78,7 +77,7 @@ export class KesherService {
         this.settings = { ...this.settings, ...parsed };
       }
     } catch (e) {
-      console.warn('Failed to load Kesher settings from localStorage', e);
+      console.warn('Failed to load Kesher settings', e);
     }
     return { ...this.settings };
   }

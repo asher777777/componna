@@ -12,6 +12,9 @@ export const RESERVED_TENANT_SUBDOMAINS = [
   'www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop'
 ];
 
+/** Hosting hostnames that always represent the main platform path (root tenant) */
+export const ROOT_PLATFORM_HOST_PREFIXES = ['comona', 'glowmanage'];
+
 /**
  * Extracts tenant identifier based on production hostname:
  * - `subdomain.domain.com` -> `subdomain`
@@ -45,6 +48,11 @@ export function resolveCurrentTenantId(): string {
 
   // If localhost, default to root tenant unless configured
   if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local')) {
+    return ROOT_TENANT_ID;
+  }
+
+  // Platform hosting hosts (e.g. glowmanage.web.app / comona.*) are the main path → root tenant
+  if (ROOT_PLATFORM_HOST_PREFIXES.some((p) => hostname.startsWith(p))) {
     return ROOT_TENANT_ID;
   }
 

@@ -17,6 +17,11 @@ import { ImageConverterModal } from './ImageConverterModal';
 import { FolderManagerModal } from './FolderManagerModal';
 import { MoveToFolderModal } from './MoveToFolderModal';
 import { BulkActionBar } from './BulkActionBar';
+import { GeminiImageStudioModal } from './GeminiImageStudioModal';
+import { DocumentViewerModal } from './DocumentViewerModal';
+import { QuickImageEditorModal } from './QuickImageEditorModal';
+import { QuickTextEditorModal } from './QuickTextEditorModal';
+import { DocToLandingPageModal } from './DocToLandingPageModal';
 import { MediaGalleryModuleConfig, MediaItem, MediaType } from '../types';
 
 export interface MediaPickerModalProps extends MediaGalleryModuleConfig {
@@ -31,8 +36,24 @@ const MediaPickerModalContent: React.FC<{
   onClose: () => void;
 }> = ({ title, onClose }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const { isSidebarOpen, setIsSidebarOpen, theme, toggleTheme } = useMediaGallery();
+  const {
+    isSidebarOpen,
+    setIsSidebarOpen,
+    theme,
+    toggleTheme,
+    isAiGeneratorOpen,
+    setIsAiGeneratorOpen,
+    aiGeneratorInitialImage,
+    onSelectMedia,
+  } = useMediaGallery();
   const isLight = theme === 'light';
+
+  // Support for Document & Image editing modals within picker
+  const [docViewerItem, setDocViewerItem] = useState<MediaItem | null>(null);
+  const [imageEditorItem, setImageEditorItem] = useState<MediaItem | null>(null);
+  const [textEditorOpen, setTextEditorOpen] = useState(false);
+  const [textEditorItem, setTextEditorItem] = useState<MediaItem | null>(null);
+  const [docToLandingItem, setDocToLandingItem] = useState<MediaItem | null>(null);
 
   return (
     <div
@@ -155,6 +176,64 @@ const MediaPickerModalContent: React.FC<{
       <FolderManagerModal />
       <MoveToFolderModal />
       <BulkActionBar />
+
+      {/* 4. Viewer, Editor & AI Modals */}
+      <DocumentViewerModal
+        item={docViewerItem}
+        isOpen={Boolean(docViewerItem)}
+        onClose={() => setDocViewerItem(null)}
+        onOpenDocToLandingPage={(it) => setDocToLandingItem(it)}
+        theme={theme}
+      />
+      <QuickImageEditorModal
+        item={imageEditorItem}
+        isOpen={Boolean(imageEditorItem)}
+        onClose={() => setImageEditorItem(null)}
+        theme={theme}
+      />
+      <QuickTextEditorModal
+        item={textEditorItem}
+        isOpen={textEditorOpen}
+        onClose={() => {
+          setTextEditorOpen(false);
+          setTextEditorItem(null);
+        }}
+        theme={theme}
+      />
+      <DocToLandingPageModal
+        item={docToLandingItem}
+        isOpen={Boolean(docToLandingItem)}
+        onClose={() => setDocToLandingItem(null)}
+        theme={theme}
+      />
+
+      <GeminiImageStudioModal
+        isOpen={isAiGeneratorOpen}
+        onClose={() => setIsAiGeneratorOpen(false)}
+        initialReferenceImage={aiGeneratorInitialImage}
+        useButtonLabel="בחר והשתמש בתמונה זו"
+        onUseImage={(imageUrl, metadata) => {
+          if (onSelectMedia) {
+            onSelectMedia([
+              {
+                id: `ai_${Date.now()}`,
+                name: metadata.title || 'תמונת AI.png',
+                url: imageUrl,
+                thumbnailUrl: imageUrl,
+                type: 'image',
+                mimeType: 'image/png',
+                sizeBytes: 1024 * 500,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                tags: metadata.tags,
+                sourceModule: 'gemini-image-generation',
+                sourceModuleLabel: 'מחולל תמונות Gemini AI',
+              },
+            ]);
+          }
+          setIsAiGeneratorOpen(false);
+        }}
+      />
     </div>
   );
 };

@@ -10,16 +10,16 @@ import { BrandDnaProvider } from './modules/brand-dna-hub/context/BrandDnaContex
 export const App: React.FC = () => {
   return (
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-      <SystemConnectionProvider>
-        <TenantScopeProvider>
+      <TenantScopeProvider>
+        <SystemConnectionProvider>
           <BrandDnaProvider>
             <HostCapabilitiesProvider>
               <TenantAppResolver />
               <MediaPickerHostBridge />
             </HostCapabilitiesProvider>
           </BrandDnaProvider>
-        </TenantScopeProvider>
-      </SystemConnectionProvider>
+        </SystemConnectionProvider>
+      </TenantScopeProvider>
     </BrowserRouter>
   );
 };

@@ -58,7 +58,13 @@ When creating a new module, the agent MUST immediately present to the user:
 4. **Tenant-Scoped Access**:
    - Ensure all service queries use `useTenantScope().getScopedCollectionRef(db, SYSTEM_COLLECTIONS.X)`.
 
-### Step 5: Verification & Compilation
+### Step 5: API Keys & Multi-Tenant Entitlements (חוק הרשאות ומפתחות)
+**MANDATORY**: Whenever a module requires an API key (Gemini, Green API, HeyGen, etc.):
+1. **Never use `localStorage`**: Storing or reading keys directly from `localStorage` is strictly forbidden.
+2. **Use Tenant Resolver**: Always fetch keys using `getModuleApiKeys('module-name')`, `getModuleGeminiKey()`, or `getModuleGreenApiCredentials()` from `src/core/connection/tenantApiKeys.ts`.
+3. **Graceful Degradation**: Always handle the case where keys are undefined (which happens automatically if the tenant hasn't purchased the module).
+
+### Step 6: Verification & Compilation
 1. Run `npm run build` to verify clean TypeScript compilation with zero broken references.
 2. Test exportability via `node scripts/export-client-platform.js --client=test --modules=[module-name]`.
 

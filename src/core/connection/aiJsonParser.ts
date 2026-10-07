@@ -1,3 +1,5 @@
+import { getModuleGeminiKey } from './tenantApiKeys';
+
 export interface AIJsonCredentialsResult {
   sdkType: 'admin_sdk' | 'client_sdk' | 'unknown';
   projectId: string;
@@ -23,7 +25,7 @@ export async function parseJsonCredentialsWithAI(
   rawJsonString: string,
   geminiApiKey?: string
 ): Promise<AIJsonCredentialsResult> {
-  const apiKey = geminiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
+  const apiKey = geminiApiKey || getModuleGeminiKey();
   let parsedObj: any = null;
 
   try {

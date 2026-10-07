@@ -1,26 +1,14 @@
 import { GreenApiService } from '../../whatsapp-green-api-hub/services/greenApiService';
 import { SmartFormDefinition, FormWhatsAppRule, FormWhatsAppDeliveryLog } from '../types';
 import { renderWhatsAppMessage, evaluateRuleCondition } from './whatsappTemplateService';
+import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 
 /**
- * Retrieves the active Green-API service credentials from system configuration
+ * Retrieves the active Green-API service credentials from the tenant settings collection
  */
 export function getGreenApiService(): GreenApiService | null {
   try {
-    let instanceId = '';
-    let token = '';
-
-    // 1. Try from localStorage system API keys
-    const saved = localStorage.getItem('comona_system_apikeys_config');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      instanceId = parsed.greenApiInstanceId || '';
-      token = parsed.greenApiToken || '';
-    }
-
-    // 2. Try from env variables if empty
-    if (!instanceId) instanceId = (import.meta.env.VITE_GREEN_API_INSTANCE_ID as string) || '';
-    if (!token) token = (import.meta.env.VITE_GREEN_API_TOKEN as string) || '';
+    const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
 
     if (!instanceId || !token) {
       return null;

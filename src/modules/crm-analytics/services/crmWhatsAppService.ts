@@ -1,3 +1,5 @@
+import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
+
 export interface WhatsAppSenderConfig {
   idInstance?: string;
   apiTokenInstance?: string;
@@ -71,24 +73,11 @@ export class CrmWhatsAppSenderService {
 }
 
 /**
- * Resolves Green-API service from localStorage, system config, or returns fallback
+ * Resolves Green-API service from the tenant settings collection (tenants/{tenantId}/settings/api_keys)
  */
 export function getCrmWhatsAppService(): CrmWhatsAppSenderService | null {
   try {
-    let instanceId = '';
-    let token = '';
-
-    // 1. Check saved system API keys
-    const saved = localStorage.getItem('comona_system_apikeys_config');
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      instanceId = parsed.greenApiInstanceId || '';
-      token = parsed.greenApiToken || '';
-    }
-
-    // 2. Check Vite env variables
-    if (!instanceId) instanceId = (import.meta.env.VITE_GREEN_API_INSTANCE_ID as string) || '';
-    if (!token) token = (import.meta.env.VITE_GREEN_API_TOKEN as string) || '';
+    const { instanceId, token } = getModuleGreenApiCredentials('crm-analytics');
 
     if (!instanceId || !token) {
       return null;

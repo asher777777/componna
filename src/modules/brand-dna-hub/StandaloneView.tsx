@@ -5,6 +5,7 @@ import { BrandVoiceSection } from './components/BrandVoiceSection';
 import { TargetAudienceSection } from './components/TargetAudienceSection';
 import { DesignTokensSection } from './components/DesignTokensSection';
 import { TrustCheckoutSection } from './components/TrustCheckoutSection';
+import { BrandDashboardSection } from './components/BrandDashboardSection';
 import { AiDiscoveryWizardModal } from './components/AiDiscoveryWizardModal';
 import { AiStepWizardView } from './components/AiStepWizardView';
 import { ContentStrategyModal } from './components/ContentStrategyModal';
@@ -42,12 +43,12 @@ export const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.Compone
 
 export interface BrandDnaViewProps {
   initialTab?: TabType;
-  initialMode?: 'stepper' | 'tabs';
+  initialMode?: 'dashboard' | 'stepper' | 'tabs';
 }
 
 export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   initialTab = 'identity',
-  initialMode = 'stepper',
+  initialMode = 'dashboard',
 }) => {
   const {
     brandDna,
@@ -59,7 +60,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
     resetToDefaults,
   } = useBrandDna();
 
-  const [viewMode, setViewMode] = useState<'stepper' | 'tabs'>(initialMode);
+  const [viewMode, setViewMode] = useState<'dashboard' | 'stepper' | 'tabs'>(initialMode);
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   // Requirement ה: Add Day/Light mode and make it the default
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -225,13 +226,25 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
             </div>
           )}
 
-          {/* 2. Mode Switcher (Stepper vs Full Tabs) */}
+          {/* 2. Mode Switcher (Dashboard vs Stepper vs Full Tabs) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-50 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800/80">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-50 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800/80 overflow-x-auto">
+              <button
+                type="button"
+                onClick={() => setViewMode('dashboard')}
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+                  viewMode === 'dashboard'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>לוח בקרה אקטיבי</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setViewMode('stepper')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                   viewMode === 'stepper'
                     ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-md shadow-purple-600/20'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -243,7 +256,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
               <button
                 type="button"
                 onClick={() => setViewMode('tabs')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
                   viewMode === 'tabs'
                     ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -255,7 +268,9 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
             </div>
 
             <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium px-2 hidden md:block">
-              {viewMode === 'stepper' ? (
+              {viewMode === 'dashboard' ? (
+                <span>🚀 מבט על של זהות המותג ופעולות AI מהירות</span>
+              ) : viewMode === 'stepper' ? (
                 <span>💡 שאלה אחת בכל שלב עם אפשרויות סיוע AI והמלצות חכמות</span>
               ) : (
                 <span>🔧 עריכה ישירה ומעבר חופשי בין כל תחומי המותג</span>
@@ -263,7 +278,20 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
             </div>
           </div>
 
-          {/* 3. Stepper Mode View - Full Width without 360 preview */}
+          {/* 3. Dashboard Mode View */}
+          {viewMode === 'dashboard' && (
+            <BrandDashboardSection 
+              onOpenWizard={() => setIsWizardOpen(true)}
+              onOpenScraper={() => setIsScraperModalOpen(true)}
+              onOpenStrategy={() => setIsStrategyModalOpen(true)}
+              onSwitchToTab={(tabId) => {
+                setActiveTab(tabId as TabType);
+                setViewMode('tabs');
+              }}
+            />
+          )}
+
+          {/* 4. Stepper Mode View - Full Width without 360 preview */}
           {viewMode === 'stepper' && (
             <div className="w-full space-y-6">
               <AiStepWizardView onSwitchToTabs={() => setViewMode('tabs')} />
@@ -323,7 +351,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
 
 export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = ({
   initialTab = 'identity',
-  initialMode = 'stepper',
+  initialMode = 'dashboard',
 }) => {
   return (
     <BrandDnaProvider>

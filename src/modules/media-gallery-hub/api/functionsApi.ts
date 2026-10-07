@@ -6,6 +6,7 @@
 
 import { OCR_AND_EXTRACTION_SYSTEM_PROMPT, buildDocToLandingPagePrompt } from '../prompts';
 import { BrandDna } from '../../../core/contracts';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 export interface DocumentOcrResult {
   title: string;
@@ -45,9 +46,9 @@ export class FunctionsApi {
    * Helper to retrieve Gemini API key
    */
   public static getApiKey(customKey?: string): string {
-    const key = customKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
+    const key = customKey || getModuleGeminiKey('media-gallery-hub') || '';
     if (!key) {
-      console.warn('[FunctionsApi] No Gemini API Key provided. Check VITE_GEMINI_API_KEY.');
+      console.warn('[FunctionsApi] No Gemini API Key provided. Check system connection settings.');
     }
     return key;
   }
@@ -85,44 +86,51 @@ export class FunctionsApi {
       });
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-    const fallbackEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash-lite',
+      'gemini-3.5-flash-lite',
+    ];
 
-    let response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts }] }),
-    });
+    let lastError = '';
+    for (const targetModel of candidateModels) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }] }),
+          }
+        );
 
-    if (!response.ok) {
-      response = await fetch(fallbackEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }] }),
-      });
+        if (response.ok) {
+          const data = await response.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+          try {
+            return JSON.parse(cleanedJson) as DocumentOcrResult;
+          } catch {
+            return {
+              title: 'מסמך סרוק',
+              summary: rawText.slice(0, 300),
+              keyPoints: [],
+              tablesOrItems: [],
+              extractedText: rawText,
+              tags: ['סריקה', 'מסמך'],
+            };
+          }
+        } else {
+          lastError = await response.text();
+        }
+      } catch (err: any) {
+        lastError = err?.message || String(err);
+      }
     }
 
-    if (!response.ok) {
-      const errTxt = await response.text();
-      throw new Error(`שגיאה בסריקת מסמך (${response.status}): ${errTxt}`);
-    }
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-    try {
-      return JSON.parse(cleanedJson) as DocumentOcrResult;
-    } catch {
-      return {
-        title: 'מסמך סרוק',
-        summary: rawText.slice(0, 300),
-        keyPoints: [],
-        tablesOrItems: [],
-        extractedText: rawText,
-        tags: ['סריקה', 'מסמך'],
-      };
-    }
+    throw new Error(`שגיאה בסריקת מסמך: ${lastError}`);
   }
 
   /**
@@ -160,37 +168,40 @@ export class FunctionsApi {
       });
     }
 
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`;
-    const fallbackEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`;
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash-lite',
+      'gemini-3.5-flash-lite',
+    ];
 
-    let response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ contents: [{ parts }] }),
-    });
+    let lastError = '';
+    for (const targetModel of candidateModels) {
+      try {
+        const response = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ contents: [{ parts }] }),
+          }
+        );
 
-    if (!response.ok) {
-      response = await fetch(fallbackEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contents: [{ parts }] }),
-      });
+        if (response.ok) {
+          const data = await response.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
+          const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+
+          const parsed = JSON.parse(cleanedJson);
+          return parsed as GeneratedLandingPageData;
+        } else {
+          lastError = await response.text();
+        }
+      } catch (err: any) {
+        lastError = err?.message || String(err);
+      }
     }
 
-    if (!response.ok) {
-      const errTxt = await response.text();
-      throw new Error(`שגיאה ביצירת דף נחיתה מהמסמך (${response.status}): ${errTxt}`);
-    }
-
-    const data = await response.json();
-    const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-    const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-    try {
-      const parsed = JSON.parse(cleanedJson);
-      return parsed as GeneratedLandingPageData;
-    } catch {
-      throw new Error('תשובת המודל לא היתה במבנה JSON תקין. נסה שנית.');
-    }
+    throw new Error(`שגיאה ביצירת דף נחיתה מהמסמך: ${lastError}`);
   }
 }

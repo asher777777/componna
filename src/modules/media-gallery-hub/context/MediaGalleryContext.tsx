@@ -21,6 +21,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { subscribeToAuth } from '../../../services/firebaseAuth';
 import { useTenantScope } from '../../../core/tenant';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { getModuleApiKeys } from '../../../core/connection/tenantApiKeys';
 
 export const isHeyGenItem = (item?: MediaItem | null): boolean => {
   if (!item) return false;
@@ -1018,10 +1019,7 @@ export const MediaGalleryProvider: React.FC<{
       key = (systemConn?.apiKeys?.heygenApiKey || '').trim();
     }
     if (!key && typeof window !== 'undefined') {
-      try {
-        const savedApiKeys = JSON.parse(localStorage.getItem('comona_system_apikeys_config') || '{}');
-        key = (savedApiKeys?.heygenApiKey || '').trim();
-      } catch {}
+      key = getModuleApiKeys('media-gallery-hub')?.heygenApiKey || '';
     }
     if (!key) {
       key = (import.meta.env.VITE_HEYGEN_API_KEY || '').trim();

@@ -94,10 +94,10 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
   const phone = targetChatId.split('@')[0];
 
   try {
-    // 1. Fetch API Keys
-    const settingsDoc = await db.collection('system_settings').doc('global').get();
-    const apiKeys = settingsDoc.data()?.apiKeys || {};
-    const geminiKey = apiKeys.googleAiApiKey;
+    // 1. Fetch API Keys from Master Tenant
+    const apiKeysDoc = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
+    const apiKeys = apiKeysDoc.data() || {};
+    const geminiKey = apiKeys.googleAiApiKey || apiKeys.geminiApiKey;
     const greenApiInstanceId = apiKeys.greenApiInstanceId;
     const greenApiToken = apiKeys.greenApiToken;
 

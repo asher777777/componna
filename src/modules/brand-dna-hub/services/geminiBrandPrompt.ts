@@ -1,4 +1,5 @@
 import { BrandDna } from '../types/brandDna';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import {
   buildBrandSystemContext,
   buildBrandRephrasePrompt,
@@ -22,21 +23,128 @@ export interface StepAiAssistanceResult {
   recommendedIndex: number;
   recommendationReason: string;
   smartInsight?: string;
+  isLiveAi?: boolean;
+  liveModel?: string;
   error?: string;
 }
 
 
 
 /**
- * Helper to resolve the active Gemini API key from caller, env, or global storage
+ * Helper to resolve the active Gemini API key: caller-provided key, otherwise the key stored in
+ * the tenant settings collection (tenants/{tenantId}/settings/api_keys) – entitlement-checked.
  */
 export function resolveGeminiApiKey(providedKey?: string): string {
   if (providedKey && providedKey.trim()) return providedKey.trim();
-  try {
-    const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
-    if (envKey && typeof envKey === 'string' && envKey.trim()) return envKey.trim();
-  } catch {}
-  return '';
+  return getModuleGeminiKey('brand-dna-hub');
+}
+
+/**
+ * Official cascading model fallback array according to .gemini/skills/google-ai-studio-gemini/SKILL.md
+ */
+export const GEMINI_FALLBACK_MODELS = [
+  'gemini-3.8-flash',      // 1st choice: Frontier speed & intelligence (flagship default)
+  'gemini-3.5-flash',      // 2nd choice: Ultra-stable GA workhorse
+  'gemini-3.8-flash-lite', // 3rd choice: High-speed lite
+  'gemini-3.5-flash-lite', // 4th choice: Budget fallback
+  'gemini-2.5-flash',      // 5th choice: Legacy account compatibility
+] as const;
+
+export type GeminiModelId = typeof GEMINI_FALLBACK_MODELS[number];
+
+/**
+ * Universal cascading execution helper following the google-ai-studio-gemini skill
+ */
+export async function executeWithGeminiFallback(
+  apiKey: string,
+  options: {
+    systemInstruction?: string;
+    userPrompt: string;
+    responseMimeType?: 'application/json' | 'text/plain';
+    responseSchema?: any;
+    temperature?: number;
+  }
+): Promise<{ success: boolean; text: string; modelUsed: string; error?: string }> {
+  const activeKey = resolveGeminiApiKey(apiKey);
+  if (!activeKey) {
+    return {
+      success: false,
+      text: '',
+      modelUsed: '',
+      error: 'לא הוגדר מפתח Google Gemini API בהגדרות המערכת',
+    };
+  }
+
+  let lastError = '';
+
+  for (const model of GEMINI_FALLBACK_MODELS) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
+
+      const payload: any = {
+        contents: [
+          {
+            role: 'user',
+            parts: [{ text: options.userPrompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: options.temperature ?? 0.7,
+        },
+      };
+
+      if (options.systemInstruction && options.systemInstruction.trim()) {
+        payload.systemInstruction = {
+          parts: [{ text: options.systemInstruction.trim() }],
+        };
+      }
+
+      if (options.responseMimeType === 'application/json') {
+        payload.generationConfig.responseMimeType = 'application/json';
+        if (options.responseSchema) {
+          payload.generationConfig.responseSchema = options.responseSchema;
+        }
+      }
+
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        lastError = errJson.error?.message || `HTTP ${response.status}: ${response.statusText}`;
+        console.warn(`[GeminiAPI] Model ${model} failed (${response.status}):`, lastError);
+        continue; // Try next model in chain
+      }
+
+      const data = await response.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+
+      if (!text) {
+        lastError = `Model ${model} returned empty content`;
+        console.warn(`[GeminiAPI] ${lastError}`);
+        continue;
+      }
+
+      return {
+        success: true,
+        text,
+        modelUsed: model,
+      };
+    } catch (err: any) {
+      lastError = err.message || String(err);
+      console.warn(`[GeminiAPI] Network/fetch error with model ${model}:`, lastError);
+    }
+  }
+
+  return {
+    success: false,
+    text: '',
+    modelUsed: '',
+    error: lastError || 'כל דגמי Gemini בסדרת ה-Fallback נכשלו',
+  };
 }
 
 /**
@@ -47,7 +155,7 @@ export async function rephraseTextWithBrandAi(
   apiKey: string,
   brand: BrandDna,
   customInstructions?: string
-): Promise<{ success: boolean; text?: string; error?: string }> {
+): Promise<{ success: boolean; text?: string; modelUsed?: string; error?: string }> {
   const activeKey = resolveGeminiApiKey(apiKey);
   if (!activeKey) {
     return { success: false, error: 'לא הוגדר מפתח Google Gemini API במערכת' };
@@ -56,9 +164,8 @@ export async function rephraseTextWithBrandAi(
     return { success: false, error: 'לא סופק טקסט לעריכה' };
   }
 
-  try {
-    const systemContext = buildBrandSystemContext(brand, 'קופירייטר שיווקי בכיר המשדרג טקסט לעמוד או לטופס');
-    const userPrompt = `
+  const systemContext = buildBrandSystemContext(brand, 'קופירייטר שיווקי בכיר המשדרג טקסט לעמוד או לטופס');
+  const userPrompt = `
 אנא שכתב ושפר את הטקסט הבא כך שיתאים ב-100% ל-DNA של המותג ולשפת המותג המוגדרת:
 
 טקסט מקורי:
@@ -73,38 +180,18 @@ ${customInstructions ? `דגשים מיוחדים של המשתמש: ${customIns
 2. הקפד על עברית מושלמת, רהוטה וזורמת התואמת את הטון והמגזר.
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: `${systemContext}\n\n${userPrompt}` }],
-            },
-          ],
-        }),
-      }
-    );
+  const result = await executeWithGeminiFallback(activeKey, {
+    systemInstruction: systemContext,
+    userPrompt,
+    responseMimeType: 'text/plain',
+    temperature: 0.7,
+  });
 
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(errJson.error?.message || `שגיאת שרת: ${response.statusText}`);
-    }
-
-    const data = await response.json();
-    const resultText = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-    if (!resultText) {
-      throw new Error('לא התקבלה תשובה מ-Gemini');
-    }
-
-    return { success: true, text: resultText };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'שגיאה בעריכת הטקסט' };
+  if (result.success && result.text) {
+    return { success: true, text: result.text, modelUsed: result.modelUsed };
   }
+
+  return { success: false, error: result.error || 'שגיאה בעריכת הטקסט' };
 }
 
 /**
@@ -192,28 +279,18 @@ ${interviewNotes}
 }
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-          },
-        }),
-      }
-    );
+    const result = await executeWithGeminiFallback(activeKey, {
+      systemInstruction: 'אתה אסטרטג מיתוג בכיר ומנהל קריאייטיב. תפקידך לפענח שיחות ראיון ולהחזיר מבנה Brand DNA מלא ואיכותי ב-JSON.',
+      userPrompt: prompt,
+      responseMimeType: 'application/json',
+      temperature: 0.4,
+    });
 
-    if (!response.ok) {
-      const errJson = await response.json().catch(() => ({}));
-      throw new Error(errJson.error?.message || `שגיאת שרת: ${response.statusText}`);
+    if (!result.success || !result.text) {
+      throw new Error(result.error || 'לא התקבלה תשובה מ-Gemini');
     }
 
-    const data = await response.json();
-    let jsonStr = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
+    let jsonStr = result.text.trim();
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
     }
@@ -743,55 +820,53 @@ export async function generateStepAiAssistance(
   const activeKey = resolveGeminiApiKey(apiKey);
   // If no API key provided, immediately return intelligent smart fallback
   if (!activeKey) {
-    return generateSmartFallbackSuggestions(stepId, brand, userDraft);
+    const fallback = generateSmartFallbackSuggestions(stepId, brand, userDraft);
+    return {
+      ...fallback,
+      isLiveAi: false,
+      error: 'לא מוגדר מפתח Gemini API במערכת (פועל במצב AI Fallback אוטומטי). ניתן להזין מפתח בהגדרות החיבור.',
+    };
   }
 
-  try {
-    const prompt = buildStepAssistancePrompt(stepId, brand, userDraft);
+  const prompt = buildStepAssistancePrompt(stepId, brand, userDraft);
+  const result = await executeWithGeminiFallback(activeKey, {
+    systemInstruction: 'אתה יועץ מיתוג מומחה ומנהל קריאייטיב. סייע למשתמש למלא את שאלון המיתוג שלב אחר שלב עם הצעות מדויקות, איכותיות ומותאמות אישית. החזר תמיד JSON חוקי בלבד.',
+    userPrompt: prompt,
+    responseMimeType: 'application/json',
+    temperature: 0.5,
+  });
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-          },
-        }),
+  if (result.success && result.text) {
+    try {
+      let jsonStr = result.text.trim();
+      if (jsonStr.startsWith('```')) {
+        jsonStr = jsonStr.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
       }
-    );
 
-    if (!response.ok) {
-      console.warn(`Gemini step assistance returned status ${response.status}, falling back to smart defaults`);
-      return generateSmartFallbackSuggestions(stepId, brand, userDraft);
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed?.suggestions) && parsed.suggestions.length > 0) {
+        return {
+          success: true,
+          suggestions: parsed.suggestions,
+          recommendedIndex: typeof parsed.recommendedIndex === 'number' ? parsed.recommendedIndex : 0,
+          recommendationReason: parsed.recommendationReason || 'מומלץ עבורך על בסיס נתוני המותג הקודמים',
+          smartInsight: parsed.smartInsight || '',
+          isLiveAi: true,
+          liveModel: result.modelUsed,
+        };
+      }
+    } catch (parseErr: any) {
+      console.warn('[BrandDNA] Failed to parse JSON from model:', parseErr);
     }
-
-    const data = await response.json();
-    let jsonStr = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
-    if (jsonStr.startsWith('```')) {
-      jsonStr = jsonStr.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
-    }
-
-    const parsed = JSON.parse(jsonStr);
-
-    if (Array.isArray(parsed?.suggestions) && parsed.suggestions.length > 0) {
-      return {
-        success: true,
-        suggestions: parsed.suggestions,
-        recommendedIndex: typeof parsed.recommendedIndex === 'number' ? parsed.recommendedIndex : 0,
-        recommendationReason: parsed.recommendationReason || 'מומלץ עבורך על בסיס נתוני המותג הקודמים',
-        smartInsight: parsed.smartInsight || '',
-      };
-    }
-
-    return generateSmartFallbackSuggestions(stepId, brand, userDraft);
-  } catch (err) {
-    console.warn('Error during generateStepAiAssistance, falling back to smart defaults:', err);
-    return generateSmartFallbackSuggestions(stepId, brand, userDraft);
   }
+
+  // If live calls failed or couldn't parse, return fallback with clear notice of why
+  const fallback = generateSmartFallbackSuggestions(stepId, brand, userDraft);
+  return {
+    ...fallback,
+    isLiveAi: false,
+    error: result.error ? `פנייה ל-Gemini נכשלה (${result.error}). הופעלו הצעות חכמות אוטומטיות.` : undefined,
+  };
 }
 
 /**
@@ -900,24 +975,18 @@ export async function generateBrandContentStrategies(
 ]
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      }
-    );
+    const result = await executeWithGeminiFallback(activeKey, {
+      systemInstruction: 'אתה אסטרטג תוכן ומנהל קמפיינים שיווקיים ברמה הגבוהה ביותר. תפקידך להפיק אסטרטגיות תוכן חדות וממירות בפורמט JSON בלבד.',
+      userPrompt: prompt,
+      responseMimeType: 'application/json',
+      temperature: 0.6,
+    });
 
-    if (!response.ok) {
-      throw new Error(`Gemini error: ${response.statusText}`);
+    if (!result.success || !result.text) {
+      throw new Error(result.error || 'לא התקבלה תשובה משרת הבינה המלאכותית');
     }
 
-    const data = await response.json();
-    let jsonStr = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    let jsonStr = result.text.trim();
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
     }
@@ -1056,24 +1125,18 @@ export async function scrapeBrandFromUrlOrSocial(
 }
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      }
-    );
+    const result = await executeWithGeminiFallback(activeKey, {
+      systemInstruction: 'אתה מומחה חילוץ מותג וסורק תוכן דיגיטלי. נתח את הקישור וחלץ Brand DNA ושאלות מיצוב ב-JSON תקין בלבד.',
+      userPrompt: prompt,
+      responseMimeType: 'application/json',
+      temperature: 0.4,
+    });
 
-    if (!response.ok) {
-      throw new Error(`Gemini error: ${response.statusText}`);
+    if (!result.success || !result.text) {
+      throw new Error(result.error || 'Gemini error');
     }
 
-    const data = await response.json();
-    let jsonStr = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    let jsonStr = result.text.trim();
     if (jsonStr.startsWith('```')) {
       jsonStr = jsonStr.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
     }

@@ -3,6 +3,7 @@
  * Enhances user prompts into cinematic image generation prompts,
  * and automatically encodes descriptive Hebrew titles, rich descriptions, and semantic tags.
  */
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 export interface PromptStylePreset {
   id: string;
@@ -180,13 +181,19 @@ export async function enhancePromptWithAi(
     };
   }
 
-  const effectiveKey = (apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '').trim();
+  const effectiveKey = (apiKey || getModuleGeminiKey('media-gallery-hub') || '').trim();
   const preset = IMAGE_STYLE_PRESETS.find((p) => p.id === selectedPresetId);
 
   // If we have an API key, call Gemini to generate the perfect prompt
   if (effectiveKey) {
-    try {
-      const systemInstruction = `You are a World-Class AI Image Prompt Engineer (specializing in Google Gemini Image, Nano Banana Pro, and Imagen 3).
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash-lite',
+      'gemini-3.5-flash-lite',
+    ];
+
+    const systemInstruction = `You are a World-Class AI Image Prompt Engineer (specializing in Google Gemini Image, Nano Banana Pro, and Imagen 3).
 Your task is to transform the user's prompt (which may be in Hebrew or English) into an exquisite, hyper-detailed, English image generation prompt.
 
 Rules:
@@ -201,42 +208,45 @@ Rules:
   "explanationHe": "הסבר קצר בעברית על השיפורים שבוצעו..."
 }`;
 
-      const userMessage = `User Input Prompt: "${cleanInput}"
+    const userMessage = `User Input Prompt: "${cleanInput}"
 Selected Style Preset: ${preset ? preset.nameEn + ' (' + preset.promptSuffix + ')' : 'None (Choose best matching style)'}`;
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${effectiveKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: userMessage }] }],
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            generationConfig: {
-              temperature: 0.4,
-              responseMimeType: 'application/json',
-            },
-          }),
-        }
-      );
+    for (const targetModel of candidateModels) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: userMessage }] }],
+              systemInstruction: { parts: [{ text: systemInstruction }] },
+              generationConfig: {
+                temperature: 0.4,
+                responseMimeType: 'application/json',
+              },
+            }),
+          }
+        );
 
-      if (res.ok) {
-        const data = await res.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          if (parsed.enhancedPromptEn) {
-            return {
-              originalPrompt: cleanInput,
-              enhancedPromptEn: parsed.enhancedPromptEn,
-              explanationHe: parsed.explanationHe || 'הפרומפט שודרג לפרומפט קולנועי מפורט באנגלית.',
-              suggestedPresetId: selectedPresetId,
-            };
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            if (parsed.enhancedPromptEn) {
+              return {
+                originalPrompt: cleanInput,
+                enhancedPromptEn: parsed.enhancedPromptEn,
+                explanationHe: parsed.explanationHe || 'הפרומפט שודרג לפרומפט קולנועי מפורט באנגלית.',
+                suggestedPresetId: selectedPresetId,
+              };
+            }
           }
         }
+      } catch (e) {
+        console.warn(`[Gemini Prompt Assistant ${targetModel} notice]:`, e);
       }
-    } catch (e) {
-      console.warn('[Gemini Prompt Assistant API notice]:', e);
     }
   }
 
@@ -262,12 +272,18 @@ export async function generateImageMetadataWithAi(
   enhancedPromptEn: string,
   apiKey?: string
 ): Promise<GeneratedMediaMetadata> {
-  const effectiveKey = (apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '').trim();
+  const effectiveKey = (apiKey || getModuleGeminiKey('media-gallery-hub') || '').trim();
 
   // Try Gemini AI generation for rich metadata
   if (effectiveKey) {
-    try {
-      const prompt = `Based on this image creation request, generate professional metadata in Hebrew for cataloging the image in a media asset management system.
+    const candidateModels = [
+      'gemini-3.8-flash',
+      'gemini-3.5-flash',
+      'gemini-3.8-flash-lite',
+      'gemini-3.5-flash-lite',
+    ];
+
+    const prompt = `Based on this image creation request, generate professional metadata in Hebrew for cataloging the image in a media asset management system.
 
 User Original Input: "${userPrompt}"
 Detailed AI Prompt: "${enhancedPromptEn}"
@@ -279,40 +295,43 @@ Return ONLY valid JSON in this exact structure:
   "tags": ["תגית1", "תגית2", "תגית3", "תגית4", "gemini_ai", "banana_pro"]
 }`;
 
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${effectiveKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.3,
-              responseMimeType: 'application/json',
-            },
-          }),
-        }
-      );
-
-      if (res.ok) {
-        const data = await res.json();
-        const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          let title = (parsed.title || '').trim();
-          if (title && !title.includes('.')) {
-            title = `${title}.png`;
+    for (const targetModel of candidateModels) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: prompt }] }],
+              generationConfig: {
+                temperature: 0.3,
+                responseMimeType: 'application/json',
+              },
+            }),
           }
+        );
 
-          return {
-            title: title || `${cleanTitleFallback(userPrompt)}.png`,
-            description: parsed.description || `תמונה שנוצרה ב-AI על פי הפרומפט: ${userPrompt}`,
-            tags: Array.isArray(parsed.tags) ? parsed.tags : ['gemini_ai', 'ai_generated', 'banana_pro'],
-          };
+        if (res.ok) {
+          const data = await res.json();
+          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawText) {
+            const parsed = JSON.parse(rawText);
+            let title = (parsed.title || '').trim();
+            if (title && !title.includes('.')) {
+              title = `${title}.png`;
+            }
+
+            return {
+              title: title || `${cleanTitleFallback(userPrompt)}.png`,
+              description: parsed.description || `תמונה שנוצרה ב-AI על פי הפרומפט: ${userPrompt}`,
+              tags: Array.isArray(parsed.tags) ? parsed.tags : ['gemini_ai', 'ai_generated', 'banana_pro'],
+            };
+          }
         }
+      } catch (err) {
+        console.warn(`[Gemini Metadata Encoder ${targetModel} notice]:`, err);
       }
-    } catch (err) {
-      console.warn('[Gemini Metadata Encoder notice]:', err);
     }
   }
 

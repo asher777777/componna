@@ -1464,6 +1464,23 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
           {/* AI Result Cards Display */}
           {aiResult && !isAiLoading && (
             <div className="space-y-3 animate-in fade-in">
+              {/* AI Source Status Banner (Live Gemini API vs Offline Fallback) */}
+              <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl text-xs border transition-all bg-slate-900/50 border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${aiResult.isLiveAi ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
+                  <span className="font-bold text-slate-300">
+                    {aiResult.isLiveAi
+                      ? `✨ מענה חי מ-Google Gemini (${aiResult.liveModel || 'gemini-3.8-flash'})`
+                      : '⚡ הצעות חכמות מובנות (מצב Fallback מקומי)'}
+                  </span>
+                </div>
+                {aiResult.error && (
+                  <span className="text-[11px] text-amber-400/90 font-medium">
+                    {aiResult.error}
+                  </span>
+                )}
+              </div>
+
               {/* Recommendation Reason Banner */}
               {aiResult.recommendationReason && (
                 <div className="p-3.5 bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 border border-amber-500/30 rounded-2xl flex items-start gap-3 text-xs">

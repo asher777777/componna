@@ -79,6 +79,13 @@ Every module MUST contain:
   - Add sample seed records to `PROJECT_SEED_DATA` in `src/modules/db-collections-hub/config/seedData.ts`.
   - Distinguish tenant collections (e.g. `settings/brand_dna`, `contacts`, `crm_groups`) from platform-wide infrastructure (`system_settings/global`).
 
+## 9. API Keys & Multi-Tenant Entitlements (חוק הרשאות ומפתחות API לוקאליים)
+- **Zero LocalStorage for Keys**: Modules are STRICTLY FORBIDDEN from reading or storing API keys (Gemini, Green API, HeyGen, etc.) directly via `localStorage`.
+- **Tenant API Keys Resolver**: All modules MUST fetch their keys via the central connection core `getModuleApiKeys('module-name')`, `getModuleGeminiKey(...)`, or `getModuleGreenApiCredentials(...)` from `src/core/connection/tenantApiKeys.ts`.
+- **Entitlement Checks**: The resolver automatically checks `activeModules` on the tenant document (`tenants/{tenantId}`). If the tenant hasn't purchased the module, the keys are stripped and the component must gracefully degrade (block access/functionality).
+- **Master Fallback**: Keys are stored at `tenants/_master/settings/api_keys` and inherited by subdomain tenants ONLY if they purchased the component.
+
+
 ## 10. Official Google AI Studio & Gemini API Standards (חוק שימוש בבינה מלאכותית)
 - **Zero Hallucinated Models**: Only use active Google AI Studio models documented in `@skill:google-ai-studio-gemini` (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-pro`). Calling non-existent (`gemini-3.6-flash`) or shut-down models (`gemini-2.0-flash`, `gemini-1.5-flash`) is strictly forbidden.
 - **Mandatory Fallback Chain**: Every service or AI agent calling Gemini MUST implement automatic model fallback cascading (`['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash-lite']`).

@@ -84,8 +84,15 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
     'gemini-3.1-flash-image' | 'gemini-3-pro-image' | 'gemini-3.1-flash-lite-image' | 'imagen-3.0-generate-002'
   >('gemini-3.1-flash-image');
 
+  // Helper to resolve available Google AI API key
+  const resolveInitialKey = () => {
+    if (apiKeys.googleAiApiKey) return apiKeys.googleAiApiKey;
+    if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY as string;
+    return '';
+  };
+
   // API Key Setting
-  const [apiKeyInput, setApiKeyInput] = useState<string>(apiKeys.googleAiApiKey || '');
+  const [apiKeyInput, setApiKeyInput] = useState<string>(resolveInitialKey);
   const [isKeyInputOpen, setIsKeyInputOpen] = useState<boolean>(false);
 
   // Reference Image
@@ -123,6 +130,9 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   useEffect(() => {
     if (apiKeys.googleAiApiKey) {
       setApiKeyInput(apiKeys.googleAiApiKey);
+    } else {
+      const resolved = resolveInitialKey();
+      if (resolved) setApiKeyInput(resolved);
     }
   }, [apiKeys.googleAiApiKey]);
 
