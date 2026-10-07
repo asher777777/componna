@@ -266,13 +266,13 @@ export const DesignTokensSection: React.FC = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+        <div className="flex flex-col space-y-2">
           {FONT_OPTIONS.map((f) => (
             <button
               key={f.id}
               type="button"
               onClick={() => updateDesignTokens({ fontFamily: f.id })}
-              className={`p-3.5 rounded-xl border text-right transition-all flex items-center justify-between ${
+              className={`w-full p-3.5 rounded-xl border text-right transition-all flex items-center justify-between ${
                 tokens.fontFamily === f.id
                   ? 'bg-cyan-600/20 border-cyan-500 text-cyan-200 shadow-sm'
                   : 'bg-slate-900/60 border-slate-700/60 text-slate-400 hover:text-white hover:bg-slate-700/40'
@@ -300,19 +300,20 @@ export const DesignTokensSection: React.FC = () => {
             <Maximize2 className="w-4 h-4 text-emerald-400" />
             <span>רדיוס פינות (Border Radius)</span>
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          <div className="flex flex-col space-y-2">
             {RADIUS_OPTIONS.map((r) => (
               <button
                 key={r.id}
                 type="button"
                 onClick={() => updateDesignTokens({ borderRadius: r.id })}
-                className={`p-3 border text-center transition-all ${r.preview} ${
+                className={`w-full p-3 border text-right transition-all flex items-center justify-between ${r.preview} ${
                   tokens.borderRadius === r.id
                     ? 'bg-emerald-600/20 border-emerald-500 text-emerald-200 shadow-sm'
                     : 'bg-slate-900/60 border-slate-700/60 text-slate-400 hover:text-white'
                 }`}
               >
                 <span className="text-xs font-bold block">{r.label}</span>
+                {tokens.borderRadius === r.id && <Check className="w-4 h-4 text-emerald-400 shrink-0" />}
               </button>
             ))}
           </div>
@@ -324,19 +325,20 @@ export const DesignTokensSection: React.FC = () => {
             <Sparkles className="w-4 h-4 text-purple-400" />
             <span>סגנון כפתורי פעולה (CTA Style)</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col space-y-2">
             {BUTTON_STYLES.map((btn) => (
               <button
                 key={btn.id}
                 type="button"
                 onClick={() => updateDesignTokens({ buttonStyle: btn.id })}
-                className={`p-3 rounded-xl border text-center transition-all ${
+                className={`w-full p-3 rounded-xl border text-right transition-all flex items-center justify-between ${
                   tokens.buttonStyle === btn.id
                     ? 'bg-purple-600/20 border-purple-500 text-purple-200 shadow-sm'
                     : 'bg-slate-900/60 border-slate-700/60 text-slate-400 hover:text-white'
                 }`}
               >
                 <span className="text-xs font-bold block">{btn.label}</span>
+                {tokens.buttonStyle === btn.id && <Check className="w-4 h-4 text-purple-400 shrink-0" />}
               </button>
             ))}
           </div>

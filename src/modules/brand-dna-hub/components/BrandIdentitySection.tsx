@@ -235,19 +235,22 @@ export const BrandIdentitySection: React.FC = () => {
               סוג הישות המשפטית
               <Tooltip text="חשוב להגדרות המשפטיות בדפי התשלום (למשל, האם להפיק קבלות עוסק פטור או חשבוניות מס)." />
             </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            <div className="flex flex-col space-y-2">
               {ORG_TYPES.map((type) => (
                 <button
                   key={type}
                   type="button"
                   onClick={() => updateIdentity({ organizationType: type })}
-                  className={`py-2 px-2 sm:px-3 rounded-xl text-xs font-medium border transition-all ${
+                  className={`w-full py-2.5 px-3 rounded-xl text-xs font-medium border text-right transition-all flex items-center justify-between ${
                     brandDna.identity.organizationType === type
                       ? 'bg-indigo-50 border-indigo-500 text-indigo-700 dark:bg-indigo-600/20 dark:border-indigo-500 dark:text-indigo-300 shadow-sm'
                       : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100 dark:bg-slate-900/60 dark:border-slate-700/60 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/40'
                   }`}
                 >
-                  {type}
+                  <span>{type}</span>
+                  {brandDna.identity.organizationType === type && (
+                    <CheckCircle className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                  )}
                 </button>
               ))}
             </div>

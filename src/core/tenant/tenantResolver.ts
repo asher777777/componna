@@ -8,6 +8,10 @@
 
 export const ROOT_TENANT_ID = '_master';
 
+export const RESERVED_TENANT_SUBDOMAINS = [
+  'www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop'
+];
+
 /**
  * Extracts tenant identifier based on production hostname:
  * - `subdomain.domain.com` -> `subdomain`
@@ -49,7 +53,7 @@ export function resolveCurrentTenantId(): string {
   // e.g., "demo.kosun.pro" -> parts: ["demo", "kosun", "pro"]
   if (parts.length > 2) {
     const sub = parts[0];
-    if (sub !== 'www' && sub !== 'app' && sub !== 'api') {
+    if (!RESERVED_TENANT_SUBDOMAINS.includes(sub)) {
       return sub;
     }
   }

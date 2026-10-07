@@ -1,6 +1,8 @@
 export { BrandDnaHubStandaloneView, BrandDnaContent, TAB_CONFIG } from './StandaloneView';
 export type { TabType, BrandDnaViewProps } from './StandaloneView';
 export { AiStepWizardView, STEP_DEFINITIONS } from './components/AiStepWizardView';
+export { ContentStrategyModal } from './components/ContentStrategyModal';
+export { BrandDnaUrlScraperModal } from './components/BrandDnaUrlScraperModal';
 export { BrandDnaRoutes } from './routes/BrandDnaRoutes';
 
 export { BrandDnaProvider, useBrandDna } from './context/BrandDnaContext';

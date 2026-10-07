@@ -98,3 +98,19 @@ export const DEFAULT_BRAND_DNA: BrandDna = {
     whatsappSupportNumber: '0501234567',
   },
 };
+
+export interface ContentStrategyItem {
+  id: string;
+  type: 'service_page' | 'sales_page' | 'lead_magnet' | 'pricing_tier';
+  title: string;
+  targetAudience: string;
+  heroHeadline: string;
+  heroSubheadline: string;
+  coreValuePoints: string[];
+  callToAction: string;
+  pricingHook?: string;
+  objectionKiller?: string;
+  persuasiveClosing: string;
+  createdAt: string;
+  savedToCollection?: boolean;
+}

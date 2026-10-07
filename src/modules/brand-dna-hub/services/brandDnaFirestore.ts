@@ -98,3 +98,40 @@ export async function saveBrandDna(
 
   return { success: true };
 }
+
+/**
+ * Save a content strategy item to the `content_strategies` Firestore collection
+ */
+export async function saveContentStrategyItem(
+  strategy: any,
+  db?: Firestore,
+  tenantId: string = '_master'
+): Promise<{ success: boolean; error?: string }> {
+  const strategyId = strategy.id || `strat_${Date.now()}`;
+  const payload = {
+    ...strategy,
+    tenantId,
+    savedAt: new Date().toISOString(),
+  };
+
+  if (db) {
+    try {
+      const docRef = doc(db, 'content_strategies', strategyId);
+      await setDoc(docRef, payload, { merge: true });
+      return { success: true };
+    } catch (err: any) {
+      console.error('[BrandDNA] Error saving content_strategy to Firestore:', err);
+      return { success: false, error: err.message };
+    }
+  }
+
+  // Local storage fallback if db not connected
+  try {
+    const listKey = `content_strategies_${tenantId}`;
+    const existing = JSON.parse(localStorage.getItem(listKey) || '[]');
+    existing.push(payload);
+    localStorage.setItem(listKey, JSON.stringify(existing));
+  } catch {}
+
+  return { success: true };
+}

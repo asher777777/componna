@@ -51,6 +51,15 @@ export function getCachedUserRole(uid?: string | null): UserRole {
   return 'viewer'; // Default to viewer for safe least-privilege security
 }
 
+export function isPlatformAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  const clean = email.trim().toLowerCase();
+  if (clean.includes('admin') || clean.startsWith('admin@')) return true;
+  if (clean.endsWith('@kosun.pro') || clean.endsWith('@comona.pro')) return true;
+  if (clean === 'contact@kosun.pro' || clean === 'support@kosun.pro' || clean === 'contact@comona.pro') return true;
+  return false;
+}
+
 export function setCachedUserRole(uid: string, role: UserRole): void {
   try {
     localStorage.setItem(`sdo_user_role_${uid}`, role);
@@ -61,23 +70,39 @@ export async function fetchUserRole(uid: string, app?: FirebaseApp): Promise<Use
   const cached = getCachedUserRole(uid);
   try {
     const targetApp = app || ensureDefaultFirebaseApp();
+    const auth = getOrCreateAuth(targetApp);
+    const currentUser = auth.currentUser;
+    const isEmailAdmin = isPlatformAdminEmail(currentUser?.email);
+
+    if (isEmailAdmin) {
+      setCachedUserRole(uid, 'admin');
+    }
+
     const db = getFirestore(targetApp);
     const userDocRef = doc(db, 'users', uid);
     const snap = await getDoc(userDocRef);
     if (snap.exists()) {
       const data = snap.data();
+      if (isEmailAdmin && data?.role !== 'admin') {
+        await setDoc(userDocRef, { role: 'admin', updatedAt: Date.now() }, { merge: true });
+        setCachedUserRole(uid, 'admin');
+        return 'admin';
+      }
       if (data?.role && (data.role === 'admin' || data.role === 'editor' || data.role === 'viewer')) {
         setCachedUserRole(uid, data.role);
         return data.role;
       }
     } else {
-      // New user doc creation: safe default 'viewer' unless cached specifically
-      const initialRole: UserRole = cached === 'admin' || cached === 'editor' ? cached : 'viewer';
+      // New user doc creation: safe default 'viewer' unless cached or identified as admin
+      const initialRole: UserRole = isEmailAdmin || cached === 'admin' ? 'admin' : (cached === 'editor' ? 'editor' : 'viewer');
       await setDoc(userDocRef, {
         uid,
+        email: currentUser?.email || '',
+        displayName: currentUser?.displayName || '',
         role: initialRole,
         updatedAt: Date.now(),
       }, { merge: true });
+      setCachedUserRole(uid, initialRole);
       return initialRole;
     }
   } catch (err) {

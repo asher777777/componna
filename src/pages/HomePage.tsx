@@ -55,7 +55,7 @@ import {
 import { useBrandDna } from '../modules/brand-dna-hub/context/BrandDnaContext';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { AuthModal } from '../components/Auth/AuthModal';
-import { AuthState, subscribeToAuth, logoutUser, fetchUserRole } from '../services/firebaseAuth';
+import { AuthState, subscribeToAuth, logoutUser, fetchUserRole, isPlatformAdminEmail, getCachedUserRole, updateUserRole } from '../services/firebaseAuth';
 import { StorefrontService } from '../modules/saas-storefront-composer/services/storefrontService';
 
 export const HomePage: React.FC = () => {
@@ -111,25 +111,31 @@ export const HomePage: React.FC = () => {
     setIsAuthModalOpen(false);
     if (!user) return;
 
-    const email = user.email || '';
+    const email = (user.email || '').trim().toLowerCase();
     const phone = user.phoneNumber || '';
     const uid = user.uid || '';
 
-    // א. בדיקת הרשאת המשתמש ב-Firebase / Firestore תחילה (מניעת הפניית מנהל לסאב-דומיין)
+    // א. בדיקת הרשאת מנהל מערכת (Admin) - ישירות לפי מייל, Role מ-Firebase או Cache
     const userRole = await fetchUserRole(uid, firebaseApp);
+    const isAdmin =
+      userRole === 'admin' ||
+      getCachedUserRole(uid) === 'admin' ||
+      isPlatformAdminEmail(email);
 
-    if (userRole === 'admin') {
-      // מנהל מערכת ראשי -> נשאר בפלטפורמה המרכזית ומנווט ללוח הבקרה הראשי
+    if (isAdmin) {
+      // מנהל מערכת ראשי -> הבטחת שמירת הרשאת אדמין וניווט מידי ללוח הבקרה הראשי (לעולם לא לסאב-דומיין!)
+      await updateUserRole(uid, 'admin', firebaseApp);
       navigate('/control-center');
       return;
     }
 
     // ב. אם המשתמש אינו מנהל מערכת - בדיקה אם הוא לקוח בעל סאב-דומיין קיים
+    const RESERVED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop'];
     const tenantByEmail = email ? StorefrontService.findTenantForUser(email) : null;
     const tenantByPhone = phone ? StorefrontService.findTenantForUser(phone) : null;
     const matchedTenant = tenantByEmail || tenantByPhone;
 
-    if (matchedTenant && matchedTenant.subdomain) {
+    if (matchedTenant && matchedTenant.subdomain && !RESERVED_SUBDOMAINS.includes(matchedTenant.subdomain.toLowerCase())) {
       const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
       if (isLocal) {
         window.location.href = `${window.location.origin}/?tenant=${matchedTenant.subdomain}&mode=admin`;

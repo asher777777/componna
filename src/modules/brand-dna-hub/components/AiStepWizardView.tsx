@@ -6,6 +6,9 @@ import {
   StepAiSuggestion,
   StepAiAssistanceResult,
 } from '../services/geminiBrandPrompt';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../core/contracts';
+import { extractDominantColorsFromImage } from '../services/colorExtractor';
 import {
   Sparkles,
   Wand2,
@@ -38,6 +41,10 @@ import {
   Trash2,
   Layers,
   Sparkle,
+  UploadCloud,
+  FolderOpen,
+  Lock,
+  Image as ImageIcon,
 } from 'lucide-react';
 import {
   OrganizationType,
@@ -231,14 +238,19 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
   } = useBrandDna();
 
   const { apiKeys } = useSystemConnection();
+  const { getCapability } = useHostCapabilities();
+  const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+
   const [currentStepIdx, setCurrentStepIdx] = useState(0);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiResult, setAiResult] = useState<StepAiAssistanceResult | null>(null);
+  const [selectedSuggestionIdx, setSelectedSuggestionIdx] = useState<number | null>(null);
   const [thinkingMsgIndex, setThinkingMsgIndex] = useState(0);
   const [appliedNotice, setAppliedNotice] = useState<string | null>(null);
   const [newPowerWord, setNewPowerWord] = useState('');
   const [newForbiddenWord, setNewForbiddenWord] = useState('');
   const [newTargetAudience, setNewTargetAudience] = useState('');
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
   const currentStep = STEP_DEFINITIONS[currentStepIdx];
   const totalSteps = STEP_DEFINITIONS.length;
@@ -259,6 +271,7 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
   // Reset AI suggestion on step change, and optionally auto-fetch if brand has name
   useEffect(() => {
     setAiResult(null);
+    setSelectedSuggestionIdx(null);
     setAppliedNotice(null);
   }, [currentStepIdx]);
 
@@ -268,11 +281,50 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
     const apiKey = apiKeys.googleAiApiKey || '';
     const res = await generateStepAiAssistance(currentStep.id, brandDna, apiKey);
     setAiResult(res);
+    setSelectedSuggestionIdx(res?.recommendedIndex ?? 0);
     setIsAiLoading(false);
   };
 
-  // One-click apply suggestion
+  // Logo file upload handler
+  const handleLogoFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingLogo(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        updateIdentity({ logoUrl: dataUrl });
+        try {
+          const colors = await extractDominantColorsFromImage(dataUrl, 2);
+          if (colors.length > 0) {
+            updateDesignTokens({ primaryColor: colors[0], buttonBgColor: colors[0] });
+          }
+        } catch {}
+      }
+      setIsUploadingLogo(false);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Media gallery picker (for paying/admin customers)
+  const handleOpenGalleryForLogo = async () => {
+    if (mediaPicker) {
+      const selected = await mediaPicker.openPicker({ accept: 'image/*' });
+      if (selected) {
+        const url = Array.isArray(selected) ? selected[0] : selected;
+        if (url) {
+          updateIdentity({ logoUrl: url });
+        }
+      }
+    } else {
+      alert('רכיב הגלריה זמין למנויי המערכת המחוברים.');
+    }
+  };
+
+  // One-click apply suggestion with immediate active reactivity
   const handleApplySuggestion = (suggestion: StepAiSuggestion, idx: number) => {
+    setSelectedSuggestionIdx(idx);
     const val = suggestion.value;
 
     switch (currentStep.id) {
@@ -493,13 +545,13 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
                 <label className="block text-xs font-bold text-slate-300">
                   סוג ההתאגדות והמבנה המשפטי
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                <div className="flex flex-col space-y-2">
                   {ORGANIZATION_TYPES.map((type) => (
                     <button
                       key={type}
                       type="button"
                       onClick={() => updateIdentity({ organizationType: type })}
-                      className={`px-4 py-3 rounded-2xl text-xs font-bold border transition-all text-right flex items-center justify-between ${
+                      className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border transition-all text-right flex items-center justify-between ${
                         brandDna.identity.organizationType === type
                           ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-md shadow-indigo-600/10'
                           : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
@@ -536,19 +588,22 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
                 <label className="block text-xs font-bold text-slate-300">
                   גודל הצוות המוביל את הפעילות
                 </label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                <div className="flex flex-col space-y-2">
                   {MEMBER_COUNTS.map((count) => (
                     <button
                       key={count}
                       type="button"
                       onClick={() => updateIdentity({ memberCount: count })}
-                      className={`px-4 py-3 rounded-2xl text-xs font-bold border transition-all text-center ${
+                      className={`w-full px-4 py-3 rounded-2xl text-xs font-bold border transition-all text-right flex items-center justify-between ${
                         brandDna.identity.memberCount === count
                           ? 'bg-indigo-600/20 text-indigo-300 border-indigo-500 shadow-md'
                           : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700 hover:text-slate-200'
                       }`}
                     >
-                      {count}
+                      <span>{count}</span>
+                      {brandDna.identity.memberCount === count && (
+                        <Check className="w-4 h-4 text-indigo-400" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -603,17 +658,73 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
                 />
               </div>
 
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <label className="block text-xs font-bold text-slate-300">
-                  כתובת קישור ללוגו (URL)
+                  לוגו המותג (העלאת קובץ, קישור או בחירה מגלריה)
                 </label>
-                <input
-                  type="text"
-                  value={brandDna.identity.logoUrl || ''}
-                  onChange={(e) => updateIdentity({ logoUrl: e.target.value })}
-                  placeholder="https://example.com/logo.png"
-                  className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm text-slate-200 outline-none transition-all shadow-inner"
-                />
+
+                {brandDna.identity.logoUrl ? (
+                  <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img
+                        src={brandDna.identity.logoUrl}
+                        alt="לוגו המותג"
+                        className="w-12 h-12 object-contain bg-white/5 rounded-xl border border-slate-700/80 p-1"
+                      />
+                      <span className="text-xs text-slate-300 truncate max-w-xs font-mono">
+                        {brandDna.identity.logoUrl.slice(0, 45)}...
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="cursor-pointer px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5">
+                        <UploadCloud className="w-3.5 h-3.5" />
+                        <span>החלף</span>
+                        <input type="file" accept="image/*" onChange={handleLogoFileUpload} className="hidden" />
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => updateIdentity({ logoUrl: '' })}
+                        className="p-1.5 text-slate-400 hover:text-red-400 rounded-lg hover:bg-slate-800 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2.5">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="cursor-pointer px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all shadow-md shadow-indigo-600/20 flex items-center gap-2">
+                        {isUploadingLogo ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <UploadCloud className="w-4 h-4" />
+                        )}
+                        <span>העלה קובץ לוגו ישירות</span>
+                        <input type="file" accept="image/*" onChange={handleLogoFileUpload} className="hidden" />
+                      </label>
+
+                      <button
+                        type="button"
+                        onClick={handleOpenGalleryForLogo}
+                        className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white rounded-2xl text-xs font-bold transition-all border border-slate-700 flex items-center gap-2"
+                        title="פתוח למשתמשי מערכת ובעלי דייר מסונכרן"
+                      >
+                        <FolderOpen className="w-4 h-4 text-purple-400" />
+                        <span>בחר מגלריית המדיה</span>
+                      </button>
+                    </div>
+
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={brandDna.identity.logoUrl || ''}
+                        onChange={(e) => updateIdentity({ logoUrl: e.target.value })}
+                        placeholder="או הדבק כתובת אינטרנט של הלוגו (https://...)"
+                        className="w-full bg-slate-950 border border-slate-700 focus:border-indigo-500 rounded-2xl px-4 py-2.5 text-xs text-slate-200 outline-none transition-all shadow-inner"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -694,13 +805,13 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
                 <label className="block text-xs font-bold text-slate-300">
                   כלל לשון פנייה מועדף
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="flex flex-col space-y-2">
                   {GENDER_OPTIONS.map((g) => (
                     <button
                       key={g.id}
                       type="button"
                       onClick={() => updateVoice({ genderAddressing: g.id })}
-                      className={`p-3.5 rounded-2xl border text-right transition-all flex flex-col gap-1 ${
+                      className={`w-full p-3.5 rounded-2xl border text-right transition-all flex flex-col gap-1 ${
                         brandDna.voice.genderAddressing === g.id
                           ? 'bg-indigo-600/20 text-white border-indigo-500 shadow-md'
                           : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700'
@@ -722,19 +833,22 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
                 <label className="block text-xs font-bold text-slate-300">
                   התאמה מגזרית ותרבותית
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="flex flex-col space-y-2">
                   {SECTOR_OPTIONS.map((sec) => (
                     <button
                       key={sec.id}
                       type="button"
                       onClick={() => updateVoice({ sectorCompliance: sec.id })}
-                      className={`px-4 py-3 rounded-2xl border text-right text-xs font-bold transition-all ${
+                      className={`w-full px-4 py-3 rounded-2xl border text-right text-xs font-bold transition-all flex items-center justify-between ${
                         brandDna.voice.sectorCompliance === sec.id
                           ? 'bg-purple-600/20 text-purple-300 border-purple-500 shadow-md'
                           : 'bg-slate-900/60 text-slate-400 border-slate-800 hover:border-slate-700'
                       }`}
                     >
-                      {sec.label}
+                      <span>{sec.label}</span>
+                      {brandDna.voice.sectorCompliance === sec.id && (
+                        <Check className="w-4 h-4 text-purple-400" />
+                      )}
                     </button>
                   ))}
                 </div>
@@ -1371,13 +1485,17 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
               <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 {aiResult.suggestions.map((sug, sIdx) => {
                   const isRec = sIdx === aiResult.recommendedIndex || sug.isRecommended;
+                  const isSelected = selectedSuggestionIdx === sIdx;
                   return (
                     <div
                       key={sIdx}
-                      className={`rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 relative ${
-                        isRec
-                          ? 'bg-gradient-to-b from-indigo-950/70 to-slate-900 border-indigo-500 shadow-xl shadow-indigo-600/15 ring-1 ring-indigo-500/50'
-                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700'
+                      onClick={() => handleApplySuggestion(sug, sIdx)}
+                      className={`rounded-2xl p-4 border transition-all flex flex-col justify-between gap-3 relative cursor-pointer ${
+                        isSelected
+                          ? 'bg-gradient-to-b from-indigo-900/60 to-purple-950/80 border-indigo-400 shadow-xl shadow-indigo-600/25 ring-2 ring-indigo-400'
+                          : isRec
+                          ? 'bg-gradient-to-b from-indigo-950/70 to-slate-900 border-indigo-500 shadow-md ring-1 ring-indigo-500/40 hover:border-indigo-400'
+                          : 'bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-900/90'
                       }`}
                     >
                       {isRec && (
@@ -1389,14 +1507,21 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
 
                       <div className="space-y-1.5 pt-1">
                         <div className="flex items-center justify-between gap-2">
-                          <h4 className="text-xs font-bold text-white">{sug.title}</h4>
+                          <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                            {isSelected && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />}
+                            <span>{sug.title}</span>
+                          </h4>
                           <span className="text-[10px] text-slate-500 font-mono">אופציה #{sIdx + 1}</span>
                         </div>
                         {sug.subtitle && (
                           <p className="text-[11px] text-slate-400 leading-relaxed">{sug.subtitle}</p>
                         )}
                         {typeof sug.value === 'string' && (
-                          <div className="p-2.5 bg-slate-950/70 border border-slate-800 rounded-xl text-xs text-indigo-200 font-medium leading-relaxed">
+                          <div className={`p-2.5 rounded-xl text-xs font-medium leading-relaxed ${
+                            isSelected
+                              ? 'bg-indigo-950/90 border border-indigo-500/50 text-white shadow-inner'
+                              : 'bg-slate-950/70 border border-slate-800 text-indigo-200'
+                          }`}>
                             "{sug.value}"
                           </div>
                         )}
@@ -1409,15 +1534,29 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
 
                       <button
                         type="button"
-                        onClick={() => handleApplySuggestion(sug, sIdx)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleApplySuggestion(sug, sIdx);
+                        }}
                         className={`w-full py-2 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                          isRec
+                          isSelected
+                            ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                            : isRec
                             ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20'
                             : 'bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white'
                         }`}
                       >
-                        <Zap className="w-3.5 h-3.5" />
-                        <span>החל הצעה זו</span>
+                        {isSelected ? (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            <span>נבחר והוחל כעת ✓</span>
+                          </>
+                        ) : (
+                          <>
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>החל הצעה זו</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   );

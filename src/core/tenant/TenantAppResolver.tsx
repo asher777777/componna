@@ -7,6 +7,7 @@ import { PublicStorefrontApp } from '../../modules/saas-storefront-composer/comp
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { Globe, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 
+import { RESERVED_TENANT_SUBDOMAINS } from './tenantResolver';
 import { TenantSubdomainView } from './TenantSubdomainView';
 
 export const TenantAppResolver: React.FC = () => {
@@ -36,11 +37,17 @@ export const TenantAppResolver: React.FC = () => {
     // Check if subdomain exists in hostname (ignore localhost root / web.app standard root)
     let sub: string | null = null;
     if (tenantParam) {
-      sub = tenantParam;
+      const cleanParam = tenantParam.trim().toLowerCase();
+      if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam)) {
+        sub = cleanParam;
+      }
     } else if (!hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1') && !hostname.startsWith('comona') && !hostname.startsWith('glowmanage') && !hostname.startsWith('kosun.pro') && !hostname.startsWith('www.kosun.pro')) {
       const parts = hostname.split('.');
       if (parts.length > 2) {
-        sub = parts[0];
+        const potentialSub = parts[0].toLowerCase().trim();
+        if (!RESERVED_TENANT_SUBDOMAINS.includes(potentialSub)) {
+          sub = potentialSub;
+        }
       }
     }
 

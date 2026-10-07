@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { Routes, Route, useLocation, NavLink } from 'react-router-dom';
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { PageBuilderConfig } from '../../modules/page-builder/types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../../modules/page-builder/registry/sectionRegistry';
@@ -8,7 +9,10 @@ import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
 import { ControlCenterStandaloneView } from '../../modules/control-center-hub/StandaloneView';
-import { Globe, Lock, ArrowRight, Eye, LayoutDashboard } from 'lucide-react';
+import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
+import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
+import { ModuleLoadingFallback } from '../../workbench/components/ModuleLoadingFallback';
+import { Globe, Lock, ArrowRight, Eye, LayoutDashboard, Sparkles } from 'lucide-react';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -17,13 +21,30 @@ export interface TenantSubdomainViewProps {
 export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenantRecord }) => {
   const { db } = useSystemConnection();
 
+  const location = useLocation();
+
   // Mode state: 'public' (visitor landing page) or 'admin' (control panel / module editors)
   const [mode, setMode] = useState<'public' | 'admin'>(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true'
-      ? 'admin'
-      : 'public';
+    const pathname = window.location.pathname;
+    if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
+      return 'admin';
+    }
+    // Any module or control-center route is inherently admin mode
+    if (pathname !== '/' && !pathname.startsWith('/p/') && !pathname.startsWith('/page/')) {
+      return 'admin';
+    }
+    if (sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true') {
+      return 'admin';
+    }
+    return 'public';
   });
+
+  useEffect(() => {
+    sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, mode === 'admin' ? 'true' : 'false');
+  }, [mode, tenantRecord.subdomain]);
+
+  const isControlCenter = location.pathname === '/' || location.pathname.startsWith('/control-center');
 
   const [homePageConfig, setHomePageConfig] = useState<PageBuilderConfig | null>(null);
 
@@ -176,10 +197,42 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           </div>
         </header>
 
-        {/* Modern Control Center Hub (No legacy sidebar, live active modules, no mock data) */}
+        {/* Modern Control Center Hub & Registered Modules Router */}
         <div className="flex-1 overflow-auto bg-slate-950">
-          <ControlCenterStandaloneView />
+          <Routes>
+            <Route path="/" element={<ControlCenterStandaloneView />} />
+            <Route path="/control-center/*" element={<ControlCenterStandaloneView />} />
+            {REGISTERED_MODULES.map((module) => {
+              const Component = module.component;
+              return (
+                <Route
+                  key={module.id}
+                  path={`${module.route}/*`}
+                  element={
+                    <ModuleErrorBoundary moduleName={module.name}>
+                      <Suspense fallback={<ModuleLoadingFallback moduleName={module.name} />}>
+                        <Component />
+                      </Suspense>
+                    </ModuleErrorBoundary>
+                  }
+                />
+              );
+            })}
+            <Route path="*" element={<ControlCenterStandaloneView />} />
+          </Routes>
         </div>
+
+        {/* Floating Return Pill for other modules (when not in control center) */}
+        {!isControlCenter && (
+          <NavLink
+            to="/control-center"
+            className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-slate-950/90 hover:bg-indigo-600 text-white rounded-2xl border border-indigo-500/30 hover:border-indigo-400 shadow-2xl backdrop-blur-xl transition group text-xs font-bold cursor-pointer"
+            title="חזרה מהירה למרכז השליטה"
+          >
+            <Sparkles className="w-4 h-4 text-indigo-400 group-hover:text-white" />
+            <span>מרכז השליטה</span>
+          </NavLink>
+        )}
       </div>
     );
   }

@@ -309,6 +309,13 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'Settings',
   },
   {
+    id: 'content_strategies',
+    name: 'אסטרטגיות תוכן ומכירה AI (Content Strategies)',
+    description: 'אסטרטגיות תוכן ועמודי מכירה/שירות שנוצרו על בסיס Brand DNA ונשמרו לשימוש חוזר',
+    category: 'system',
+    icon: 'Sparkles',
+  },
+  {
     id: 'mod_template_items',
     name: 'פריטי תבנית (Template Items)',
     description: 'קולקציית ברירת המחדל של מודול התבנית',
