@@ -115,7 +115,16 @@ export const HomePage: React.FC = () => {
     const phone = user.phoneNumber || '';
     const uid = user.uid || '';
 
-    // א. בדיקה אם המשתמש הוא לקוח בעל סאב-דומיין קיים
+    // א. בדיקת הרשאת המשתמש ב-Firebase / Firestore תחילה (מניעת הפניית מנהל לסאב-דומיין)
+    const userRole = await fetchUserRole(uid, firebaseApp);
+
+    if (userRole === 'admin') {
+      // מנהל מערכת ראשי -> נשאר בפלטפורמה המרכזית ומנווט ללוח הבקרה הראשי
+      navigate('/control-center');
+      return;
+    }
+
+    // ב. אם המשתמש אינו מנהל מערכת - בדיקה אם הוא לקוח בעל סאב-דומיין קיים
     const tenantByEmail = email ? StorefrontService.findTenantForUser(email) : null;
     const tenantByPhone = phone ? StorefrontService.findTenantForUser(phone) : null;
     const matchedTenant = tenantByEmail || tenantByPhone;
@@ -130,16 +139,7 @@ export const HomePage: React.FC = () => {
       return;
     }
 
-    // ב. בדיקת הרשאת המשתמש ב-Firebase / Firestore
-    const userRole = await fetchUserRole(uid, firebaseApp);
-
-    if (userRole === 'admin') {
-      // מנהל מערכת ראשי -> מעבר ישיר ללוח הבקרה המרכזי
-      navigate('/control-center');
-      return;
-    }
-
-    // ג. אורח רשום (viewer / editor ללא סאב-דומיין ייעודי) -> נשאר בעמוד הבית בהתאם לבקשת המשתמש
+    // ג. משתמש רשום רגיל (viewer / client) ללא סאב-דומיין -> נשאר בעמוד הבית הרגיל בהתאם לבקשת המשתמש
   };
 
   // Brand DNA values with graceful defaults

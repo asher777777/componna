@@ -173,6 +173,29 @@ export class FirestoreAdminService {
     await deleteDoc(docRef);
   }
 
+  // Bulk / batch delete documents
+  async batchDeleteDocuments(collectionName: string, docIds: string[]): Promise<number> {
+    if (!docIds || docIds.length === 0) return 0;
+    
+    // Firestore writeBatch supports up to 500 operations per batch
+    const { writeBatch } = await import('firebase/firestore');
+    const CHUNK_SIZE = 400;
+    let deletedCount = 0;
+
+    for (let i = 0; i < docIds.length; i += CHUNK_SIZE) {
+      const chunk = docIds.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(this.db);
+      for (const id of chunk) {
+        const docRef = doc(this.db, collectionName, id);
+        batch.delete(docRef);
+      }
+      await batch.commit();
+      deletedCount += chunk.length;
+    }
+
+    return deletedCount;
+  }
+
   // Ping / test database connection
   async testConnection(collectionName: string = 'sdo_player_campaign_configs'): Promise<{ success: boolean; latencyMs: number; error?: string }> {
     const start = performance.now();

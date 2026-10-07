@@ -391,6 +391,92 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
     },
   ],
 
+  // 11. SaaS Tenants (דיירים ולקוחות מערכת)
+  tenants: [
+    {
+      id: 'demo',
+      name: 'דייר הדגמה ראשי (demo)',
+      data: {
+        id: 'demo',
+        subdomain: 'demo',
+        fullDomain: 'demo.kosun.pro',
+        clientName: 'הדגמת מערכת Kosun',
+        ownerEmail: 'demo@kosun.pro',
+        ownerPhone: '050-0000000',
+        activeModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics', 'brand-dna-hub'],
+        collectionPrefix: 'tenant_demo_mod_',
+        billingPlan: 'annual',
+        monthlyTotal: 346,
+        paymentTransactionId: 'TXN-DEMO-001',
+        status: 'active',
+        createdAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    {
+      id: 'techsolutions',
+      name: 'טק סולושנס (techsolutions)',
+      data: {
+        id: 'techsolutions',
+        subdomain: 'techsolutions',
+        fullDomain: 'techsolutions.kosun.pro',
+        clientName: 'טק סולושנס בע״מ',
+        ownerEmail: 'yossi@techsolutions.demo',
+        ownerPhone: '050-1234567',
+        activeModules: ['page-builder', 'flow-player', 'brand-dna-hub', 'crm-analytics'],
+        collectionPrefix: 'tenant_techsolutions_mod_',
+        billingPlan: 'monthly',
+        monthlyTotal: 489,
+        paymentTransactionId: 'TXN-ORD-88219',
+        status: 'active',
+        createdAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
+
+  // SaaS Orders & Subscriptions (הזמנות ומודולים שנרכשו)
+  saas_orders: [
+    {
+      id: 'TXN-DEMO-001',
+      name: 'הזמנת הקמה - דמו (TXN-DEMO-001)',
+      data: {
+        id: 'TXN-DEMO-001',
+        orderId: 'TXN-DEMO-001',
+        subdomain: 'demo',
+        clientName: 'הדגמת מערכת Kosun',
+        ownerEmail: 'demo@kosun.pro',
+        ownerPhone: '050-0000000',
+        purchasedModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics', 'brand-dna-hub'],
+        billingPlan: 'annual',
+        monthlyTotal: 346,
+        paymentStatus: 'paid',
+        paymentTransactionId: 'TXN-DEMO-001',
+        purchasedAt: new Date(Date.now() - 86400000 * 30).toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+    {
+      id: 'TXN-ORD-88219',
+      name: 'הזמנת חבילת Pro - טק סולושנס (TXN-ORD-88219)',
+      data: {
+        id: 'TXN-ORD-88219',
+        orderId: 'TXN-ORD-88219',
+        subdomain: 'techsolutions',
+        clientName: 'טק סולושנס בע״מ',
+        ownerEmail: 'yossi@techsolutions.demo',
+        ownerPhone: '050-1234567',
+        purchasedModules: ['page-builder', 'flow-player', 'brand-dna-hub', 'crm-analytics'],
+        billingPlan: 'monthly',
+        monthlyTotal: 489,
+        paymentStatus: 'paid',
+        paymentTransactionId: 'TXN-ORD-88219',
+        purchasedAt: new Date(Date.now() - 86400000 * 10).toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+    },
+  ],
+
   // 12. Tenant Settings: Brand DNA (הגדרות דייר ומיתוג)
   settings: [
     {

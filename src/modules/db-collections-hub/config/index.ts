@@ -277,7 +277,23 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     icon: 'ShieldCheck',
   },
 
-  // 11. System, Brand DNA & Platform Infrastructure
+  // 11. SaaS Tenants, Orders & Customer Subscriptions
+  {
+    id: 'tenants',
+    name: 'דיירים ולקוחות מערכת (SaaS Tenants & Subdomains)',
+    description: 'רישומי כל הדיירים והלקוחות: סאב-דומיינים, רכיבים מורשים שנרכשו, מיתוג וסטטוס פעילות',
+    category: 'system',
+    icon: 'Globe',
+  },
+  {
+    id: 'saas_orders',
+    name: 'הזמנות ורכישות רכיבים (Orders & Subscriptions)',
+    description: 'תיעוד כל העסקאות והמודולים שנרכשו: פרטי לקוח, סל מוצרים, חותמת זמן ומחירים',
+    category: 'payments',
+    icon: 'CreditCard',
+  },
+
+  // 12. System, Brand DNA & Platform Infrastructure
   {
     id: 'settings',
     name: 'הגדרות מותג ודייר (Tenant Brand DNA)',

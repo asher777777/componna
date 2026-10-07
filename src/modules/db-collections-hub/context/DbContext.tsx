@@ -74,6 +74,13 @@ interface DbContextValue {
   credentialsModalOpen: boolean;
   setCredentialsModalOpen: (open: boolean) => void;
 
+  selectedDocIds: string[];
+  toggleSelectDoc: (docId: string) => void;
+  toggleSelectAll: (docIds?: string[]) => void;
+  clearSelection: () => void;
+  handleBulkDelete: (docIds?: string[]) => Promise<number>;
+  isBulkDeleting: boolean;
+
   handleCreateOrUpdateDoc: (data: Record<string, any>, customId?: string) => Promise<string>;
   handleDeleteDoc: (docId: string) => Promise<void>;
   seedCollectionData: (collectionId: string) => Promise<number>;
@@ -413,7 +420,44 @@ export const DbContextProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     scanAllCollections();
   }, [adminService]);
 
-  // Document Operations
+  // Document Operations & Bulk Selection
+  const [selectedDocIds, setSelectedDocIds] = useState<string[]>([]);
+  const [isBulkDeleting, setIsBulkDeleting] = useState<boolean>(false);
+
+  // Clear selection whenever switching collection
+  useEffect(() => {
+    setSelectedDocIds([]);
+  }, [selectedCollectionId]);
+
+  const toggleSelectDoc = useCallback((docId: string) => {
+    setSelectedDocIds(prev => 
+      prev.includes(docId) ? prev.filter(id => id !== docId) : [...prev, docId]
+    );
+  }, []);
+
+  const toggleSelectAll = useCallback((docIds?: string[]) => {
+    const targetIds = docIds || documents.map(d => d.id);
+    if (targetIds.length === 0) {
+      setSelectedDocIds([]);
+      return;
+    }
+    setSelectedDocIds(prev => {
+      const allSelected = targetIds.every(id => prev.includes(id));
+      if (allSelected) {
+        // Deselect all from target
+        return prev.filter(id => !targetIds.includes(id));
+      } else {
+        // Select all from target
+        const set = new Set([...prev, ...targetIds]);
+        return Array.from(set);
+      }
+    });
+  }, [documents]);
+
+  const clearSelection = useCallback(() => {
+    setSelectedDocIds([]);
+  }, []);
+
   const handleCreateOrUpdateDoc = useCallback(async (data: Record<string, any>, customId?: string): Promise<string> => {
     if (!adminService || !selectedCollectionId) {
       throw new Error('שירות פיירבייס אינו זמין כרגע');
@@ -428,8 +472,28 @@ export const DbContextProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       throw new Error('שירות פיירבייס אינו זמין כרגע');
     }
     await adminService.deleteDocument(selectedCollectionId, docId);
+    setSelectedDocIds(prev => prev.filter(id => id !== docId));
     await refreshDocuments();
   }, [adminService, selectedCollectionId, refreshDocuments]);
+
+  const handleBulkDelete = useCallback(async (customDocIds?: string[]): Promise<number> => {
+    if (!adminService || !selectedCollectionId) {
+      throw new Error('שירות פיירבייס אינו זמין כרגע');
+    }
+    const idsToDelete = customDocIds || selectedDocIds;
+    if (idsToDelete.length === 0) return 0;
+
+    setIsBulkDeleting(true);
+    try {
+      const count = await adminService.batchDeleteDocuments(selectedCollectionId, idsToDelete);
+      setSelectedDocIds(prev => prev.filter(id => !idsToDelete.includes(id)));
+      await refreshDocuments();
+      await scanAllCollections();
+      return count;
+    } finally {
+      setIsBulkDeleting(false);
+    }
+  }, [adminService, selectedCollectionId, selectedDocIds, refreshDocuments, scanAllCollections]);
 
   // Seed Data into Firestore
   const seedCollectionData = useCallback(async (collectionId: string): Promise<number> => {
@@ -509,6 +573,12 @@ export const DbContextProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setEditingDoc,
     credentialsModalOpen,
     setCredentialsModalOpen,
+    selectedDocIds,
+    toggleSelectDoc,
+    toggleSelectAll,
+    clearSelection,
+    handleBulkDelete,
+    isBulkDeleting,
     handleCreateOrUpdateDoc,
     handleDeleteDoc,
     seedCollectionData,

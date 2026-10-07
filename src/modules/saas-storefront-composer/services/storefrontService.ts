@@ -127,8 +127,44 @@ export class StorefrontService {
     const updated = [newTenant, ...currentTenants.filter(t => t.subdomain !== newTenant.subdomain)];
     localStorage.setItem(STORAGE_KEYS.TENANTS, JSON.stringify(updated));
 
-    // Also register in Firestore if online
-    console.log(`[Provisioning] Tenant registered: ${newTenant.fullDomain} with collection prefix: ${newTenant.collectionPrefix}`);
+    // Register in Firestore collections ('tenants' & 'saas_orders') for central admin DB management
+    try {
+      const { ensureDefaultFirebaseApp } = await import('../../../services/firebaseAuth');
+      const { getFirestore, doc, setDoc } = await import('firebase/firestore');
+      const app = ensureDefaultFirebaseApp();
+      const db = getFirestore(app);
+
+      // 1. Save to 'tenants' collection
+      const tenantDocRef = doc(db, 'tenants', newTenant.subdomain);
+      await setDoc(tenantDocRef, {
+        ...newTenant,
+        id: newTenant.subdomain,
+      }, { merge: true });
+
+      // 2. Save transaction to 'saas_orders' collection
+      const orderId = newTenant.paymentTransactionId || `ORD-${Date.now()}`;
+      const orderDocRef = doc(db, 'saas_orders', orderId);
+      await setDoc(orderDocRef, {
+        id: orderId,
+        orderId: orderId,
+        subdomain: newTenant.subdomain,
+        clientName: newTenant.clientName,
+        ownerEmail: newTenant.ownerEmail,
+        ownerPhone: newTenant.ownerPhone,
+        purchasedModules: newTenant.activeModules,
+        billingPlan: newTenant.billingPlan,
+        monthlyTotal: newTenant.monthlyTotal,
+        paymentStatus: 'paid',
+        paymentTransactionId: newTenant.paymentTransactionId,
+        purchasedAt: newTenant.createdAt,
+        updatedAt: newTenant.updatedAt,
+      }, { merge: true });
+
+      console.log(`[Provisioning] Tenant & Order successfully synchronized to Firestore collections ('tenants', 'saas_orders')`);
+    } catch (fsErr) {
+      console.warn('[Provisioning] Notice: Could not sync tenant to remote Firestore:', fsErr);
+    }
+
     return newTenant;
   }
 

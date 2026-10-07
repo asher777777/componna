@@ -48,7 +48,7 @@ export function getCachedUserRole(uid?: string | null): UserRole {
       return saved;
     }
   } catch {}
-  return 'admin'; // Default to admin for smooth management
+  return 'viewer'; // Default to viewer for safe least-privilege security
 }
 
 export function setCachedUserRole(uid: string, role: UserRole): void {
@@ -71,16 +71,19 @@ export async function fetchUserRole(uid: string, app?: FirebaseApp): Promise<Use
         return data.role;
       }
     } else {
+      // New user doc creation: safe default 'viewer' unless cached specifically
+      const initialRole: UserRole = cached === 'admin' || cached === 'editor' ? cached : 'viewer';
       await setDoc(userDocRef, {
         uid,
-        role: cached || 'admin',
+        role: initialRole,
         updatedAt: Date.now(),
       }, { merge: true });
+      return initialRole;
     }
   } catch (err) {
     console.warn('[FirebaseAuth] fetchUserRole notice:', err);
   }
-  return cached || 'admin';
+  return cached || 'viewer';
 }
 
 export async function updateUserRole(uid: string, role: UserRole, app?: FirebaseApp): Promise<void> {

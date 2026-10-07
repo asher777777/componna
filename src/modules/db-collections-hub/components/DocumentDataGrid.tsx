@@ -18,6 +18,9 @@ import {
   Sparkles,
   Key,
   ShieldAlert,
+  CheckSquare,
+  Square,
+  X,
 } from 'lucide-react';
 import { useDbContext } from '../context/DbContext';
 import { FirestoreDocumentRecord } from '../types';
@@ -44,6 +47,12 @@ export const DocumentDataGrid: React.FC = () => {
     credentials,
     switchDatabase,
     setCredentialsModalOpen,
+    selectedDocIds,
+    toggleSelectDoc,
+    toggleSelectAll,
+    clearSelection,
+    handleBulkDelete,
+    isBulkDeleting,
   } = useDbContext();
 
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
@@ -223,6 +232,53 @@ export const DocumentDataGrid: React.FC = () => {
 
       </div>
 
+      {/* Bulk Selection Action Bar */}
+      {selectedDocIds.length > 0 && (
+        <div className="bg-gradient-to-r from-rose-950/80 via-slate-900 to-indigo-950/80 border-b border-rose-500/30 px-6 py-2.5 flex items-center justify-between animate-fadeIn text-xs">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 bg-rose-500/20 text-rose-300 rounded-lg font-bold border border-rose-500/30">
+              <CheckSquare className="w-4 h-4 text-rose-400" />
+              <span>נבחרו {selectedDocIds.length} מסמכים מתוך {filteredDocs.length}</span>
+            </div>
+
+            <button
+              onClick={() => toggleSelectAll(filteredDocs.map(d => d.id))}
+              className="text-slate-300 hover:text-white underline text-[11px] transition"
+            >
+              {filteredDocs.every(d => selectedDocIds.includes(d.id)) ? 'בטל בחירת הכל' : 'בחר את כל המסמכים המסוננים'}
+            </button>
+
+            <button
+              onClick={clearSelection}
+              className="flex items-center gap-1 text-slate-400 hover:text-slate-200 text-[11px] transition"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>נקה בחירה</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                if (window.confirm(`האם אתה בטוח שברצונך למחוק ${selectedDocIds.length} מסמכים לצמיתות? פעולה זו אינה ניתנת לביטול!`)) {
+                  try {
+                    const count = await handleBulkDelete();
+                    alert(`נמחקו בהצלחה ${count} מסמכים!`);
+                  } catch (err: any) {
+                    alert(`שגיאה במחיקה מרובה: ${err?.message || err}`);
+                  }
+                }
+              }}
+              disabled={isBulkDeleting}
+              className="flex items-center gap-2 px-4 py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold shadow-lg shadow-rose-600/30 transition disabled:opacity-50"
+            >
+              <Trash2 className={`w-3.5 h-3.5 ${isBulkDeleting ? 'animate-spin' : ''}`} />
+              <span>{isBulkDeleting ? 'מוחק מסמכים...' : `מחק ${selectedDocIds.length} מסמכים נבחרים`}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Content Area */}
       <div className="flex-1 overflow-auto p-4">
         
@@ -333,6 +389,20 @@ export const DocumentDataGrid: React.FC = () => {
               <table className="w-full text-right border-collapse">
                 <thead>
                   <tr className="bg-slate-900/90 border-b border-slate-800 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                    {/* Select All Checkbox */}
+                    <th className="py-3 px-3 w-10 text-center">
+                      <button
+                        onClick={() => toggleSelectAll(filteredDocs.map(d => d.id))}
+                        className="p-1 rounded text-slate-400 hover:text-white transition"
+                        title={filteredDocs.every(d => selectedDocIds.includes(d.id)) ? 'בטל בחירת הכל' : 'בחר הכל'}
+                      >
+                        {filteredDocs.length > 0 && filteredDocs.every(d => selectedDocIds.includes(d.id)) ? (
+                          <CheckSquare className="w-4 h-4 text-indigo-400" />
+                        ) : (
+                          <Square className="w-4 h-4 text-slate-500" />
+                        )}
+                      </button>
+                    </th>
                     <th className="py-3 px-4 w-44">מזהה מסמך (ID)</th>
                     {tableColumns.map((col) => (
                       <th key={col} className="py-3 px-4 min-w-[120px] font-mono">
@@ -343,71 +413,91 @@ export const DocumentDataGrid: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/60 text-xs">
-                  {filteredDocs.map((doc) => (
-                    <tr
-                      key={doc.id}
-                      onClick={() => setInspectingDoc(doc)}
-                      className="hover:bg-slate-900/70 transition cursor-pointer group"
-                    >
-                      {/* Document ID */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-1.5 font-mono text-indigo-300 font-medium">
-                          <span className="truncate max-w-[140px]" title={doc.id}>
-                            {doc.id}
-                          </span>
+                  {filteredDocs.map((doc) => {
+                    const isSelected = selectedDocIds.includes(doc.id);
+                    return (
+                      <tr
+                        key={doc.id}
+                        onClick={() => setInspectingDoc(doc)}
+                        className={`transition cursor-pointer group ${
+                          isSelected ? 'bg-indigo-950/40 hover:bg-indigo-900/50' : 'hover:bg-slate-900/70'
+                        }`}
+                      >
+                        {/* Row Selection Checkbox */}
+                        <td className="py-3 px-3 text-center" onClick={(e) => e.stopPropagation()}>
                           <button
-                            onClick={(e) => handleCopyId(doc.id, e)}
-                            className="text-slate-500 hover:text-indigo-300 p-1 transition"
-                            title="העתק מזהה מסמך"
+                            onClick={() => toggleSelectDoc(doc.id)}
+                            className="p-1 rounded text-slate-400 hover:text-indigo-300 transition"
+                            title={isSelected ? 'בטל בחירה' : 'סמן לבחירה מרובה'}
                           >
-                            {copiedId === doc.id ? (
-                              <Check className="w-3 h-3 text-emerald-400" />
+                            {isSelected ? (
+                              <CheckSquare className="w-4 h-4 text-indigo-400" />
                             ) : (
-                              <Copy className="w-3 h-3" />
+                              <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
                             )}
                           </button>
-                        </div>
-                      </td>
-
-                      {/* Field Columns */}
-                      {tableColumns.map((col) => (
-                        <td key={col} className="py-3 px-4">
-                          {renderCellValue(doc.data[col])}
                         </td>
-                      ))}
 
-                      {/* Action Buttons */}
-                      <td className="py-3 px-4">
-                        <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
-                          <button
-                            onClick={() => setInspectingDoc(doc)}
-                            className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition"
-                            title="צפה בפרטים מלאים"
-                          >
-                            <Eye className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setEditingDoc(doc)}
-                            className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition"
-                            title="ערוך מסמך"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={async () => {
-                              if (window.confirm(`האם למחוק את המסמך "${doc.id}"?`)) {
-                                await handleDeleteDoc(doc.id);
-                              }
-                            }}
-                            className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition"
-                            title="מחק מסמך"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        {/* Document ID */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-1.5 font-mono text-indigo-300 font-medium">
+                            <span className="truncate max-w-[140px]" title={doc.id}>
+                              {doc.id}
+                            </span>
+                            <button
+                              onClick={(e) => handleCopyId(doc.id, e)}
+                              className="text-slate-500 hover:text-indigo-300 p-1 transition"
+                              title="העתק מזהה מסמך"
+                            >
+                              {copiedId === doc.id ? (
+                                <Check className="w-3 h-3 text-emerald-400" />
+                              ) : (
+                                <Copy className="w-3 h-3" />
+                              )}
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Field Columns */}
+                        {tableColumns.map((col) => (
+                          <td key={col} className="py-3 px-4">
+                            {renderCellValue(doc.data[col])}
+                          </td>
+                        ))}
+
+                        {/* Action Buttons */}
+                        <td className="py-3 px-4">
+                          <div className="flex items-center justify-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => setInspectingDoc(doc)}
+                              className="p-1.5 text-slate-400 hover:text-indigo-300 hover:bg-slate-800 rounded-lg transition"
+                              title="צפה בפרטים מלאים"
+                            >
+                              <Eye className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setEditingDoc(doc)}
+                              className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition"
+                              title="ערוך מסמך"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={async () => {
+                                if (window.confirm(`האם למחוק את המסמך "${doc.id}"?`)) {
+                                  await handleDeleteDoc(doc.id);
+                                }
+                              }}
+                              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg transition"
+                              title="מחק מסמך"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -417,74 +507,98 @@ export const DocumentDataGrid: React.FC = () => {
         {/* JSON Cards View */}
         {viewMode === 'json' && filteredDocs.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredDocs.map((doc) => (
-              <div
-                key={doc.id}
-                onClick={() => setInspectingDoc(doc)}
-                className="bg-slate-950/80 border border-slate-800 hover:border-indigo-500/50 rounded-2xl p-4 shadow-lg transition cursor-pointer flex flex-col justify-between group"
-              >
-                <div>
-                  {/* Card Header */}
-                  <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80">
-                    <div className="flex items-center gap-1.5 font-mono text-xs text-indigo-300 font-bold">
-                      <Hash className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="truncate max-w-[170px]" title={doc.id}>
-                        {doc.id}
-                      </span>
+            {filteredDocs.map((doc) => {
+              const isSelected = selectedDocIds.includes(doc.id);
+              return (
+                <div
+                  key={doc.id}
+                  onClick={() => setInspectingDoc(doc)}
+                  className={`border rounded-2xl p-4 shadow-lg transition cursor-pointer flex flex-col justify-between group ${
+                    isSelected
+                      ? 'bg-indigo-950/40 border-indigo-500/80 shadow-indigo-500/10'
+                      : 'bg-slate-950/80 border-slate-800 hover:border-indigo-500/50'
+                  }`}
+                >
+                  <div>
+                    {/* Card Header */}
+                    <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-800/80">
+                      <div className="flex items-center gap-2">
+                        {/* Checkbox for JSON Card */}
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleSelectDoc(doc.id);
+                          }}
+                          className="p-1 rounded text-slate-400 hover:text-indigo-300 transition"
+                          title={isSelected ? 'בטל בחירה' : 'סמן מסמך זה'}
+                        >
+                          {isSelected ? (
+                            <CheckSquare className="w-4 h-4 text-indigo-400" />
+                          ) : (
+                            <Square className="w-4 h-4 text-slate-600 hover:text-slate-400" />
+                          )}
+                        </button>
+
+                        <div className="flex items-center gap-1.5 font-mono text-xs text-indigo-300 font-bold">
+                          <Hash className="w-3.5 h-3.5 text-amber-400" />
+                          <span className="truncate max-w-[140px]" title={doc.id}>
+                            {doc.id}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={(e) => handleCopyId(doc.id, e)}
+                          className="p-1 text-slate-500 hover:text-indigo-300 rounded transition"
+                          title="העתק מזהה"
+                        >
+                          {copiedId === doc.id ? (
+                            <Check className="w-3 h-3 text-emerald-400" />
+                          ) : (
+                            <Copy className="w-3 h-3" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => setEditingDoc(doc)}
+                          className="p-1 text-slate-500 hover:text-amber-400 rounded transition"
+                          title="ערוך"
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`האם למחוק את המסמך "${doc.id}"?`)) {
+                              await handleDeleteDoc(doc.id);
+                            }
+                          }}
+                          className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
+                          title="מחק"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={(e) => handleCopyId(doc.id, e)}
-                        className="p-1 text-slate-500 hover:text-indigo-300 rounded transition"
-                        title="העתק מזהה"
-                      >
-                        {copiedId === doc.id ? (
-                          <Check className="w-3 h-3 text-emerald-400" />
-                        ) : (
-                          <Copy className="w-3 h-3" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => setEditingDoc(doc)}
-                        className="p-1 text-slate-500 hover:text-amber-400 rounded transition"
-                        title="ערוך"
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (window.confirm(`האם למחוק את המסמך "${doc.id}"?`)) {
-                            await handleDeleteDoc(doc.id);
-                          }
-                        }}
-                        className="p-1 text-slate-500 hover:text-rose-400 rounded transition"
-                        title="מחק"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+                    {/* JSON Snippet */}
+                    <pre className="font-mono text-[11px] text-slate-300 bg-slate-900/90 p-3 rounded-xl overflow-x-auto max-h-48 leading-relaxed border border-slate-850">
+                      {JSON.stringify(doc.data, null, 2)}
+                    </pre>
                   </div>
 
-                  {/* JSON Snippet */}
-                  <pre className="font-mono text-[11px] text-slate-300 bg-slate-900/90 p-3 rounded-xl overflow-x-auto max-h-48 leading-relaxed border border-slate-850">
-                    {JSON.stringify(doc.data, null, 2)}
-                  </pre>
+                  {/* Card Footer */}
+                  <div className="pt-3 mt-3 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
+                    <span>{Object.keys(doc.data).length} שדות</span>
+                    {doc.updatedAtFormatted && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-slate-500" />
+                        {doc.updatedAtFormatted}
+                      </span>
+                    )}
+                  </div>
                 </div>
-
-                {/* Card Footer */}
-                <div className="pt-3 mt-3 border-t border-slate-800/60 flex items-center justify-between text-[10px] text-slate-500">
-                  <span>{Object.keys(doc.data).length} שדות</span>
-                  {doc.updatedAtFormatted && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-500" />
-                      {doc.updatedAtFormatted}
-                    </span>
-                  )}
-                </div>
-
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
