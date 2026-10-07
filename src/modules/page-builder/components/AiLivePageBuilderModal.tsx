@@ -26,6 +26,7 @@ import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { PAGE_BLUEPRINTS, hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
+import { GreenApiService } from '../../whatsapp-green-api-hub/services/greenApiService';
 
 interface AiLivePageBuilderModalProps {
   isOpen: boolean;
@@ -42,7 +43,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
 }) => {
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
-  const { openConnectorModal } = useSystemConnection();
+  const { openConnectorModal, getApiKeysForModule } = useSystemConnection();
 
   const [promptText, setPromptText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -51,11 +52,15 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const [generateImages, setGenerateImages] = useState(true);
   const [ideas, setIdeas] = useState<MarketingIdea[]>([]);
   const [loadingIdeas, setLoadingIdeas] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Wizard step state: 1 = Brainstorm & Goal, 2 = Architecture & Template, 3 = Generating/Streaming
   const [wizardStep, setWizardStep] = useState<1 | 2>(1);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>('sales-funnel');
   const [selectedIdeaId, setSelectedIdeaId] = useState<string | null>(null);
+
+  const moduleKeys = getApiKeysForModule('page-builder');
+  const apiKey = moduleKeys.googleAiApiKey || '';
 
   const hasApiKey = !!resolveApiKey();
 
@@ -75,7 +80,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
     setLoadingIdeas(true);
     try {
       const existingPages = await pageBuilderFirestore.getAllPages();
-      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, undefined, existingPages);
+      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, existingPages);
       setIdeas(generatedIdeas);
     } catch {
       // fallback handled in generator
@@ -108,6 +113,30 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const handleSelectIdea = (idea: MarketingIdea) => {
     setSelectedIdeaId(idea.id);
     setPromptText(idea.prompt);
+  };
+
+  
+  const reportError = async (errText: string) => {
+    try {
+      const keys = getApiKeysForModule('whatsapp-hub');
+      const waService = new GreenApiService({
+        idInstance: keys.greenApiInstanceId || '',
+        apiTokenInstance: keys.greenApiToken || ''
+      });
+      const phone = brandDna?.trust?.whatsappSupportNumber || brandDna?.trust?.contactPhone || '';
+      const cleanPhone = phone.replace(/\D/g, '');
+      if (!cleanPhone || !keys.greenApiInstanceId) {
+        alert('לא הוגדר מספר טלפון ב-Brand DNA או שחסרים פרטי Green API ב-Connector Hub.');
+        return;
+      }
+      await waService.sendMessage({
+        chatId: `${cleanPhone}@c.us`,
+        message: `*דו"ח תקלה ממערכת בניית העמודים ב-AI:* \n\n${errText}`
+      });
+      alert('הדיווח נשלח בהצלחה לווצאפ.');
+    } catch (e) {
+      alert('שגיאה בשליחת הדיווח לווצאפ.');
+    }
   };
 
   const handleStartGeneration = async () => {
@@ -413,6 +442,26 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
             </div>
           )}
         </div>
+
+        {errorMsg && !isGenerating && (
+          <div className="mx-6 sm:mx-8 mb-6 p-5 rounded-2xl bg-red-500/10 border border-red-500/30 flex flex-col gap-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-400 shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-red-400 font-bold text-sm mb-1">שגיאה ביצירת העמוד</h4>
+                <p className="text-slate-300 text-sm leading-relaxed">{errorMsg}</p>
+              </div>
+            </div>
+            <div className="flex justify-end mt-2">
+              <button 
+                onClick={() => reportError(errorMsg)}
+                className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-300 rounded-xl text-xs font-bold transition-colors"
+              >
+                דווח למערכת (WhatsApp)
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Footer Actions */}
         {!isGenerating && (

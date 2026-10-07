@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrandDnaProvider, useBrandDna } from './context/BrandDnaContext';
 import { BrandIdentitySection } from './components/BrandIdentitySection';
 import { BrandVoiceSection } from './components/BrandVoiceSection';
@@ -62,8 +62,19 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
 
   const [viewMode, setViewMode] = useState<'dashboard' | 'stepper' | 'tabs'>(initialMode);
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  // Requirement ה: Add Day/Light mode and make it the default
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Floating Action Button state
+  const [isFabOpen, setIsFabOpen] = useState(false);
+
+  // Requirement ה: Global Dark/Light mode
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isStrategyModalOpen, setIsStrategyModalOpen] = useState(false);
@@ -88,118 +99,99 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   }
 
   return (
-    <div className={isDarkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-        <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 select-text" dir="rtl">
-          {/* 1. Main Header Bar */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/70 p-6 rounded-3xl shadow-sm dark:shadow-xl">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 shrink-0">
-                <Fingerprint className="w-8 h-8" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl sm:text-2xl font-black text-slate-900 dark:text-white">Brand DNA & AI Orchestrator</h1>
-                  <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-[10px] font-bold border border-indigo-200 dark:border-indigo-500/30">
-                    Core Engine
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1 max-w-2xl">
-                  מרכז העצבים של זהות המותג: הגדר את ה-DNA העסקי, אישיות המותג ונתוני העיצוב המזינים את כל מודולי ה-AI, הדפים ודפי הסליקה.
-                </p>
-              </div>
-            </div>
-
-            {/* Action Buttons & Completeness Indicator */}
-            <div className="flex flex-wrap items-center gap-2.5 shrink-0">
-              {/* Day / Dark Mode Toggle */}
-              <button
-                type="button"
-                onClick={() => setIsDarkMode((prev) => !prev)}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/90 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-2xl border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5 text-xs font-bold"
-                title={isDarkMode ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
+      <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 select-text" dir="rtl">
+          {/* 1. Minimal Header (Completeness Badge on Desktop only) */}
+          <div className="hidden md:flex justify-end mb-2">
+            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/70 rounded-lg shadow-sm">
+              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">שלמות ה-DNA:</span>
+              <span
+                className={`text-[10px] font-bold font-mono ${
+                  completenessScore >= 80
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : completenessScore >= 50
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-pink-600 dark:text-pink-400'
+                }`}
               >
-                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
-                <span className="hidden sm:inline">{isDarkMode ? 'מצב יום' : 'מצב לילה'}</span>
-              </button>
-
-              {/* URL & Facebook Scraper (Requirement ח) */}
-              <button
-                type="button"
-                onClick={() => setIsScraperModalOpen(true)}
-                className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700/60 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                title="סריקת אתר קיים או עמוד פייסבוק על ידי AI"
-              >
-                <Globe className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <span>סרוק אתר / FB</span>
-              </button>
-
-              {/* Content Strategy Proposals (Requirement ז) */}
-              <button
-                type="button"
-                onClick={() => setIsStrategyModalOpen(true)}
-                className="px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 dark:bg-purple-900/20 dark:hover:bg-purple-900/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-700/60 rounded-2xl text-xs font-bold flex items-center gap-1.5 transition-all"
-                title="הצעות אסטרטגיה של כתיבת תוכן לעמודי מכירה ושירות ושמירה לקולקציה"
-              >
-                <Sparkles className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>אסטרטגיית תוכן AI</span>
-              </button>
-
-              {/* Completeness Badge */}
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-100 dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700 rounded-2xl">
-                <div className="text-right">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400 block font-medium">שלמות ה-DNA</span>
-                  <span
-                    className={`text-xs font-bold font-mono ${
-                      completenessScore >= 80
-                        ? 'text-emerald-600 dark:text-emerald-400'
-                        : completenessScore >= 50
-                        ? 'text-amber-600 dark:text-amber-400'
-                        : 'text-pink-600 dark:text-pink-400'
-                    }`}
-                  >
-                    {completenessScore}% הושלם
-                  </span>
-                </div>
-                <div className="w-7 h-7 rounded-full border-2 border-slate-300 dark:border-slate-700 flex items-center justify-center font-mono text-[10px] font-bold text-indigo-600 dark:text-indigo-300">
-                  {completenessScore}%
-                </div>
-              </div>
-
-              {/* AI Discovery Wizard Button */}
-              <button
-                type="button"
-                onClick={() => setIsWizardOpen(true)}
-                className="px-3.5 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-500/20 transition-all"
-              >
-                <Wand2 className="w-4 h-4" />
-                <span>ראיון AI</span>
-              </button>
-
-              {/* Save Button */}
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold flex items-center gap-1.5 shadow-md shadow-indigo-500/25 transition-all disabled:opacity-50"
-              >
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                <span>שמור שינויים</span>
-              </button>
-
-              {/* Reset */}
-              <button
-                type="button"
-                onClick={resetToDefaults}
-                className="p-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-900/70 dark:hover:bg-slate-700/60 text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white rounded-2xl border border-slate-200 dark:border-slate-700/60 transition-colors"
-                title="איפוס להגדרות ברירת מחדל"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
+                {completenessScore}%
+              </span>
             </div>
           </div>
 
-          {/* Save Success Alert */}
+          {/* Floating Action Button (FAB) Menu */}
+          <div className="fixed top-6 left-6 z-50 flex flex-col items-start gap-2">
+            <button
+              type="button"
+              onClick={() => setIsFabOpen(!isFabOpen)}
+              className="w-12 h-12 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-600/30 flex items-center justify-center transition-transform hover:scale-105"
+            >
+              {isFabOpen ? <RotateCcw className="w-5 h-5 rotate-45" /> : <Wand2 className="w-5 h-5" />}
+            </button>
+            
+            <div className={`flex flex-col gap-2 transition-all duration-300 origin-top ${isFabOpen ? 'scale-100 opacity-100 mt-2' : 'scale-0 opacity-0 mt-0 h-0 pointer-events-none'}`}>
+              
+              {/* View Mode Switches */}
+              <button
+                type="button"
+                onClick={() => { setViewMode('dashboard'); setIsFabOpen(false); }}
+                className={`px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all border ${viewMode === 'dashboard' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}
+              >
+                <Compass className="w-3.5 h-3.5" />
+                <span>לוח בקרה אקטיבי</span>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => { setViewMode('stepper'); setIsFabOpen(false); }}
+                className={`px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all border ${viewMode === 'stepper' ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800' : 'bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'}`}
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                <span>שאלון AI מודרך</span>
+              </button>
+
+              
+
+              <div className="h-px bg-slate-200 dark:bg-slate-700 w-full my-1"></div>
+
+              {/* Actions */}
+              <button
+                type="button"
+                onClick={() => { setIsStrategyModalOpen(true); setIsFabOpen(false); }}
+                className="px-3 py-2 bg-slate-800 dark:bg-slate-700 hover:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>אסטרטגיית תוכן</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIsScraperModalOpen(true); setIsFabOpen(false); }}
+                className="px-3 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all"
+              >
+                <Globe className="w-3.5 h-3.5 text-blue-200" />
+                <span>סרוק אתר / FB</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setIsDarkMode((prev) => !prev); setIsFabOpen(false); }}
+                className="px-3 py-2 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all border border-slate-200 dark:border-slate-700"
+              >
+                {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
+                <span>{isDarkMode ? 'מצב יום' : 'מצב לילה'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { resetToDefaults(); setIsFabOpen(false); }}
+                className="px-3 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-500/10 dark:hover:bg-red-500/20 text-red-600 dark:text-red-400 rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all border border-red-200 dark:border-red-500/30"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>איפוס</span>
+              </button>
+            </div>
+          </div>
           {saveSuccessNotice && (
             <div className="p-4 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 rounded-2xl flex items-center gap-3 text-emerald-700 dark:text-emerald-300 text-xs font-bold animate-in fade-in">
               <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
@@ -226,57 +218,31 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
             </div>
           )}
 
-          {/* 2. Mode Switcher (Dashboard vs Stepper vs Full Tabs) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900/80 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <div className="flex items-center gap-1.5 p-1 bg-slate-50 dark:bg-slate-950/80 rounded-xl border border-slate-200 dark:border-slate-800/80 overflow-x-auto">
-              <button
-                type="button"
-                onClick={() => setViewMode('dashboard')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                  viewMode === 'dashboard'
-                    ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Compass className="w-3.5 h-3.5" />
-                <span>לוח בקרה אקטיבי</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('stepper')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                  viewMode === 'stepper'
-                    ? 'bg-gradient-to-r from-purple-600 via-indigo-600 to-pink-600 text-white shadow-md shadow-purple-600/20'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                <span>שאלון AI מודרך (שאלה אחר שאלה)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setViewMode('tabs')}
-                className={`px-4 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
-                  viewMode === 'tabs'
-                    ? 'bg-white dark:bg-slate-800 text-slate-900 dark:text-white shadow-sm border border-slate-200 dark:border-slate-700'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                }`}
-              >
-                <Sliders className="w-3.5 h-3.5" />
-                <span>לוח עריכה מקיף (לפי קטגוריות)</span>
-              </button>
-            </div>
+          {/* Permanent Category Tabs */}
+          {/* Category Tabs */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-slate-800">
+                {TAB_CONFIG.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => { setActiveTab(tab.id); setViewMode('tabs'); }}
+                      className={`px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
+                        isActive
+                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 border border-indigo-500'
+                          : 'bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'
+                      }`}
+                    >
+                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
 
-            <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium px-2 hidden md:block">
-              {viewMode === 'dashboard' ? (
-                <span>🚀 מבט על של זהות המותג ופעולות AI מהירות</span>
-              ) : viewMode === 'stepper' ? (
-                <span>💡 שאלה אחת בכל שלב עם אפשרויות סיוע AI והמלצות חכמות</span>
-              ) : (
-                <span>🔧 עריכה ישירה ומעבר חופשי בין כל תחומי המותג</span>
-              )}
-            </div>
-          </div>
+              {/* Tabbed Content */}
 
           {/* 3. Dashboard Mode View */}
           {viewMode === 'dashboard' && (
@@ -301,29 +267,6 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
           {/* 4. Full Tabbed Editor View - Full Width without 360 preview */}
           {viewMode === 'tabs' && (
             <div className="space-y-6 animate-in fade-in">
-              {/* Category Tabs */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-slate-800">
-                {TAB_CONFIG.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => setActiveTab(tab.id)}
-                      className={`px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 border border-indigo-500'
-                          : 'bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
-
               {/* Tabbed Content */}
               <div className="w-full space-y-6">
                 {activeTab === 'identity' && <BrandIdentitySection />}
@@ -345,7 +288,6 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
           <BrandDnaUrlScraperModal isOpen={isScraperModalOpen} onClose={() => setIsScraperModalOpen(false)} />
         </div>
       </div>
-    </div>
   );
 };
 

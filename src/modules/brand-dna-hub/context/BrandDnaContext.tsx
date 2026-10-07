@@ -66,6 +66,22 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     };
   }, [db, tenantId]);
 
+  // Auto-Save whenever brandDna changes (debounced by 1 second)
+  useEffect(() => {
+    if (isLoading) return;
+    const timer = setTimeout(() => {
+      saveBrandDna(brandDna, db, tenantId).then((res) => {
+        if (res.success) {
+          eventBus.publish('brand:updated', {
+            brandDna,
+            updatedAt: new Date().toISOString(),
+          });
+        }
+      });
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [brandDna, db, tenantId, isLoading]);
+
   const updateIdentity = useCallback((partial: Partial<BrandIdentity>) => {
     setBrandDna((prev) => ({
       ...prev,

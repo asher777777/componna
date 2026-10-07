@@ -5,14 +5,18 @@
 export interface DonationTier {
   id: string;
   name: string;
+  title?: string;
   amount: number;
   monthlyAmount?: number;
-  description: string;
+  description?: string;
+  subtitle?: string;
   isDefault?: boolean;
   color?: string;
   popular?: boolean;
-  subtitle?: string;
   icon?: string;
+  imageSrc?: string;
+  imageShape?: 'circle' | 'rounded' | 'full';
+  displayMode?: 'standard' | 'full_image';
 }
 
 export interface DrawerConfig {
@@ -26,6 +30,18 @@ export interface DrawerConfig {
   direct_bank_details?: string;
   receipt_prefix?: string;
   testMode?: boolean;
+  tierDisplayMode?: 'standard' | 'full_image';
+  tierImageShape?: 'circle' | 'rounded' | 'full';
+  step1Title?: string;
+  step2Title?: string;
+  step3Title?: string;
+  thankYouTitle?: string;
+  thankYouSubtitle?: string;
+  thankYouImage?: string;
+  thankYouShareText?: string;
+  fieldBgColor?: string;
+  borderColor?: string;
+  fontSizeScale?: number;
 }
 
 export interface CampaignVideoGallery {

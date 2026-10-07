@@ -1,9 +1,15 @@
 /**
- * CampaignHeaderWidget: Main progress bar, statistics, and quick action buttons
+ * CampaignHeaderWidget: Exact Kampin & Charidy Progress Arrow & Stats Component
+ * Matches image 2 from user request:
+ * - "הסכום שהושג" title
+ * - SVG upward curved trend arrow (Charidy style) with animated green progress & glowing tip
+ * - Massive ILS number with ₪ symbol and "גויסו עד כה"
+ * - 4 metric pills: Target (₪800,000 יעד), Percentage (%53 הושגו), Remaining (₪377,129 נותרו ליעד), Donors count (159 תורמים)
+ * - Ambassador personal view support
  */
 
 import React from 'react';
-import { Target, Users, TrendingUp, Sparkles, Heart, UserPlus, Share2 } from 'lucide-react';
+import { Target, Users, TrendingUp, Sparkles, Heart, ArrowUpRight, ArrowLeft } from 'lucide-react';
 import { useCampaignModule } from '../context/CampaignModuleContext';
 import { Ambassador } from '../types';
 
@@ -20,112 +26,171 @@ export const CampaignHeaderWidget: React.FC<CampaignHeaderWidgetProps> = ({
 }) => {
   const { campaign, setIsAmbassadorModalOpen, setIsDonationDrawerOpen } = useCampaignModule();
 
-  const title = ambassador ? ambassador.name : (campaign?.title || 'קמפיין גיוס שותפים');
-  const subtitle = ambassador
-    ? `מוביל הקהילה: ${ambassador.leaderName}`
-    : (campaign?.subtitle || 'יחד מגיעים אל היעד');
+  const title = ambassador
+    ? `הסכום שהושג ע"י ${ambassador.name}`
+    : (campaign?.branding?.customSvgPath ? 'הסכום שהושג' : 'הסכום שהושג');
+
   const targetGoal = ambassador ? ambassador.targetGoal : (campaign?.targetGoal || 100000);
   const totalRaised = ambassador ? ambassador.totalRaised : (campaign?.totalRaised || 0);
   const donorCount = ambassador ? ambassador.donorCount : (campaign?.donorCount || 0);
 
-  const percent = targetGoal > 0 ? Math.min(Math.round((totalRaised / targetGoal) * 100), 100) : 0;
+  const percentage = targetGoal > 0 ? Math.round((totalRaised / targetGoal) * 100) : 0;
   const remaining = Math.max(targetGoal - totalRaised, 0);
 
-  const handleDonateClick = () => {
-    if (onOpenDonate) onOpenDonate();
-    else setIsDonationDrawerOpen(true);
+  const formatAmount = (num: number) => {
+    return new Intl.NumberFormat('he-IL').format(num);
   };
 
-  const handleAmbassadorClick = () => {
-    if (onOpenAmbassadorModal) onOpenAmbassadorModal();
-    else setIsAmbassadorModalOpen(true);
+  const customPath = campaign?.branding?.customSvgPath;
+
+  // Render SVG Trend Curve matching image 2 (Kampin / Charidy upward trend arrow)
+  const renderTrendSvg = () => {
+    if (customPath) {
+      return (
+        <svg viewBox="0 0 400 120" className="w-full h-28 overflow-visible">
+          <path d={customPath} fill="none" stroke="#E5E7EB" strokeWidth="8" strokeLinecap="round" />
+          <path
+            d={customPath}
+            fill="none"
+            stroke="#15803D"
+            strokeWidth="9"
+            strokeLinecap="round"
+            strokeDasharray="400"
+            strokeDashoffset={400 - (Math.min(100, Math.max(5, percentage)) / 100) * 400}
+            className="transition-all duration-1000 ease-out"
+          />
+        </svg>
+      );
+    }
+
+    // Upward curved arrow matching Kampin & Charidy
+    const progressFactor = Math.min(1, Math.max(0.04, percentage / 100));
+
+    return (
+      <svg viewBox="0 0 500 140" className="w-full h-28 sm:h-32 overflow-visible">
+        <defs>
+          <marker
+            id="kampin-arrowhead-bg"
+            markerWidth="14"
+            markerHeight="14"
+            refX="7"
+            refY="7"
+            orient="auto"
+          >
+            <polygon points="0 14, 14 7, 0 0" fill="#D1D5DB" />
+          </marker>
+          <marker
+            id="kampin-arrowhead-active"
+            markerWidth="14"
+            markerHeight="14"
+            refX="7"
+            refY="7"
+            orient="auto"
+          >
+            <polygon points="0 14, 14 7, 0 0" fill="#15803D" />
+          </marker>
+        </defs>
+
+        {/* Gray Base Path with Arrowhead */}
+        <path
+          d="M 50 120 Q 180 110, 270 75 T 450 20"
+          fill="none"
+          stroke="#E5E7EB"
+          strokeWidth="11"
+          strokeLinecap="round"
+          markerEnd="url(#kampin-arrowhead-bg)"
+        />
+
+        {/* Green Animated Progress Path */}
+        <path
+          d="M 50 120 Q 180 110, 270 75 T 450 20"
+          fill="none"
+          stroke="#166534"
+          strokeWidth="12"
+          strokeLinecap="round"
+          strokeDasharray="500"
+          strokeDashoffset={500 - progressFactor * 420}
+          className="transition-all duration-1000 ease-out"
+        />
+
+        {/* Tip Indicator */}
+        <circle
+          cx={50 + progressFactor * 370}
+          cy={120 - progressFactor * 95}
+          r="7"
+          fill="#15803D"
+          className="shadow-md transition-all duration-1000"
+        />
+      </svg>
+    );
   };
 
   return (
-    <div className="w-full bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-indigo-900/40 relative overflow-hidden dir-rtl">
-      {/* Decorative background glow */}
-      <div className="absolute -top-24 -left-24 w-80 h-80 bg-indigo-500/15 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-24 -right-24 w-80 h-80 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+    <section className="w-full py-6 sm:py-8 px-4 flex flex-col items-center justify-center dir-rtl select-none">
+      <div className="max-w-3xl w-full text-center flex flex-col items-center gap-3">
+        {/* Title: הסכום שהושג */}
+        <h2 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
+          {title}
+        </h2>
 
-      {/* Header Info */}
-      <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 pb-6 border-b border-indigo-800/40">
-        <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold mb-3 border border-indigo-400/30">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            {ambassador ? 'עמוד יעד שגריר וקהילה' : 'קמפיין שגרירים ארצי'}
-          </div>
-          <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white mb-2">{title}</h2>
-          <p className="text-sm text-indigo-200/80 max-w-2xl">{subtitle}</p>
+        {/* Dynamic SVG Trend Line with Arrowhead */}
+        <div className="w-full max-w-md my-1 px-4 relative flex items-center justify-center">
+          {renderTrendSvg()}
         </div>
 
-        {/* Action Buttons */}
-        <div className="flex flex-wrap items-center gap-3">
-          <button
-            onClick={handleDonateClick}
-            className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+        {/* Total Raised Big Number */}
+        <div className="flex flex-col items-center justify-center gap-0.5">
+          <div className="flex items-baseline justify-center gap-2 text-4xl sm:text-5xl md:text-6xl font-black text-slate-950 tracking-tight dir-rtl">
+            <span>{formatAmount(totalRaised)}</span>
+            <span className="text-emerald-700 text-3xl sm:text-4xl md:text-5xl font-black">₪</span>
+          </div>
+          <span className="text-xs sm:text-sm font-bold text-slate-500">גויסו עד כה</span>
+        </div>
+
+        {/* 4 Metric Badges Row matching Kampin */}
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-2.5 mt-3 text-xs sm:text-sm font-bold">
+          {/* 1. Target Goal Badge */}
+          <div className="flex items-center gap-1.5 bg-white text-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-2xs">
+            <Target className="w-4 h-4 text-emerald-700 shrink-0" />
+            <span className="text-slate-500 font-medium">יעד:</span>
+            <span className="font-black text-slate-900">₪{formatAmount(targetGoal)}</span>
+          </div>
+
+          {/* 2. Percentage Badge */}
+          <div
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-black border shadow-2xs ${
+              percentage >= 100
+                ? 'bg-emerald-600 text-white border-emerald-700 shadow-emerald-500/20'
+                : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+            }`}
           >
-            <Heart className="w-4 h-4 fill-slate-950" />
-            תרומה לקמפיין
-          </button>
-          {!ambassador && (
-            <button
-              onClick={handleAmbassadorClick}
-              className="flex-1 sm:flex-none inline-flex items-center justify-center gap-2 px-5 py-3.5 rounded-2xl bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-400/30 font-semibold text-sm hover:scale-[1.02] active:scale-[0.98] transition-all"
-            >
-              <UserPlus className="w-4 h-4" />
-              הצטרף כשגריר
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Progress & KPIs Grid */}
-      <div className="relative z-10 pt-6 space-y-5">
-        {/* Progress Bar & Percentage */}
-        <div>
-          <div className="flex items-center justify-between text-xs sm:text-sm font-semibold mb-2">
-            <span className="text-indigo-300">
-              הושגו <strong className="text-amber-400 font-extrabold text-base">₪{totalRaised.toLocaleString()}</strong> מתוך ₪{targetGoal.toLocaleString()}
-            </span>
-            <span className="text-amber-400 font-black text-lg">{percent}%</span>
-          </div>
-          <div className="w-full h-4 bg-slate-800/80 rounded-full overflow-hidden p-0.5 border border-indigo-700/50 shadow-inner">
-            <div
-              className="h-full bg-gradient-to-r from-indigo-500 via-amber-400 to-amber-500 rounded-full transition-all duration-1000 shadow-md relative"
-              style={{ width: `${Math.max(percent, 3)}%` }}
-            >
-              <div className="absolute top-0 right-0 bottom-0 left-0 bg-white/20 animate-pulse rounded-full" />
-            </div>
-          </div>
-        </div>
-
-        {/* 3 Metric Cards */}
-        <div className="grid grid-cols-3 gap-3 sm:gap-4 pt-2">
-          <div className="bg-slate-800/50 border border-indigo-800/40 rounded-2xl p-3 sm:p-4 text-center">
-            <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center">
-              <Target className="w-4 h-4" />
-            </div>
-            <div className="text-xs text-indigo-200/70">יעד לגיוס</div>
-            <div className="text-base sm:text-lg font-bold text-white">₪{targetGoal.toLocaleString()}</div>
+            {percentage >= 100 ? (
+              <>
+                <Sparkles className="w-4 h-4 text-amber-300 fill-amber-300" />
+                <span>{percentage}% הושגו (היעד הושלם!)</span>
+              </>
+            ) : (
+              <>
+                <TrendingUp className="w-4 h-4 text-emerald-700" />
+                <span>{percentage}% הושגו</span>
+              </>
+            )}
           </div>
 
-          <div className="bg-slate-800/50 border border-indigo-800/40 rounded-2xl p-3 sm:p-4 text-center">
-            <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-amber-500/20 text-amber-300 flex items-center justify-center">
-              <TrendingUp className="w-4 h-4" />
-            </div>
-            <div className="text-xs text-indigo-200/70">נותר ליעד</div>
-            <div className="text-base sm:text-lg font-bold text-amber-400">₪{remaining.toLocaleString()}</div>
+          {/* 3. Remaining to Goal */}
+          <div className="flex items-center gap-1.5 bg-white text-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-2xs">
+            <span className="text-slate-500 font-medium">נותרו ליעד:</span>
+            <span className="font-black text-slate-900">₪{formatAmount(remaining)}</span>
           </div>
 
-          <div className="bg-slate-800/50 border border-indigo-800/40 rounded-2xl p-3 sm:p-4 text-center">
-            <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center">
-              <Users className="w-4 h-4" />
-            </div>
-            <div className="text-xs text-indigo-200/70">שותפים ותורמים</div>
-            <div className="text-base sm:text-lg font-bold text-white">{donorCount.toLocaleString()}</div>
+          {/* 4. Donor Count */}
+          <div className="flex items-center gap-1.5 bg-white text-slate-800 px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-2xs">
+            <Heart className="w-4 h-4 text-rose-500 fill-rose-100 shrink-0" />
+            <span className="font-black text-slate-900">{donorCount}</span>
+            <span className="text-slate-500 font-medium">תורמים</span>
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

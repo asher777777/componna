@@ -262,45 +262,54 @@ export const aiPageGenerator = {
     let generatedSectionsData: any[] = [];
     const apiKey = resolveApiKey(options?.apiKey);
 
-    if (apiKey) {
-      try {
-        const fullPrompt = GENERATE_MULTI_SECTION_PAGE_PROMPT({
-          companyName,
-          slogan,
-          targetAudience: brandDna?.audience?.targetAudiences?.join(', '),
-          uvp: brandDna?.audience?.mainUvp,
-          voiceTone: (brandDna?.identity as any)?.brandPersonality || 'מקצועי, מוביל ומשכנע',
-          primaryColor,
-          backgroundColor: pageConfig.globalSettings.backgroundColor,
-          userPrompt,
-          generateImages: options?.generateImages ?? true,
-        });
-
-        const apiResult = await callGeminiApi<any>({
-          prompt: fullPrompt,
-          providedApiKey: apiKey,
-          temperature: 0.75,
-        });
-
-        if (apiResult.success && apiResult.data) {
-          const aiData = apiResult.data;
-          if (aiData.slug) pageConfig.slug = aiData.slug;
-          if (aiData.pageTitle) pageConfig.pageTitle = aiData.pageTitle;
-          if (aiData.backgroundColor) pageConfig.globalSettings.backgroundColor = aiData.backgroundColor;
-          if (aiData.textColor) pageConfig.globalSettings.textColor = aiData.textColor;
-
-          if (Array.isArray(aiData.sections) && aiData.sections.length >= 3) {
-            generatedSectionsData = aiData.sections;
-          }
-        }
-      } catch (err) {
-        console.warn('[AI Page Generator] API live call encountered issue, falling back to full skeleton:', err);
-      }
+        if (!apiKey) {
+      throw new Error('חסר מפתח API למערכת ה-AI. אנא הגדר מפתח ב-DB Connector Hub תחת Tenant זה.');
     }
 
-    // MANDATORY RULE: If AI didn't return at least 4 sections, use the rich 5-7 section fallback skeleton!
+    try {
+      const fullPrompt = GENERATE_MULTI_SECTION_PAGE_PROMPT({
+        companyName,
+        slogan,
+        targetAudience: brandDna?.audience?.targetAudiences?.join(', '),
+        uvp: brandDna?.audience?.mainUvp,
+        voiceTone: (brandDna?.identity as any)?.brandPersonality || 'מקצועי, מוביל ומשכנע',
+        primaryColor,
+        backgroundColor: pageConfig.globalSettings.backgroundColor,
+        userPrompt,
+        generateImages: options?.generateImages ?? true,
+      });
+
+      const apiResult = await callGeminiApi<any>({
+        prompt: fullPrompt,
+        providedApiKey: apiKey,
+        temperature: 0.75,
+      });
+
+      if (!apiResult.success) {
+        throw new Error(apiResult.error === 'NO_API_KEY_FOUND'
+          ? 'לא הוגדר מפתח API תקין. נא להגדיר ב-Connector Hub.'
+          : `ה-AI נכשל ביצירת התוכן. שגיאה טכנית מהשרת: ${apiResult.error || 'שגיאת רשת'}`);
+      }
+
+      if (apiResult.success && apiResult.data) {
+        const aiData = apiResult.data;
+        if (aiData.slug) pageConfig.slug = aiData.slug;
+        if (aiData.pageTitle) pageConfig.pageTitle = aiData.pageTitle;
+        if (aiData.backgroundColor) pageConfig.globalSettings.backgroundColor = aiData.backgroundColor;
+        if (aiData.textColor) pageConfig.globalSettings.textColor = aiData.textColor;
+
+        if (Array.isArray(aiData.sections) && aiData.sections.length >= 3) {
+          generatedSectionsData = aiData.sections;
+        } else {
+          throw new Error('ה-AI החזיר תוצאה קצרה מדי או חסרת נתונים מספיקים כדי להרכיב עמוד שלם.');
+        }
+      }
+    } catch (err: any) {
+      throw new Error(err.message || 'שגיאה כללית התרחשה במהלך העבודה מול בינת ה-AI.');
+    }
+
     if (!generatedSectionsData || generatedSectionsData.length < 4) {
-      generatedSectionsData = this.getFullSkeletonFallback(userPrompt, companyName, slogan, brandDna);
+      throw new Error('שגיאה בתבנית שחזרה מה-AI - התקבלו פחות מ-4 אזורים במבנה העמוד.');
     }
 
     // Live Streaming Simulation: build each section step-by-step

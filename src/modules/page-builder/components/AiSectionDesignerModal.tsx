@@ -4,6 +4,9 @@ import { PageBuilderButton } from '../ui/PageBuilderButton';
 import { Sparkles, Loader2 } from 'lucide-react';
 import { SectionType } from '../types/pageBuilder.types';
 import { aiPageGenerator } from '../services/aiPageGenerator';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 
 interface AiSectionDesignerModalProps {
   isOpen: boolean;
@@ -24,12 +27,16 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
 }) => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const { getApiKeysForModule } = useSystemConnection();
+  const { getCapability } = useHostCapabilities();
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     try {
-      const newConfig = await aiPageGenerator.generateSectionLive(sectionType, prompt, null, currentConfig);
+      const apiKey = getApiKeysForModule('page-builder').googleAiApiKey || undefined;
+      const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+      const newConfig = await aiPageGenerator.generateSectionLive(sectionType, prompt, brandDna, currentConfig, apiKey);
       onApplyDesign(newConfig);
       onClose();
     } catch (err) {
