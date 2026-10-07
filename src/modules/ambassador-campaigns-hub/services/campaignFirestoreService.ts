@@ -166,7 +166,7 @@ export async function fetchCampaignRecord(
   campaignId: string
 ): Promise<Campaign | null> {
   if (!db) {
-    return MOCK_CAMPAIGN;
+    return null;
   }
   try {
     const docRef = doc(db, collectionPath, campaignId);
@@ -177,7 +177,114 @@ export async function fetchCampaignRecord(
     return null;
   } catch (error) {
     console.error('[CampaignService] Error fetching campaign:', error);
-    return MOCK_CAMPAIGN;
+    return null;
+  }
+}
+
+/**
+ * Fetch all available campaigns
+ */
+export async function fetchAllCampaignsRecord(
+  db: Firestore | null,
+  collectionPath: string
+): Promise<Campaign[]> {
+  if (!db) {
+    return [];
+  }
+  try {
+    const snap = await getDocs(collection(db, collectionPath));
+    if (!snap.empty) {
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Campaign));
+    }
+    return [];
+  } catch (error) {
+    console.error('[CampaignService] Error fetching all campaigns:', error);
+    return [];
+  }
+}
+
+/**
+ * Create a new campaign with HomeEditor design presets
+ */
+export async function createCampaignRecord(
+  db: Firestore | null,
+  collectionPath: string,
+  payload: any
+): Promise<{ success: boolean; campaign?: Campaign; error?: string }> {
+  try {
+    const campaignId = payload.slug || `camp-${Date.now()}`;
+    const newCampaign: Campaign = {
+      id: campaignId,
+      title: payload.title.trim(),
+      subtitle: payload.subtitle || '',
+      description: payload.description || '',
+      targetGoal: Number(payload.targetGoal || 100000),
+      totalRaised: 0,
+      donorCount: 0,
+      currency: payload.currency || 'ILS',
+      status: 'active',
+      slug: payload.slug || campaignId,
+      featuredImageUrl: payload.featuredImageUrl || '',
+      campaignTiers: {
+        donationType: payload.donationType || 'both',
+        tiers: payload.tiers && payload.tiers.length > 0 ? payload.tiers : DEFAULT_TIERS,
+      },
+      drawerConfig: payload.drawerConfig || DEFAULT_DRAWER_CONFIG,
+      videoGallery: payload.videoGallery || {
+        images: payload.featuredImageUrl ? [payload.featuredImageUrl] : [],
+        videoUrl: '',
+        videoType: 'auto',
+        effect: 'fade',
+        objectFit: 'cover',
+        desktopHeight: '500px',
+      },
+      branding: payload.branding || {
+        primaryColor: '#4f46e5',
+        theme: 'gradient',
+        svgTrendPreset: 'curve_up',
+      },
+      donorsConfig: payload.donorsConfig || {
+        cardLayout: 'grid-2',
+        defaultTab: 'recent',
+        showSearch: true,
+        showSort: true,
+      },
+      ownerId: payload.ownerId || '1',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    if (db) {
+      const docRef = doc(db, collectionPath, campaignId);
+      await setDoc(docRef, newCampaign);
+    }
+
+    return { success: true, campaign: newCampaign };
+  } catch (err: any) {
+    console.error('[CampaignService] Error creating campaign:', err);
+    return { success: false, error: err.message || 'שגיאה ביצירת קמפיין' };
+  }
+}
+
+/**
+ * Update campaign details and styling (HomeEditor design config)
+ */
+export async function updateCampaignRecord(
+  db: Firestore | null,
+  collectionPath: string,
+  campaignId: string,
+  updatedData: Partial<Campaign>
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const updatedAt = new Date().toISOString();
+    if (db) {
+      const docRef = doc(db, collectionPath, campaignId);
+      await updateDoc(docRef, { ...updatedData, updatedAt });
+    }
+    return { success: true };
+  } catch (err: any) {
+    console.error('[CampaignService] Error updating campaign:', err);
+    return { success: false, error: err.message || 'שגיאה בעדכון קמפיין' };
   }
 }
 
@@ -190,7 +297,7 @@ export async function fetchAmbassadorsRecord(
   campaignId: string
 ): Promise<Ambassador[]> {
   if (!db) {
-    return MOCK_AMBASSADORS.filter((a) => a.campaignId === campaignId);
+    return [];
   }
   try {
     const q = query(
@@ -204,7 +311,7 @@ export async function fetchAmbassadorsRecord(
     return [];
   } catch (error) {
     console.error('[CampaignService] Error fetching ambassadors:', error);
-    return MOCK_AMBASSADORS;
+    return [];
   }
 }
 
@@ -217,7 +324,7 @@ export async function fetchDonationsRecord(
   campaignId: string
 ): Promise<Donation[]> {
   if (!db) {
-    return MOCK_DONATIONS.filter((d) => d.campaignId === campaignId);
+    return [];
   }
   try {
     const q = query(
@@ -229,7 +336,7 @@ export async function fetchDonationsRecord(
     return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Donation));
   } catch (error) {
     console.error('[CampaignService] Error fetching donations:', error);
-    return MOCK_DONATIONS;
+    return [];
   }
 }
 

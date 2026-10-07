@@ -11,6 +11,8 @@ export interface DonationTier {
   isDefault?: boolean;
   color?: string;
   popular?: boolean;
+  subtitle?: string;
+  icon?: string;
 }
 
 export interface DrawerConfig {
@@ -23,15 +25,43 @@ export interface DrawerConfig {
   direct_bit_phone?: string;
   direct_bank_details?: string;
   receipt_prefix?: string;
+  testMode?: boolean;
 }
 
 export interface CampaignVideoGallery {
   images?: string[];
   videoUrl?: string;
-  videoType?: 'youtube' | 'vimeo' | 'direct';
-  effect?: string;
+  videoType?: 'youtube' | 'vimeo' | 'direct' | 'auto';
+  effect?: 'fade' | 'slide' | 'zoom';
   objectFit?: 'cover' | 'contain';
   desktopHeight?: string;
+  titleEffect?: string;
+  backgroundColor?: string;
+}
+
+export interface CampaignDonorsDisplayConfig {
+  cardLayout?: 'grid-2' | 'grid-3' | 'list';
+  defaultTab?: 'recent' | 'top';
+  showSearch?: boolean;
+  showSort?: boolean;
+  showDedications?: boolean;
+}
+
+export interface CampaignStoryContent {
+  heading?: string;
+  title?: string;
+  body?: string;
+  layout?: 'center' | 'course-banner';
+  bannerImage?: string;
+}
+
+export interface CampaignBranding {
+  primaryColor?: string;
+  accentColor?: string;
+  backgroundColor?: string;
+  theme?: 'dark' | 'light' | 'gradient';
+  svgTrendPreset?: 'curve_up' | 'percentage_gauge' | 'custom';
+  customSvgPath?: string;
 }
 
 export interface Campaign {
@@ -48,10 +78,15 @@ export interface Campaign {
   status: 'active' | 'draft' | 'completed' | 'paused';
   campaignTiers?: {
     donationType?: 'one_time' | 'recurring' | 'both';
+    recurringMonths?: number;
     tiers?: DonationTier[];
   };
   drawerConfig?: DrawerConfig;
   videoGallery?: CampaignVideoGallery;
+  donorsConfig?: CampaignDonorsDisplayConfig;
+  branding?: CampaignBranding;
+  storyContent?: CampaignStoryContent;
+  testMode?: boolean;
   ownerId?: string;
   slug?: string;
   featuredImageUrl?: string;
@@ -107,6 +142,21 @@ export interface Donation {
   completedAt?: string;
   createdAt: string;
   updatedAt?: string;
+}
+
+export interface CreateCampaignPayload {
+  title: string;
+  subtitle?: string;
+  description?: string;
+  targetGoal: number;
+  slug?: string;
+  currency?: string;
+  featuredImageUrl?: string;
+  donationType?: 'one_time' | 'recurring' | 'both';
+  tiers?: DonationTier[];
+  videoGallery?: CampaignVideoGallery;
+  branding?: CampaignBranding;
+  ownerId?: string;
 }
 
 export interface CreateAmbassadorPayload {

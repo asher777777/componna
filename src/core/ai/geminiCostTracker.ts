@@ -17,11 +17,13 @@ export const GEMINI_PRICING_TABLE: Record<string, ModelPricingRate> = {
   'gemini-2.5-flash-lite': { inputPerMillion: 0.0375, outputPerMillion: 0.15, searchQueryCost: 0.000035 },
   'gemini-2.5-pro': { inputPerMillion: 1.25, outputPerMillion: 5.00, searchQueryCost: 0.000035 },
   'gemini-3.8-flash': { inputPerMillion: 0.15, outputPerMillion: 0.60, searchQueryCost: 0.000035 },
-  'gemini-3.7-flash': { inputPerMillion: 0.15, outputPerMillion: 0.60, searchQueryCost: 0.000035 },
-  'gemini-3.6-flash': { inputPerMillion: 0.10, outputPerMillion: 0.40, searchQueryCost: 0.000035 },
+  'gemini-3.8-flash-lite': { inputPerMillion: 0.075, outputPerMillion: 0.30, searchQueryCost: 0.000035 },
   'gemini-3.5-flash': { inputPerMillion: 0.075, outputPerMillion: 0.30, searchQueryCost: 0.000035 },
   'gemini-3.5-flash-lite': { inputPerMillion: 0.0375, outputPerMillion: 0.15, searchQueryCost: 0.000035 },
+  'gemini-3.1-pro': { inputPerMillion: 1.25, outputPerMillion: 5.00, searchQueryCost: 0.000035 },
   'gemini-3.1-pro-preview': { inputPerMillion: 1.25, outputPerMillion: 5.00, searchQueryCost: 0.000035 },
+  'gemini-3.7-flash': { inputPerMillion: 0.15, outputPerMillion: 0.60, searchQueryCost: 0.000035 },
+  'gemini-3.6-flash': { inputPerMillion: 0.15, outputPerMillion: 0.60, searchQueryCost: 0.000035 }, // Legacy alias mapped to 3.8 rate
 
   // Image Generation Models
   'gemini-3.1-flash-image': { inputPerMillion: 0.15, outputPerMillion: 60.00, imageOutputPerMillion: 60.00 }, // Nano Banana 2

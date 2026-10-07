@@ -1,6 +1,7 @@
 /**
  * React Context Provider for Ambassador Campaigns Hub
- * Manages campaign state, ambassador registration, donation workflows, and multi-tenant scoping.
+ * Manages campaigns list, active campaign, ambassador registration, donation workflows,
+ * HomeEditor design customization, and multi-tenant scoping.
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
@@ -11,12 +12,16 @@ import {
   Ambassador,
   Donation,
   DonationTier,
+  CreateCampaignPayload,
   CreateAmbassadorPayload,
   RecordPendingDonationPayload,
   CompleteDonationPayload,
 } from '../types';
 import {
   fetchCampaignRecord,
+  fetchAllCampaignsRecord,
+  createCampaignRecord,
+  updateCampaignRecord,
   fetchAmbassadorsRecord,
   fetchDonationsRecord,
   createAmbassadorRecord,
@@ -33,6 +38,9 @@ export interface CampaignModuleContextValue {
   db: Firestore | null;
   loading: boolean;
   campaign: Campaign | null;
+  campaignsList: Campaign[];
+  activeCampaignId: string;
+  setActiveCampaignId: (id: string) => void;
   ambassadors: Ambassador[];
   donations: Donation[];
   activeAmbassadorId: string | null;
@@ -44,10 +52,16 @@ export interface CampaignModuleContextValue {
   setIsAmbassadorModalOpen: (open: boolean) => void;
   isDonationDrawerOpen: boolean;
   setIsDonationDrawerOpen: (open: boolean) => void;
+  isCreateCampaignOpen: boolean;
+  setIsCreateCampaignOpen: (open: boolean) => void;
+  isStudioEditorOpen: boolean;
+  setIsStudioEditorOpen: (open: boolean) => void;
   selectedTierForDonation: DonationTier | null;
   setSelectedTierForDonation: (tier: DonationTier | null) => void;
   
   // Actions
+  createCampaign: (payload: CreateCampaignPayload) => Promise<{ success: boolean; campaign?: Campaign; error?: string }>;
+  saveCampaignDesign: (campaignId: string, updated: Partial<Campaign>) => Promise<{ success: boolean; error?: string }>;
   createAmbassador: (payload: CreateAmbassadorPayload) => Promise<{ success: boolean; ambassador?: Ambassador; error?: string }>;
   recordPendingDonation: (payload: RecordPendingDonationPayload) => Promise<{ success: boolean; donationId: string }>;
   completeDonation: (payload: CompleteDonationPayload) => Promise<{ success: boolean; error?: string }>;
@@ -67,15 +81,13 @@ export interface CampaignModuleProviderProps {
 export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
   children,
   firebaseApp,
-  campaignId = 'campaign-golden-2026',
+  campaignId: initialCampaignId = 'campaign-golden-2026',
   customCollections,
 }) => {
-  // Access multi-tenant scope if provided by host shell
   let tenantScope: any = null;
   try {
     tenantScope = useTenantScope();
   } catch (e) {
-    // Standalone fallback
     tenantScope = null;
   }
 
@@ -90,7 +102,6 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
     return null;
   }, [firebaseApp]);
 
-  // Compute collection paths
   const collections = useMemo(() => {
     if (tenantScope && tenantScope.getScopedCollectionPath) {
       return {
@@ -110,15 +121,19 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
     };
   }, [tenantScope, customCollections]);
 
+  const [activeCampaignId, setActiveCampaignId] = useState<string>(initialCampaignId);
   const [loading, setLoading] = useState<boolean>(true);
-  const [campaign, setCampaign] = useState<Campaign | null>(MOCK_CAMPAIGN);
-  const [ambassadors, setAmbassadors] = useState<Ambassador[]>(MOCK_AMBASSADORS);
-  const [donations, setDonations] = useState<Donation[]>(MOCK_DONATIONS);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
+  const [campaignsList, setCampaignsList] = useState<Campaign[]>([]);
+  const [ambassadors, setAmbassadors] = useState<Ambassador[]>([]);
+  const [donations, setDonations] = useState<Donation[]>([]);
   const [activeAmbassadorId, setActiveAmbassadorId] = useState<string | null>(null);
 
   // Modals & Drawers state
   const [isAmbassadorModalOpen, setIsAmbassadorModalOpen] = useState(false);
   const [isDonationDrawerOpen, setIsDonationDrawerOpen] = useState(false);
+  const [isCreateCampaignOpen, setIsCreateCampaignOpen] = useState(false);
+  const [isStudioEditorOpen, setIsStudioEditorOpen] = useState(false);
   const [selectedTierForDonation, setSelectedTierForDonation] = useState<DonationTier | null>(null);
 
   const activeAmbassador = useMemo(() => {
@@ -129,9 +144,14 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
   const refreshData = useCallback(async () => {
     setLoading(true);
     try {
-      const camp = await fetchCampaignRecord(db, collections.CAMPAIGNS, campaignId);
-      const ambs = await fetchAmbassadorsRecord(db, collections.AMBASSADORS, campaignId);
-      const dons = await fetchDonationsRecord(db, collections.DONATIONS, campaignId);
+      const [allCamps, camp, ambs, dons] = await Promise.all([
+        fetchAllCampaignsRecord(db, collections.CAMPAIGNS),
+        fetchCampaignRecord(db, collections.CAMPAIGNS, activeCampaignId),
+        fetchAmbassadorsRecord(db, collections.AMBASSADORS, activeCampaignId),
+        fetchDonationsRecord(db, collections.DONATIONS, activeCampaignId),
+      ]);
+
+      if (allCamps && allCamps.length > 0) setCampaignsList(allCamps);
       if (camp) setCampaign(camp);
       setAmbassadors(ambs);
       setDonations(dons);
@@ -140,11 +160,32 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [db, collections, campaignId]);
+  }, [db, collections, activeCampaignId]);
 
   useEffect(() => {
     refreshData();
   }, [refreshData]);
+
+  const handleCreateCampaign = async (payload: CreateCampaignPayload) => {
+    const res = await createCampaignRecord(db, collections.CAMPAIGNS, payload);
+    if (res.success && res.campaign) {
+      setCampaignsList((prev) => [res.campaign!, ...prev]);
+      setCampaign(res.campaign);
+      setActiveCampaignId(res.campaign.id);
+    }
+    return res;
+  };
+
+  const handleSaveCampaignDesign = async (campId: string, updated: Partial<Campaign>) => {
+    const res = await updateCampaignRecord(db, collections.CAMPAIGNS, campId, updated);
+    if (res.success) {
+      setCampaign((prev) => (prev ? { ...prev, ...updated, updatedAt: new Date().toISOString() } : null));
+      setCampaignsList((prev) =>
+        prev.map((c) => (c.id === campId ? { ...c, ...updated, updatedAt: new Date().toISOString() } : c))
+      );
+    }
+    return res;
+  };
 
   const handleCreateAmbassador = async (payload: CreateAmbassadorPayload) => {
     const res = await createAmbassadorRecord(
@@ -173,7 +214,6 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
       payload
     );
     if (res.success) {
-      // Local state update for smooth optimistic UI
       setCampaign((prev) => {
         if (!prev) return prev;
         return {
@@ -231,6 +271,9 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
       db,
       loading,
       campaign,
+      campaignsList,
+      activeCampaignId,
+      setActiveCampaignId,
       ambassadors,
       donations,
       activeAmbassadorId,
@@ -240,8 +283,14 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
       setIsAmbassadorModalOpen,
       isDonationDrawerOpen,
       setIsDonationDrawerOpen,
+      isCreateCampaignOpen,
+      setIsCreateCampaignOpen,
+      isStudioEditorOpen,
+      setIsStudioEditorOpen,
       selectedTierForDonation,
       setSelectedTierForDonation,
+      createCampaign: handleCreateCampaign,
+      saveCampaignDesign: handleSaveCampaignDesign,
       createAmbassador: handleCreateAmbassador,
       recordPendingDonation: handleRecordPendingDonation,
       completeDonation: handleCompleteDonation,
@@ -252,12 +301,16 @@ export const CampaignModuleProvider: React.FC<CampaignModuleProviderProps> = ({
       db,
       loading,
       campaign,
+      campaignsList,
+      activeCampaignId,
       ambassadors,
       donations,
       activeAmbassadorId,
       activeAmbassador,
       isAmbassadorModalOpen,
       isDonationDrawerOpen,
+      isCreateCampaignOpen,
+      isStudioEditorOpen,
       selectedTierForDonation,
       refreshData,
     ]

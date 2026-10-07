@@ -46,8 +46,9 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
   const [simInput, setSimInput] = useState('');
   const [isSimLoading, setIsSimLoading] = useState(false);
 
-  const { db } = useSystemConnection();
+  const { db, apiKeys } = useSystemConnection();
   const { tenantId } = useTenantScope();
+  const effectiveGoogleAiApiKey = googleAiApiKey || apiKeys?.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
   
   // Load from Firestore on mount
   useEffect(() => {
@@ -82,7 +83,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       triggerType: 'all',
       triggerKeywords: ['שלום', 'עזרה'],
       systemPrompt: 'אתה בוט שירות חכם ויעיל בוואטסאפ. ענה בעברית ברורה ותמציתית.',
-      model: 'gemini-3.6-flash',
+      model: 'gemini-2.5-flash',
       temperature: 0.7,
       interactiveButtons: [
         { buttonId: 'btn_1', buttonText: 'ℹ️ מידע נוסף', actionType: 'prompt', actionValue: 'פרט עוד' },
@@ -121,13 +122,16 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
 
     // Check Trigger Logic before activating AI
     let shouldTrigger = false;
+    let triggerNote = '';
     
     if (activeBot.triggerType === 'all') {
       shouldTrigger = true;
     } else if (activeBot.triggerType === 'welcome') {
-      // Welcome triggers only on the very first user message in a chat
       const userMessageCount = newHistory.filter(h => h.role === 'user').length;
       shouldTrigger = userMessageCount === 1;
+      if (!shouldTrigger) {
+        triggerNote = 'טריגר: בוט זה מוגדר להודעת פתיחה בלבד. מדמה מענה לבדיקה...';
+      }
     } else if (activeBot.triggerType === 'keyword') {
       if (activeBot.triggerKeywords && activeBot.triggerKeywords.length > 0) {
         const textLower = userMsgText.toLowerCase();
@@ -135,27 +139,17 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
           const kw = keyword.trim().toLowerCase();
           return kw.length > 0 && textLower.includes(kw);
         });
-      } else {
-        shouldTrigger = false;
       }
-    }
-
-    if (!shouldTrigger) {
-      setSimChat((prev) => [
-        ...prev,
-        {
-          role: 'model',
-          text: `[מערכת סימולציה: הבוט לא הופעל - תנאי טריגר (${activeBot.triggerType === 'keyword' ? 'מילות מפתח' : 'הודעת פתיחה בלבד'}) לא התקיים]`,
-        },
-      ]);
-      return;
+      if (!shouldTrigger) {
+        triggerNote = `טריגר: ההודעה לא כללה מילת מפתח (${activeBot.triggerKeywords?.join(', ') || 'אין'}). מדמה מענה לבדיקת AI...`;
+      }
     }
 
     setIsSimLoading(true);
 
     try {
       const res = await WhatsAppAiBotService.generateAiResponse({
-        apiKey: googleAiApiKey || '',
+        apiKey: effectiveGoogleAiApiKey,
         botConfig: activeBot,
         userMessage: userMsgText,
         chatHistory: newHistory.map((h) => ({ role: h.role, text: h.text })),
@@ -165,16 +159,16 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
         ...prev,
         {
           role: 'model',
-          text: res.replyText,
+          text: triggerNote ? `[${triggerNote}]\n\n${res.replyText}` : res.replyText,
           buttons: res.buttons,
         },
       ]);
-    } catch (err) {
+    } catch (err: any) {
       setSimChat((prev) => [
         ...prev,
         {
           role: 'model',
-          text: 'אירעה שגיאה בעיבוד התשובה על ידי מנוע ה-AI.',
+          text: `אירעה שגיאה בעיבוד התשובה: ${err?.message || 'שגיאה במנוע ה-AI'}`,
         },
       ]);
     } finally {
@@ -223,7 +217,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     }
   };
 
-  const isKeyConfigured = Boolean(googleAiApiKey && googleAiApiKey.trim().length > 5);
+  const isKeyConfigured = Boolean(effectiveGoogleAiApiKey && effectiveGoogleAiApiKey.trim().length > 5);
 
   return (
     <div className="space-y-6 text-xs" dir="rtl">
@@ -372,16 +366,15 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                     מודל בינה מלאכותית (Google Gemini)
                   </label>
                   <select
-                    value={activeBot.model || 'gemini-3.6-flash'}
+                    value={activeBot.model || 'gemini-3.8-flash'}
                     onChange={(e) => saveBotChanges({ ...activeBot, model: e.target.value })}
                     className={`w-full p-2.5 rounded-xl border text-xs font-semibold ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                   >
-                    <option value="gemini-3.6-flash">✨ Gemini 3.6 Flash (ברירת מחדל Comona - מומלץ)</option>
-                    <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (ביצועים גבוהים והיגיון מתקדם)</option>
-                    <option value="gemini-3.7-flash">🚀 Gemini 3.7 Flash (מהיר וגמיש)</option>
-                    <option value="gemini-3.5-flash">💡 Gemini 3.5 Flash (קל משקל ויציב)</option>
-                    <option value="gemini-3.5-flash-lite">⚡ Gemini 3.5 Flash Lite (מענה סופר מהיר וחסכוני)</option>
-                    <option value="gemini-3.1-pro-preview">🧠 Gemini 3.1 Pro (הבנה עמוקה ומשימות מורכבות)</option>
+                    <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (ברירת מחדל Comona - מודל דגל מהיר)</option>
+                    <option value="gemini-3.5-flash">💡 Gemini 3.5 Flash (יציב, מדויק וחסכוני)</option>
+                    <option value="gemini-3.8-flash-lite">⚡ Gemini 3.8 Flash Lite (מענה סופר מהיר למשימות קצרות)</option>
+                    <option value="gemini-3.5-flash-lite">🌱 Gemini 3.5 Flash Lite (חיסכון מרבי בעלויות)</option>
+                    <option value="gemini-3.1-pro">🧠 Gemini 3.1 Pro (הבנה עמוקה ומשימות מורכבות)</option>
                   </select>
                 </div>
 

@@ -20,7 +20,7 @@ import type { BrandDna } from '../../../core/contracts';
 
 export const DEFAULT_BRAND_DNA: BrandDna = {
   identity: {
-    companyName: 'הארגון המוביל',
+    companyName: 'קמונה פתרונות דיגיטליים',
     organizationType: 'חברה',
     organizationPurpose: 'כספית - מתן שירותים ופתרונות דיגיטליים מתקדמים',
     memberCount: 'עד 10',

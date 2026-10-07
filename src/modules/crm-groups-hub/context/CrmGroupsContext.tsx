@@ -172,23 +172,13 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   // Load Data
   const loadData = useCallback(async () => {
     if (!db) {
-      // Mock Fallback when Firestore is null / offline
-      const mockGroupsWithCounts = MOCK_COMMUNITIES.map((g) => {
-        const count = MOCK_CONTACTS.filter((c) => isContactInGroup(c, g)).length;
-        return { ...g, count };
-      });
-      const mockUntagged = MOCK_CONTACTS.filter((c) => !mockGroupsWithCounts.some((g) => isContactInGroup(c, g))).length;
-      const mockCities = Array.from(new Set(MOCK_CONTACTS.map((c) => c.mh_crm_city).filter(Boolean) as string[])).sort();
-
-      setContacts(MOCK_CONTACTS);
-      setGroups(mockGroupsWithCounts);
-      setTotalContacts(MOCK_CONTACTS.length);
-      setUntaggedCount(mockUntagged);
-      setAvailableCities(mockCities);
-      setCampaigns([
-        { id: 'camp_1', title: '🎯 קמפיין שגרירים שנתי', category: 'קמפיינים', type: 'campaign', url: '/c/camp_1', target: 100000, currentAmount: 72000 },
-        { id: 'camp_2', title: '🎯 חלוקת חורף למשפחות', category: 'קמפיינים', type: 'campaign', url: '/c/camp_2', target: 50000, currentAmount: 38000 },
-      ]);
+      // Clean Zero-Mock Fallback when Firestore is null / offline
+      setContacts([]);
+      setGroups([]);
+      setTotalContacts(0);
+      setUntaggedCount(0);
+      setAvailableCities([]);
+      setCampaigns([]);
       setLoading(false);
       return;
     }

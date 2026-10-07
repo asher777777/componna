@@ -20,6 +20,8 @@ export { AmbassadorModal } from './components/AmbassadorModal';
 export { DonationDrawer } from './components/DonationDrawer';
 export { LiveDonationAlert } from './components/LiveDonationAlert';
 export { AmbassadorPublicPageView } from './components/AmbassadorPublicPageView';
+export { CreateCampaignModal } from './components/CreateCampaignModal';
+export { CampaignStudioEditor } from './components/CampaignStudioEditor';
 
 // Standalone Runner
 export { AmbassadorCampaignsStandaloneView } from './StandaloneView';

@@ -195,7 +195,7 @@ export const aiPageGenerator = {
 
     const primaryColor = effectiveDna?.designTokens?.primaryColor || '#6366f1';
     const secondaryColor = effectiveDna?.designTokens?.secondaryColor || '#0ea5e9';
-    const companyName = effectiveDna?.identity?.companyName || 'החברה המובילה';
+    const companyName = effectiveDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים';
     const slogan = effectiveDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
     const logoUrl = effectiveDna?.identity?.logoUrl || '';
 

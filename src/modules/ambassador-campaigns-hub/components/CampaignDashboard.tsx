@@ -1,5 +1,7 @@
 /**
  * CampaignDashboard: Master Hub View for Crowdfunding & Ambassador Campaigns
+ * Provides campaign switcher, campaign creation, HomeEditor Studio design launcher,
+ * ambassadors management, and live donation ledger.
  */
 
 import React, { useState } from 'react';
@@ -19,6 +21,9 @@ import {
   ShieldCheck,
   CreditCard,
   TrendingUp,
+  Sliders,
+  FolderPlus,
+  Layers,
 } from 'lucide-react';
 import { useCampaignModule } from '../context/CampaignModuleContext';
 import { CampaignHeaderWidget } from './CampaignHeaderWidget';
@@ -29,11 +34,16 @@ import { AmbassadorModal } from './AmbassadorModal';
 import { DonationDrawer } from './DonationDrawer';
 import { LiveDonationAlert } from './LiveDonationAlert';
 import { AmbassadorPublicPageView } from './AmbassadorPublicPageView';
+import { CreateCampaignModal } from './CreateCampaignModal';
+import { CampaignStudioEditor } from './CampaignStudioEditor';
 import { Ambassador } from '../types';
 
 export const CampaignDashboard: React.FC = () => {
   const {
     campaign,
+    campaignsList,
+    activeCampaignId,
+    setActiveCampaignId,
     ambassadors,
     donations,
     loading,
@@ -42,6 +52,10 @@ export const CampaignDashboard: React.FC = () => {
     setIsAmbassadorModalOpen,
     isDonationDrawerOpen,
     setIsDonationDrawerOpen,
+    isCreateCampaignOpen,
+    setIsCreateCampaignOpen,
+    isStudioEditorOpen,
+    setIsStudioEditorOpen,
     selectedTierForDonation,
     updateCampaignSettings,
   } = useCampaignModule();
@@ -66,26 +80,47 @@ export const CampaignDashboard: React.FC = () => {
     <div className="w-full min-h-screen bg-slate-50 text-slate-900 pb-20 dir-rtl">
       {/* Top Header Bar */}
       <div className="bg-white border-b border-slate-200 px-6 sm:px-10 py-5 sticky top-0 z-20 shadow-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20">
+            <div className="w-11 h-11 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md shadow-indigo-600/20 shrink-0">
               <Trophy className="w-6 h-6 text-amber-300" />
             </div>
             <div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-950 flex items-center gap-2">
-                מרכז קמפיינים ושגרירים
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-950">
+                  מרכז קמפיינים ושגרירים
+                </h1>
+                {/* Active Campaign Selector */}
+                {campaignsList.length > 1 && (
+                  <select
+                    value={activeCampaignId}
+                    onChange={(e) => setActiveCampaignId(e.target.value)}
+                    className="px-2.5 py-1 bg-indigo-50 border border-indigo-200 text-indigo-900 rounded-lg text-xs font-bold focus:outline-none"
+                  >
+                    {campaignsList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
                   פעיל
                 </span>
-              </h1>
-              <p className="text-xs text-slate-500">
-                ניהול גיוס המונים, שגרירים, קהילות חכמות, סליקה ותזכורות וואטסאפ
+                {campaign?.testMode && (
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 border border-amber-300">
+                    מצב בדיקה (Sandbox)
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                גיוס המונים, עמודי שגרירים, לוח יעדים, עיצוב HomeEditor וסנכרון מדיה ו-CRM
               </p>
             </div>
           </div>
 
           {/* Quick Toolbar */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => refreshData()}
               disabled={loading}
@@ -95,17 +130,38 @@ export const CampaignDashboard: React.FC = () => {
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
 
+            {/* Open Studio / HomeEditor Design */}
             <button
-              onClick={() => setIsAmbassadorModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
+              onClick={() => setIsStudioEditorOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
+              title="ערוך ועצב את הקמפיין עם כל אפשרויות HomeEditor"
             >
-              <Plus className="w-4 h-4" />
-              הקמת שגריר חדש
+              <Sliders className="w-4 h-4 text-amber-400" />
+              עיצוב קמפיין (Studio)
             </button>
 
+            {/* Create Campaign Modal */}
+            <button
+              onClick={() => setIsCreateCampaignOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition-all hover:scale-[1.02]"
+            >
+              <FolderPlus className="w-4 h-4" />
+              הקמת קמפיין חדש
+            </button>
+
+            {/* Create Ambassador Modal */}
+            <button
+              onClick={() => setIsAmbassadorModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
+            >
+              <Plus className="w-4 h-4" />
+              הקמת שגריר
+            </button>
+
+            {/* Donate Drawer */}
             <button
               onClick={() => setIsDonationDrawerOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 text-xs font-bold shadow-sm transition-all hover:scale-[1.02]"
             >
               <Heart className="w-4 h-4 fill-slate-950" />
               ביצוע תרומה
@@ -165,7 +221,7 @@ export const CampaignDashboard: React.FC = () => {
             }`}
           >
             <Settings className="w-4 h-4" />
-            הגדרות קמפיין ומדרגות
+            הגדרות מהירות
           </button>
         </div>
       </div>
@@ -276,7 +332,19 @@ export const CampaignDashboard: React.FC = () => {
 
         {activeTab === 'settings' && (
           <div className="bg-white rounded-3xl p-6 sm:p-8 shadow-sm border border-slate-200/80 space-y-6">
-            <h3 className="text-xl font-black text-slate-900">הגדרות קמפיין, יעדים והתראות</h3>
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div>
+                <h3 className="text-xl font-black text-slate-900">הגדרות קמפיין מהירות</h3>
+                <p className="text-xs text-slate-500">לעיצוב מלא של גרפיקה, מדרגות, וסרטוני וידאו — פתח את ה-Studio</p>
+              </div>
+              <button
+                onClick={() => setIsStudioEditorOpen(true)}
+                className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all"
+              >
+                <Sliders className="w-4 h-4 text-amber-400" />
+                פתח את ה-HomeEditor Studio
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -327,6 +395,13 @@ export const CampaignDashboard: React.FC = () => {
 
       {/* Floating Alerts & Modals */}
       <LiveDonationAlert />
+
+      <CreateCampaignModal />
+
+      <CampaignStudioEditor
+        isOpen={isStudioEditorOpen}
+        onClose={() => setIsStudioEditorOpen(false)}
+      />
 
       <AmbassadorModal
         isOpen={isAmbassadorModalOpen}

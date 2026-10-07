@@ -154,7 +154,7 @@ export class CrmContactSyncService {
     } catch (e) {
       console.warn('[CrmContactSyncService] Storage read error:', e);
     }
-    this.cachedContacts = generateKesherMockContacts();
+    this.cachedContacts = [];
     this.isLoaded = true;
   }
 
@@ -257,9 +257,6 @@ export class CrmContactSyncService {
   }
 
   public getContacts(): CrmContactSummary[] {
-    if (this.cachedContacts.length === 0) {
-      return generateKesherMockContacts();
-    }
     return this.cachedContacts;
   }
 

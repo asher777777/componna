@@ -55,7 +55,8 @@ import {
 import { useBrandDna } from '../modules/brand-dna-hub/context/BrandDnaContext';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { AuthModal } from '../components/Auth/AuthModal';
-import { AuthState, subscribeToAuth, logoutUser } from '../services/firebaseAuth';
+import { AuthState, subscribeToAuth, logoutUser, fetchUserRole } from '../services/firebaseAuth';
+import { StorefrontService } from '../modules/saas-storefront-composer/services/storefrontService';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -99,6 +100,47 @@ export const HomePage: React.FC = () => {
     });
     return () => unsub();
   }, [firebaseApp]);
+
+  /**
+   * ניתוב משתמש חכם לאחר התחברות:
+   * 1. לקוח עם סאב-דומיין (Customer) -> מעבר ללוח הבקרה שבסאב-דומיין שלו (?tenant=...&mode=admin)
+   * 2. מנהל מערכת (Admin) -> מעבר ללוח הבקרה הראשי (/control-center)
+   * 3. אורח רשום (Registered User / Viewer) -> נשאר בעמוד הבית עם חיווי התחברות מלא
+   */
+  const handleAuthSuccess = async (user: any) => {
+    setIsAuthModalOpen(false);
+    if (!user) return;
+
+    const email = user.email || '';
+    const phone = user.phoneNumber || '';
+    const uid = user.uid || '';
+
+    // א. בדיקה אם המשתמש הוא לקוח בעל סאב-דומיין קיים
+    const tenantByEmail = email ? StorefrontService.findTenantForUser(email) : null;
+    const tenantByPhone = phone ? StorefrontService.findTenantForUser(phone) : null;
+    const matchedTenant = tenantByEmail || tenantByPhone;
+
+    if (matchedTenant && matchedTenant.subdomain) {
+      const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+      if (isLocal) {
+        window.location.href = `${window.location.origin}/?tenant=${matchedTenant.subdomain}&mode=admin`;
+      } else {
+        window.location.href = `https://${matchedTenant.fullDomain}/?mode=admin`;
+      }
+      return;
+    }
+
+    // ב. בדיקת הרשאת המשתמש ב-Firebase / Firestore
+    const userRole = await fetchUserRole(uid, firebaseApp);
+
+    if (userRole === 'admin') {
+      // מנהל מערכת ראשי -> מעבר ישיר ללוח הבקרה המרכזי
+      navigate('/control-center');
+      return;
+    }
+
+    // ג. אורח רשום (viewer / editor ללא סאב-דומיין ייעודי) -> נשאר בעמוד הבית בהתאם לבקשת המשתמש
+  };
 
   // Brand DNA values with graceful defaults
   const companyName = brandDna.identity.companyName || 'Comona Workspace';
@@ -908,9 +950,7 @@ export const HomePage: React.FC = () => {
         firebaseApp={firebaseApp}
         title="התחברות למערכת"
         subtitle="כניסה מאובטחת לניהול מודולים ומרכז השליטה"
-        onSuccess={() => {
-          setIsAuthModalOpen(false);
-        }}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );

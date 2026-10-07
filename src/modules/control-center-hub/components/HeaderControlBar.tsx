@@ -9,8 +9,11 @@ import {
   Key,
   UserPlus,
   Sun,
-  Moon
+  Moon,
+  Home,
+  ArrowRight
 } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 import { useControlCenter } from '../context/ControlCenterContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { ControlCenterLayoutType } from '../types';
@@ -45,10 +48,25 @@ export const HeaderControlBar: React.FC = () => {
     }`}>
       <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3">
         
-        {/* 5 Layout Selector Pills */}
-        <div className={`p-1 rounded-2xl border flex items-center gap-1 shadow-sm overflow-x-auto max-w-full ${
-          isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900/90 border-slate-800'
-        }`}>
+        {/* Navigation back to Home & 5 Layout Selector Pills */}
+        <div className="flex items-center gap-2 max-w-full overflow-x-auto">
+          {/* Back to Home Page button */}
+          <NavLink
+            to="/"
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition cursor-pointer shrink-0 border ${
+              isLight
+                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                : 'bg-indigo-950/50 hover:bg-indigo-900/60 text-indigo-300 border-indigo-800/60'
+            }`}
+            title="חזרה לעמוד הבית הראשי"
+          >
+            <Home className="w-3.5 h-3.5" />
+            <span>עמוד הבית</span>
+          </NavLink>
+
+          <div className={`p-1 rounded-2xl border flex items-center gap-1 shadow-sm overflow-x-auto max-w-full ${
+            isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-900/90 border-slate-800'
+          }`}>
           {layouts.map((item) => {
             const Icon = item.icon;
             const isActive = layout === item.id;
@@ -70,6 +88,7 @@ export const HeaderControlBar: React.FC = () => {
               </button>
             );
           })}
+          </div>
         </div>
 
         {/* Action Controls & Day/Night Toggle */}

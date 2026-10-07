@@ -131,4 +131,18 @@ export class StorefrontService {
     console.log(`[Provisioning] Tenant registered: ${newTenant.fullDomain} with collection prefix: ${newTenant.collectionPrefix}`);
     return newTenant;
   }
+
+  /**
+   * Find a tenant record matching user email, username or phone
+   */
+  static findTenantForUser(identifier: string): TenantRecord | null {
+    if (!identifier) return null;
+    const clean = identifier.trim().toLowerCase();
+    const tenants = this.getAllTenants();
+    return tenants.find(t => 
+      t.ownerEmail?.toLowerCase() === clean || 
+      t.subdomain?.toLowerCase() === clean ||
+      (t.ownerPhone && t.ownerPhone.replace(/\D/g, '') === clean.replace(/\D/g, '') && clean.replace(/\D/g, '').length >= 7)
+    ) || null;
+  }
 }

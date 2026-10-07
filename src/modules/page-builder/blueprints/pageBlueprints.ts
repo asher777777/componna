@@ -26,7 +26,7 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
       leadsCount: 0,
       globalSettings: {
         siteTitle: 'ההצעה הבלעדית של השנה',
-        companyName: 'מותג הפרימיום',
+        companyName: 'קמונה פתרונות דיגיטליים',
         slogan: 'מקפצה אמיתית לתוצאות בלתי מתפשרות',
         theme: 'modern',
         headerLayout: 'floating-glass',
@@ -40,10 +40,10 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
         fontFamily: 'Heebo, sans-serif',
         borderRadius: 'lg',
         buttonStyle: 'gradient',
-        contactWhatsApp: '972501234567',
-        contactPhone: '03-1234567',
-        contactEmail: 'sales@example.com',
-        address: 'מגדלי עזריאלי, תל אביב',
+        contactWhatsApp: '0526968008',
+        contactPhone: '052-6968008',
+        contactEmail: 'ovt5771@gmail.com',
+        address: 'דרך מנחם בגין 144, תל אביב',
       },
       seoSettings: {
         title: 'השקה מיוחדת - הצטרפו לנבחרת המובילה',
@@ -126,8 +126,8 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
       leadsCount: 0,
       globalSettings: {
         siteTitle: 'שירות מומחה מקומי עם אחריות מלאה',
-        companyName: 'מומחי המרכז',
-        slogan: 'זמינות גבוהה, שירות ללא פשרות והגעה עד 60 דקות',
+        companyName: 'קמונה פתרונות דיגיטליים',
+        slogan: 'זמינות גבוהה, שירות ללא פשרות והגעה מהירה',
         theme: 'emerald',
         headerLayout: 'floating-glass',
         headerSticky: true,
@@ -140,10 +140,10 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
         fontFamily: 'Heebo, sans-serif',
         borderRadius: 'lg',
         buttonStyle: 'solid',
-        contactWhatsApp: '972501234567',
-        contactPhone: '03-5551234',
-        contactEmail: 'service@example.com',
-        address: 'רחוב ויצמן 14, תל אביב',
+        contactWhatsApp: '0526968008',
+        contactPhone: '052-6968008',
+        contactEmail: 'ovt5771@gmail.com',
+        address: 'דרך מנחם בגין 144, תל אביב',
       },
       seoSettings: {
         title: 'שירות מומחה בתל אביב והמרכז | זמינות מיידית',
@@ -155,9 +155,9 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
           targetRegion: 'גוש דן והמרכז',
           targetCountry: 'ישראל',
           serviceAreas: ['תל אביב', 'רמת גן', 'גבעתיים', 'חולון', 'הרצליה'],
-          localBusinessName: 'מומחי המרכז',
-          businessAddress: 'רחוב ויצמן 14, תל אביב',
-          businessPhone: '03-5551234',
+          localBusinessName: 'קמונה פתרונות דיגיטליים',
+          businessAddress: 'דרך מנחם בגין 144, תל אביב',
+          businessPhone: '052-6968008',
           openingHours: 'א-ה 08:00-20:00, ו 08:00-13:00',
         },
       },
@@ -235,8 +235,8 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
       viewsCount: 0,
       leadsCount: 0,
       globalSettings: {
-        siteTitle: 'מרכז הידע וההכשרה המוביל',
-        companyName: 'המומחה הדיגיטלי',
+        siteTitle: 'מרכז הידע וההכשרה - קמונה',
+        companyName: 'קמונה פתרונות דיגיטליים',
         slogan: 'תובנות מעשיות וידע עמוק למקבלי החלטות',
         theme: 'modern',
         headerLayout: 'centered',
@@ -250,9 +250,9 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
         fontFamily: 'Heebo, sans-serif',
         borderRadius: 'md',
         buttonStyle: 'glass',
-        contactWhatsApp: '972501234567',
-        contactPhone: '03-1234567',
-        contactEmail: 'academy@example.com',
+        contactWhatsApp: '0526968008',
+        contactPhone: '052-6968008',
+        contactEmail: 'ovt5771@gmail.com',
       },
       seoSettings: {
         title: 'המדריך המקיף לבכירים ומנהלים - הורדה ישירה',
@@ -319,8 +319,8 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
       viewsCount: 0,
       leadsCount: 0,
       globalSettings: {
-        siteTitle: 'הקהילה המובילה בישראל',
-        companyName: 'מועדון החברים',
+        siteTitle: 'קהילת קמונה VIP',
+        companyName: 'קמונה קהילת VIP',
         slogan: 'נטוורקינג, שיתופי פעולה ותוכן בלעדי שאי אפשר למצוא בשום מקום אחר',
         theme: 'purple',
         headerLayout: 'floating-glass',
@@ -334,9 +334,9 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
         fontFamily: 'Heebo, sans-serif',
         borderRadius: 'full',
         buttonStyle: 'gradient',
-        contactWhatsApp: '972501234567',
-        contactPhone: '03-1234567',
-        contactEmail: 'club@example.com',
+        contactWhatsApp: '0526968008',
+        contactPhone: '052-6968008',
+        contactEmail: 'ovt5771@gmail.com',
       },
       seoSettings: {
         title: 'הצטרפו לקהילת המקצוענים - מפגשים, הטבות ונטוורקינג',
@@ -411,7 +411,7 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
       leadsCount: 0,
       globalSettings: {
         siteTitle: 'קמפיין שותפות ונתינה 2026',
-        companyName: 'עמותת האור והתקווה',
+        companyName: 'עמותת קמונה חסד ונתינה',
         slogan: 'כל תרומה מוכפלת ומגיעה ישירות למי שזקוק לה',
         theme: 'sunset',
         headerLayout: 'floating-glass',
@@ -425,10 +425,10 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
         fontFamily: 'Heebo, sans-serif',
         borderRadius: 'lg',
         buttonStyle: 'gradient',
-        contactWhatsApp: '972501234567',
-        contactPhone: '03-1234567',
-        contactEmail: 'donations@example.org',
-        address: 'רחוב יפו 45, ירושלים',
+        contactWhatsApp: '0526968008',
+        contactPhone: '052-6968008',
+        contactEmail: 'ovt5771@gmail.com',
+        address: 'דרך מנחם בגין 144, תל אביב',
       },
       seoSettings: {
         title: 'קמפיין שותפות וגיוס - תרומה מוכרת לפי סעיף 46',
@@ -488,43 +488,42 @@ export function hydrateBlueprintWithBrandDna(
   brandDna?: any
 ): PageBuilderConfig {
   const cloned: PageBuilderConfig = JSON.parse(JSON.stringify(blueprintConfig));
-  if (!brandDna) return cloned;
 
-  const companyName = brandDna?.identity?.companyName;
-  const slogan = brandDna?.identity?.slogan;
+  const companyName = brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים';
+  const slogan = brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת';
   const logoUrl = brandDna?.identity?.logoUrl;
   const primaryColor = brandDna?.designTokens?.primaryColor;
   const secondaryColor = brandDna?.designTokens?.secondaryColor;
-  const phone = brandDna?.trust?.contactPhone;
-  const email = brandDna?.trust?.contactEmail;
-  const whatsapp = brandDna?.trust?.whatsappSupportNumber;
-  const address = brandDna?.trust?.officeAddress;
+  const phone = brandDna?.trust?.contactPhone || '052-6968008';
+  const email = brandDna?.trust?.contactEmail || 'ovt5771@gmail.com';
+  const whatsapp = brandDna?.trust?.whatsappSupportNumber || '0526968008';
+  const address = brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
 
-  if (companyName) cloned.globalSettings.companyName = companyName;
+  cloned.globalSettings.companyName = companyName;
   if (slogan) cloned.globalSettings.slogan = slogan;
   if (logoUrl) cloned.globalSettings.siteLogoUrl = logoUrl;
   if (primaryColor) cloned.globalSettings.primaryColor = primaryColor;
   if (secondaryColor) cloned.globalSettings.secondaryColor = secondaryColor;
-  if (phone) cloned.globalSettings.contactPhone = phone;
-  if (email) cloned.globalSettings.contactEmail = email;
-  if (whatsapp) cloned.globalSettings.contactWhatsApp = whatsapp;
-  if (address) cloned.globalSettings.address = address;
+  cloned.globalSettings.contactPhone = phone;
+  cloned.globalSettings.contactEmail = email;
+  cloned.globalSettings.contactWhatsApp = whatsapp;
+  cloned.globalSettings.address = address;
   cloned.globalSettings.brandDnaSynced = true;
 
   // Sync sections contact info
   Object.keys(cloned.sections).forEach((secKey) => {
     const sec = cloned.sections[secKey];
     if (sec.type === 'contact') {
-      if (phone) sec.phone = phone;
-      if (email) sec.email = email;
-      if (whatsapp) sec.whatsapp = whatsapp;
-      if (address) sec.address = address;
+      sec.phone = phone;
+      sec.email = email;
+      sec.whatsapp = whatsapp;
+      sec.address = address;
     } else if (sec.type === 'geoLocal') {
-      if (phone) sec.phone = phone;
-      if (email) sec.email = email;
-      if (whatsapp) sec.whatsapp = whatsapp;
-      if (address) sec.address = address;
-      if (companyName) sec.businessName = companyName;
+      sec.phone = phone;
+      sec.email = email;
+      sec.whatsapp = whatsapp;
+      sec.address = address;
+      sec.businessName = companyName;
     } else if (sec.type === 'hero') {
       if (companyName && !sec.title.includes(companyName)) {
         sec.title = `${companyName} - ${sec.title}`;

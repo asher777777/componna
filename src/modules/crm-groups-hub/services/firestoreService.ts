@@ -153,24 +153,7 @@ export async function fetchGroupsAndContactsData(
     return !groups.some((g) => isContactInGroup(c, g));
   }).length;
 
-  // Fallback to rich mock data if Firestore has 0 contacts
-  if (contacts.length === 0 && savedGroups.size === 0) {
-    const mockGroupsWithCounts = MOCK_COMMUNITIES.map((g) => {
-      const count = MOCK_CONTACTS.filter((c) => isContactInGroup(c, g)).length;
-      return { ...g, count };
-    });
-    const mockUntagged = MOCK_CONTACTS.filter((c) => !mockGroupsWithCounts.some((g) => isContactInGroup(c, g))).length;
-    const mockCities = Array.from(new Set(MOCK_CONTACTS.map((c) => c.mh_crm_city).filter(Boolean) as string[])).sort();
-
-    return {
-      groups: mockGroupsWithCounts,
-      contacts: MOCK_CONTACTS,
-      totalContacts: MOCK_CONTACTS.length,
-      untaggedCount: mockUntagged,
-      availableCities: mockCities,
-    };
-  }
-
+  // Zero mock data: return real counts directly
   return {
     groups,
     contacts,

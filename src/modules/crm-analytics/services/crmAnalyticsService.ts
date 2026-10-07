@@ -469,11 +469,7 @@ export async function fetchLiveCrmAnalytics(
   collections = DEFAULT_COLLECTIONS
 ): Promise<CRMAnalyticsData> {
   if (!firebaseApp) {
-    if (ownerId) {
-      return computeAnalyticsMetrics([], [], filter);
-    }
-    // Fallback to rich mock data containing contacts and leads
-    return computeAnalyticsMetrics(generateMockCrmData(), [], filter);
+    return computeAnalyticsMetrics([], [], filter);
   }
 
   try {
@@ -550,20 +546,14 @@ export async function fetchLiveCrmAnalytics(
     } catch {}
 
     if (contacts.length === 0) {
-      if (ownerId) {
-        // Authenticated user gets a completely CLEAN system!
-        return computeAnalyticsMetrics([], customFields, filter);
-      }
-      return computeAnalyticsMetrics(generateMockCrmData(), customFields, filter);
+      // Authenticated live system: clean 0 data when empty, NO dummy mock data!
+      return computeAnalyticsMetrics([], customFields, filter);
     }
 
     return computeAnalyticsMetrics(contacts, customFields, filter);
   } catch (error) {
-    console.warn('Firestore fetch failed, falling back to clean data or mock dataset:', error);
-    if (ownerId) {
-      return computeAnalyticsMetrics([], [], filter);
-    }
-    return computeAnalyticsMetrics(generateMockCrmData(), [], filter);
+    console.warn('Firestore fetch failed, returning clean data:', error);
+    return computeAnalyticsMetrics([], [], filter);
   }
 }
 

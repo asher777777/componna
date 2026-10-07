@@ -1010,16 +1010,15 @@ export const DatabaseConnectorModal: React.FC = () => {
                     className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white text-xs focus:border-indigo-500"
                     dir="ltr"
                   >
-                    <optgroup label="⚡ Gemini 3.x Flash Models (New Stable)">
-                      <option value="gemini-3.8-flash">gemini-3.8-flash (הכי אינטליגנטי ומתקדם לסוכנים)</option>
-                      <option value="gemini-3.7-flash">gemini-3.7-flash (קידוד וסוכנים רב-שלביים)</option>
-                      <option value="gemini-3.6-flash">gemini-3.6-flash (מאוזן ומהיר)</option>
-                      <option value="gemini-3.5-flash">gemini-3.5-flash (מהיר וקלאסי)</option>
+                    <optgroup label="⚡ Gemini 3.x Flash Models (Generally Available)">
+                      <option value="gemini-3.8-flash">gemini-3.8-flash (מודל דגל מתקדם לסוכנים וקידוד)</option>
+                      <option value="gemini-3.8-flash-lite">gemini-3.8-flash-lite (מהיר במיוחד לתפוקה גבוהה)</option>
+                      <option value="gemini-3.5-flash">gemini-3.5-flash (יציב, מאוזן ומהיר)</option>
                       <option value="gemini-3.5-flash-lite">gemini-3.5-flash-lite (אולטרה חסכוני ומהיר)</option>
-                      <option value="gemini-3.1-flash-lite">gemini-3.1-flash-lite (קל משקל לתפוקה גבוהה)</option>
                     </optgroup>
                     <optgroup label="🧠 Pro & Reasoning Models">
-                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (מחשבה עמוקה ופתרון מורכב)</option>
+                      <option value="gemini-3.1-pro">gemini-3.1-pro (מחשבה עמוקה ופתרון מורכב)</option>
+                      <option value="gemini-3.1-pro-preview">gemini-3.1-pro-preview (גרסת תצוגה מקדימה)</option>
                     </optgroup>
                   </select>
                 </div>

@@ -104,7 +104,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
 תפקידך להעניק מענה אדיב, מהיר, מדויק ותמציתי בעברית בוואטסאפ.
 שמור על נימה שירותית, עניינית, עם אימוג'י במידה.
 אם הלקוח שואל על מחיר או מוצרים - ענה בקצרה והצע לו לבחור באחד הכפתורים מטה.`,
-    model: 'gemini-3.6-flash',
+    model: 'gemini-2.5-flash',
     temperature: 0.7,
     interactiveButtons: [
       { buttonId: 'btn_pricing', buttonText: '💰 קבלת הצעת מחיר', actionType: 'prompt', actionValue: 'מה המחיר של המערכת?' },
@@ -123,7 +123,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     triggerType: 'keyword',
     triggerKeywords: ['תקלה', 'לא עובד', 'שגיאה', 'עזרה טכנית', 'סנכרון'],
     systemPrompt: `אתה מומחה תמיכה טכנית של Comona. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל.`,
-    model: 'gemini-3.6-flash',
+    model: 'gemini-2.5-flash',
     temperature: 0.4,
     interactiveButtons: [
       { buttonId: 'btn_reboot', buttonText: '🔄 בדיקת סטטוס מופע', actionType: 'prompt', actionValue: 'כיצד מאתחלים את המופע?' },
@@ -139,18 +139,16 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
  * Standardized across Comona (Video Studio, Avatar Creator, Brand DNA).
  */
 export function getValidGeminiModel(requestedModel?: string): string {
-  if (!requestedModel) return 'gemini-3.6-flash';
+  if (!requestedModel) return 'gemini-2.5-flash';
   const clean = requestedModel.toLowerCase().trim();
 
-  if (clean.includes('3.8-flash') || clean === 'gemini-3.8-flash') return 'gemini-3.8-flash';
-  if (clean.includes('3.7-flash') || clean === 'gemini-3.7-flash') return 'gemini-3.7-flash';
-  if (clean.includes('3.6-flash') || clean === 'gemini-3.6-flash') return 'gemini-3.6-flash';
-  if (clean.includes('3.5-flash-lite')) return 'gemini-3.5-flash-lite';
-  if (clean.includes('3.5-flash')) return 'gemini-3.5-flash';
-  if (clean.includes('pro')) return 'gemini-3.1-pro-preview';
-  if (clean.includes('lite')) return 'gemini-3.5-flash-lite';
+  if (clean.includes('pro')) return 'gemini-1.5-pro';
+  if (clean.includes('2.5-flash')) return 'gemini-2.5-flash';
+  if (clean.includes('2.0-flash')) return 'gemini-2.0-flash';
+  if (clean.includes('1.5-flash')) return 'gemini-1.5-flash';
+  if (clean.includes('flash')) return 'gemini-2.5-flash';
 
-  return 'gemini-3.6-flash';
+  return 'gemini-2.5-flash';
 }
 
 /**
@@ -276,22 +274,25 @@ export class WhatsAppAiBotService {
       brandDna,
     } = params;
 
-    if (!apiKey || !apiKey.trim()) {
-      throw new Error('לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח בחיבורי המערכת.');
+    const effectiveApiKey = (apiKey && apiKey.trim()) ||
+      (typeof window !== 'undefined' && ((window as any).__COMONA_GEMINI_API_KEY || (window as any).__GEMINI_API_KEY)) ||
+      import.meta.env.VITE_GEMINI_API_KEY ||
+      '';
+
+    if (!effectiveApiKey) {
+      throw new Error('לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח ברכיב סנכרון וחיבורי המערכת (DB Connector).');
     }
 
-    const cleanKey = apiKey.trim();
+    const cleanKey = effectiveApiKey.trim();
     const primaryModel = getValidGeminiModel(preferredModel);
 
-    // Comona Next-Gen Gemini 3.x Flash/Pro Fallback Chain
+    // Reliable Google Gemini Production Model Chain
     const modelsToTry = [
       primaryModel,
-      'gemini-3.6-flash',
-      'gemini-3.8-flash',
-      'gemini-3.7-flash',
-      'gemini-3.5-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-3.1-pro-preview',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-2.0-flash',
+      'gemini-1.5-pro',
     ];
 
     const uniqueModels = Array.from(new Set(modelsToTry));
@@ -491,9 +492,14 @@ export class WhatsAppAiBotService {
   }): Promise<{ replyText: string; buttons: { buttonId: string; buttonText: string }[]; costReport?: TokenUsageReport }> {
     const { apiKey, botConfig, userMessage, chatHistory = [], brandDna } = params;
 
-    if (!apiKey || !apiKey.trim()) {
+    const effectiveApiKey = (apiKey && apiKey.trim()) ||
+      (typeof window !== 'undefined' && ((window as any).__COMONA_GEMINI_API_KEY || (window as any).__GEMINI_API_KEY)) ||
+      import.meta.env.VITE_GEMINI_API_KEY ||
+      '';
+
+    if (!effectiveApiKey) {
       return {
-        replyText: '⚠️ לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח ברכיב הסנכרון וההגדרות.',
+        replyText: '⚠️ לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח ברכיב הסנכרון וההגדרות (סמל המפתח).',
         buttons: botConfig.interactiveButtons.map((b) => ({
           buttonId: b.buttonId,
           buttonText: b.buttonText,
@@ -510,11 +516,11 @@ export class WhatsAppAiBotService {
 
     try {
       const res = await this.callGeminiApi({
-        apiKey,
+        apiKey: effectiveApiKey,
         prompt,
         systemInstruction: `SYSTEM INSTRUCTIONS:\n${botConfig.systemPrompt}\nהשב בעברית קולחת, תמציתית ונעימה לוואטסאפ.`,
         temperature: botConfig.temperature ?? 0.7,
-        preferredModel: botConfig.model || 'gemini-3.6-flash',
+        preferredModel: botConfig.model || 'gemini-2.5-flash',
         brandDna,
       });
 

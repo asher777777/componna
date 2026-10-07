@@ -58,18 +58,19 @@ export interface ClarificationServiceResult {
  * Resolves any custom / UI model alias into a valid, live Google AI Studio API model
  */
 export function getValidGeminiModel(requestedModel?: string): string {
-  if (!requestedModel) return 'gemini-3.6-flash';
+  if (!requestedModel) return 'gemini-3.8-flash';
   const clean = requestedModel.toLowerCase().trim();
 
+  if (clean.includes('3.8-flash-lite')) return 'gemini-3.8-flash-lite';
   if (clean.includes('3.8-flash') || clean === 'gemini-3.8-flash') return 'gemini-3.8-flash';
-  if (clean.includes('3.7-flash') || clean === 'gemini-3.7-flash') return 'gemini-3.7-flash';
-  if (clean.includes('3.6-flash') || clean === 'gemini-3.6-flash') return 'gemini-3.6-flash';
+  if (clean.includes('3.6-flash') || clean.includes('3.7-flash')) return 'gemini-3.8-flash'; // Auto-upgrade old references
   if (clean.includes('3.5-flash-lite')) return 'gemini-3.5-flash-lite';
   if (clean.includes('3.5-flash')) return 'gemini-3.5-flash';
-  if (clean.includes('pro')) return 'gemini-3.1-pro-preview';
-  if (clean.includes('lite')) return 'gemini-3.5-flash-lite';
+  if (clean.includes('3.1-pro')) return 'gemini-3.1-pro';
+  if (clean.includes('pro')) return 'gemini-3.1-pro';
+  if (clean.includes('lite')) return 'gemini-3.8-flash-lite';
 
-  return 'gemini-3.6-flash';
+  return 'gemini-3.8-flash';
 }
 
 /**
@@ -136,7 +137,7 @@ ${sourcePageSummary.sectionsSummaryText}
  */
 export async function generateClarificationQuestionsWithAI(
   apiKey: string,
-  modelName: string = 'gemini-3.6-flash',
+  modelName: string = 'gemini-3.8-flash',
   params: ScriptGenerationParams
 ): Promise<ClarificationServiceResult> {
   const prodType = PRODUCTION_TYPES_CATALOG.find(p => p.id === params.productionType) || PRODUCTION_TYPES_CATALOG[0];
@@ -267,7 +268,7 @@ Return ONLY a valid JSON object matching this exact schema:
  */
 export async function generateStoryboardWithAI(
   apiKey: string,
-  modelName: string = 'gemini-3.6-flash',
+  modelName: string = 'gemini-3.8-flash',
   params: ScriptGenerationParams
 ): Promise<ScriptGenerationResult> {
   const sceneCount = Math.min(Math.max(params.sceneCount || 4, 1), 20);
@@ -525,7 +526,7 @@ Return ONLY a valid JSON object matching this exact schema:
  */
 export async function generateNextSceneWithAI(
   apiKey: string,
-  modelName: string = 'gemini-3.6-flash',
+  modelName: string = 'gemini-3.8-flash',
   project: VideoProject,
   customSceneInstruction?: string
 ): Promise<{ scene: VideoScene; costReport: TokenUsageReport; updatedHistory: ChatMessageContext[] }> {

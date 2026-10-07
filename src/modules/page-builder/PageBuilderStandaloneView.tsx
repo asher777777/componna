@@ -18,47 +18,47 @@ import { PageBuilderProvider } from './context/PageBuilderContext';
 
 const STORAGE_KEY = 'comona_pagebuilder_current_page';
 
-const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
-  pageId: 'demo-homepage',
-  pageTitle: 'עמוד הבית הראשי 2026',
+const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
+  pageId: 'page_main_home',
+  pageTitle: 'עמוד הבית הראשי',
   slug: 'home',
   published: true,
   isHomePage: true,
-  viewsCount: 1420,
-  leadsCount: 38,
+  viewsCount: 0,
+  leadsCount: 0,
   globalSettings: {
-    siteTitle: 'הפלטפורמה הדיגיטלית המובילה',
-    companyName: 'הארגון המוביל',
-    slogan: 'חדשנות, איכות וצמיחה מתמדת',
+    siteTitle: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
+    companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
+    slogan: brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת',
     theme: 'modern',
     headerLayout: 'floating-glass',
     headerSticky: true,
     isHeaderVisible: true,
     isFooterVisible: true,
-    primaryColor: '#6366f1',
-    secondaryColor: '#0ea5e9',
+    primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
+    secondaryColor: brandDna?.designTokens?.secondaryColor || '#0ea5e9',
     backgroundColor: '#0a0a0c',
     textColor: '#f8fafc',
-    buttonBgColor: '#6366f1',
-    fontFamily: 'Heebo, sans-serif',
-    contactWhatsApp: '972545947701',
-    contactPhone: '03-5551234',
-    contactEmail: 'contact@example.org',
-    address: 'דרך מנחם בגין 144, תל אביב',
+    buttonBgColor: brandDna?.designTokens?.primaryColor || '#6366f1',
+    fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+    contactWhatsApp: brandDna?.trust?.whatsappSupportNumber || '0526968008',
+    contactPhone: brandDna?.trust?.contactPhone || '052-6968008',
+    contactEmail: brandDna?.trust?.contactEmail || 'ovt5771@gmail.com',
+    address: brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
   },
   seoSettings: {
-    title: 'הפלטפורמה המובילה - דפי נחיתה וניהול קהילות',
-    description: 'עצבו ופרסמו דפי אינטרנט מתקדמים ב-AI עם תמיכה מלאה ב-GEO SEO, מחירונים חכמים ו-WhatsApp.',
-    keywords: ['דפי נחיתה', 'קהילות', 'שירותים דיגיטליים', 'AI Page Builder'],
+    title: `${brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים'} - דפי נחיתה וניהול קהילות`,
+    description: brandDna?.identity?.shortVision || 'פלטפורמה מתקדמת לדפי אינטרנט ואוטומציות דיגיטליות.',
+    keywords: ['דפי נחיתה', 'קהילות', 'שירותים דיגיטליים', 'קמונה'],
     geo: {
       enabled: true,
       targetCity: 'תל אביב',
       targetRegion: 'גוש דן והמרכז',
       targetCountry: 'ישראל',
       serviceAreas: ['תל אביב וגוש דן', 'ירושלים והסביבה', 'השרון', 'צפון ודרום'],
-      localBusinessName: 'הארגון המוביל',
-      businessAddress: 'דרך מנחם בגין 144, תל אביב',
-      businessPhone: '03-5551234',
+      localBusinessName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
+      businessAddress: brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
+      businessPhone: brandDna?.trust?.contactPhone || '052-6968008',
       openingHours: 'א׳-ה׳: 09:00-19:00',
     },
   },
@@ -88,7 +88,7 @@ const DEMO_INITIAL_CONFIG: PageBuilderConfig = {
     geoLocal: { ...SECTION_REGISTRY.geoLocal.defaultConfig, id: 'geoLocal' },
     contact: { ...SECTION_REGISTRY.contact.defaultConfig, id: 'contact' },
   },
-};
+});
 
 const PageBuilderStandaloneViewInner: React.FC = () => {
   const navigate = useNavigate();
@@ -96,11 +96,9 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
 
-
-
   const [viewMode, setViewMode] = useState<'pages' | 'editor' | 'public'>('pages');
-  const [pages, setPages] = useState<PageBuilderConfig[]>([DEMO_INITIAL_CONFIG]);
-  const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(DEMO_INITIAL_CONFIG);
+  const [pages, setPages] = useState<PageBuilderConfig[]>([]);
+  const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(() => getInitialCleanPageConfig(brandDna));
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
@@ -111,18 +109,41 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   useEffect(() => {
     const loadData = async () => {
       const all = await pageBuilderFirestore.getAllPages(db);
-      if (all.length > 0) {
-        setPages(all);
-        const home = all.find((p) => p.isHomePage) || all[0];
+      // Clean up any historical dummy values if present in stored pages
+      const sanitized = all.map((p) => {
+        let pCopy = { ...p };
+        let wasCleaned = false;
+        if (pCopy.viewsCount === 1420 && pCopy.leadsCount === 38) {
+          pCopy.viewsCount = 0;
+          pCopy.leadsCount = 0;
+          wasCleaned = true;
+        }
+        if (pCopy.globalSettings?.companyName === 'הארגון המוביל') {
+          pCopy.globalSettings = {
+            ...pCopy.globalSettings,
+            companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
+            siteTitle: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
+          };
+          wasCleaned = true;
+        }
+        if (wasCleaned && db) {
+          pageBuilderFirestore.savePage(pCopy, db).catch(() => {});
+        }
+        return pCopy;
+      });
+
+      if (sanitized.length > 0) {
+        setPages(sanitized);
+        const home = sanitized.find((p) => p.isHomePage) || sanitized[0];
         setCurrentPage(home);
       } else {
-        // Save initial demo
-        await pageBuilderFirestore.savePage(DEMO_INITIAL_CONFIG, db);
-        setPages([DEMO_INITIAL_CONFIG]);
+        // Zero dummy data: clean empty state, no auto-saving fake pages to Firestore
+        setPages([]);
+        setCurrentPage(getInitialCleanPageConfig(brandDna));
       }
     };
     loadData();
-  }, [db]);
+  }, [db, brandDna]);
 
   // Save current page handler
   const handleSavePage = async (updated: PageBuilderConfig) => {
@@ -143,7 +164,9 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   // Create empty new page
   const handleCreateNewPage = async () => {
     const newId = `page_${Date.now()}`;
+    const baseInitial = getInitialCleanPageConfig(brandDna);
     const newPage: PageBuilderConfig = {
+      ...baseInitial,
       pageId: newId,
       pageTitle: 'דף נחיתה חדש',
       slug: `page-${Math.floor(Math.random() * 9000 + 1000)}`,
@@ -152,10 +175,10 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       viewsCount: 0,
       leadsCount: 0,
       globalSettings: {
-        ...DEMO_INITIAL_CONFIG.globalSettings,
+        ...baseInitial.globalSettings,
         siteTitle: 'דף נחיתה חדש',
         primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
-        companyName: brandDna?.identity?.companyName || 'החברה המובילה',
+        companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
         fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
       },
       seoSettings: {
