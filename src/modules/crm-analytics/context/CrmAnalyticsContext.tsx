@@ -148,10 +148,16 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       refresh();
     });
 
+    const unsubDonation = eventBus.subscribe('campaign:donation:completed', (payload) => {
+      console.log('[CRM Analytics] Received donation completed from EventBus:', payload);
+      refresh();
+    });
+
     return () => {
       unsubLead();
       unsubForm();
       unsubSmartForm();
+      unsubDonation();
     };
   }, [refresh]);
 

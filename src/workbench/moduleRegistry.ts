@@ -51,6 +51,9 @@ const DbCollectionsHubStandaloneView = React.lazy(() =>
 const TemplateStandaloneView = React.lazy(() =>
   import('../modules/_template').then((m) => ({ default: m.TemplateStandaloneView }))
 );
+const AmbassadorCampaignsStandaloneView = React.lazy(() =>
+  import('../modules/ambassador-campaigns-hub').then((m) => ({ default: m.AmbassadorCampaignsStandaloneView }))
+);
 
 export interface ModuleDefinition {
   id: string;
@@ -109,6 +112,14 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: CrmGroupsHubStandaloneView,
     route: '/crm-groups',
     collectionPrefix: 'crm_groups',
+  },
+  {
+    id: 'ambassador-campaigns-hub',
+    name: 'קמפיינים ושגרירים (Ambassador Campaigns Hub)',
+    description: 'מערכת גיוס המונים רב-שכבתית: עמודי שגרירים, לוח התקדמות, מדרגות תרומה, סליקה מאובטחת וסנכרון תזכורות וואטסאפ',
+    component: AmbassadorCampaignsStandaloneView,
+    route: '/campaigns-hub',
+    collectionPrefix: 'mod_campaigns_',
   },
   {
     id: 'smart-form-builder',

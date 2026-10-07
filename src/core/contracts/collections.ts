@@ -48,6 +48,11 @@ export const SYSTEM_COLLECTIONS = {
   // 8. Settings & Brand DNA
   SETTINGS: 'settings',
   BRAND_DNA_DOC: 'brand_dna',
+  
+  // 9. Ambassador Campaigns & Crowdfunding
+  CAMPAIGNS: 'mod_campaigns',
+  CAMPAIGN_AMBASSADORS: 'mod_campaign_ambassadors',
+  CAMPAIGN_DONATIONS: 'mod_campaign_donations',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;

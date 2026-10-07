@@ -103,6 +103,44 @@ export interface CoreEventMap {
     brandStyles?: any;
     createdAt: string;
   };
+  'campaign:ambassador:created': {
+    campaignId: string;
+    ambassadorId: string;
+    name: string;
+    leaderName?: string;
+    slug: string;
+    targetGoal: number;
+    phone?: string;
+    email?: string;
+    shareUrl: string;
+    createdAt: string;
+  };
+  'campaign:donation:pending': {
+    campaignId: string;
+    donationId: string;
+    amount: number;
+    donorName: string;
+    phone?: string;
+    email?: string;
+    ambassadorId?: string;
+    ambassadorName?: string;
+    paymentUrl: string;
+    createdAt: string;
+  };
+  'campaign:donation:completed': {
+    campaignId: string;
+    donationId: string;
+    amount: number;
+    donorName: string;
+    phone?: string;
+    email?: string;
+    ambassadorId?: string;
+    ambassadorName?: string;
+    receiptUrl?: string;
+    paymentMethod: string;
+    transactionId?: string;
+    completedAt: string;
+  };
 }
 
 // ========================

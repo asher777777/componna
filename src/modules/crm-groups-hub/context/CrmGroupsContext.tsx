@@ -264,9 +264,51 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
       }
     });
 
+    const unsubAmbassador = eventBus.subscribe('campaign:ambassador:created', (evt) => {
+      if (evt?.name) {
+        setGroups((prev) => {
+          const communityId = 'leader-' + evt.ambassadorId;
+          if (prev.some((g) => g.id === communityId || g.name === evt.name)) return prev;
+          const newCommunity: SmartGroup = {
+            id: communityId,
+            name: evt.name,
+            leaderName: evt.leaderName || evt.name,
+            color: '#4f46e5',
+            description: 'קהילת שגריר: ' + evt.name,
+            type: 'manual',
+            pageSlug: evt.slug,
+            pageUrl: '/' + evt.slug,
+            isCommunity: true,
+            rules: [],
+            matchType: 'all',
+            count: 1,
+            targetGoal: evt.targetGoal,
+            currentRaised: 0,
+            createdAt: evt.createdAt,
+            updatedAt: evt.createdAt,
+          };
+          return [newCommunity, ...prev];
+        });
+      }
+    });
+
+    const unsubDonation = eventBus.subscribe('campaign:donation:completed', (evt) => {
+      if (evt?.ambassadorName) {
+        setGroups((prev) =>
+          prev.map((g) =>
+            g.name === evt.ambassadorName || g.id.includes(evt.ambassadorId || '___')
+              ? { ...g, currentRaised: (g.currentRaised || 0) + Number(evt.amount) }
+              : g
+          )
+        );
+      }
+    });
+
     return () => {
       unsubLead();
       unsubForm();
+      unsubAmbassador();
+      unsubDonation();
     };
   }, [loadData]);
 
