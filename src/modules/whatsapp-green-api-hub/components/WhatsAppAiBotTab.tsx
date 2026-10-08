@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   Bot, Sparkles, Plus, Trash2, Edit3, Check, Play, MessageSquare,
   ShieldCheck, Send, KeyRound, ExternalLink, RefreshCw, Smartphone,
-  Radio, Zap, HelpCircle, Layers, CheckCircle2, Sliders
+  Radio, Zap, HelpCircle, Layers, CheckCircle2, Sliders, ShoppingBag, LifeBuoy, Calendar
 } from 'lucide-react';
 import {
   WhatsAppAiBotConfig,
@@ -39,17 +39,68 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
   const [simChat, setSimChat] = useState<{ role: 'user' | 'model'; text: string; buttons?: { buttonId: string; buttonText: string }[] }[]>([
     {
       role: 'model',
-      text: 'שלום! 👋 כאן נציג השירות הדיגיטלי החכם של Kosun. במה אוכל לעזור לך היום?',
+      text: 'שלום! כאן נציג השירות הדיגיטלי החכם של Kosun. במה אוכל לעזור לך היום?',
       buttons: activeBot?.interactiveButtons?.map((b) => ({ buttonId: b.buttonId, buttonText: b.buttonText })) || [],
     },
   ]);
   const [simInput, setSimInput] = useState('');
   const [isSimLoading, setIsSimLoading] = useState(false);
 
+  const [showAdvancedSettings, setShowAdvancedSettings] = useState(false);
+
+
   const { db, apiKeys } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const effectiveGoogleAiApiKey = googleAiApiKey || apiKeys?.googleAiApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string) || '';
   
+  
+  // Auto-patch legacy bots to enforce Kosun branding and remove emoji rules
+  useEffect(() => {
+    let modified = false;
+    const patchedBots = bots.map(b => {
+      let changed = false;
+      
+      let updatedPrompt = b.systemPrompt || '';
+      if (updatedPrompt.includes('Comona')) {
+        updatedPrompt = updatedPrompt.replace(/Comona/g, 'Kosun');
+        changed = true;
+      }
+      if (updatedPrompt.includes('עם אימוג\'י במידה')) {
+        updatedPrompt = updatedPrompt.replace(/עם אימוג\'י במידה/g, 'ללא שימוש באימוג\'י כלל');
+        changed = true;
+      }
+      if (updatedPrompt.includes('עם אימוג\'י')) {
+        updatedPrompt = updatedPrompt.replace(/עם אימוג\'י/g, 'ללא אימוג\'י');
+        changed = true;
+      }
+      
+      let updatedButtons = b.interactiveButtons || [];
+      const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{2700}-\u{27BF}]|[\u{2600}-\u{26FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]/gu;
+      const cleanButtons = updatedButtons.map(btn => {
+        const cleanText = btn.buttonText.replace(emojiRegex, '').trim();
+        if (cleanText !== btn.buttonText) {
+          changed = true;
+          return { ...btn, buttonText: cleanText };
+        }
+        return btn;
+      });
+
+      if (changed) {
+        modified = true;
+        return { ...b, systemPrompt: updatedPrompt, interactiveButtons: cleanButtons };
+      }
+      return b;
+    });
+
+    if (modified) {
+      setBots(patchedBots);
+      WhatsAppAiBotService.saveBots(patchedBots);
+      if (db) {
+        WhatsAppAiBotService.saveBotsToFirestore(db, patchedBots, tenantId);
+      }
+    }
+  }, [bots, db, tenantId]);
+
   // Load from Firestore on mount
   useEffect(() => {
     if (db) {
@@ -86,8 +137,8 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       model: 'gemini-2.5-flash',
       temperature: 0.7,
       interactiveButtons: [
-        { buttonId: 'btn_1', buttonText: 'ℹ️ מידע נוסף', actionType: 'prompt', actionValue: 'פרט עוד' },
-        { buttonId: 'btn_2', buttonText: '📞 פנה לנציג', actionType: 'message', actionValue: 'נציג יחזור אליך' },
+        { buttonId: 'btn_1', buttonText: 'מידע נוסף', actionType: 'prompt', actionValue: 'פרט עוד' },
+        { buttonId: 'btn_2', buttonText: 'פנה לנציג', actionType: 'message', actionValue: 'נציג יחזור אליך' },
       ],
       autoGenerateButtons: true,
       createdAt: Date.now(),
@@ -184,21 +235,21 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     if (presetKey === 'sales') {
       newPrompt = `אתה נציג מכירות ולידים מוביל של Kosun. תפקידך להציג את היתרונות של המערכת, לאסוף פרטי התקשרות (שם, מייל, סוג עסק) ולהניע לפעולה לקביעת פגישת הדגמה.`;
       newButtons = [
-        { buttonId: 'b_demo', buttonText: '📅 קביעת הדגמה', actionType: 'prompt', actionValue: 'אני מעוניין לתאם הדגמה' },
-        { buttonId: 'b_price', buttonText: '💰 מחירון חבילות', actionType: 'prompt', actionValue: 'מהן חבילות המחיר?' },
-        { buttonId: 'b_human', buttonText: '👤 שיחה עם איש מכירות', actionType: 'message', actionValue: 'איש מכירות ייצור עמך קשר תוך דקות' },
+        { buttonId: 'b_demo', buttonText: 'קביעת הדגמה', actionType: 'prompt', actionValue: 'אני מעוניין לתאם הדגמה' },
+        { buttonId: 'b_price', buttonText: 'מחירון חבילות', actionType: 'prompt', actionValue: 'מהן חבילות המחיר?' },
+        { buttonId: 'b_human', buttonText: 'שיחה עם איש מכירות', actionType: 'message', actionValue: 'איש מכירות ייצור עמך קשר תוך דקות' },
       ];
     } else if (presetKey === 'support') {
       newPrompt = `אתה מהנדס תמיכה טכנית בכיר. עזור למשתמשים לפתור תקלות טכניות, סנכרון והגדרות בוואטסאפ בצורה שלב-אחר-שלב ברורה ופשוטה.`;
       newButtons = [
-        { buttonId: 'b_restart', buttonText: '🔄 אתחול מופע', actionType: 'prompt', actionValue: 'איך מאתחלים את המופע?' },
-        { buttonId: 'b_status', buttonText: '📊 בדיקת תקינות', actionType: 'prompt', actionValue: 'בדוק לי את החיבור' },
+        { buttonId: 'b_restart', buttonText: 'אתחול מופע', actionType: 'prompt', actionValue: 'איך מאתחלים את המופע?' },
+        { buttonId: 'b_status', buttonText: 'בדיקת תקינות', actionType: 'prompt', actionValue: 'בדוק לי את החיבור' },
       ];
     } else if (presetKey === 'scheduler') {
       newPrompt = `אתה בוט לזימון תורים ופגישות. שאל את הלקוח לאיזה תאריך ושעה נוח לו, ואשר את הפרטים בצורה מסודרת.`;
       newButtons = [
-        { buttonId: 'b_morning', buttonText: '☀️ תור בבוקר (09:00-12:00)', actionType: 'prompt', actionValue: 'מתאים לי בבוקר' },
-        { buttonId: 'b_afternoon', buttonText: '🌆 תור אחה"צ (14:00-18:00)', actionType: 'prompt', actionValue: 'מתאים לי אחה"צ' },
+        { buttonId: 'b_morning', buttonText: 'תור בבוקר (09:00-12:00)', actionType: 'prompt', actionValue: 'מתאים לי בבוקר' },
+        { buttonId: 'b_afternoon', buttonText: 'תור אחה"צ (14:00-18:00)', actionType: 'prompt', actionValue: 'מתאים לי אחה"צ' },
       ];
     } else if (presetKey === 'brand') {
       // Sync with Brand DNA via Host Capabilities
@@ -325,27 +376,17 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                 </label>
               </div>
 
-              {/* Basic Fields */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={`block mb-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>שם הבוט</label>
-                  <input
-                    type="text"
-                    value={activeBot.name}
-                    onChange={(e) => saveBotChanges({ ...activeBot, name: e.target.value })}
-                    className={`w-full p-2.5 rounded-xl border ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-                  />
-                </div>
-
-                <div>
-                  <label className={`block mb-1 font-medium ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>תפקיד / כותרת</label>
-                  <input
-                    type="text"
-                    value={activeBot.role}
-                    onChange={(e) => saveBotChanges({ ...activeBot, role: e.target.value })}
-                    className={`w-full p-2.5 rounded-xl border ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
-                  />
-                </div>
+              {/* Basic Fields (Clean Cashwan 2026 Layout) */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={activeBot.name}
+                  onChange={(e) => saveBotChanges({ ...activeBot, name: e.target.value })}
+                  placeholder="שם הבוט (למשל: נציג מכירות חכם)"
+                  className={`w-full p-3 rounded-2xl border text-sm font-bold focus:border-indigo-500 shadow-sm transition ${
+                    isDark ? 'bg-slate-950/50 border-slate-700 text-white focus:bg-slate-900' : 'bg-slate-50 border-slate-200 text-slate-900 focus:bg-white'
+                  }`}
+                />
               </div>
 
               {/* Gemini 3.x Model & Settings */}
@@ -437,33 +478,37 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className={`font-medium ${isDark ? 'text-slate-300' : 'text-slate-700'}`}>הוראות AI ואישיות (System Prompt)</label>
-                  <div className="flex gap-1 flex-wrap">
+                  <div className="flex gap-1.5 flex-wrap">
                     <button
                       type="button"
                       onClick={() => handleApplyPresetPrompt('brand')}
-                      className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 font-bold text-[10px]"
+                      className="px-2.5 py-1 flex items-center gap-1 rounded-md bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 font-bold text-[10px] transition"
                     >
+                      <Sparkles className="w-3 h-3" />
                       סנכרן עם מיתוג (Brand DNA)
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPresetPrompt('sales')}
-                      className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-[10px]"
+                      className="px-2.5 py-1 flex items-center gap-1 rounded-md bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 font-bold text-[10px] transition"
                     >
+                      <ShoppingBag className="w-3 h-3" />
                       תבנית מכירות
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPresetPrompt('support')}
-                      className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-[10px]"
+                      className="px-2.5 py-1 flex items-center gap-1 rounded-md bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 font-bold text-[10px] transition"
                     >
+                      <LifeBuoy className="w-3 h-3" />
                       תבנית תמיכה
                     </button>
                     <button
                       type="button"
                       onClick={() => handleApplyPresetPrompt('scheduler')}
-                      className="px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20 text-[10px]"
+                      className="px-2.5 py-1 flex items-center gap-1 rounded-md bg-indigo-500/10 text-indigo-500 hover:bg-indigo-500/20 font-bold text-[10px] transition"
                     >
+                      <Calendar className="w-3 h-3" />
                       זימון תורים
                     </button>
                   </div>
@@ -616,7 +661,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                           updated[idx].buttonText = e.target.value;
                           saveBotChanges({ ...activeBot, interactiveButtons: updated });
                         }}
-                        placeholder="טקסט כפתור (למשל: 📞 פנה לנציג)"
+                        placeholder="טקסט כפתור (למשל: פנה לנציג)"
                         className={`flex-1 p-2 rounded-lg border text-xs ${
                           isDark ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-300 text-slate-900'
                         }`}
@@ -669,7 +714,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
             }`}>
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow">
-                  🤖
+                  
                 </div>
                 <div>
                   <div className="font-bold text-xs flex items-center gap-1.5">
@@ -687,7 +732,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                   setSimChat([
                     {
                       role: 'model',
-                      text: 'שלום! 👋 כאן נציג השירות הדיגיטלי החכם. במה אוכל לעזור לך?',
+                      text: 'שלום! כאן נציג השירות הדיגיטלי החכם. במה אוכל לעזור לך?',
                       buttons: activeBot?.interactiveButtons?.map((b) => ({ buttonId: b.buttonId, buttonText: b.buttonText })) || [],
                     },
                   ]);

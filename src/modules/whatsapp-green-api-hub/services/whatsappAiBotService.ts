@@ -107,9 +107,9 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     model: 'gemini-2.5-flash',
     temperature: 0.7,
     interactiveButtons: [
-      { buttonId: 'btn_pricing', buttonText: '💰 קבלת הצעת מחיר', actionType: 'prompt', actionValue: 'מה המחיר של המערכת?' },
-      { buttonId: 'btn_human_agent', buttonText: '📞 שיחה עם נציג', actionType: 'message', actionValue: 'נציג שירות יחזור אליך בהקדם!' },
-      { buttonId: 'btn_faq', buttonText: 'ℹ️ שאלות נפוצות', actionType: 'prompt', actionValue: 'ספר לי על היכולות העיקריות שלכם' },
+      { buttonId: 'btn_pricing', buttonText: 'קבלת הצעת מחיר', actionType: 'prompt', actionValue: 'מה המחיר של המערכת?' },
+      { buttonId: 'btn_human_agent', buttonText: 'שיחה עם נציג', actionType: 'message', actionValue: 'נציג שירות יחזור אליך בהקדם!' },
+      { buttonId: 'btn_faq', buttonText: 'שאלות נפוצות', actionType: 'prompt', actionValue: 'ספר לי על היכולות העיקריות שלכם' },
     ],
     autoGenerateButtons: true,
     createdAt: Date.now(),
@@ -126,7 +126,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     model: 'gemini-2.5-flash',
     temperature: 0.4,
     interactiveButtons: [
-      { buttonId: 'btn_reboot', buttonText: '🔄 בדיקת סטטוס מופע', actionType: 'prompt', actionValue: 'כיצד מאתחלים את המופע?' },
+      { buttonId: 'btn_reboot', buttonText: 'בדיקת סטטוס מופע', actionType: 'prompt', actionValue: 'כיצד מאתחלים את המופע?' },
       { buttonId: 'btn_support_agent', buttonText: '🛠 פתיחת קריאת שירות', actionType: 'message', actionValue: 'קריאת שירות נפתחה בהצלחה.' },
     ],
     autoGenerateButtons: false,
