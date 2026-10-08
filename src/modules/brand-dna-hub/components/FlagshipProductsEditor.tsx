@@ -100,7 +100,23 @@ export const FlagshipProductsEditor: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm h-full flex flex-col">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm h-full flex flex-col relative overflow-hidden">
+      {isGenerating && (
+        <div className="absolute inset-0 bg-white/90 dark:bg-slate-900/90 flex flex-col items-center justify-center z-50 backdrop-blur-sm animate-in fade-in zoom-in rounded-3xl">
+          <div className="w-16 h-16 relative mb-6">
+            <div className="absolute inset-0 border-4 border-indigo-100 dark:border-indigo-900 rounded-full"></div>
+            <div className="absolute inset-0 border-4 border-indigo-600 dark:border-indigo-500 rounded-full border-t-transparent animate-spin"></div>
+            <Sparkles className="w-6 h-6 text-indigo-600 dark:text-indigo-400 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+          </div>
+          <h4 className="text-xl font-black text-slate-900 dark:text-white mb-2 bg-gradient-to-r from-indigo-600 to-emerald-500 bg-clip-text text-transparent text-center px-4">
+            {brandDna.identity?.companyName ? `מייצר מוצר דגל עבור ${brandDna.identity.companyName}` : 'מייצר מוצר דגל מותאם...'}
+          </h4>
+          <p className="text-sm font-medium text-slate-600 dark:text-slate-300 flex items-center gap-2 text-center">
+            <Sparkles className="w-4 h-4 text-emerald-500 animate-pulse" />
+            מגבש רעיון עסקי מושלם לקהל היעד...
+          </p>
+        </div>
+      )}
       <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
         <Box className="w-4 h-4 text-indigo-500" />
         מוצרי דגל

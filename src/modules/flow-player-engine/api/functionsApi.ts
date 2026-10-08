@@ -1,4 +1,4 @@
-﻿import { VoiceIntentPayload, VoiceIntentResponse } from '../types';
+import { VoiceIntentPayload, VoiceIntentResponse } from '../types';
 import { GeminiApi } from './geminiApi';
 
 export class FunctionsApi {

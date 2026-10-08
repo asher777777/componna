@@ -53,7 +53,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 25000);
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 120000);
 
   try {
     const contents: any[] = [];
@@ -83,7 +83,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
         contents,
         generationConfig: {
           temperature: options.temperature ?? 0.7,
-          responseMimeType: options.responseMimeType ?? 'application/json',
+          ...(options.responseMimeType === 'application/json' ? { responseMimeType: 'application/json' } : {})
         },
       }),
       signal: controller.signal,

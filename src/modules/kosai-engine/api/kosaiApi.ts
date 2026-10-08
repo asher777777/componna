@@ -76,7 +76,7 @@ Instructions:
     systemInstruction,
     responseMimeType: 'text/plain',
     model,
-    timeoutMs: 15000,
+    timeoutMs: 60000,
   });
 
   const usage = calculateGeminiCost({
@@ -85,10 +85,20 @@ Instructions:
     candidatesTokens: response.usageMetadata?.candidatesTokenCount || 100,
   });
 
-  let textData = typeof response.data === 'string' ? response.data.trim() : JSON.stringify(response.data);
-  if (!textData || textData === 'undefined') {
-    textData = 'אתה עוזר AI מקצועי. המטרה שלך היא לעזור למשתמש לנהל את המודול הנוכחי.';
+  if (!response.success || response.isFallback) {
+    let errorReason = response.error || 'שגיאה לא ידועה';
+    if (errorReason === 'NO_API_KEY_FOUND') {
+      errorReason = 'חסר מפתח API של Google Gemini בהגדרות.';
+    }
+    return {
+      prompt: `[שגיאה בניסוח אוטומטי - אנא בדוק הגדרות] 
+הסיבה: ${errorReason}
+
+אתה עוזר AI מקצועי. המטרה שלך היא לעזור למשתמש לנהל את המודול הנוכחי.`,
+      usage
+    };
   }
+  let textData = typeof response.data === 'string' ? response.data.trim() : JSON.stringify(response.data);
 
   return {
     prompt: textData,
