@@ -3,7 +3,7 @@ import {
   MessageSquare, Send, QrCode, Smartphone, Globe, RefreshCw, CheckCircle,
   AlertCircle, Server, Users, Image, BarChart2,
   ListFilter, ShieldCheck, Power, KeyRound, ExternalLink, Sun, Moon,
-  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen, UserCheck, Database, Search, Crown
+  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen, UserCheck, Database, Search, Crown, X, Info
 } from 'lucide-react';
 import { collection, getDocs, query } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -39,7 +39,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
   // Day / Night Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('kosun_whatsapp_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('kosun_whatsapp_theme') as 'dark' | 'light') || 'light';
   });
 
   const toggleTheme = () => {
@@ -51,6 +51,23 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   };
 
   const isDark = theme === 'dark';
+  
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+
+  // Close tooltip and settings if clicked outside
+  useEffect(() => {
+    const handleClick = () => {
+        setShowInfoTooltip(false);
+        setIsSettingsOpen(false);
+    };
+    if (showInfoTooltip || isSettingsOpen) {
+      window.addEventListener('click', handleClick);
+    }
+    return () => window.removeEventListener('click', handleClick);
+  }, [showInfoTooltip, isSettingsOpen]);
+
+
 
   // Active Tab - AI Bots is default landing tab
   const [activeTab, setActiveTab] = useState<'webchat' | 'statuses' | 'aibots' | 'aibotchats' | 'sender' | 'groups' | 'service'>('aibots');
@@ -348,168 +365,144 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
         )}
 
         {/* Top Hub Header */}
-        <div className={`${themeClasses.headerCard} border p-4 sm:p-5 rounded-3xl shadow-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4`}>
-          <div className="flex items-center space-x-3.5 rtl:space-x-reverse">
-            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-600 via-teal-500 to-emerald-400 text-white flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.35)] shrink-0">
-              <MessageSquare className="w-6 h-6" />
+        <div className="flex items-center justify-between gap-4 mb-2">
+          <div className="flex items-center space-x-3 rtl:space-x-reverse">
+            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+              <MessageSquare className="w-5 h-5" />
             </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className={`text-lg sm:text-xl font-black ${themeClasses.textTitle}`}>Kosun WhatsApp & AI Automation</h1>
-                
-                {/* Instance Modal Opener Badge */}
+            <div className="flex items-center gap-2">
+              <h1 className={`text-lg font-black ${themeClasses.textTitle}`}>הוואטסאפ של קושאן</h1>
+              
+              {/* Info Tooltip Button */}
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
                 <button
-                  onClick={() => setIsInstanceModalOpen(true)}
-                  className={`text-[11px] font-bold px-3 py-1 rounded-full border flex items-center gap-1.5 transition cursor-pointer ${
-                    stateInstance === 'authorized'
-                      ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20'
-                      : 'bg-rose-500/10 text-rose-500 border-rose-500/30 hover:bg-rose-500/20'
-                  }`}
-                  title="לחץ לפתיחת ניהול וסטטוס מופע"
+                  onClick={() => setShowInfoTooltip(!showInfoTooltip)}
+                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
                 >
-                  <span className={`w-2 h-2 rounded-full ${stateInstance === 'authorized' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                  <span>{stateInstance === 'authorized' ? '● מחובר' : '○ לא מחובר'}</span>
-                  <span className="text-[10px] opacity-70">({instanceId ? `#${instanceId}` : 'אין מופע'}) ⚙️</span>
+                  i
                 </button>
+                
+                {showInfoTooltip && (
+                  <div className={`absolute top-full right-0 mt-2 p-3 rounded-2xl w-64 shadow-2xl z-50 text-[11px] leading-relaxed border flex flex-col gap-2 ${isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
+                    <div className="flex justify-between items-start">
+                      <span className="font-bold text-indigo-500">מידע על הרכיב</span>
+                      <button onClick={() => setShowInfoTooltip(false)} className="opacity-50 hover:opacity-100">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                    <p>כאן מנהלים את הצ'אט החי, שליחה מרובה לרשימות תפוצה, יצירת בוטים חכמים מבוססי AI ומענה אוטומטי מלא דרך Green-API.</p>
+                  </div>
+                )}
               </div>
-              <p className={`text-xs ${themeClasses.textMuted} mt-0.5`}>
-                צ'אט חי בסגנון WhatsApp Web, שליחה מרובה, בוטים חכמים מבוססי AI, וניהול מלא
-              </p>
+              
+              {/* Instance Modal Opener Badge */}
+              <button
+                onClick={() => setIsInstanceModalOpen(true)}
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition cursor-pointer ${
+                  stateInstance === 'authorized'
+                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                }`}
+                title="ניהול וסטטוס מופע"
+              >
+                <span className={`w-1.5 h-1.5 rounded-full ${stateInstance === 'authorized' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+                <span>{stateInstance === 'authorized' ? 'מחובר' : 'לא מחובר'}</span>
+              </button>
             </div>
           </div>
 
-          {/* Quick Header Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-            {/* Day / Night Mode Switch */}
+          {/* Quick Header Buttons inside a dropdown */}
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
             <button
-              onClick={toggleTheme}
-              title={isDark ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
-              aria-label={isDark ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
-              className={`p-2 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition cursor-pointer ${
-                isDark
-                  ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700 text-amber-300'
-                  : 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-indigo-700'
-              }`}
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
             >
-              {isDark ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-600" />}
-              <span className="hidden sm:inline">{isDark ? 'יום' : 'לילה'}</span>
+              <Sliders className="w-5 h-5" />
             </button>
-
-            {/* Quick Bulk Sender Button */}
-            <button
-              onClick={() => setIsBulkModalOpen(true)}
-              title="שליחה מרובה לרשימת תפוצה"
-              aria-label="שליחה מרובה לרשימת תפוצה"
-              className="p-2 sm:px-3.5 sm:py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-95 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 transition cursor-pointer"
-            >
-              <Users className="w-4 h-4" />
-              <span className="hidden sm:inline">שליחה מרובה</span>
-            </button>
-
-            <button
-              onClick={() => setIsQrModalOpen(true)}
-              title="חיבור WhatsApp באמצעות קוד QR"
-              aria-label="חיבור WhatsApp באמצעות קוד QR"
-              className="p-2 sm:px-3 sm:py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
-            >
-              <QrCode className="w-4 h-4" />
-              <span className="hidden sm:inline">חיבור QR</span>
-            </button>
-
-            <button
-              onClick={() => setIsPhoneModalOpen(true)}
-              title="חיבור באמצעות קוד אימות לטלפון"
-              aria-label="חיבור באמצעות קוד אימות לטלפון"
-              className="p-2 sm:px-3 sm:py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-xl text-xs flex items-center gap-1 shadow-sm transition cursor-pointer"
-            >
-              <Smartphone className="w-4 h-4" />
-              <span className="hidden sm:inline">קוד לטלפון</span>
-            </button>
-
-            <button
-              onClick={() => setIsWebhookModalOpen(true)}
-              title="הגדרות Webhook של שרת ההודעות"
-              aria-label="הגדרות Webhook של שרת ההודעות"
-              className="p-2 sm:px-3 sm:py-2 bg-purple-600/20 hover:bg-purple-600/30 border border-purple-500/40 text-purple-400 font-bold rounded-xl text-xs flex items-center gap-1 transition cursor-pointer"
-            >
-              <Globe className="w-4 h-4" />
-              <span className="hidden sm:inline">Webhook</span>
-            </button>
+            
+            {isSettingsOpen && (
+              <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col text-xs font-bold text-slate-700">
+                <button onClick={() => { setIsBulkModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
+                  <Users className="w-4 h-4 text-indigo-500" /> שליחה מרובה
+                </button>
+                <button onClick={() => { setIsQrModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
+                  <QrCode className="w-4 h-4 text-emerald-500" /> חיבור QR
+                </button>
+                <button onClick={() => { setIsPhoneModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
+                  <Smartphone className="w-4 h-4 text-slate-500" /> קוד לטלפון
+                </button>
+                <button onClick={() => { setIsWebhookModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
+                  <Globe className="w-4 h-4 text-purple-500" /> Webhook
+                </button>
+                <button onClick={() => { toggleTheme(); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 cursor-pointer">
+                  {isDark ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />} 
+                  {isDark ? 'מצב יום' : 'מצב לילה'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className={`flex border ${themeClasses.navBg} rounded-2xl p-1 text-xs gap-1 overflow-x-auto no-scrollbar`}>
+        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
           <button
             onClick={() => setActiveTab('aibots')}
-            title="בוטים מבוססי AI וכפתורים"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'aibots' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
+            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
+              activeTab === 'aibots' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Bot className="w-4 h-4 text-amber-300" />
-            <span className="hidden sm:inline">בוטים מבוססי AI וכפתורים</span>
-            <span className="sm:hidden">בוטים</span>
+            <Bot className="w-3.5 h-3.5" />
+            <span>בוטים וכפתורים</span>
           </button>
 
           <button
             onClick={() => setActiveTab('webchat')}
-            title="שיחות וצ'אט חי"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'webchat' ? 'bg-emerald-600 text-white shadow-md' : themeClasses.tabInactive
+            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
+              activeTab === 'webchat' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <MessageSquare className="w-4 h-4 text-emerald-300" />
-            <span className="hidden sm:inline">שיחות וצ'אט חי (WhatsApp Web)</span>
-            <span className="sm:hidden">צ'אט</span>
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>צ'אט (Web)</span>
           </button>
 
           <button
             onClick={() => setActiveTab('statuses')}
-            title="סטטוסים ו-Stories"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'statuses' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-md' : themeClasses.tabInactive
+            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
+              activeTab === 'statuses' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Smartphone className="w-4 h-4 text-emerald-300" />
-            <span className="hidden sm:inline">סטטוסים ו-Stories</span>
-            <span className="sm:hidden">סטטוסים</span>
+            <Smartphone className="w-3.5 h-3.5" />
+            <span>סטטוסים</span>
           </button>
 
           <button
             onClick={() => setActiveTab('sender')}
-            title="שיגור מתקדם (Omni-Sender)"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'sender' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
+            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
+              activeTab === 'sender' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Send className="w-4 h-4 text-indigo-300" />
-            <span className="hidden sm:inline">שיגור מתקדם (Omni-Sender)</span>
-            <span className="sm:hidden">שיגור</span>
+            <Send className="w-3.5 h-3.5" />
+            <span>שיגור מתקדם</span>
           </button>
 
           <button
             onClick={() => setActiveTab('groups')}
-            title="ניהול קבוצות"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'groups' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
+            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
+              activeTab === 'groups' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <Users className="w-4 h-4 text-purple-300" />
-            <span className="hidden sm:inline">ניהול קבוצות</span>
-            <span className="sm:hidden">קבוצות</span>
+            <Users className="w-3.5 h-3.5" />
+            <span>ניהול קבוצות</span>
           </button>
 
           <button
             onClick={() => setActiveTab('service')}
-            title="כלי שירות ותורים"
-            className={`py-2 px-3 sm:py-2.5 sm:px-4 font-semibold rounded-xl flex items-center gap-1.5 sm:gap-2 transition cursor-pointer shrink-0 ${
-              activeTab === 'service' ? 'bg-indigo-600 text-white shadow-md' : themeClasses.tabInactive
+            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
+              activeTab === 'service' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            <ShieldCheck className="w-4 h-4 text-teal-300" />
-            <span className="hidden sm:inline">כלי שירות ותורים</span>
-            <span className="sm:hidden">שירות</span>
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>כלי שירות</span>
           </button>
         </div>
 
@@ -560,11 +553,8 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
         {/* TAB 3: SENDER */}
         {activeTab === 'sender' && (
-          <div className={`p-5 ${themeClasses.card} border rounded-3xl space-y-4 text-xs`}>
-            <h3 className={`font-bold ${themeClasses.textTitle} text-sm flex items-center gap-2`}>
-              <Send className="w-4 h-4 text-indigo-500" />
-              <span>מרכז שיגור הודעות ותכנים (Omni-Sender)</span>
-            </h3>
+          <div className={`space-y-4 text-xs`}>
+            
 
             {/* Type selector */}
             <div className={`flex flex-wrap gap-2 border-b ${themeClasses.border} pb-3`}>
@@ -921,7 +911,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
         {/* TAB 4: GROUPS */}
         {activeTab === 'groups' && (
-          <div className={`p-5 ${themeClasses.card} border rounded-3xl space-y-4 text-xs`}>
+          <div className={`space-y-4 text-xs`}>
             <h3 className={`font-bold ${themeClasses.textTitle} text-sm flex items-center gap-2`}>
               <Users className="w-4 h-4 text-indigo-500" />
               <span>יצירה וניהול קבוצות WhatsApp</span>
@@ -1030,7 +1020,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
         {/* TAB 5: SERVICE TOOLS & QUEUES */}
         {activeTab === 'service' && (
-          <div className={`p-5 ${themeClasses.card} border rounded-3xl space-y-4 text-xs`}>
+          <div className={`space-y-4 text-xs`}>
             <h3 className={`font-bold ${themeClasses.textTitle} text-sm flex items-center gap-2`}>
               <ShieldCheck className="w-4 h-4 text-indigo-500" />
               <span>כלי שירות, בדיקת מספרי וואטסאפ וניהול תורים</span>

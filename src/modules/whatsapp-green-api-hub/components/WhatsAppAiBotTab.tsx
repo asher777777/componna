@@ -239,24 +239,13 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
             <span>הגדר מפתח AI בסנכרון</span>
           </button>
         </div>
-      ) : (
-        <div className={`p-3.5 rounded-2xl border flex items-center justify-between gap-2 ${
-          isDark ? 'bg-emerald-950/20 border-emerald-800/40 text-emerald-400' : 'bg-emerald-50 border-emerald-200 text-emerald-800'
-        }`}>
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-emerald-500" />
-            <span className="font-bold">מנוע Google AI (Gemini) מחובר ופעיל בהצלחה</span>
-          </div>
-          <span className="text-[11px] font-mono opacity-80">מופעל מפתח מרכזי</span>
-        </div>
-      )}
+      ) : null}
 
       {/* Bots Selection Bar (Full width, top) */}
-      <div className={`p-4 rounded-3xl border ${isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-white border-slate-200 shadow-sm'} space-y-3`}>
+      <div className={`space-y-3`}>
         <div className="flex items-center justify-between border-b pb-2.5 border-slate-800/30">
           <div className="flex items-center gap-2">
-            <Bot className="w-4 h-4 text-indigo-500" />
-            <span className="font-bold text-sm">הבוטים המוגדרים שלך ({bots.length})</span>
+            <span className="font-bold text-slate-800">בוטים פעילים ({bots.length})</span>
           </div>
           <button
             onClick={handleCreateNewBot}

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
+  BarChart2,
   Sparkles, Send, Image, Type, Eye, Clock, CheckCircle,
   AlertCircle, RefreshCw, Trash2, ExternalLink, Play, Film,
   Users, Palette, ChevronRight, ChevronLeft, ShieldCheck, Database,
@@ -147,6 +148,9 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   const [isMediaPickerOpen, setIsMediaPickerOpen] = useState(false);
   // Gemini AI Image Studio Modal state (PRO Feature)
   const [isAiImageStudioOpen, setIsAiImageStudioOpen] = useState(false);
+
+  const [showStats, setShowStats] = useState(false);
+
 
   // Audience & CRM integration state
   const [targetAudience, setTargetAudience] = useState<'all' | 'crm_group' | 'crm_tag' | 'custom'>('all');
@@ -677,8 +681,22 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   return (
     <div className="space-y-6 text-xs" dir="rtl">
       
-      {/* Top Header & Analytics KPI Summary */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
+      {/* Top Header & Analytics KPI Summary (Collapsible) */}
+      <div className="mb-2">
+        <button
+          type="button"
+          onClick={() => setShowStats(!showStats)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition cursor-pointer border ${
+            isDark ? 'bg-slate-900 border-slate-700 text-slate-300 hover:bg-slate-800' : 'bg-slate-100 border-slate-200 text-slate-600 hover:bg-slate-200'
+          }`}
+        >
+          <BarChart2 className="w-3.5 h-3.5" />
+          <span>{showStats ? 'הסתר נתוני ביצועים' : 'הצג נתוני ביצועים (סטטיסטיקה)'}</span>
+        </button>
+      </div>
+      
+      {showStats && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3 animate-fadeIn">
         {/* KPI 1: Active Stories */}
         <div className={`p-3 sm:p-4 rounded-2xl sm:rounded-3xl border shadow-sm flex items-center gap-2.5 sm:gap-3.5 ${
           isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
@@ -743,6 +761,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
           </button>
         </div>
       </div>
+      )}
 
       {/* Sub-Tabs: Create New Status vs Archive & Analytics */}
       <div className="flex items-center justify-between border-b border-slate-800/40 pb-2">
