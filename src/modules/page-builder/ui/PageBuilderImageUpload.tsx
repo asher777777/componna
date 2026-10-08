@@ -41,7 +41,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   const handleOpenMediaGallery = async () => {
     if (mediaPicker) {
       try {
-        const selected = await mediaPicker.openPicker({ accept: 'image/*' });
+        const selected = await mediaPicker.openPicker({ multiple: false });
         if (selected) {
           const finalUrl = Array.isArray(selected) ? selected[0] : selected;
           if (finalUrl) {
@@ -109,7 +109,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
       <input
         type="file"
         ref={fileInputRef}
-        accept="image/*"
+        accept="image/*,video/*,audio/*"
         className="hidden"
         onChange={handleFileUpload}
       />

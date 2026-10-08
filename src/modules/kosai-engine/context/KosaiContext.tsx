@@ -110,11 +110,16 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         });
       }
       
-      let parsed;
+            let parsed;
       try {
-        const cleanJson = response.data.replace(/\\s*\\n\\s*/g, ' ').replace(/^[\`\\s]*(json)?\\s*|\\s*[\`\\s]*$/g, '');
-        parsed = JSON.parse(cleanJson);
-      } catch {
+        if (typeof response.data === 'string') {
+          let cleanJson = response.data.replace(/\s*\n\s*/g, ' ').replace(/^[\`\s]*(json)?\s*|\s*[\`\s]*$/g, '');
+          parsed = JSON.parse(cleanJson);
+        } else {
+          parsed = response.data;
+        }
+      } catch (e) {
+        console.error('KOSAI Parsing Error:', e, 'Raw:', response.data);
         throw new Error('Failed to parse Kosai JSON response');
       }
 

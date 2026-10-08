@@ -9,11 +9,13 @@ import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
 import { UrlShortenerModal } from './components/UrlShortenerModal';
 import { pageBuilderFirestore } from './services/pageBuilderFirestore';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../core/tenant';
 import { useHostCapabilities } from '../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../core/contracts';
 import { Layers, Edit3, Sparkles } from 'lucide-react';
 import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderProvider } from './context/PageBuilderContext';
+import { KosaiProvider } from '../kosai-engine';
 
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';
@@ -93,6 +95,7 @@ const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
 const PageBuilderStandaloneViewInner: React.FC = () => {
   const navigate = useNavigate();
   const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
 
@@ -108,7 +111,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   // Load all pages from Firestore / LocalStorage
   useEffect(() => {
     const loadData = async () => {
-      const all = await pageBuilderFirestore.getAllPages(db);
+      const all = await pageBuilderFirestore.getAllPages(db, tenantId);
       // Clean up any historical dummy values if present in stored pages
       const sanitized = all.map((p) => {
         let pCopy = { ...p };
@@ -127,7 +130,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           wasCleaned = true;
         }
         if (wasCleaned && db) {
-          pageBuilderFirestore.savePage(pCopy, db).catch(() => {});
+          pageBuilderFirestore.savePage(pCopy, db, tenantId).catch(() => {});
         }
         return pCopy;
       });
@@ -143,13 +146,13 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       }
     };
     loadData();
-  }, [db, brandDna]);
+  }, [db, tenantId, brandDna]);
 
   // Save current page handler
   const handleSavePage = async (updated: PageBuilderConfig) => {
     setCurrentPage(updated);
-    await pageBuilderFirestore.savePage(updated, db);
-    const all = await pageBuilderFirestore.getAllPages(db);
+    await pageBuilderFirestore.savePage(updated, db, tenantId);
+    const all = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(all);
   };
 
@@ -195,8 +198,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       },
     };
 
-    await pageBuilderFirestore.savePage(newPage, db);
-    const all = await pageBuilderFirestore.getAllPages(db);
+    await pageBuilderFirestore.savePage(newPage, db, tenantId);
+    const all = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(all);
     setCurrentPage(newPage);
     setViewMode('editor');
@@ -204,8 +207,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 
   // Duplicate page
   const handleDuplicatePage = async (page: PageBuilderConfig) => {
-    const duplicated = await pageBuilderFirestore.duplicatePage(page, db);
-    const all = await pageBuilderFirestore.getAllPages(db);
+    const duplicated = await pageBuilderFirestore.duplicatePage(page, db, tenantId);
+    const all = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(all);
     setCurrentPage(duplicated);
   };
@@ -213,8 +216,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   // Delete page
   const handleDeletePage = async (pageId: string) => {
     if (confirm('האם למחוק עמוד זה לצמיתות?')) {
-      await pageBuilderFirestore.deletePage(pageId, db);
-      const all = await pageBuilderFirestore.getAllPages(db);
+      await pageBuilderFirestore.deletePage(pageId, db, tenantId);
+      const all = await pageBuilderFirestore.getAllPages(db, tenantId);
       setPages(all);
       if (currentPage.pageId === pageId && all.length > 0) {
         setCurrentPage(all[0]);
@@ -224,8 +227,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 
   // Set home page
   const handleSetHomePage = async (pageId: string) => {
-    await pageBuilderFirestore.setHomePage(pageId, db);
-    const all = await pageBuilderFirestore.getAllPages(db);
+    await pageBuilderFirestore.setHomePage(pageId, db, tenantId);
+    const all = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(all);
     if (currentPage.pageId === pageId) {
       setCurrentPage({ ...currentPage, isHomePage: true });
@@ -234,8 +237,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 
   // Toggle publish
   const handleTogglePublish = async (page: PageBuilderConfig) => {
-    const updated = await pageBuilderFirestore.togglePublish(page, db);
-    const all = await pageBuilderFirestore.getAllPages(db);
+    const updated = await pageBuilderFirestore.togglePublish(page, db, tenantId);
+    const all = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(all);
     if (currentPage.pageId === page.pageId) {
       setCurrentPage(updated);
@@ -279,8 +282,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
         onComplete={async (generatedConfig) => {
-          await pageBuilderFirestore.savePage(generatedConfig, db);
-          const all = await pageBuilderFirestore.getAllPages(db);
+          await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+          const all = await pageBuilderFirestore.getAllPages(db, tenantId);
           setPages(all);
           setCurrentPage(generatedConfig);
           setViewMode('editor');
@@ -299,8 +302,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           config={selectedShortPage}
           onSaveShortUrl={async (shortUrl, shortSlug) => {
             const updated = { ...selectedShortPage, shortUrl, shortSlug };
-            await pageBuilderFirestore.savePage(updated, db);
-            const all = await pageBuilderFirestore.getAllPages(db);
+            await pageBuilderFirestore.savePage(updated, db, tenantId);
+            const all = await pageBuilderFirestore.getAllPages(db, tenantId);
             setPages(all);
           }}
         />
@@ -322,7 +325,9 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 export const PageBuilderStandaloneView: React.FC = () => {
   return (
     <PageBuilderProvider>
-      <PageBuilderStandaloneViewInner />
+      <KosaiProvider>
+        <PageBuilderStandaloneViewInner />
+      </KosaiProvider>
     </PageBuilderProvider>
   );
 };

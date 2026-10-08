@@ -180,7 +180,7 @@ export class FirebaseStorageMediaService {
   /**
    * Fetch all media items from Firestore media vault, Storage bucket, and LocalStorage
    */
-  public static async fetchStorageFiles(app: FirebaseApp): Promise<MediaItem[]> {
+  public static async fetchStorageFiles(app: FirebaseApp, tenantId?: string): Promise<MediaItem[]> {
     const items: MediaItem[] = [];
     const scannedCleanNames = new Set<string>();
     const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
@@ -247,7 +247,8 @@ export class FirebaseStorageMediaService {
     // 1. First priority: Load from Firestore `sdo_media_vault` (never blocked by CORS)
     try {
       const db = getFirestore(app);
-      const snap = await getDocs(collection(db, 'sdo_media_vault'));
+      const vaultColl = tenantId ? `tenants/${tenantId}/sdo_media_vault` : 'sdo_media_vault';
+      const snap = await getDocs(collection(db, vaultColl));
       snap.forEach((docSnap) => {
         const data = docSnap.data();
         if (data && data.url) {
@@ -265,7 +266,7 @@ export class FirebaseStorageMediaService {
       console.warn('[FirebaseStorageMediaService] Firestore vault read notice:', firestoreErr);
     }
 
-    // 2. Base confirmed server bucket files fallback
+    // 2. Base confirmed server bucket files fallback (Global across tenants)
     const allServerVaultFiles = [
       { name: 'scene_1_animated.mp4', fullName: '1788087385571_scene_1_animated.mp4', size: 1992294, time: 1788087385571 },
       { name: 'scene_3_animated.mp4', fullName: '1788089036047_scene_3_animated.mp4', size: 1992294, time: 1788089036047 },
@@ -275,9 +276,10 @@ export class FirebaseStorageMediaService {
 
     allServerVaultFiles.forEach((k) => {
       const encoded = encodeURIComponent(`sdo_media_vault/${k.fullName}`);
+      const fallbackBucket = 'aioffice-1426f.firebasestorage.app'; // Fixed bucket for these global assets
       registerItem(
         k.fullName,
-        `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encoded}?alt=media`,
+        `https://firebasestorage.googleapis.com/v0/b/${fallbackBucket}/o/${encoded}?alt=media`,
         k.size,
         k.time
       );

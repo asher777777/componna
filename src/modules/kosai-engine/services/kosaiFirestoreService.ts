@@ -30,7 +30,7 @@ export const kosaiRulesService = {
   },
 
   async logAiUsage(db: Firestore, tenantId: string, log: Omit<KosaiAnalyticsLog, 'id' | 'timestamp'>): Promise<void> {
-    const colRef = collection(db, `tenants/${tenantId}/mod_kosai_analytics`);
+    const colRef = collection(db, `tenants/${tenantId}/kosai_ai_logs`);
     await addDoc(colRef, {
       ...log,
       timestamp: Date.now()
@@ -38,7 +38,7 @@ export const kosaiRulesService = {
   },
 
   async getRecentAnalytics(db: Firestore, tenantId: string): Promise<KosaiAnalyticsLog[]> {
-    const colRef = collection(db, `tenants/${tenantId}/mod_kosai_analytics`);
+    const colRef = collection(db, `tenants/${tenantId}/kosai_ai_logs`);
     const q = query(colRef, orderBy('timestamp', 'desc'), limit(50));
     const snap = await getDocs(q);
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as KosaiAnalyticsLog));

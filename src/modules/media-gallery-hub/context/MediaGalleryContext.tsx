@@ -510,7 +510,7 @@ export const MediaGalleryProvider: React.FC<{
       // 4. Background non-blocking fetch from Cloud Storage & Firestore
       try {
         if (firebaseApp) {
-          const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp);
+          const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp, tenantId);
           storageItems.forEach((item) => addDeduplicated(item));
         }
 
