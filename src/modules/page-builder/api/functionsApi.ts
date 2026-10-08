@@ -15,6 +15,7 @@ export interface GeminiApiOptions {
 }
 
 export interface ApiResponse<T = any> {
+  usageMetadata?: any;
   success: boolean;
   data?: T;
   error?: string;
@@ -120,8 +121,9 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
       try {
         const parsed = JSON.parse(cleaned) as T;
         return {
-          success: true,
-          data: parsed,
+            success: true,
+            data: parsed,
+            usageMetadata: result.usageMetadata,
         };
       } catch (jsonErr) {
         console.warn('[Gemini API] Failed to parse JSON response:', jsonErr, cleaned);
@@ -136,6 +138,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
     return {
       success: true,
       data: cleaned as unknown as T,
+      usageMetadata: result.usageMetadata,
     };
   } catch (err: any) {
     clearTimeout(timeoutId);

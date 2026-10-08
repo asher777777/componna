@@ -1,6 +1,16 @@
-import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc } from 'firebase/firestore';
+import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, addDoc, query, orderBy, limit } from 'firebase/firestore';
 import { KosaiRule } from '../types';
 import { KOSAI_CONFIG } from '../config';
+import { TokenUsageReport } from '../../../core/ai/geminiCostTracker';
+
+export interface KosaiAnalyticsLog {
+  id?: string;
+  ruleId: string;
+  moduleName: string;
+  actionType: string;
+  usage: TokenUsageReport;
+  timestamp: number;
+}
 
 export const kosaiRulesService = {
   async getRules(db: Firestore, tenantId: string): Promise<KosaiRule[]> {
@@ -17,5 +27,20 @@ export const kosaiRulesService = {
   async deleteRule(db: Firestore, tenantId: string, ruleId: string): Promise<void> {
     const docRef = doc(db, `tenants/${tenantId}/${KOSAI_CONFIG.COLLECTIONS.RULES}`, ruleId);
     await deleteDoc(docRef);
+  },
+
+  async logAiUsage(db: Firestore, tenantId: string, log: Omit<KosaiAnalyticsLog, 'id' | 'timestamp'>): Promise<void> {
+    const colRef = collection(db, `tenants/${tenantId}/mod_kosai_analytics`);
+    await addDoc(colRef, {
+      ...log,
+      timestamp: Date.now()
+    });
+  },
+
+  async getRecentAnalytics(db: Firestore, tenantId: string): Promise<KosaiAnalyticsLog[]> {
+    const colRef = collection(db, `tenants/${tenantId}/mod_kosai_analytics`);
+    const q = query(colRef, orderBy('timestamp', 'desc'), limit(50));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() } as KosaiAnalyticsLog));
   }
 };

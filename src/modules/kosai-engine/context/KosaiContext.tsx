@@ -96,7 +96,19 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         imageBase64
       });
 
-      if (!response.success || !response.data) throw new Error('No AI response');
+      if (!response || !response.data) throw new Error('No AI response');
+      
+      // LOG USAGE TO FIRESTORE
+      if (db && currentRule) {
+        import('../services/kosaiFirestoreService').then(({ kosaiRulesService }) => {
+          kosaiRulesService.logAiUsage(db, tenantId, {
+            ruleId: currentRule.id,
+            moduleName: currentRule.moduleId || 'unknown',
+            actionType: 'CHAT_MESSAGE',
+            usage: response.usageReport
+          }).catch(console.error);
+        });
+      }
       
       let parsed;
       try {
