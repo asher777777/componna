@@ -50,6 +50,9 @@ import { LandingEditor } from '../sections/landing/LandingEditor';
 import { ContactEditor } from '../sections/contact/ContactEditor';
 import { SmartFormEditor } from '../sections/smartForm/SmartFormEditor';
 import { FlowPlayerEditor } from '../sections/flowPlayer/FlowPlayerEditor';
+import { CustomHtmlView } from '../sections/customHtml/CustomHtmlView';
+import { CustomHtmlEditor } from '../sections/customHtml/CustomHtmlEditor';
+
 
 // Icons
 import {
@@ -686,20 +689,14 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     },
   },
 
-  customHtml: {
+    customHtml: {
     type: 'customHtml',
     name: 'קוד AI מותאם אישית',
     category: 'content',
     description: 'אזור שנבנה אוטומטית על ידי ה-AI באמצעות HTML/Tailwind',
     icon: LayoutTemplate,
-    viewComponent: ({ config }: any) => (
-      <div 
-        dangerouslySetInnerHTML={{ __html: config.rawHtmlTemplate || '<div class="p-8 text-center text-slate-500">No custom code provided</div>' }} 
-        className={config.customClasses}
-        style={{ backgroundColor: config.backgroundColor }}
-      />
-    ),
-    editorComponent: () => <div className="p-4 text-center text-slate-500 text-sm">אזור זה נוצר על ידי ה-AI ומכיל קוד HTML דינמי.</div>,
+    viewComponent: CustomHtmlView as any,
+    editorComponent: CustomHtmlEditor as any,
     defaultConfig: {
       type: 'customHtml',
       visible: true,
