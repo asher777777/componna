@@ -795,6 +795,26 @@ export const MOCK_CHAT_MESSAGES: CommunityChatMessage[] = [
 
 export const MOCK_COMMUNITIES: SmartGroup[] = [
   {
+    id: 'comm_subscriptions',
+    name: 'לקוחות מינויים ורכיבים',
+    color: '#10b981',
+    description: 'קהילת משתמשים בעלי מינויים פעילים ורכיבי מערכת',
+    type: 'manual',
+    isCommunity: true,
+    category: 'community',
+    leaderName: 'מנהל מערכת',
+    targetGoal: 100000,
+    currentRaised: 0,
+    engagementScore: 100,
+    pageSlug: 'subscriptions-community',
+    pageUrl: '/subscriptions-community',
+    vision: 'ריכוז משתמשי הפרימיום לחשיפת רכיבים חדשים ועדכונים קריטיים.',
+    purpose: 'קשר ישיר עם רוכשי החבילות לשדרוג חווית המשתמש ומתן תמיכה אקסקלוסיבית.',
+    gallery: [],
+    feedPosts: [],
+    count: 0,
+  },
+  {
     id: 'comm_ambassadors',
     name: 'קהילת שגרירים',
     color: '#6366f1',

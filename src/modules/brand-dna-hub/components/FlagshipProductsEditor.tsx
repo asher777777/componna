@@ -217,7 +217,7 @@ const FlagshipProductModal: React.FC<{ product: FlagshipProduct, onClose: () => 
       // Save to Firestore
       await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
       
-      const updatedDraft = { ...draft, linkedPageId: generatedConfig.pageId };
+      const updatedDraft = { ...draft, linkedPageId: generatedConfig.pageId, linkedPageSlug: generatedConfig.slug };
       setDraft(updatedDraft);
       onSave(updatedDraft);
     } catch (err) {
@@ -302,7 +302,7 @@ const FlagshipProductModal: React.FC<{ product: FlagshipProduct, onClose: () => 
 
         <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex flex-col md:flex-row items-center justify-between mt-auto gap-3">
            {draft.linkedPageId ? (
-             <a href={`/page-builder?page=${draft.linkedPageId}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
+             <a href={`/page/${draft.linkedPageSlug || draft.linkedPageId}`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-bold text-emerald-600 dark:text-emerald-400 hover:underline">
                <ExternalLink className="w-4 h-4" />
                צפה בעמוד הנחיתה של המוצר
              </a>

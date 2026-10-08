@@ -21,6 +21,13 @@ export const TenantAppResolver: React.FC = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return true;
     }
+    // Also consider it "Workbench" mode if they are directly visiting a public page URL on root domain,
+    // because WorkbenchApp has the public viewer routing inside it!
+    const pathname = window.location.pathname;
+    const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/page/') || pathname.startsWith('/preview/');
+    if (isPublicPage) {
+      return true;
+    }
     return sessionStorage.getItem('kosun_is_dev_workbench') === 'true';
   });
 

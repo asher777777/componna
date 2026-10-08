@@ -241,6 +241,7 @@ export interface FlagshipProduct {
   targetAudience: string;
   competitiveAdvantage: string;
   linkedPageId?: string;
+  linkedPageSlug?: string;
 }
 
 export interface BusinessPackage {

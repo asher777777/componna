@@ -45,6 +45,23 @@ export interface AIInteraction {
   cost?: number;
 }
 
+export interface UserSubscription {
+  id: string;
+  componentName: string;
+  packageName?: string;
+  paymentAmount: number;
+  startDate: string;
+  endDate?: string;
+  subdomain?: string;
+  // Extra SaaS Subscription fields
+  status?: 'active' | 'paused' | 'past_due' | 'canceled';
+  billingCycle?: 'monthly' | 'annually' | 'one_time';
+  nextBillingDate?: string;
+  billingCustomerId?: string;
+  cancellationReason?: string;
+  paymentMethod?: string;
+}
+
 export interface Contact {
   id?: string;
   ownerId?: string;
@@ -53,6 +70,9 @@ export interface Contact {
   // Lead / Contact Type Identification
   is_lead?: boolean;
   contact_type?: 'contact' | 'lead';
+  
+  // Subscriptions
+  subscriptions?: UserSubscription[];
 
   // Core Fields
   conta_name: string;

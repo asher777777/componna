@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  User, Sparkles, Tag, DollarSign, Target, Clock, Check, RefreshCw, Landmark, ChevronUp, ChevronDown, Maximize2, Minimize2, MessageCircle 
+  User, Sparkles, Tag, DollarSign, Target, Clock, Check, RefreshCw, Landmark, ChevronUp, ChevronDown, Maximize2, Minimize2, MessageCircle, Package 
 } from 'lucide-react';
 import { Contact, CustomField } from '../types';
 import { ContactModalHeader } from './contact-modal/ContactModalHeader';
@@ -12,6 +12,7 @@ import { ContactBankAndCheckTab } from './contact-modal/ContactBankAndCheckTab';
 import { ContactCampaignsTab } from './contact-modal/ContactCampaignsTab';
 import { ContactTimelineTab } from './contact-modal/ContactTimelineTab';
 import { ContactWhatsAppTab } from './contact-modal/ContactWhatsAppTab';
+import { ContactSubscriptionsTab } from './contact-modal/ContactSubscriptionsTab';
 
 interface Props {
   isOpen: boolean;
@@ -29,7 +30,8 @@ export type TabType =
   | 'bank_and_checks' 
   | 'campaigns' 
   | 'timeline'
-  | 'whatsapp';
+  | 'whatsapp'
+  | 'subscriptions';
 
 export const Contact360Modal: React.FC<Props> = ({
   isOpen,
@@ -87,6 +89,7 @@ export const Contact360Modal: React.FC<Props> = ({
   const tabs: { id: TabType; label: string; icon: any; count?: number }[] = [
     { id: 'overview', label: 'פרופיל 360', icon: User },
     { id: 'ai_copilot', label: 'AI Copilot תובנות', icon: Sparkles },
+    { id: 'subscriptions', label: 'מינויים ורכיבים', icon: Package, count: formData.subscriptions?.length || 0 },
     { id: 'tags_groups', label: 'תגיות וקהילות', icon: Tag, count: formData.tags?.length || 0 },
     { id: 'financial', label: 'עסקאות וכספים', icon: DollarSign },
     { id: 'bank_and_checks', label: 'פרטי בנק וצ\'קים', icon: Landmark },
@@ -171,6 +174,9 @@ export const Contact360Modal: React.FC<Props> = ({
           )}
           {activeTab === 'ai_copilot' && (
             <ContactAiCopilotTab formData={formData} onAddTag={handleAddTag} />
+          )}
+          {activeTab === 'subscriptions' && (
+            <ContactSubscriptionsTab formData={formData} onChange={handleFieldChange} />
           )}
           {activeTab === 'tags_groups' && (
             <ContactTagsTab formData={formData} onChange={handleFieldChange} />
