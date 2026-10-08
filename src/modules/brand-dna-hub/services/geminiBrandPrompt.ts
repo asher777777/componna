@@ -1194,15 +1194,33 @@ export async function generateAiPersona(brand: BrandDna, apiKey?: string): Promi
   if (!finalKey) return null;
 
   const systemPrompt = buildBrandSystemContext(brand);
-  const userPrompt = `Based on our Brand DNA, generate a completely new, realistic, and highly detailed Target Audience Persona.
-Do not repeat the ones we already have: ${brand.audience.personas.map(p => p.name).join(', ')}.
+  const userPrompt = `Based on our Brand DNA and Target Audiences, assemble 3 highly recommended "Business Packages" (חבילות פתרונות ושירותים) that we can offer to businesses. 
+Our core components and capabilities include:
+1. מערכת CRM לאנליטיקה ולניהול לקוחות
+2. אזור אישי ממותג ללקוחות (Auth Portal)
+3. אוטומציות וואטסאפ למוקד שירות חכם (WhatsApp API)
+4. בניית דפי נחיתה ומערכת טפסים חכמים להמרות
+5. חנות דיגיטלית חכמה (SaaS Storefront)
+6. ניהול קהילות וקבוצות (Community Hub)
+7. פתרונות סליקה, הצעות מחיר וקבלות (Payments Hub)
+8. ניהול שגרירים ותוכניות שותפים (Ambassadors)
 
-Return ONLY a valid JSON object with EXACTLY these keys:
+Your task is to assemble these components into 3 cohesive, high-value packages tailored for our target audiences.
+Focus ONLY on business solutions and business outcomes, not software or technical terms (e.g. use "מערכת לשימור לקוחות", not "CRM Analytics").
+Do not output technical component names, just the business value of the package.
+
+Return ONLY a valid JSON object with EXACTLY this key:
 {
-  "name": "e.g. דן, בעל עסק",
-  "role": "e.g. מנהל שיווק",
-  "pain": "The main pain point",
-  "dream": "The ultimate dream outcome"
+  "packages": [
+    {
+      "name": "שם החבילה",
+      "description": "תיאור החבילה ומה היא כוללת (איזה רכיבים שולבו)",
+      "painPointsAddressed": "נקודות הכאב המרכזיות שזה פותר",
+      "competitiveAdvantage": "היתרון שלנו על פני המתחרים בפתרון זה",
+      "targetAudience": "סוג הלקוח האידיאלי (הקהל אליו החבילה פונה)",
+      "callToAction": "הצעה עסקית והנעה לפעולה מנוסחת לפי סוג הקהל"
+    }
+  ]
 }`;
 
   try {
@@ -1213,22 +1231,140 @@ Return ONLY a valid JSON object with EXACTLY these keys:
       responseSchema: {
         type: 'object',
         properties: {
-          name: { type: 'string' },
-          role: { type: 'string' },
-          pain: { type: 'string' },
-          dream: { type: 'string' }
+          items: { type: 'array', items: { type: 'string' } }
         },
-        required: ['name', 'role', 'pain', 'dream']
+        required: ['items']
       }
     });
-    if (!response.success || !response.text) return null;
+    if (!response.success || !response.text) return [];
+    const parsed = JSON.parse(response.text);
+    return parsed.items || [];
+  } catch(e) {
+    console.error('Failed to generate Ecosystem items:', e);
+    return [];
+  }
+}
+export async function runMarketResearchAgent(brand: BrandDna, apiKey?: string): Promise<any> {
+  const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
+  if (!finalKey) return null;
+
+  const systemPrompt = buildBrandSystemContext(brand);
+  const userPrompt = `You are a top-tier Market Research AI Agent.
+Analyze the following Brand DNA and its industry in the Israeli/Global market.
+
+Return a valid JSON object with the following structure:
+{
+  "marketTrends": ["Trend 1", "Trend 2", "Trend 3"],
+  "competitors": [
+    { "name": "Competitor Name", "strengths": "What they do well", "weaknesses": "Their gaps", "pricingTier": "High/Medium/Low" }
+  ],
+  "competitiveness": "A paragraph analyzing our competitive advantage and market gaps.",
+  "pricingRecommendations": "A paragraph with strategic pricing advice based on our UVP.",
+  "designLanguageRecommendations": "A paragraph suggesting colors, fonts, and vibe to stand out.",
+  "actionableUpdates": {
+    "slogan": "A suggested better slogan (leave empty if current is great)",
+    "primaryColor": "A suggested hex color to stand out (leave empty if current is great)",
+    "newService": "A suggested new service to add to the ecosystem (leave empty if none)"
+  }
+}`;
+
+  try {
+    const response = await executeWithGeminiFallback(finalKey, {
+      systemInstruction: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+      responseSchema: {
+        type: 'object',
+        properties: {
+          marketTrends: { type: 'array', items: { type: 'string' } },
+          competitors: { 
+            type: 'array', 
+            items: { 
+              type: 'object', 
+              properties: {
+                name: { type: 'string' },
+                strengths: { type: 'string' },
+                weaknesses: { type: 'string' },
+                pricingTier: { type: 'string' }
+              }
+            } 
+          },
+          competitiveness: { type: 'string' },
+          pricingRecommendations: { type: 'string' },
+          designLanguageRecommendations: { type: 'string' },
+          actionableUpdates: {
+            type: 'object',
+            properties: {
+              slogan: { type: 'string' },
+              primaryColor: { type: 'string' },
+              newService: { type: 'string' }
+            }
+          }
+        },
+        required: ['marketTrends', 'competitors', 'competitiveness', 'pricingRecommendations', 'designLanguageRecommendations']
+      }
+    });
     return JSON.parse(response.text);
   } catch(e) {
-    console.error('Failed to generate Persona:', e);
+    console.error('Failed to run market research agent:', e);
     return null;
   }
 }
+export async function generateAiBusinessPackages(brand: BrandDna, apiKey?: string): Promise<any[]> {
+  const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
+  if (!finalKey) return [];
 
+  const systemPrompt = buildBrandSystemContext(brand);
+  const userPrompt = `Based on our Brand DNA and Target Audiences, assemble 3 highly recommended "Business Packages" (חבילות פתרונות ושירותים) that we can offer to businesses. 
+Focus ONLY on business solutions and business outcomes, not software or technical terms (e.g. use "Customer Retention System", not "CRM Analytics").
+
+Return ONLY a valid JSON object with EXACTLY this key:
+{
+  "packages": [
+    {
+      "name": "שם החבילה",
+      "description": "תיאור החבילה ומה היא כוללת",
+      "painPointsAddressed": "נקודות הכאב המרכזיות שזה פותר",
+      "competitiveAdvantage": "היתרון שלנו על פני המתחרים",
+      "targetAudience": "סוג הלקוח האידיאלי לחבילה זו",
+      "callToAction": "הצעה עסקית והנעה לפעולה מנוסחת היטב"
+    }
+  ]
+}`;
+
+  try {
+    const response = await executeWithGeminiFallback(finalKey, {
+      systemInstruction: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+      responseSchema: {
+        type: 'object',
+        properties: {
+          packages: {
+            type: 'array',
+            items: {
+              type: 'object',
+              properties: {
+                name: { type: 'string' },
+                description: { type: 'string' },
+                painPointsAddressed: { type: 'string' },
+                competitiveAdvantage: { type: 'string' },
+                targetAudience: { type: 'string' },
+                callToAction: { type: 'string' }
+              }
+            }
+          }
+        },
+        required: ['packages']
+      }
+    });
+    const parsed = JSON.parse(response.text);
+    return parsed.packages || [];
+  } catch(e) {
+    console.error('Failed to generate Business Packages:', e);
+    return [];
+  }
+}
 export async function generateAiObjection(brand: BrandDna, apiKey?: string): Promise<any> {
   const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
   if (!finalKey) return null;
@@ -1257,14 +1393,12 @@ Return ONLY a valid JSON object with EXACTLY these keys:
         required: ['objection', 'rebuttal']
       }
     });
-    if (!response.success || !response.text) return null;
     return JSON.parse(response.text);
   } catch(e) {
     console.error('Failed to generate Objection:', e);
     return null;
   }
 }
-
 export async function generateAiEcosystemItems(brand: BrandDna, category: string, currentItems: string[], apiKey?: string): Promise<string[]> {
   const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
   if (!finalKey) return [];
@@ -1291,11 +1425,51 @@ Return ONLY a valid JSON object with EXACTLY this key:
         required: ['items']
       }
     });
-    if (!response.success || !response.text) return [];
     const parsed = JSON.parse(response.text);
     return parsed.items || [];
   } catch(e) {
     console.error('Failed to generate Ecosystem items:', e);
     return [];
+  }
+}
+export async function generateAiFlagshipProduct(idea: string, brand: BrandDna, apiKey?: string): Promise<any> {
+  const finalKey = apiKey || getModuleGeminiKey('brand-dna-hub');
+  if (!finalKey) return null;
+
+  const systemPrompt = buildBrandSystemContext(brand);
+  const userPrompt = `Based on our Brand DNA and the user's idea: "${idea}", generate a detailed Flagship Product profile.
+
+Return ONLY a valid JSON object with EXACTLY these keys:
+{
+  "nameAndSlogan": "שם המוצר + סלוגן",
+  "shortDescription": "תיאור קצר",
+  "longDescription": "תיאור ארוך עבור SEO וקידום AI (מפורט)",
+  "painPointSolved": "נקודת הכאב שהמוצר פותר",
+  "targetAudience": "קהל היעד שמתאים",
+  "competitiveAdvantage": "המעלה על המתחרים"
+}`;
+
+  try {
+    const response = await executeWithGeminiFallback(finalKey, {
+      systemInstruction: systemPrompt,
+      userPrompt: userPrompt,
+      temperature: 0.7,
+      responseSchema: {
+        type: 'object',
+        properties: {
+          nameAndSlogan: { type: 'string' },
+          shortDescription: { type: 'string' },
+          longDescription: { type: 'string' },
+          painPointSolved: { type: 'string' },
+          targetAudience: { type: 'string' },
+          competitiveAdvantage: { type: 'string' }
+        },
+        required: ['nameAndSlogan', 'shortDescription', 'longDescription', 'painPointSolved', 'targetAudience', 'competitiveAdvantage']
+      }
+    });
+    return JSON.parse(response.text);
+  } catch(e) {
+    console.error('Failed to generate Flagship Product:', e);
+    return null;
   }
 }

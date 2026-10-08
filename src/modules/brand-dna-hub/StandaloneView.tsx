@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrandDnaProvider, useBrandDna } from './context/BrandDnaContext';
 import { BrandIdentitySection } from './components/BrandIdentitySection';
+import { MarketResearchAgentSection } from './components/MarketResearchAgentSection';
 import { BrandVoiceSection } from './components/BrandVoiceSection';
 import { TargetAudienceSection } from './components/TargetAudienceSection';
 import { DesignTokensSection } from './components/DesignTokensSection';
@@ -33,7 +34,7 @@ import {
   FileSpreadsheet,
 } from 'lucide-react';
 
-export type TabType = 'identity' | 'voice' | 'audience' | 'ecosystem' | 'design' | 'trust';
+export type TabType = 'identity' | 'voice' | 'audience' | 'ecosystem' | 'design' | 'trust' | 'market';
 
 export const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.ComponentType<{ className?: string }> }> = [
   { id: 'identity', label: '1. זהות עסקית', icon: Building2 },
@@ -42,6 +43,7 @@ export const TAB_CONFIG: Array<{ id: TabType; label: string; icon: React.Compone
   { id: 'ecosystem', label: '4. מבנה שירותים', icon: Layers },
   { id: 'design', label: '5. שפה חזותית', icon: Palette },
   { id: 'trust', label: '6. אמינות וסליקה', icon: ShieldCheck },
+    { id: 'market', label: '7. מחקר שוק ומתחרים (AI)', icon: Globe },
 ];
 
 export interface BrandDnaViewProps {
@@ -273,10 +275,12 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
               {/* Tabbed Content */}
               <div className="w-full space-y-6">
                 {activeTab === 'identity' && <BrandIdentitySection />}
-                {activeTab === 'voice' && <BrandVoiceSection />}
-                {activeTab === 'audience' && <TargetAudienceSection />}
-                {activeTab === 'design' && <DesignTokensSection />}
-                {activeTab === 'trust' && <TrustCheckoutSection />}
+                  {activeTab === 'voice' && <BrandVoiceSection />}
+                  {activeTab === 'audience' && <TargetAudienceSection />}
+                  {activeTab === 'ecosystem' && <BrandEcosystemSection />}
+                  {activeTab === 'design' && <DesignTokensSection />}
+                  {activeTab === 'trust' && <TrustCheckoutSection />}
+                  {activeTab === 'market' && <MarketResearchAgentSection />}
               </div>
             </div>
           )}

@@ -6,7 +6,7 @@ description: Reads a Component Specification document (תבנית אפיון ק�
 # Build Component From Specification Skill
 
 ## Purpose
-This skill instructs the agent on how to take a structured Component Specification document (such as `templates/component_spec_template.md` or any `.md` file created by the user) and generate the full 10-layer self-contained component module under `src/modules/[module-name]/`.
+This skill instructs the agent on how to take a structured Component Specification document (such as `templates/component_spec_template.md` or any `.md` file created by the user) and generate the full 12-layer self-contained component module under `src/modules/[module-name]/`.
 
 ## Generation Workflow
 
@@ -14,7 +14,7 @@ This skill instructs the agent on how to take a structured Component Specificati
 1. Parse the module name, collection prefix, Firestore schemas, UI views, sub-routes, API functions, prompts, security rules, and env requirements.
 2. Confirm the module directory name in kebab-case (e.g. `src/modules/task-manager`).
 
-### Step 2: Create the 10 Standard Module Layers
+### Step 2: Create the 12 Standard Module Layers
 Generate each file in `src/modules/[module-name]/`:
 1. **`types/index.ts`**: TypeScript interfaces for data entities, config props, collection maps, and API payloads.
 2. **`config/index.ts`**: Default collection names with prefixing logic (`mod_[name]_[coll]`) and fallback resolvers.
@@ -26,6 +26,8 @@ Generate each file in `src/modules/[module-name]/`:
 8. **`components/`**: UI components built with Tailwind CSS, RTL-aware layouts, and loading/error states.
 9. **`StandaloneView.tsx`**: Development runner reading local `.env` and rendering the module with its own provider.
 10. **`index.ts` & `README.md`**: Clean public export and integration guide with security rules.
+11. **`.gemini/` (`rules.md` & `skills.md`)**: Module-specific rules and agent skills.
+12. **`scripts/`**: Local utility scripts. Code modifiers or build patch scripts (`.mjs`) MUST reside here.
 
 ### Step 3: Register in Workbench
 Add the new module to `src/workbench/moduleRegistry.ts` so it immediately appears in the development dashboard sidebar.

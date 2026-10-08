@@ -13,6 +13,9 @@ export type {
   BrandTrustAndCheckout,
   BrandDna,
   BrandDnaContract,
+  BrandEcosystem,
+  FlagshipProduct,
+  BusinessPackage,
 } from '../../../core/contracts';
 
 import type { BrandDna } from '../../../core/contracts';
@@ -31,10 +34,20 @@ export const DEFAULT_BRAND_DNA: BrandDna = {
     vibeImages: [],
   },
   ecosystem: {
-    services: [],
+    services: [
+      'מערכת CRM לאנליטיקה ולניהול לקוחות',
+      'פורטל התחברות ואזור אישי ללקוחות',
+      'אוטומציות וואטסאפ ושירות לקוחות חכם',
+      'בניית דפי נחיתה ומערכת טפסים חכמים',
+      'חנות דיגיטלית חכמה (SaaS Storefront)',
+      'ניהול קהילות וקבוצות (Community Hub)',
+      'פתרונות סליקה וקבלות (Payments Hub)',
+      'ניהול שגרירים ותוכניות שותפים'
+    ],
     products: [],
     annualEvents: [],
     communities: [],
+    businessPackages: [],
   },
   voice: {
     personality: {

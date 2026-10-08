@@ -67,6 +67,8 @@ export interface CrmContactSummary {
 }
 
 export interface CoreEventMap {
+  'kosai:action': any;
+  'media:request_picker': any;
   'crm:lead:created': LeadPayload;
   'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };
   'auth:state_changed': AuthSessionContract;
@@ -229,11 +231,34 @@ export interface BrandTrustAndCheckout {
   whatsappSupportNumber?: string;
 }
 
+export interface FlagshipProduct {
+  id: string;
+  nameAndSlogan: string;
+  shortDescription: string;
+  longDescription: string;
+  imageUrl: string;
+  painPointSolved: string;
+  targetAudience: string;
+  competitiveAdvantage: string;
+  linkedPageId?: string;
+}
+
+export interface BusinessPackage {
+  id: string;
+  name: string;
+  description: string;
+  painPointsAddressed: string;
+  competitiveAdvantage: string;
+  targetAudience: string;
+  callToAction: string;
+}
+
 export interface BrandEcosystem {
   services: string[];
-  products: string[];
+  products: (string | FlagshipProduct)[];
   annualEvents: string[];
   communities: string[];
+  businessPackages?: BusinessPackage[];
 }
 
 export interface BrandDna {

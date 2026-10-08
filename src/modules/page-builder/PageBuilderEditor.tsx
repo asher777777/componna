@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab, SectionType } from './types/pageBuilder.types';
-import { BuilderCopilotProvider } from './context/BuilderCopilotContext';
-import { CopilotChatDrawer } from './components/CopilotChatDrawer';
-import { FloatingCopilotButton } from './components/FloatingCopilotButton';
+import { eventBus } from '../../core/bridge/EventBus';
+import { KosaiChatDrawer, FloatingKosaiButton } from '../kosai-engine';
+
 
 
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
@@ -57,6 +57,48 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   const [isSaving, setIsSaving] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [aiSectionTarget, setAiSectionTarget] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = eventBus.subscribe('kosai:action', (data: any) => {
+      const { action, payload } = data;
+      if (action === 'ADD_SECTION' && payload) {
+        const newSectionId = `custom_${Date.now()}`;
+        setConfig(prev => ({
+          ...prev,
+          sectionOrder: [...prev.sectionOrder, newSectionId],
+          sections: {
+            ...prev.sections,
+            [newSectionId]: { ...payload, id: newSectionId }
+          }
+        }));
+      } else if (action === 'UPDATE_SECTION' && payload && payload.sectionId) {
+        setConfig(prev => ({
+          ...prev,
+          sections: {
+            ...prev.sections,
+            [payload.sectionId]: { ...prev.sections[payload.sectionId], ...payload.updates }
+          }
+        }));
+      } else if (action === 'UPDATE_GLOBAL_SETTINGS' && payload) {
+        setConfig(prev => ({
+          ...prev,
+          globalSettings: {
+            ...prev.globalSettings,
+            ...payload
+          }
+        }));
+      } else if (action === 'UPDATE_SEO' && payload) {
+        setConfig(prev => ({
+          ...prev,
+          seoSettings: {
+            ...prev.seoSettings,
+            ...payload
+          }
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (isDarkMode) {
@@ -206,9 +248,9 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   };
 
     return (
-    <BuilderCopilotProvider config={config} setConfig={setConfig}>
-      <CopilotChatDrawer />
-      <FloatingCopilotButton />
+    <>
+      <KosaiChatDrawer />
+      <FloatingKosaiButton />
       <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-white select-none transition-colors duration-300">
       {/* Top Navigation Bar */}
       <PageBuilderHeader
@@ -508,7 +550,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
           onApplyDesign={(newConfig) => handleUpdateSectionData(aiSectionTarget, newConfig)}
         />
       )}
-        </div>
-    </BuilderCopilotProvider>
+      </div>
+    </>
   );
 };

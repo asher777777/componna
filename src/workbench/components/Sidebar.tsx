@@ -20,7 +20,8 @@ import {
   MessageSquare,
   CreditCard,
   Settings,
-  Key
+  Key,
+  Bot
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../moduleRegistry';
 import { FirebaseStatus } from './FirebaseStatus';
@@ -28,6 +29,7 @@ import { SystemSettingsModal } from './SystemSettingsModal';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 
 const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
+  'kosai-engine': { icon: Bot, color: 'text-purple-400 group-hover:text-purple-300' },
   'control-center-hub': { icon: Sparkles, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'brand-dna-hub': { icon: Sparkles, color: 'text-purple-400 group-hover:text-purple-300' },
   'kesher-payments-hub': { icon: CreditCard, color: 'text-indigo-400 group-hover:text-indigo-300' },

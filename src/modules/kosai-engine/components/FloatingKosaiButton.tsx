@@ -1,9 +1,9 @@
 import React from 'react';
-import { useBuilderCopilot } from '../context/BuilderCopilotContext';
+import { useKosai } from '../context/KosaiContext';
 import { Bot, Sparkles } from 'lucide-react';
 
-export const FloatingCopilotButton: React.FC = () => {
-  const { isOpen, setIsOpen } = useBuilderCopilot();
+export const FloatingKosaiButton: React.FC = () => {
+  const { isOpen, setIsOpen } = useKosai();
 
   if (isOpen) return null;
 
@@ -11,7 +11,7 @@ export const FloatingCopilotButton: React.FC = () => {
     <button
       onClick={() => setIsOpen(true)}
       className="fixed bottom-6 left-6 z-[80] w-14 h-14 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl shadow-2xl shadow-indigo-500/30 flex items-center justify-center hover:scale-110 transition-transform group border border-indigo-400/50"
-      title="פתח עוזר AI"
+      title="פתח את KOSAI"
     >
       <Bot className="w-6 h-6 text-white" />
       <span className="absolute -top-1 -right-1 flex h-4 w-4">

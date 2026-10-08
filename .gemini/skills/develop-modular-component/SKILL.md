@@ -16,7 +16,7 @@ This skill instructs the agent on how to build, isolate, and register any new co
    - **Consumes a capability** (e.g. needs to pick an image or save a contact). Use `useHostCapabilities().getCapability<Contract>('name')` with a built-in fallback.
    - **Emits or listens to events**. Register the event payload in `CoreEventMap` in `src/core/contracts/index.ts`.
 
-### Step 2: Scaffold the 11-Layer Anatomy & Present Immediate Skills
+### Step 2: Scaffold the 12-Layer Anatomy & Present Immediate Skills
 Create `src/modules/[module-name]/`:
 1. `types/index.ts`: Strict TypeScript interfaces, props, and data models (NO `any`).
 2. `config/index.ts`: Define module ID, title, scoped Firestore collection names (`mod_[module]_[coll]`), and defaults.
@@ -31,6 +31,7 @@ Create `src/modules/[module-name]/`:
 11. `.gemini/` (`rules.md` & `skills.md`):
     - **`rules.md`**: Strict module-specific isolation rules, prohibited sibling imports, host capabilities consumed/provided, and EventBus topics.
     - **`skills.md`**: Core agent capabilities, immediate development skills, and checklist.
+12. `scripts/`: Local utility and patch scripts. Any automated `.mjs` code modifiers or build-time scripts MUST reside here and not in the global root.
 
 **MANDATORY AGENT ACTION UPON MODULE CREATION**:
 When creating a new module, the agent MUST immediately present to the user:

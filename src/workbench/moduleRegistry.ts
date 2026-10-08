@@ -55,6 +55,10 @@ const AmbassadorCampaignsStandaloneView = React.lazy(() =>
   import('../modules/ambassador-campaigns-hub').then((m) => ({ default: m.AmbassadorCampaignsStandaloneView }))
 );
 
+const KosaiEngineStandaloneView = React.lazy(() =>
+  import('../modules/kosai-engine').then((m) => ({ default: m.KosaiStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -65,6 +69,15 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'kosai-engine',
+    name: 'KOSAI AI Engine',
+    description: 'מנוע AI מרכזי לשליטה בעריכה, ממשק ועיצוב עם תמיכה בחוקים דינמיים ו-Brand DNA',
+    component: KosaiEngineStandaloneView,
+    route: '/kosai-engine',
+    collectionPrefix: 'mod_kosai_',
+  },
+
   {
     id: 'control-center-hub',
     name: 'מרכז השליטה והבקרה (Control Center Hub)',

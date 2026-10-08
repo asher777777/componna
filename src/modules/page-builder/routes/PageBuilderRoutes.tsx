@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
+import { KosaiProvider } from '../../kosai-engine';
 import { PageBuilderProvider, usePageBuilderContext } from '../context/PageBuilderContext';
 import { PageBuilderEditor } from '../PageBuilderEditor';
 import { PagesDashboardTab } from '../components/PagesDashboardTab';
@@ -152,11 +153,13 @@ const DashboardRouteWrapper: React.FC = () => {
 export const PageBuilderRoutes: React.FC = () => {
   return (
     <PageBuilderProvider>
+      <KosaiProvider>
       <Routes>
         <Route path="/" element={<DashboardRouteWrapper />} />
         <Route path="/edit/:pageId" element={<PageEditorRouteWrapper />} />
         <Route path="/preview/:pageId" element={<PagePreviewRouteWrapper />} />
       </Routes>
+          </KosaiProvider>
     </PageBuilderProvider>
   );
 };

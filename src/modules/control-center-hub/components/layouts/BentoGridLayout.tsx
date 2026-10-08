@@ -20,7 +20,8 @@ import {
   Info,
   UserPlus,
   Key,
-  Play
+  Play,
+  Bot
 } from 'lucide-react';
 import { useControlCenter } from '../../context/ControlCenterContext';
 import { ControlCenterModuleItem } from '../../types';
@@ -60,6 +61,7 @@ export const BentoGridLayout: React.FC = () => {
       case 'Layers': return Layers;
       case 'ShieldCheck': return ShieldCheck;
       case 'Smartphone': return Smartphone;
+      case 'Bot': return Bot;
       default: return Layers;
     }
   };
