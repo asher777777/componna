@@ -1,10 +1,11 @@
+import { ensureDefaultFirebaseApp } from '../../../services/firebaseAuth';
 import { ModulePricingConfig, StorefrontGeneralSettings, TenantRecord } from '../types';
 import { DEFAULT_GENERAL_SETTINGS, INITIAL_MODULE_PRICING_CATALOG } from '../config';
 
 const STORAGE_KEYS = {
-  CATALOG: 'comona_saas_catalog_v1',
-  SETTINGS: 'comona_saas_settings_v1',
-  TENANTS: 'comona_saas_tenants_v1',
+  CATALOG: 'kosun_saas_catalog_v1',
+  SETTINGS: 'kosun_saas_settings_v1',
+  TENANTS: 'kosun_saas_tenants_v1',
 };
 
 export class StorefrontService {
@@ -129,7 +130,7 @@ export class StorefrontService {
 
     // Register in Firestore collections ('tenants' & 'saas_orders') for central admin DB management
     try {
-      const { ensureDefaultFirebaseApp } = await import('../../../services/firebaseAuth');
+      
       const { getFirestore, doc, setDoc } = await import('firebase/firestore');
       const app = ensureDefaultFirebaseApp();
       const db = getFirestore(app);

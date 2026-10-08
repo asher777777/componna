@@ -811,7 +811,7 @@ export const DatabaseConnectorModal: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://app.comona.io';
+                      const origin = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://app.kosun.io';
                       const instanceParam = greenApiInstanceId ? `?instance=${encodeURIComponent(greenApiInstanceId.trim())}` : '';
                       setCustomWebhookUrl(`${origin}/api/webhook/whatsapp${instanceParam}`);
                     }}

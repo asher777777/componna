@@ -31,7 +31,7 @@ export class CampaignFunctionsApi {
     if (!this.functions) {
       return {
         success: true,
-        receiptUrl: `https://comona.io/receipt/REC-${Date.now().toString().slice(-4)}`,
+        receiptUrl: `https://kosun.io/receipt/REC-${Date.now().toString().slice(-4)}`,
       };
     }
     try {

@@ -39,7 +39,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
   const [simChat, setSimChat] = useState<{ role: 'user' | 'model'; text: string; buttons?: { buttonId: string; buttonText: string }[] }[]>([
     {
       role: 'model',
-      text: 'שלום! 👋 כאן נציג השירות הדיגיטלי החכם של Comona. במה אוכל לעזור לך היום?',
+      text: 'שלום! 👋 כאן נציג השירות הדיגיטלי החכם של Kosun. במה אוכל לעזור לך היום?',
       buttons: activeBot?.interactiveButtons?.map((b) => ({ buttonId: b.buttonId, buttonText: b.buttonText })) || [],
     },
   ]);
@@ -182,7 +182,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     let newButtons: WhatsAppBotButton[] = [];
 
     if (presetKey === 'sales') {
-      newPrompt = `אתה נציג מכירות ולידים מוביל של Comona. תפקידך להציג את היתרונות של המערכת, לאסוף פרטי התקשרות (שם, מייל, סוג עסק) ולהניע לפעולה לקביעת פגישת הדגמה.`;
+      newPrompt = `אתה נציג מכירות ולידים מוביל של Kosun. תפקידך להציג את היתרונות של המערכת, לאסוף פרטי התקשרות (שם, מייל, סוג עסק) ולהניע לפעולה לקביעת פגישת הדגמה.`;
       newButtons = [
         { buttonId: 'b_demo', buttonText: '📅 קביעת הדגמה', actionType: 'prompt', actionValue: 'אני מעוניין לתאם הדגמה' },
         { buttonId: 'b_price', buttonText: '💰 מחירון חבילות', actionType: 'prompt', actionValue: 'מהן חבילות המחיר?' },
@@ -370,7 +370,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                     onChange={(e) => saveBotChanges({ ...activeBot, model: e.target.value })}
                     className={`w-full p-2.5 rounded-xl border text-xs font-semibold ${isDark ? 'bg-slate-950 border-slate-700 text-white' : 'bg-slate-50 border-slate-300 text-slate-900'}`}
                   >
-                    <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (ברירת מחדל Comona - מודל דגל מהיר)</option>
+                    <option value="gemini-3.8-flash">⚡ Gemini 3.8 Flash (ברירת מחדל Kosun - מודל דגל מהיר)</option>
                     <option value="gemini-3.5-flash">💡 Gemini 3.5 Flash (יציב, מדויק וחסכוני)</option>
                     <option value="gemini-3.8-flash-lite">⚡ Gemini 3.8 Flash Lite (מענה סופר מהיר למשימות קצרות)</option>
                     <option value="gemini-3.5-flash-lite">🌱 Gemini 3.5 Flash Lite (חיסכון מרבי בעלויות)</option>

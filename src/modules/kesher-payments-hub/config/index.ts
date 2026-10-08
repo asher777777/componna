@@ -2,7 +2,7 @@ export const KESHER_PAYMENTS_MODULE_CONFIG = {
   id: 'kesher-payments-hub',
   name: 'קשר & EasyCount Hub',
   version: '2.0.0',
-  storagePrefix: 'comona_kesher_',
+  storagePrefix: 'kosun_kesher_',
   collections: {
     transactions: 'kesher_transactions',
     glossary: 'kesher_receipt_glossary',

@@ -64,7 +64,7 @@ export const ControlCenterMainView: React.FC = () => {
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-indigo-500" />
           <span className={`font-medium ${isLight ? 'text-slate-700' : 'text-slate-400'}`}>
-            Comona Modular Workspace — Control Center Hub
+            Kosun Modular Workspace — Control Center Hub
           </span>
           <span className="text-slate-400">|</span>
           <span className="text-[11px] font-mono text-emerald-600 font-semibold">

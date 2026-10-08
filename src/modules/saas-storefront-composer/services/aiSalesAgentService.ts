@@ -213,7 +213,7 @@ export class AiSalesAgentService {
     const apiKey = customApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
 
     const prompt = `
-אתה "סוכן המכירות וההדרכה של פלטפורמת Comona SaaS".
+אתה "סוכן המכירות וההדרכה של פלטפורמת Kosun SaaS".
 פונה אליך לקוח שמתעניין בהצעת המחיר והרכיבים שנבחרו:
 - שם העסק: ${context.businessName || 'הלקוח'}
 - רכיבים שנבחרו: ${context.cartModules.join(', ')}
@@ -249,6 +249,6 @@ export class AiSalesAgentService {
       }
     }
 
-    return `פלטפורמת Comona מספקת מענה מקיף וכולל עם סאב-דומיין מבודד (${context.subdomain || 'kosun.pro'}), מסדי נתונים עצמאיים ואפס צורך בידע טכני. הרכיבים שנבחרו (${context.cartModules.join(', ')}) מוכנים להפעלה מיידית בלחיצת כפתור אחת.`;
+    return `פלטפורמת Kosun מספקת מענה מקיף וכולל עם סאב-דומיין מבודד (${context.subdomain || 'kosun.pro'}), מסדי נתונים עצמאיים ואפס צורך בידע טכני. הרכיבים שנבחרו (${context.cartModules.join(', ')}) מוכנים להפעלה מיידית בלחיצת כפתור אחת.`;
   }
 }

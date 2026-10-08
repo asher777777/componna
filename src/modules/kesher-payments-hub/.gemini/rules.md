@@ -1,7 +1,7 @@
 # kesher-payments-hub Isolation & Architecture Rules
 
 ## 1. Overview
-The `kesher-payments-hub` module provides terminal payment integration, transaction recording, receipt glossary management, and contact transaction history syncing for the Comona platform.
+The `kesher-payments-hub` module provides terminal payment integration, transaction recording, receipt glossary management, and contact transaction history syncing for the Kosun platform.
 
 ## 2. Multi-Tenant Firestore Subcollections
 All data stored or queried by this module MUST reside in tenant-isolated paths under `tenants/{tenantId}/`:
@@ -15,9 +15,9 @@ Always obtain `tenantId` from `useTenantScope()` and pass it into the services v
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with the tenant ID:
-- `comona_{tenantId}_kesher_settings`
-- `comona_{tenantId}_kesher_transactions`
-- `comona_{tenantId}_kesher_glossary`
+- `kosun_{tenantId}_kesher_settings`
+- `kosun_{tenantId}_kesher_transactions`
+- `kosun_{tenantId}_kesher_glossary`
 
 ## 4. Zero Cross-Module Imports
 - `kesher-payments-hub` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `brand-dna-hub`, `crm-groups-hub`).

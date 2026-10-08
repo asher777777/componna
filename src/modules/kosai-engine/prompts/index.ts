@@ -10,7 +10,7 @@ export const buildKosaiSystemPrompt = (
   const brandTone = brandDna?.identity?.voiceTone || 'מקצועי ושירותי';
   
   let prompt = `
-You are KOSAI, the intelligent assistant for Comona.
+You are KOSAI, the intelligent assistant for Kosun.
 You are a senior UI/UX designer and marketing expert.
 You must adhere strictly to the user's Brand DNA.
 

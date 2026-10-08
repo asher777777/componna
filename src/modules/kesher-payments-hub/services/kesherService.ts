@@ -12,8 +12,8 @@ import {
 } from '../types';
 import { getModuleApiKeys } from '../../../core/connection/tenantApiKeys';
 
-const SETTINGS_STORAGE_KEY = 'comona_kesher_settings';
-const TRANSACTIONS_STORAGE_KEY = 'comona_kesher_local_transactions';
+const SETTINGS_STORAGE_KEY = 'kosun_kesher_settings';
+const TRANSACTIONS_STORAGE_KEY = 'kosun_kesher_local_transactions';
 
 export class KesherService {
   private settings: KesherSettings;

@@ -210,7 +210,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
           id: '1',
           name: 'רועי שפירא',
           role: 'מנכ״ל ומייסד',
-          company: 'סטודיו דיגיטל פרו',
+          company: 'סטודיו קריאייטיב',
           avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
           rating: 5,
           content: '״המערכת שינתה לנו את כל תהליך העבודה! תוך פחות מיום אחד העלינו דף נחיתה מושלם שייצר לנו עשרות לידים איכותיים.״',

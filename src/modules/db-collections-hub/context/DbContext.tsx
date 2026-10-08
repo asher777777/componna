@@ -12,8 +12,8 @@ import { PROJECT_SEED_DATA } from '../config/seedData';
 import { FirestoreAdminService } from '../services/firestoreAdminService';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 
-const STORAGE_KEY_CREDENTIALS = 'comona_firestore_custom_credentials';
-const STORAGE_KEY_CUSTOM_COLLECTIONS = 'comona_firestore_custom_collections';
+const STORAGE_KEY_CREDENTIALS = 'kosun_firestore_custom_credentials';
+const STORAGE_KEY_CUSTOM_COLLECTIONS = 'kosun_firestore_custom_collections';
 
 export interface CollectionStats {
   [collectionId: string]: {

@@ -55,8 +55,8 @@ export function isPlatformAdminEmail(email?: string | null): boolean {
   if (!email) return false;
   const clean = email.trim().toLowerCase();
   if (clean.includes('admin') || clean.startsWith('admin@')) return true;
-  if (clean.endsWith('@kosun.pro') || clean.endsWith('@comona.pro')) return true;
-  if (clean === 'contact@kosun.pro' || clean === 'support@kosun.pro' || clean === 'contact@comona.pro') return true;
+  if (clean.endsWith('@kosun.pro') || clean.endsWith('@kosun.pro')) return true;
+  if (clean === 'contact@kosun.pro' || clean === 'support@kosun.pro' || clean === 'contact@kosun.pro') return true;
   return false;
 }
 

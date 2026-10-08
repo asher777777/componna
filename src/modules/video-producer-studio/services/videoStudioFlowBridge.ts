@@ -125,7 +125,7 @@ export async function exportVideoProjectToFlowPlayer(
 
   // 1. Save to local storage for instant offline availability
   try {
-    const localKey = 'comona_flow_player_campaigns';
+    const localKey = 'kosun_flow_player_campaigns';
     const existing = localStorage.getItem(localKey);
     const list: CampaignConfig[] = existing ? JSON.parse(existing) : [];
     const idx = list.findIndex(c => c.id === campaign.id || c.slug === campaign.slug);
@@ -135,7 +135,7 @@ export async function exportVideoProjectToFlowPlayer(
       list.unshift(cleanPayload);
     }
     localStorage.setItem(localKey, JSON.stringify(list));
-    localStorage.setItem('comona_active_flow_campaign_id', campaign.id);
+    localStorage.setItem('kosun_active_flow_campaign_id', campaign.id);
   } catch (err) {
     console.warn('[VideoStudioFlowBridge] Local storage save notice:', err);
   }

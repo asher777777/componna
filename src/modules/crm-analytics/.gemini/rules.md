@@ -16,8 +16,8 @@ Direct root collection access without tenant scoping is strictly prohibited. `us
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with tenantId:
-- `comona_{tenantId}_crm_analytics_filters`
-- `comona_{tenantId}_crm_analytics_columns`
+- `kosun_{tenantId}_crm_analytics_filters`
+- `kosun_{tenantId}_crm_analytics_columns`
 
 ## 4. Zero Cross-Module Imports
 - `crm-analytics` must NEVER import directly from other modules (e.g. `smart-form-builder`, `whatsapp-green-api-hub`, `kesher-payments-hub`).

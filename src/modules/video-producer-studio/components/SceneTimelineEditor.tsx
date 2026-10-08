@@ -78,7 +78,7 @@ export const SceneTimelineEditor: React.FC = () => {
 
   if (!activeProject || !activeScene) {
     return (
-      <div className="p-12 text-center text-slate-400" dir="rtl">
+      <div className="p-12 text-center text-slate-500" dir="rtl">
         <Film className="w-12 h-12 mx-auto mb-3 text-slate-600 animate-bounce" />
         <p>לא נבחר פרויקט פעיל. נא לבחור או ליצור פרויקט חדש באשף.</p>
       </div>
@@ -444,7 +444,7 @@ export const SceneTimelineEditor: React.FC = () => {
       />
 
       {/* Top Project Bar */}
-      <div className="px-6 py-3 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+      <div className="px-6 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="w-2.5 h-2.5 rounded-full bg-purple-500 animate-pulse" />
           <h2 className="text-base font-bold text-white flex items-center gap-2">
@@ -494,7 +494,7 @@ export const SceneTimelineEditor: React.FC = () => {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-900 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
             title="שמור שינויים בפרויקט"
           >
             <Save className="w-3.5 h-3.5 text-purple-400" />
@@ -504,12 +504,12 @@ export const SceneTimelineEditor: React.FC = () => {
       </div>
 
       {/* Main Workspace: Left Timeline, Center/Right Editor */}
-      <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden">
         
         {/* Timeline Sidebar */}
-        <div className="w-full md:w-80 bg-slate-900/90 border-l border-slate-800 flex flex-col overflow-hidden">
-          <div className="p-3.5 border-b border-slate-800 flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-300">
+        <div className="w-full bg-white border-b border-slate-200 flex flex-col overflow-hidden shrink-0">
+          <div className="p-3.5 border-b border-slate-200 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-700">
               ציר סצנות ({activeProject.scenes.length}/20)
             </span>
             <div className="flex items-center gap-1.5">
@@ -525,7 +525,7 @@ export const SceneTimelineEditor: React.FC = () => {
               <button
                 onClick={addScene}
                 disabled={activeProject.scenes.length >= 20}
-                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs flex items-center gap-1 font-medium transition cursor-pointer disabled:opacity-30"
+                className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-700 rounded-lg text-xs flex items-center gap-1 font-medium transition cursor-pointer disabled:opacity-30"
                 title="הוסף סצנה ריקה ידנית"
               >
                 <Plus className="w-3.5 h-3.5" />
@@ -541,7 +541,7 @@ export const SceneTimelineEditor: React.FC = () => {
                   <Wand2 className="w-3.5 h-3.5 text-pink-400" />
                   <span>הוספת סצנה {activeProject.scenes.length + 1} עם Gemini</span>
                 </span>
-                <span className="text-[9px] text-slate-400 font-mono">
+                <span className="text-[9px] text-slate-500 font-mono">
                   {activeProject.conversationId ? 'שיחה שמורה' : 'שיחה חדשה'}
                 </span>
               </div>
@@ -550,13 +550,13 @@ export const SceneTimelineEditor: React.FC = () => {
                 value={customAiInstruction}
                 onChange={(e) => setCustomAiInstruction(e.target.value)}
                 placeholder="הוראות מותאמות (למשל: סצנת טיפול בהתנגדות מחיר)..."
-                className="w-full p-2 bg-slate-950 border border-purple-500/40 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-400"
+                className="w-full p-2 bg-slate-50 border border-purple-500/40 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-400"
               />
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button
                   type="button"
                   onClick={() => setIsAiAddOpen(false)}
-                  className="px-2.5 py-1 text-[11px] text-slate-400 hover:text-white cursor-pointer"
+                  className="px-2.5 py-1 text-[11px] text-slate-500 hover:text-white cursor-pointer"
                 >
                   ביטול
                 </button>
@@ -573,17 +573,17 @@ export const SceneTimelineEditor: React.FC = () => {
             </div>
           )}
 
-          <div className="flex-1 p-3 overflow-y-auto space-y-2">
+          <div className="flex p-3 overflow-x-auto gap-3 items-center whitespace-nowrap">
             {activeProject.scenes.map((scene, idx) => {
               const isSelected = scene.id === activeScene.id;
               return (
                 <div
                   key={scene.id}
                   onClick={() => setActiveSceneId(scene.id)}
-                  className={`p-3 rounded-2xl border transition cursor-pointer text-xs space-y-1.5 ${
+                  className={`p-3 rounded-2xl border transition cursor-pointer text-xs space-y-1.5 inline-block min-w-[240px] ${
                     isSelected
                       ? 'bg-purple-950/40 border-purple-500/60 shadow-lg shadow-purple-950/40'
-                      : 'bg-slate-950/60 border-slate-800/80 hover:bg-slate-800/40'
+                      : 'bg-slate-50/60 border-slate-200/80 hover:bg-slate-800/40'
                   }`}
                 >
                   <div className="flex items-center justify-between">
@@ -616,7 +616,7 @@ export const SceneTimelineEditor: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400">
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
                     <p className="line-clamp-1 flex-1">
                       {scene.dialogueScript || 'ללא טקסט קריינות'}
                     </p>
@@ -628,7 +628,7 @@ export const SceneTimelineEditor: React.FC = () => {
         </div>
 
         {/* Center/Right Detail Editor */}
-        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5 bg-slate-950/50">
+        <div className="flex-1 p-4 sm:p-6 overflow-y-auto space-y-5 bg-slate-50/50">
           
           {renderError && (
             <div className="p-3.5 bg-rose-500/20 border border-rose-500/40 rounded-2xl text-rose-200 text-xs flex items-center gap-2">
@@ -645,7 +645,7 @@ export const SceneTimelineEditor: React.FC = () => {
           )}
 
           {/* Scene Header & Title Input */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-900/60 p-4 rounded-2xl border border-slate-800">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white/60 p-4 rounded-2xl border border-slate-200">
             <div className="flex items-center gap-3 flex-1 min-w-[240px]">
               <span className="px-2.5 py-1 rounded-xl bg-purple-500/20 text-purple-300 text-xs font-mono font-bold">
                 סצנה {activeScene.sceneNumber} / {activeProject.scenes.length}
@@ -662,7 +662,7 @@ export const SceneTimelineEditor: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => openTeleprompter(activeScene.id)}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium rounded-xl flex items-center gap-1.5 transition cursor-pointer"
+                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-900 text-xs font-medium rounded-xl flex items-center gap-1.5 transition cursor-pointer"
                 title="פתח טלפרומפטר"
               >
                 <Mic className="w-3.5 h-3.5 text-emerald-400" />
@@ -681,13 +681,13 @@ export const SceneTimelineEditor: React.FC = () => {
           </div>
 
           {/* 4 Specialized Tabs: Presenter & Image (Banana Pro), Video Generation (HeyGen & Veo), Google TTS, Subtitles */}
-          <div className="flex items-center flex-wrap gap-1.5 bg-slate-900/90 border border-slate-800 rounded-2xl p-1.5 shadow-md w-fit">
+          <div className="flex items-center flex-wrap gap-1.5 bg-white/90 border border-slate-200 rounded-2xl p-1.5 shadow-md w-fit">
             <button
               onClick={() => setActiveSubTab('script')}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'script'
                   ? 'bg-purple-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <User className="w-3.5 h-3.5 text-purple-300" />
@@ -699,7 +699,7 @@ export const SceneTimelineEditor: React.FC = () => {
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'video'
                   ? 'bg-gradient-to-r from-pink-600 to-indigo-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <Video className="w-3.5 h-3.5 text-pink-300" />
@@ -711,7 +711,7 @@ export const SceneTimelineEditor: React.FC = () => {
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'tts'
                   ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <Volume2 className="w-3.5 h-3.5 text-cyan-300" />
@@ -723,7 +723,7 @@ export const SceneTimelineEditor: React.FC = () => {
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 activeSubTab === 'subtitles'
                   ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow'
-                  : 'text-slate-400 hover:text-slate-200'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               <Type className="w-3.5 h-3.5 text-amber-900" />
@@ -740,9 +740,9 @@ export const SceneTimelineEditor: React.FC = () => {
               {activeSubTab === 'script' && (
                 <div className="space-y-4">
                   {/* Dialogue Script Card */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Volume2 className="w-3.5 h-3.5 text-purple-400" />
                         <span>טקסט הקריינות של האווטאר (Dialogue Script)</span>
                       </label>
@@ -756,13 +756,13 @@ export const SceneTimelineEditor: React.FC = () => {
                       value={activeScene.dialogueScript}
                       onChange={(e) => updateCurrentScene(activeScene.id, { dialogueScript: e.target.value })}
                       placeholder="הזן את הטקסט שהאווטאר יקריא בסצנה זו..."
-                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-purple-500 focus:outline-none leading-relaxed"
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-700 text-slate-900 text-xs focus:border-purple-500 focus:outline-none leading-relaxed"
                     />
 
                     {/* Google Speech & Audio Direction Tags Toolbar */}
                     <div className="pt-1 space-y-1.5">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="text-slate-400 font-bold flex items-center gap-1">
+                        <span className="text-slate-500 font-bold flex items-center gap-1">
                           <Mic className="w-3 h-3 text-cyan-400" />
                           <span>תגיות הדרכה קוליות של גוגל (לחץ להוספה):</span>
                         </span>
@@ -786,9 +786,9 @@ export const SceneTimelineEditor: React.FC = () => {
                   </div>
 
                   {/* Banana Pro Image Prompt & Generation Section */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Palette className="w-4 h-4 text-pink-400" />
                         <span>פרומפט ויזואלי לתמונת בננה פרו / פרזנטור (Banana Pro / Imagen 3)</span>
                       </label>
@@ -806,7 +806,7 @@ export const SceneTimelineEditor: React.FC = () => {
                       value={activeScene.visualPrompt}
                       onChange={(e) => updateCurrentScene(activeScene.id, { visualPrompt: e.target.value })}
                       placeholder="פרומפט ויזואלי מפורט ליצירת תמונת הפרזנטור/הרקע בבננה פרו..."
-                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-pink-200 text-xs font-mono focus:border-pink-500 focus:outline-none leading-relaxed"
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-700 text-pink-200 text-xs font-mono focus:border-pink-500 focus:outline-none leading-relaxed"
                     />
 
                     {/* Generate Banana Pro Button */}
@@ -825,9 +825,9 @@ export const SceneTimelineEditor: React.FC = () => {
                     </button>
 
                     {/* Scene / Talking Photo Image Display & Picker */}
-                    <div className="pt-2 border-t border-slate-800/80 space-y-2">
+                    <div className="pt-2 border-t border-slate-200/80 space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-slate-300 block">
+                        <span className="text-[11px] font-bold text-slate-700 block">
                           תמונת הסצנה / פרזנטור מדבר (Talking Photo Image):
                         </span>
                         <span className="text-[10px] text-pink-400 font-medium">
@@ -841,11 +841,11 @@ export const SceneTimelineEditor: React.FC = () => {
                             <img
                               src={activeScene.backgroundMediaUrl || activeScene.customAvatarImageUrl}
                               alt="Scene / Presenter"
-                              className="w-24 h-16 rounded-xl object-cover border-2 border-pink-500/60 bg-slate-950 shadow-md"
+                              className="w-24 h-16 rounded-xl object-cover border-2 border-pink-500/60 bg-slate-50 shadow-md"
                             />
                           </div>
                         ) : (
-                          <div className="w-24 h-16 rounded-xl border border-dashed border-slate-700 bg-slate-950 flex items-center justify-center text-slate-600">
+                          <div className="w-24 h-16 rounded-xl border border-dashed border-slate-700 bg-slate-50 flex items-center justify-center text-slate-600">
                             <ImageIcon className="w-5 h-5" />
                           </div>
                         )}
@@ -855,7 +855,7 @@ export const SceneTimelineEditor: React.FC = () => {
                             <button
                               type="button"
                               onClick={handlePickBackgroundMedia}
-                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                              className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-900 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
                             >
                               <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
                               <span>{activeScene.backgroundMediaUrl || activeScene.customAvatarImageUrl ? 'החלף תמונה מהגלריה' : 'בחר תמונה מהגלריה'}</span>
@@ -874,12 +874,12 @@ export const SceneTimelineEditor: React.FC = () => {
 
                           {/* Clean representation of Base64 / URL */}
                           {(activeScene.backgroundMediaUrl || activeScene.customAvatarImageUrl)?.startsWith('data:') ? (
-                            <div className="flex items-center justify-between p-2 bg-slate-900/90 border border-emerald-500/30 rounded-xl text-xs">
+                            <div className="flex items-center justify-between p-2 bg-white/90 border border-emerald-500/30 rounded-xl text-xs">
                               <span className="text-emerald-400 font-semibold flex items-center gap-1.5 truncate">
                                 <Sparkles className="w-3.5 h-3.5 text-pink-400 shrink-0" />
                                 <span>תמונת בננה פרו (Base64) שמורה ומוכנה להפקה</span>
                               </span>
-                              <span className="text-[10px] text-slate-400 font-mono bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
+                              <span className="text-[10px] text-slate-500 font-mono bg-slate-800 px-2 py-0.5 rounded-md shrink-0">
                                 Image Data
                               </span>
                             </div>
@@ -893,7 +893,7 @@ export const SceneTimelineEditor: React.FC = () => {
                                 backgroundType: 'image'
                               })}
                               placeholder="או הדבק קישור URL ישיר לתמונה (https://...)..."
-                              className="w-full p-2 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 transition"
+                              className="w-full p-2 bg-slate-50 border border-slate-200 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 transition"
                             />
                           )}
                         </div>
@@ -907,7 +907,7 @@ export const SceneTimelineEditor: React.FC = () => {
                           <ShieldCheck className="w-3.5 h-3.5 text-pink-400" />
                           <span>עוגן עקביות בננה פרו (Banana Pro Consistency Seed):</span>
                         </span>
-                        <p className="text-[11px] text-slate-300 font-mono">
+                        <p className="text-[11px] text-slate-700 font-mono">
                           {activeProject.projectOverview.bananaConsistencySeed}
                         </p>
                       </div>
@@ -920,9 +920,9 @@ export const SceneTimelineEditor: React.FC = () => {
               {activeSubTab === 'video' && (
                 <div className="space-y-4">
                   {/* Video Engine Selection & Parameters Card */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Video className="w-3.5 h-3.5 text-pink-400" />
                         <span>מנוע הפקת וידאו AI (Video Engine)</span>
                       </label>
@@ -934,11 +934,11 @@ export const SceneTimelineEditor: React.FC = () => {
                     {/* Engine Select Dropdown */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div className="space-y-1">
-                        <span className="text-[11px] text-slate-400">בחר מנוע הפקה:</span>
+                        <span className="text-[11px] text-slate-500">בחר מנוע הפקה:</span>
                         <select
                           value={selectedVideoEngine}
                           onChange={(e) => setSelectedVideoEngine(e.target.value as any)}
-                          className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-pink-500 focus:outline-none"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-pink-500 focus:outline-none"
                         >
                           <option value="heygen">📸 HeyGen AI - הנפשת תמונת פרזנטור + שמע TTS</option>
                           <option value="veo">🎬 Google Veo - וידאו סינמטי מונפש מפרומפט</option>
@@ -947,7 +947,7 @@ export const SceneTimelineEditor: React.FC = () => {
 
                       {/* Scene Duration */}
                       <div className="space-y-1">
-                        <div className="flex items-center justify-between text-[11px] text-slate-400">
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
                           <span>משך הסרטון לסצנה:</span>
                           <span className="text-pink-300 font-mono font-bold">{activeScene.durationSeconds || 6}s</span>
                         </div>
@@ -967,7 +967,7 @@ export const SceneTimelineEditor: React.FC = () => {
 
                     {/* HeyGen Input Assets Summary Strip */}
                     {selectedVideoEngine === 'heygen' && (
-                      <div className="p-3 bg-slate-950/90 rounded-xl border border-purple-500/30 space-y-2">
+                      <div className="p-3 bg-slate-50/90 rounded-xl border border-purple-500/30 space-y-2">
                         <div className="text-[11px] font-bold text-purple-300 flex items-center justify-between">
                           <span className="flex items-center gap-1.5">
                             <Sparkles className="w-3.5 h-3.5 text-purple-400" />
@@ -985,8 +985,8 @@ export const SceneTimelineEditor: React.FC = () => {
 
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           {/* Image Status */}
-                          <div className="p-2 bg-slate-900/90 border border-slate-800 rounded-lg flex items-center justify-between">
-                            <span className="text-slate-300 flex items-center gap-1.5 text-[11px]">
+                          <div className="p-2 bg-white/90 border border-slate-200 rounded-lg flex items-center justify-between">
+                            <span className="text-slate-700 flex items-center gap-1.5 text-[11px]">
                               <ImageIcon className="w-3.5 h-3.5 text-blue-400" />
                               <span>תמונת פרזנטור:</span>
                             </span>
@@ -1003,8 +1003,8 @@ export const SceneTimelineEditor: React.FC = () => {
                           </div>
 
                           {/* Audio TTS Status */}
-                          <div className="p-2 bg-slate-900/90 border border-slate-800 rounded-lg flex items-center justify-between">
-                            <span className="text-slate-300 flex items-center gap-1.5 text-[11px]">
+                          <div className="p-2 bg-white/90 border border-slate-200 rounded-lg flex items-center justify-between">
+                            <span className="text-slate-700 flex items-center gap-1.5 text-[11px]">
                               <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
                               <span>שמע TTS:</span>
                             </span>
@@ -1014,7 +1014,7 @@ export const SceneTimelineEditor: React.FC = () => {
                                 <span>מוכן</span>
                               </span>
                             ) : (
-                              <span className="text-[10px] text-slate-400 bg-slate-800 px-1.5 py-0.5 rounded-md">
+                              <span className="text-[10px] text-slate-500 bg-slate-800 px-1.5 py-0.5 rounded-md">
                                 מטקסט
                               </span>
                             )}
@@ -1068,9 +1068,9 @@ export const SceneTimelineEditor: React.FC = () => {
                   </div>
 
                   {/* Rendered Video Result Card */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Video className="w-3.5 h-3.5 text-emerald-400" />
                         <span>קובץ הוידאו המוכן לסצנה</span>
                       </label>
@@ -1083,8 +1083,8 @@ export const SceneTimelineEditor: React.FC = () => {
                     </div>
 
                     {activeScene.renderedVideoUrl ? (
-                      <div className="p-3 bg-slate-950 rounded-xl border border-emerald-500/30 space-y-2.5">
-                        <div className="aspect-video w-full rounded-lg overflow-hidden bg-black border border-slate-800">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-emerald-500/30 space-y-2.5">
+                        <div className="aspect-video w-full rounded-lg overflow-hidden bg-black border border-slate-200">
                           <video
                             src={activeScene.renderedVideoUrl}
                             controls
@@ -1094,7 +1094,7 @@ export const SceneTimelineEditor: React.FC = () => {
                         </div>
 
                         <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                          <span className="text-[10px] text-slate-400 font-mono truncate max-w-[180px]">
+                          <span className="text-[10px] text-slate-500 font-mono truncate max-w-[180px]">
                             {activeScene.renderedVideoUrl.startsWith('data:') ? 'Base64 Video' : activeScene.renderedVideoUrl}
                           </span>
 
@@ -1122,7 +1122,7 @@ export const SceneTimelineEditor: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <div className="p-4 text-center bg-slate-950/60 rounded-xl border border-dashed border-slate-800 text-slate-500 space-y-1">
+                      <div className="p-4 text-center bg-slate-50/60 rounded-xl border border-dashed border-slate-200 text-slate-500 space-y-1">
                         <Film className="w-6 h-6 mx-auto text-slate-600" />
                         <p className="text-xs">
                           טרם הופק וידאו עבור סצנה זו. בחר מנוע ולחץ על כפתור ההפקה.
@@ -1137,9 +1137,9 @@ export const SceneTimelineEditor: React.FC = () => {
               {activeSubTab === 'tts' && (
                 <div className="space-y-4">
                   {/* Dialogue Script & Google Speech Direction Tags */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
                         <span>טקסט הקריינות והדיבוב</span>
                       </label>
@@ -1153,12 +1153,12 @@ export const SceneTimelineEditor: React.FC = () => {
                       value={activeScene.dialogueScript}
                       onChange={(e) => updateCurrentScene(activeScene.id, { dialogueScript: e.target.value })}
                       placeholder="הזן טקסט לקריינות והוסף תגיות [excited], [warm], [pause]..."
-                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-cyan-500 focus:outline-none leading-relaxed"
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-700 text-slate-900 text-xs focus:border-cyan-500 focus:outline-none leading-relaxed"
                     />
 
                     {/* Speech Direction Tags Toolbar */}
                     <div className="pt-1 space-y-1">
-                      <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
+                      <span className="text-[10px] text-slate-500 font-bold flex items-center gap-1">
                         <Mic className="w-3 h-3 text-cyan-400" />
                         <span>תגיות הדרכה קוליות:</span>
                       </span>
@@ -1179,9 +1179,9 @@ export const SceneTimelineEditor: React.FC = () => {
                   </div>
 
                   {/* Voice Selector Dropdown with inline Preview Button */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Mic className="w-3.5 h-3.5 text-cyan-400" />
                         <span>בחירת קול קריינות (Google Gemini Audio & TTS)</span>
                       </label>
@@ -1201,7 +1201,7 @@ export const SceneTimelineEditor: React.FC = () => {
                               googleTtsLanguageCode: foundVoice?.languageCode || 'he-IL'
                             });
                           }}
-                          className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-medium focus:border-cyan-500 focus:outline-none"
+                          className="w-full p-2.5 bg-slate-50 border border-slate-700 rounded-xl text-xs text-white font-medium focus:border-cyan-500 focus:outline-none"
                         >
                           <optgroup label="קולות עברית (Hebrew Voices)">
                             {GOOGLE_TTS_VOICES.filter(v => v.languageCode === 'he-IL' || v.languageName.includes('עברית')).map(v => (
@@ -1257,17 +1257,17 @@ export const SceneTimelineEditor: React.FC = () => {
                   </div>
 
                   {/* SSML Controls: Speaking Rate, Pitch, Emphasis */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-3">
+                    <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       <Sliders className="w-3.5 h-3.5 text-cyan-400" />
                       <span>הגדרות SSML (מהירות, גובה צליל והדגשה)</span>
                     </label>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {/* Speaking Rate */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">מהירות:</span>
+                          <span className="text-slate-500">מהירות:</span>
                           <span className="text-cyan-300 font-mono font-bold">{currentRate.toFixed(2)}x</span>
                         </div>
                         <input
@@ -1282,9 +1282,9 @@ export const SceneTimelineEditor: React.FC = () => {
                       </div>
 
                       {/* Pitch */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">גובה צליל:</span>
+                          <span className="text-slate-500">גובה צליל:</span>
                           <span className="text-cyan-300 font-mono font-bold">{currentPitch}st</span>
                         </div>
                         <input
@@ -1299,12 +1299,12 @@ export const SceneTimelineEditor: React.FC = () => {
                       </div>
 
                       {/* Emphasis */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-                        <label className="text-xs text-slate-400 block">רמת הדגשה:</label>
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <label className="text-xs text-slate-500 block">רמת הדגשה:</label>
                         <select
                           value={activeScene.googleTtsSsmlEmphasis || 'none'}
                           onChange={(e) => updateCurrentScene(activeScene.id, { googleTtsSsmlEmphasis: e.target.value as any })}
-                          className="w-full p-1 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                          className="w-full p-1 bg-white border border-slate-700 rounded-lg text-xs text-slate-900"
                         >
                           <option value="none">רגילה (None)</option>
                           <option value="moderate">מתונה (Moderate)</option>
@@ -1335,7 +1335,7 @@ export const SceneTimelineEditor: React.FC = () => {
                       <button
                         type="button"
                         onClick={handlePickAudioMedia}
-                        className="p-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        className="p-2 bg-slate-50 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-900 flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <FolderOpen className="w-3.5 h-3.5 text-cyan-400" />
                         <span>בחר מגלריה</span>
@@ -1344,7 +1344,7 @@ export const SceneTimelineEditor: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => audioFileInputRef.current?.click()}
-                        className="p-2 bg-slate-950 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-200 flex items-center justify-center gap-1.5 transition cursor-pointer"
+                        className="p-2 bg-slate-50 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 rounded-xl text-xs font-semibold text-slate-900 flex items-center justify-center gap-1.5 transition cursor-pointer"
                       >
                         <Upload className="w-3.5 h-3.5 text-blue-400" />
                         <span>העלה קובץ</span>
@@ -1353,9 +1353,9 @@ export const SceneTimelineEditor: React.FC = () => {
 
                     {/* Active Audio Card */}
                     {activeScene.renderedAudioUrl && (
-                      <div className="p-3 bg-slate-950 rounded-xl border border-cyan-500/30 space-y-2">
+                      <div className="p-3 bg-slate-50 rounded-xl border border-cyan-500/30 space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                          <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                             <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
                             <span>קובץ שמע פעיל</span>
                           </span>
@@ -1391,9 +1391,9 @@ export const SceneTimelineEditor: React.FC = () => {
               {activeSubTab === 'subtitles' && (
                 <div className="space-y-4">
                   {/* Subtitle Text Input */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-2.5">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-2.5">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                      <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                         <Type className="w-3.5 h-3.5 text-yellow-400" />
                         <span>טקסט הכתוביות (Subtitle Content)</span>
                       </label>
@@ -1413,24 +1413,24 @@ export const SceneTimelineEditor: React.FC = () => {
                       value={activeScene.subtitleText || ''}
                       onChange={(e) => updateCurrentScene(activeScene.id, { subtitleText: e.target.value })}
                       placeholder={cleanSubtitleText(activeScene.dialogueScript) || 'הזן טקסט כתוביות ייעודי לסצנה...'}
-                      className="w-full p-3 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:border-yellow-500 focus:outline-none leading-relaxed"
+                      className="w-full p-3 rounded-xl bg-slate-50 border border-slate-700 text-slate-900 text-xs focus:border-yellow-500 focus:outline-none leading-relaxed"
                     />
                   </div>
 
                   {/* Subtitle Configuration: Style Preset, Animation, Position & Font Size */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl space-y-3">
-                    <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl space-y-3">
+                    <label className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
                       <Palette className="w-3.5 h-3.5 text-yellow-400" />
                       <span>הגדרות סגנון, אנימציה ומיקום כתוביות</span>
                     </label>
 
                     {/* Subtitle Style Preset Select Dropdown */}
                     <div className="space-y-1">
-                      <span className="text-[11px] text-slate-400">סגנון עיצוב כתוביות (Style Preset):</span>
+                      <span className="text-[11px] text-slate-500">סגנון עיצוב כתוביות (Style Preset):</span>
                       <select
                         value={activeScene.subtitleStyle || 'boxed'}
                         onChange={(e) => updateCurrentScene(activeScene.id, { subtitleStyle: e.target.value as any })}
-                        className="w-full p-2.5 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-yellow-500 focus:outline-none"
+                        className="w-full p-2.5 bg-slate-50 border border-slate-700 rounded-xl text-xs text-white font-semibold focus:border-yellow-500 focus:outline-none"
                       >
                         <option value="boxed">⬛ תיבה שחורה מודגשת (Boxed) - קריאות מקסימלית</option>
                         <option value="outline">🔲 קו מתאר קולנועי (Outline) - מודגש ללא רקע</option>
@@ -1444,12 +1444,12 @@ export const SceneTimelineEditor: React.FC = () => {
                     {/* Animation, Size & Position in 3 Columns */}
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
                       {/* Animation Dropdown */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-                        <label className="text-[11px] text-slate-400 block">אנימציה:</label>
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <label className="text-[11px] text-slate-500 block">אנימציה:</label>
                         <select
                           value={activeScene.subtitleAnimation || 'word'}
                           onChange={(e) => updateCurrentScene(activeScene.id, { subtitleAnimation: e.target.value as any })}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200 font-medium"
+                          className="w-full p-1.5 bg-white border border-slate-700 rounded-lg text-xs text-slate-900 font-medium"
                         >
                           <option value="word">🔤 מילה במילה מסונכרן (Word / Karaoke)</option>
                           <option value="pop">💥 קפיצה קלה (Pop)</option>
@@ -1459,12 +1459,12 @@ export const SceneTimelineEditor: React.FC = () => {
                       </div>
 
                       {/* Position Dropdown */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
-                        <label className="text-[11px] text-slate-400 block">מיקום על המסך:</label>
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+                        <label className="text-[11px] text-slate-500 block">מיקום על המסך:</label>
                         <select
                           value={activeScene.subtitlePosition || 'bottom'}
                           onChange={(e) => updateCurrentScene(activeScene.id, { subtitlePosition: e.target.value as any })}
-                          className="w-full p-1.5 bg-slate-900 border border-slate-700 rounded-lg text-xs text-slate-200"
+                          className="w-full p-1.5 bg-white border border-slate-700 rounded-lg text-xs text-slate-900"
                         >
                           <option value="bottom">⬇️ למטה (Bottom)</option>
                           <option value="center">⏹️ במרכז (Center)</option>
@@ -1473,9 +1473,9 @@ export const SceneTimelineEditor: React.FC = () => {
                       </div>
 
                       {/* Font Size Slider */}
-                      <div className="p-2.5 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                      <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                         <div className="flex items-center justify-between text-[11px]">
-                          <span className="text-slate-400">גודל גופן:</span>
+                          <span className="text-slate-500">גודל גופן:</span>
                           <span className="text-yellow-400 font-mono font-bold">
                             {activeScene.subtitleFontSize || 18}px
                           </span>
@@ -1494,17 +1494,17 @@ export const SceneTimelineEditor: React.FC = () => {
                   </div>
 
                   {/* Subtitle Export Downloads (SRT / VTT) */}
-                  <div className="p-4 bg-slate-900/80 border border-slate-800 rounded-2xl flex items-center justify-between gap-3">
+                  <div className="p-4 bg-white/80 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
                     <div>
-                      <span className="text-xs font-bold text-slate-200 block">ייצוא קבצי כתוביות</span>
-                      <span className="text-[10px] text-slate-400">תואם ליוטיוב, טיקטוק, פרימייר ונגנים</span>
+                      <span className="text-xs font-bold text-slate-900 block">ייצוא קבצי כתוביות</span>
+                      <span className="text-[10px] text-slate-500">תואם ליוטיוב, טיקטוק, פרימייר ונגנים</span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => handleDownloadSubtitles('srt')}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-900 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
                         title="הורד קובץ כתוביות SRT"
                       >
                         <Download className="w-3.5 h-3.5 text-yellow-400" />
@@ -1514,7 +1514,7 @@ export const SceneTimelineEditor: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleDownloadSubtitles('vtt')}
-                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
+                        className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-900 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition border border-slate-700 cursor-pointer"
                         title="הורד קובץ כתוביות VTT"
                       >
                         <Download className="w-3.5 h-3.5 text-amber-400" />
@@ -1541,16 +1541,16 @@ export const SceneTimelineEditor: React.FC = () => {
       {/* Project Overview & Character Bible Modal */}
       {isOverviewModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" dir="rtl">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scaleUp">
+          <div className="bg-white border border-slate-200 rounded-3xl w-full max-w-2xl max-h-[85vh] flex flex-col overflow-hidden shadow-2xl animate-scaleUp">
             {/* Modal Header */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/60">
               <div className="flex items-center gap-2">
                 <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">אפיון פרויקט, עוגן בננה פרו ותנ״ך דמות</h3>
-                  <p className="text-[11px] text-slate-400">
+                  <p className="text-[11px] text-slate-500">
                     מזהה שיחה: <span className="font-mono text-purple-300">{activeProject.conversationId || 'ללא מזהה'}</span>
                   </p>
                 </div>
@@ -1558,7 +1558,7 @@ export const SceneTimelineEditor: React.FC = () => {
 
               <button
                 onClick={() => setIsOverviewModalOpen(false)}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
+                className="p-2 text-slate-500 hover:text-white rounded-xl hover:bg-slate-800 transition cursor-pointer"
               >
                 ✕
               </button>
@@ -1567,12 +1567,12 @@ export const SceneTimelineEditor: React.FC = () => {
             {/* Modal Content */}
             <div className="p-6 overflow-y-auto space-y-4 text-xs">
               {/* Concept */}
-              <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+              <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                 <span className="text-[11px] font-bold text-purple-400 flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5" />
                   <span>קונספט וחזון הפרויקט:</span>
                 </span>
-                <p className="text-slate-200 leading-relaxed">
+                <p className="text-slate-900 leading-relaxed">
                   {activeProject.projectOverview?.concept || activeProject.description || 'טרם הוגדר אפיון מפורט.'}
                 </p>
               </div>
@@ -1593,7 +1593,7 @@ export const SceneTimelineEditor: React.FC = () => {
                       <span>{copiedField === 'seed' ? 'הועתק' : 'העתק עוגן'}</span>
                     </button>
                   </div>
-                  <p className="text-slate-300 font-mono text-[11px] leading-relaxed bg-slate-950 p-2.5 rounded-xl border border-slate-800">
+                  <p className="text-slate-700 font-mono text-[11px] leading-relaxed bg-slate-50 p-2.5 rounded-xl border border-slate-200">
                     {activeProject.projectOverview.bananaConsistencySeed}
                   </p>
                 </div>
@@ -1601,12 +1601,12 @@ export const SceneTimelineEditor: React.FC = () => {
 
               {/* Character Bible */}
               {activeProject.projectOverview?.characterBible && (
-                <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                   <span className="text-[11px] font-bold text-indigo-400 flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5" />
                     <span>תנ״ך הדמות והפרזנטור (Character Bible):</span>
                   </span>
-                  <p className="text-slate-300 font-mono text-[11px] leading-relaxed">
+                  <p className="text-slate-700 font-mono text-[11px] leading-relaxed">
                     {activeProject.projectOverview.characterBible}
                   </p>
                 </div>
@@ -1614,12 +1614,12 @@ export const SceneTimelineEditor: React.FC = () => {
 
               {/* Visual Guide */}
               {activeProject.projectOverview?.visualGuide && (
-                <div className="p-3.5 bg-slate-950 rounded-2xl border border-slate-800 space-y-1">
+                <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-1">
                   <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1.5">
                     <Palette className="w-3.5 h-3.5" />
                     <span>מדריך שפה ויזואלית, צבעים ותאורה:</span>
                   </span>
-                  <p className="text-slate-300 font-mono text-[11px] leading-relaxed">
+                  <p className="text-slate-700 font-mono text-[11px] leading-relaxed">
                     {activeProject.projectOverview.visualGuide}
                   </p>
                 </div>
@@ -1628,29 +1628,29 @@ export const SceneTimelineEditor: React.FC = () => {
               {/* Target KPI & Narrative Arc */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {activeProject.projectOverview?.targetKpi && (
-                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                     <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
                       <Target className="w-3 h-3" />
                       <span>יעד המרה ראשי (KPI):</span>
                     </span>
-                    <p className="text-slate-300 text-[11px]">{activeProject.projectOverview.targetKpi}</p>
+                    <p className="text-slate-700 text-[11px]">{activeProject.projectOverview.targetKpi}</p>
                   </div>
                 )}
 
                 {activeProject.projectOverview?.toneAndStyle && (
-                  <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1">
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
                     <span className="text-[10px] font-bold text-purple-400 flex items-center gap-1">
                       <Volume2 className="w-3.5 h-3.5" />
                       <span>טון ושפת דיבור:</span>
                     </span>
-                    <p className="text-slate-300 text-[11px]">{activeProject.projectOverview.toneAndStyle}</p>
+                    <p className="text-slate-700 text-[11px]">{activeProject.projectOverview.toneAndStyle}</p>
                   </div>
                 )}
               </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-800 bg-slate-950 flex justify-end">
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-end">
               <button
                 onClick={() => setIsOverviewModalOpen(false)}
                 className="px-5 py-2 bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs rounded-xl cursor-pointer"

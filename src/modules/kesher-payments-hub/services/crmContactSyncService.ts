@@ -127,7 +127,7 @@ export function searchContacts(contacts: CrmContactSummary[], searchTerm: string
   });
 }
 
-const STORAGE_KEY = 'comona_kesher_cached_contacts';
+const STORAGE_KEY = 'kosun_kesher_cached_contacts';
 
 export class CrmContactSyncService {
   private cachedContacts: CrmContactSummary[] = [];

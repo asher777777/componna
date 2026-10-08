@@ -100,7 +100,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       
       // LOG USAGE TO FIRESTORE
       if (db && currentRule) {
-        import('../services/kosaiFirestoreService').then(({ kosaiRulesService }) => {
+        Promise.resolve({ kosaiRulesService }).then(({ kosaiRulesService }) => {
           kosaiRulesService.logAiUsage(db, tenantId, {
             ruleId: currentRule.id,
             moduleName: currentRule.moduleId || 'unknown',

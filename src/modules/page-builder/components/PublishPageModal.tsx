@@ -31,7 +31,7 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
 
   if (!isOpen) return null;
 
-  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.comona.io';
+  const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.kosun.io';
   const publicUrl = `${origin}/p/${config.slug || config.pageId}`;
 
   const handleCopy = () => {

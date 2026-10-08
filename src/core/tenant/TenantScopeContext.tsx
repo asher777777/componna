@@ -36,7 +36,7 @@ export const TenantScopeProvider: React.FC<{ children: React.ReactNode; initialT
     const clean = newId.trim().toLowerCase() || ROOT_TENANT_ID;
     setTenantIdState(clean);
     try {
-      localStorage.setItem('comona_active_tenant_id', clean);
+      localStorage.setItem('kosun_active_tenant_id', clean);
     } catch {}
   }, []);
 

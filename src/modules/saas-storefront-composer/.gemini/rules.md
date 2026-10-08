@@ -11,9 +11,9 @@ The Storefront operates primarily at the platform root level to provision new te
 - Individual Tenant Provisioning: creates `tenants/{subdomain}/settings/brand_dna`, `tenants/{subdomain}/contacts`, etc.
 
 ## 3. LocalStorage Keys
-- `comona_saas_catalog_v1`
-- `comona_saas_settings_v1`
-- `comona_saas_tenants_v1`
+- `kosun_saas_catalog_v1`
+- `kosun_saas_settings_v1`
+- `kosun_saas_tenants_v1`
 
 ## 4. Zero Cross-Module Imports
 - `saas-storefront-composer` must NEVER import directly from other modules (e.g. `kesher-payments-hub`, `brand-dna-hub`).

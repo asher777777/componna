@@ -12,12 +12,12 @@ function getDraftCollectionName(tenantId?: string) {
 }
 
 function getStorageKey(tenantId?: string) {
-  return tenantId ? `comona_${tenantId}_pagebuilder_all_pages` : 'comona_pagebuilder_all_pages';
+  return tenantId ? `kosun_${tenantId}_pagebuilder_all_pages` : 'kosun_pagebuilder_all_pages';
 }
 function getDraftStorageKey(tenantId?: string) {
-  return tenantId ? `comona_${tenantId}_pagebuilder_drafts` : 'comona_pagebuilder_drafts';
+  return tenantId ? `kosun_${tenantId}_pagebuilder_drafts` : 'kosun_pagebuilder_drafts';
 }
-const LOCAL_STORAGE_KEY_PAGES = 'comona_pagebuilder_all_pages';
+const LOCAL_STORAGE_KEY_PAGES = 'kosun_pagebuilder_all_pages';
 
 export const pageBuilderFirestore = {
   // Get all saved pages

@@ -39,14 +39,14 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
   // Day / Night Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('comona_whatsapp_theme') as 'dark' | 'light') || 'dark';
+    return (localStorage.getItem('kosun_whatsapp_theme') as 'dark' | 'light') || 'dark';
   });
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     try {
-      localStorage.setItem('comona_whatsapp_theme', nextTheme);
+      localStorage.setItem('kosun_whatsapp_theme', nextTheme);
     } catch {}
   };
 
@@ -355,7 +355,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className={`text-lg sm:text-xl font-black ${themeClasses.textTitle}`}>Comona WhatsApp & AI Automation</h1>
+                <h1 className={`text-lg sm:text-xl font-black ${themeClasses.textTitle}`}>Kosun WhatsApp & AI Automation</h1>
                 
                 {/* Instance Modal Opener Badge */}
                 <button

@@ -30,8 +30,8 @@ export const MODULE_CATALOG: ControlCenterModuleItem[] = [
   // 1. Marketing & Growth
   {
     id: 'page-builder',
-    name: 'יוצר העמודים והאתרים (Page Builder)',
-    shortTitle: 'עמודי נחיתה ואתרים',
+    name: 'Kosun Web (קושאן וואב)',
+    shortTitle: 'Kosun Web',
     description: 'מערכת ויזואלית מתקדמת לבנייה, עריכה ופרסום של עמודי נחיתה אינטראקטיביים עם אזורי עריכה חיים',
     route: '/page-builder',
     category: 'marketing',

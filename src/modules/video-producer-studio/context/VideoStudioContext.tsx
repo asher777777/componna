@@ -137,7 +137,7 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       return data;
     }
     try {
-      const local = localStorage.getItem('comona_brand_dna_settings');
+      const local = localStorage.getItem('kosun_brand_dna_settings');
       if (local) {
         const data = JSON.parse(local) as BrandDna;
         setBrandDna(data);

@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { SavedWhatsAppStatus, GreenApiStatusStatisticItem } from '../types';
 
-const LOCAL_STORAGE_KEY = 'comona_whatsapp_statuses_archive_v1';
+const LOCAL_STORAGE_KEY = 'kosun_whatsapp_statuses_archive_v1';
 
 /**
  * Reads local fallback statuses from localStorage

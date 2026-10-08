@@ -315,7 +315,7 @@ export const DonationDrawer: React.FC<DonationDrawerProps> = ({
     try {
       const targetCampId = campaignId || campaign?.id || 'campaign-golden-2026';
       const txn = `TXN-${Date.now().toString().slice(-6)}`;
-      const receipt = `https://comona.io/receipt/REC-${Date.now().toString().slice(-4)}`;
+      const receipt = `https://kosun.io/receipt/REC-${Date.now().toString().slice(-4)}`;
 
       // Simulate network latency if in test mode
       await new Promise((r) => setTimeout(r, isTestMode ? 900 : 1400));

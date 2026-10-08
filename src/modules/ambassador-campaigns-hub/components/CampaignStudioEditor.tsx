@@ -629,7 +629,7 @@ export const CampaignStudioEditor: React.FC<CampaignStudioEditorProps> = ({
                   <div>
                     <h4 className="font-bold text-white text-xs">סנכרון תמונות מגלריית המשתמש</h4>
                     <p className="text-slate-400 text-[11px]">
-                      בחירת תמונות מרובות מתוך מנהל המדיה המרכזי של Comona.
+                      בחירת תמונות מרובות מתוך מנהל המדיה המרכזי של Kosun.
                     </p>
                   </div>
                   <button

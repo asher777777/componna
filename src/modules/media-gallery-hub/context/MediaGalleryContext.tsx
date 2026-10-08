@@ -467,13 +467,13 @@ export const MediaGalleryProvider: React.FC<{
           return items.filter((it) => it && it.url && !it.url.startsWith('blob:'));
         };
 
-        const rawStudioItems = localStorage.getItem('comona_media_gallery_items');
+        const rawStudioItems = localStorage.getItem('kosun_media_gallery_items');
         if (rawStudioItems) {
           const parsed = JSON.parse(rawStudioItems);
           if (Array.isArray(parsed)) {
             const clean = sanitizeLsItems(parsed);
             clean.forEach(addDeduplicated);
-            localStorage.setItem('comona_media_gallery_items', JSON.stringify(clean));
+            localStorage.setItem('kosun_media_gallery_items', JSON.stringify(clean));
           }
         }
         const rawVaultItems = localStorage.getItem('sdo_media_vault_items');

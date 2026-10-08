@@ -74,14 +74,14 @@ export const CampaignDonorsWidget: React.FC<CampaignDonorsWidgetProps> = ({
   }, [donations, ambassador, searchTerm, sortBy]);
 
   const handleCopyLink = (amb: Ambassador) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.io';
     navigator.clipboard.writeText(`${origin}/${amb.slug}`);
     setCopiedId(amb.id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleWhatsApp = (amb: Ambassador) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.io';
     const text = encodeURIComponent(
       `שלום! שותפים יקרים, הצטרפו לקהילת ${amb.name}: ${origin}/${amb.slug}\nביחד נגיע ליעד של ₪${amb.targetGoal.toLocaleString()}!`
     );

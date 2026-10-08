@@ -65,7 +65,7 @@ export const HomePage: React.FC = () => {
 
   // Theme state: defaults to light (Day Mode)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('comona_home_theme');
+    const saved = localStorage.getItem('kosun_home_theme');
     return saved === 'dark' ? 'dark' : 'light';
   });
 
@@ -73,7 +73,7 @@ export const HomePage: React.FC = () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     try {
-      localStorage.setItem('comona_home_theme', next);
+      localStorage.setItem('kosun_home_theme', next);
     } catch {}
   };
 
@@ -149,12 +149,12 @@ export const HomePage: React.FC = () => {
   };
 
   // Brand DNA values with graceful defaults
-  const companyName = brandDna.identity.companyName || 'Comona Workspace';
+  const companyName = brandDna.identity.companyName || 'Kosun Workspace';
   const slogan = brandDna.identity.slogan || 'פלטפורמת SaaS מודולרית מתקדמת לניהול, שיווק וגיוס';
   const shortVision = brandDna.identity.shortVision || 'הפלטפורמה המובילה לניהול קהילות, אוטומציות וואטסאפ, הקמת אתרים וגיוס המונים חכם.';
   const primaryColor = brandDna.designTokens.primaryColor || '#6366f1';
   const supportPhone = brandDna.trust.contactPhone || '050-0000000';
-  const supportEmail = brandDna.trust.contactEmail || 'contact@comona.pro';
+  const supportEmail = brandDna.trust.contactEmail || 'contact@kosun.pro';
   const officeAddress = brandDna.trust.officeAddress || 'ישראל';
 
   const scrollToSection = (id: string) => {

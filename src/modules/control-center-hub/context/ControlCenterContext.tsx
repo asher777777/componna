@@ -33,7 +33,7 @@ const ControlCenterContext = createContext<ControlCenterContextValue | null>(nul
 
 export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [layout, setLayoutState] = useState<ControlCenterLayoutType>(() => {
-    const saved = localStorage.getItem('comona_ctrl_layout') as ControlCenterLayoutType;
+    const saved = localStorage.getItem('kosun_ctrl_layout') as ControlCenterLayoutType;
     return saved && ['bento', 'matrix', 'kpi', 'pipeline', 'mobile'].includes(saved) ? saved : 'bento';
   });
 
@@ -46,14 +46,14 @@ export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({
   
   // Theme state: defaults to 'light' (Day Mode)
   const [theme, setThemeState] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('comona_ctrl_theme') as 'light' | 'dark';
+    const saved = localStorage.getItem('kosun_ctrl_theme') as 'light' | 'dark';
     return saved === 'dark' ? 'dark' : 'light';
   });
 
   const setTheme = (t: 'light' | 'dark') => {
     setThemeState(t);
     try {
-      localStorage.setItem('comona_ctrl_theme', t);
+      localStorage.setItem('kosun_ctrl_theme', t);
     } catch {}
   };
 
@@ -66,7 +66,7 @@ export const ControlCenterProvider: React.FC<{ children: React.ReactNode }> = ({
   const setLayout = (newLayout: ControlCenterLayoutType) => {
     setLayoutState(newLayout);
     try {
-      localStorage.setItem('comona_ctrl_layout', newLayout);
+      localStorage.setItem('kosun_ctrl_layout', newLayout);
     } catch {}
   };
 

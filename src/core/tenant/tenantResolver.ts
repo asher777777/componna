@@ -13,7 +13,7 @@ export const RESERVED_TENANT_SUBDOMAINS = [
 ];
 
 /** Hosting hostnames that always represent the main platform path (root tenant) */
-export const ROOT_PLATFORM_HOST_PREFIXES = ['comona', 'glowmanage'];
+export const ROOT_PLATFORM_HOST_PREFIXES = ['kosun', 'glowmanage'];
 
 /**
  * Extracts tenant identifier based on production hostname:
@@ -37,7 +37,7 @@ export function resolveCurrentTenantId(): string {
 
   // 2. Allow stored manual override (Workbench mode)
   try {
-    const storedTenant = localStorage.getItem('comona_active_tenant_id');
+    const storedTenant = localStorage.getItem('kosun_active_tenant_id');
     if (storedTenant && storedTenant.trim()) {
       return storedTenant.trim().toLowerCase();
     }
@@ -51,7 +51,7 @@ export function resolveCurrentTenantId(): string {
     return ROOT_TENANT_ID;
   }
 
-  // Platform hosting hosts (e.g. glowmanage.web.app / comona.*) are the main path → root tenant
+  // Platform hosting hosts (e.g. glowmanage.web.app / kosun.*) are the main path → root tenant
   if (ROOT_PLATFORM_HOST_PREFIXES.some((p) => hostname.startsWith(p))) {
     return ROOT_TENANT_ID;
   }
@@ -91,9 +91,9 @@ export function getTenantStoragePath(folder: string, fileName: string, customTen
 
 /**
  * Build tenant-scoped LocalStorage key:
- * Pattern: `comona_{tenantId}_{key}`
+ * Pattern: `kosun_{tenantId}_{key}`
  */
 export function getTenantStorageKey(key: string, customTenantId?: string): string {
   const tenantId = customTenantId || resolveCurrentTenantId();
-  return `comona_${tenantId}_${key}`;
+  return `kosun_${tenantId}_${key}`;
 }

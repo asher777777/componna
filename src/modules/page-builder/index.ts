@@ -1,5 +1,5 @@
 /**
- * Page Builder Module (יוצר עמודים ואתרים אוטונומי ב-AI)
+ * Page Builder Module (Kosun Web (קושאן וואב))
  * 10-Layer Anatomy Compliant & Zero Cross-Module Direct Imports
  */
 

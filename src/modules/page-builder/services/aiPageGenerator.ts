@@ -46,7 +46,7 @@ export function resolveLiveBrandDna(provided?: BrandDna | null): BrandDna | null
   if (provided && (provided.identity?.companyName || provided.trust?.contactPhone)) {
     // If provided has contact details, still check if localStorage has more specific ones
     try {
-      const raw = localStorage.getItem('comona_brand_dna_settings');
+      const raw = localStorage.getItem('kosun_brand_dna_settings');
       if (raw) {
         const parsed = JSON.parse(raw);
         if (parsed?.trust?.contactPhone || parsed?.trust?.whatsappSupportNumber) {
@@ -63,7 +63,7 @@ export function resolveLiveBrandDna(provided?: BrandDna | null): BrandDna | null
     return provided;
   }
   try {
-    const raw = localStorage.getItem('comona_brand_dna_settings');
+    const raw = localStorage.getItem('kosun_brand_dna_settings');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed) return parsed;

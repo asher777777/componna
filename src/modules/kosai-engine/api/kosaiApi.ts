@@ -52,7 +52,7 @@ export const generateAgentPromptWithAi = async (
   toneOfVoice: { professionalism: number, detail: number, creativity: number }
 ): Promise<{ prompt: string, usage: TokenUsageReport }> => {
   
-  const systemInstruction = `You are a world-class prompt engineer and AI system designer for Comona's KOSAI engine.
+  const systemInstruction = `You are a world-class prompt engineer and AI system designer for Kosun's KOSAI engine.
 Your task is to write a highly effective, professional system prompt IN HEBREW for a new AI assistant acting inside the component "${moduleName}".
 
 Here is the assistant's profile:

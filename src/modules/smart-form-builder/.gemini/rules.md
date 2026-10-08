@@ -14,8 +14,8 @@ Direct root-level collection access is prohibited. Use `useTenantScope()` to res
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with tenantId:
-- `comona_{tenantId}_smart_forms_cache`
-- `comona_{tenantId}_draft_form_{formId}`
+- `kosun_{tenantId}_smart_forms_cache`
+- `kosun_{tenantId}_draft_form_{formId}`
 
 ## 4. Zero Cross-Module Imports
 - `smart-form-builder` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `brand-dna-hub`, `crm-analytics`).

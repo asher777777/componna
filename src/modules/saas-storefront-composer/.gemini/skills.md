@@ -4,7 +4,7 @@
 
 ### 1. SaaS Marketplace Bundle Composer
 - Configure module pricing, recurring billing intervals, and promotional discounts.
-- Allow prospective clients to customize their Comona suite with live cost previews.
+- Allow prospective clients to customize their Kosun suite with live cost previews.
 
 ### 2. Multi-Tenant Subdomain Provisioning
 - Verify subdomain availability against GoDaddy DNS API (`{subdomain}.kosun.pro`).

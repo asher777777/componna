@@ -5,7 +5,7 @@ import { MediaItem } from '../../media-gallery-hub/types';
 
 const PROJECTS_COLLECTION = 'sdo_video_projects';
 const MEDIA_ITEMS_COLLECTION = 'sdo_media_items';
-const IDB_PROJECTS_DB = 'ComonaVideoStudioProjectsDB';
+const IDB_PROJECTS_DB = 'KosunVideoStudioProjectsDB';
 const IDB_PROJECTS_STORE = 'projects';
 const IDB_VERSION = 1;
 
@@ -164,7 +164,7 @@ export async function fetchAllProjects(db?: Firestore): Promise<VideoProject[]> 
   const idbProjects = await getAllProjectsFromIndexedDb();
   
   // 2. Fallback to LocalStorage
-  const localRaw = localStorage.getItem('comona_video_studio_projects');
+  const localRaw = localStorage.getItem('kosun_video_studio_projects');
   const lsProjects: VideoProject[] = localRaw ? JSON.parse(localRaw) : [];
   
   // Merge IndexedDB and LocalStorage
@@ -224,7 +224,7 @@ export function subscribeProjects(
       mediaVaultItems = await MediaIndexedDbService.getAllMedia();
     } catch {}
 
-    const localRaw = localStorage.getItem('comona_video_studio_projects');
+    const localRaw = localStorage.getItem('kosun_video_studio_projects');
     const lsProjects: VideoProject[] = localRaw ? JSON.parse(localRaw) : [];
     const localProjects = [...idbProjects];
     lsProjects.forEach(lp => {
@@ -270,12 +270,12 @@ export async function saveProject(project: VideoProject, db?: Firestore): Promis
 
   // 2. Save to local storage cache as secondary fallback
   try {
-    const local = localStorage.getItem('comona_video_studio_projects');
+    const local = localStorage.getItem('kosun_video_studio_projects');
     const list: VideoProject[] = local ? JSON.parse(local) : [];
     const idx = list.findIndex(p => p.id === project.id);
     if (idx >= 0) list[idx] = cleanPayload;
     else list.unshift(cleanPayload);
-    localStorage.setItem('comona_video_studio_projects', JSON.stringify(list));
+    localStorage.setItem('kosun_video_studio_projects', JSON.stringify(list));
   } catch {}
 
   // 3. Save sanitized, size-safe payload to Firestore (well under 1MB limit)
@@ -294,11 +294,11 @@ export async function deleteProject(projectId: string, db?: Firestore): Promise<
   await deleteProjectFromIndexedDb(projectId);
 
   try {
-    const local = localStorage.getItem('comona_video_studio_projects');
+    const local = localStorage.getItem('kosun_video_studio_projects');
     if (local) {
       const list: VideoProject[] = JSON.parse(local);
       const filtered = list.filter(p => p.id !== projectId);
-      localStorage.setItem('comona_video_studio_projects', JSON.stringify(filtered));
+      localStorage.setItem('kosun_video_studio_projects', JSON.stringify(filtered));
     }
   } catch {}
 
@@ -409,10 +409,10 @@ export async function syncAssetToMediaGallery(
 
   // 2. Sync to local cache
   try {
-    const local = localStorage.getItem('comona_media_gallery_items');
+    const local = localStorage.getItem('kosun_media_gallery_items');
     const list = local ? JSON.parse(local) : [];
     list.unshift(cleanDoc);
-    localStorage.setItem('comona_media_gallery_items', JSON.stringify(list));
+    localStorage.setItem('kosun_media_gallery_items', JSON.stringify(list));
   } catch {}
 
   // 3. Sync to Firestore (sdo_media_items)

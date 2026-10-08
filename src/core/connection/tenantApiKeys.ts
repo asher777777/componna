@@ -69,7 +69,7 @@ export function getTenantApiKeysDocSegments(tenantId: string): [string, string, 
 
 /** Legacy local storage keys – purged on startup (keys are never stored locally anymore) */
 export const LEGACY_LOCAL_API_KEY_ENTRIES = [
-  'comona_system_apikeys_config',
+  'kosun_system_apikeys_config',
   'googleAiApiKey',
   'geminiApiKey',
   'gemini_api_key',

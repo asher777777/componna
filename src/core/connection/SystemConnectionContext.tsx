@@ -75,8 +75,8 @@ export interface SystemConnectionContextValue {
   connectorModalInitialTab?: string;
 }
 
-const STORAGE_KEY = 'comona_system_connection_config';
-const COLLECTIONS_KEY = 'comona_system_collections_config';
+const STORAGE_KEY = 'kosun_system_connection_config';
+const COLLECTIONS_KEY = 'kosun_system_collections_config';
 
 export const DEFAULT_FIREBASE_CONFIG: SystemFirebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || 'AIzaSyC011dhtJddDjLmTQ2HCvgVA0DPN8rKFwQ',
@@ -107,7 +107,7 @@ const SystemConnectionContext = createContext<SystemConnectionContextValue | nul
 const LEGACY_LOCAL_KEYS_SNAPSHOT: Partial<SystemApiKeysConfig> | null = (() => {
   let legacy: Partial<SystemApiKeysConfig> | null = null;
   try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('comona_system_apikeys_config') : null;
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('kosun_system_apikeys_config') : null;
     if (raw) legacy = JSON.parse(raw);
   } catch {}
   purgeLegacyLocalApiKeys();

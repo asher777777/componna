@@ -73,7 +73,7 @@ export const AmbassadorModal: React.FC<AmbassadorModalProps> = ({
 
   const getShareUrl = () => {
     if (!createdAmbassador) return '';
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.io';
     return `${origin}/${createdAmbassador.slug}`;
   };
 

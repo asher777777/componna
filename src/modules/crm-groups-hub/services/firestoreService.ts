@@ -703,7 +703,7 @@ export async function createOrGetCommunityVideoRoom(
 ): Promise<CommunityVideoCallRoom> {
   const colls = getCollNames(customCollections);
   const roomId = `room_${community.id || 'comm'}_${community.name.replace(/[^a-zA-Z0-9]/g, '_')}`;
-  const cleanRoomSlug = `comona_${community.id || 'comm'}_${Math.abs(
+  const cleanRoomSlug = `kosun_${community.id || 'comm'}_${Math.abs(
     community.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   )}`;
   const jitsiUrl = `https://meet.jit.si/${cleanRoomSlug}#config.startWithAudioMuted=false&config.prejoinPageEnabled=false`;

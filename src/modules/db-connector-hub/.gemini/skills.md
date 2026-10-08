@@ -8,7 +8,7 @@
 
 ### 2. Multi-Tenant Query Bridging
 - Provide read-only or read-write SQL proxy execution for tenant analytics.
-- Map external SQL table columns into Comona CRM and Smart Form schema targets.
+- Map external SQL table columns into Kosun CRM and Smart Form schema targets.
 
 ### 3. Connection Health & Ping Diagnostic
 - Ping remote endpoints to verify latency, TLS certificates, and credential validity.

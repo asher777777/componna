@@ -15,7 +15,7 @@ Direct root collection access without tenant scoping is strictly prohibited. `us
 ## 3. LocalStorage & IndexedDB Isolation
 - IndexedDB database isolates projects per user session.
 - LocalStorage keys must be tenant-prefixed:
-  - `comona_{tenantId}_video_studio_projects`
+  - `kosun_{tenantId}_video_studio_projects`
 
 ## 4. Zero Cross-Module Imports
 - `video-producer-studio` must NEVER import directly from other modules (e.g. `media-gallery-hub`, `page-builder`, `flow-player-engine`).

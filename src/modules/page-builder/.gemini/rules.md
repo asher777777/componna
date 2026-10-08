@@ -14,8 +14,8 @@ Direct root collection access without tenant scoping is strictly prohibited. `us
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with tenantId:
-- `comona_{tenantId}_pagebuilder_all_pages`
-- `comona_{tenantId}_pagebuilder_active_draft`
+- `kosun_{tenantId}_pagebuilder_all_pages`
+- `kosun_{tenantId}_pagebuilder_active_draft`
 
 ## 4. Zero Cross-Module Imports
 - `page-builder` must NEVER import directly from other modules (e.g. `kesher-payments-hub`, `whatsapp-green-api-hub`, `smart-form-builder`, `crm-groups-hub`).

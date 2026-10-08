@@ -1,0 +1,25 @@
+﻿import React, { useState, Suspense } from 'react';
+import { 
+  Sliders, TrendingUp, Layout, Image, PlayCircle, 
+  Database, LogOut, User, Menu, X, Shield, ChevronLeft,
+  Film, Cpu, Layers, Globe, ShoppingBag, Sparkles
+} from 'lucide-react';
+import { useClientPlatform } from '../context/ClientPlatformContext';
+import { ComponentRegistryTable } from './ComponentRegistryTable';
+import { ClientAddonMarketplaceView } from './ClientAddonMarketplaceView';
+import { MASTER_AVAILABLE_MODULES } from '../config';
+
+// Import standalone views of our modules Dynamically!
+const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
+const DbConnectorHubStandaloneView = React.lazy(() => import('../../db-connector-hub').then(m => ({ default: m.DbConnectorHubStandaloneView })));
+const CrmAnalyticsStandaloneView = React.lazy(() => import('../../crm-analytics').then(m => ({ default: m.CrmAnalyticsStandaloneView })));
+const PageBuilderStandaloneView = React.lazy(() => import('../../page-builder').then(m => ({ default: m.PageBuilderStandaloneView })));
+const AuthPortalStandaloneView = React.lazy(() => import('../../auth-portal').then(m => ({ default: m.AuthPortalStandaloneView })));
+const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
+const MediaGalleryHubStandaloneView = React.lazy(() => import('../../media-gallery-hub').then(m => ({ default: m.MediaGalleryHubStandaloneView })));
+const DbCollectionsHubStandaloneView = React.lazy(() => import('../../db-collections-hub').then(m => ({ default: m.DbCollectionsHubStandaloneView })));
+const TemplateStandaloneView = React.lazy(() => import('../../_template').then(m => ({ default: m.TemplateStandaloneView })));
+
+export interface DynamicClientShellProps {
+  onExitToPublic?: () => void;
+}

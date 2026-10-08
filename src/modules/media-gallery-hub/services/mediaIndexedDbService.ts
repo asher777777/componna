@@ -1,6 +1,6 @@
 import { MediaItem, MediaFolder } from '../types';
 
-const DB_NAME = 'ComonaMediaVaultDB';
+const DB_NAME = 'KosunMediaVaultDB';
 const DB_VERSION = 2;
 const STORE_ITEMS = 'media_items';
 const STORE_BLOBS = 'media_blobs';

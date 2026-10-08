@@ -39,14 +39,14 @@ export const AmbassadorsManagementTable: React.FC<AmbassadorsManagementTableProp
   );
 
   const handleCopy = (slug: string, id: string) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.io';
     navigator.clipboard.writeText(`${origin}/${slug}`);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
   const handleWhatsApp = (amb: Ambassador) => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.io';
     const url = `${origin}/${amb.slug}`;
     const text = encodeURIComponent(
       `שלום! שותפים יקרים, הצטרפו לקהילת ${amb.name} בקמפיין השותפים: ${url}\nביחד נגיע ליעד של ₪${amb.targetGoal.toLocaleString()}!`

@@ -13,8 +13,8 @@ Direct root collection access without tenant scoping is prohibited. `useTenantSc
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with tenantId:
-- `comona_{tenantId}_flow_campaigns`
-- `comona_{tenantId}_active_flow_campaign_id`
+- `kosun_{tenantId}_flow_campaigns`
+- `kosun_{tenantId}_active_flow_campaign_id`
 
 ## 4. Zero Cross-Module Imports
 - `flow-player-engine` must NEVER import directly from other modules (e.g. `video-producer-studio`, `crm-analytics`).

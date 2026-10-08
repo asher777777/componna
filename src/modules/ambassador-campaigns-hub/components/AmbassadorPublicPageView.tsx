@@ -20,7 +20,7 @@ export const AmbassadorPublicPageView: React.FC<AmbassadorPublicPageViewProps> =
   const [copied, setCopied] = React.useState(false);
 
   const getShareUrl = () => {
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.io';
     return `${origin}/${ambassador.slug}`;
   };
 

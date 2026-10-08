@@ -17,9 +17,9 @@ Direct unscoped root collection queries are forbidden. `useTenantScope()` suppli
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with the tenant ID:
-- `comona_{tenantId}_whatsapp_statuses_archive`
-- `comona_{tenantId}_whatsapp_theme`
-- `comona_{tenantId}_whatsapp_bots`
+- `kosun_{tenantId}_whatsapp_statuses_archive`
+- `kosun_{tenantId}_whatsapp_theme`
+- `kosun_{tenantId}_whatsapp_bots`
 
 ## 4. Zero Cross-Module Imports
 - `whatsapp-green-api-hub` must NEVER import directly from other modules (e.g. `brand-dna-hub`, `crm-groups-hub`, `kesher-payments-hub`).

@@ -19,7 +19,7 @@ export const FormEmbedModal: React.FC<FormEmbedModalProps> = ({
 
   if (!isOpen || !form) return null;
 
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://comona.app';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://kosun.app';
   const shareUrl = `${baseUrl}/#/smart-forms/runner/${form.id}`;
   
   const reactSnippet = `import { SmartFormRunner } from '@/modules/smart-form-builder';

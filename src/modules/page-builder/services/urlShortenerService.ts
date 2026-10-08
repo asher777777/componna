@@ -65,7 +65,7 @@ export const urlShortenerService = {
     const shortUrl = `https://${domain}/${chosenSlug}`;
     
     // Resolve target URL
-    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.comona.io';
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://app.kosun.io';
     const fullTargetUrl = `${origin}/p/${pageSlug}`;
     const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=350x350&data=${encodeURIComponent(shortUrl)}&bgcolor=0f172a&color=6366f1&margin=15`;
 

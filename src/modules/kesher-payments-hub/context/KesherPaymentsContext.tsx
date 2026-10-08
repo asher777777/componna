@@ -81,7 +81,7 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
   // Day / Night Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
-      return (localStorage.getItem('comona_kesher_theme') as 'dark' | 'light') || 'dark';
+      return (localStorage.getItem('kosun_kesher_theme') as 'dark' | 'light') || 'dark';
     } catch {
       return 'dark';
     }
@@ -91,7 +91,7 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
     try {
-      localStorage.setItem('comona_kesher_theme', nextTheme);
+      localStorage.setItem('kosun_kesher_theme', nextTheme);
     } catch {}
   };
 

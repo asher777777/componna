@@ -51,7 +51,7 @@ export const NewProjectModal: React.FC<NewProjectModalProps> = ({
       // Load studio projects from local storage and firestore
       const loadStudioProjects = async () => {
         try {
-          const local = localStorage.getItem('comona_video_studio_projects');
+          const local = localStorage.getItem('kosun_video_studio_projects');
           const localList = local ? JSON.parse(local) : [];
           if (db) {
             const snap = await getDocs(collection(db, 'sdo_video_projects'));

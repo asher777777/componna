@@ -72,7 +72,7 @@ export const PublicPageView: React.FC = () => {
             setPage(foundPage);
             // Update document title
             if (typeof document !== 'undefined') {
-              document.title = foundPage.seoSettings?.title || foundPage.pageTitle || 'Componna Page';
+              document.title = foundPage.seoSettings?.title || foundPage.pageTitle || 'Kosun Page';
             }
             // Track page view for published pages
             if (foundPage.published) {

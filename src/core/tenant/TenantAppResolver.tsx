@@ -21,11 +21,11 @@ export const TenantAppResolver: React.FC = () => {
     if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
       return true;
     }
-    return sessionStorage.getItem('comona_is_dev_workbench') === 'true';
+    return sessionStorage.getItem('kosun_is_dev_workbench') === 'true';
   });
 
   useEffect(() => {
-    sessionStorage.setItem('comona_is_dev_workbench', String(isDevWorkbench));
+    sessionStorage.setItem('kosun_is_dev_workbench', String(isDevWorkbench));
   }, [isDevWorkbench]);
 
   useEffect(() => {
@@ -41,7 +41,7 @@ export const TenantAppResolver: React.FC = () => {
       if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam)) {
         sub = cleanParam;
       }
-    } else if (!hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1') && !hostname.startsWith('comona') && !hostname.startsWith('glowmanage') && !hostname.startsWith('kosun.pro') && !hostname.startsWith('www.kosun.pro')) {
+    } else if (!hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1') && !hostname.startsWith('kosun') && !hostname.startsWith('glowmanage') && !hostname.startsWith('kosun.pro') && !hostname.startsWith('www.kosun.pro')) {
       const parts = hostname.split('.');
       if (parts.length > 2) {
         const potentialSub = parts[0].toLowerCase().trim();

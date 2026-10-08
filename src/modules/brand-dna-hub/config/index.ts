@@ -34,5 +34,5 @@ export const BRAND_DNA_CONFIG_DEFAULTS = {
   defaultSlug: '/brand-dna',
   defaultTitle: 'מרכז מיתוג גלובלי (Brand DNA & AI)',
   collectionPrefix: DEFAULT_COLLECTION_PREFIX,
-  storageKey: 'comona_brand_dna_settings',
+  storageKey: 'kosun_brand_dna_settings',
 };

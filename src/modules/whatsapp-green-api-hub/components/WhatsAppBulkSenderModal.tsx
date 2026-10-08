@@ -43,7 +43,7 @@ export const WhatsAppBulkSenderModal: React.FC<Props> = ({
   if (!isOpen) return null;
 
   const [phoneListRaw, setPhoneListRaw] = useState('');
-  const [messageTemplate, setMessageTemplate] = useState('שלום {phone}, ברכות ממערכת Comona!');
+  const [messageTemplate, setMessageTemplate] = useState('שלום {phone}, ברכות ממערכת Kosun!');
   const [fileUrl, setFileUrl] = useState('');
   const [fileName, setFileName] = useState('');
   const [delaySec, setDelaySec] = useState(1.5);

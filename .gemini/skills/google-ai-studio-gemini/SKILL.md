@@ -1,12 +1,12 @@
 ---
 name: google-ai-studio-gemini
-description: Official Google AI Studio and Gemini API development skill. Enforces valid models (Gemini 3.8 Flash, 3.5 Flash, 3.1 Pro), eliminates deprecated/hallucinated models, handles REST payload structures, system instructions, structured JSON schemas, fallback chains, cost calculation, and Brand DNA injection according to Comona project rules.
+description: Official Google AI Studio and Gemini API development skill. Enforces valid models (Gemini 3.8 Flash, 3.5 Flash, 3.1 Pro), eliminates deprecated/hallucinated models, handles REST payload structures, system instructions, structured JSON schemas, fallback chains, cost calculation, and Brand DNA injection according to Kosun project rules.
 ---
 
 # Google AI Studio / Gemini API Master Skill (2026)
 
 ## Purpose & Overview
-This skill provides the authoritative engineering standard for integrating **Google AI Studio** and the **Gemini API** within the Comona workspace.
+This skill provides the authoritative engineering standard for integrating **Google AI Studio** and the **Gemini API** within the Kosun workspace.
 It eliminates the critical mistakes made by previous agents (such as hallucinating non-existent models like `gemini-3.6-flash`, requesting shut down models like `gemini-2.0-flash` / `gemini-1.5-flash`, hardcoding invalid endpoints, or failing to implement automatic model fallback chains).
 
 ---
@@ -118,9 +118,9 @@ To guarantee that the Gemini model returns clean JSON without markdown code fenc
 
 ---
 
-## 4. Comona Project Integration Standards
+## 4. Kosun Project Integration Standards
 
-When building or updating AI capabilities inside any Comona module (11-Layer Architecture):
+When building or updating AI capabilities inside any Kosun module (11-Layer Architecture):
 
 ### A. API Key Resolution
 Always resolve the API key in this order:

@@ -130,7 +130,7 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
               </span>
               {globalSettings.slogan && <p className="text-slate-500">{globalSettings.slogan}</p>}
               <p className="text-slate-600">
-                © {new Date().getFullYear()} כל הזכויות שמורות. נבנה באמצעות Comona Page Builder.
+                © {new Date().getFullYear()} כל הזכויות שמורות. נבנה באמצעות Kosun Web.
               </p>
             </div>
           </footer>

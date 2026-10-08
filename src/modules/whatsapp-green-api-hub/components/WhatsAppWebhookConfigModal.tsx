@@ -109,7 +109,7 @@ export const WhatsAppWebhookConfigModal: React.FC<Props> = ({
         typeWebhook: 'testNotification',
         instanceData: { idInstance: service.baseUrl.split('waInstance')[1] || '' },
         timestamp: Math.floor(Date.now() / 1000),
-        message: 'בדיקת חיבור Webhook מ-Comona Green-API Hub',
+        message: 'בדיקת חיבור Webhook מ-Kosun Green-API Hub',
       };
 
       const res = await fetch(webhookUrl.trim(), {
@@ -178,7 +178,7 @@ export const WhatsAppWebhookConfigModal: React.FC<Props> = ({
             </div>
             <div>
               <h3 className="font-bold text-white text-sm">הגדרת וסנכרון Webhook ב-Green-API</h3>
-              <p className="text-[11px] text-slate-400">קבלת אירועים והודעות בזמן אמת לשרת המערכת (Comona Webhook Server)</p>
+              <p className="text-[11px] text-slate-400">קבלת אירועים והודעות בזמן אמת לשרת המערכת (Kosun Webhook Server)</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition cursor-pointer">

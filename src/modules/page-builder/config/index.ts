@@ -2,7 +2,7 @@ export const PAGE_BUILDER_MODULE_CONFIG = {
   id: 'page-builder',
   name: 'יוצר עמודים ואתרים',
   version: '2.0.0',
-  storagePrefix: 'comona_pages_',
+  storagePrefix: 'kosun_pages_',
   collections: {
     pages: 'mod_pages_documents',
     templates: 'mod_pages_templates',

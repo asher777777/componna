@@ -100,7 +100,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     isActive: true,
     triggerType: 'all',
     triggerKeywords: ['היי', 'שלום', 'עזרה', 'מחיר', 'מידע'],
-    systemPrompt: `אתה נציג שירות לקוחות ודיגיטל בכיר ומקצועי של מערכת Comona.
+    systemPrompt: `אתה נציג שירות לקוחות ודיגיטל בכיר ומקצועי של מערכת Kosun.
 תפקידך להעניק מענה אדיב, מהיר, מדויק ותמציתי בעברית בוואטסאפ.
 שמור על נימה שירותית, עניינית, עם אימוג'י במידה.
 אם הלקוח שואל על מחיר או מוצרים - ענה בקצרה והצע לו לבחור באחד הכפתורים מטה.`,
@@ -122,7 +122,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     isActive: false,
     triggerType: 'keyword',
     triggerKeywords: ['תקלה', 'לא עובד', 'שגיאה', 'עזרה טכנית', 'סנכרון'],
-    systemPrompt: `אתה מומחה תמיכה טכנית של Comona. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל.`,
+    systemPrompt: `אתה מומחה תמיכה טכנית של Kosun. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל.`,
     model: 'gemini-2.5-flash',
     temperature: 0.4,
     interactiveButtons: [
@@ -136,7 +136,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
 
 /**
  * Resolves any custom / UI model alias into a valid, live Google AI Studio API model
- * Standardized across Comona (Video Studio, Avatar Creator, Brand DNA).
+ * Standardized across Kosun (Video Studio, Avatar Creator, Brand DNA).
  */
 export function getValidGeminiModel(requestedModel?: string): string {
   if (!requestedModel) return 'gemini-2.5-flash';
@@ -179,7 +179,7 @@ function buildBrandDnaPromptBlock(brandDna?: BrandDna | null): string {
 }
 
 export class WhatsAppAiBotService {
-  private static STORAGE_KEY = 'comona_whatsapp_ai_bots';
+  private static STORAGE_KEY = 'kosun_whatsapp_ai_bots';
 
   public static getStoredBots(): WhatsAppAiBotConfig[] {
     try {
@@ -253,7 +253,7 @@ export class WhatsAppAiBotService {
   }
 
   /**
-   * Resilient Gemini API Caller using Comona's Next-Gen 3.x Flash/Pro model hierarchy
+   * Resilient Gemini API Caller using Kosun's Next-Gen 3.x Flash/Pro model hierarchy
    */
   public static async callGeminiApi(params: {
     apiKey: string;

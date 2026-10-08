@@ -110,12 +110,12 @@ export const CollectionListSidebar: React.FC = () => {
 
   // Collapsed state with localStorage persistence
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('comona_db_sidebar_collapsed') === 'true';
+    return localStorage.getItem('kosun_db_sidebar_collapsed') === 'true';
   });
 
   useEffect(() => {
     try {
-      localStorage.setItem('comona_db_sidebar_collapsed', String(isCollapsed));
+      localStorage.setItem('kosun_db_sidebar_collapsed', String(isCollapsed));
     } catch {}
   }, [isCollapsed]);
 

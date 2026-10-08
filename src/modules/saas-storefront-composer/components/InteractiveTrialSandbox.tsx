@@ -6,16 +6,16 @@ import {
 import { useStorefront } from '../context/StorefrontContext';
 
 // Import standalone previews
-import { VideoProducerStudioView } from '../../video-producer-studio';
+const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
 import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
 import { PageBuilderStandaloneView } from '../../page-builder';
-import { SmartFormBuilderStandaloneView } from '../../smart-form-builder';
+const SmartFormBuilderStandaloneView = React.lazy(() => import('../../smart-form-builder').then(m => ({ default: m.SmartFormBuilderStandaloneView })));
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { WhatsAppGreenApiStandaloneView } from '../../whatsapp-green-api-hub';
 import { KesherPaymentsStandaloneView } from '../../kesher-payments-hub';
 import { CrmGroupsHubStandaloneView } from '../../crm-groups-hub';
 import { BrandDnaHubStandaloneView } from '../../brand-dna-hub';
-import { FlowPlayerEngineStandaloneView } from '../../flow-player-engine';
+const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
 
 export const InteractiveTrialSandbox: React.FC = () => {
   const { 

@@ -351,10 +351,10 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
   mod_pagebuilder_pages: [
     {
       id: 'landing_page_main',
-      name: 'דף נחיתה ראשי - Comona Hub',
+      name: 'דף נחיתה ראשי - Kosun Hub',
       data: {
         id: 'landing_page_main',
-        title: 'דף נחיתה ראשי - Comona Hub',
+        title: 'דף נחיתה ראשי - Kosun Hub',
         slug: 'home',
         status: 'published',
         blocksCount: 5,
@@ -370,7 +370,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
       name: 'קונפיגורציית לקוח ראשית',
       data: {
         id: 'client_default_shell',
-        brandName: 'Comona Client Platform',
+        brandName: 'Kosun Client Platform',
         themeColor: '#6366f1',
         activeModules: ['video-producer', 'media-gallery-hub', 'flow-player-engine'],
         updatedAt: new Date().toISOString(),
@@ -383,7 +383,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
       name: 'מנהל מערכת ראשי',
       data: {
         id: 'admin_master_user',
-        email: 'admin@comona.io',
+        email: 'admin@kosun.io',
         displayName: 'מנהל מערכת',
         role: 'super_admin',
         createdAt: new Date().toISOString(),
@@ -520,7 +520,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
       id: 'global',
       name: 'תשתיות מערכת גלובליות (global)',
       data: {
-        appName: 'Comona Workspace',
+        appName: 'Kosun Workspace',
         theme: 'dark',
         defaultLanguage: 'he',
         enableRealtimeSync: true,

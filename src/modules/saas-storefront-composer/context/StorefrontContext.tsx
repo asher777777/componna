@@ -76,16 +76,16 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [catalog, setCatalog] = useState<ModulePricingConfig[]>(() => StorefrontService.getCatalog());
   const [settings, setSettings] = useState<StorefrontGeneralSettings>(() => StorefrontService.getSettings());
   const [cart, setCart] = useState<CartItem[]>(() => {
-    const saved = sessionStorage.getItem('comona_storefront_cart');
+    const saved = sessionStorage.getItem('kosun_storefront_cart');
     return saved ? JSON.parse(saved) : [];
   });
   const [billingPlan, setBillingPlanState] = useState<BillingInterval>('monthly');
   const [viewMode, setViewMode] = useState<StorefrontViewMode>(() => {
-    const saved = sessionStorage.getItem('comona_storefront_view_mode');
+    const saved = sessionStorage.getItem('kosun_storefront_view_mode');
     return (saved as StorefrontViewMode) || 'catalog';
   });
   const [trialActiveModule, setTrialActiveModule] = useState<ModulePricingConfig | null>(() => {
-    const saved = sessionStorage.getItem('comona_storefront_trial_module');
+    const saved = sessionStorage.getItem('kosun_storefront_trial_module');
     return saved ? JSON.parse(saved) : null;
   });
   const [selectedSubdomain, setSelectedSubdomain] = useState('');
@@ -93,15 +93,15 @@ export const StorefrontProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [provisionedTenant, setProvisionedTenant] = useState<TenantRecord | null>(null);
 
   useEffect(() => {
-    sessionStorage.setItem('comona_storefront_view_mode', viewMode);
+    sessionStorage.setItem('kosun_storefront_view_mode', viewMode);
   }, [viewMode]);
 
   useEffect(() => {
-    sessionStorage.setItem('comona_storefront_trial_module', JSON.stringify(trialActiveModule));
+    sessionStorage.setItem('kosun_storefront_trial_module', JSON.stringify(trialActiveModule));
   }, [trialActiveModule]);
 
   useEffect(() => {
-    sessionStorage.setItem('comona_storefront_cart', JSON.stringify(cart));
+    sessionStorage.setItem('kosun_storefront_cart', JSON.stringify(cart));
   }, [cart]);
 
   const [lastDispatchResult, setLastDispatchResult] = useState<WelcomeDispatchResult | null>(null);

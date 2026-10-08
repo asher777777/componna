@@ -12,7 +12,7 @@
 2. **איסור סינגלטון פיירבייס:**
    - אין לייבא `db` מ-`src/services/firebase`. מופע ה-`db` מגיע מוזרק דרך `useSystemConnection()`.
 3. **פולבק מקומי מבודד (Local Storage Fallback):**
-   - במידה ו-Firestore אינו מחובר או נכשל, הרכיב נשמר ב-LocalStorage עם קידומת מבודדת לפי סאב-דומיין: `comona_{tenantId}_brand_dna_settings`.
+   - במידה ו-Firestore אינו מחובר או נכשל, הרכיב נשמר ב-LocalStorage עם קידומת מבודדת לפי סאב-דומיין: `kosun_{tenantId}_brand_dna_settings`.
 
 ---
 

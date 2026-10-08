@@ -2,7 +2,7 @@ export const WHATSAPP_MODULE_CONFIG = {
   id: 'whatsapp-green-api-hub',
   name: 'WhatsApp Green API & AI Bot Hub',
   version: '2.0.0',
-  storagePrefix: 'comona_whatsapp_',
+  storagePrefix: 'kosun_whatsapp_',
   collections: {
     chats: 'whatsapp_chats',
     messages: 'whatsapp_messages',

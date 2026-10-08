@@ -10,8 +10,8 @@ The `db-collections-hub` module is the platform's multi-database explorer, docum
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with tenantId:
-- `comona_{tenantId}_db_collections_custom`
-- `comona_{tenantId}_db_active_collection`
+- `kosun_{tenantId}_db_collections_custom`
+- `kosun_{tenantId}_db_active_collection`
 
 ## 4. Zero Cross-Module Imports
 - `db-collections-hub` must NEVER import directly from other modules (e.g. `db-connector-hub`, `brand-dna-hub`).

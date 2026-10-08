@@ -1,3 +1,5 @@
+import { processSubmissionWhatsAppAutomations } from './formWhatsAppService';
+import { eventBus } from '../../../core/bridge/EventBus';
 import {
   collection,
   doc,
@@ -172,7 +174,7 @@ export async function submitFormResponse(
   let whatsappDeliveries: any[] = [];
   if (form.whatsappAutomationEnabled && form.whatsappRules && form.whatsappRules.length > 0) {
     try {
-      const { processSubmissionWhatsAppAutomations } = await import('./formWhatsAppService');
+      
       whatsappDeliveries = await processSubmissionWhatsAppAutomations({
         form,
         rawAnswers,
@@ -275,7 +277,7 @@ export async function submitFormResponse(
 
   // Emit to EventBus for live CRM updates
   try {
-    const { eventBus } = await import('../../../core/bridge/EventBus');
+    
     if (leadPayload) {
       eventBus.emit('crm:lead:created', leadPayload);
     }

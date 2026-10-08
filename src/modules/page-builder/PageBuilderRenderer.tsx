@@ -164,7 +164,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                 <span>מאובטח ומוגן בתקן SSL 256-bit</span>
               </div>
               <p className="text-slate-500 text-[11px]">
-                © {new Date().getFullYear()} {globalSettings.companyName || 'כל הזכויות שמורות'}. נבנה באמצעות Comona Page Builder.
+                © {new Date().getFullYear()} {globalSettings.companyName || 'כל הזכויות שמורות'}. נבנה באמצעות Kosun Web.
               </p>
             </div>
           </div>

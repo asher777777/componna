@@ -16,7 +16,7 @@ import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketing
 import { PageBuilderProvider } from './context/PageBuilderContext';
 
 
-const STORAGE_KEY = 'comona_pagebuilder_current_page';
+const STORAGE_KEY = 'kosun_pagebuilder_current_page';
 
 const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
   pageId: 'page_main_home',

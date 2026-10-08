@@ -9,7 +9,7 @@
 
 ### 2. Multi-Tenant Transaction Synchronization
 - Synchronize real-time transactions with Firestore under `tenants/{tenantId}/kesher_transactions`.
-- Support offline queueing and local cache fallback using `comona_{tenantId}_kesher_transactions`.
+- Support offline queueing and local cache fallback using `kosun_{tenantId}_kesher_transactions`.
 - Reconcile status updates from external webhooks or polling.
 
 ### 3. Contact Synced History

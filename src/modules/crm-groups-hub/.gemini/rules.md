@@ -1,7 +1,7 @@
 # crm-groups-hub Isolation & Architecture Rules
 
 ## 1. Overview
-The `crm-groups-hub` module provides contact segmentation, dynamic Smart Groups, Community Micro-Portals, internal chat rooms, interaction tracking, and WhatsApp broadcasting for the Comona platform.
+The `crm-groups-hub` module provides contact segmentation, dynamic Smart Groups, Community Micro-Portals, internal chat rooms, interaction tracking, and WhatsApp broadcasting for the Kosun platform.
 
 ## 2. Multi-Tenant Firestore Subcollections
 All data read or written by this module MUST reside in tenant-isolated paths under `tenants/{tenantId}/`:
@@ -16,7 +16,7 @@ Direct root collection access is strictly prohibited. `useTenantScope()` provide
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with the tenant ID:
-- `comona_{tenantId}_crm_groups_columns`
+- `kosun_{tenantId}_crm_groups_columns`
 
 ## 4. Zero Cross-Module Imports
 - `crm-groups-hub` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `brand-dna-hub`, `page-builder`).

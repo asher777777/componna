@@ -115,7 +115,7 @@ export const MOCK_DONATIONS: Donation[] = [
     phone: '050-1112233',
     paymentStatus: 'completed',
     paymentMethod: 'credit_card',
-    receiptUrl: 'https://comona.io/receipt/REC-101',
+    receiptUrl: 'https://kosun.io/receipt/REC-101',
     completedAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
   },
@@ -134,7 +134,7 @@ export const MOCK_DONATIONS: Donation[] = [
     phone: '052-3334455',
     paymentStatus: 'completed',
     paymentMethod: 'bit',
-    receiptUrl: 'https://comona.io/receipt/REC-102',
+    receiptUrl: 'https://kosun.io/receipt/REC-102',
     completedAt: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     createdAt: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
   },
@@ -444,7 +444,7 @@ export async function createAmbassadorRecord(
       targetGoal: newAmbassador.targetGoal,
       phone: newAmbassador.phone,
       email: newAmbassador.email,
-      shareUrl: `https://comona.io/${newAmbassador.slug}`,
+      shareUrl: `https://kosun.io/${newAmbassador.slug}`,
       createdAt: newAmbassador.createdAt,
     });
 
@@ -503,7 +503,7 @@ export async function recordPendingDonationRecord(
       email: donationData.email,
       ambassadorId: donationData.ambassadorId || undefined,
       ambassadorName: donationData.ambassadorName || undefined,
-      paymentUrl: `https://comona.io/c/${campaignId}?donate=true`,
+      paymentUrl: `https://kosun.io/c/${campaignId}?donate=true`,
       createdAt: donationData.createdAt,
     });
 
@@ -564,7 +564,7 @@ export async function completeDonationRecord(
             paymentStatus: 'completed',
             paymentMethod: paymentMethod || 'credit_card',
             transactionId: transactionId || `TXN-${Date.now()}`,
-            receiptUrl: receiptUrl || `https://comona.io/receipt/REC-${Date.now().toString().slice(-4)}`,
+            receiptUrl: receiptUrl || `https://kosun.io/receipt/REC-${Date.now().toString().slice(-4)}`,
             completedAt,
             updatedAt: completedAt,
           },
@@ -583,7 +583,7 @@ export async function completeDonationRecord(
       email: email || '',
       ambassadorId: ambassadorId || undefined,
       ambassadorName: ambassadorName || undefined,
-      receiptUrl: receiptUrl || `https://comona.io/receipt/REC-${Date.now().toString().slice(-4)}`,
+      receiptUrl: receiptUrl || `https://kosun.io/receipt/REC-${Date.now().toString().slice(-4)}`,
       paymentMethod: paymentMethod || 'credit_card',
       transactionId: transactionId || `TXN-${Date.now()}`,
       completedAt,

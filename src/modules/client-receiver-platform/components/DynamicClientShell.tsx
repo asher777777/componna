@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import { 
   Sliders, TrendingUp, Layout, Image, PlayCircle, 
   Database, LogOut, User, Menu, X, Shield, ChevronLeft,
@@ -10,15 +10,15 @@ import { ClientAddonMarketplaceView } from './ClientAddonMarketplaceView';
 import { MASTER_AVAILABLE_MODULES } from '../config';
 
 // Import standalone views of our modules
-import { VideoProducerStudioView } from '../../video-producer-studio';
-import { DbConnectorHubStandaloneView } from '../../db-connector-hub';
-import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
-import { PageBuilderStandaloneView } from '../../page-builder';
-import { AuthPortalStandaloneView } from '../../auth-portal';
-import { FlowPlayerEngineStandaloneView } from '../../flow-player-engine';
-import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
-import { DbCollectionsHubStandaloneView } from '../../db-collections-hub';
-import { TemplateStandaloneView } from '../../_template';
+const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
+const DbConnectorHubStandaloneView = React.lazy(() => import('../../db-connector-hub').then(m => ({ default: m.DbConnectorHubStandaloneView })));
+const CrmAnalyticsStandaloneView = React.lazy(() => import('../../crm-analytics').then(m => ({ default: m.CrmAnalyticsStandaloneView })));
+const PageBuilderStandaloneView = React.lazy(() => import('../../page-builder').then(m => ({ default: m.PageBuilderStandaloneView })));
+const AuthPortalStandaloneView = React.lazy(() => import('../../auth-portal').then(m => ({ default: m.AuthPortalStandaloneView })));
+const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
+const MediaGalleryHubStandaloneView = React.lazy(() => import('../../media-gallery-hub').then(m => ({ default: m.MediaGalleryHubStandaloneView })));
+const DbCollectionsHubStandaloneView = React.lazy(() => import('../../db-collections-hub').then(m => ({ default: m.DbCollectionsHubStandaloneView })));
+const TemplateStandaloneView = React.lazy(() => import('../../_template').then(m => ({ default: m.TemplateStandaloneView })));
 import { Globe, ShoppingBag, Sparkles } from 'lucide-react';
 
 export interface DynamicClientShellProps {
@@ -236,7 +236,7 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
 
         {/* Dynamic Mounted Module View */}
         <div className="flex-1 p-3 md:p-6 overflow-y-auto">
-          {renderActiveModuleView()}
+          <Suspense fallback={<div className="p-8 text-center text-gray-500">Loading module...</div>}>{renderActiveModuleView()}</Suspense>
         </div>
       </main>
 

@@ -1,7 +1,7 @@
 # db-connector-hub Isolation & Architecture Rules
 
 ## 1. Overview
-The `db-connector-hub` module establishes external database bridges (PostgreSQL, MySQL, Supabase, BigQuery, Airtable) and credentials management for the Comona platform.
+The `db-connector-hub` module establishes external database bridges (PostgreSQL, MySQL, Supabase, BigQuery, Airtable) and credentials management for the Kosun platform.
 
 ## 2. Multi-Tenant Connector Credential Storage
 All external database connection parameters and API secrets MUST be saved in tenant-isolated paths under `tenants/{tenantId}/`:
@@ -12,7 +12,7 @@ Direct access to platform-wide credentials without tenant scoping is forbidden.
 
 ## 3. LocalStorage Keys
 All local persistence keys must be scoped with tenantId:
-- `comona_{tenantId}_db_connectors_config`
+- `kosun_{tenantId}_db_connectors_config`
 
 ## 4. Zero Cross-Module Imports
 - `db-connector-hub` must NEVER import directly from other modules (e.g. `db-collections-hub`, `crm-analytics`).

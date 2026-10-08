@@ -1,7 +1,7 @@
 # media-gallery-hub Isolation & Architecture Rules
 
 ## 1. Overview
-The `media-gallery-hub` module acts as the centralized digital asset vault for the Comona platform. It manages image/video uploads, HeyGen video avatar synchronization, background removal, WebP/AVIF compression, and media folder hierarchies.
+The `media-gallery-hub` module acts as the centralized digital asset vault for the Kosun platform. It manages image/video uploads, HeyGen video avatar synchronization, background removal, WebP/AVIF compression, and media folder hierarchies.
 
 ## 2. Multi-Tenant Firestore Subcollections & Cloud Storage
 All media records and uploaded files MUST reside in tenant-isolated paths:
@@ -14,7 +14,7 @@ Direct root bucket paths (`sdo_media_vault/...`) or unscoped collections are str
 
 ## 3. LocalStorage & IndexedDB Isolation
 - IndexedDB stores local blobs keyed by canonical item IDs.
-- Any local cache keys must include the tenant ID: `comona_{tenantId}_media_cached_items`.
+- Any local cache keys must include the tenant ID: `kosun_{tenantId}_media_cached_items`.
 
 ## 4. Zero Cross-Module Imports
 - `media-gallery-hub` must NEVER import directly from other modules (e.g. `video-producer-studio`, `brand-dna-hub`, `page-builder`).

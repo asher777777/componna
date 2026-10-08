@@ -148,9 +148,9 @@ ${modulesText}
       };
 
       // Store in notification registry / localStorage
-      const existingNotifs = JSON.parse(localStorage.getItem('comona_tenant_notifications') || '[]');
+      const existingNotifs = JSON.parse(localStorage.getItem('kosun_tenant_notifications') || '[]');
       existingNotifs.unshift(emailPayload);
-      localStorage.setItem('comona_tenant_notifications', JSON.stringify(existingNotifs.slice(0, 50)));
+      localStorage.setItem('kosun_tenant_notifications', JSON.stringify(existingNotifs.slice(0, 50)));
 
       // Emit event across modular architecture
       eventBus.publish('notification:email:send' as any, emailPayload);

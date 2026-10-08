@@ -136,7 +136,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   const [selectedColumns, setSelectedColumns] = useState<string[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const saved = localStorage.getItem(`comona_${tenantId}_crm_groups_columns`);
+        const saved = localStorage.getItem(`kosun_${tenantId}_crm_groups_columns`);
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -156,7 +156,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
         next = [...prev, colId];
       }
       try {
-        localStorage.setItem(`comona_${tenantId}_crm_groups_columns`, JSON.stringify(next));
+        localStorage.setItem(`kosun_${tenantId}_crm_groups_columns`, JSON.stringify(next));
       } catch (e) {}
       return next;
     });
@@ -165,7 +165,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   const resetColumns = () => {
     setSelectedColumns(DEFAULT_VISIBLE_COLUMNS);
     try {
-      localStorage.setItem(`comona_${tenantId}_crm_groups_columns`, JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
+      localStorage.setItem(`kosun_${tenantId}_crm_groups_columns`, JSON.stringify(DEFAULT_VISIBLE_COLUMNS));
     } catch (e) {}
   };
 

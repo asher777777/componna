@@ -134,7 +134,7 @@ export const AdminStorefrontManager: React.FC = () => {
               type="text"
               value={tempSettings.platformName}
               onChange={e => setTempSettings({ ...tempSettings, platformName: e.target.value })}
-              placeholder="Comona SaaS Hub"
+              placeholder="Kosun SaaS Hub"
               className="w-full bg-slate-800/80 border border-slate-700 rounded-xl px-3 py-2 text-white focus:ring-2 focus:ring-indigo-500 outline-none"
             />
           </div>
