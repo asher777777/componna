@@ -1,4 +1,4 @@
-import React, { Suspense, useState } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles, Grid, X, Check, Lock } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
@@ -6,8 +6,8 @@ import { REGISTERED_MODULES } from './moduleRegistry';
 import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from './components/ModuleLoadingFallback';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
-import { AuthModal } from '../modules/auth-portal';
-import { getAuth } from 'firebase/auth';
+import { AuthModal } from '../components/Auth/AuthModal';
+import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../services/firebaseAuth';
 
 // PublicPageView loaded lazily to isolate page-builder from shell
 const PublicPageView = React.lazy(() =>
@@ -22,10 +22,32 @@ export const WorkbenchApp: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const searchParams = new URLSearchParams(location.search);
-  const { isRootTenant, purchasedModules, activeModuleId, setActiveModuleId, firebaseApp } = useSystemConnection();
+  const { purchasedModules, firebaseApp } = useSystemConnection();
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  
+  // Auth state for determining admin role
+  const [authState, setAuthState] = useState<AuthState>({
+    user: null, uid: null, email: null, displayName: null, photoURL: null,
+    role: 'viewer', isAuthenticated: false, isAnonymous: false, loading: true, error: null
+  });
+  
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, async (state) => {
+      setAuthState(state);
+      if (state.user && state.email) {
+        const role = await fetchUserRole(state.uid!, firebaseApp);
+        setIsAdmin(role === 'admin' || getCachedUserRole(state.uid!) === 'admin' || isPlatformAdminEmail(state.email));
+      } else {
+        setIsAdmin(false);
+      }
+    });
+    return () => unsub();
+  }, [firebaseApp]);
 
   const isPublicPage =
     location.pathname.startsWith('/p/') ||
@@ -35,8 +57,6 @@ export const WorkbenchApp: React.FC = () => {
     location.hash.startsWith('#/page/');
 
   const isHomePage = location.pathname === '/';
-
-  // Sidebar is disabled by default across all workbench and modules unless ?sidebar=true is passed
   const showSidebar = searchParams.get('sidebar') === 'true';
 
   const isStandalone =
@@ -44,12 +64,15 @@ export const WorkbenchApp: React.FC = () => {
     searchParams.get('standalone') === 'true' ||
     isPublicPage;
 
-  // Filter modules to only show those the user is entitled to, or all if root tenant (admin)
-  const availableModules = REGISTERED_MODULES.filter(m => isRootTenant || purchasedModules.includes(m.id));
+  // Filter modules: Admin sees all, Regular users see purchased modules
+  const availableModules = REGISTERED_MODULES.filter(m => isAdmin || purchasedModules.includes(m.id));
+  
+  // Extract active module ID from pathname
+  const activeModuleRoute = '/' + location.pathname.split('/')[1];
+  const activeModule = REGISTERED_MODULES.find(m => m.route === activeModuleRoute);
+  const activeModuleId = activeModule ? activeModule.id : null;
 
-  // Handle module navigation
-  const handleNavigateToModule = (moduleId: string, route: string) => {
-    setActiveModuleId(moduleId);
+  const handleNavigateToModule = (route: string) => {
     setIsMenuOpen(false);
     navigate(route);
   };
@@ -98,13 +121,9 @@ export const WorkbenchApp: React.FC = () => {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 relative font-sans" dir="rtl">
-      {/* Optional Sidebar only if explicitly requested with ?sidebar=true */}
       {showSidebar && <Sidebar />}
 
-      {/* Main Content Area */}
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header has been completely removed per Cashwan 2026 specs */}
-        
         <main className="flex-1 overflow-y-auto bg-slate-50 relative">
           <Routes>
             <Route
@@ -116,7 +135,6 @@ export const WorkbenchApp: React.FC = () => {
               }
             />
             
-            {/* Public Page Routes */}
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -144,7 +162,6 @@ export const WorkbenchApp: React.FC = () => {
         </main>
       </div>
 
-      {/* Floating Menu Button (Bottom Right) */}
       {!isPublicPage && !isHomePage && (
         <button
           onClick={() => setIsMenuOpen(true)}
@@ -155,7 +172,6 @@ export const WorkbenchApp: React.FC = () => {
         </button>
       )}
 
-      {/* Central Floating Menu Modal */}
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
@@ -168,7 +184,7 @@ export const WorkbenchApp: React.FC = () => {
                 <div>
                   <h2 className="text-xl font-black text-slate-900">תפריט המערכת</h2>
                   <p className="text-xs text-slate-500 font-medium">
-                    {isRootTenant ? 'מחובר כמנהל - כל הרכיבים פתוחים' : 'הרכיבים הפעילים בחשבונך'}
+                    {isAdmin ? 'מחובר כמנהל - כל הרכיבים פתוחים' : 'הרכיבים הפעילים בחשבונך'}
                   </p>
                 </div>
               </div>
@@ -185,7 +201,7 @@ export const WorkbenchApp: React.FC = () => {
                 <div className="text-center py-12 text-slate-500 space-y-3">
                   <Lock className="w-8 h-8 mx-auto opacity-50" />
                   <p className="font-bold">אין מודולים פעילים</p>
-                  <button onClick={() => setIsAuthModalOpen(true)} className="px-4 py-2 bg-indigo-50 text-indigo-600 font-bold text-xs rounded-xl hover:bg-indigo-100">
+                  <button onClick={() => {setIsMenuOpen(false); setIsAuthModalOpen(true);}} className="px-4 py-2 bg-indigo-50 text-indigo-600 font-bold text-xs rounded-xl hover:bg-indigo-100">
                     התחבר מחדש
                   </button>
                 </div>
@@ -193,11 +209,11 @@ export const WorkbenchApp: React.FC = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {availableModules.map((module) => {
                     const isActive = activeModuleId === module.id;
-                    const Icon = module.icon;
+                    const Icon = (module as any).icon ? (module as any).icon : Grid;
                     return (
                       <button
                         key={module.id}
-                        onClick={() => handleNavigateToModule(module.id, module.route)}
+                        onClick={() => handleNavigateToModule(module.route)}
                         className={`text-right p-4 rounded-2xl border transition-all duration-200 flex flex-col gap-3 group cursor-pointer ${
                           isActive
                             ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500/20 shadow-sm'
@@ -231,7 +247,6 @@ export const WorkbenchApp: React.FC = () => {
         </div>
       )}
 
-      {/* Auth Modal for re-login if needed */}
       <AuthModal
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
@@ -240,7 +255,6 @@ export const WorkbenchApp: React.FC = () => {
         subtitle="רענון הרשאות מנהל"
         onSuccess={() => setIsAuthModalOpen(false)}
       />
-
     </div>
   );
 };
