@@ -78,11 +78,13 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     localStorage.setItem('kosun_theme', next);
+    localStorage.setItem('kosun_home_theme', next);
     if (next === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
   };
 
   const [authState, setAuthState] = useState<AuthState>({

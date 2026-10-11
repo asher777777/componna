@@ -279,6 +279,57 @@ export interface BrandDnaContract {
   getBrandDna: () => BrandDna;
   getSystemPrompt: (moduleRole?: string) => string;
   getDesignTokens: () => BrandDesignTokens;
+  updateBrandDna?: (partial: Partial<BrandDna>) => Promise<boolean>;
+  setLogoUrl?: (url: string) => Promise<boolean>;
+  addVibeImage?: (url: string) => Promise<boolean>;
+  removeVibeImage?: (url: string) => Promise<boolean>;
+}
+
+// ========================
+// KOSAI AI Engine Contracts
+// ========================
+
+export interface KosaiImageGenerationOptions {
+  prompt: string;
+  mode?: 'general' | 'logo' | 'vibe' | 'edit';
+  stylePreset?: string;
+  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  referenceImageBase64?: string;
+  brandDna?: BrandDna;
+  model?: string;
+  customApiKey?: string;
+}
+
+export interface KosaiImageGenerationResult {
+  imageUrl: string;
+  base64Data?: string;
+  mimeType?: string;
+  width: number;
+  height: number;
+  model: string;
+  enhancedPrompt?: string;
+  suggestedTitle?: string;
+  suggestedDescription?: string;
+  suggestedTags?: string[];
+  usageReport?: any;
+}
+
+export interface KosaiImageEditOptions {
+  referenceImageBase64: string;
+  instruction: string;
+  brandDna?: BrandDna;
+  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
+  model?: string;
+  customApiKey?: string;
+}
+
+export interface KosaiAgentContract {
+  generateImage: (options: KosaiImageGenerationOptions) => Promise<KosaiImageGenerationResult>;
+  generateBrandLogo: (options: { prompt?: string; stylePreset?: string; brandDna?: BrandDna }) => Promise<KosaiImageGenerationResult>;
+  generateBrandVibeImage: (options: { prompt?: string; vibeStyle?: string; brandDna?: BrandDna; aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' }) => Promise<KosaiImageGenerationResult>;
+  editImageWithAi: (options: KosaiImageEditOptions) => Promise<KosaiImageGenerationResult>;
+  enhancePromptWithBrandContext: (prompt: string, type: 'logo' | 'vibe' | 'edit' | 'general', brandDna?: BrandDna) => Promise<{ enhancedPromptEn: string; explanationHe: string }>;
+
 }
 
 export * from './collections';

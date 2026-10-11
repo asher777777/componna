@@ -23,6 +23,9 @@ export interface BrandDnaContextValue {
   saveNow: () => Promise<boolean>;
   resetToDefaults: () => void;
   getGeminiSystemContext: (moduleRole?: string) => string;
+  setLogoUrl: (url: string) => Promise<boolean>;
+  addVibeImage: (url: string) => Promise<boolean>;
+  removeVibeImage: (url: string) => Promise<boolean>;
 }
 
 const BrandDnaContext = createContext<BrandDnaContextValue | undefined>(undefined);
@@ -41,12 +44,19 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       getBrandDna: () => brandDna,
       getSystemPrompt: (moduleRole?: string) => buildBrandSystemContext(brandDna, moduleRole),
       getDesignTokens: () => brandDna.designTokens,
+      updateBrandDna: async (partial: Partial<BrandDna>) => {
+        setBrandDna((prev) => ({ ...prev, ...partial }));
+        return true;
+      },
+      setLogoUrl,
+      addVibeImage,
+      removeVibeImage,
     };
     registerCapability('brand-dna', contract);
     return () => {
       unregisterCapability('brand-dna');
     };
-  }, [brandDna, registerCapability, unregisterCapability]);
+  }, [brandDna, registerCapability, unregisterCapability, setLogoUrl, addVibeImage, removeVibeImage]);
 
 
   // Load initially or when tenant changes
@@ -119,6 +129,48 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const setFullBrandDna = useCallback((newDna: BrandDna) => {
     setBrandDna(newDna);
+  }, []);
+
+  const setLogoUrl = useCallback(async (url: string): Promise<boolean> => {
+    setBrandDna((prev) => ({
+      ...prev,
+      identity: { ...prev.identity, logoUrl: url },
+    }));
+    eventBus.publish('brand:logo_updated', {
+      logoUrl: url,
+      updatedAt: new Date().toISOString(),
+    });
+    return true;
+  }, []);
+
+  const addVibeImage = useCallback(async (url: string): Promise<boolean> => {
+    setBrandDna((prev) => {
+      const existing = prev.identity.vibeImages || [];
+      if (existing.includes(url)) return prev;
+      return {
+        ...prev,
+        identity: {
+          ...prev.identity,
+          vibeImages: [...existing, url],
+        },
+      };
+    });
+    eventBus.publish('brand:vibe_image_added', {
+      imageUrl: url,
+      updatedAt: new Date().toISOString(),
+    });
+    return true;
+  }, []);
+
+  const removeVibeImage = useCallback(async (url: string): Promise<boolean> => {
+    setBrandDna((prev) => ({
+      ...prev,
+      identity: {
+        ...prev.identity,
+        vibeImages: (prev.identity.vibeImages || []).filter((img) => img !== url),
+      },
+    }));
+    return true;
   }, []);
 
   const saveNow = useCallback(async (): Promise<boolean> => {
@@ -219,6 +271,9 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         saveNow,
         resetToDefaults,
         getGeminiSystemContext,
+        setLogoUrl,
+        addVibeImage,
+        removeVibeImage,
       }}
     >
       {children}
@@ -241,6 +296,9 @@ const FALLBACK_CONTEXT_VALUE: BrandDnaContextValue = {
   saveNow: async () => true,
   resetToDefaults: () => {},
   getGeminiSystemContext: () => '',
+  setLogoUrl: async () => true,
+  addVibeImage: async () => true,
+  removeVibeImage: async () => true,
 };
 
 export const useBrandDna = (): BrandDnaContextValue => {

@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Sparkles, Globe, LogIn, Shield, Layers, HelpCircle, 
-  ChevronLeft, LayoutDashboard, ShoppingCart, User, LogOut
+  ChevronLeft, LayoutDashboard, ShoppingCart, User, LogOut, Sun, Moon
 } from 'lucide-react';
 import { useStorefront } from '../context/StorefrontContext';
 import { CustomerLoginModal } from './CustomerLoginModal';
@@ -15,6 +15,33 @@ export const PublicStorefrontHeader: React.FC<PublicStorefrontHeaderProps> = ({
 }) => {
   const { settings, cart, setViewMode, viewMode, authState, setIsAuthModalOpen, logout } = useStorefront();
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('kosun_theme') as 'light' | 'dark') || 
+      (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      const newTheme = e?.detail?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      setTheme(newTheme);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('kosun_theme', next);
+    localStorage.setItem('kosun_home_theme', next);
+    if (next === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
+  };
 
   return (
     <>
@@ -101,6 +128,16 @@ export const PublicStorefrontHeader: React.FC<PublicStorefrontHeaderProps> = ({
           >
             <LogIn className="w-3.5 h-3.5" />
             <span>כניסה לסאב-דומיין שלך</span>
+          </button>
+
+          {/* Day / Night Mode Toggle (Cashwan Rule 4) */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-xl border border-gray-200 dark:border-gray-800 text-amber-500 dark:text-amber-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition cursor-pointer"
+            title={theme === 'light' ? 'מעבר למצב לילה (Dark Mode)' : 'מעבר למצב יום (Light Mode)'}
+            aria-label="החלף ערכת נושא"
+          >
+            {theme === 'light' ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-300" />}
           </button>
 
           {/* Developer Workbench Mode Button */}

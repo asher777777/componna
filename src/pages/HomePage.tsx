@@ -63,18 +63,37 @@ export const HomePage: React.FC = () => {
   const { brandDna } = useBrandDna();
   const { firebaseApp, isConnected } = useSystemConnection();
 
-  // Theme state: defaults to light (Day Mode)
+  // Theme state: defaults to light (Day Mode) according to Cashwan Branding Rule 4
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('kosun_home_theme');
-    return saved === 'dark' ? 'dark' : 'light';
+    const saved = localStorage.getItem('kosun_theme') || localStorage.getItem('kosun_home_theme');
+    if (saved === 'dark' || document.documentElement.classList.contains('dark')) {
+      return 'dark';
+    }
+    return 'light';
   });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      const newTheme = e?.detail?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      setTheme(newTheme);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
 
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     try {
+      localStorage.setItem('kosun_theme', next);
       localStorage.setItem('kosun_home_theme', next);
     } catch {}
+    if (next === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
   };
 
   const isLight = theme === 'light';
