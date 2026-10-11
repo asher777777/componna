@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  TrendingUp, BarChart2, BarChart3, ChevronDown, ChevronUp, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2, GitMerge 
+  TrendingUp, BarChart2, BarChart3, ChevronDown, ChevronUp, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2, GitMerge, FileSpreadsheet, Link2 
 } from 'lucide-react';
 import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
 import { Contact, DatabaseConnectionProfile } from '../types';
@@ -11,6 +11,8 @@ import { AdvancedFilterDrawer } from './AdvancedFilterDrawer';
 import { SavedViewsBar } from './SavedViewsBar';
 import { Contact360Modal } from './Contact360Modal';
 import { DatabaseConnectorModal } from './DatabaseConnectorModal';
+import { ExcelImportModal } from './ExcelImportModal';
+import { GoogleSheetsSyncModal } from './GoogleSheetsSyncModal';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { FormBuilderContract, FormItemSummary } from '../../../core/contracts';
 import { syncSmartFormSubmissionsToContacts } from '../services/smartFormCrmSyncService';
@@ -116,6 +118,8 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [isExcelModalOpen, setIsExcelModalOpen] = useState(false);
+  const [isGSheetsModalOpen, setIsGSheetsModalOpen] = useState(false);
   const [activeDbProfile, setActiveDbProfile] = useState<DatabaseConnectionProfile | null>(() => {
     try {
       const saved = localStorage.getItem(`kosun_${tenantId || 'client_default'}_crm_db_profile`);
@@ -223,12 +227,19 @@ export const CrmAnalyticsMainView: React.FC = () => {
       {/* Top Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
-            <TrendingUp className="w-6 h-6 text-indigo-600" />
-            <span>לוח אנליטיקה ו-CRM</span>
-          </h1>
-          <p className="text-xs text-gray-500 mt-1">
-            ניהול אנשי קשר ולידים, פילוח קהילות, מעקב הכנסות, וסנכרון טפסים
+          <div className="flex items-center gap-2.5">
+            <div className="relative flex items-center justify-center">
+              <TrendingUp className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+              <span className="absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-[10px] font-black text-white rounded-full shadow-xs animate-pulse ring-2 ring-white dark:ring-gray-900 select-none">
+                K
+              </span>
+            </div>
+            <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+              Kosun Human Assets
+            </h1>
+          </div>
+          <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-wider mt-0.5 select-none" dir="ltr">
+            Every One Counts
           </p>
         </div>
 
@@ -263,13 +274,24 @@ export const CrmAnalyticsMainView: React.FC = () => {
             <span>איש קשר חדש</span>
           </button>
 
-          {/* Database Connector Hub */}
+          {/* Excel Import Button */}
           <button
-            onClick={() => setIsDbModalOpen(true)}
-            className="px-3 py-1.5 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            onClick={() => setIsExcelModalOpen(true)}
+            className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            title="ייבוא אנשי קשר מקובץ אקסל (.xlsx / .xls) עם מיפוי עמודות חכם"
           >
-            <Database className="w-3.5 h-3.5 text-indigo-500" />
-            <span>חיבור מסד נתונים (DB)</span>
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>ייבוא מאקסל</span>
+          </button>
+
+          {/* Google Sheets Sync & Gallery Button */}
+          <button
+            onClick={() => setIsGSheetsModalOpen(true)}
+            className="px-3 py-1.5 text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
+            title="שיתוף וסנכרון קובץ Google Sheets עם שמירה בגלריה"
+          >
+            <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span>Google Sheets</span>
           </button>
 
           {/* Merge Duplicates Migration Button */}
@@ -518,6 +540,27 @@ export const CrmAnalyticsMainView: React.FC = () => {
         onClose={() => setIsDbModalOpen(false)}
         onApplyProfile={handleApplyDbProfile}
         clientId={tenantId || 'client_default'}
+      />
+
+      {/* Excel (.xlsx / .xls) Smart Import Modal */}
+      <ExcelImportModal
+        isOpen={isExcelModalOpen}
+        onClose={() => setIsExcelModalOpen(false)}
+        onSuccess={() => refresh()}
+        firebaseApp={firebaseApp}
+        collections={resolvedCollections}
+        ownerId={ownerId}
+      />
+
+      {/* Google Sheets Live Sync & Gallery Storage Modal */}
+      <GoogleSheetsSyncModal
+        isOpen={isGSheetsModalOpen}
+        onClose={() => setIsGSheetsModalOpen(false)}
+        onSyncComplete={() => refresh()}
+        firebaseApp={firebaseApp}
+        collections={resolvedCollections}
+        ownerId={ownerId}
+        tenantId={tenantId}
       />
 
       {/* Business Card AI Vision Scanner Modal */}

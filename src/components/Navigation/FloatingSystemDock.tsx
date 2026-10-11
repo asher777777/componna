@@ -40,6 +40,8 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isModulesMenuOpen, setIsModulesMenuOpen] = useState(false);
   const [moduleSearchQuery, setModuleSearchQuery] = useState('');
+  // By default per Cashwan branding standard, the dock is minimized to an elegant floating icon button
+  const [isDockExpanded, setIsDockExpanded] = useState(false);
 
   // Day / Night Theme (Light is default per Cashwan standard)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -102,11 +104,38 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
 
   return (
     <>
-      <nav 
-        className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900/90 backdrop-blur-xl border border-slate-700/80 px-3 py-2 rounded-2xl shadow-2xl transition-all ${className}`}
-        dir="rtl"
-        aria-label="תפריט מערכת צף (קושאן)"
-      >
+      {/* Minimized Floating Trigger Icon (Default) */}
+      {!isDockExpanded ? (
+        <button
+          type="button"
+          onClick={() => setIsDockExpanded(true)}
+          className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 p-2.5 rounded-full bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white backdrop-blur-xl border border-slate-700/80 shadow-2xl transition-all duration-300 hover:scale-110 cursor-pointer flex items-center gap-2 group ${className}`}
+          title="פתיחת תפריט מערכת קושאן (Floating Dock)"
+          aria-label="פתח תפריט צף"
+        >
+          <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white text-xs shadow-md shadow-indigo-600/40">
+            ק
+          </div>
+          <span className="text-xs font-bold pl-2 pr-1 text-slate-300 group-hover:text-white transition hidden group-hover:inline-block">
+            תפריט קושאן
+          </span>
+        </button>
+      ) : (
+        /* Full Floating Dock Bar */
+        <nav 
+          className={`fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700/80 px-3 py-2 rounded-2xl shadow-2xl transition-all duration-300 animate-in fade-in zoom-in-95 ${className}`}
+          dir="rtl"
+          aria-label="תפריט מערכת צף (קושאן)"
+        >
+          {/* Collapse Icon */}
+          <button
+            type="button"
+            onClick={() => setIsDockExpanded(false)}
+            className="p-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
+            title="מזער תפריט צף"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
         {/* Quick Edit Page button for admins/editors */}
         {isAdminOrEditor && (onToggleEditMode || editPageUrl) && (
           <button
@@ -268,17 +297,18 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
           </button>
         )}
 
-        {/* Day / Night Mode Toggle */}
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="p-1.5 rounded-xl border border-slate-700/80 hover:bg-slate-800 text-amber-400 transition cursor-pointer"
-          title={theme === 'light' ? 'מעבר למצב לילה (Dark Mode)' : 'מעבר למצב יום (Light Mode)'}
-          aria-label="החלף ערכת נושא"
-        >
-          {theme === 'light' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-300" />}
-        </button>
-      </nav>
+          {/* Day / Night Mode Toggle */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="p-1.5 rounded-xl border border-slate-700/80 hover:bg-slate-800 text-amber-400 transition cursor-pointer"
+            title={theme === 'light' ? 'מעבר למצב לילה (Dark Mode)' : 'מעבר למצב יום (Light Mode)'}
+            aria-label="החלף ערכת נושא"
+          >
+            {theme === 'light' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-300" />}
+          </button>
+        </nav>
+      )}
 
       {/* Auth Modal */}
       <AuthModal

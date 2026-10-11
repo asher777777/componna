@@ -227,9 +227,19 @@ export const PublicPageView: React.FC = () => {
           if (foundPage) {
             const pageWithHeader = ensureHeaderSection(foundPage);
             setPage(pageWithHeader);
-            // Update document title
+            // Update document title and browser tab favicon dynamically from Page SEO
             if (typeof document !== 'undefined') {
               document.title = pageWithHeader.seoSettings?.title || pageWithHeader.pageTitle || 'Kosun Page';
+              const faviconUrl = pageWithHeader.seoSettings?.faviconUrl;
+              if (faviconUrl) {
+                let link: HTMLLinkElement | null = document.querySelector("link[rel~='icon']");
+                if (!link) {
+                  link = document.createElement('link');
+                  link.rel = 'icon';
+                  document.head.appendChild(link);
+                }
+                link.href = faviconUrl;
+              }
             }
             // Track page view for published pages
             if (foundPage.published) {

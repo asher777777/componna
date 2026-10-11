@@ -48,17 +48,6 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
         style={customStyle}
         dir="rtl"
       >
-        {/* Discreet Login Icon Only */}
-        <div className="absolute top-3 left-3 z-40">
-          <button
-            type="button"
-            className="p-2 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white backdrop-blur-md border border-white/10 shadow-lg shadow-black/30 transition-all hover:scale-105"
-            title="התחברות"
-          >
-            <LogIn className="w-3.5 h-3.5 text-indigo-400" />
-          </button>
-        </div>
-
         {/* Sections Stream */}
         <main className="flex-1 flex flex-col">
           {sectionOrder.map((sectionId) => {

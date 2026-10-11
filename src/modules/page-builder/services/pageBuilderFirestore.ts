@@ -40,15 +40,16 @@ const LEGACY_STORAGE_KEY_PAGES = 'kosun_pagebuilder_all_pages';
 export function ensureHeaderSection(page: PageBuilderConfig): PageBuilderConfig {
   if (!page || !page.sections) return page;
 
-  // Find existing header if present
-  const existingHeaderEntry = Object.entries(page.sections).find(([_, s]: any) => s && s.type === 'header');
+  // Find all header entries
+  const allHeaderEntries = Object.entries(page.sections).filter(([_, s]: any) => s && s.type === 'header');
 
   let headerId: string;
   let headerSection: any;
 
-  if (existingHeaderEntry) {
-    headerId = existingHeaderEntry[0];
-    headerSection = existingHeaderEntry[1];
+  if (allHeaderEntries.length > 0) {
+    // Keep the first existing header
+    headerId = allHeaderEntries[0][0];
+    headerSection = allHeaderEntries[0][1];
   } else {
     headerId = 'header-1';
     headerSection = {
@@ -74,19 +75,36 @@ export function ensureHeaderSection(page: PageBuilderConfig): PageBuilderConfig 
     };
   }
 
-  const newSections = {
-    ...page.sections,
-    [headerId]: headerSection,
-  };
+  // Purge any extra duplicate headers from the sections map
+  const cleanedSections: Record<string, any> = {};
+  for (const [sId, sData] of Object.entries(page.sections)) {
+    if (sData && sData.type === 'header') {
+      if (sId === headerId) {
+        cleanedSections[sId] = headerSection;
+      }
+      // Drop any secondary header duplicates!
+    } else {
+      cleanedSections[sId] = sData;
+    }
+  }
+  // Ensure primary header is in sections map
+  cleanedSections[headerId] = headerSection;
 
-  // Header is permanently fixed at position 0 at top of the page
-  const remainingOrder = (page.sectionOrder || []).filter((id) => id !== headerId);
+  // Header is permanently and uniquely fixed at index 0 of sectionOrder
+  const remainingOrder = (page.sectionOrder || []).filter((id) => {
+    const s = page.sections[id];
+    // Remove if it's the primary header or any other duplicate header
+    if (id === headerId) return false;
+    if (s && s.type === 'header') return false;
+    return true;
+  });
+
   const newOrder = [headerId, ...remainingOrder];
 
   return {
     ...page,
     sectionOrder: newOrder,
-    sections: newSections,
+    sections: cleanedSections,
   };
 }
 
@@ -176,14 +194,15 @@ export const pageBuilderFirestore = {
     const eff = resolveEffectiveTenant(tenantId);
     const collPath = getCollectionName(eff);
     const storeKey = getStorageKey(eff);
-    const pageId = config.pageId || `page_${Date.now()}`;
+    const sanitizedConfig = ensureHeaderSection(config);
+    const pageId = sanitizedConfig.pageId || `page_${Date.now()}`;
     const now = new Date().toISOString();
     const payload: PageBuilderConfig = {
-      ...config,
+      ...sanitizedConfig,
       pageId,
       updatedAt: now,
       lastModified: Date.now(),
-      createdAt: config.createdAt || now,
+      createdAt: sanitizedConfig.createdAt || now,
     };
 
     // Save in localStorage

@@ -522,6 +522,8 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         seoSettings={config.seoSettings}
         onUpdateSeoSettings={(updated) => setConfig({ ...config, seoSettings: updated })}
         onOpenGeoDrawer={() => setIsGeoDrawerOpen(true)}
+        pageTitle={config.pageTitle}
+        pageSections={Object.values(config.sections || {})}
       />
 
       <PublishPageModal

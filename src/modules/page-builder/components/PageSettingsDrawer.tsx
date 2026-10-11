@@ -6,8 +6,9 @@ import { PageBuilderImageUpload } from '../ui/PageBuilderImageUpload';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
-import { X, Settings2, Palette, Globe, Sparkles, Layout, Phone, MapPin, CheckCircle2 } from 'lucide-react';
+import { X, Settings2, Palette, Globe, Sparkles, Layout, Phone, MapPin, CheckCircle2, ShieldCheck, Check, AlertCircle } from 'lucide-react';
 import { clsx } from 'clsx';
+import { generateGoogleCompliantSeo } from '../services/aiGoogleSeoService';
 
 interface PageSettingsDrawerProps {
   isOpen: boolean;
@@ -17,6 +18,8 @@ interface PageSettingsDrawerProps {
   seoSettings: SeoSettings;
   onUpdateSeoSettings: (updated: SeoSettings) => void;
   onOpenGeoDrawer?: () => void;
+  pageTitle?: string;
+  pageSections?: any[];
 }
 
 export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
@@ -27,6 +30,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   seoSettings,
   onUpdateSeoSettings,
   onOpenGeoDrawer,
+  pageTitle = 'עמוד',
+  pageSections = [],
 }) => {
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
@@ -34,6 +39,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   const [activeTab, setActiveTab] = useState<'general' | 'design' | 'seo' | 'contact'>('general');
   const [isAiGeneratingSeo, setIsAiGeneratingSeo] = useState(false);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
+  const [auditRecommendations, setAuditRecommendations] = useState<string[]>(seoSettings.googleAuditRecommendations || []);
+  const [auditScore, setAuditScore] = useState<number | null>(seoSettings.googleAuditScore || null);
 
   if (!isOpen) return null;
 
@@ -45,7 +52,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     onUpdateSeoSettings({ ...seoSettings, [key]: value });
   };
 
-  // One-click Brand DNA Synchronization
+  // One-click Brand DNA Synchronization (Default values from Brand DNA without overwriting Brand collection)
   const handleSyncBrandDna = () => {
     if (!brandDna) return;
     onUpdateGlobalSettings({
@@ -68,21 +75,51 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       contactWhatsApp: brandDna.trust.whatsappSupportNumber || globalSettings.contactWhatsApp,
       brandDnaSynced: true,
     });
+
+    // Populate SEO defaults from Brand DNA if not explicitly customized
+    onUpdateSeoSettings({
+      ...seoSettings,
+      title: seoSettings.title || `${brandDna.identity.companyName} | ${brandDna.identity.slogan || 'האתר הרשמי'}`,
+      description: seoSettings.description || `${brandDna.identity.companyName} - ${brandDna.identity.slogan || ''}. שירות וליווי מקצועי.`,
+      keywords: seoSettings.keywords && seoSettings.keywords.length > 0 ? seoSettings.keywords : [brandDna.identity.companyName, 'שירות', 'קהילה'],
+      faviconUrl: seoSettings.faviconUrl || brandDna.identity.logoUrl,
+      author: seoSettings.author || brandDna.identity.companyName,
+    });
+
     setIsBrandSynced(true);
     setTimeout(() => setIsBrandSynced(false), 2500);
   };
 
-  const handleGenerateAiSeo = () => {
+  const handleGenerateAiSeo = async () => {
     setIsAiGeneratingSeo(true);
-    setTimeout(() => {
-      const company = globalSettings.companyName || globalSettings.siteTitle || 'קהילה ופעילות';
-      onUpdateSeoSettings({
-        title: `${company} | האתר הרשמי - הצטרפות, תרומות ומידע`,
-        description: `ברוכים הבאים לאתר הרשמי של ${company}. כאן תוכלו להתעדכן בפעילויות, שיעורים, קמפיינים וליצור קשר ישיר.`,
-        keywords: ['קהילה', 'תרומות', 'אירועים', 'הדרכה', 'שירותים', company],
+    try {
+      const result = await generateGoogleCompliantSeo({
+        pageTitle: globalSettings.siteTitle || pageTitle,
+        brandDna,
+        pageSections,
+        currentSeo: seoSettings,
       });
+
+      onUpdateSeoSettings({
+        ...seoSettings,
+        title: result.title,
+        description: result.description,
+        keywords: result.keywords,
+        author: result.author,
+        ogType: result.ogType,
+        twitterCard: result.twitterCard,
+        googleAuditScore: result.googleAuditScore,
+        googleAuditRecommendations: result.googleAuditRecommendations,
+        faviconUrl: seoSettings.faviconUrl || brandDna?.identity?.logoUrl || globalSettings.siteLogoUrl,
+      });
+
+      setAuditScore(result.googleAuditScore);
+      setAuditRecommendations(result.googleAuditRecommendations);
+    } catch (err) {
+      console.warn('[PageSettingsDrawer] Failed generating Google SEO:', err);
+    } finally {
       setIsAiGeneratingSeo(false);
-    }, 800);
+    }
   };
 
   return (
@@ -358,14 +395,61 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                 </p>
               </div>
 
+              {/* Google Criteria SEO Audit Score Card */}
+              {auditScore !== null && (
+                <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                      <span>ציון התאמה לקריטריונים של גוגל (Google E-E-A-T):</span>
+                    </span>
+                    <span className="text-xs font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      {auditScore}/100
+                    </span>
+                  </div>
+                  {auditRecommendations.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {auditRecommendations.map((rec, idx) => (
+                        <div key={idx} className="flex items-start gap-1.5 text-[11px] text-slate-300 leading-tight">
+                          <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{rec}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Favicon for Browser Tab */}
+              <div className="p-3.5 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-white block">אייקון כרטיסיית דפדפן (Favicon)</span>
+                    <span className="text-[11px] text-slate-400">מוצג בלשונית הדפדפן ובסימניות של המשתמשים</span>
+                  </div>
+                  {seoSettings.faviconUrl && (
+                    <img
+                      src={seoSettings.faviconUrl}
+                      alt="Favicon preview"
+                      className="w-7 h-7 rounded-lg object-contain bg-slate-950 p-1 border border-slate-700"
+                    />
+                  )}
+                </div>
+                <PageBuilderImageUpload
+                  label="כתובת אייקון הכרטיסייה (URL / קובץ)"
+                  value={seoSettings.faviconUrl || brandDna?.identity?.logoUrl || globalSettings.siteLogoUrl}
+                  onChange={(url) => updateSeo('faviconUrl', url)}
+                />
+              </div>
+
               <PageBuilderInput
-                label="כותרת SEO (Meta Title)"
+                label="כותרת SEO (Meta Title - מומלץ 50-60 תווים)"
                 value={seoSettings.title || ''}
                 onChange={(val) => updateSeo('title', val)}
                 placeholder="כותרת שתופיע בתוצאות החיפוש בגוגל"
               />
               <PageBuilderTextarea
-                label="תיאור מטא (Meta Description)"
+                label="תיאור מטא (Meta Description - מומלץ 140-160 תווים)"
                 value={seoSettings.description || ''}
                 onChange={(val) => updateSeo('description', val)}
                 rows={3}

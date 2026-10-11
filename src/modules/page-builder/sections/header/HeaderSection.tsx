@@ -47,6 +47,8 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
   const {
     anchorId = 'header',
     layout = 'floating-glass',
+    logoAlignment,
+    logoSize = 'md',
     sticky = true,
     useBrandLogo = true,
     customLogoUrl,
@@ -58,12 +60,16 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     showCtaButton = true,
     ctaButtonText = 'התחל עכשיו',
     ctaButtonUrl = '#contact',
-    showPhone = true,
+    showPhone,
     phone,
-    showWhatsApp = true,
+    showWhatsApp,
     whatsApp,
     desktopMenuDisplay = 'links',
   } = safeConfig;
+
+  // Ensure strict boolean evaluation: only show if explicitly true (default false if undefined)
+  const isWhatsAppVisible = showWhatsApp === true;
+  const isPhoneVisible = showPhone === true;
 
   // Direct live fetch of tenant Brand DNA from Firestore
   useEffect(() => {
@@ -189,22 +195,39 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
 
   const isFloating = layout === 'floating-glass';
   const isTransparent = layout === 'transparent';
-  const isCentered = layout === 'centered';
+  const isCentered = layout === 'centered' || layout === 'logo-center' || logoAlignment === 'center';
   const isMinimal = layout === 'minimal';
   const isClassic = layout === 'classic';
+
+  // Logo Size Classes
+  const logoImgClasses = clsx(
+    logoSize === 'sm' && 'h-7 sm:h-8 max-w-[110px] sm:max-w-[130px]',
+    logoSize === 'md' && 'h-9 sm:h-11 max-w-[150px] sm:max-w-[190px]',
+    logoSize === 'lg' && 'h-12 sm:h-14 max-w-[180px] sm:max-w-[240px]',
+    logoSize === 'xl' && 'h-16 sm:h-20 max-w-[220px] sm:max-w-[300px]',
+    'w-auto object-contain rounded-lg transition-transform hover:scale-105'
+  );
+
+  const logoFallbackClasses = clsx(
+    'rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white shadow-lg shadow-indigo-600/30',
+    logoSize === 'sm' && 'w-7 h-7 text-xs',
+    logoSize === 'md' && 'w-10 h-10 text-base',
+    logoSize === 'lg' && 'w-14 h-14 text-xl',
+    logoSize === 'xl' && 'w-20 h-20 text-3xl'
+  );
 
   return (
     <>
       <header
         id={anchorId}
         className={clsx(
-          'w-full z-40 transition-all duration-300 font-sans',
-          sticky && 'sticky top-0',
+          'w-full transition-all duration-300 font-sans',
+          sticky !== false ? 'sticky top-0 z-50' : 'relative z-30',
           isFloating && 'px-4 sm:px-8 py-3.5',
           !isFloating && 'px-4 sm:px-6 py-3',
           isTransparent
             ? 'bg-transparent text-white'
-            : 'backdrop-blur-2xl bg-white/90 dark:bg-[#0c0c0e]/85 border-b border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-black/40'
+            : 'backdrop-blur-2xl bg-white/95 dark:bg-[#0c0c0e]/90 border-b border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-black/40'
         )}
         dir="rtl"
       >
@@ -220,7 +243,10 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
           )}
         >
           {/* Logo & Brand Name */}
-          <div className={clsx('flex items-center gap-3', isCentered && 'justify-center')}>
+          <div className={clsx(
+            'flex items-center gap-3',
+            isCentered ? 'justify-center order-1 md:order-2' : 'order-1'
+          )}>
             {effectiveLogoUrl && !logoLoadFailed ? (
               <img
                 src={effectiveLogoUrl}
@@ -232,18 +258,10 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
                     setLogoLoadFailed(true);
                   }
                 }}
-                className={clsx(
-                  isMinimal ? 'h-8' : 'h-9 sm:h-10',
-                  'w-auto max-w-[140px] sm:max-w-[180px] object-contain rounded-lg transition-transform hover:scale-105'
-                )}
+                className={logoImgClasses}
               />
             ) : (
-              <div
-                className={clsx(
-                  'rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white shadow-lg shadow-indigo-600/30',
-                  isMinimal ? 'w-8 h-8 text-xs' : 'w-9 h-9 sm:w-10 sm:h-10 text-base'
-                )}
-              >
+              <div className={logoFallbackClasses}>
                 {effectiveTitle.charAt(0) || 'ק'}
               </div>
             )}
@@ -253,12 +271,15 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
                 <span
                   className={clsx(
                     'font-bold block leading-tight text-slate-900 dark:text-white',
-                    isMinimal ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                    logoSize === 'sm' && 'text-xs sm:text-sm',
+                    logoSize === 'md' && 'text-sm sm:text-base',
+                    logoSize === 'lg' && 'text-base sm:text-lg',
+                    logoSize === 'xl' && 'text-lg sm:text-xl'
                   )}
                 >
                   {effectiveTitle}
                 </span>
-                {effectiveSlogan && !isMinimal && (
+                {effectiveSlogan && logoSize !== 'sm' && (
                   <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-normal">
                     {effectiveSlogan}
                   </span>
@@ -267,9 +288,12 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
             )}
           </div>
 
-          {/* Center Navigation Menu (Desktop links when enabled) */}
+          {/* Navigation Menu (Desktop links when enabled) */}
           {navItems.length > 0 && desktopMenuDisplay !== 'hamburger' && (
-            <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
+            <nav className={clsx(
+              "hidden md:flex items-center gap-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300",
+              isCentered ? 'order-2 md:order-1' : 'order-2'
+            )}>
               {navItems.map((item, idx) => (
                 <a
                   key={idx}
@@ -283,9 +307,12 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
             </nav>
           )}
 
-          {/* Actions & Buttons (Desktop) */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
-            {showPhone && effectivePhone && (
+          {/* Actions & Buttons (Desktop & Mobile) */}
+          <div className={clsx(
+            "flex items-center gap-2.5 sm:gap-3",
+            isCentered ? 'order-3' : 'order-3'
+          )}>
+            {isPhoneVisible && effectivePhone && (
               <a
                 href={`tel:${effectivePhone.replace(/[^0-9]/g, '')}`}
                 className="hidden lg:inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white transition"
@@ -296,7 +323,7 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
               </a>
             )}
 
-            {showWhatsApp && effectiveWhatsApp && (
+            {isWhatsAppVisible && effectiveWhatsApp && (
               <a
                 href={`https://wa.me/${effectiveWhatsApp.replace(/[^0-9]/g, '')}`}
                 target="_blank"
@@ -349,20 +376,18 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
               )
             )}
 
-            {/* Burger Button (Always active on mobile; available on desktop when configured) */}
-            {navItems.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className={clsx(
-                  "p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-white transition cursor-pointer",
-                  desktopMenuDisplay === 'links' ? 'md:hidden' : 'flex items-center justify-center'
-                )}
-                title="תפריט ניווט"
-              >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
-            )}
+            {/* Burger Button (Always visible on mobile; available on desktop when hamburger / both is configured) */}
+            <button
+              type="button"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className={clsx(
+                "p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-white transition cursor-pointer",
+                desktopMenuDisplay === 'links' ? 'md:hidden flex' : 'flex'
+              )}
+              title="תפריט ניווט"
+            >
+              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
           </div>
         </div>
 

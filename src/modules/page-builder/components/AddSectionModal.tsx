@@ -31,7 +31,7 @@ export const AddSectionModal: React.FC<AddSectionModalProps> = ({
     { id: 'media', label: 'גלריות ווידאו' },
   ];
 
-  const allSections = Object.values(SECTION_REGISTRY);
+  const allSections = Object.values(SECTION_REGISTRY).filter((def) => def.type !== 'header');
 
   const filteredSections = allSections.filter((def) => {
     const matchesCat = selectedCategory === 'all' || def.category === selectedCategory;

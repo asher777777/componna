@@ -73,7 +73,8 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
   const layouts = [
     { id: 'floating-glass', label: 'צף עם זכוכית (Glass)', desc: 'פינות מעוגלות, אפקט טשטוש צף ומודרני 2026' },
     { id: 'classic', label: 'קלאסי מלא', desc: 'תפריט לרוחב מלא עם גבול תחתון עדין' },
-    { id: 'centered', label: 'לוגו במרכז', desc: 'לוגו מיושר לאמצע ותפריט מפוצל או מתחת' },
+    { id: 'logo-center', label: 'לוגו במרכז', desc: 'לוגו ואייקון באמצע, תפריטים ופעולות בצדדים' },
+    { id: 'logo-right', label: 'לוגו בימין מלא', desc: 'לוגו מיושר לימין, תפריט במרכז ופעולות בשמאל' },
     { id: 'minimal', label: 'מינימליסטי', desc: 'גובה קומפקטי, מרווחים צפופים ונקיים' },
     { id: 'transparent', label: 'שקוף מעל התוכן', desc: 'רקע שקוף המשתלב עם אזור ה-Hero' },
   ];
@@ -358,11 +359,71 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
             >
               <span
                 className={clsx(
-                  'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
-                  config.showLogoText !== false ? 'left-1' : 'right-1'
+                'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
+                config.showLogoText !== false ? 'left-1' : 'right-1'
                 )}
               />
             </button>
+          </div>
+        </div>
+
+        {/* Logo Sizing & Alignment */}
+        <div className="pt-2 border-t border-slate-800/80 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-white mb-2 block">גודל הלוגו / אייקון</label>
+            <div className="grid grid-cols-4 gap-1.5">
+              {[
+                { id: 'sm', label: 'קטן (S)' },
+                { id: 'md', label: 'רגיל (M)' },
+                { id: 'lg', label: 'גדול (L)' },
+                { id: 'xl', label: 'ענק (XL)' },
+              ].map((s) => {
+                const isSelected = (config.logoSize || 'md') === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => updateConfig({ logoSize: s.id as any })}
+                    className={clsx(
+                      'py-2 px-1 rounded-xl text-center text-xs font-bold border transition cursor-pointer',
+                      isSelected
+                        ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-sm'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-white mb-2 block">מיקום הלוגו והתפריט</label>
+            <div className="grid grid-cols-3 gap-1.5">
+              {[
+                { id: 'right', label: 'בימין' },
+                { id: 'center', label: 'באמצע' },
+                { id: 'left', label: 'בשמאל' },
+              ].map((al) => {
+                const isSelected = (config.logoAlignment || (config.layout === 'logo-center' || config.layout === 'centered' ? 'center' : 'right')) === al.id;
+                return (
+                  <button
+                    key={al.id}
+                    type="button"
+                    onClick={() => updateConfig({ logoAlignment: al.id as any })}
+                    className={clsx(
+                      'py-2 px-1 rounded-xl text-center text-xs font-bold border transition cursor-pointer',
+                      isSelected
+                        ? 'bg-indigo-600/25 border-indigo-500 text-white shadow-sm'
+                        : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {al.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -753,21 +814,21 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
               </span>
               <button
                 type="button"
-                onClick={() => updateConfig({ showWhatsApp: !config.showWhatsApp })}
+                onClick={() => updateConfig({ showWhatsApp: config.showWhatsApp === true ? false : true })}
                 className={clsx(
                   'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
-                  config.showWhatsApp ? 'bg-emerald-600' : 'bg-slate-800'
+                  config.showWhatsApp === true ? 'bg-emerald-600' : 'bg-slate-800'
                 )}
               >
                 <span
                   className={clsx(
                     'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
-                    config.showWhatsApp ? 'left-1' : 'right-1'
+                    config.showWhatsApp === true ? 'left-1' : 'right-1'
                   )}
                 />
               </button>
             </div>
-            {config.showWhatsApp && (
+            {config.showWhatsApp === true && (
               <input
                 type="text"
                 placeholder="050-0000000"
@@ -787,21 +848,21 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
               </span>
               <button
                 type="button"
-                onClick={() => updateConfig({ showPhone: !config.showPhone })}
+                onClick={() => updateConfig({ showPhone: config.showPhone === true ? false : true })}
                 className={clsx(
                   'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
-                  config.showPhone ? 'bg-indigo-600' : 'bg-slate-800'
+                  config.showPhone === true ? 'bg-indigo-600' : 'bg-slate-800'
                 )}
               >
                 <span
                   className={clsx(
                     'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
-                    config.showPhone ? 'left-1' : 'right-1'
+                    config.showPhone === true ? 'left-1' : 'right-1'
                   )}
                 />
               </button>
             </div>
-            {config.showPhone && (
+            {config.showPhone === true && (
               <input
                 type="text"
                 placeholder="03-0000000"

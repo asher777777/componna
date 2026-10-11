@@ -100,9 +100,16 @@ export interface SeoSettings {
   title?: string;
   description?: string;
   keywords?: string[];
+  faviconUrl?: string;
   ogImage?: string;
+  ogType?: 'website' | 'article' | 'business.business';
+  twitterCard?: 'summary' | 'summary_large_image';
   canonicalUrl?: string;
+  author?: string;
   noIndex?: boolean;
+  noFollow?: boolean;
+  googleAuditScore?: number;
+  googleAuditRecommendations?: string[];
   geo?: GeoSeoSettings;
 }
 

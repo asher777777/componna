@@ -4,7 +4,9 @@ export interface HeaderSectionConfig extends BaseSectionConfig {
   type: 'header';
   title?: string;
   adminTitle?: string;
-  layout?: 'floating-glass' | 'classic' | 'centered' | 'minimal' | 'transparent';
+  layout?: 'floating-glass' | 'classic' | 'centered' | 'minimal' | 'transparent' | 'logo-center' | 'logo-right';
+  logoAlignment?: 'right' | 'center' | 'left';
+  logoSize?: 'sm' | 'md' | 'lg' | 'xl';
   sticky?: boolean;
   useBrandLogo?: boolean;
   customLogoUrl?: string;

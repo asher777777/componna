@@ -111,20 +111,6 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
         />
       )}
 
-      {/* Discreet Login Button Only */}
-      <button
-        type="button"
-        onClick={() => setIsAuthModalOpen(true)}
-        className="fixed top-4 left-4 z-50 p-2.5 rounded-full bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white backdrop-blur-md border border-white/10 shadow-lg shadow-black/30 transition-all hover:scale-105 cursor-pointer"
-        title="התחברות למערכת"
-      >
-        <LogIn className="w-4 h-4 text-indigo-400" />
-      </button>
-
-      {isAuthModalOpen && (
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-      )}
-
       {/* Main Page Stream */}
       <main className="flex-1 flex flex-col relative">
         {sectionOrder.map((sectionId, index) => {
