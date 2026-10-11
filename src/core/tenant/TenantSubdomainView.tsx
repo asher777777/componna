@@ -46,7 +46,9 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   const isControlCenter = location.pathname === '/' || location.pathname.startsWith('/control-center');
 
-  const [homePageConfig, setHomePageConfig] = useState<PageBuilderConfig | null>(null);
+  const [homePageConfig, setHomePageConfig] = useState<PageBuilderConfig | null>(() => {
+    return pageBuilderFirestore.getHomePageSync(tenantRecord.subdomain);
+  });
 
   // Generate fallback default landing page config customized for this tenant
   const createDefaultTenantPage = (): PageBuilderConfig => {

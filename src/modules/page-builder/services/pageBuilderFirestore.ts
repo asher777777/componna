@@ -1,6 +1,7 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, orderBy, updateDoc, increment } from 'firebase/firestore';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
+import { PAGE_BLUEPRINTS } from '../blueprints/pageBlueprints';
 
 const DEFAULT_COLLECTION_NAME = 'mod_pages_documents';
 
@@ -142,6 +143,12 @@ export const pageBuilderFirestore = {
       if (eff === ROOT_TENANT_ID) {
         localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(localPages));
       }
+      if (payload.isHomePage) {
+        localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(payload));
+        if (eff === ROOT_TENANT_ID) {
+          localStorage.setItem('kosun_active_root_homepage', JSON.stringify(payload));
+        }
+      }
     } catch {}
 
     // Save in Firestore
@@ -171,8 +178,10 @@ export const pageBuilderFirestore = {
       const explicitId = localStorage.getItem(`${storeKey}_homepage_id`);
       if (explicitId === pageId) {
         localStorage.removeItem(`${storeKey}_homepage_id`);
+        localStorage.removeItem(`kosun_${eff}_active_homepage`);
         if (eff === ROOT_TENANT_ID) {
           localStorage.removeItem('kosun_pagebuilder_homepage_id');
+          localStorage.removeItem('kosun_active_root_homepage');
         }
       }
     } catch {}
@@ -231,20 +240,115 @@ export const pageBuilderFirestore = {
 
     if (explicitId) {
       const page = allPages.find((p) => p.pageId === explicitId);
-      if (page) return page;
+      if (page) {
+        try {
+          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(page));
+          if (eff === ROOT_TENANT_ID) {
+            localStorage.setItem('kosun_active_root_homepage', JSON.stringify(page));
+          }
+        } catch {}
+        return page;
+      }
     }
 
     // 2. Find page with isHomePage === true
     const homePage = allPages.find((p) => Boolean(p.isHomePage));
-    if (homePage) return homePage;
+    if (homePage) {
+      try {
+        localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(homePage));
+        if (eff === ROOT_TENANT_ID) {
+          localStorage.setItem('kosun_active_root_homepage', JSON.stringify(homePage));
+        }
+      } catch {}
+      return homePage;
+    }
 
     // 3. For tenant subdomains, check default slug/id 'home_{tenantId}'
     if (eff !== ROOT_TENANT_ID) {
       const tenantNamedHome = allPages.find((p) => p.pageId === `home_${eff}`);
-      if (tenantNamedHome) return tenantNamedHome;
+      if (tenantNamedHome) {
+        try {
+          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(tenantNamedHome));
+        } catch {}
+        return tenantNamedHome;
+      }
     }
 
     return null;
+  },
+
+  // Synchronously get active designated homepage from LocalStorage without waiting for network
+  getHomePageSync(tenantId?: string): PageBuilderConfig | null {
+    if (typeof window === 'undefined') return null;
+    const eff = resolveEffectiveTenant(tenantId);
+    const storeKey = getStorageKey(eff);
+
+    try {
+      // 1. Direct cached active homepage object (fastest path O(1))
+      const directCached = localStorage.getItem(`kosun_${eff}_active_homepage`) || (eff === ROOT_TENANT_ID ? localStorage.getItem('kosun_active_root_homepage') : null);
+      if (directCached) {
+        const parsed = JSON.parse(directCached);
+        if (parsed && parsed.pageId && parsed.sections) {
+          return parsed;
+        }
+      }
+
+      // 2. Read from stored pages list in localStorage
+      const rawPages = localStorage.getItem(storeKey) || (eff === ROOT_TENANT_ID ? localStorage.getItem(LEGACY_STORAGE_KEY_PAGES) : null);
+      if (rawPages) {
+        const pages: PageBuilderConfig[] = JSON.parse(rawPages);
+        if (Array.isArray(pages) && pages.length > 0) {
+          // Check explicit homepage ID
+          const explicitId = localStorage.getItem(`${storeKey}_homepage_id`) || (eff === ROOT_TENANT_ID ? localStorage.getItem('kosun_pagebuilder_homepage_id') : null);
+          if (explicitId) {
+            const explicitPage = pages.find((p) => p.pageId === explicitId);
+            if (explicitPage) return explicitPage;
+          }
+
+          // Check isHomePage flag
+          const flaggedPage = pages.find((p) => Boolean(p.isHomePage));
+          if (flaggedPage) return flaggedPage;
+
+          // If tenant subdomain, check default slug/id 'home_{tenantId}'
+          if (eff !== ROOT_TENANT_ID) {
+            const tenantHome = pages.find((p) => p.pageId === `home_${eff}`);
+            if (tenantHome) return tenantHome;
+          }
+
+          // Fallback to first page
+          if (pages[0]) return pages[0];
+        }
+      }
+    } catch (err) {
+      console.warn('[PageBuilder] getHomePageSync error:', err);
+    }
+
+    return null;
+  },
+
+  // Built-in pristine root homepage template (used when no saved pages exist yet)
+  createDefaultRootHomePage(): PageBuilderConfig {
+    const bp = PAGE_BLUEPRINTS[0];
+    return {
+      ...bp.config,
+      pageId: 'bp-sales-funnel',
+      pageTitle: 'קושאן | כל אדם זה נכס',
+      slug: 'home',
+      published: true,
+      isHomePage: true,
+      globalSettings: {
+        ...bp.config.globalSettings,
+        siteTitle: 'קושאן | כל אדם זה נכס',
+        companyName: 'קושאן',
+        slogan: 'כל אדם זה נכס',
+        theme: 'modern',
+        headerLayout: 'floating-glass',
+        headerSticky: true,
+        isHeaderVisible: true,
+        isFooterVisible: true,
+        brandDnaSynced: true,
+      },
+    };
   },
 
   // Set page as homepage (or pass empty string/null to unset)
@@ -267,13 +371,22 @@ export const pageBuilderFirestore = {
 
       if (targetPageId) {
         localStorage.setItem(`${storeKey}_homepage_id`, targetPageId);
+        const active = updatedPages.find((p) => p.pageId === targetPageId);
+        if (active) {
+          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(active));
+          if (eff === ROOT_TENANT_ID) {
+            localStorage.setItem('kosun_active_root_homepage', JSON.stringify(active));
+          }
+        }
         if (eff === ROOT_TENANT_ID) {
           localStorage.setItem('kosun_pagebuilder_homepage_id', targetPageId);
         }
       } else {
         localStorage.removeItem(`${storeKey}_homepage_id`);
+        localStorage.removeItem(`kosun_${eff}_active_homepage`);
         if (eff === ROOT_TENANT_ID) {
           localStorage.removeItem('kosun_pagebuilder_homepage_id');
+          localStorage.removeItem('kosun_active_root_homepage');
         }
       }
     } catch {}

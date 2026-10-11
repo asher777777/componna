@@ -26,15 +26,19 @@ import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
 
 const WorkbenchRootHome: React.FC = () => {
   const { db } = useSystemConnection();
-  const [homePage, setHomePage] = React.useState<PageBuilderConfig | null>(null);
-  const [loading, setLoading] = React.useState(true);
+  const [homePage, setHomePage] = React.useState<PageBuilderConfig | null>(() => {
+    return pageBuilderFirestore.getHomePageSync(ROOT_TENANT_ID);
+  });
+  const [loading, setLoading] = React.useState(() => !homePage);
 
   const loadHome = React.useCallback(async () => {
     try {
       const page = await pageBuilderFirestore.getHomePage(db, ROOT_TENANT_ID);
-      setHomePage(page);
+      if (page) {
+        setHomePage(page);
+      }
     } catch {
-      setHomePage(null);
+      // keep existing cached page
     } finally {
       setLoading(false);
     }
@@ -52,41 +56,35 @@ const WorkbenchRootHome: React.FC = () => {
     return () => window.removeEventListener('kosun_homepage_changed', handleHomeChange);
   }, [loadHome]);
 
-  if (loading) {
-    return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-indigo-400 font-bold">טוען עמוד בית...</div>;
-  }
+  const activePage = homePage || pageBuilderFirestore.getHomePageSync(ROOT_TENANT_ID) || pageBuilderFirestore.createDefaultRootHomePage();
 
-  if (homePage) {
-    return (
-      <div className="min-h-screen bg-slate-950 text-white relative font-sans" dir="rtl">
-        <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md px-4 py-2 border-b border-indigo-500/30 flex items-center justify-between text-xs">
-          <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold text-white">עמוד הבית הפעיל שנבחר מבונה העמודים:</span>
-            <span className="text-indigo-300 font-bold font-mono bg-slate-800 px-2 py-0.5 rounded">{homePage.pageTitle}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <a
-              href="/page-builder"
-              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-sm"
-            >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>עריכה בבונה העמודים</span>
-            </a>
-            <a
-              href="/saas-storefront"
-              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700"
-            >
-              חנות המערכת והמודולים
-            </a>
-          </div>
+  return (
+    <div className="min-h-screen bg-slate-950 text-white relative font-sans" dir="rtl">
+      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md px-4 py-2 border-b border-indigo-500/30 flex items-center justify-between text-xs">
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="font-bold text-white">עמוד הבית הפעיל שנבחר מבונה העמודים:</span>
+          <span className="text-indigo-300 font-bold font-mono bg-slate-800 px-2 py-0.5 rounded">{activePage.pageTitle}</span>
         </div>
-        <PageBuilderRenderer config={homePage} />
+        <div className="flex items-center gap-2">
+          <a
+            href="/page-builder"
+            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-sm"
+          >
+            <Edit3 className="w-3.5 h-3.5" />
+            <span>עריכה בבונה העמודים</span>
+          </a>
+          <a
+            href="/saas-storefront"
+            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700"
+          >
+            חנות המערכת והמודולים
+          </a>
+        </div>
       </div>
-    );
-  }
-
-  return <HomePage />;
+      <PageBuilderRenderer config={activePage} />
+    </div>
+  );
 };
 
 export const WorkbenchApp: React.FC = () => {

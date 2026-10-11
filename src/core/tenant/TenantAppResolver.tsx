@@ -18,7 +18,9 @@ export const TenantAppResolver: React.FC = () => {
   const { db } = useSystemConnection();
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
-  const [rootHomePage, setRootHomePage] = useState<PageBuilderConfig | null>(null);
+  const [rootHomePage, setRootHomePage] = useState<PageBuilderConfig | null>(() => {
+    return pageBuilderFirestore.getHomePageSync(ROOT_TENANT_ID);
+  });
 
   const [isDevWorkbench, setIsDevWorkbench] = useState<boolean>(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,8 +38,15 @@ export const TenantAppResolver: React.FC = () => {
       return true;
     }
     // Any module route (like /page-builder, /control-center, etc.) belongs in Workbench mode
-    if (pathname !== '/' && pathname !== '/saas-storefront' && pathname !== '/store') {
+    if (pathname !== '/' && pathname !== '' && pathname !== '/saas-storefront' && pathname !== '/store') {
       return true;
+    }
+    // For root path '/', NEVER default to Workbench mode based on stale sessionStorage!
+    if (pathname === '/' || pathname === '') {
+      try {
+        sessionStorage.removeItem('kosun_is_dev_workbench');
+      } catch {}
+      return false;
     }
     return sessionStorage.getItem('kosun_is_dev_workbench') === 'true';
   });
@@ -72,6 +81,18 @@ export const TenantAppResolver: React.FC = () => {
       window.removeEventListener('kosun_homepage_changed', handleHomeChange);
     };
   }, [loadRootHomePage]);
+
+  // One-time cleanup for legacy leftover caches of the old storefront
+  useEffect(() => {
+    try {
+      const pathname = window.location.pathname;
+      if (pathname === '/' || pathname === '') {
+        sessionStorage.removeItem('kosun_is_dev_workbench');
+      }
+      localStorage.removeItem('kosun_saas_storefront_as_home');
+      localStorage.removeItem('kosun_store_default_home');
+    } catch {}
+  }, []);
 
   useEffect(() => {
     // 1. Detect from URL query param (e.g. ?tenant=landing) or hostname (e.g. landing.kosun.pro)
@@ -141,21 +162,28 @@ export const TenantAppResolver: React.FC = () => {
     return <WorkbenchApp />;
   }
 
-  // 3. Root Domain Custom Homepage View:
-  // If a page from Page Builder is designated as the active homepage, show it on the main domain root '/'!
+  // 3. Dedicated SaaS Storefront Route (/saas-storefront or /store)
   const pathname = window.location.pathname;
-  if ((pathname === '/' || pathname === '') && rootHomePage) {
+  if (pathname === '/saas-storefront' || pathname === '/store') {
     return (
-      <RootPublicHomePageView
-        pageConfig={rootHomePage}
+      <PublicStorefrontApp
         onEnterDevWorkbench={() => setIsDevWorkbench(true)}
       />
     );
   }
 
-  // 4. Default Public View for Kosun.pro (Clean Storefront + Customer Login Modal, No Dev Sidebar!)
+  // 4. Root Domain Homepage View (/):
+  // ALWAYS render the designated PageBuilder homepage on root domain!
+  // Uses synchronous cached homepage immediately or built-in default root template.
+  // NEVER falls back to PublicStorefrontApp on root!
+  const effectiveHomePage =
+    rootHomePage ||
+    pageBuilderFirestore.getHomePageSync(ROOT_TENANT_ID) ||
+    pageBuilderFirestore.createDefaultRootHomePage();
+
   return (
-    <PublicStorefrontApp
+    <RootPublicHomePageView
+      pageConfig={effectiveHomePage}
       onEnterDevWorkbench={() => setIsDevWorkbench(true)}
     />
   );
