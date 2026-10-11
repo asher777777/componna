@@ -22,6 +22,8 @@ import {
   fetchTenantWhatsAppCredentials
 } from '../services/whatsappGroupImportService';
 
+import { Contact } from '../types';
+
 interface Props {
   isOpen: boolean;
   onClose: () => void;
@@ -30,6 +32,7 @@ interface Props {
   collections?: typeof DEFAULT_COLLECTIONS;
   ownerId?: string;
   tenantId?: string;
+  contacts?: Contact[];
 }
 
 export const CrmGroupsImportModal: React.FC<Props> = ({
@@ -40,6 +43,7 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
   collections = DEFAULT_COLLECTIONS,
   ownerId,
   tenantId = '_master',
+  contacts = [],
 }) => {
   const { apiKeys, tenantApiKeys, apiKeysTenantId } = useSystemConnection();
   const effectiveTenantId = tenantId || apiKeysTenantId || '_master';
@@ -65,6 +69,7 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
   // Participants
   const [participants, setParticipants] = useState<WhatsAppParticipant[]>([]);
   const [loadingParticipants, setLoadingParticipants] = useState(false);
+  const [loadingStage, setLoadingStage] = useState('');
   const [participantSearch, setParticipantSearch] = useState('');
   const [selectedPhones, setSelectedPhones] = useState<string[]>([]);
 
@@ -162,13 +167,21 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
     setCommunityName(group.name);
     setLoadingParticipants(true);
     setFeedback(null);
+    setLoadingStage('מתחבר לחשבון WhatsApp ושולף נתוני קבוצה...');
     try {
-      const parts = await fetchGroupParticipants(instanceId, token, group.id);
+      const parts = await fetchGroupParticipants(
+        instanceId, 
+        token, 
+        group.id, 
+        contacts, 
+        (progress) => setLoadingStage(progress.stage)
+      );
       setParticipants(parts);
       // Select all by default
       setSelectedPhones(parts.map(p => p.phone).filter(Boolean));
     } finally {
       setLoadingParticipants(false);
+      setLoadingStage('');
     }
   };
 
@@ -594,9 +607,10 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
               {/* Participants Scroll Table */}
               <div className="flex-1 overflow-y-auto p-4">
                 {loadingParticipants ? (
-                  <div className="p-12 text-center text-xs text-gray-400 flex flex-col items-center gap-2">
-                    <RefreshCw className="w-6 h-6 animate-spin text-emerald-600" />
-                    <span>מושך משתתפים מקבוצת ה-WhatsApp...</span>
+                  <div className="p-12 text-center text-xs text-gray-500 dark:text-gray-400 flex flex-col items-center gap-3">
+                    <RefreshCw className="w-7 h-7 animate-spin text-emerald-600" />
+                    <span className="font-bold text-gray-800 dark:text-gray-200">{loadingStage || 'טוען משתתפים ומפענח שמות מחשבון WhatsApp...'}</span>
+                    <span className="text-[11px] text-gray-400">מתבצעת הצלבת שמות מול ספר הטלפונים של ה-WhatsApp ומסד ה-CRM</span>
                   </div>
                 ) : filteredParticipants.length === 0 ? (
                   <div className="p-12 text-center text-xs text-gray-400">
@@ -612,28 +626,34 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
                           onClick={() => handleToggleParticipant(participant.phone)}
                           className={`p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 ${
                             isChecked
-                              ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800'
+                              ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-300 dark:border-emerald-800 shadow-2xs'
                               : 'bg-white dark:bg-gray-800/40 border-gray-200 dark:border-gray-800 opacity-60 hover:opacity-100'
                           }`}
                         >
-                          <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-center gap-2.5 min-w-0 flex-1">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => {}}
-                              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer"
+                              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer shrink-0"
                             />
-                            <div className="min-w-0">
-                              <div className="text-xs font-bold text-gray-900 dark:text-white truncate">
-                                {participant.name || 'משתתף WhatsApp'}
+                            <div className="min-w-0 flex-1">
+                              <div className="text-xs font-black text-gray-900 dark:text-white truncate flex items-center gap-1.5">
+                                <span>{participant.name || 'משתתף WhatsApp'}</span>
                                 {participant.isAdmin && (
-                                  <span className="mr-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
                                     מנהל
                                   </span>
                                 )}
                               </div>
-                              <div className="text-[11px] font-mono text-gray-500 dark:text-gray-400 truncate" dir="ltr">
-                                {participant.phone}
+                              <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500 dark:text-gray-400 mt-0.5">
+                                <span dir="ltr">{participant.formattedDisplay || participant.phone}</span>
+                                {participant.isValidPhone && (
+                                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-bold flex items-center gap-0.5">
+                                    <Check className="w-3 h-3" />
+                                    <span>וואטסאפ תקין</span>
+                                  </span>
+                                )}
                               </div>
                             </div>
                           </div>

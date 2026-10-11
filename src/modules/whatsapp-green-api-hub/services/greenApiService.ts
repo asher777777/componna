@@ -963,3 +963,84 @@ export class GreenApiService {
     return false;
   }
 }
+
+export interface ValidatedWhatsAppPhone {
+  isValid: boolean;
+  nationalPhone: string;       // e.g. "0523977036"
+  internationalPhone: string;  // e.g. "972523977036"
+  chatId: string;              // e.g. "972523977036@c.us"
+  formattedDisplay: string;    // e.g. "052-3977036"
+  error?: string;
+}
+
+/**
+ * Single Source of Truth for validating and standardizing phone numbers for WhatsApp Green API.
+ * Ensures strict compatibility with WhatsApp sending endpoints.
+ */
+export function validateWhatsAppPhone(raw?: string): ValidatedWhatsAppPhone {
+  if (!raw || typeof raw !== 'string') {
+    return {
+      isValid: false,
+      nationalPhone: '',
+      internationalPhone: '',
+      chatId: '',
+      formattedDisplay: '',
+      error: 'מספר ריק',
+    };
+  }
+
+  // Remove whitespace and suffixes
+  let clean = raw.trim();
+  if (clean.endsWith('@c.us') || clean.endsWith('@s.whatsapp.net')) {
+    clean = clean.split('@')[0];
+  }
+
+  // If contains letters or invalid characters for phones
+  const digits = clean.replace(/\D/g, '');
+  if (!digits || digits.length < 8) {
+    return {
+      isValid: false,
+      nationalPhone: digits,
+      internationalPhone: digits,
+      chatId: `${digits}@c.us`,
+      formattedDisplay: clean,
+      error: 'מספר קצר מדי',
+    };
+  }
+
+  let internationalPhone = digits;
+  let nationalPhone = digits;
+
+  // Handle Israeli phone format
+  if (digits.startsWith('972')) {
+    internationalPhone = digits;
+    const withoutCountry = digits.slice(3);
+    nationalPhone = withoutCountry.startsWith('0') ? withoutCountry : `0${withoutCountry}`;
+  } else if (digits.startsWith('0') && (digits.length === 9 || digits.length === 10)) {
+    nationalPhone = digits;
+    internationalPhone = `972${digits.slice(1)}`;
+  } else if (digits.length === 9 && digits.startsWith('5')) {
+    nationalPhone = `0${digits}`;
+    internationalPhone = `972${digits}`;
+  }
+
+  const isIsraeliMobile = nationalPhone.length === 10 && nationalPhone.startsWith('05');
+  const isIsraeliLandline = (nationalPhone.length === 9 || nationalPhone.length === 10) && nationalPhone.startsWith('0');
+  const isInternational = digits.length >= 10 && !digits.startsWith('0');
+
+  const isValid = isIsraeliMobile || isIsraeliLandline || isInternational;
+
+  let formattedDisplay = nationalPhone;
+  if (isIsraeliMobile) {
+    formattedDisplay = `${nationalPhone.slice(0, 3)}-${nationalPhone.slice(3)}`;
+  }
+
+  return {
+    isValid,
+    nationalPhone,
+    internationalPhone,
+    chatId: `${internationalPhone}@c.us`,
+    formattedDisplay,
+    error: isValid ? undefined : 'פורמט מספר שגוי ל-WhatsApp',
+  };
+}

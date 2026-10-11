@@ -594,6 +594,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
         collections={resolvedCollections}
         ownerId={ownerId}
         tenantId={tenantId}
+        contacts={data?.contacts || []}
       />
 
       {/* Business Card AI Vision Scanner Modal */}
