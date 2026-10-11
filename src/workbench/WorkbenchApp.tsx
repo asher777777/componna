@@ -2,6 +2,7 @@ import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { Sparkles, Grid, X, Check, Lock } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
+import { CashwanTopNav } from './components/CashwanTopNav';
 import { REGISTERED_MODULES } from './moduleRegistry';
 import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from './components/ModuleLoadingFallback';
@@ -189,11 +190,12 @@ export const WorkbenchApp: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-900 relative font-sans" dir="rtl">
-      {showSidebar && <Sidebar />}
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-slate-100 relative font-sans" dir="rtl">
+      {/* Cashwan 2026: Pure Top Navigation - Zero Sidebars */}
+      <CashwanTopNav onOpenAuthModal={() => setIsAuthModalOpen(true)} />
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-slate-50 relative">
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative">
           <Routes>
             <Route
               path="/"
@@ -244,24 +246,24 @@ export const WorkbenchApp: React.FC = () => {
       )}
 
       {isMenuOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
             
-            <div className="sticky top-0 bg-white/90 backdrop-blur border-b border-slate-100 p-5 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-100 dark:border-slate-800 p-5 flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Grid className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900">תפריט המערכת</h2>
-                  <p className="text-xs text-slate-500 font-medium">
-                    {isAdmin ? 'מחובר כמנהל - כל הרכיבים פתוחים' : 'הרכיבים הפעילים בחשבונך'}
+                  <h2 className="text-xl font-black text-slate-900 dark:text-white">כלי קושאן</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                    {isAdmin ? 'כל הכלים והיכולות של קושאן פעילים לרשותך' : 'הכלים הפעילים בחשבונך'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsMenuOpen(false)}
-                className="p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-900 rounded-xl transition"
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -287,23 +289,23 @@ export const WorkbenchApp: React.FC = () => {
                         onClick={() => handleNavigateToModule(module.route)}
                         className={`text-right p-4 rounded-2xl border transition-all duration-200 flex flex-col gap-3 group cursor-pointer ${
                           isActive
-                            ? 'bg-indigo-50 border-indigo-200 ring-1 ring-indigo-500/20 shadow-sm'
-                            : 'bg-white border-slate-200 hover:border-indigo-300 hover:shadow-md'
+                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/20 shadow-sm'
+                            : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-md'
                         }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                            isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-500 group-hover:bg-indigo-100 group-hover:text-indigo-600'
+                            isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-950/80 group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
                           }`}>
                             <Icon className="w-5 h-5" />
                           </div>
-                          {isActive && <Check className="w-4 h-4 text-indigo-600" />}
+                          {isActive && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
                         </div>
                         <div>
-                          <h3 className={`font-bold text-sm mb-1 ${isActive ? 'text-indigo-900' : 'text-slate-900'}`}>
+                          <h3 className={`font-bold text-sm mb-1 ${isActive ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-900 dark:text-white'}`}>
                             {module.name}
                           </h3>
-                          <p className="text-[11px] text-slate-500 leading-tight">
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
                             {module.description}
                           </p>
                         </div>

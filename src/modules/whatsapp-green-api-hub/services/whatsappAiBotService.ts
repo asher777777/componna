@@ -17,6 +17,8 @@ export interface WhatsAppAiBotConfig {
   isActive: boolean;
   triggerType: 'all' | 'keyword' | 'welcome';
   triggerKeywords: string[];
+  matchMode?: 'contains' | 'exact' | 'startsWith';
+  kosaiRuleId?: string;
   systemPrompt: string;
   model: string;
   temperature: number;
@@ -27,6 +29,54 @@ export interface WhatsAppAiBotConfig {
     source: string;
   };
   createdAt: number;
+}
+
+/**
+ * Smart Keyword Matching Helper for WhatsApp AI Agents
+ * Normalizes text, handles punctuation, and matches by contains / exact / startsWith.
+ */
+export function checkKeywordMatch(
+  messageText: string,
+  keywords: string[] = [],
+  matchMode: 'contains' | 'exact' | 'startsWith' = 'contains'
+): { isMatch: boolean; matchedKeyword?: string } {
+  if (!messageText || !keywords || keywords.length === 0) {
+    return { isMatch: false };
+  }
+
+  const rawClean = messageText
+    .toLowerCase()
+    .replace(/[\u0591-\u05C7]/g, '')
+    .trim();
+
+  const strippedText = rawClean.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
+  const textWords = strippedText.split(/\s+/).filter(Boolean);
+
+  for (const rawKw of keywords) {
+    const kw = rawKw
+      .toLowerCase()
+      .replace(/[\u0591-\u05C7]/g, '')
+      .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, '')
+      .trim();
+
+    if (!kw) continue;
+
+    if (matchMode === 'exact') {
+      if (rawClean === kw || textWords.includes(kw)) {
+        return { isMatch: true, matchedKeyword: rawKw };
+      }
+    } else if (matchMode === 'startsWith') {
+      if (rawClean.startsWith(kw)) {
+        return { isMatch: true, matchedKeyword: rawKw };
+      }
+    } else {
+      if (rawClean.includes(kw)) {
+        return { isMatch: true, matchedKeyword: rawKw };
+      }
+    }
+  }
+
+  return { isMatch: false };
 }
 
 export type StatusTone = 'chasidic' | 'marketing' | 'official' | 'warm' | 'viral';
@@ -249,6 +299,55 @@ export class WhatsAppAiBotService {
       await deleteDoc(docRef);
     } catch (err) {
       console.error('Failed to delete bot from Firestore:', err);
+    }
+  }
+
+  /**
+   * Syncs active Kosai Agents configured with WhatsApp Triggers into WhatsApp AI Bots
+   */
+  public static async syncKosaiAgentsToWhatsApp(db: any, tenantId?: string): Promise<WhatsAppAiBotConfig[]> {
+    if (!db) return [];
+    try {
+      const rulesPath = tenantId ? `tenants/${tenantId}/mod_kosai_rules` : 'mod_kosai_rules';
+      const rulesColl = collection(db, rulesPath);
+      const rulesSnap = await getDocs(rulesColl);
+      
+      const kosaiBots: WhatsAppAiBotConfig[] = [];
+      rulesSnap.forEach((docSnap: any) => {
+        const rule = docSnap.data();
+        if (rule?.isActive && rule?.whatsappTrigger?.enabled) {
+          const trigger = rule.whatsappTrigger;
+          const botConfig: WhatsAppAiBotConfig = {
+            id: `kosai_${rule.id}`,
+            name: trigger.botDisplayName || rule.name || 'סוכן קושאן AI',
+            role: 'סוכן אוטונומי מחובר לקושאן AI',
+            avatarIcon: 'Bot',
+            isActive: true,
+            triggerType: trigger.triggerType || 'keyword',
+            triggerKeywords: trigger.keywords || [],
+            matchMode: trigger.matchMode || 'contains',
+            kosaiRuleId: rule.id,
+            systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+            model: 'gemini-3.8-flash',
+            temperature: (rule.toneOfVoice?.creativity ?? 50) / 100,
+            interactiveButtons: [
+              { buttonId: 'btn_more_info', buttonText: 'מידע נוסף', actionType: 'prompt', actionValue: 'פרט עוד בבקשה' },
+              { buttonId: 'btn_human_rep', buttonText: 'שיחה עם נציג', actionType: 'message', actionValue: 'נציג יחזור אליך בהקדם.' }
+            ],
+            autoGenerateButtons: false,
+            createdAt: rule.createdAt || Date.now()
+          };
+          kosaiBots.push(botConfig);
+        }
+      });
+
+      if (kosaiBots.length > 0) {
+        await this.saveBotsToFirestore(db, kosaiBots, tenantId);
+      }
+      return kosaiBots;
+    } catch (err) {
+      console.error('Failed to sync Kosai Agents to WhatsApp:', err);
+      return [];
     }
   }
 

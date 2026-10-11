@@ -8,12 +8,14 @@ import {
   Sliders, LineChart, Database, Zap, X, Search, Filter, Check, Eye,
   Code2, FileText, Globe, Image, Film, Layers, CheckSquare, Users,
   CreditCard, ChevronDown, Settings, CheckCircle2, AlertCircle, Info,
-  SlidersHorizontal, ChevronLeft, ShieldCheck, ArrowRight
+  SlidersHorizontal, ChevronLeft, ShieldCheck, ArrowRight, MessageSquare, Phone, Tag, CheckCircle
 } from 'lucide-react';
 import { KOSAI_SUPPORTED_MODULES } from '../config/kosaiModules';
 import { KOSAI_TEMPLATES } from '../config/kosaiTemplates';
 import { generateAgentPromptWithAi } from '../api/kosaiApi';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { checkKeywordMatch } from '../../whatsapp-green-api-hub/services/whatsappAiBotService';
+import { doc, setDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
 
 // Capability Definitions with High-Quality Lucide Icons (Cashwan 2026: Zero Emojis)
@@ -29,6 +31,7 @@ const CAPABILITIES_META: {
   { id: 'IMAGE_GENERATION', label: 'יצירת תמונות', desc: 'מחולל ויזואלי חכם', icon: Image },
   { id: 'VIDEO_GENERATION', label: 'עריכת וידאו', desc: 'הפקת תכני וידאו', icon: Film },
   { id: 'DEEP_RESEARCH', label: 'מחקר במאגרים', desc: 'הצלבת נתונים מעמיקה', icon: Layers },
+  { id: 'WHATSAPP_AUTOMATION', label: 'אוטומציית וואטסאפ', desc: 'מענה חכם להודעות Green API', icon: MessageSquare },
 ];
 
 // Data Source Definitions with High-Quality Lucide Icons (Cashwan 2026: Zero Emojis)
@@ -41,6 +44,7 @@ const DATA_SOURCES_META: {
   { id: SYSTEM_COLLECTIONS.PAGES, label: 'אתרים ודפי נחיתה', desc: 'תוכן העמודים והעיצובים', icon: Globe },
   { id: SYSTEM_COLLECTIONS.SMART_FORMS, label: 'טפסים ושאלונים', desc: 'שדות ולידים מטפסים', icon: CheckSquare },
   { id: SYSTEM_COLLECTIONS.CONTACTS, label: 'מאגר לקוחות (CRM)', desc: 'פרטי לקוחות ורשימות תפוצה', icon: Users },
+  { id: 'wa_bot_chats', label: 'שיחות וואטסאפ', desc: 'היסטוריית פניות מלקוחות', icon: MessageSquare },
   { id: SYSTEM_COLLECTIONS.MEDIA_ITEMS, label: 'ספריית מדיה', desc: 'תמונות וקבצי מדיה אישיים', icon: Image },
   { id: SYSTEM_COLLECTIONS.KESHER_TRANSACTIONS, label: 'עסקאות והכנסות', desc: 'נתוני תשלומים ורכישות', icon: CreditCard },
   { id: SYSTEM_COLLECTIONS.BRAND_DNA_DOC, label: 'הגדרות מותג', desc: 'שפת מותג, סלוגן וקהל יעד', icon: Sparkles },
@@ -113,6 +117,10 @@ export const KosaiSettingsBackoffice: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
   const [showStats, setShowStats] = useState(false);
+  
+  // WhatsApp Trigger Editor State
+  const [newKeywordInput, setNewKeywordInput] = useState('');
+  const [triggerTesterInput, setTriggerTesterInput] = useState('');
 
   // Filter modules based on what the user actually purchased (Cashwan Business Logic)
   const availableModules = KOSAI_SUPPORTED_MODULES;
@@ -167,6 +175,35 @@ export const KosaiSettingsBackoffice: React.FC = () => {
     setRules(prev => prev.map(r => r.id === updated.id ? updated : r));
     if (db) {
       await kosaiRulesService.saveRule(db, tenantId, updated);
+
+      if (updated.whatsappTrigger?.enabled) {
+        try {
+          const botConfig = {
+            id: `kosai_${updated.id}`,
+            name: updated.whatsappTrigger.botDisplayName || updated.name,
+            role: 'סוכן קושאן AI מחובר לוואטסאפ',
+            avatarIcon: 'Bot',
+            isActive: updated.isActive,
+            triggerType: updated.whatsappTrigger.triggerType || 'keyword',
+            triggerKeywords: updated.whatsappTrigger.keywords || [],
+            matchMode: updated.whatsappTrigger.matchMode || 'contains',
+            kosaiRuleId: updated.id,
+            systemPrompt: updated.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+            model: 'gemini-3.8-flash',
+            temperature: (updated.toneOfVoice?.creativity ?? 50) / 100,
+            interactiveButtons: [
+              { buttonId: 'btn_info', buttonText: 'פרטים נוספים', actionType: 'prompt', actionValue: 'פרט עוד בבקשה' },
+              { buttonId: 'btn_rep', buttonText: 'שיחה עם נציג', actionType: 'message', actionValue: 'נציג יחזור אליך בהקדם.' }
+            ],
+            autoGenerateButtons: false,
+            createdAt: updated.createdAt || Date.now()
+          };
+          const botPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+          await setDoc(doc(db, botPath, botConfig.id), botConfig, { merge: true });
+        } catch (err) {
+          console.warn('Error syncing Kosai agent to WhatsApp bot collection:', err);
+        }
+      }
     }
   };
 
@@ -471,6 +508,18 @@ export const KosaiSettingsBackoffice: React.FC = () => {
                         <Database className="w-3 h-3" />
                         <span>{dataSourcesCount} מאגרים</span>
                       </span>
+
+                      {/* WhatsApp Trigger Badge */}
+                      {rule.whatsappTrigger?.enabled && (
+                        <span className="px-2 py-0.5 rounded-lg flex items-center gap-1 border bg-emerald-50 text-emerald-700 border-emerald-200">
+                          <MessageSquare className="w-3 h-3" />
+                          <span>
+                            {rule.whatsappTrigger.triggerType === 'keyword'
+                              ? `וואטסאפ (${(rule.whatsappTrigger.keywords || []).length} מילים)`
+                              : 'וואטסאפ פעיל'}
+                          </span>
+                        </span>
+                      )}
                     </div>
 
                     {/* Card Actions */}
@@ -820,6 +869,324 @@ export const KosaiSettingsBackoffice: React.FC = () => {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Section 6: WhatsApp Green API Triggers (הפעלת הסוכן לפי מילים בוואטסאפ) */}
+                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
+                  <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
+                          <span>הפעלת סוכן בוואטסאפ (Green API)</span>
+                          <InfoTooltip text="מאפשר לסוכן לקבל הודעות מלקוחות בוואטסאפ ולהגיב להן אוטומטית לפי מילות מפתח מוגדרות." />
+                        </div>
+                        <span className="text-[10px] text-slate-400">אינטגרציה ישירה לשירות לקוחות ומכירות</span>
+                      </div>
+                    </div>
+
+                    {/* Enable WhatsApp Toggle */}
+                    <label className="flex items-center gap-2 cursor-pointer select-none">
+                      <span className="text-[11px] font-bold text-slate-600">חיבור לוואטסאפ:</span>
+                      <div 
+                        onClick={() => {
+                          const currentEnabled = activeRule.whatsappTrigger?.enabled ?? false;
+                          const updatedTrigger = {
+                            enabled: !currentEnabled,
+                            triggerType: activeRule.whatsappTrigger?.triggerType || 'keyword',
+                            keywords: activeRule.whatsappTrigger?.keywords || ['שלום', 'מחיר', 'עזרה'],
+                            matchMode: activeRule.whatsappTrigger?.matchMode || 'contains',
+                            autoReply: true,
+                            botDisplayName: activeRule.whatsappTrigger?.botDisplayName || activeRule.name,
+                          };
+                          handleUpdateRule({ ...activeRule, whatsappTrigger: updatedTrigger });
+                        }}
+                        className="flex items-center shrink-0 cursor-pointer"
+                      >
+                        <div className={clsx("w-8 h-4 rounded-full transition-colors relative", activeRule.whatsappTrigger?.enabled ? "bg-emerald-500" : "bg-slate-300")}>
+                          <div className={clsx("absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform", activeRule.whatsappTrigger?.enabled ? "right-0.5" : "left-0.5")} />
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
+                  {activeRule.whatsappTrigger?.enabled ? (
+                    <div className="space-y-4 pt-1 animate-fadeIn">
+                      {/* Bot Display Name in WhatsApp */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                          שם הסוכן המופיע בשיחות וואטסאפ
+                        </label>
+                        <input
+                          type="text"
+                          value={activeRule.whatsappTrigger.botDisplayName || activeRule.name}
+                          onChange={(e) => {
+                            handleUpdateRule({
+                              ...activeRule,
+                              whatsappTrigger: {
+                                ...activeRule.whatsappTrigger!,
+                                botDisplayName: e.target.value,
+                              },
+                            });
+                          }}
+                          placeholder="שם הסוכן בוואטסאפ (למשל: נציג שירות חכם)"
+                          className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
+                        />
+                      </div>
+
+                      {/* Trigger Type Selection */}
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                          מתי הסוכן יופעל בוואטסאפ?
+                        </label>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { id: 'keyword', label: 'מילות מפתח (מומלץ)', desc: 'מופעל לפי מילים' },
+                            { id: 'all', label: 'כל הודעה נכנסת', desc: 'מענה לכל פנייה' },
+                            { id: 'welcome', label: 'הודעת פתיחה', desc: 'רק לפונים חדשים' },
+                          ].map((t) => (
+                            <button
+                              key={t.id}
+                              type="button"
+                              onClick={() => {
+                                handleUpdateRule({
+                                  ...activeRule,
+                                  whatsappTrigger: {
+                                    ...activeRule.whatsappTrigger!,
+                                    triggerType: t.id as any,
+                                  },
+                                });
+                              }}
+                              className={clsx(
+                                "p-2 rounded-xl border text-right transition cursor-pointer select-none",
+                                activeRule.whatsappTrigger?.triggerType === t.id
+                                  ? "bg-emerald-50 border-emerald-300 text-emerald-900 shadow-xs"
+                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
+                              )}
+                            >
+                              <span className="font-bold text-xs block">{t.label}</span>
+                              <span className="text-[9px] text-slate-400 block">{t.desc}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Keyword Triggers Configuration */}
+                      {activeRule.whatsappTrigger.triggerType === 'keyword' && (
+                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-xs text-slate-800">הגדרת מילות מפתח מפעילות:</span>
+                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                              {(activeRule.whatsappTrigger.keywords || []).length} מילים מוגדרות
+                            </span>
+                          </div>
+
+                          {/* Match Mode Selection */}
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-500 mb-1">אופן התאמת המילים:</span>
+                            <div className="flex gap-2">
+                              {[
+                                { id: 'contains', label: 'מכיל את המילה' },
+                                { id: 'exact', label: 'מילה שלמה בלבד' },
+                                { id: 'startsWith', label: 'מתחיל במילה' },
+                              ].map((mode) => (
+                                <button
+                                  key={mode.id}
+                                  type="button"
+                                  onClick={() => {
+                                    handleUpdateRule({
+                                      ...activeRule,
+                                      whatsappTrigger: {
+                                        ...activeRule.whatsappTrigger!,
+                                        matchMode: mode.id as any,
+                                      },
+                                    });
+                                  }}
+                                  className={clsx(
+                                    "px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer",
+                                    (activeRule.whatsappTrigger?.matchMode || 'contains') === mode.id
+                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
+                                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+                                  )}
+                                >
+                                  {mode.label}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Current Keywords Tags / Chips */}
+                          <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 bg-white rounded-xl border border-slate-200">
+                            {(activeRule.whatsappTrigger.keywords || []).length > 0 ? (
+                              activeRule.whatsappTrigger.keywords.map((kw, i) => (
+                                <span
+                                  key={i}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold"
+                                >
+                                  <span>{kw}</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const updatedKws = activeRule.whatsappTrigger!.keywords.filter((_, idx) => idx !== i);
+                                      handleUpdateRule({
+                                        ...activeRule,
+                                        whatsappTrigger: {
+                                          ...activeRule.whatsappTrigger!,
+                                          keywords: updatedKws,
+                                        },
+                                      });
+                                    }}
+                                    className="text-emerald-500 hover:text-rose-600 p-0.5 rounded transition"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[11px] text-slate-400 py-0.5">לא הוגדרו עדיין מילות מפתח</span>
+                            )}
+                          </div>
+
+                          {/* Add Keyword Input */}
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              value={newKeywordInput}
+                              onChange={(e) => setNewKeywordInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const trimmed = newKeywordInput.trim();
+                                  if (trimmed) {
+                                    const curr = activeRule.whatsappTrigger?.keywords || [];
+                                    if (!curr.includes(trimmed)) {
+                                      handleUpdateRule({
+                                        ...activeRule,
+                                        whatsappTrigger: {
+                                          ...activeRule.whatsappTrigger!,
+                                          keywords: [...curr, trimmed],
+                                        },
+                                      });
+                                    }
+                                    setNewKeywordInput('');
+                                  }
+                                }
+                              }}
+                              placeholder="הוסף מילה (לדוגמה: מחיר, תמיכה, שלום)..."
+                              className="flex-1 p-2 bg-white rounded-xl border border-slate-200 text-xs font-medium focus:border-emerald-500 outline-none"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const trimmed = newKeywordInput.trim();
+                                if (trimmed) {
+                                  const curr = activeRule.whatsappTrigger?.keywords || [];
+                                  if (!curr.includes(trimmed)) {
+                                    handleUpdateRule({
+                                      ...activeRule,
+                                      whatsappTrigger: {
+                                        ...activeRule.whatsappTrigger!,
+                                        keywords: [...curr, trimmed],
+                                      },
+                                    });
+                                  }
+                                  setNewKeywordInput('');
+                                }
+                              }}
+                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                              <span>הוסף</span>
+                            </button>
+                          </div>
+
+                          {/* Quick Suggested Keywords */}
+                          <div>
+                            <span className="block text-[10px] text-slate-400 mb-1">הוספה מהירה של מילות מפתח מומלצות:</span>
+                            <div className="flex flex-wrap gap-1">
+                              {['מחיר', 'הצעה', 'שלום', 'נציג', 'תמיכה', 'שירות', 'פרטים', 'מידע'].map((quickKw) => {
+                                const isAdded = (activeRule.whatsappTrigger?.keywords || []).includes(quickKw);
+                                return (
+                                  <button
+                                    key={quickKw}
+                                    type="button"
+                                    disabled={isAdded}
+                                    onClick={() => {
+                                      const curr = activeRule.whatsappTrigger?.keywords || [];
+                                      handleUpdateRule({
+                                        ...activeRule,
+                                        whatsappTrigger: {
+                                          ...activeRule.whatsappTrigger!,
+                                          keywords: [...curr, quickKw],
+                                        },
+                                      });
+                                    }}
+                                    className={clsx(
+                                      "px-2 py-0.5 rounded-md text-[10px] font-bold border transition",
+                                      isAdded
+                                        ? "bg-slate-100 border-slate-200 text-slate-400 cursor-default"
+                                        : "bg-white border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 cursor-pointer"
+                                    )}
+                                  >
+                                    + {quickKw}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          {/* Live Trigger Simulator Tester */}
+                          <div className="pt-2 border-t border-slate-200">
+                            <span className="block text-[11px] font-bold text-slate-700 mb-1">
+                              בדיקת טריגר חיה (בדוק האם הודעה תפעיל את הסוכן):
+                            </span>
+                            <input
+                              type="text"
+                              value={triggerTesterInput}
+                              onChange={(e) => setTriggerTesterInput(e.target.value)}
+                              placeholder="הקלד כאן הודעת לקוח לבדיקה, לדוגמה: 'היי, מה המחיר שלכם?'"
+                              className="w-full p-2 bg-white rounded-xl border border-slate-200 text-xs font-medium focus:border-indigo-500 outline-none mb-1.5"
+                            />
+                            {triggerTesterInput.trim() && (() => {
+                              const matchRes = checkKeywordMatch(
+                                triggerTesterInput,
+                                activeRule.whatsappTrigger?.keywords || [],
+                                activeRule.whatsappTrigger?.matchMode || 'contains'
+                              );
+                              return (
+                                <div className={clsx(
+                                  "p-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border animate-fadeIn",
+                                  matchRes.isMatch
+                                    ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                                    : "bg-slate-100 border-slate-200 text-slate-500"
+                                )}>
+                                  {matchRes.isMatch ? (
+                                    <>
+                                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                      <span>הסוכן יופעל בהצלחה! זוהתה מילת המפתח: "{matchRes.matchedKeyword}"</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                                      <span>הסוכן לא יופעל - הודעה זו אינה מכילה אף אחת ממילות המפתח המוגדרות.</span>
+                                    </>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+
+                        </div>
+                      )}
+
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-500">
+                      סוכן זה אינו מחובר כרגע לקבלת פניות בוואטסאפ. הפעל את המתג למעלה כדי לחבר אותו לשירות לקוחות ומענה אוטומטי בוואטסאפ.
+                    </div>
+                  )}
                 </div>
 
               </div>

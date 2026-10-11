@@ -182,9 +182,9 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                 <div className="flex items-center justify-between gap-2 mb-4">
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {isHome && (
-                      <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
                         <Home className="w-3.5 h-3.5" />
-                        <span>עמוד הבית הראשי 🏠</span>
+                        <span>עמוד בית ראשי</span>
                       </span>
                     )}
                     {page.published ? (
@@ -232,7 +232,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                       title="צור עץ וידאו אינטראקטיבי לעמוד זה בסטודיו"
                     >
                       <Film className="w-3.5 h-3.5 text-pink-400" />
-                      <span>🎬 צור עץ וידאו אינטראקטיבי ב-AI</span>
+                      <span>צור עץ וידאו אינטראקטיבי</span>
                     </button>
                   )}
 

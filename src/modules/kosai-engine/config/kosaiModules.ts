@@ -7,4 +7,5 @@ export const KOSAI_SUPPORTED_MODULES = [
   { id: 'flow-player-engine', name: 'נגן וידאו אינטראקטיבי (Flow Player)', route: '/flow-player' },
   { id: 'kesher-payments-hub', name: 'קופה חכמה וסליקה (Kesher Payments)', route: '/payments' },
   { id: 'saas-storefront-composer', name: 'חנות רכיבים (SaaS Storefront)', route: '/saas-storefront' },
+  { id: 'whatsapp-green-api-hub', name: 'וואטסאפ ואוטומציות (WhatsApp Green API)', route: '/whatsapp-hub' },
 ];

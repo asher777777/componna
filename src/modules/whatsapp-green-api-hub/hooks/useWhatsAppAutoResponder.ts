@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { GreenApiService } from '../services/greenApiService';
-import { WhatsAppAiBotService } from '../services/whatsappAiBotService';
+import { WhatsAppAiBotService, checkKeywordMatch } from '../services/whatsappAiBotService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 export const useWhatsAppAutoResponder = (
@@ -23,9 +23,14 @@ export const useWhatsAppAutoResponder = (
         if (notification && notification.receiptId) {
           const body = notification.body;
           
-          if (body?.typeWebhook === 'incomingMessageReceived' && body?.messageData?.textMessageData?.textMessage) {
+          if (body?.typeWebhook === 'incomingMessageReceived') {
             const sender = body.senderData?.sender;
-            const messageText = body.messageData.textMessageData.textMessage;
+            const messageText = 
+              body.messageData?.textMessageData?.textMessage ||
+              body.messageData?.extendedTextMessageData?.textMessage ||
+              body.messageData?.buttonsResponseMessageData?.selectedDisplayText ||
+              body.messageData?.buttonsResponseMessageData?.selectedButtonId ||
+              '';
             
             if (sender && messageText) {
               const bots = WhatsAppAiBotService.getStoredBots();
@@ -38,17 +43,16 @@ export const useWhatsAppAutoResponder = (
                   triggeredBot = bot;
                   break;
                 } else if (bot.triggerType === 'keyword') {
-                  const textLower = messageText.toLowerCase();
-                  const matches = bot.triggerKeywords?.some(kw => {
-                    const kwLower = kw.trim().toLowerCase();
-                    return kwLower.length > 0 && textLower.includes(kwLower);
-                  });
-                  if (matches) {
+                  const matchResult = checkKeywordMatch(
+                    messageText,
+                    bot.triggerKeywords || [],
+                    bot.matchMode || 'contains'
+                  );
+                  if (matchResult.isMatch) {
                     triggeredBot = bot;
                     break;
                   }
                 }
-                // (Note: 'welcome' trigger is ignored for now to prevent spam, or requires chat history check)
               }
               
               if (triggeredBot) {

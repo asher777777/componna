@@ -82,11 +82,11 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
         <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <span className={clsx(
-              'w-3 h-3 rounded-full animate-ping',
+              'w-2.5 h-2.5 rounded-full',
               config.published ? 'bg-emerald-400' : 'bg-amber-400'
             )} />
             <span className="text-sm font-bold text-white">
-              סטטוס: {config.published ? '🟢 פעיל ומפורסם' : '🟡 טיוטה (לא מפורסם)'}
+              סטטוס: {config.published ? 'פעיל ומפורסם' : 'טיוטה (לא מפורסם)'}
             </span>
           </div>
 
@@ -100,7 +100,7 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
                 : 'bg-emerald-600 hover:bg-emerald-500 text-white'
             )}
           >
-            {config.published ? 'בטל פרסום' : 'פרסם עכשיו 🚀'}
+            {config.published ? 'בטל פרסום' : 'פרסם עכשיו'}
           </button>
         </div>
 
@@ -132,7 +132,7 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
         <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 flex items-center justify-between">
           <div className="flex items-center gap-2 text-xs text-indigo-300">
             <Sparkles className="w-4 h-4 text-indigo-400" />
-            <span>רוצים קישור קצר, קליט וקוד QR מעוצב?</span>
+            <span>מעוניינים בקישור מקוצר וקוד QR?</span>
           </div>
           <button
             type="button"
@@ -142,7 +142,7 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
             }}
             className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md"
           >
-            פתח מקצר URL ✨
+            פתח מקצר קישורים
           </button>
         </div>
       </div>

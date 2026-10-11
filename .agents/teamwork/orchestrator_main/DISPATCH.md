@@ -1,0 +1,61 @@
+# Dispatch Log
+
+## 2026-10-11T11:34:04Z
+You are the Project Orchestrator for the Smart Email & Multi-Channel Automation Hub module in c:\comona.
+
+Working directory: c:\comona\.agents\teamwork\orchestrator_main
+Original Request File: c:\comona\.agents\teamwork\ORIGINAL_REQUEST.md
+Project Root: c:\comona
+
+Read c:\comona\.agents\teamwork\ORIGINAL_REQUEST.md immediately for the full specification, roles, strict rules, and acceptance criteria.
+
+Summary of objectives & constraints:
+1. Component Spec Architect:
+   - Create complete specification and plan matching .gemini/templates/component_spec_template.md under src/modules/smart-email-automation-hub/README.md.
+   - Anatomy of 12 layers under src/modules/smart-email-automation-hub/.
+   - Scoped collection prefixes: mod_email_campaigns, mod_email_templates, mod_email_automations, mod_email_logs.
+   - EventBus and HostCapabilities integration (zero direct cross-module imports).
+   - Bento Drag/Visual Email Editor compatible with Page Builder.
+   - Multi-channel automation pipeline (Email + WhatsApp + Form Triggers).
+   - AI Copilot using Gemini Flash models (e.g. Gemini 3.8 / 3.5 Flash) with Brand DNA.
+
+2. Backend & Data Engineer:
+   - Complete types/, config/, services/firestoreService.ts, api/functionsApi.ts, context/ModuleContext.tsx.
+   - Strict Multi-Tenancy isolation using useTenantScope().getScopedCollectionRef(...).
+   - Collection registration in src/core/contracts/collections.ts, db-collections-hub/config/index.ts, and seedData.ts.
+   - Email dispatch service with providers (Resend / SendGrid / SMTP / Cloud Functions) + Mock/Local fallback.
+   - EventBus event listeners (crm:lead:created, smart_form:submitted, campaign:ambassador:created).
+   - Zero localStorage API keys (use tenantApiKeys.ts).
+
+3. Frontend & UI Engineer:
+   - Kosun 2026 Branding (cashwan-branding): Mobile First, Bento Grid, Top Nav only (no sidebar), Heebo font.
+   - Zero textual emojis (Lucide icons only).
+   - Strict RTL wrapper: <div dir="rtl" style="text-align: right;">.
+   - Clean visual workflow builder and campaign editor.
+   - Minimal smart tooltips (i), collapsible accordion stats/graphs.
+   - StandaloneView.tsx and lazy registration in src/workbench/moduleRegistry.ts.
+
+4. Local QA & Security:
+   - All 5 audit gates in system_audit_workflow.md.
+   - Clean npm run build (0 errors).
+   - Zero cross-module imports.
+   - ErrorBoundary and Suspense.
+
+5. Git & Deployment:
+   - Commit & push clean files.
+   - Live smoke verification.
+
+Maintain your progress.md and BRIEFING.md in your working directory at c:\comona\.agents\teamwork\orchestrator_main. Update progress.md frequently so the sentinel monitoring crons can track your progress.
+When all phases and acceptance criteria are fully met, send a message to the Sentinel claiming victory.
+
+
+## 2026-10-11T11:34:42Z
+עדכון דחוף וקריטי מבעל הפרויקט לגבי מיתוג ושם הרכיב:
+לפי חוקי המיתוג של קושאן (cashwan-branding / The Entity of Cashwan):
+קושאן היא יישות חיה, אינטליגנטית ונושמת.
+השם "קושאן" (Cashwan / Kosun) חייב להיות הכינוי המרכזי ושם הרכיב!
+שם הרכיב והמודול נקרא:
+- באנגלית/תיקייה: `cashwan-post-hub` או `cashwan-mail-flow` (שם תצוגה: "קושאן פוסט" / "קושאן דיוור ואוטומציה" - Cashwan Post).
+- בטקסטים, ב-Placeholders, ובשפה של המערכת: קושאן הוא שותף אישי שלוקח אחריות ("קושאן דואג שהמייל יגיע ליעד", "קושאן מכין את הקמפיין הבא שלך").
+נא לעדכן את האפיון, התיקיות, הקבצים והקוד לשם המותג של קושאן!
+קובץ ORIGINAL_REQUEST.md עודכן גם הוא בהתאם.

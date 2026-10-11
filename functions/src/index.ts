@@ -63,6 +63,30 @@ async function extractAndSaveContact(geminiKey: string, phone: string, messages:
   }
 }
 
+function matchKeywords(
+  messageText: string,
+  keywords: string[] = [],
+  matchMode: 'contains' | 'exact' | 'startsWith' = 'contains'
+): { isMatch: boolean; matchedKeyword?: string } {
+  if (!messageText || !keywords || keywords.length === 0) return { isMatch: false };
+  const rawClean = messageText.toLowerCase().replace(/[\u0591-\u05C7]/g, '').trim();
+  const strippedText = rawClean.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
+  const textWords = strippedText.split(/\s+/).filter(Boolean);
+
+  for (const rawKw of keywords) {
+    const kw = rawKw.toLowerCase().replace(/[\u0591-\u05C7]/g, '').replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, '').trim();
+    if (!kw) continue;
+    if (matchMode === 'exact') {
+      if (rawClean === kw || textWords.includes(kw)) return { isMatch: true, matchedKeyword: rawKw };
+    } else if (matchMode === 'startsWith') {
+      if (rawClean.startsWith(kw)) return { isMatch: true, matchedKeyword: rawKw };
+    } else {
+      if (rawClean.includes(kw)) return { isMatch: true, matchedKeyword: rawKw };
+    }
+  }
+  return { isMatch: false };
+}
+
 // Webhook for Green API
 export const whatsappWebhook = functions.https.onRequest((req, res) => {
   cors(req, res, async () => {
@@ -82,7 +106,13 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     return;
   }
 
-  const messageText = body.messageData?.textMessageData?.textMessage;
+  const messageText = 
+    body.messageData?.textMessageData?.textMessage ||
+    body.messageData?.extendedTextMessageData?.textMessage ||
+    body.messageData?.buttonsResponseMessageData?.selectedDisplayText ||
+    body.messageData?.buttonsResponseMessageData?.selectedButtonId ||
+    body.messageData?.listResponseMessageData?.title ||
+    '';
   const sender = body.senderData?.sender;
   const targetChatId = body.senderData?.chatId || sender;
   
@@ -119,14 +149,13 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     let activeBotId = chatDoc.data()?.botId;
 
     const botsSnapshot = await db.collection('whatsapp_ai_bots').where('isActive', '==', true).get();
-    const textLower = messageText.toLowerCase();
 
     // If bot was already engaged in this chat, keep using it
     if (activeBotId) {
       triggeredBot = botsSnapshot.docs.find(d => d.id === activeBotId)?.data() || null;
     }
     
-    // Otherwise check for keyword triggers
+    // Otherwise check for keyword triggers in whatsapp_ai_bots
     if (!triggeredBot) {
       for (const doc of botsSnapshot.docs) {
         const bot = doc.data();
@@ -134,15 +163,49 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
           triggeredBot = bot;
           break;
         } else if (bot.triggerType === 'keyword' && Array.isArray(bot.triggerKeywords)) {
-          const matches = bot.triggerKeywords.some((kw: string) => {
-            const kwLower = kw.trim().toLowerCase();
-            return kwLower.length > 0 && textLower.includes(kwLower);
-          });
-          if (matches) {
+          const matchResult = matchKeywords(messageText, bot.triggerKeywords, bot.matchMode || 'contains');
+          if (matchResult.isMatch) {
             triggeredBot = bot;
             break;
           }
         }
+      }
+    }
+
+    // Check Kosai Engine Rules with WhatsApp Triggers if still no bot triggered
+    if (!triggeredBot) {
+      try {
+        const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').where('isActive', '==', true).get();
+        for (const doc of kosaiRulesSnap.docs) {
+          const rule = doc.data();
+          if (rule?.whatsappTrigger?.enabled) {
+            const trigger = rule.whatsappTrigger;
+            if (trigger.triggerType === 'all') {
+              triggeredBot = {
+                id: `kosai_${doc.id}`,
+                name: trigger.botDisplayName || rule.name,
+                systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+                model: 'gemini-1.5-flash',
+                temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
+              };
+              break;
+            } else if (trigger.triggerType === 'keyword' && Array.isArray(trigger.keywords)) {
+              const matchResult = matchKeywords(messageText, trigger.keywords, trigger.matchMode || 'contains');
+              if (matchResult.isMatch) {
+                triggeredBot = {
+                  id: `kosai_${doc.id}`,
+                  name: trigger.botDisplayName || rule.name,
+                  systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+                  model: 'gemini-1.5-flash',
+                  temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
+                };
+                break;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Error querying kosai rules for triggers:', err);
       }
     }
 

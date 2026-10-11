@@ -61,10 +61,35 @@ async function extractAndSaveContact(geminiKey, phone, messages) {
         console.error('Extraction error:', err);
     }
 }
+function matchKeywords(messageText, keywords = [], matchMode = 'contains') {
+    if (!messageText || !keywords || keywords.length === 0)
+        return { isMatch: false };
+    const rawClean = messageText.toLowerCase().replace(/[\u0591-\u05C7]/g, '').trim();
+    const strippedText = rawClean.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
+    const textWords = strippedText.split(/\s+/).filter(Boolean);
+    for (const rawKw of keywords) {
+        const kw = rawKw.toLowerCase().replace(/[\u0591-\u05C7]/g, '').replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, '').trim();
+        if (!kw)
+            continue;
+        if (matchMode === 'exact') {
+            if (rawClean === kw || textWords.includes(kw))
+                return { isMatch: true, matchedKeyword: rawKw };
+        }
+        else if (matchMode === 'startsWith') {
+            if (rawClean.startsWith(kw))
+                return { isMatch: true, matchedKeyword: rawKw };
+        }
+        else {
+            if (rawClean.includes(kw))
+                return { isMatch: true, matchedKeyword: rawKw };
+        }
+    }
+    return { isMatch: false };
+}
 // Webhook for Green API
 exports.whatsappWebhook = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0;
         if (req.method !== 'POST' && req.method !== 'GET') {
             res.status(405).send('Method Not Allowed');
             return;
@@ -78,19 +103,24 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             res.status(200).send('Not an incoming message');
             return;
         }
-        const messageText = (_b = (_a = body.messageData) === null || _a === void 0 ? void 0 : _a.textMessageData) === null || _b === void 0 ? void 0 : _b.textMessage;
-        const sender = (_c = body.senderData) === null || _c === void 0 ? void 0 : _c.sender;
-        const targetChatId = ((_d = body.senderData) === null || _d === void 0 ? void 0 : _d.chatId) || sender;
+        const messageText = ((_b = (_a = body.messageData) === null || _a === void 0 ? void 0 : _a.textMessageData) === null || _b === void 0 ? void 0 : _b.textMessage) ||
+            ((_d = (_c = body.messageData) === null || _c === void 0 ? void 0 : _c.extendedTextMessageData) === null || _d === void 0 ? void 0 : _d.textMessage) ||
+            ((_f = (_e = body.messageData) === null || _e === void 0 ? void 0 : _e.buttonsResponseMessageData) === null || _f === void 0 ? void 0 : _f.selectedDisplayText) ||
+            ((_h = (_g = body.messageData) === null || _g === void 0 ? void 0 : _g.buttonsResponseMessageData) === null || _h === void 0 ? void 0 : _h.selectedButtonId) ||
+            ((_k = (_j = body.messageData) === null || _j === void 0 ? void 0 : _j.listResponseMessageData) === null || _k === void 0 ? void 0 : _k.title) ||
+            '';
+        const sender = (_l = body.senderData) === null || _l === void 0 ? void 0 : _l.sender;
+        const targetChatId = ((_m = body.senderData) === null || _m === void 0 ? void 0 : _m.chatId) || sender;
         if (!messageText || !targetChatId) {
             res.status(200).send('No text or targetChatId');
             return;
         }
         const phone = targetChatId.split('@')[0];
         try {
-            // 1. Fetch API Keys
-            const settingsDoc = await db.collection('system_settings').doc('global').get();
-            const apiKeys = ((_e = settingsDoc.data()) === null || _e === void 0 ? void 0 : _e.apiKeys) || {};
-            const geminiKey = apiKeys.googleAiApiKey;
+            // 1. Fetch API Keys from Master Tenant
+            const apiKeysDoc = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
+            const apiKeys = apiKeysDoc.data() || {};
+            const geminiKey = apiKeys.googleAiApiKey || apiKeys.geminiApiKey;
             const greenApiInstanceId = apiKeys.greenApiInstanceId;
             const greenApiToken = apiKeys.greenApiToken;
             if (!geminiKey || !greenApiInstanceId || !greenApiToken) {
@@ -102,18 +132,17 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             const chatDoc = await chatDocRef.get();
             let chatHistory = [];
             if (chatDoc.exists) {
-                chatHistory = ((_f = chatDoc.data()) === null || _f === void 0 ? void 0 : _f.messages) || [];
+                chatHistory = ((_o = chatDoc.data()) === null || _o === void 0 ? void 0 : _o.messages) || [];
             }
             // 3. Detect Bot Trigger (only if it's the start of a conversation, or if the bot is already engaged)
             let triggeredBot = null;
-            let activeBotId = (_g = chatDoc.data()) === null || _g === void 0 ? void 0 : _g.botId;
+            let activeBotId = (_p = chatDoc.data()) === null || _p === void 0 ? void 0 : _p.botId;
             const botsSnapshot = await db.collection('whatsapp_ai_bots').where('isActive', '==', true).get();
-            const textLower = messageText.toLowerCase();
             // If bot was already engaged in this chat, keep using it
             if (activeBotId) {
-                triggeredBot = ((_h = botsSnapshot.docs.find(d => d.id === activeBotId)) === null || _h === void 0 ? void 0 : _h.data()) || null;
+                triggeredBot = ((_q = botsSnapshot.docs.find(d => d.id === activeBotId)) === null || _q === void 0 ? void 0 : _q.data()) || null;
             }
-            // Otherwise check for keyword triggers
+            // Otherwise check for keyword triggers in whatsapp_ai_bots
             if (!triggeredBot) {
                 for (const doc of botsSnapshot.docs) {
                     const bot = doc.data();
@@ -122,15 +151,50 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         break;
                     }
                     else if (bot.triggerType === 'keyword' && Array.isArray(bot.triggerKeywords)) {
-                        const matches = bot.triggerKeywords.some((kw) => {
-                            const kwLower = kw.trim().toLowerCase();
-                            return kwLower.length > 0 && textLower.includes(kwLower);
-                        });
-                        if (matches) {
+                        const matchResult = matchKeywords(messageText, bot.triggerKeywords, bot.matchMode || 'contains');
+                        if (matchResult.isMatch) {
                             triggeredBot = bot;
                             break;
                         }
                     }
+                }
+            }
+            // Check Kosai Engine Rules with WhatsApp Triggers if still no bot triggered
+            if (!triggeredBot) {
+                try {
+                    const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').where('isActive', '==', true).get();
+                    for (const doc of kosaiRulesSnap.docs) {
+                        const rule = doc.data();
+                        if ((_r = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _r === void 0 ? void 0 : _r.enabled) {
+                            const trigger = rule.whatsappTrigger;
+                            if (trigger.triggerType === 'all') {
+                                triggeredBot = {
+                                    id: `kosai_${doc.id}`,
+                                    name: trigger.botDisplayName || rule.name,
+                                    systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+                                    model: 'gemini-1.5-flash',
+                                    temperature: ((_t = (_s = rule.toneOfVoice) === null || _s === void 0 ? void 0 : _s.creativity) !== null && _t !== void 0 ? _t : 50) / 100
+                                };
+                                break;
+                            }
+                            else if (trigger.triggerType === 'keyword' && Array.isArray(trigger.keywords)) {
+                                const matchResult = matchKeywords(messageText, trigger.keywords, trigger.matchMode || 'contains');
+                                if (matchResult.isMatch) {
+                                    triggeredBot = {
+                                        id: `kosai_${doc.id}`,
+                                        name: trigger.botDisplayName || rule.name,
+                                        systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+                                        model: 'gemini-1.5-flash',
+                                        temperature: ((_v = (_u = rule.toneOfVoice) === null || _u === void 0 ? void 0 : _u.creativity) !== null && _v !== void 0 ? _v : 50) / 100
+                                    };
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (err) {
+                    console.warn('Error querying kosai rules for triggers:', err);
                 }
             }
             if (!triggeredBot) {
@@ -146,13 +210,13 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             if (brandDnaSnap.exists) {
                 const dna = brandDnaSnap.data();
                 brandContext = `\n\n=== רקע על המותג (Brand DNA) ===\n`;
-                if ((_j = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _j === void 0 ? void 0 : _j.name)
+                if ((_w = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _w === void 0 ? void 0 : _w.name)
                     brandContext += `שם המותג: ${dna.identity.name}\n`;
-                if ((_k = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _k === void 0 ? void 0 : _k.description)
+                if ((_x = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _x === void 0 ? void 0 : _x.description)
                     brandContext += `תיאור קצר: ${dna.identity.description}\n`;
-                if ((_l = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _l === void 0 ? void 0 : _l.toneOfVoice)
+                if ((_y = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _y === void 0 ? void 0 : _y.toneOfVoice)
                     brandContext += `סגנון דיבור: ${dna.voice.toneOfVoice}\n`;
-                if ((_o = (_m = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _m === void 0 ? void 0 : _m.brandValues) === null || _o === void 0 ? void 0 : _o.length)
+                if ((_0 = (_z = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _z === void 0 ? void 0 : _z.brandValues) === null || _0 === void 0 ? void 0 : _0.length)
                     brandContext += `ערכי מותג: ${dna.voice.brandValues.join(', ')}\n`;
             }
             // 5. Append strict logic to System Prompt
