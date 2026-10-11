@@ -23,7 +23,8 @@ import {
   Search,
   Check,
   X,
-  Menu
+  Menu,
+  Mail,
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../moduleRegistry';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
@@ -32,6 +33,7 @@ import { subscribeToAuth, AuthState, logoutUser } from '../../services/firebaseA
 import { SmartTooltip } from '../../components/Ui/SmartTooltip';
 
 const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
+  'kosun-am': Mail,
   'kosai-engine': Bot,
   'control-center-hub': Sparkles,
   'saas-storefront-composer': ShoppingBag,

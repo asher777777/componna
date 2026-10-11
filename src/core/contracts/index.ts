@@ -146,8 +146,26 @@ export interface CoreEventMap {
     transactionId?: string;
     completedAt: string;
   };
-  'email:automation:triggered': any;
-  'email:campaign:sent': any;
+  'email:campaign:sent': {
+    campaignId: string;
+    campaignTitle: string;
+    recipientCount: number;
+    sentAt: string;
+  };
+  'email:automation:triggered': {
+    automationId: string;
+    triggerEvent: string;
+    recipientEmail: string;
+    actionTaken: string;
+    timestamp: string;
+  };
+  'email:delivery:failed': {
+    campaignId?: string;
+    automationId?: string;
+    recipientEmail: string;
+    reason: string;
+    timestamp: string;
+  };
 }
 
 // ========================

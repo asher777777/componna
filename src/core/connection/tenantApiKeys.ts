@@ -119,6 +119,7 @@ const ROUTE_TO_MODULE: Array<[string, string]> = [
   ['/flow-player-engine', 'flow-player-engine'],
   ['/media-gallery-hub', 'media-gallery-hub'],
   ['/db-collections', 'db-collections-hub'],
+  ['/kosun-am', 'kosun-am'],
   ['/template', 'template'],
 ];
 

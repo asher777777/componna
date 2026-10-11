@@ -98,3 +98,16 @@ When all phases and acceptance criteria are fully met, send a message to the Sen
 - בעברית: קושאן (למשל: קושאן מייל אוטומטי).
 נא לוודא שכל הטקסטים והרכיבים עומדים בהגדרה הזו.
 הקובץ ORIGINAL_REQUEST.md עודכן בהתאם.
+
+
+## 2026-10-11T12:28:57Z
+הוראת חוק ברזל נוקשת, מיידית ומחייבת מבעל הפרויקט (גוברת על כל הנחיה קודמת):
+1. איסור מוחלט על נתוני דמה (Zero Mock Data)!
+2. איסור מוחלט על שימוש ב-localStorage / sessionStorage לשמירה או שליפה של נתונים או מפתחות.
+3. הכל חייב להיות מחובר תמיד ובאופן ישיר ל-DB / Firestore האמיתי! (Real Database בלבד).
+4. חוקי הפרויקט (modular_component_standards ו-system_audit_workflow) עודכנו כעת בהתאם.
+
+פעולה נדרשת באופן מיידי:
+להסיר מידית כל שכבת mock fallback, mock emails, mock data מ-emailDispatchService, emailFirestoreService, ModuleContext ומכל קובץ במודול kosun-am.
+לוודא שכל קריאה, שליחה, האזנה וכתיבה מתבצעת אך ורק מול ה-Firestore האמיתי והשירותים האמיתיים!
+הקובץ ORIGINAL_REQUEST.md עודכן בהתאם. נא להנחות מידית את כל הסוכנים הפעילים.

@@ -58,3 +58,17 @@ Working directory: c:\comona\.agents\teamwork\worker_m2_1
 Read c:\comona\.agents\teamwork\worker_m2_1\DISPATCH.md and c:\comona\.agents\teamwork\ORIGINAL_REQUEST.md immediately.
 Project root is c:\comona.
 Project blueprint: c:\comona\.agents\teamwork\orchestrator_main\PROJECT.md
+
+
+## 2026-10-11T12:29:16Z
+**Context**: CRITICAL IRON RULE OVERRIDE: ZERO MOCK DATA & REAL FIRESTORE ONLY
+**Content**: Urgent directive from project owner and parent (overrides any previous guidance):
+1. ZERO MOCK DATA: Absolutely no dummy/mock fallback data or simulated mock email payloads.
+2. ZERO LOCALSTORAGE: Absolutely no localStorage / sessionStorage for any data or keys.
+3. 100% REAL DATABASE: Everything must be connected directly and solely to the real Firestore DB under `tenants/{tenantId}/`!
+4. Action required immediately:
+   - Remove any mock fallback layer, mock campaigns, mock templates, mock emails from `emailFirestoreService.ts`, `emailDispatchService.ts`, `ModuleContext.tsx`, and all files in `src/modules/kosun-am/`.
+   - If a Firestore collection is empty, return an empty array `[]` (not mock data).
+   - All dispatches must use genuine endpoints (or genuine Cloud Functions / Resend / SendGrid via `tenantApiKeys.ts`), and write delivery logs directly to real Firestore `mod_kosun_am_logs`.
+   - Verify `npm run build` and E2E tests pass.
+**Action**: Implement this purge of mock data immediately and confirm in your handoff report.

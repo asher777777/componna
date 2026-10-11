@@ -1,6 +1,6 @@
 /**
- * KOSUN AM (קושאן מייל אוטומטי) - Firestore Service
- * 12-Layer Scaffolding Layer 5: Multi-Tenant Scoped Persistence with Graceful Mock Fallback
+ * KOSUN AM (קושאן מייל אוטומטי) - Scoped Multi-Tenant Firestore Service
+ * Layer 5: Strict Tenant Isolation (tenants/{tenantId}/) & 100% Real Database Persistence
  */
 
 import {
@@ -22,29 +22,34 @@ import {
   EmailAutomation,
   EmailDeliveryLog,
 } from '../types';
-import {
-  KOSUN_AM_COLLECTIONS,
-  MOCK_CAMPAIGNS,
-  MOCK_TEMPLATES,
-  MOCK_AUTOMATIONS,
-  MOCK_LOGS,
-} from '../config';
+import { KOSUN_AM_COLLECTIONS } from '../config';
+
+export type ScopedRefGetter = <T = DocumentData>(db: Firestore, collectionName: string) => CollectionReference<T>;
 
 export class EmailFirestoreService {
   private db?: Firestore;
   private tenantId: string;
-  private localCampaigns: EmailCampaign[] = [...MOCK_CAMPAIGNS];
-  private localTemplates: EmailTemplate[] = [...MOCK_TEMPLATES];
-  private localAutomations: EmailAutomation[] = [...MOCK_AUTOMATIONS];
-  private localLogs: EmailDeliveryLog[] = [...MOCK_LOGS];
+  private scopedRefGetter?: ScopedRefGetter;
 
-  constructor(db?: Firestore, tenantId = '_master') {
+  constructor(db?: Firestore, tenantId = '_master', scopedRefGetter?: ScopedRefGetter) {
     this.db = db;
-    this.tenantId = tenantId;
+    this.tenantId = (tenantId || '').trim().toLowerCase() || '_master';
+    this.scopedRefGetter = scopedRefGetter;
+  }
+
+  getTenantId(): string {
+    return this.tenantId;
+  }
+
+  getScopedPath(collectionName: string): string {
+    return `tenants/${this.tenantId}/${collectionName}`;
   }
 
   private getRef<T = DocumentData>(collectionName: string): CollectionReference<T> | null {
     if (!this.db) return null;
+    if (this.scopedRefGetter) {
+      return this.scopedRefGetter<T>(this.db, collectionName);
+    }
     return collection(this.db, 'tenants', this.tenantId, collectionName) as CollectionReference<T>;
   }
 
@@ -52,15 +57,30 @@ export class EmailFirestoreService {
   async getCampaigns(): Promise<EmailCampaign[]> {
     const ref = this.getRef<EmailCampaign>(KOSUN_AM_COLLECTIONS.CAMPAIGNS);
     if (!ref || !this.db) {
-      return [...this.localCampaigns];
+      return [];
     }
     try {
       const q = query(ref, orderBy('createdAt', 'desc'));
       const snap = await getDocs(q);
       return snap.docs.map((d) => ({ ...d.data(), id: d.id } as EmailCampaign));
     } catch (err) {
-      console.warn('[Kosun AM] Firestore getCampaigns error, using local fallback:', err);
-      return [...this.localCampaigns];
+      console.warn('[Kosun AM] Firestore getCampaigns error:', err);
+      return [];
+    }
+  }
+
+  async getCampaign(id: string): Promise<EmailCampaign | null> {
+    if (!this.db) return null;
+    try {
+      const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.CAMPAIGNS, id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return { ...snap.data(), id: snap.id } as EmailCampaign;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[Kosun AM] Firestore getCampaign error:', err);
+      return null;
     }
   }
 
@@ -90,60 +110,64 @@ export class EmailFirestoreService {
         bouncedCount: 0,
         unsubscribedCount: 0,
       },
-      provider: campaign.provider || 'mock_local',
+      provider: campaign.provider || 'resend',
       createdAt: campaign.createdAt || now,
       updatedAt: now,
       createdById: campaign.createdById,
     };
 
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.CAMPAIGNS);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.CAMPAIGNS, id);
         await setDoc(docRef, fullCampaign, { merge: true });
       } catch (err) {
-        console.warn('[Kosun AM] Firestore saveCampaign error, falling back to local memory:', err);
+        console.error('[Kosun AM] Firestore saveCampaign error:', err);
+        throw err;
       }
-    }
-
-    const idx = this.localCampaigns.findIndex((c) => c.id === id);
-    if (idx >= 0) {
-      this.localCampaigns[idx] = fullCampaign;
-    } else {
-      this.localCampaigns.unshift(fullCampaign);
     }
 
     return id;
   }
 
   async deleteCampaign(id: string): Promise<void> {
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.CAMPAIGNS);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.CAMPAIGNS, id);
         await deleteDoc(docRef);
       } catch (err) {
-        console.warn('[Kosun AM] Firestore deleteCampaign error:', err);
+        console.error('[Kosun AM] Firestore deleteCampaign error:', err);
+        throw err;
       }
     }
-    this.localCampaigns = this.localCampaigns.filter((c) => c.id !== id);
   }
 
   // --- Templates ---
   async getTemplates(): Promise<EmailTemplate[]> {
     const ref = this.getRef<EmailTemplate>(KOSUN_AM_COLLECTIONS.TEMPLATES);
     if (!ref || !this.db) {
-      return [...this.localTemplates];
+      return [];
     }
     try {
       const snap = await getDocs(ref);
-      if (snap.empty) {
-        return [...this.localTemplates];
-      }
       return snap.docs.map((d) => ({ ...d.data(), id: d.id } as EmailTemplate));
     } catch (err) {
-      console.warn('[Kosun AM] Firestore getTemplates error, using local fallback:', err);
-      return [...this.localTemplates];
+      console.warn('[Kosun AM] Firestore getTemplates error:', err);
+      return [];
+    }
+  }
+
+  async getTemplate(id: string): Promise<EmailTemplate | null> {
+    if (!this.db) return null;
+    try {
+      const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.TEMPLATES, id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return { ...snap.data(), id: snap.id } as EmailTemplate;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[Kosun AM] Firestore getTemplate error:', err);
+      return null;
     }
   }
 
@@ -164,54 +188,58 @@ export class EmailFirestoreService {
       updatedAt: now,
     };
 
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.TEMPLATES);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.TEMPLATES, id);
         await setDoc(docRef, fullTemplate, { merge: true });
       } catch (err) {
-        console.warn('[Kosun AM] Firestore saveTemplate error:', err);
+        console.error('[Kosun AM] Firestore saveTemplate error:', err);
+        throw err;
       }
-    }
-
-    const idx = this.localTemplates.findIndex((t) => t.id === id);
-    if (idx >= 0) {
-      this.localTemplates[idx] = fullTemplate;
-    } else {
-      this.localTemplates.unshift(fullTemplate);
     }
 
     return id;
   }
 
   async deleteTemplate(id: string): Promise<void> {
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.TEMPLATES);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.TEMPLATES, id);
         await deleteDoc(docRef);
       } catch (err) {
-        console.warn('[Kosun AM] Firestore deleteTemplate error:', err);
+        console.error('[Kosun AM] Firestore deleteTemplate error:', err);
+        throw err;
       }
     }
-    this.localTemplates = this.localTemplates.filter((t) => t.id !== id);
   }
 
   // --- Automations ---
   async getAutomations(): Promise<EmailAutomation[]> {
     const ref = this.getRef<EmailAutomation>(KOSUN_AM_COLLECTIONS.AUTOMATIONS);
     if (!ref || !this.db) {
-      return [...this.localAutomations];
+      return [];
     }
     try {
       const snap = await getDocs(ref);
-      if (snap.empty) {
-        return [...this.localAutomations];
-      }
       return snap.docs.map((d) => ({ ...d.data(), id: d.id } as EmailAutomation));
     } catch (err) {
-      console.warn('[Kosun AM] Firestore getAutomations error, using local fallback:', err);
-      return [...this.localAutomations];
+      console.warn('[Kosun AM] Firestore getAutomations error:', err);
+      return [];
+    }
+  }
+
+  async getAutomation(id: string): Promise<EmailAutomation | null> {
+    if (!this.db) return null;
+    try {
+      const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.AUTOMATIONS, id);
+      const snap = await getDoc(docRef);
+      if (snap.exists()) {
+        return { ...snap.data(), id: snap.id } as EmailAutomation;
+      }
+      return null;
+    } catch (err) {
+      console.warn('[Kosun AM] Firestore getAutomation error:', err);
+      return null;
     }
   }
 
@@ -231,55 +259,44 @@ export class EmailFirestoreService {
       updatedAt: now,
     };
 
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.AUTOMATIONS);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.AUTOMATIONS, id);
         await setDoc(docRef, fullAutomation, { merge: true });
       } catch (err) {
-        console.warn('[Kosun AM] Firestore saveAutomation error:', err);
+        console.error('[Kosun AM] Firestore saveAutomation error:', err);
+        throw err;
       }
-    }
-
-    const idx = this.localAutomations.findIndex((a) => a.id === id);
-    if (idx >= 0) {
-      this.localAutomations[idx] = fullAutomation;
-    } else {
-      this.localAutomations.unshift(fullAutomation);
     }
 
     return id;
   }
 
   async deleteAutomation(id: string): Promise<void> {
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.AUTOMATIONS);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.AUTOMATIONS, id);
         await deleteDoc(docRef);
       } catch (err) {
-        console.warn('[Kosun AM] Firestore deleteAutomation error:', err);
+        console.error('[Kosun AM] Firestore deleteAutomation error:', err);
+        throw err;
       }
     }
-    this.localAutomations = this.localAutomations.filter((a) => a.id !== id);
   }
 
   // --- Logs ---
   async getLogs(): Promise<EmailDeliveryLog[]> {
     const ref = this.getRef<EmailDeliveryLog>(KOSUN_AM_COLLECTIONS.LOGS);
     if (!ref || !this.db) {
-      return [...this.localLogs];
+      return [];
     }
     try {
       const q = query(ref, orderBy('dispatchedAt', 'desc'));
       const snap = await getDocs(q);
-      if (snap.empty) {
-        return [...this.localLogs];
-      }
       return snap.docs.map((d) => ({ ...d.data(), id: d.id } as EmailDeliveryLog));
     } catch (err) {
-      console.warn('[Kosun AM] Firestore getLogs error, using local fallback:', err);
-      return [...this.localLogs];
+      console.warn('[Kosun AM] Firestore getLogs error:', err);
+      return [];
     }
   }
 
@@ -287,17 +304,16 @@ export class EmailFirestoreService {
     const id = `log_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const fullLog: EmailDeliveryLog = { id, ...log };
 
-    const ref = this.getRef(KOSUN_AM_COLLECTIONS.LOGS);
-    if (ref && this.db) {
+    if (this.db) {
       try {
         const docRef = doc(this.db, 'tenants', this.tenantId, KOSUN_AM_COLLECTIONS.LOGS, id);
         await setDoc(docRef, fullLog);
       } catch (err) {
-        console.warn('[Kosun AM] Firestore addLog error:', err);
+        console.error('[Kosun AM] Firestore addLog error:', err);
+        throw err;
       }
     }
 
-    this.localLogs.unshift(fullLog);
     return id;
   }
 }

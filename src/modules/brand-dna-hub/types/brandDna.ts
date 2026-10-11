@@ -23,13 +23,13 @@ import type { BrandDna } from '../../../core/contracts';
 
 export const DEFAULT_BRAND_DNA: BrandDna = {
   identity: {
-    companyName: 'קשואן',
+    companyName: 'קושאן',
     organizationType: 'חברה',
     organizationPurpose: 'כספית - מתן שירותים ופתרונות דיגיטליים מתקדמים',
     memberCount: 'עד 10',
-    slogan: 'כל אדם זה נכנס',
+    slogan: 'כל אדם זה נכס',
     companyVision: 'להוביל את תחום השירותים והפתרונות הדיגיטליים תוך מתן יחס אישי, מקצועיות ללא פשרות, וערך אמיתי ומתמשך לכל לקוח ושותף לדרך.',
-    shortVision: 'כל אדם זה נכנס.',
+    shortVision: 'כל אדם זה נכס.',
     logoUrl: '',
     vibeImages: [],
   },

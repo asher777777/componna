@@ -75,7 +75,7 @@ export const CampaignListCard: React.FC<CampaignListCardProps> = ({
     <div
       dir="rtl"
       style={{ textAlign: 'right' }}
-      className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-5 md:p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
+      className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-3xl p-5 md:p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between font-heebo"
     >
       <div>
         <div className="flex items-center justify-between gap-3 mb-3">

@@ -145,3 +145,14 @@ Run local npm run build, pass the 5 Audit Gates, push to Git, and verify the dep
 - באנגלית: KOSUN (באותיות גדולות או כבסיס קבוע) עם צירוף מגניב וצעיר של שם הרכיב (למשל: KOSUN AM).
 - בעברית: קושאן (למשל: קושאן מייל אוטומטי).
 נא לוודא שכל הטקסטים והרכיבים עומדים בהגדרה הזו.
+
+
+## 2026-10-11T12:28:05Z
+
+הוראת חוק ברזל נוקשת וקריטית מהמשתמש:
+1. איסור מוחלט על נתוני דמה (Zero Mock Data)!
+2. איסור מוחלט על שימוש ב-localStorage / sessionStorage לשמירה או שליפה של נתונים או מפתחות.
+3. הכל חייב להיות מחובר תמיד ובאופן ישיר ל-DB / Firestore האמיתי! (Real Database בלבד).
+4. חוקי הפרויקט (modular_component_standards ו-system_audit_workflow) עודכנו כעת בהתאם.
+
+נא להסיר מידית כל שכבת mock fallback, mock emails, mock data מ-emailDispatchService, emailFirestoreService ו-ModuleContext, ולוודא שכל קריאה וכתיבה מתבצעת אך ורק מול ה-Firestore האמיתי.

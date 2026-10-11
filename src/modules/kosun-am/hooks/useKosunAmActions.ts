@@ -15,6 +15,8 @@ export function useKosunAmActions() {
     deleteTemplate,
     saveAutomation,
     toggleAutomation,
+    deleteAutomation,
+    setActiveProvider,
     generateAiContent,
     refreshAll,
   } = useKosunAmContext();
@@ -28,6 +30,8 @@ export function useKosunAmActions() {
     deleteTemplate,
     saveAutomation,
     toggleAutomation,
+    deleteAutomation,
+    setActiveProvider,
     generateAiContent,
     refreshAll,
   };

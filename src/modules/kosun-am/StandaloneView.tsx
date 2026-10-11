@@ -14,9 +14,11 @@ export interface KosunAmStandaloneViewProps {
 
 export const KosunAmStandaloneView: React.FC<KosunAmStandaloneViewProps> = ({ config }) => {
   return (
-    <KosunAmProvider config={config}>
-      <KosunAmMainView />
-    </KosunAmProvider>
+    <div dir="rtl" style={{ textAlign: 'right' }} className="font-heebo">
+      <KosunAmProvider config={config}>
+        <KosunAmMainView />
+      </KosunAmProvider>
+    </div>
   );
 };
 

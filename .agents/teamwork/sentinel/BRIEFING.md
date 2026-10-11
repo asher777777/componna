@@ -1,4 +1,4 @@
-# BRIEFING — 2026-10-11T12:20:30Z
+# BRIEFING — 2026-10-11T13:21:00Z
 
 ## Mission
 Sentinel monitoring and orchestration routing for KOSUN AM (קושאן מייל אוטומטי) implementation.
@@ -19,16 +19,17 @@ Sentinel monitoring and orchestration routing for KOSUN AM (קושאן מייל 
   - Hebrew: "קושאן" / "קושאן מייל אוטומטי"
   - Directory / ID: `src/modules/kosun-am/`
   - Collection prefix: `mod_kosun_am_...`
+- **IRON RULE**: ZERO MOCK DATA! ZERO localStorage / sessionStorage! Real DB / Firestore only! Empty collections return `[]`.
 
 ## User Context
-- **Last user request**: Branding skill update: KOSUN in uppercase with youthful combo (e.g. KOSUN AM) in English, and קושאן in Hebrew.
+- **Last user request**: Strict iron rule: Zero Mock Data! Zero localStorage/sessionStorage! Always connected directly to Real DB / Firestore. Empty collections return `[]`.
 - **Pending clarifications**: none
-- **Delivered results**: Cron 2 Liveness Check (iteration 5) executed - healthy (mtime updated seconds ago).
+- **Delivered results**: Milestone 3 PASSED all quality gates (both reviewers APPROVED, both challengers APPROVED, forensic auditor CLEAN, build clean exit 0, 152 total tests passing).
 
 ## Project Status
-- **Phase**: in progress (Milestone 2 Backend & Contracts active)
+- **Phase**: in progress (Milestones 1, 2, 3 PASSED ✅; Milestone 4 AI Copilot & Audit Gates pending)
 - Cron 1 (Progress): task-28
-- Cron 2 (Liveness): task-30 (iteration 5 executed - healthy)
+- Cron 2 (Liveness): task-30 (iteration 12 executed - healthy)
 
 ## Victory Audit Status
 - **Triggered**: no
@@ -41,6 +42,10 @@ Sentinel monitoring and orchestration routing for KOSUN AM (קושאן מייל 
 - c:\comona\TEST_INFRA.md — E2E Test Infrastructure
 - c:\comona\TEST_READY.md — E2E Readiness Certification (105 tests passing)
 - c:\comona\src\modules\kosun-am\README.md — Component Architecture & Specification (19KB)
+- c:\comona\src\modules\kosun-am\components\ — Bento Grid UI & Editors (Kosun 2026)
+- c:\comona\src\workbench\moduleRegistry.ts — Registered `kosun-am` module with React.lazy
+- c:\comona\src\modules\kosun-am\services\ — Firestore, Dispatch, AI Services (Live DB only)
+- c:\comona\src\modules\kosun-am\context\ModuleContext.tsx — Scoped State & EventBus context
 - c:\comona\tests\e2e\kosun-am\ — Comprehensive E2E test suite (Tiers 1-4)
 - c:\comona\.agents\teamwork\orchestrator_main — Orchestrator workspace
-- c:\comona\.agents\teamwork\orchestrator_main\GATE_STATUS.md — Milestone 1 Gate Status Log (PASS ✅)
+- c:\comona\.agents\teamwork\orchestrator_main\GATE_STATUS.md — Gate Status Log (M1 PASS ✅, M2 PASS ✅, M3 PASS ✅)

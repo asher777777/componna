@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PageBuilderConfig } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { MessageCircle, Phone, ArrowLeft, Heart, ShieldCheck, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useBrandDna } from '../brand-dna-hub/hooks/useBrandDna';
 
 export interface PageBuilderRendererProps {
   config: PageBuilderConfig;
@@ -16,6 +17,12 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   onLeadSubmit,
 }) => {
   const { globalSettings, seoSettings, sectionOrder, sections } = config;
+  const brandContext = useBrandDna();
+  const brandLogoUrl = brandContext?.brandDna?.identity?.logoUrl;
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  // Fallback cascade: page siteLogoUrl -> Brand DNA identity.logoUrl
+  const effectiveLogoUrl = !logoLoadFailed ? (globalSettings.siteLogoUrl || brandLogoUrl || '') : '';
 
   const customStyle: React.CSSProperties = {
     ['--primary' as any]: globalSettings.primaryColor || '#6366f1',
@@ -99,11 +106,12 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
             >
               {/* Brand Logo & Name */}
               <div className={clsx('flex items-center gap-3', isCentered && 'justify-center')}>
-                {globalSettings.siteLogoUrl ? (
+                {effectiveLogoUrl ? (
                   <img
-                    src={globalSettings.siteLogoUrl}
-                    alt="Logo"
-                    className={clsx(isMinimal ? 'h-8' : 'h-10', 'w-auto object-contain rounded-lg')}
+                    src={effectiveLogoUrl}
+                    alt={globalSettings.companyName || 'קושאן'}
+                    onError={() => setLogoLoadFailed(true)}
+                    className={clsx(isMinimal ? 'h-8' : 'h-10', 'w-auto max-w-[140px] sm:max-w-[180px] object-contain rounded-lg')}
                   />
                 ) : (
                   <div
@@ -112,7 +120,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                       isMinimal ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-base'
                     )}
                   >
-                    {globalSettings.companyName?.charAt(0) || 'ק'}
+                    {globalSettings.companyName?.charAt(0) || brandContext?.brandDna?.identity?.companyName?.charAt(0) || 'ק'}
                   </div>
                 )}
                 <div className="text-right">

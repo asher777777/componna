@@ -17,10 +17,6 @@ import {
   KosunAmContextValue,
 } from '../types';
 import {
-  MOCK_CAMPAIGNS,
-  MOCK_TEMPLATES,
-  MOCK_AUTOMATIONS,
-  MOCK_LOGS,
   KOSUN_AM_EVENT_TOPICS,
 } from '../config';
 import { EmailFirestoreService } from '../services/emailFirestoreService';
@@ -28,6 +24,7 @@ import { EmailDispatchService } from '../services/emailDispatchService';
 import { KosaiEmailAiService } from '../services/kosaiEmailAiService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../core/bridge/EventBus';
 
 const KosunAmContext = createContext<KosunAmContextValue | null>(null);
@@ -38,7 +35,7 @@ export interface KosunAmProviderProps {
 }
 
 export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, children }) => {
-  // Safe extraction of System Connection and Tenant Scope
+  // Safe extraction of System Connection, Tenant Scope, and HostCapabilities
   let systemDb: Firestore | undefined;
   let activeTenantId = '_master';
 
@@ -58,28 +55,29 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
     }
   }
 
-  try {
-    const scope = useTenantScope();
-    if (scope?.tenantId) {
-      activeTenantId = scope.tenantId;
-    }
-  } catch {
-    activeTenantId = '_master';
+  const scope = useTenantScope();
+  if (scope?.tenantId) {
+    activeTenantId = scope.tenantId;
   }
 
-  const [campaigns, setCampaigns] = useState<EmailCampaign[]>(MOCK_CAMPAIGNS);
-  const [templates, setTemplates] = useState<EmailTemplate[]>(MOCK_TEMPLATES);
-  const [automations, setAutomations] = useState<EmailAutomation[]>(MOCK_AUTOMATIONS);
-  const [logs, setLogs] = useState<EmailDeliveryLog[]>(MOCK_LOGS);
+  const hostCapabilities = useHostCapabilities();
+
+  const [campaigns, setCampaigns] = useState<EmailCampaign[]>([]);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [automations, setAutomations] = useState<EmailAutomation[]>([]);
+  const [logs, setLogs] = useState<EmailDeliveryLog[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [activeProvider, setActiveProvider] = useState<EmailProviderType>('resend');
 
-  // Instantiate services
+  // Instantiate services with scoped collection ref and multi-tenancy
   const firestoreService = useMemo(
-    () => new EmailFirestoreService(systemDb, activeTenantId),
-    [systemDb, activeTenantId]
+    () => new EmailFirestoreService(systemDb, activeTenantId, scope?.getScopedCollectionRef),
+    [systemDb, activeTenantId, scope]
   );
-  const dispatchService = useMemo(() => new EmailDispatchService(), []);
+  const dispatchService = useMemo(
+    () => new EmailDispatchService(false, activeTenantId),
+    [activeTenantId]
+  );
   const aiService = useMemo(() => new KosaiEmailAiService(), []);
 
   // Refresh all state
@@ -150,6 +148,18 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
       async (evt) => {
         if (!evt?.email) return;
         console.log('[Kosun AM] EventBus ambassador created:', evt.email);
+        const matching = automations.filter(
+          (a) => a.isActive && a.trigger.event === 'campaign:ambassador:created'
+        );
+        for (const auto of matching) {
+          eventBus.publish(KOSUN_AM_EVENT_TOPICS.AUTOMATION_TRIGGERED, {
+            automationId: auto.id,
+            triggerEvent: 'campaign:ambassador:created',
+            recipientEmail: evt.email,
+            actionTaken: 'ambassador_onboarding_dispatched',
+            timestamp: new Date().toISOString(),
+          });
+        }
       }
     );
 
@@ -207,6 +217,7 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
           fromName: campaign.fromName,
           fromAddress: campaign.fromEmail,
           campaignId: id,
+          tenantId: activeTenantId,
         },
         activeProvider
       );
@@ -236,18 +247,28 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
         dispatchedAt: now,
       });
 
-      // Publish Outbound Event
-      eventBus.publish(KOSUN_AM_EVENT_TOPICS.CAMPAIGN_SENT, {
-        campaignId: id,
-        campaignTitle: campaign.name,
-        recipientCount: result.dispatchedCount,
-        sentAt: now,
-      });
+      if (result.success) {
+        // Publish Outbound Success Event
+        eventBus.publish(KOSUN_AM_EVENT_TOPICS.CAMPAIGN_SENT, {
+          campaignId: id,
+          campaignTitle: campaign.name,
+          recipientCount: result.dispatchedCount,
+          sentAt: now,
+        });
+      } else {
+        // Publish Outbound Failure Event
+        eventBus.publish(KOSUN_AM_EVENT_TOPICS.DELIVERY_FAILED, {
+          campaignId: id,
+          recipientEmail: Array.isArray(campaign.audience.manualEmails) && campaign.audience.manualEmails[0] ? campaign.audience.manualEmails[0] : 'broadcast@kosun.pro',
+          reason: result.error || 'שגיאת שליחה מספק הדיוור',
+          timestamp: now,
+        });
+      }
 
       await refreshAll();
       return result;
     },
-    [campaigns, firestoreService, dispatchService, activeProvider, refreshAll]
+    [campaigns, firestoreService, dispatchService, activeProvider, activeTenantId, refreshAll]
   );
 
   const saveTemplate = useCallback(
@@ -284,12 +305,36 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
     [firestoreService, refreshAll]
   );
 
+  const deleteAutomation = useCallback(
+    async (id: string): Promise<void> => {
+      await firestoreService.deleteAutomation(id);
+      await refreshAll();
+    },
+    [firestoreService, refreshAll]
+  );
+
   const generateAiContent = useCallback(
     async (prompt: string, context?: Record<string, unknown>): Promise<AiGenerationResult> => {
       return aiService.generateMarketingContent(prompt, context);
     },
     [aiService]
   );
+
+  // HostCapabilities DI registration
+  useEffect(() => {
+    if (hostCapabilities?.registerCapability) {
+      hostCapabilities.registerCapability('email-dispatcher', {
+        dispatchCampaign,
+        activeProvider,
+        setActiveProvider,
+      });
+    }
+    return () => {
+      if (hostCapabilities?.unregisterCapability) {
+        hostCapabilities.unregisterCapability('email-dispatcher');
+      }
+    };
+  }, [hostCapabilities, dispatchCampaign, activeProvider, setActiveProvider]);
 
   const value: KosunAmContextValue = {
     tenantId: activeTenantId,
@@ -299,6 +344,7 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
     logs,
     isLoading,
     activeProvider,
+    setActiveProvider,
     createCampaign,
     updateCampaign,
     deleteCampaign,
@@ -307,8 +353,10 @@ export const KosunAmProvider: React.FC<KosunAmProviderProps> = ({ config, childr
     deleteTemplate,
     saveAutomation,
     toggleAutomation,
+    deleteAutomation,
     generateAiContent,
     refreshAll,
+    hostCapabilities,
   };
 
   return <KosunAmContext.Provider value={value}>{children}</KosunAmContext.Provider>;

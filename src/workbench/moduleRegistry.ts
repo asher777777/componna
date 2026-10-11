@@ -59,6 +59,10 @@ const KosaiEngineStandaloneView = React.lazy(() =>
   import('../modules/kosai-engine').then((m) => ({ default: m.KosaiStandaloneView }))
 );
 
+const KosunAmModule = React.lazy(() =>
+  import('../modules/kosun-am').then((m) => ({ default: m.KosunAmStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -69,6 +73,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'kosun-am',
+    name: 'קושאן מייל אוטומטי',
+    description: 'מערכת דיוור, ניוזלטרים ואוטומציות שיווקיות רב-ערוציות חכמות',
+    component: KosunAmModule,
+    route: '/kosun-am',
+    collectionPrefix: 'mod_kosun_am_',
+  },
   {
     id: 'kosai-engine',
     name: 'קשואן AI - מנוע חכם (Kosai Engine)',

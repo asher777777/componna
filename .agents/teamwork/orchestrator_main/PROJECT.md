@@ -98,9 +98,9 @@ src/modules/kosun-am/
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
 | M1 | Specification, Architecture & 12-Layer Scaffolding | Features 1, 2: `README.md` spec + complete 12-layer anatomy structure in `src/modules/kosun-am/` | None | DONE |
-| M2 | Backend, Contracts, Multi-Tenancy & EventBus | Features 3-10: Types, config, Scoped Firestore, Email Dispatchers, API keys, EventBus sync, triple-sync collections | M1 | IN_PROGRESS (`08320530-129e-4f16-ad44-48d68400a312`) |
-| M3 | Kosun 2026 UI, Visual Campaign & Workflow Builder | Features 11-21: Bento Grid, Top Nav, RTL, Heebo, Lucide icons, Collapsible Stats, Visual Email Editor, Workflow Builder, Module Registration | M2 | PLANNED |
-| M4 | AI Copilot (Kosai Email), Brand DNA & Audit Gates | Features 22-25: Gemini Flash Copilot, Token Tracking, Fallback Cascade, 5 Audit Gates validation | M3 | PLANNED |
+| M2 | Backend, Contracts, Multi-Tenancy & EventBus | Features 3-10: Types, config, Scoped Firestore, Email Dispatchers, API keys, EventBus sync, triple-sync collections | M1 | DONE |
+| M3 | Kosun 2026 UI, Visual Campaign & Workflow Builder | Features 11-21: Bento Grid, Top Nav, RTL, Heebo, Lucide icons, Collapsible Stats, Visual Email Editor, Workflow Builder, Module Registration | M2 | DONE |
+| M4 | AI Copilot (Kosai Email), Brand DNA & Audit Gates | Features 22-25: Gemini Flash Copilot, Token Tracking, Fallback Cascade, 5 Audit Gates validation | M3 | IN_PROGRESS |
 | M5 | Final Milestone: E2E Verification & Git Deployment | Features 26-28: E2E suite pass (Tiers 1-4), Adversarial hardening (Tier 5), Git commit, Push & Live Smoke Test | M4, E2E Test Suite | PLANNED |
 
 ---

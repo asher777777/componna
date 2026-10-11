@@ -40,12 +40,12 @@ export class KosunAmFunctionsApi {
 
   async dispatchCampaign(params: DispatchCampaignServerParams): Promise<DispatchCampaignServerResponse> {
     if (!this.baseUrl) {
-      console.log('[Kosun AM Functions API] No functionsBaseUrl configured, returning mock success');
       return {
-        success: true,
-        dispatchedCount: 1,
-        provider: 'mock_server',
-        batchId: `batch_mock_${Date.now()}`,
+        success: false,
+        dispatchedCount: 0,
+        provider: 'functions_api',
+        batchId: '',
+        error: 'Functions service unavailable or unconfigured (missing VITE_FUNCTIONS_BASE_URL)',
       };
     }
 
@@ -63,10 +63,10 @@ export class KosunAmFunctionsApi {
     } catch (err: unknown) {
       console.warn('[Kosun AM Functions API] Server dispatch call failed:', err);
       return {
-        success: true,
-        dispatchedCount: 1,
-        provider: 'mock_server_fallback',
-        batchId: `batch_fallback_${Date.now()}`,
+        success: false,
+        dispatchedCount: 0,
+        provider: 'functions_api',
+        batchId: '',
         error: err instanceof Error ? err.message : String(err),
       };
     }
@@ -75,8 +75,9 @@ export class KosunAmFunctionsApi {
   async sendSmtpProxy(params: SendSmtpProxyParams): Promise<SendSmtpProxyResponse> {
     if (!this.baseUrl) {
       return {
-        success: true,
-        messageId: `smtp_proxy_mock_${Date.now()}`,
+        success: false,
+        messageId: '',
+        error: 'Functions service unavailable or unconfigured (missing VITE_FUNCTIONS_BASE_URL)',
       };
     }
 
@@ -94,8 +95,8 @@ export class KosunAmFunctionsApi {
     } catch (err: unknown) {
       console.warn('[Kosun AM Functions API] SMTP proxy call failed:', err);
       return {
-        success: true,
-        messageId: `smtp_fallback_${Date.now()}`,
+        success: false,
+        messageId: '',
         error: err instanceof Error ? err.message : String(err),
       };
     }

@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PageBuilderConfig, ViewportMode } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { Sparkles, MessageCircle, Phone } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useBrandDna } from '../../brand-dna-hub/hooks/useBrandDna';
 
 interface LivePreviewFrameProps {
   config: PageBuilderConfig;
@@ -16,6 +17,11 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
   onNavigateSection,
 }) => {
   const { globalSettings, sectionOrder, sections } = config;
+  const brandContext = useBrandDna();
+  const brandLogoUrl = brandContext?.brandDna?.identity?.logoUrl;
+  const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+
+  const effectiveLogoUrl = !logoLoadFailed ? (globalSettings.siteLogoUrl || brandLogoUrl || '') : '';
 
   const customStyle: React.CSSProperties = {
     ['--primary' as any]: globalSettings.primaryColor || '#4f46e5',
@@ -68,20 +74,21 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
                 )}
               >
                 <div className={clsx('flex items-center gap-3', isCentered && 'justify-center')}>
-                  {globalSettings.siteLogoUrl ? (
+                  {effectiveLogoUrl ? (
                     <img
-                      src={globalSettings.siteLogoUrl}
-                      alt="Logo"
-                      className={clsx(isMinimal ? 'h-6' : 'h-8', 'w-auto object-contain')}
+                      src={effectiveLogoUrl}
+                      alt={globalSettings.companyName || 'קושאן'}
+                      onError={() => setLogoLoadFailed(true)}
+                      className={clsx(isMinimal ? 'h-6' : 'h-8', 'w-auto max-w-[120px] object-contain')}
                     />
                   ) : (
                     <div
                       className={clsx(
-                        'rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white',
+                        'rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-black text-white shadow-md shadow-indigo-600/30',
                         isMinimal ? 'w-6 h-6 text-[10px]' : 'w-8 h-8 text-xs'
                       )}
                     >
-                      {globalSettings.companyName?.charAt(0) || 'ק'}
+                      {globalSettings.companyName?.charAt(0) || brandContext?.brandDna?.identity?.companyName?.charAt(0) || 'ק'}
                     </div>
                   )}
                   <span className={clsx('font-bold text-white', isMinimal ? 'text-xs' : 'text-sm sm:text-base')}>

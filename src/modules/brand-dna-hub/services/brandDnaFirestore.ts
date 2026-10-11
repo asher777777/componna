@@ -50,6 +50,32 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
     }
   }
 
+  // 2. Fallback to LocalStorage (both tenant-scoped and base keys)
+  try {
+    const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
+    let raw = localStorage.getItem(localStorageKey);
+    if (!raw && tenantId !== '_master') {
+      raw = localStorage.getItem(getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, '_master'));
+    }
+    if (!raw) {
+      raw = localStorage.getItem(BASE_LOCAL_STORAGE_KEY);
+    }
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return {
+        ...DEFAULT_BRAND_DNA,
+        ...parsed,
+        identity: { ...DEFAULT_BRAND_DNA.identity, ...parsed.identity },
+        voice: { ...DEFAULT_BRAND_DNA.voice, ...parsed.voice },
+        audience: { ...DEFAULT_BRAND_DNA.audience, ...parsed.audience },
+        designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...parsed.designTokens },
+        trust: { ...DEFAULT_BRAND_DNA.trust, ...parsed.trust },
+      };
+    }
+  } catch (err) {
+    console.warn('[BrandDNA] LocalStorage read fallback error:', err);
+  }
+
   return DEFAULT_BRAND_DNA;
 }
 

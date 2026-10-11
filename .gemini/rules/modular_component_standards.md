@@ -32,7 +32,7 @@ Every module MUST contain:
 2. `config/index.ts` - Scoped collection prefixes (`mod_[name]_[coll]`) and constants.
 3. `context/ModuleContext.tsx` - React Context Provider for DI.
 4. `hooks/` - Internal scoped React hooks.
-5. `services/` - Scoped Firestore/backend CRUD services with mock data fallback.
+5. `services/` - Scoped Firestore/backend CRUD services connected directly to real DB (STRICT RULE: Zero mock data, zero localStorage fallback. Everything is always connected to real DB).
 6. `api/functionsApi.ts` - Cloud Function callers / proxy.
 7. `prompts/index.ts` - AI system prompts & schemas (if AI-enabled).
 8. `routes/` - Internal relative sub-routing.
