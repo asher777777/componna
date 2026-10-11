@@ -25,6 +25,10 @@ const CAPABILITIES_META: {
   desc: string;
   icon: React.ComponentType<{ className?: string }>;
 }[] = [
+  { id: 'ADD_SECTION', label: 'הוספת אזורים ועיצובים', desc: 'יצירת סקשנים חדשים לפי תבנית או HTML מותאם', icon: Layout },
+  { id: 'UPDATE_SECTION', label: 'עריכת תוכן וסקשנים', desc: 'שינוי כותרות, טקסטים ואלמנטים קיימים בעמוד', icon: Sliders },
+  { id: 'UPDATE_GLOBAL_SETTINGS', label: 'הגדרות עיצוב ומיתוג', desc: 'שינוי צבעים ראשיים, פונטים וסגנון גלובלי', icon: Sparkles },
+  { id: 'UPDATE_SEO', label: 'הגדרות קידום ו-SEO', desc: 'עדכון כותרות מטא, תיאורים ותגיות לעמוד', icon: Target },
   { id: 'CODE_GENERATION', label: 'כתיבת קוד', desc: 'יצירה ועדכון קוד מערכת', icon: Code2 },
   { id: 'PDF_READING', label: 'קריאת מסמכים', desc: 'חילוץ ידע מקבצי PDF', icon: FileText },
   { id: 'WEB_SEARCH', label: 'חיפוש ברשת', desc: 'שליפת מידע אונליין', icon: Search },
@@ -103,12 +107,22 @@ const InfoTooltip = ({ text, title = 'מידע נוסף' }: { text: string; titl
   );
 };
 
-export const KosaiSettingsBackoffice: React.FC = () => {
+export interface KosaiSettingsBackofficeProps {
+  initialRuleId?: string;
+  onClose?: () => void;
+  isModal?: boolean;
+}
+
+export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = ({
+  initialRuleId,
+  onClose,
+  isModal = false
+}) => {
   const { db, purchasedModules } = useSystemConnection();
   const { tenantId } = useTenantScope();
   
   const [rules, setRules] = useState<KosaiRule[]>([]);
-  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(null);
+  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(initialRuleId || null);
   const [analytics, setAnalytics] = useState<KosaiAnalyticsLog[]>([]);
   const [loading, setLoading] = useState(true);
   
@@ -132,12 +146,21 @@ export const KosaiSettingsBackoffice: React.FC = () => {
     const a = await kosaiRulesService.getRecentAnalytics(db, tenantId);
     setRules(r);
     setAnalytics(a);
+    if (initialRuleId) {
+      setSelectedRuleId(initialRuleId);
+    }
     setLoading(false);
   };
 
   useEffect(() => {
     loadData();
   }, [db, tenantId]);
+
+  useEffect(() => {
+    if (initialRuleId) {
+      setSelectedRuleId(initialRuleId);
+    }
+  }, [initialRuleId]);
 
   const handleCreateRule = async (moduleId?: string) => {
     if (!db) return;
@@ -308,8 +331,8 @@ export const KosaiSettingsBackoffice: React.FC = () => {
     );
   }
 
-  return (
-    <div className="min-h-screen pb-24 bg-slate-50 text-slate-900" dir="rtl" style={{ fontFamily: 'Heebo, sans-serif' }}>
+  const mainContent = (
+    <div className={clsx("bg-slate-50 text-slate-900 flex flex-col", isModal ? "w-full max-w-6xl h-[90vh] rounded-3xl overflow-hidden shadow-2xl border border-slate-200 relative" : "min-h-screen pb-24")} dir="rtl" style={{ fontFamily: 'Heebo, sans-serif' }}>
       
       {/* Top Navigation (Cashwan Mobile First, Clean Top Nav) */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
@@ -345,6 +368,16 @@ export const KosaiSettingsBackoffice: React.FC = () => {
               <Plus className="w-4 h-4" />
               <span>סוכן חדש</span>
             </button>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                title="סגור חלון"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -1232,4 +1265,14 @@ export const KosaiSettingsBackoffice: React.FC = () => {
 
     </div>
   );
+
+  if (isModal) {
+    return (
+      <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 animate-fadeIn">
+        {mainContent}
+      </div>
+    );
+  }
+
+  return mainContent;
 };

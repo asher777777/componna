@@ -3,6 +3,7 @@ export const KOSAI_CONFIG = {
   MODULE_ID: 'kosai-engine',
   COLLECTIONS: {
     RULES: 'mod_kosai_rules', // Scoped under tenants/{tenantId}
+    CONVERSATIONS: 'kosai_conversations', // Scoped under tenants/{tenantId}
   },
   DEFAULT_CAPABILITIES: ['ADD_SECTION'] as const,
   UI: {

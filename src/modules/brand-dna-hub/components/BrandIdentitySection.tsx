@@ -19,7 +19,11 @@ import {
   Plus,
   Trash2,
   HelpCircle,
+  Link,
+  Copy,
 } from 'lucide-react';
+
+import { SmartTooltip } from '../../../components/Ui/SmartTooltip';
 
 const ORG_TYPES: OrganizationType[] = [
   'חברה',
@@ -37,19 +41,11 @@ const PURPOSE_PRESETS = [
   'טכנולוגית - פיתוח מוצרים ומיזמים דיגיטליים',
 ];
 
-// Tooltip Component for Explanations
-const Tooltip: React.FC<{ text: string }> = ({ text }) => (
-  <div className="relative group inline-flex items-center justify-center mr-1.5 cursor-help">
-    <HelpCircle className="w-3.5 h-3.5 text-slate-400 hover:text-indigo-500 transition-colors" />
-    <div className="absolute bottom-full right-1/2 translate-x-1/2 mb-2 w-52 p-2.5 bg-slate-800 text-white text-[11px] rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all shadow-xl z-10 text-right pointer-events-none border border-slate-700">
-      {text}
-      <div className="absolute top-full right-1/2 translate-x-1/2 -mt-[1px] border-[5px] border-transparent border-t-slate-800"></div>
-    </div>
-  </div>
-);
+// Tooltip Component using Cashwan 2026 SmartTooltip standard
+const Tooltip: React.FC<{ text: string }> = ({ text }) => <SmartTooltip text={text} />;
 
 export const BrandIdentitySection: React.FC = () => {
-  const { brandDna, updateIdentity, updateDesignTokens } = useBrandDna();
+  const { brandDna, updateIdentity, updateDesignTokens, setLogoUrl } = useBrandDna();
   const { apiKeys } = useSystemConnection();
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
@@ -57,6 +53,7 @@ export const BrandIdentitySection: React.FC = () => {
   const [isExtractingColors, setIsExtractingColors] = useState(false);
   const [extractedColorsList, setExtractedColorsList] = useState<string[]>([]);
   const [colorsExtractedSuccess, setColorsExtractedSuccess] = useState(false);
+  const [logoCopied, setLogoCopied] = useState(false);
 
   // AI Shorten Vision State
   const [isShortening, setIsShortening] = useState(false);
@@ -67,6 +64,13 @@ export const BrandIdentitySection: React.FC = () => {
 
   const handleProcessLogoUrl = async (url: string) => {
     updateIdentity({ logoUrl: url });
+    if (setLogoUrl) {
+      await setLogoUrl(url);
+    }
+    if (!url.trim()) {
+      setExtractedColorsList([]);
+      return;
+    }
     setIsExtractingColors(true);
     try {
       const colors = await extractDominantColorsFromImage(url, 4);
@@ -77,6 +81,21 @@ export const BrandIdentitySection: React.FC = () => {
     } catch (err) {
       console.error('Error extracting colors from logo URL:', err);
       setIsExtractingColors(false);
+    }
+  };
+
+  const handleLogoUrlInputChange = (url: string) => {
+    updateIdentity({ logoUrl: url });
+    if (setLogoUrl) {
+      setLogoUrl(url);
+    }
+  };
+
+  const handleCopyLogoUrl = () => {
+    if (brandDna.identity.logoUrl) {
+      navigator.clipboard.writeText(brandDna.identity.logoUrl);
+      setLogoCopied(true);
+      setTimeout(() => setLogoCopied(false), 2000);
     }
   };
 
@@ -348,7 +367,7 @@ export const BrandIdentitySection: React.FC = () => {
 
       {/* 2. Logo Upload & Automatic Color Extractor with Gallery Integration */}
       <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
               <ImageIcon className="w-5 h-5" />
@@ -356,9 +375,106 @@ export const BrandIdentitySection: React.FC = () => {
             <div>
               <h3 className="flex items-center text-base font-bold text-slate-800 dark:text-white">
                 לוגו המותג 
-                <Tooltip text="העלה את הלוגו שלך. ה-AI שלנו יסרוק אותו ויחלץ ממנו אוטומטית צבעי מותג להתאמה מושלמת." />
+                <Tooltip text="העלה את הלוגו שלך. ה-AI שלנו יסרוק אותו ויחלץ ממנו אוטומטית צבעי מותג להתאמה מושלמת בכל רחבי המערכת." />
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">בחר לוגו מגלריית המדיה המערכתית או העלה קובץ</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                מסונכרן אוטומטית עם גלריית המדיה וכל רכיבי המערכת דרך קולקציית המיתוג (settings/brand_dna)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+              קולקציה מסונכרנת (Live Sync)
+            </span>
+          </div>
+        </div>
+
+        {/* Dedicated Logo URL Input Field */}
+        <div className="space-y-1.5 bg-slate-50/70 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/70">
+          <div className="flex items-center justify-between">
+            <label className="flex items-center text-xs font-bold text-slate-700 dark:text-slate-300">
+              <Link className="w-3.5 h-3.5 ml-1 text-indigo-500" />
+              שדה כתובת הלוגו (URL)
+              <Tooltip text="הדבק כאן קישור ישיר ללוגו, בחר מגלריית המדיה או העלה קובץ מהמחשב. השדה מתעדכן מיידית בכל הרכיבים." />
+            </label>
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-stretch gap-2">
+            <div className="relative flex-1">
+              <input
+                type="text"
+                value={brandDna.identity.logoUrl || ''}
+                onChange={(e) => handleLogoUrlInputChange(e.target.value)}
+                onBlur={() => {
+                  if (brandDna.identity.logoUrl) {
+                    handleProcessLogoUrl(brandDna.identity.logoUrl);
+                  }
+                }}
+                placeholder="הדבק כאן כתובת אינטרנט של הלוגו (https://... או בחר מגלריה)"
+                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono transition-all"
+                dir="ltr"
+              />
+              {brandDna.identity.logoUrl && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    updateIdentity({ logoUrl: '' });
+                    if (setLogoUrl) setLogoUrl('');
+                    setExtractedColorsList([]);
+                  }}
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-1 transition-colors"
+                  title="נקה שדה"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                onClick={handleOpenLogoFromGallery}
+                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
+                title="פתח את גלריית המדיה המערכתית לבחירת הלוגו"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>בחר מגלריה</span>
+              </button>
+
+              <label className="cursor-pointer px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5">
+                <UploadCloud className="w-3.5 h-3.5" />
+                <span>העלה</span>
+                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+              </label>
+
+              {brandDna.identity.logoUrl && (
+                <>
+                  <button
+                    type="button"
+                    onClick={handleCopyLogoUrl}
+                    className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-colors"
+                    title="העתק כתובת לוגו ללוח"
+                  >
+                    {logoCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (brandDna.identity.logoUrl) {
+                        handleProcessLogoUrl(brandDna.identity.logoUrl);
+                      }
+                    }}
+                    disabled={isExtractingColors}
+                    className="p-2 bg-pink-50 hover:bg-pink-100 dark:bg-pink-500/10 dark:hover:bg-pink-500/20 text-pink-600 dark:text-pink-400 rounded-xl border border-pink-200 dark:border-pink-500/30 transition-colors"
+                    title="חלץ צבעים מחדש מהלוגו"
+                  >
+                    <Palette className="w-4 h-4" />
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -391,6 +507,7 @@ export const BrandIdentitySection: React.FC = () => {
                     type="button"
                     onClick={() => {
                       updateIdentity({ logoUrl: '' });
+                      if (setLogoUrl) setLogoUrl('');
                       setExtractedColorsList([]);
                     }}
                     className="text-xs px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-500/10 dark:hover:bg-red-500/20 dark:text-red-400 rounded-lg transition-colors"
@@ -445,9 +562,14 @@ export const BrandIdentitySection: React.FC = () => {
                       <div
                         className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 dark:border-white/20 shadow-sm cursor-pointer hover:scale-105 transition-transform"
                         style={{ backgroundColor: hex }}
-                        title={hex}
+                        title={`העתק ${hex}`}
+                        onClick={() => {
+                          navigator.clipboard.writeText(hex);
+                        }}
                       />
-                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">{hex}</span>
+                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 select-all" dir="ltr">
+                        {hex}
+                      </span>
                     </div>
                   ))}
                 </div>

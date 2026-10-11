@@ -1,18 +1,158 @@
-import { callGeminiApi as coreCallGeminiApi } from '../../page-builder/api/functionsApi';
+import { resolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../page-builder/api/functionsApi';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 
 interface KosaiApiOptions {
   prompt: string;
   systemInstruction?: string;
   imageBase64?: string;
+  history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  cachedContentId?: string;
 }
 
 export interface KosaiApiResponse<T = any> {
   data: T;
   usageReport: TokenUsageReport;
+  cachedContentId?: string;
 }
 
-export const callGeminiApi = async ({ prompt, systemInstruction, imageBase64 }: KosaiApiOptions): Promise<KosaiApiResponse> => {
+function extractJsonFromText(raw: string): any {
+  if (!raw || typeof raw !== 'string') return raw;
+  let cleaned = raw.trim();
+
+  // Strip markdown code fences
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+  }
+
+  // Find outermost JSON object
+  const startIdx = cleaned.indexOf('{');
+  const endIdx = cleaned.lastIndexOf('}');
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const candidateJson = cleaned.substring(startIdx, endIdx + 1);
+    try {
+      return JSON.parse(candidateJson);
+    } catch {
+      // If parsing fails due to unescaped newlines in string properties, try sanitizing
+      try {
+        const sanitized = candidateJson.replace(/[\u0000-\u001F]+/g, (match) => {
+          if (match === '\n') return '\\n';
+          if (match === '\r') return '\\r';
+          if (match === '\t') return '\\t';
+          return '';
+        });
+        return JSON.parse(sanitized);
+      } catch {
+        // Continue to fallback
+      }
+    }
+  }
+
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    return {
+      message: cleaned,
+      action: 'NONE',
+      payload: {}
+    };
+  }
+}
+
+export const callGeminiApi = async ({ 
+  prompt, 
+  systemInstruction, 
+  imageBase64,
+  history,
+  cachedContentId
+}: KosaiApiOptions): Promise<KosaiApiResponse> => {
+  const apiKey = resolveApiKey();
+  const model = imageBase64 ? 'gemini-1.5-pro-vision' : 'gemini-3.8-flash';
+
+  if (apiKey) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const contents: any[] = [];
+
+      // Add conversation history if present
+      if (history && history.length > 0) {
+        for (const item of history) {
+          if (!item.content || item.content.startsWith('היי! אני KOSAI')) continue;
+          contents.push({
+            role: item.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: item.content }]
+          });
+        }
+      }
+
+      // Add current turn
+      const currentParts: any[] = [{ text: prompt }];
+      if (imageBase64) {
+        currentParts.push({
+          inlineData: {
+            data: imageBase64.split(',')[1] || imageBase64,
+            mimeType: imageBase64.split(';')[0]?.split(':')[1] || 'image/png'
+          }
+        });
+      }
+      contents.push({
+        role: 'user',
+        parts: currentParts
+      });
+
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: 0.7,
+          responseMimeType: 'application/json'
+        }
+      };
+
+      if (systemInstruction) {
+        requestBody.systemInstruction = {
+          parts: [{ text: systemInstruction }]
+        };
+      }
+
+      // Attach Gemini Context Cache ID if available (Point ג)
+      if (cachedContentId) {
+        requestBody.cachedContent = cachedContentId;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal
+      });
+
+      clearTimeout(timeoutId);
+
+      if (res.ok) {
+        const result = await res.json();
+        const candidateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+        const parsed = extractJsonFromText(candidateText || '');
+
+        const usageReport = calculateGeminiCost({
+          model,
+          promptTokens: result.usageMetadata?.promptTokenCount || 20,
+          candidatesTokens: result.usageMetadata?.candidatesTokenCount || 40,
+        });
+
+        return {
+          data: parsed,
+          usageReport,
+          cachedContentId: result.cachedContent || cachedContentId
+        };
+      }
+    } catch (directErr) {
+      console.warn('[KOSAI API] Direct fetch encountered an issue, falling back:', directErr);
+    }
+  }
+
+  // Fallback to coreCallGeminiApi
   const imageParts = imageBase64 
     ? [{ 
         inlineData: { 
@@ -21,8 +161,6 @@ export const callGeminiApi = async ({ prompt, systemInstruction, imageBase64 }: 
         } 
       }]
     : undefined;
-
-  const model = imageBase64 ? 'gemini-1.5-pro-vision' : 'gemini-3.8-flash';
 
   const response = await coreCallGeminiApi({
     prompt,
@@ -39,9 +177,12 @@ export const callGeminiApi = async ({ prompt, systemInstruction, imageBase64 }: 
     candidatesTokens: response.usageMetadata?.candidatesTokenCount || 20,
   });
 
+  const parsed = typeof response.data === 'string' ? extractJsonFromText(response.data) : response.data;
+
   return {
-    data: response.data,
-    usageReport
+    data: parsed,
+    usageReport,
+    cachedContentId
   };
 };
 

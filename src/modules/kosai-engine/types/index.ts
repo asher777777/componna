@@ -35,15 +35,31 @@ export type KosaiCapability =
   | 'VIDEO_GENERATION' 
   | 'DEEP_RESEARCH'
   | 'WHATSAPP_AUTOMATION'
-  | 'WHATSAPP_AUTO_RESPOND';
+  | 'WHATSAPP_AUTO_RESPOND'
+  | 'ADD_SECTION'
+  | 'UPDATE_SECTION'
+  | 'UPDATE_GLOBAL_SETTINGS'
+  | 'UPDATE_SEO';
 
 export interface KosaiMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   imageUrl?: string;
-  timestamp: Date;
+  timestamp: Date | number | string;
   isLoading?: boolean;
+}
+
+export interface KosaiConversation {
+  id: string;
+  tenantId: string;
+  moduleId: string;
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: KosaiMessage[];
+  cachedContentId?: string;
+  status: 'active' | 'archived' | 'deleted';
 }
 
 export interface KosaiActionPayload {

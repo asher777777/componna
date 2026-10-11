@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { doc, onSnapshot } from 'firebase/firestore';
 import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, BrandDesignTokens, BrandTrustAndCheckout } from '../types/brandDna';
 import { loadBrandDna, saveBrandDna } from '../services/brandDnaFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -6,6 +7,7 @@ import { buildBrandSystemContext } from '../services/geminiBrandPrompt';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { BrandDnaContract } from '../../../core/contracts';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { useTenantScope } from '../../../core/tenant';
 
 export interface BrandDnaContextValue {
@@ -38,10 +40,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-
-
-
-  // Load initially or when tenant changes
+  // Load initially or when tenant changes, and attach real-time onSnapshot listener
   useEffect(() => {
     let mounted = true;
     async function init() {
@@ -53,12 +52,67 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     }
     init();
+
+    // Attach real-time Firestore listener to settings/brand_dna collection
+    let unsubscribeSnapshot: (() => void) | undefined;
+    if (db) {
+      try {
+        const docRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
+        unsubscribeSnapshot = onSnapshot(
+          docRef,
+          (snap) => {
+            if (snap.exists() && mounted) {
+              const remoteData = snap.data() as BrandDna;
+              setBrandDna((prev) => {
+                if (JSON.stringify(prev) === JSON.stringify(remoteData)) return prev;
+                return {
+                  ...DEFAULT_BRAND_DNA,
+                  ...remoteData,
+                  identity: { ...DEFAULT_BRAND_DNA.identity, ...(remoteData.identity || {}) },
+                  voice: { ...DEFAULT_BRAND_DNA.voice, ...(remoteData.voice || {}) },
+                  audience: { ...DEFAULT_BRAND_DNA.audience, ...(remoteData.audience || {}) },
+                  designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...(remoteData.designTokens || {}) },
+                  trust: { ...DEFAULT_BRAND_DNA.trust, ...(remoteData.trust || {}) },
+                };
+              });
+            }
+          },
+          (err) => {
+            console.warn('[BrandDNA] onSnapshot collection listener note:', err);
+          }
+        );
+      } catch (err) {
+        console.warn('[BrandDNA] Firestore subscription init note:', err);
+      }
+    }
+
     return () => {
       mounted = false;
+      if (unsubscribeSnapshot) unsubscribeSnapshot();
     };
   }, [db, tenantId]);
 
-  // Auto-Save whenever brandDna changes (debounced by 1 second)
+  // Subscribe to live logo updates across EventBus (e.g. from Media Gallery, Gemini Studio)
+  useEffect(() => {
+    const unsub = eventBus.subscribe('brand:logo_updated', (data) => {
+      if (data?.logoUrl !== undefined) {
+        setBrandDna((prev) => {
+          if (prev.identity.logoUrl === data.logoUrl) return prev;
+          const updated = {
+            ...prev,
+            identity: { ...prev.identity, logoUrl: data.logoUrl },
+          };
+          saveBrandDna(updated, db, tenantId).catch((err) =>
+            console.warn('[BrandDNA] Failed to persist logo from event:', err)
+          );
+          return updated;
+        });
+      }
+    });
+    return () => unsub();
+  }, [db, tenantId]);
+
+  // Auto-Save whenever brandDna changes (debounced by 1.5 seconds)
   useEffect(() => {
     if (isLoading) return;
     const timer = setTimeout(() => {
@@ -75,11 +129,25 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [brandDna, db, tenantId, isLoading]);
 
   const updateIdentity = useCallback((partial: Partial<BrandIdentity>) => {
-    setBrandDna((prev) => ({
-      ...prev,
-      identity: { ...prev.identity, ...partial },
-    }));
-  }, []);
+    setBrandDna((prev) => {
+      const updated = {
+        ...prev,
+        identity: { ...prev.identity, ...partial },
+      };
+      if (partial.logoUrl !== undefined) {
+        saveBrandDna(updated, db, tenantId).catch((err) =>
+          console.warn('[BrandDNA] Auto-save logo failed:', err)
+        );
+      }
+      return updated;
+    });
+    if (partial.logoUrl !== undefined) {
+      eventBus.publish('brand:logo_updated', {
+        logoUrl: partial.logoUrl,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+  }, [db, tenantId]);
 
   const updateVoice = useCallback((partial: Partial<BrandVoice>) => {
     setBrandDna((prev) => ({
@@ -114,16 +182,29 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, []);
 
   const setLogoUrl = useCallback(async (url: string): Promise<boolean> => {
-    setBrandDna((prev) => ({
-      ...prev,
-      identity: { ...prev.identity, logoUrl: url },
-    }));
+    setBrandDna((prev) => {
+      const updated = {
+        ...prev,
+        identity: { ...prev.identity, logoUrl: url },
+      };
+      saveBrandDna(updated, db, tenantId).catch((err) =>
+        console.warn('[BrandDNA] Save logoUrl failed:', err)
+      );
+      return updated;
+    });
     eventBus.publish('brand:logo_updated', {
       logoUrl: url,
       updatedAt: new Date().toISOString(),
     });
+    eventBus.publish('brand:updated', {
+      brandDna: {
+        ...brandDna,
+        identity: { ...brandDna.identity, logoUrl: url },
+      },
+      updatedAt: new Date().toISOString(),
+    });
     return true;
-  }, []);
+  }, [db, tenantId, brandDna]);
 
   const addVibeImage = useCallback(async (url: string): Promise<boolean> => {
     setBrandDna((prev) => {

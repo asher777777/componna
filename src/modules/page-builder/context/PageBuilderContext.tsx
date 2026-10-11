@@ -96,7 +96,31 @@ export const PageBuilderProvider: React.FC<{
         setBrandDna(data.brandDna);
       }
     });
-    return () => unsub();
+    const unsubLogo = eventBus.subscribe('brand:logo_updated', (data) => {
+      if (data?.logoUrl !== undefined) {
+        setBrandDna((prev) => (prev ? {
+          ...prev,
+          identity: { ...prev.identity, logoUrl: data.logoUrl },
+        } : null));
+        setCurrentPageConfigState((prev) => {
+          if (!prev?.globalSettings) return prev;
+          if (prev.globalSettings.brandDnaSynced || !prev.globalSettings.siteLogoUrl) {
+            return {
+              ...prev,
+              globalSettings: {
+                ...prev.globalSettings,
+                siteLogoUrl: data.logoUrl,
+              },
+            };
+          }
+          return prev;
+        });
+      }
+    });
+    return () => {
+      unsub();
+      unsubLogo();
+    };
   }, []);
 
   // Update history index and flags
