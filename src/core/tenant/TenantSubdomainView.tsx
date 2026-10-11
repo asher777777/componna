@@ -17,6 +17,7 @@ import { DashboardFirestoreService } from '../../modules/kosun-board-composer/se
 import { DynamicCustomDashboardView } from '../../modules/kosun-board-composer/components/DynamicCustomDashboardView';
 import { GeneratedCustomDashboard } from '../../modules/kosun-board-composer/types';
 import { KosunBoardProvider } from '../../modules/kosun-board-composer/context/ModuleContext';
+import { FloatingSystemDock } from '../../components/Navigation/FloatingSystemDock';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -392,6 +393,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           </div>
         )}
       </div>
+
+      <FloatingSystemDock />
     </div>
   );
 };

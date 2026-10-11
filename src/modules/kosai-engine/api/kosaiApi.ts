@@ -71,17 +71,31 @@ export const callGeminiApi = async ({
   const apiKey = (customApiKey && customApiKey.trim().length > 5)
     ? customApiKey.trim()
     : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('page-builder') || defaultResolveApiKey();
-  const model = imageBase64 ? 'gemini-1.5-pro-vision' : 'gemini-3.8-flash';
+  
+  const model = imageBase64 ? 'gemini-1.5-flash' : 'gemini-2.5-flash';
 
-  if (apiKey) {
+  if (!apiKey) {
+    return {
+      data: {
+        message: 'שלום! כדי שאוכל לענות בזמן אמת ולבצע פעולות עיצוב חכמות עם בינה מלאכותית, אנא הגדר מפתח Google Gemini API בהגדרות הסוכן ⚙️ או בהגדרות הטננט. בינתיים, אני כאן לרשותך בכל שאלה על המערכת והעמודים.',
+        action: 'NONE',
+        payload: {}
+      },
+      usageReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 })
+    };
+  }
+
+  // Try direct fetch with primary model and automatic fallback to gemini-1.5-flash if needed
+  const modelsToTry = [model, 'gemini-1.5-flash'];
+  for (const currentModel of Array.from(new Set(modelsToTry))) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;
       const contents: any[] = [];
 
       // Add conversation history if present
       if (history && history.length > 0) {
         for (const item of history) {
-          if (!item.content || item.content.startsWith('היי! אני KOSAI')) continue;
+          if (!item.content || item.content.startsWith('היי! אני קושאן AI') || item.content.startsWith('היי! אני KOSAI')) continue;
           contents.push({
             role: item.role === 'assistant' ? 'model' : 'user',
             parts: [{ text: item.content }]
@@ -118,7 +132,7 @@ export const callGeminiApi = async ({
         };
       }
 
-      // Attach Gemini Context Cache ID if available (Point ג)
+      // Attach Gemini Context Cache ID if available
       if (cachedContentId) {
         requestBody.cachedContent = cachedContentId;
       }
@@ -141,7 +155,7 @@ export const callGeminiApi = async ({
         const parsed = extractJsonFromText(candidateText || '');
 
         const usageReport = calculateGeminiCost({
-          model,
+          model: currentModel,
           promptTokens: result.usageMetadata?.promptTokenCount || 20,
           candidatesTokens: result.usageMetadata?.candidatesTokenCount || 40,
         });
@@ -151,13 +165,16 @@ export const callGeminiApi = async ({
           usageReport,
           cachedContentId: result.cachedContent || cachedContentId
         };
+      } else {
+        const errText = await res.text().catch(() => '');
+        console.warn(`[KOSAI API] ${currentModel} returned ${res.status}:`, errText);
       }
     } catch (directErr) {
-      console.warn('[KOSAI API] Direct fetch encountered an issue, falling back:', directErr);
+      console.warn(`[KOSAI API] ${currentModel} fetch error:`, directErr);
     }
   }
 
-  // Fallback to coreCallGeminiApi
+  // Fallback to coreCallGeminiApi with gemini-1.5-flash
   const imageParts = imageBase64 
     ? [{ 
         inlineData: { 
@@ -171,13 +188,13 @@ export const callGeminiApi = async ({
     prompt,
     systemInstruction,
     responseMimeType: 'application/json',
-    model,
+    model: 'gemini-1.5-flash',
     imageParts,
     timeoutMs: 60000,
   });
 
   const usageReport = calculateGeminiCost({
-    model,
+    model: 'gemini-1.5-flash',
     promptTokens: response.usageMetadata?.promptTokenCount || 10,
     candidatesTokens: response.usageMetadata?.candidatesTokenCount || 20,
   });
@@ -185,7 +202,11 @@ export const callGeminiApi = async ({
   const parsed = typeof response.data === 'string' ? extractJsonFromText(response.data) : response.data;
 
   return {
-    data: parsed,
+    data: parsed || {
+      message: 'לא התקבלה תשובה תקינה משרתי ה-AI. אנא נסה שוב או בדוק את מפתח ה-API בהגדרות.',
+      action: 'NONE',
+      payload: {}
+    },
     usageReport,
     cachedContentId
   };
@@ -215,7 +236,7 @@ Instructions:
 3. The prompt should explain to the AI what tools it has and what data it can access.
 4. Do NOT wrap the response in markdown blocks (no \`\`\` text). Return plain text only.`;
 
-  const model = 'gemini-3.8-flash';
+  const model = 'gemini-2.5-flash';
 
   const response = await coreCallGeminiApi({
     prompt: `Please generate the system prompt for the "${moduleName}" assistant.`,

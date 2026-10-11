@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useKosai } from '../context/KosaiContext';
 import { 
   X, Send, Bot, User, Image as ImageIcon, Loader2, Sparkles, 
-  Trash2, Maximize2, Minimize2, Settings, History, Plus, MessageSquare 
+  Trash2, Maximize2, Minimize2, Settings, History, Plus, MessageSquare,
+  Mic, MicOff
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -52,13 +53,148 @@ export const KosaiChatDrawer: React.FC = () => {
     }
   }, [messages, isOpen, showHistory]);
 
-  if (!isOpen) return null;
+  const [isListening, setIsListening] = useState(false);
+  const isListeningRef = useRef(false);
+  const recognitionRef = useRef<any>(null);
+  const baseTextRef = useRef('');
+
+  const autoCorrectText = (text: string) => {
+    if (!text) return text;
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\s+([,.:?!])/g, '$1')
+      .replace(/([,.:?!])(?=[^\s\d])/g, '$1 ')
+      .trim();
+  };
+
+  const startVoiceDictation = () => {
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('דפדפן זה אינו תומך בזיהוי קולי (Web Speech API). אנא השתמש ב-Chrome או דפדפן מבוסס Chromium.');
+      return;
+    }
+
+    try {
+      if (recognitionRef.current) {
+        try { recognitionRef.current.abort(); } catch {}
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'he-IL';
+
+      baseTextRef.current = inputText ? (inputText.trim() + ' ') : '';
+      isListeningRef.current = true;
+      setIsListening(true);
+
+      recognition.onresult = (event: any) => {
+        let interimTranscript = '';
+        let finalTranscript = '';
+
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const piece = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            finalTranscript += piece;
+          } else {
+            interimTranscript += piece;
+          }
+        }
+
+        if (finalTranscript) {
+          baseTextRef.current += finalTranscript + ' ';
+        }
+
+        const combined = baseTextRef.current + interimTranscript;
+        setInputText(autoCorrectText(combined));
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('[Kosai Voice Dictation] Recognition error:', event?.error);
+        if (event?.error === 'not-allowed') {
+          isListeningRef.current = false;
+          setIsListening(false);
+          alert('אנא אשר גישה למיקרופון כדי להשתמש בהקראה קולית.');
+        }
+      };
+
+      recognition.onend = () => {
+        // Stop ONLY when user clicks Send (or intentionally toggles off)
+        if (isListeningRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            // Already restarted
+          }
+        } else {
+          setIsListening(false);
+        }
+      };
+
+      recognition.start();
+      recognitionRef.current = recognition;
+    } catch (err) {
+      console.error('[Kosai Voice Dictation] Failed to start:', err);
+      setIsListening(false);
+      isListeningRef.current = false;
+    }
+  };
+
+  const stopVoiceDictation = () => {
+    isListeningRef.current = false;
+    setIsListening(false);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch {}
+      recognitionRef.current = null;
+    }
+  };
+
+  const toggleVoiceDictation = () => {
+    if (isListening) {
+      stopVoiceDictation();
+    } else {
+      startVoiceDictation();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopVoiceDictation();
+    };
+  }, []);
 
   const handleSend = () => {
-    if (!inputText.trim()) return;
-    sendMessage(inputText.trim());
+    // Dictation stops ONLY when Send is clicked!
+    if (isListeningRef.current) {
+      stopVoiceDictation();
+    }
+    const cleanText = autoCorrectText(inputText);
+    if (!cleanText.trim()) return;
+    sendMessage(cleanText.trim());
     setInputText('');
+    baseTextRef.current = '';
   };
+
+  // Keyboard Escape key handler (מקש היציאה)
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isListeningRef.current) {
+          stopVoiceDictation();
+        }
+        setIsOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   const handleConfirmClear = async () => {
     if (window.confirm('האם אתה בטוח שברצונך לזרוק את השיחה הנוכחית לפח ולהתחיל מחדש?')) {
@@ -66,6 +202,8 @@ export const KosaiChatDrawer: React.FC = () => {
       setShowHistory(false);
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <>
@@ -80,11 +218,11 @@ export const KosaiChatDrawer: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-indigo-500/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0 p-1.5">
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
               <img
                 src="/images/kosun-symbol.svg"
                 alt="Kosun AI"
-                className="w-full h-full object-contain"
+                className="w-7 h-7 object-contain drop-shadow"
                 onError={(e) => {
                   (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
                 }}
@@ -149,8 +287,17 @@ export const KosaiChatDrawer: React.FC = () => {
             </button>
 
             <button 
-              onClick={() => setIsOpen(false)} 
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isListeningRef.current) {
+                  stopVoiceDictation();
+                }
+                setIsOpen(false);
+              }} 
               className="p-1.5 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
+              title="סגירת חלון (Esc)"
+              aria-label="סגירת צ'אט"
             >
               <X className="w-4 h-4" />
             </button>
@@ -245,9 +392,23 @@ export const KosaiChatDrawer: React.FC = () => {
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
             {messages.map(msg => (
               <div key={msg.id} className={clsx("flex gap-3 max-w-[90%]", msg.role === 'user' ? "self-end flex-row-reverse" : "self-start")}>
-                <div className={clsx("w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-1", msg.role === 'user' ? "bg-slate-800" : "bg-indigo-500/20 text-indigo-400 border border-indigo-500/30")}>
-                  {msg.role === 'user' ? <User className="w-4 h-4 text-slate-300" /> : <Bot className="w-4 h-4" />}
-                </div>
+                {msg.role === 'user' ? (
+                  <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center shrink-0 mt-1 text-slate-300">
+                    <User className="w-4 h-4" />
+                  </div>
+                ) : (
+                  <div className="relative w-8 h-8 flex items-center justify-center shrink-0 mt-1">
+                    <img
+                      src="/images/kosun-symbol.svg"
+                      alt="K"
+                      className="w-6 h-6 object-contain"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+                      }}
+                    />
+                    <Sparkles className="w-2.5 h-2.5 text-indigo-400 absolute -top-0.5 -right-0.5 animate-pulse" />
+                  </div>
+                )}
                 <div className={clsx("flex flex-col gap-2", msg.role === 'user' ? "items-end" : "items-start")}>
                   <div className={clsx("p-3.5 rounded-2xl text-sm leading-relaxed", msg.role === 'user' ? "bg-indigo-600 text-white rounded-tr-sm" : "bg-slate-800/80 text-slate-200 border border-slate-700 rounded-tl-sm")}>
                     {msg.imageUrl && (
@@ -270,37 +431,72 @@ export const KosaiChatDrawer: React.FC = () => {
         )}
 
         {/* Input Bar */}
-        <div className="p-3.5 border-t border-slate-800 bg-slate-900/50">
-          <div className="flex items-end gap-2 bg-slate-900 border border-slate-700 rounded-2xl p-2 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
-            <button 
-              onClick={triggerMediaGallery} 
-              className="p-2.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-xl transition-colors shrink-0 cursor-pointer"
-              title="בחר תמונה מספריית המדיה"
-            >
-              <ImageIcon className="w-4 h-4" />
-            </button>
-            
-            <textarea
-              value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend();
-                }
-              }}
-              placeholder="איך קושאן יכול לעזור בעיצוב האתר?"
-              className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 text-white text-xs resize-none py-2.5 px-2 placeholder-slate-500"
-              rows={1}
-            />
-            
-            <button 
-              onClick={handleSend}
-              disabled={!inputText.trim()}
-              className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl transition-colors shrink-0 shadow-lg shadow-indigo-500/20 disabled:shadow-none cursor-pointer"
-            >
-              <Send className="w-4 h-4 -ml-0.5" />
-            </button>
+        <div className="border-t border-slate-800 bg-slate-900/50">
+          {isListening && (
+            <div className="px-3.5 py-1.5 bg-rose-950/40 border-b border-rose-500/20 flex items-center justify-between text-[11px] text-rose-300">
+              <span className="flex items-center gap-1.5 font-bold">
+                <span className="w-2 h-2 rounded-full bg-rose-500 animate-ping" />
+                הקראה קולית פעילה (Google Web Speech)
+              </span>
+              <span className="text-[10px] text-slate-400">ייעצר בלחיצה על שליחה</span>
+            </div>
+          )}
+
+          <div className="p-3.5">
+            <div className="flex items-end gap-2 bg-slate-900 border border-slate-700 rounded-2xl p-2 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
+              <button 
+                onClick={triggerMediaGallery} 
+                className="p-2.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-xl transition-colors shrink-0 cursor-pointer"
+                title="בחר תמונה מספריית המדיה"
+              >
+                <ImageIcon className="w-4 h-4" />
+              </button>
+              
+              <textarea
+                value={inputText}
+                onChange={e => setInputText(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSend();
+                  }
+                }}
+                placeholder={isListening ? "מקשיב ומקליד ברצף... לחץ שליחה לעצירה וביצוע" : "איך קושאן יכול לעזור בעיצוב האתר?"}
+                className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 text-white text-xs resize-none py-2.5 px-2 placeholder-slate-500"
+                rows={1}
+              />
+
+              {/* Continuous Voice Dictation Mic Button (Google AI Web Speech) */}
+              <button
+                type="button"
+                onClick={toggleVoiceDictation}
+                className={clsx(
+                  "p-2.5 rounded-xl transition-all shrink-0 cursor-pointer relative",
+                  isListening
+                    ? "bg-rose-600 text-white shadow-lg shadow-rose-600/30 animate-pulse"
+                    : "text-slate-400 hover:text-indigo-400 hover:bg-slate-800"
+                )}
+                title={isListening ? "מקשיב ברציפות... לחץ שליחה לעצירה ושליחה" : "הקראה קולית ברצף (Web Speech AI)"}
+              >
+                {isListening ? (
+                  <>
+                    <MicOff className="w-4 h-4" />
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-400 rounded-full animate-ping" />
+                  </>
+                ) : (
+                  <Mic className="w-4 h-4" />
+                )}
+              </button>
+              
+              <button 
+                onClick={handleSend}
+                disabled={!inputText.trim()}
+                className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl transition-colors shrink-0 shadow-lg shadow-indigo-500/20 disabled:shadow-none cursor-pointer"
+                title="שליחה וסיום הקראה"
+              >
+                <Send className="w-4 h-4 -ml-0.5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { PageBuilderRenderer } from '../PageBuilderRenderer';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home } from 'lucide-react';
+import { FloatingSystemDock } from '../../../components/Navigation/FloatingSystemDock';
 
 export const PublicPageView: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
@@ -193,6 +194,10 @@ export const PublicPageView: React.FC = () => {
         onLeadSubmit={(formData) => {
           console.log('[PublicPageView] Received lead submission:', formData);
         }}
+      />
+
+      <FloatingSystemDock 
+        editPageUrl={`/page-builder?pageId=${page.pageId}`}
       />
     </div>
   );

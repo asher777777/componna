@@ -27,9 +27,19 @@ export function resolveApiKey(providedApiKey?: string): string | null {
     return providedApiKey.trim();
   }
 
+  const kosaiKey = getModuleGeminiKey('kosai-engine');
+  if (kosaiKey && kosaiKey.trim().length > 5) {
+    return kosaiKey.trim();
+  }
+
   const systemKey = getModuleGeminiKey('page-builder');
   if (systemKey && systemKey.trim().length > 5) {
     return systemKey.trim();
+  }
+
+  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  if (envKey && envKey.trim().length > 5) {
+    return envKey.trim();
   }
 
   return null;
@@ -49,7 +59,8 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
     };
   }
 
-  const model = options.model || 'gemini-3.8-flash';
+  const requestedModel = options.model || 'gemini-2.5-flash';
+  const model = requestedModel.includes('3.8') ? 'gemini-2.5-flash' : requestedModel;
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   const controller = new AbortController();

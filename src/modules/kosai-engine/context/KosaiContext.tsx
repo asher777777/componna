@@ -420,7 +420,27 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
 export const useKosai = () => {
   const context = useContext(KosaiContext);
-  if (!context) throw new Error('useKosai must be used within KosaiProvider');
+  if (!context) {
+    return {
+      isOpen: false,
+      setIsOpen: () => {},
+      messages: [],
+      sendMessage: async () => {},
+      clearChat: async () => {},
+      currentRule: null,
+      setCurrentRule: () => {},
+      triggerMediaGallery: () => {},
+      activeConversationId: null,
+      conversations: [],
+      loadConversation: async () => {},
+      deleteConversation: async () => {},
+      startNewConversation: () => {},
+      refreshConversations: async () => {},
+      refreshRules: async () => {},
+      cachedContentId: null,
+      isLoggedIn: false,
+    };
+  }
   return context;
 };
 
