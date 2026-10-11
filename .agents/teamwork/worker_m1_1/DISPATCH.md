@@ -72,3 +72,13 @@ Tasks:
 3. Run `npm run build` to verify 0 compilation errors.
 4. Write handoff report in `c:\comona\.agents\teamwork\worker_m1_1\handoff.md`.
 Send message to caller upon completion.
+
+
+## 2026-10-11T12:03:19Z
+**Context**: KOSUN Branding Refinement
+**Content**: Latest update from project owner and parent:
+Always write:
+- English: KOSUN (all uppercase, e.g. KOSUN AM)
+- Hebrew: קושאן (e.g. קושאן מייל אוטומטי)
+Ensure all spec texts, documentation, and components follow this styling.
+**Action**: Integrate into README.md spec and scaffolding if not already completed.

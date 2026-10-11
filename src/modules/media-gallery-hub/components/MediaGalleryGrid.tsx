@@ -34,6 +34,7 @@ import {
   RefreshCw,
   Loader2,
   Video,
+  Wand2,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -300,6 +301,7 @@ const MediaGridCard: React.FC<{
   onConvertSingle: (e: React.MouseEvent, item: MediaItem) => void;
   onMoveSingle: (e: React.MouseEvent, item: MediaItem) => void;
   onDownloadSingle: (e: React.MouseEvent, item: MediaItem) => void;
+  onAiEditSingle?: (item: MediaItem) => void;
 }> = React.memo((props) => {
   const {
     item,
@@ -322,6 +324,7 @@ const MediaGridCard: React.FC<{
     onConvertSingle,
     onMoveSingle,
     onDownloadSingle,
+    onAiEditSingle,
   } = props;
 
   return (
@@ -388,6 +391,19 @@ const MediaGridCard: React.FC<{
           >
             <FolderInput className="w-3.5 h-3.5" />
           </button>
+          {item.type === 'image' && onAiEditSingle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onAiEditSingle(item);
+              }}
+              className="w-7 h-7 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black flex items-center justify-center backdrop-blur-md shadow border border-amber-300 transition-all hover:scale-105 cursor-pointer"
+              title="ערוך תמונה עם קושאן AI"
+            >
+              <Wand2 className="w-3.5 h-3.5 text-black" />
+            </button>
+          )}
           {(item.type === 'image' || item.type === 'code' || item.type === 'document') && (
             <button
               type="button"
@@ -1121,7 +1137,7 @@ export const MediaGalleryGrid: React.FC = () => {
             title="יצירת תמונות מרהיבות עם Google Gemini וקידוד אוטומטי"
           >
             <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">יצירת תמונה ב-AI</span>
+            <span className="hidden sm:inline">קושאן AI Studio</span>
           </button>
 
           {/* Quick Upload Button */}
@@ -1330,11 +1346,11 @@ export const MediaGalleryGrid: React.FC = () => {
           }`}
         >
           <div
-            className={`w-14 h-14 rounded-full border flex items-center justify-center text-2xl mx-auto ${
-              isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-800/80 border-slate-700'
+            className={`w-14 h-14 rounded-full border flex items-center justify-center mx-auto ${
+              isLight ? 'bg-slate-100 border-slate-200 text-slate-500' : 'bg-slate-800/80 border-slate-700 text-slate-400'
             }`}
           >
-            📂
+            <Folder className="w-6 h-6" />
           </div>
           <h4 className="text-sm font-bold">לא נמצאו קבצים במיקום זה</h4>
           <p className={`text-xs max-w-sm mx-auto ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
@@ -1430,6 +1446,7 @@ export const MediaGalleryGrid: React.FC = () => {
               onConvertSingle={handleConvertSingle}
               onMoveSingle={handleMoveSingle}
               onDownloadSingle={handleDownloadSingle}
+              onAiEditSingle={openAiImageGenerator}
             />
           );
         })}

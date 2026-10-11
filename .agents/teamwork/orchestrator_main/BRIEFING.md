@@ -1,4 +1,4 @@
-# BRIEFING — 2026-10-11T11:51:00Z
+# BRIEFING — 2026-10-11T12:05:50Z
 
 ## Mission
 Orchestrate end-to-end design, implementation, testing, audit, and deployment of KOSUN AM ("קושאן מייל אוטומטי" - Smart Email & Multi-Channel Automation Hub) under src/modules/kosun-am/.
@@ -19,18 +19,18 @@ Orchestrate end-to-end design, implementation, testing, audit, and deployment of
 4. **Succession**: At 16 spawns, write handoff.md, spawn successor.
 - **Work items**:
   1. Survey & Architecture Blueprint [done]
-  2. Milestone 1: Spec Architecture & 12-Layer Scaffolding [in-progress]
-  3. E2E Testing Track: Opaque-Box Test Suite [in-progress]
+  2. Dual Track: E2E Test Suite (Tiers 1-4) [done - 105 tests passing 100%]
+  3. Milestone 1: Spec Architecture & 12-Layer Scaffolding [gate in-progress]
   4. Milestone 2: Backend, Contracts, Multi-Tenancy & EventBus [pending]
   5. Milestone 3: Kosun 2026 UI, Visual Campaign & Workflow Builder [pending]
   6. Milestone 4: AI Copilot Integration & 5 Audit Gates [pending]
   7. Milestone 5: E2E Verification, Adversarial Hardening & Git Deployment [pending]
-- **Current phase**: 1 (Milestone 1 Implementation & E2E Test Creation)
-- **Current focus**: M1 scaffolding (worker_m1_1) & E2E test suite (test_writer_e2e_1)
+- **Current phase**: 1 (Milestone 1 Gate Verification)
+- **Current focus**: Reviewers (2), Challengers (2), Auditor (1) running
 
 ## 🔒 Key Constraints
 - DISPATCH-ONLY: Never write, modify, or create source code files directly. Never run build/test commands yourself.
-- Module naming strictly: Hebrew "קושאן מייל אוטומטי", English "KOSUN AM", module directory `kosun-am` (`src/modules/kosun-am/`), collections `mod_kosun_am_*`. Absolutely NO "cashwan".
+- Module naming strictly: Hebrew "קושאן", English "KOSUN" (uppercase, e.g. "KOSUN AM"), module directory `kosun-am` (`src/modules/kosun-am/`), collections `mod_kosun_am_*`. Absolutely NO "cashwan".
 - Living entity persona: "קושאן" is a living, intelligent partner ("קושאן דואג...", "קושאן מכין...").
 - 12-layer anatomy under `src/modules/kosun-am/`.
 - Strict multi-tenancy isolation via `useTenantScope().getScopedCollectionRef(...)`.
@@ -47,22 +47,27 @@ Orchestrate end-to-end design, implementation, testing, audit, and deployment of
 
 ## Key Decisions Made
 - Final official name: "קושאן מייל אוטומטי" / "KOSUN AM" (`src/modules/kosun-am/`), collections `mod_kosun_am_*`.
-- PROJECT.md finalized with 28 features mapped to 5 milestones.
-- Dual Track launched: parallel E2E Test Suite creation alongside M1 scaffolding.
+- E2E Testing Track completed (105 tests passing 100%).
+- Milestone 1 Worker completed implementation with clean build; gate verification dispatched.
 
 ## Team Roster
 | Agent | Type | Work Item | Status | Conv ID |
 |-------|------|-----------|--------|---------|
-| spec_miner_survey_1 | teamwork_preview_spec_miner | Phase 0: Spec & 12-layer survey | completed | 42e183e9-4ba8-4e44-b493-ef0a01c14eb2 |
-| explorer_survey_2 | teamwork_preview_explorer | Phase 0: Backend & EventBus survey | completed | 2cd1da4e-44df-420f-94be-89ab7f61bff5 |
-| explorer_survey_3 | teamwork_preview_explorer | Phase 0: Branding & UI survey | completed | c3ac0607-b9bf-414d-af46-df2dcc807279 |
-| worker_m1_1 | teamwork_preview_worker | Milestone 1: Spec & 12-layer scaffolding | in-progress | eea4b777-18e6-41dd-b282-aeb06d8e286e |
-| test_writer_e2e_1 | teamwork_preview_test_writer | Dual Track: E2E Test Suite (Tiers 1-4) | in-progress | 4c06313a-5de7-47a3-b5fd-58e015f2403f |
+| spec_miner_survey_1 | teamwork_preview_spec_miner | Phase 0: Spec survey | completed | 42e183e9-4ba8-4e44-b493-ef0a01c14eb2 |
+| explorer_survey_2 | teamwork_preview_explorer | Phase 0: Backend survey | completed | 2cd1da4e-44df-420f-94be-89ab7f61bff5 |
+| explorer_survey_3 | teamwork_preview_explorer | Phase 0: UI survey | completed | c3ac0607-b9bf-414d-af46-df2dcc807279 |
+| worker_m1_1 | teamwork_preview_worker | Milestone 1: 12-layer scaffolding | completed | eea4b777-18e6-41dd-b282-aeb06d8e286e |
+| test_writer_e2e_1 | teamwork_preview_test_writer | Dual Track: E2E Test Suite | completed | 4c06313a-5de7-47a3-b5fd-58e015f2403f |
+| reviewer_m1_1 | teamwork_preview_reviewer | Milestone 1: Review 1 | in-progress | bd9ff0a4-7c83-402f-a34c-6ab39bd8007e |
+| reviewer_m1_2 | teamwork_preview_reviewer | Milestone 1: Review 2 | in-progress | f3a74800-7770-4b61-8590-607886e546fb |
+| challenger_m1_1 | teamwork_preview_challenger | Milestone 1: Challenge 1 | in-progress | c9b65f50-c0b4-408b-a880-f3e992eb8e0b |
+| challenger_m1_2 | teamwork_preview_challenger | Milestone 1: Challenge 2 | in-progress | 9bea2b7d-9f71-427b-ba34-17add4f11f6e |
+| auditor_m1_1 | teamwork_preview_auditor | Milestone 1: Forensic Audit | in-progress | ce986c9c-5313-4aea-a676-4cc79a71c115 |
 
 ## Succession Status
 - Succession required: no
-- Spawn count: 5 / 16
-- Pending subagents: eea4b777-18e6-41dd-b282-aeb06d8e286e, 4c06313a-5de7-47a3-b5fd-58e015f2403f
+- Spawn count: 10 / 16
+- Pending subagents: bd9ff0a4-7c83-402f-a34c-6ab39bd8007e, f3a74800-7770-4b61-8590-607886e546fb, c9b65f50-c0b4-408b-a880-f3e992eb8e0b, 9bea2b7d-9f71-427b-ba34-17add4f11f6e, ce986c9c-5313-4aea-a676-4cc79a71c115
 - Predecessor: none
 - Successor: not yet spawned
 
@@ -77,3 +82,6 @@ Orchestrate end-to-end design, implementation, testing, audit, and deployment of
 - c:\comona\.agents\teamwork\orchestrator_main\DISPATCH.md — Incoming Dispatch Messages
 - c:\comona\.agents\teamwork\orchestrator_main\progress.md — Progress & Heartbeat
 - c:\comona\.agents\teamwork\orchestrator_main\PROJECT.md — Global Project Blueprint
+- c:\comona\.agents\teamwork\orchestrator_main\GATE_STATUS.md — Gate Verdict Tracking
+- c:\comona\TEST_INFRA.md — E2E Test Suite Infrastructure
+- c:\comona\TEST_READY.md — E2E Test Readiness Declaration (105 tests passing)

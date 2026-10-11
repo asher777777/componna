@@ -1,18 +1,17 @@
 # Progress — KOSUN AM Orchestration
 
 ## Current Status
-Last visited: 2026-10-11T12:00:30Z
+Last visited: 2026-10-11T12:05:50Z
 - [x] Initialized BRIEFING.md, DISPATCH.md, and progress.md
 - [x] Scheduled recurring heartbeat cron (task-24)
 - [x] Phase 0: Dispatched 3 Survey Subagents (Spec Miner, Backend Explorer, Frontend Explorer)
 - [x] Propagated final naming directive ("קושאן מייל אוטומטי" / "KOSUN AM") to all agents
-- [x] Survey Agent 1 (Spec Miner) COMPLETED: Full 12-layer anatomy & 8-chapter spec report
-- [x] Survey Agent 2 (Backend Explorer) COMPLETED: Detailed survey report & contracts handoff
-- [x] Survey Agent 3 (Frontend Explorer) COMPLETED: UI, Bento Grid, Branding & AI Copilot handoff
+- [x] Survey Agents 1, 2, 3 COMPLETED: Full 12-layer anatomy, contracts, UI, and AI reports
 - [x] Synthesized findings into master PROJECT.md blueprint (28 features mapped to 5 milestones)
-- [x] Milestone 1: Dispatched Worker (`worker_m1_1`) to generate `README.md` spec & scaffold 12 layers (actively writing 12 layers)
-- [x] Dual Track: Dispatched E2E Test Suite Architect (`test_writer_e2e_1`) to construct Tiers 1-4 tests (actively testing tiers)
-- [ ] Milestone 1: Review, Challenge, and Audit Gates (Approvals + Clean Audit)
+- [x] Dual Track: E2E Test Suite Architect COMPLETED: `TEST_INFRA.md` & `TEST_READY.md` published (105 tests across Tiers 1-4 passing 100%)
+- [x] Milestone 1 Worker `worker_m1_1` COMPLETED: `README.md` spec + 12 layers created, build passed (0 errors)
+- [x] Milestone 1 Gate Dispatched: 2 Reviewers, 2 Challengers, 1 Forensic Auditor
+- [ ] Milestone 1 Gate Verdicts Collection & Sign-Off
 - [ ] Milestone 2: Backend, Contracts, Multi-Tenancy & EventBus (Backend & Data Engineer)
 - [ ] Milestone 3: Frontend, Bento Grid UI, Visual Builder (Frontend & UI Engineer)
 - [ ] Milestone 4: AI Copilot & Local Audit Gates (QA & Security Auditor)
@@ -20,7 +19,10 @@ Last visited: 2026-10-11T12:00:30Z
 
 ## Iteration Status
 Current iteration: 1 / 32
-Spawn count: 5 / 16
-Active subagents: 2
-- worker_m1_1: eea4b777-18e6-41dd-b282-aeb06d8e286e (Milestone 1: actively writing 12-layer components)
-- test_writer_e2e_1: 4c06313a-5de7-47a3-b5fd-58e015f2403f (Dual Track: actively running test tiers)
+Spawn count: 10 / 16
+Active subagents: 5
+- reviewer_m1_1: bd9ff0a4-7c83-402f-a34c-6ab39bd8007e (Reviewer 1)
+- reviewer_m1_2: f3a74800-7770-4b61-8590-607886e546fb (Reviewer 2)
+- challenger_m1_1: c9b65f50-c0b4-408b-a880-f3e992eb8e0b (Challenger 1)
+- challenger_m1_2: 9bea2b7d-9f71-427b-ba34-17add4f11f6e (Challenger 2)
+- auditor_m1_1: ce986c9c-5313-4aea-a676-4cc79a71c115 (Forensic Auditor)

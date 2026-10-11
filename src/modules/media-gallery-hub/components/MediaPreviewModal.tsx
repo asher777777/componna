@@ -26,10 +26,16 @@ import {
   FileVideo,
   Play,
   RotateCcw,
+  MessageSquare,
+  Wand2,
+  PenTool,
+  Flame,
 } from 'lucide-react';
 import { useMediaGallery } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaItem } from '../types';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 
 export const MediaPreviewModal: React.FC = () => {
   const {
@@ -42,9 +48,30 @@ export const MediaPreviewModal: React.FC = () => {
     theme,
     setIsMoveModalOpen,
     setItemsToMove,
+    openAiImageGenerator,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
+  const { getCapability } = useHostCapabilities();
+  const brandContract = getCapability<BrandDnaContract>('brand-dna');
+  const brandDna = brandContract?.getBrandDna();
+  const isCurrentLogo = Boolean(previewItem?.url && brandDna?.identity?.logoUrl === previewItem.url);
+  const isInVibeImages = Boolean(previewItem?.url && (brandDna?.identity?.vibeImages || []).includes(previewItem.url));
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
+  const handleSetLogo = async () => {
+    if (!previewItem || !brandContract?.setLogoUrl) return;
+    await brandContract.setLogoUrl(previewItem.url);
+    setFeedbackMsg('הוגדר כלוגו המותג ב-Brand DNA');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  const handleAddVibe = async () => {
+    if (!previewItem || !brandContract?.addVibeImage) return;
+    await brandContract.addVibeImage(previewItem.url);
+    setFeedbackMsg('נוסף לתמונות האווירה ב-Brand DNA');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
   const [copied, setCopied] = useState(false);
   const [textContent, setTextContent] = useState<string | null>(null);
   const [isLoadingText, setIsLoadingText] = useState(false);
@@ -755,6 +782,66 @@ export const MediaPreviewModal: React.FC = () => {
 
           {/* Action Buttons */}
           <div className="flex items-center space-x-2 rtl:space-x-reverse flex-wrap gap-y-2">
+            {/* Feedback Message */}
+            {feedbackMsg && (
+              <span className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-bold text-xs">
+                {feedbackMsg}
+              </span>
+            )}
+
+            {/* AI Image Edit */}
+            {isImage && (
+              <button
+                onClick={() => {
+                  setPreviewItem(null);
+                  openAiImageGenerator(previewItem);
+                }}
+                className="px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-md hover:from-amber-400 hover:to-yellow-400"
+                title="ערוך תמונה זו עם קושאן AI"
+              >
+                <Wand2 className="w-4 h-4" />
+                <span>ערוך ב-AI</span>
+              </button>
+            )}
+
+            {/* Set as Brand Logo */}
+            {isImage && (
+              <button
+                onClick={handleSetLogo}
+                className={`px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+                  isCurrentLogo
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                }`}
+                title="הגדר כלוגו המותג ב-Brand DNA"
+              >
+                <PenTool className="w-3.5 h-3.5 text-amber-500" />
+                <span>{isCurrentLogo ? 'לוגו מותג' : 'קבע כלוגו'}</span>
+                {isCurrentLogo && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+              </button>
+            )}
+
+            {/* Add to Brand Vibe */}
+            {isImage && (
+              <button
+                onClick={handleAddVibe}
+                className={`px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+                  isInVibeImages
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+                }`}
+                title="הוסף לתמונות אווירה ב-Brand DNA"
+              >
+                <Flame className="w-3.5 h-3.5 text-amber-500" />
+                <span>{isInVibeImages ? 'באווירה' : 'הוסף לאווירה'}</span>
+                {isInVibeImages && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+              </button>
+            )}
+
             {/* Convert Button */}
             {(isImage || previewItem.type === 'code' || previewItem.type === 'document') && (
               <button
@@ -797,7 +884,7 @@ export const MediaPreviewModal: React.FC = () => {
               }`}
               title="שתף בוואטסאפ"
             >
-              <span>💬</span>
+              <MessageSquare className="w-4 h-4" />
               <span>וואטסאפ</span>
             </button>
 

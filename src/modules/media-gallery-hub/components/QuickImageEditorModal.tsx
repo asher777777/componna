@@ -36,6 +36,7 @@ export const QuickImageEditorModal: React.FC<QuickImageEditorModalProps> = ({
   theme = 'dark',
 }) => {
   const isLight = theme === 'light';
+  const gallery = useOptionalMediaGallery();
   const { isProcessing, error, transformImage, removeBackground } = useFileEditor();
   const { getCapability } = useHostCapabilities();
   const brandContract = getCapability<BrandDnaContract>('brand-dna');
@@ -271,6 +272,28 @@ export const QuickImageEditorModal: React.FC<QuickImageEditorModalProps> = ({
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* AI Studio Jump */}
+            <div className="p-3 rounded-xl border bg-gradient-to-br from-amber-500/10 to-yellow-500/10 border-amber-500/30 space-y-2">
+              <span className="font-bold text-xs flex items-center gap-1.5 text-amber-500">
+                <Wand2 className="w-3.5 h-3.5" />
+                <span>עריכה מתקדמת ב-AI</span>
+              </span>
+              <p className="text-[11px] text-slate-400">
+                שינוי סגנון, התאמה לצבעי המותג, ועריכת תוכן חכמה עם קושאן AI
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  gallery?.openAiImageGenerator(item);
+                }}
+                className="w-full py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse cursor-pointer shadow-md"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>פתח בסטודיו קושאן AI</span>
+              </button>
             </div>
 
             {/* 3. Magic Background Studio */}
