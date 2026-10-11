@@ -132,11 +132,35 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
       try {
         const parsed = JSON.parse(cleaned) as T;
         return {
-            success: true,
-            data: parsed,
-            usageMetadata: result.usageMetadata,
+          success: true,
+          data: parsed,
+          usageMetadata: result.usageMetadata,
         };
       } catch (jsonErr) {
+        // Fallback: Attempt extracting embedded JSON block
+        const firstBrace = cleaned.indexOf('{');
+        const lastBrace = cleaned.lastIndexOf('}');
+        const firstBracket = cleaned.indexOf('[');
+        const lastBracket = cleaned.lastIndexOf(']');
+
+        let subJson = '';
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+          subJson = cleaned.substring(firstBrace, lastBrace + 1);
+        } else if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+          subJson = cleaned.substring(firstBracket, lastBracket + 1);
+        }
+
+        if (subJson) {
+          try {
+            const parsed = JSON.parse(subJson) as T;
+            return {
+              success: true,
+              data: parsed,
+              usageMetadata: result.usageMetadata,
+            };
+          } catch {}
+        }
+
         console.warn('[Gemini API] Failed to parse JSON response:', jsonErr, cleaned);
         return {
           success: false,

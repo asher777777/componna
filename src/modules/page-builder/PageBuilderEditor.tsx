@@ -592,6 +592,9 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
           sectionId={aiSectionTarget}
           sectionType={config.sections[aiSectionTarget].type as SectionType}
           currentConfig={config.sections[aiSectionTarget]}
+          allSections={config.sections}
+          sectionOrder={config.sectionOrder}
+          pageTitle={config.pageTitle}
           onApplyDesign={(newConfig) => handleUpdateSectionData(aiSectionTarget, newConfig)}
         />
       )}

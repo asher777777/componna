@@ -409,6 +409,9 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           sectionId={aiDesignerSectionId}
           sectionType={sections[aiDesignerSectionId].type}
           currentConfig={sections[aiDesignerSectionId]}
+          allSections={sections}
+          sectionOrder={sectionOrder}
+          pageTitle={globalSettings?.siteTitle || globalSettings?.companyName}
           onApplyDesign={(newConfig) => {
             if (onUpdateSection) {
               onUpdateSection(aiDesignerSectionId, newConfig);
