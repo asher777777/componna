@@ -12,11 +12,15 @@
    - **חל איסור** לייבא את `db` ישירות מתוך `src/services/firebase`.
    - יש להשתמש ב-`useSystemConnection()` וב-`useTenantScope().getScopedCollectionRef(...)` תחת `tenants/{tenantId}/`.
    - איסור מוחלט על קולקציות שטוחות גלובליות.
-3. **הגנת פולבק (Graceful Degradation):**
-   - המודול חייב לדעת לעבוד בצורה מלאה במצב לא מקוון / Mock Data כאשר מסד הנתונים או מפתחות ה-API אינם מוגדרים.
+3. **חיבור ישיר ל-DB אמיתי (Zero Mock Data, Zero LocalStorage):**
+   - **חל איסור מוחלט על Mock Data** או נתוני דמה. הכל מחובר תמיד ישירות ל-Firestore האמיתי.
+   - קולקציה ריקה מחזירה מערך ריק `[]` ללא המצאת נתונים.
 4. **אבטחת מפתחות API ללא LocalStorage:**
-   - איסור מוחלט על שמירה או קריאה מ-`localStorage`.
-   - כל מפתחות ה-API (Gemini, Resend, SendGrid, SMTP) נשלפים אך ורק דרך `src/core/connection/tenantApiKeys.ts` (`getModuleApiKeys('kosun-am')`).
+   - איסור מוחלט על שמירה או קריאה מ-`localStorage` / `sessionStorage`.
+   - כל מפתחות ה-API נשלפים אך ורק דרך `src/core/connection/tenantApiKeys.ts` (`getModuleApiKeys('kosun-am')`).
+5. **בידוד סקריפטים בתיקיית הרכיב (Module Scripts Isolation):**
+   - כל סקריפט אימות, תחזוקה או בדיקה של הרכיב חייב לחיות אך ורק תחת `src/modules/kosun-am/scripts/`.
+   - איסור מוחלט על יצירת או השארת סקריפטים בתיקיית השורש `scripts/`!
 
 ---
 
