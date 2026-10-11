@@ -24,7 +24,7 @@ export async function callGeminiApi<T = any>(params: {
   apiKey?: string;
   proxyOptions?: CloudFunctionProxyOptions;
 }): Promise<T | null> {
-  const { prompt, imageBase64, imageMimeType, model = 'gemini-2.5-flash', apiKey, proxyOptions } = params;
+  const { prompt, imageBase64, imageMimeType, model = 'gemini-3.8-flash', apiKey, proxyOptions } = params;
 
   // 1. If Cloud Function proxy is configured, use it for zero-leak client architecture
   if (proxyOptions?.functionUrl) {

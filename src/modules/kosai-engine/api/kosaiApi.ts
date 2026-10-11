@@ -72,7 +72,7 @@ export const callGeminiApi = async ({
     ? customApiKey.trim()
     : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('page-builder') || defaultResolveApiKey();
   
-  const model = imageBase64 ? 'gemini-1.5-flash' : 'gemini-2.5-flash';
+  const model = 'gemini-3.8-flash';
 
   if (!apiKey) {
     return {

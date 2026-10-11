@@ -33,7 +33,7 @@ export async function generateContactAISummary(
   const aiResult = await callGeminiApi<AISummaryResult>({
     prompt,
     apiKey: geminiApiKey,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
   });
 
   if (aiResult && aiResult.summary) {
@@ -94,7 +94,7 @@ export async function generateSmartMessageDraft(
   const aiResult = await callGeminiApi<AIDraftMessageResult>({
     prompt,
     apiKey: geminiApiKey,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
   });
 
   if (aiResult && aiResult.messageText) {
@@ -153,7 +153,7 @@ export async function parseBusinessCardImage(
     imageBase64,
     imageMimeType,
     apiKey: geminiApiKey,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
   });
 }
 
@@ -168,7 +168,7 @@ export async function analyzeVoiceDebrief(
   const result = await callGeminiApi<VoiceDebriefResult>({
     prompt,
     apiKey: geminiApiKey,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
   });
 
   if (result) return result;

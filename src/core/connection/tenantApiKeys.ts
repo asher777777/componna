@@ -43,7 +43,7 @@ export interface SystemApiKeysConfig {
 /** Non-secret defaults (model names etc.). Secrets are always empty by default. */
 export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   googleAiApiKey: '',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.8-flash',
   geminiImageModel: 'gemini-3.1-flash-image',
   geminiVideoModel: 'veo-3.1-generate-preview',
   heygenApiKey: '',
