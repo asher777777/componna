@@ -85,8 +85,15 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
     });
   }, [instanceId, token, apiUrl]);
 
-  // We no longer mount the client-side auto-responder because Firebase Cloud Functions handles it 24/7!
-  // useWhatsAppAutoResponder(greenApiService, apiKeys.googleAiApiKey);
+  // 24/7 Client-side Auto Responder Fallback & Listener
+  const effectiveGeminiKey = apiKeys.googleAiApiKey || '';
+  const { isListening: isAutoResponderActive } = useWhatsAppAutoResponder({
+    greenApiService,
+    apiKey: effectiveGeminiKey,
+    db,
+    tenantId,
+    enabled: true,
+  });
 
   // Instance Live State
   const [stateInstance, setStateInstance] = useState<GreenApiState>('unknown');
@@ -408,6 +415,23 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
                 <span className={`w-1.5 h-1.5 rounded-full ${stateInstance === 'authorized' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
                 <span>{stateInstance === 'authorized' ? 'מחובר' : 'לא מחובר'}</span>
               </button>
+
+              {/* Auto-Responder Live Indicator Badge */}
+              <div
+                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition ${
+                  isAutoResponderActive
+                    ? isDark
+                      ? 'bg-indigo-950/60 text-indigo-400 border-indigo-800'
+                      : 'bg-indigo-50 text-indigo-600 border-indigo-200'
+                    : isDark
+                      ? 'bg-slate-800 text-slate-500 border-slate-700'
+                      : 'bg-slate-100 text-slate-500 border-slate-200'
+                }`}
+                title={isAutoResponderActive ? 'מנוע האזנה ומענה אוטומטי של סוכן ה-AI פעיל' : 'מנוע המענה בהמתנה'}
+              >
+                <Bot className="w-3 h-3 text-indigo-500" />
+                <span>{isAutoResponderActive ? 'סוכן AI מאזין' : 'סוכן בהמתנה'}</span>
+              </div>
             </div>
           </div>
 

@@ -12,7 +12,7 @@ const db = admin.firestore();
 async function extractAndSaveContact(geminiKey, phone, messages) {
     try {
         const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
         const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
         const prompt = `
     Extract contact information from the following chat log.
@@ -172,7 +172,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                                     id: `kosai_${doc.id}`,
                                     name: trigger.botDisplayName || rule.name,
                                     systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                                    model: 'gemini-1.5-flash',
+                                    model: 'gemini-3.8-flash',
                                     temperature: ((_t = (_s = rule.toneOfVoice) === null || _s === void 0 ? void 0 : _s.creativity) !== null && _t !== void 0 ? _t : 50) / 100
                                 };
                                 break;
@@ -184,7 +184,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                                         id: `kosai_${doc.id}`,
                                         name: trigger.botDisplayName || rule.name,
                                         systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                                        model: 'gemini-1.5-flash',
+                                        model: 'gemini-3.8-flash',
                                         temperature: ((_v = (_u = rule.toneOfVoice) === null || _u === void 0 ? void 0 : _u.creativity) !== null && _v !== void 0 ? _v : 50) / 100
                                     };
                                     break;
@@ -234,7 +234,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             // 6. Generate AI Response
             const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
             const model = genAI.getGenerativeModel({
-                model: triggeredBot.model || 'gemini-1.5-flash',
+                model: triggeredBot.model || 'gemini-3.8-flash',
                 systemInstruction: strictPrompt
             });
             const contents = chatHistory.map(msg => ({

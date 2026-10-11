@@ -196,9 +196,21 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     setSimChat(newHistory);
     setSimInput('');
 
-    // Check Trigger Logic before activating AI
+    // 1. Check if bot is active
+    if (!activeBot.isActive) {
+      setSimChat((prev) => [
+        ...prev,
+        {
+          role: 'model',
+          text: '[סטטוס סוכן: מושהה]\nהסוכן כרגע כבוי (isActive: false) ולכן אינו מגיב להודעות בוואטסאפ. יש להפעיל את מתג "הפעל סוכן אוטומטי" כדי להתחיל לקבל מענה.',
+        },
+      ]);
+      return;
+    }
+
+    // 2. Check Trigger Logic before activating AI
     let shouldTrigger = false;
-    let triggerNote = '';
+    let triggerSuccessNote = '';
     
     if (activeBot.triggerType === 'all') {
       shouldTrigger = true;
@@ -206,7 +218,14 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       const userMessageCount = newHistory.filter(h => h.role === 'user').length;
       shouldTrigger = userMessageCount === 1;
       if (!shouldTrigger) {
-        triggerNote = 'טריגר: בוט זה מוגדר להודעת פתיחה בלבד. מדמה מענה לבדיקה...';
+        setSimChat((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            text: '[טריגר: הודעת פתיחה בלבד]\nסוכן זה מוגדר להגיב אך ורק להודעה הראשונה מלקוח. ההודעה הנוכחית אינה פתיחת שיחה, ולכן הסוכן אינו מגיב.',
+          },
+        ]);
+        return;
       }
     } else if (activeBot.triggerType === 'keyword') {
       const matchResult = checkKeywordMatch(
@@ -216,9 +235,18 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
       );
       shouldTrigger = matchResult.isMatch;
       if (shouldTrigger) {
-        triggerNote = `טריגר: הסוכן הופעל בהצלחה לפי מילת המפתח "${matchResult.matchedKeyword}"`;
+        triggerSuccessNote = `[טריגר: הופעל בהצלחה לפי מילת המפתח "${matchResult.matchedKeyword}"]\n\n`;
       } else {
-        triggerNote = `טריגר: ההודעה לא כללה מילת מפתח מתאימה (${activeBot.triggerKeywords?.join(', ') || 'אין'}). מדמה מענה לבדיקת AI...`;
+        const modeLabel = activeBot.matchMode === 'exact' ? 'התאמה מלאה' : activeBot.matchMode === 'startsWith' ? 'מתחיל ב...' : 'מכיל';
+        const keywordsList = (activeBot.triggerKeywords || []).join(', ') || 'לא הוגדרו מילים';
+        setSimChat((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            text: `[טריגר: אין התאמה]\nההודעה ששלחת אינה מכילה מילת מפתח מתאימה.\n• מילות מפתח מוגדרות: ${keywordsList}\n• מצב התאמה: ${modeLabel}\nהסוכן מסנן הודעה זו ואינו שולח מענה ללקוח.`,
+          },
+        ]);
+        return;
       }
     }
 
@@ -236,7 +264,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
         ...prev,
         {
           role: 'model',
-          text: triggerNote ? `[${triggerNote}]\n\n${res.replyText}` : res.replyText,
+          text: triggerSuccessNote ? `${triggerSuccessNote}${res.replyText}` : res.replyText,
           buttons: res.buttons,
         },
       ]);

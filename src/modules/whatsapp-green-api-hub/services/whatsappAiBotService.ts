@@ -154,7 +154,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
 תפקידך להעניק מענה אדיב, מהיר, מדויק ותמציתי בעברית בוואטסאפ.
 שמור על נימה שירותית, עניינית, עם אימוג'י במידה.
 אם הלקוח שואל על מחיר או מוצרים - ענה בקצרה והצע לו לבחור באחד הכפתורים מטה.`,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     temperature: 0.7,
     interactiveButtons: [
       { buttonId: 'btn_pricing', buttonText: 'קבלת הצעת מחיר', actionType: 'prompt', actionValue: 'מה המחיר של המערכת?' },
@@ -173,7 +173,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     triggerType: 'keyword',
     triggerKeywords: ['תקלה', 'לא עובד', 'שגיאה', 'עזרה טכנית', 'סנכרון'],
     systemPrompt: `אתה מומחה תמיכה טכנית של Kosun. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל.`,
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     temperature: 0.4,
     interactiveButtons: [
       { buttonId: 'btn_reboot', buttonText: 'בדיקת סטטוס מופע', actionType: 'prompt', actionValue: 'כיצד מאתחלים את המופע?' },
@@ -184,21 +184,33 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
   },
 ];
 
+export const OFFICIAL_GEMINI_MODELS = [
+  'gemini-3.8-flash',      // 1st choice: Frontier speed & intelligence
+  'gemini-3.5-flash',      // 2nd choice: Ultra-stable GA workhorse
+  'gemini-3.8-flash-lite', // 3rd choice: High-speed lite
+  'gemini-3.5-flash-lite', // 4th choice: Budget fallback
+  'gemini-2.5-flash',      // 5th choice: Legacy account compatibility
+] as const;
+
 /**
  * Resolves any custom / UI model alias into a valid, live Google AI Studio API model
- * Standardized across Kosun (Video Studio, Avatar Creator, Brand DNA).
+ * strictly complying with google-ai-studio-gemini SKILL.md.
  */
 export function getValidGeminiModel(requestedModel?: string): string {
-  if (!requestedModel) return 'gemini-2.5-flash';
+  if (!requestedModel) return 'gemini-3.8-flash';
   const clean = requestedModel.toLowerCase().trim();
 
-  if (clean.includes('pro')) return 'gemini-3.8-pro';
-  if (clean.includes('2.5-flash')) return 'gemini-2.5-flash';
-  if (clean.includes('2.0-flash')) return 'gemini-2.0-flash';
-  if (clean.includes('3.8-flash')) return 'gemini-3.8-flash';
-  if (clean.includes('flash')) return 'gemini-2.5-flash';
+  // Sanitize 3.6 hallucination
+  if (clean.includes('3.6')) return 'gemini-3.8-flash';
+  if (clean.includes('pro')) return 'gemini-3.1-pro';
+  if (clean.includes('3.8-flash-lite')) return 'gemini-3.8-flash-lite';
+  if (clean.includes('3.8')) return 'gemini-3.8-flash';
+  if (clean.includes('3.5-flash-lite')) return 'gemini-3.5-flash-lite';
+  if (clean.includes('3.5')) return 'gemini-3.5-flash';
+  if (clean.includes('2.5')) return 'gemini-2.5-flash';
 
-  return 'gemini-2.5-flash';
+  // Deprecated/shut down models (1.5, 2.0) default to 2026 workhorse
+  return 'gemini-3.8-flash';
 }
 
 /**
@@ -384,16 +396,15 @@ export class WhatsAppAiBotService {
     const cleanKey = effectiveApiKey.trim();
     const primaryModel = getValidGeminiModel(preferredModel);
 
-    // Reliable Google Gemini Production Model Chain
-    const modelsToTry = [
-      primaryModel,
-      'gemini-2.5-flash',
-      'gemini-3.8-flash',
-      'gemini-2.0-flash',
-      'gemini-3.8-pro',
-    ];
+    // Reliable Google Gemini Production Model Chain (google-ai-studio-gemini SKILL.md)
+    const modelsToTry: string[] = [];
+    if (primaryModel && !modelsToTry.includes(primaryModel)) {
+      modelsToTry.push(primaryModel);
+    }
+    for (const m of OFFICIAL_GEMINI_MODELS) {
+      if (!modelsToTry.includes(m)) modelsToTry.push(m);
+    }
 
-    const uniqueModels = Array.from(new Set(modelsToTry));
     let lastError: any = null;
 
     const brandDnaBlock = buildBrandDnaPromptBlock(brandDna);
@@ -402,12 +413,12 @@ export class WhatsAppAiBotService {
       brandDnaBlock
     ].filter(Boolean).join('\n\n');
 
-    for (const model of uniqueModels) {
+    for (const model of modelsToTry) {
       try {
         const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
 
         const bodyPayload: any = {
-          contents: [{ parts: [{ text: prompt }] }],
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
           generationConfig: {
             temperature,
             maxOutputTokens,
@@ -415,8 +426,7 @@ export class WhatsAppAiBotService {
         };
 
         if (combinedSystemInstruction) {
-          bodyPayload.system_instruction = {
-            role: 'user',
+          bodyPayload.systemInstruction = {
             parts: [{ text: combinedSystemInstruction }],
           };
         }

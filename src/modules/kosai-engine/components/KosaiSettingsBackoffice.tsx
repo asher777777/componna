@@ -14,7 +14,7 @@ import { KOSAI_SUPPORTED_MODULES } from '../config/kosaiModules';
 import { KOSAI_TEMPLATES } from '../config/kosaiTemplates';
 import { generateAgentPromptWithAi } from '../api/kosaiApi';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
-import { checkKeywordMatch } from '../../whatsapp-green-api-hub/services/whatsappAiBotService';
+import { checkKeywordMatch, WhatsAppAiBotService, WhatsAppAiBotConfig } from '../../whatsapp-green-api-hub/services/whatsappAiBotService';
 import { doc, setDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
 
@@ -178,7 +178,7 @@ export const KosaiSettingsBackoffice: React.FC = () => {
 
       if (updated.whatsappTrigger?.enabled) {
         try {
-          const botConfig = {
+          const botConfig: WhatsAppAiBotConfig = {
             id: `kosai_${updated.id}`,
             name: updated.whatsappTrigger.botDisplayName || updated.name,
             role: 'סוכן קושאן AI מחובר לוואטסאפ',
@@ -192,14 +192,28 @@ export const KosaiSettingsBackoffice: React.FC = () => {
             model: 'gemini-3.8-flash',
             temperature: (updated.toneOfVoice?.creativity ?? 50) / 100,
             interactiveButtons: [
-              { buttonId: 'btn_info', buttonText: 'פרטים נוספים', actionType: 'prompt', actionValue: 'פרט עוד בבקשה' },
-              { buttonId: 'btn_rep', buttonText: 'שיחה עם נציג', actionType: 'message', actionValue: 'נציג יחזור אליך בהקדם.' }
+              { buttonId: 'btn_info', buttonText: 'פרטים נוספים', actionType: 'prompt' as const, actionValue: 'פרט עוד בבקשה' },
+              { buttonId: 'btn_rep', buttonText: 'שיחה עם נציג', actionType: 'message' as const, actionValue: 'נציג יחזור אליך בהקדם.' }
             ],
             autoGenerateButtons: false,
             createdAt: updated.createdAt || Date.now()
           };
           const botPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
           await setDoc(doc(db, botPath, botConfig.id), botConfig, { merge: true });
+
+          // Also update local storage so client components get immediate access
+          try {
+            const currentStored = WhatsAppAiBotService.getStoredBots();
+            const existingIdx = currentStored.findIndex(b => b.id === botConfig.id || b.kosaiRuleId === updated.id);
+            if (existingIdx >= 0) {
+              currentStored[existingIdx] = botConfig;
+            } else {
+              currentStored.push(botConfig);
+            }
+            WhatsAppAiBotService.saveBots(currentStored);
+          } catch (storageErr) {
+            console.warn('Could not update localStorage bots:', storageErr);
+          }
         } catch (err) {
           console.warn('Error syncing Kosai agent to WhatsApp bot collection:', err);
         }

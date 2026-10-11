@@ -12,7 +12,7 @@ const db = admin.firestore();
 async function extractAndSaveContact(geminiKey: string, phone: string, messages: any[]) {
   try {
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
     const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
     
     const prompt = `
@@ -185,7 +185,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
                 id: `kosai_${doc.id}`,
                 name: trigger.botDisplayName || rule.name,
                 systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                model: 'gemini-1.5-flash',
+                model: 'gemini-3.8-flash',
                 temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
               };
               break;
@@ -196,7 +196,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
                   id: `kosai_${doc.id}`,
                   name: trigger.botDisplayName || rule.name,
                   systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                  model: 'gemini-1.5-flash',
+                  model: 'gemini-3.8-flash',
                   temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
                 };
                 break;
@@ -246,7 +246,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     // 6. Generate AI Response
     const genAI = new GoogleGenerativeAI(geminiKey);
     const model = genAI.getGenerativeModel({ 
-      model: triggeredBot.model || 'gemini-1.5-flash',
+      model: triggeredBot.model || 'gemini-3.8-flash',
       systemInstruction: strictPrompt
     });
 

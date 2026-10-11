@@ -96,6 +96,9 @@ export interface CoreEventMap {
   };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
+  'brand:logo_updated': { logoUrl: string; updatedAt: string };
+  'brand:vibe_image_added': { imageUrl: string; updatedAt: string };
+  'media:ai_edit_requested': { item: any };
   'whatsapp:status:viewed': { phone: string; statusId: string };
   'landing_page:generated_from_doc': {
     sourceFileId: string;
