@@ -199,6 +199,27 @@ export const aiSectionEnhancerService = {
           prompt: 'שדרג את מחירון החבילות כך שחבילת האמצע תהיה מסומנת כ-Featured עם תגית בולטת וכפתור מודגש.',
         }
       );
+    } else if (sectionType === 'eventRsvp') {
+      layoutSuggestions.push(
+        {
+          id: 'event-rsvp-full',
+          tab: 'layout',
+          title: 'פריסת אירוע מלאה (Waze + יומן + WhatsApp + מונה הגעה)',
+          description: 'הפעלת כל 3 הכרטיסיות, כפתורי אישור הגעה ומונה נוכחות חי.',
+          badge: 'מומלץ KOSUN',
+          iconName: 'Sparkles',
+          prompt: 'הפעל את כל הכרטיסיות (Waze, יומן, אוטומציית וואטסאפ), חזק את כפתורי אישור ההגעה וסנכרן עם מונה האורחים.',
+        },
+        {
+          id: 'event-rsvp-minimal',
+          tab: 'layout',
+          title: 'עיצוב מינימליסטי ממוקד הגעה מהירה',
+          description: 'מיקוד בניווט ישיר ל-Waze ואישור הגעה מהיר.',
+          badge: 'מינימליסטי',
+          iconName: 'Target',
+          prompt: 'הדגש את הניווט המהיר ל-Waze ואת אישור ההגעה המהיר בלחיצה אחת.',
+        }
+      );
     } else {
       layoutSuggestions.push(
         {
@@ -457,6 +478,15 @@ Return ONLY the raw updated JSON object.`;
       updated.whatsapp = whatsapp;
       updated.directWhatsappChat = true;
       changes.push(`הוטמעו מספרי יצירת הקשר והוואטסאפ של המותג`);
+    } else if (sectionType === 'eventRsvp') {
+      updated.eventTitle = `אירוע חגיגי מבית ${company}`;
+      updated.subtitle = `הזמנה אישית ומיוחדת – שמחים להזמין אתכם לאירוע מוביל של ${company}`;
+      updated.locationName = dna?.trust?.officeAddress ? `מתחם ${company}` : updated.locationName;
+      updated.locationAddress = dna?.trust?.officeAddress || updated.locationAddress;
+      updated.wazeQuery = dna?.trust?.officeAddress || updated.wazeQuery;
+      updated.yesButtonText = 'מגיע/ה בשמחה';
+      updated.noButtonText = 'לא מתאפשר לי הפעם';
+      changes.push(`סנכרון פרטי האירוע, המיקום והניווט עם כתובת המותג של ${company}`);
     } else {
       updated.title = `${updated.title || 'שדרוג אזור'} – ${company}`;
       updated.subtitle = uvp;

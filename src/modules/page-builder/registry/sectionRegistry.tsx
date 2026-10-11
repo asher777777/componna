@@ -56,6 +56,8 @@ import { CustomHtmlView } from '../sections/customHtml/CustomHtmlView';
 import { CustomHtmlEditor } from '../sections/customHtml/CustomHtmlEditor';
 import { LiveAnalyticsSection } from '../sections/liveAnalytics/LiveAnalyticsSection';
 import { LiveAnalyticsEditor } from '../sections/liveAnalytics/LiveAnalyticsEditor';
+import { EventRsvpSection } from '../sections/eventRsvp/EventRsvpSection';
+import { EventRsvpEditor } from '../sections/eventRsvp/EventRsvpEditor';
 
 
 // Icons
@@ -85,6 +87,7 @@ import {
   Menu,
   Activity,
   BarChart3,
+  CalendarCheck2,
 } from 'lucide-react';
 
 export interface SectionDefinition {
@@ -763,6 +766,48 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       type: 'customHtml',
       visible: true,
       rawHtmlTemplate: '',
+    },
+  },
+
+  eventRsvp: {
+    type: 'eventRsvp',
+    name: 'אירוע, הגעה ו-RSVP חכם',
+    category: 'marketing',
+    description: 'כרטיסיות Waze, יומן, אוטומציית WhatsApp מתוזמנת, כפתורי אישור הגעה ומונה אורחים חי',
+    icon: CalendarCheck2,
+    viewComponent: EventRsvpSection as any,
+    editorComponent: EventRsvpEditor as any,
+    defaultConfig: {
+      type: 'eventRsvp',
+      visible: true,
+      anchorId: 'event-rsvp',
+      title: 'אירוע חגיגי ואישור הגעה',
+      subtitle: 'כל הפרטים החשובים במקום אחד – נווטו בקלות, סמנו ביומן והבטיחו את מקומכם',
+      eventTitle: 'כנס קהילה והשקה עסקית',
+      eventDate: '2026-11-15',
+      eventTime: '19:30',
+      eventEndTime: '22:00',
+      locationName: 'מתחם האירועים היוקרתי קושאן',
+      locationAddress: 'דרך מנחם בגין 144, תל אביב',
+      wazeQuery: 'דרך מנחם בגין 144 תל אביב',
+      description: 'נשמח לראותכם באירוע המיוחד שלנו! כיבוד עשיר, הרצאת אורח והזדמנויות נטוורקינג מרתקות.',
+      showWazeCard: true,
+      wazeCardTitle: 'ניווט ב-Waze',
+      wazeCardSubtitle: 'פתיחה ישירה של אפליקציית Waze להגעה נוחה',
+      showCalendarCard: true,
+      calendarCardTitle: 'הוסף ליומן',
+      calendarCardSubtitle: 'סנכרון מיידי ל-Google Calendar או Apple Calendar',
+      showWhatsappCard: true,
+      whatsappCardTitle: 'תזכורת אוטומטית בוואטסאפ',
+      whatsappCardSubtitle: 'קבלו תזכורת והודעת עדכון מתוזמנת ישירות לנייד',
+      whatsappReminderTimeText: 'שעתיים לפני האירוע',
+      showRsvpButtons: true,
+      yesButtonText: 'מגיע/ה בשמחה',
+      noButtonText: 'לא מתאפשר לי הפעם',
+      yesCountInitial: 38,
+      noCountInitial: 4,
+      showAttendeeCounter: true,
+      attendeeCounterLabel: 'אישרו הגעה עד כה',
     },
   },
 };

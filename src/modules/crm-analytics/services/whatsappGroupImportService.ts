@@ -8,6 +8,70 @@ export interface WhatsAppGroupItem {
   participantsCount?: number;
 }
 
+export interface CleanedContactNameResult {
+  cleanName: string;
+  extractedTags: string[];
+}
+
+/**
+ * Smart Cleaner for WhatsApp Contact Names:
+ * 1. Strips appended or prepended phone numbers (e.g. "יוסי 0501234567" -> "יוסי").
+ * 2. Extracts memory tags / notes in brackets or hyphens into tags (e.g. "דוד כהן (ועד בית)" -> name "דוד כהן", tag "ועד בית").
+ * 3. Strips temporary/raw fallback labels like "איש קשר 051-2477094" or "משתתף 052...".
+ * 4. Cleans emojis and dangling symbols.
+ */
+export function cleanContactNameAndExtractTags(rawName?: string): CleanedContactNameResult {
+  if (!rawName || typeof rawName !== 'string') {
+    return { cleanName: '', extractedTags: [] };
+  }
+
+  let name = rawName.trim();
+  const extractedTags: string[] = [];
+
+  // 1. Detect and clear placeholders like "איש קשר 05...", "משתתף 05..."
+  if (/^(איש קשר|משתתף)\s*[\d\-\.\s\(\)]+$/i.test(name)) {
+    return { cleanName: '', extractedTags: [] };
+  }
+
+  // 2. Strip emojis from name
+  name = name.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ').trim();
+
+  // 3. Extract parenthetical memory tags: "דוד כהן (ועד בית)", "רוני [שיפוצים]"
+  const bracketMatches = name.match(/[\(\[\{]([^\)\]\}]+)[\)\]\}]/g);
+  if (bracketMatches) {
+    bracketMatches.forEach((m) => {
+      const tagContent = m.slice(1, -1).trim();
+      if (tagContent && !/^\+?[\d\-\.\s]+$/.test(tagContent)) {
+        extractedTags.push(tagContent);
+      }
+      name = name.replace(m, ' ').trim();
+    });
+  }
+
+  // 4. Extract trailing delimiter notes: "אלירן - שיווק", "יוסי / חשמלאי"
+  const delimiterMatch = name.match(/\s*[-–—/\\|:]\s*([^\d\-–—/\\|:]+)$/);
+  if (delimiterMatch && delimiterMatch[1]) {
+    const tagContent = delimiterMatch[1].trim();
+    if (tagContent.length >= 2 && !/^\+?[\d\-\.\s]+$/.test(tagContent)) {
+      extractedTags.push(tagContent);
+      name = name.slice(0, delimiterMatch.index).trim();
+    }
+  }
+
+  // 5. Remove any phone numbers or long digits from name
+  name = name.replace(/(\+?\d{2,3}[-.\s]?)?(\d{2,3}[-.\s]?\d{3}[-.\s]?\d{4}|\d{9,12})/g, ' ').trim();
+  name = name.replace(/\b05\d[-.\s]?\d{3}[-.\s]?\d{4}\b/g, ' ').trim();
+  name = name.replace(/^\d+[-.\s]*/g, ' ').replace(/[-.\s]*\d+$/g, ' ').trim();
+
+  // 6. Clean dangling punctuation and multiple spaces
+  name = name.replace(/^[–—\-/\\|:,\s]+|[–—\-/\\|:,\s]+$/g, '').replace(/\s+/g, ' ').trim();
+
+  return {
+    cleanName: name,
+    extractedTags: Array.from(new Set(extractedTags)),
+  };
+}
+
 export interface WhatsAppParticipant {
   phone: string;
   internationalPhone?: string;
@@ -16,6 +80,7 @@ export interface WhatsAppParticipant {
   chatId?: string;
   formattedDisplay?: string;
   isValidPhone?: boolean;
+  extractedTags?: string[];
 }
 
 export function normalizePhoneNumber(raw?: string): string {
@@ -229,10 +294,13 @@ export async function fetchGroupParticipants(
       }
     }
 
+    const cleaned = cleanContactNameAndExtractTags(resolvedName);
+
     const participantItem: WhatsAppParticipant = {
       phone: val.nationalPhone || normalizePhoneNumber(rawId),
       internationalPhone: val.internationalPhone,
-      name: resolvedName,
+      name: cleaned.cleanName,
+      extractedTags: cleaned.extractedTags,
       isAdmin: Boolean(p.admin),
       chatId: val.chatId || rawId,
       formattedDisplay: val.formattedDisplay || val.nationalPhone,
@@ -241,7 +309,7 @@ export async function fetchGroupParticipants(
 
     participants.push(participantItem);
 
-    if (!resolvedName && val.isValid) {
+    if (!cleaned.cleanName && val.isValid) {
       needInfoLookup.push({ participant: p, index: idx, chatId: val.chatId || rawId });
     }
   });
@@ -265,7 +333,16 @@ export async function fetchGroupParticipants(
             const info = await greenApi.getContactInfo(item.chatId);
             const foundName = info?.name || info?.contactName;
             if (foundName) {
-              participants[item.index].name = foundName;
+              const cleanedFound = cleanContactNameAndExtractTags(foundName);
+              if (cleanedFound.cleanName) {
+                participants[item.index].name = cleanedFound.cleanName;
+                if (cleanedFound.extractedTags.length > 0) {
+                  participants[item.index].extractedTags = [
+                    ...(participants[item.index].extractedTags || []),
+                    ...cleanedFound.extractedTags,
+                  ];
+                }
+              }
             }
           } catch {}
         })
@@ -311,11 +388,15 @@ export async function importParticipantsToCrmContacts(
       const safeId = `wa_${communityName.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_')}_${normPhone}`;
       const docRef = doc(db, contactsCollectionName, safeId);
 
-      const allTags = Array.from(new Set([communityName, 'וואטסאפ', ...extraTags])).filter(Boolean);
+      // Clean name again on import to guarantee 100% clean names in CRM
+      const cleaned = cleanContactNameAndExtractTags(p.name);
+      const cleanName = cleaned.cleanName.trim();
+      const allExtractedTags = [...(p.extractedTags || []), ...cleaned.extractedTags];
+      const allTags = Array.from(new Set([communityName, 'וואטסאפ', ...extraTags, ...allExtractedTags])).filter(Boolean);
 
       batch.set(docRef, {
         id: safeId,
-        conta_name: p.name || `איש קשר ${val.formattedDisplay || normPhone}`,
+        conta_name: cleanName || `איש קשר ${val.formattedDisplay || normPhone}`,
         conta_phone: normPhone,
         wa_chat_id: val.chatId,
         wa_international_phone: val.internationalPhone,

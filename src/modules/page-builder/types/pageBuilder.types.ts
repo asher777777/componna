@@ -24,7 +24,8 @@ export type SectionType =
   | 'contact'
   | 'smartForm'
   | 'flowPlayer'
-  | 'customHtml';
+  | 'customHtml'
+  | 'eventRsvp';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

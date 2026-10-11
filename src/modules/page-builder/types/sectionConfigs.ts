@@ -463,3 +463,39 @@ export interface LiveAnalyticsSectionConfig extends BaseSectionConfig {
   accentColor?: string;
 }
 
+export interface EventRsvpSectionConfig extends BaseSectionConfig {
+  type: 'eventRsvp';
+  title?: string;
+  subtitle?: string;
+  eventTitle?: string;
+  eventDate?: string; // YYYY-MM-DD
+  eventTime?: string; // HH:mm
+  eventEndTime?: string; // HH:mm
+  locationName?: string;
+  locationAddress?: string;
+  wazeQuery?: string; // query or coordinates for Waze
+  description?: string;
+  // Card 1: Waze
+  showWazeCard?: boolean;
+  wazeCardTitle?: string;
+  wazeCardSubtitle?: string;
+  // Card 2: Calendar
+  showCalendarCard?: boolean;
+  calendarCardTitle?: string;
+  calendarCardSubtitle?: string;
+  // Card 3: WhatsApp Timed Reminder
+  showWhatsappCard?: boolean;
+  whatsappCardTitle?: string;
+  whatsappCardSubtitle?: string;
+  whatsappReminderTimeText?: string;
+  // RSVP Controls
+  showRsvpButtons?: boolean;
+  yesButtonText?: string;
+  noButtonText?: string;
+  yesCountInitial?: number;
+  noCountInitial?: number;
+  showAttendeeCounter?: boolean;
+  attendeeCounterLabel?: string;
+  accentColor?: string;
+}
+

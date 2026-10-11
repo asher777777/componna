@@ -3,7 +3,8 @@ import {
   Users, MessageSquare, Check, X, RefreshCw, CheckCircle2, 
   AlertCircle, Sparkles, Layers, ArrowRight, ShieldCheck,
   Search, CheckSquare, Square, FolderPlus, Tag, Smartphone,
-  ExternalLink, UserPlus, Filter, KeyRound, Settings, Database, Save
+  ExternalLink, UserPlus, Filter, KeyRound, Settings, Database, Save,
+  Wand2, Edit3
 } from 'lucide-react';
 import { FirebaseApp } from 'firebase/app';
 import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
@@ -19,7 +20,8 @@ import {
   fetchGroupParticipants, 
   importParticipantsToCrmContacts, 
   normalizePhoneNumber,
-  fetchTenantWhatsAppCredentials
+  fetchTenantWhatsAppCredentials,
+  cleanContactNameAndExtractTags
 } from '../services/whatsappGroupImportService';
 
 import { Contact } from '../types';
@@ -197,6 +199,39 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
     setSelectedPhones(prev => 
       prev.includes(phone) ? prev.filter(p => p !== phone) : [...prev, phone]
     );
+  };
+
+  const handleUpdateParticipantName = (phone: string, newName: string) => {
+    setParticipants(prev => prev.map(p => {
+      if (p.phone === phone) {
+        return { ...p, name: newName };
+      }
+      return p;
+    }));
+  };
+
+  const handleAutoCleanAllNames = () => {
+    let cleanedCount = 0;
+    let tagsExtractedCount = 0;
+    setParticipants(prev => prev.map(p => {
+      const res = cleanContactNameAndExtractTags(p.name);
+      if (res.cleanName !== p.name || res.extractedTags.length > 0) {
+        cleanedCount++;
+        tagsExtractedCount += res.extractedTags.length;
+        return {
+          ...p,
+          name: res.cleanName,
+          extractedTags: Array.from(new Set([...(p.extractedTags || []), ...res.extractedTags])),
+        };
+      }
+      return p;
+    }));
+
+    setFeedback({
+      type: 'success',
+      message: `סריקה הושלמה: נוקו ${cleanedCount} שמות מתוספות ומספרים, וחולצו ${tagsExtractedCount} תגיות זיכרון מובנות.`,
+    });
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   const filteredGroups = useMemo(() => {
@@ -523,6 +558,16 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
 
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
+                    onClick={handleAutoCleanAllNames}
+                    className="px-3 py-1.5 text-xs font-bold border border-indigo-200 dark:border-indigo-800 rounded-xl bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition flex items-center gap-1.5 shadow-2xs"
+                    title="ניקוי תוספות, מספרי טלפון והמרת הערות בסוגריים לתגיות CRM"
+                  >
+                    <Wand2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>ניקוי שמות ותגיות</span>
+                  </button>
+
+                  <button
                     onClick={handleToggleSelectAll}
                     className="px-3 py-1.5 text-xs font-bold border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-50 transition flex items-center gap-1.5"
                   >
@@ -638,21 +683,41 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
                               className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4 cursor-pointer shrink-0"
                             />
                             <div className="min-w-0 flex-1">
-                              <div className="text-xs font-black text-gray-900 dark:text-white truncate flex items-center gap-1.5">
-                                <span>{participant.name || 'משתתף WhatsApp'}</span>
+                              <div className="flex items-center gap-2">
+                                <input
+                                  type="text"
+                                  value={participant.name || ''}
+                                  onClick={(e) => e.stopPropagation()}
+                                  onChange={(e) => handleUpdateParticipantName(participant.phone, e.target.value)}
+                                  placeholder={participant.formattedDisplay ? `הזן שם עבור ${participant.formattedDisplay}...` : 'הזן שם מלא...'}
+                                  className={`w-full text-xs font-black px-2 py-1 rounded-lg border transition focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                    participant.name && !participant.name.includes('איש קשר')
+                                      ? 'bg-transparent border-transparent hover:border-gray-200 dark:hover:border-gray-700 text-gray-900 dark:text-white'
+                                      : 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-950 dark:text-amber-200 placeholder:text-amber-600/70'
+                                  }`}
+                                />
                                 {participant.isAdmin && (
-                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                                  <span className="px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 shrink-0">
                                     מנהל
                                   </span>
                                 )}
                               </div>
-                              <div className="flex items-center gap-2 text-[11px] font-mono text-gray-500 dark:text-gray-400 mt-0.5">
+                              <div className="flex flex-wrap items-center gap-2 text-[11px] font-mono text-gray-500 dark:text-gray-400 mt-1 px-1">
                                 <span dir="ltr">{participant.formattedDisplay || participant.phone}</span>
                                 {participant.isValidPhone && (
                                   <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-sans font-bold flex items-center gap-0.5">
                                     <Check className="w-3 h-3" />
                                     <span>וואטסאפ תקין</span>
                                   </span>
+                                )}
+                                {participant.extractedTags && participant.extractedTags.length > 0 && (
+                                  <div className="flex items-center gap-1 flex-wrap">
+                                    {participant.extractedTags.map((tag, tIdx) => (
+                                      <span key={tIdx} className="px-1.5 py-0.5 bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 rounded-md text-[9px] font-sans font-bold border border-indigo-100 dark:border-indigo-900/40">
+                                        תגית: {tag}
+                                      </span>
+                                    ))}
+                                  </div>
                                 )}
                               </div>
                             </div>
