@@ -256,7 +256,8 @@ export function generateMockCrmData(): Contact[] {
 export function computeAnalyticsMetrics(
   contacts: Contact[], 
   customFields: CustomField[] = [], 
-  filter?: CRMAnalyticsFilter
+  filter?: CRMAnalyticsFilter,
+  extraGroups: string[] = []
 ): CRMAnalyticsData {
   let filteredContacts = [...contacts];
 
@@ -445,6 +446,13 @@ export function computeAnalyticsMetrics(
     });
   });
 
+  // Ensure any defined groups from crm_groups are registered in communitiesCount
+  extraGroups.forEach(g => {
+    if (g && communitiesCount[g] === undefined) {
+      communitiesCount[g] = 0;
+    }
+  });
+
   return {
     totalContacts: filteredContacts.length,
     totalLeads,
@@ -545,12 +553,32 @@ export async function fetchLiveCrmAnalytics(
       } as CustomField));
     } catch {}
 
-    if (contacts.length === 0) {
-      // Authenticated live system: clean 0 data when empty, NO dummy mock data!
-      return computeAnalyticsMetrics([], customFields, filter);
+    // Fetch groups from Firestore groups collection if available
+    let definedGroupNames: string[] = [];
+    try {
+      const groupsColName = (collections as any).groups || 'crm_groups';
+      const groupsRef = collection(db, groupsColName);
+      const groupsQuery = ownerId 
+        ? query(groupsRef, where('ownerId', '==', ownerId)) 
+        : query(groupsRef);
+      const groupsSnap = await getDocs(groupsQuery);
+      groupsSnap.docs.forEach(d => {
+        const gData = d.data();
+        const gName = gData.name || gData.title;
+        if (gName && typeof gName === 'string') {
+          definedGroupNames.push(gName.trim());
+        }
+      });
+    } catch (groupsErr) {
+      console.warn('Groups collection fetch notice:', groupsErr);
     }
 
-    return computeAnalyticsMetrics(contacts, customFields, filter);
+    if (contacts.length === 0) {
+      // Authenticated live system: clean 0 data when empty, NO dummy mock data!
+      return computeAnalyticsMetrics([], customFields, filter, definedGroupNames);
+    }
+
+    return computeAnalyticsMetrics(contacts, customFields, filter, definedGroupNames);
   } catch (error) {
     console.warn('Firestore fetch failed, returning clean data:', error);
     return computeAnalyticsMetrics([], [], filter);

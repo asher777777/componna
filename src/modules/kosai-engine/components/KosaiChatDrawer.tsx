@@ -25,7 +25,8 @@ export const KosaiChatDrawer: React.FC = () => {
     deleteConversation,
     startNewConversation,
     refreshRules,
-    isLoggedIn
+    isLoggedIn,
+    activeRoleMode
   } = useKosai();
   
   const { firebaseApp } = useSystemConnection();
@@ -232,16 +233,16 @@ export const KosaiChatDrawer: React.FC = () => {
               <div className="flex items-center gap-1.5">
                 <h3 className="font-black text-white text-sm">קושאן AI</h3>
                 <span className={clsx(
-                  "px-1.5 py-0.5 rounded text-[10px] border",
-                  isLoggedIn 
+                  "px-1.5 py-0.5 rounded text-[10px] border font-bold",
+                  activeRoleMode === 'editor' 
                     ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
                     : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                 )}>
-                  {isLoggedIn ? 'מעצב האתר והמערכת' : 'שירות ומכירות'}
+                  {activeRoleMode === 'editor' ? 'מעצב ועורך האתר' : 'שירות, שיווק ומכירות'}
                 </span>
               </div>
               <span className="text-[10px] text-slate-400 block">
-                {isLoggedIn ? 'שותף עיצוב ופיתוח חכם (2026)' : 'שירות לקוחות והכוונה דיגיטלית'}
+                {activeRoleMode === 'editor' ? 'מצב עריכה: עיצוב, תוכן והוספת אזורים' : 'מצב צפייה: שירות לקוחות והכוונה דיגיטלית'}
               </span>
             </div>
           </div>

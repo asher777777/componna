@@ -159,13 +159,17 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     };
   }, [menuMode, db, tenantId]);
 
-  // Determine navigation items
+  // Determine navigation items (with optional title overrides)
   const navItems =
     menuMode === 'dynamic-tenant'
-      ? tenantPages.map((page) => ({
-          label: page.pageTitle || 'עמוד',
-          url: page.isHomePage ? '/' : `/p/${page.slug || page.shortSlug || page.pageId}`,
-        }))
+      ? tenantPages.map((page) => {
+          const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
+          const labelOverride = (config.menuTitleOverrides && (config.menuTitleOverrides[key] || config.menuTitleOverrides[page.pageId])) || page.pageTitle || 'עמוד';
+          return {
+            label: labelOverride,
+            url: page.isHomePage ? '/' : `/p/${page.slug || page.shortSlug || page.pageId}`,
+          };
+        })
       : menuMode === 'custom'
       ? customLinks
       : [];

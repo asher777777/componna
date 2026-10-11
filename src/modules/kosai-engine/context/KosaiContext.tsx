@@ -45,6 +45,11 @@ interface KosaiContextValue {
   refreshRules: () => Promise<void>;
   cachedContentId?: string | null;
   isLoggedIn: boolean;
+  isEditMode: boolean;
+  setIsEditMode: (isEdit: boolean) => void;
+  activeRoleMode: 'editor' | 'support_sales';
+  pageSections?: Array<{ id: string; type: string; title?: string }>;
+  setPageSections: (sections: Array<{ id: string; type: string; title?: string }>) => void;
 }
 
 const KosaiContext = createContext<KosaiContextValue | undefined>(undefined);
@@ -58,13 +63,35 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [cachedContentId, setCachedContentId] = useState<string | null>(null);
   const [authState, setAuthState] = useState<AuthState | null>(null);
   const [tenantPages, setTenantPages] = useState<Array<{ title: string; slug: string; isHomePage?: boolean }>>([]);
+  const [pageSections, setPageSections] = useState<Array<{ id: string; type: string; title?: string }>>([]);
   
   const { db, firebaseApp } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { brandDna } = useBrandDna();
   const { registerCapability, unregisterCapability } = useHostCapabilities();
 
+  const [isEditMode, setIsEditMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('edit') === 'true';
+    }
+    return false;
+  });
+
   const isLoggedIn = Boolean(authState?.isAuthenticated && (authState.role === 'admin' || authState.role === 'editor'));
+
+  // Active role mode: 'editor' when logged in and in edit mode; 'support_sales' when in view mode
+  const activeRoleMode: 'editor' | 'support_sales' = (isLoggedIn && isEditMode) ? 'editor' : 'support_sales';
+
+  useEffect(() => {
+    const handleEditModeChange = (e: any) => {
+      if (typeof e?.detail?.isEditMode === 'boolean') {
+        setIsEditMode(e.detail.isEditMode);
+      }
+    };
+    window.addEventListener('kosun_edit_mode_changed', handleEditModeChange);
+    return () => window.removeEventListener('kosun_edit_mode_changed', handleEditModeChange);
+  }, []);
 
   // Subscribe to auth state
   useEffect(() => {
@@ -96,12 +123,12 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
   }, [db, tenantId]);
 
-  // Set appropriate welcome message on initial empty chat
+  // Set appropriate welcome message on initial empty chat or role mode switch
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === 'welcome') {
-      setMessages([isLoggedIn ? DEFAULT_WELCOME_MSG : VISITOR_WELCOME_MSG]);
+      setMessages([activeRoleMode === 'editor' ? DEFAULT_WELCOME_MSG : VISITOR_WELCOME_MSG]);
     }
-  }, [isLoggedIn]);
+  }, [activeRoleMode]);
 
   // Register kosai-agent AI capability for cross-module orchestration
   useEffect(() => {
@@ -314,7 +341,9 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const promptContext = {
         isLoggedIn,
         userRole: authState?.role,
+        roleMode: activeRoleMode,
         tenantPages,
+        activeSections: pageSections,
       };
 
       const systemInstruction = buildKosaiSystemPrompt(currentRule, brandDna, capabilities, promptContext);
@@ -411,7 +440,12 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       refreshConversations,
       refreshRules,
       cachedContentId,
-      isLoggedIn
+      isLoggedIn,
+      isEditMode,
+      setIsEditMode,
+      activeRoleMode,
+      pageSections,
+      setPageSections
     }}>
       {children}
     </KosaiContext.Provider>
@@ -439,6 +473,11 @@ export const useKosai = () => {
       refreshRules: async () => {},
       cachedContentId: null,
       isLoggedIn: false,
+      isEditMode: false,
+      setIsEditMode: () => {},
+      activeRoleMode: 'support_sales' as const,
+      pageSections: [],
+      setPageSections: () => {},
     };
   }
   return context;

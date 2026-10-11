@@ -125,7 +125,7 @@ export const AnalyticsSummaryCards: React.FC<Props> = ({
                   ? 'text-indigo-600 dark:text-indigo-400' 
                   : 'text-gray-400 group-hover:text-indigo-500 opacity-80 group-hover:opacity-100'
               }`}>
-                {isActive ? 'פעיל ✓' : 'לסינון 👆'}
+                {isActive ? 'פעיל' : 'לסינון'}
               </span>
             </div>
           </button>

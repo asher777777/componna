@@ -1,7 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { PageBuilderConfig } from '../modules/page-builder/types/pageBuilder.types';
+import React, { useEffect, useState, useCallback } from 'react';
+import { PageBuilderConfig, SectionType } from '../modules/page-builder/types/pageBuilder.types';
 import { PageBuilderRenderer } from '../modules/page-builder/PageBuilderRenderer';
 import { FloatingSystemDock } from '../components/Navigation/FloatingSystemDock';
+import { useSystemConnection } from '../core/connection/SystemConnectionContext';
+import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
+import { pageBuilderFirestore } from '../modules/page-builder/services/pageBuilderFirestore';
+import { SECTION_REGISTRY } from '../modules/page-builder/registry/sectionRegistry';
+import { eventBus } from '../core/bridge/EventBus';
+
+import { useKosai } from '../modules/kosai-engine';
 
 interface RootPublicHomePageViewProps {
   pageConfig: PageBuilderConfig;
@@ -12,10 +19,46 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   pageConfig,
   onEnterDevWorkbench,
 }) => {
+  const { db } = useSystemConnection();
+  const { setPageSections } = useKosai();
+
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('kosun_theme') as 'light' | 'dark') || 
       (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
   });
+
+  // Manage mutable page configuration for live on-page edits
+  const [currentPageConfig, setCurrentPageConfig] = useState<PageBuilderConfig>(pageConfig);
+  const [isEditing, setIsEditing] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('edit') === 'true';
+    }
+    return false;
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Sync active sections to KOSAI agent so it can focus directly on target sections
+  useEffect(() => {
+    if (currentPageConfig?.sectionOrder && currentPageConfig?.sections) {
+      const mapped = currentPageConfig.sectionOrder.map((id) => {
+        const sec = currentPageConfig.sections[id];
+        return {
+          id,
+          type: sec?.type || id,
+          title: sec?.title || sec?.adminTitle,
+        };
+      });
+      setPageSections(mapped);
+    }
+  }, [currentPageConfig, setPageSections]);
+
+  // Sync external pageConfig changes if not currently editing
+  useEffect(() => {
+    if (!isEditing) {
+      setCurrentPageConfig(pageConfig);
+    }
+  }, [pageConfig, isEditing]);
 
   useEffect(() => {
     const handleThemeChange = (e: any) => {
@@ -29,17 +72,239 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   useEffect(() => {
     if (typeof document !== 'undefined') {
       document.title =
-        pageConfig.seoSettings?.title ||
-        pageConfig.globalSettings?.siteTitle ||
-        pageConfig.pageTitle ||
+        currentPageConfig.seoSettings?.title ||
+        currentPageConfig.globalSettings?.siteTitle ||
+        currentPageConfig.pageTitle ||
         'Kosun Platform';
     }
-  }, [pageConfig]);
+  }, [currentPageConfig]);
+
+  // Notify KOSAI AI agent and system components of edit mode toggle
+  const toggleEditMode = useCallback(async () => {
+    if (isEditing) {
+      // Save changes before exiting edit mode
+      setIsSaving(true);
+      try {
+        await pageBuilderFirestore.savePage(currentPageConfig, db, ROOT_TENANT_ID);
+      } catch (err) {
+        console.warn('[RootHomePage] Failed to save page on exit edit mode:', err);
+      } finally {
+        setIsSaving(false);
+      }
+      setIsEditing(false);
+      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: false } }));
+    } else {
+      setIsEditing(true);
+      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
+    }
+  }, [isEditing, currentPageConfig, db]);
+
+  // Section CRUD Handlers
+  const handleUpdateSection = useCallback((sectionId: string, updatedData: any) => {
+    setCurrentPageConfig((prev) => {
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: updatedData,
+        },
+      };
+      // Auto-save debounced or immediate
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  // Section Save Handler
+  const handleSaveSection = useCallback(async (sectionId: string, updatedData?: any) => {
+    let nextToSave: PageBuilderConfig | null = null;
+    setCurrentPageConfig((prev) => {
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          ...(updatedData ? { [sectionId]: updatedData } : {}),
+        },
+      };
+      nextToSave = next;
+      return next;
+    });
+    if (nextToSave) {
+      await pageBuilderFirestore.savePage(nextToSave, db, ROOT_TENANT_ID);
+    }
+  }, [db]);
+
+  // Global Page Settings Handler (for floating widget & page overrides)
+  const handleUpdateGlobalSettings = useCallback((updatedGlobalSettings: any) => {
+    setCurrentPageConfig((prev) => {
+      const next = {
+        ...prev,
+        globalSettings: updatedGlobalSettings,
+      };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  const handleDeleteSection = useCallback((sectionId: string) => {
+    if (!window.confirm('האם למחוק אזור זה מהעמוד?')) return;
+    setCurrentPageConfig((prev) => {
+      const nextOrder = prev.sectionOrder.filter((id) => id !== sectionId);
+      const nextSections = { ...prev.sections };
+      delete nextSections[sectionId];
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: nextSections,
+      };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  const handleDuplicateSection = useCallback((sectionId: string) => {
+    setCurrentPageConfig((prev) => {
+      const src = prev.sections[sectionId];
+      if (!src) return prev;
+      const newId = `${src.type}_${Date.now()}`;
+      const newIndex = prev.sectionOrder.indexOf(sectionId) + 1;
+      const nextOrder = [...prev.sectionOrder];
+      nextOrder.splice(newIndex, 0, newId);
+
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: {
+          ...prev.sections,
+          [newId]: {
+            ...src,
+            id: newId,
+            adminTitle: `${src.adminTitle || src.type} (משוכפל)`,
+          },
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  const handleMoveUp = useCallback((index: number) => {
+    if (index <= 0) return;
+    setCurrentPageConfig((prev) => {
+      const nextOrder = [...prev.sectionOrder];
+      const temp = nextOrder[index - 1];
+      nextOrder[index - 1] = nextOrder[index];
+      nextOrder[index] = temp;
+      const next = { ...prev, sectionOrder: nextOrder };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  const handleMoveDown = useCallback((index: number) => {
+    setCurrentPageConfig((prev) => {
+      if (index >= prev.sectionOrder.length - 1) return prev;
+      const nextOrder = [...prev.sectionOrder];
+      const temp = nextOrder[index + 1];
+      nextOrder[index + 1] = nextOrder[index];
+      nextOrder[index] = temp;
+      const next = { ...prev, sectionOrder: nextOrder };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  const handleToggleVisibility = useCallback((sectionId: string) => {
+    setCurrentPageConfig((prev) => {
+      const current = prev.sections[sectionId];
+      if (!current) return prev;
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: {
+            ...current,
+            visible: current.visible === false ? true : false,
+          },
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  const handleAddSection = useCallback((type: SectionType, insertIndex?: number) => {
+    const regDef = SECTION_REGISTRY[type];
+    const newId = `${type}_${Date.now()}`;
+    const defaultData = regDef?.defaultConfig
+      ? { ...regDef.defaultConfig, id: newId }
+      : { id: newId, type, visible: true, title: regDef?.name || type };
+
+    setCurrentPageConfig((prev) => {
+      const nextOrder = [...prev.sectionOrder];
+      if (typeof insertIndex === 'number' && insertIndex >= 0) {
+        nextOrder.splice(insertIndex, 0, newId);
+      } else {
+        nextOrder.push(newId);
+      }
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: {
+          ...prev.sections,
+          [newId]: defaultData,
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+      return next;
+    });
+  }, [db]);
+
+  // Subscribe to KOSAI AI action events (when user instructs AI editor)
+  useEffect(() => {
+    const unsub = eventBus.subscribe('kosai:action', (data: any) => {
+      const { action, payload } = data;
+      if (action === 'ADD_SECTION' && payload) {
+        const newSectionId = `custom_${Date.now()}`;
+        setCurrentPageConfig((prev) => {
+          const next = {
+            ...prev,
+            sectionOrder: [...prev.sectionOrder, newSectionId],
+            sections: {
+              ...prev.sections,
+              [newSectionId]: { ...payload, id: newSectionId },
+            },
+          };
+          pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+          return next;
+        });
+      } else if (action === 'UPDATE_SECTION' && payload) {
+        const targetId = payload.sectionId;
+        if (targetId) {
+          setCurrentPageConfig((prev) => {
+            const current = prev.sections[targetId];
+            if (!current) return prev;
+            const next = {
+              ...prev,
+              sections: {
+                ...prev.sections,
+                [targetId]: { ...current, ...(payload.updates || payload) },
+              },
+            };
+            pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+            return next;
+          });
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [db]);
 
   const effectivePageConfig = React.useMemo(() => {
-    if (!pageConfig || !pageConfig.sections) return pageConfig;
-    const hasHeader = Object.values(pageConfig.sections).some((s: any) => s && s.type === 'header');
-    if (hasHeader) return pageConfig;
+    if (!currentPageConfig || !currentPageConfig.sections) return currentPageConfig;
+    const hasHeader = Object.values(currentPageConfig.sections).some((s: any) => s && s.type === 'header');
+    if (hasHeader) return currentPageConfig;
 
     const headerId = 'header-1';
     const headerSection = {
@@ -47,31 +312,31 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       type: 'header',
       visible: true,
       anchorId: 'header',
-      layout: (pageConfig.globalSettings?.headerLayout as any) || 'floating-glass',
-      sticky: pageConfig.globalSettings?.headerSticky ?? true,
+      layout: (currentPageConfig.globalSettings?.headerLayout as any) || 'floating-glass',
+      sticky: currentPageConfig.globalSettings?.headerSticky ?? true,
       useBrandLogo: true,
       showLogoText: true,
-      logoText: pageConfig.globalSettings?.companyName || 'קושאן',
+      logoText: currentPageConfig.globalSettings?.companyName || 'קושאן',
       menuMode: 'dynamic-tenant',
       showLoginButton: true,
       showCtaButton: true,
       ctaButtonText: 'התחל עכשיו',
       ctaButtonUrl: '#contact',
-      showPhone: Boolean(pageConfig.globalSettings?.contactPhone),
-      phone: pageConfig.globalSettings?.contactPhone || '052-6968008',
-      showWhatsApp: Boolean(pageConfig.globalSettings?.contactWhatsApp),
-      whatsApp: pageConfig.globalSettings?.contactWhatsApp || '0526968008',
+      showPhone: Boolean(currentPageConfig.globalSettings?.contactPhone),
+      phone: currentPageConfig.globalSettings?.contactPhone || '052-6968008',
+      showWhatsApp: Boolean(currentPageConfig.globalSettings?.contactWhatsApp),
+      whatsApp: currentPageConfig.globalSettings?.contactWhatsApp || '0526968008',
     };
 
     return {
-      ...pageConfig,
-      sectionOrder: [headerId, ...(pageConfig.sectionOrder || []).filter((id) => id !== headerId)],
+      ...currentPageConfig,
+      sectionOrder: [headerId, ...(currentPageConfig.sectionOrder || []).filter((id) => id !== headerId)],
       sections: {
         [headerId]: headerSection,
-        ...pageConfig.sections,
+        ...currentPageConfig.sections,
       },
     };
-  }, [pageConfig]);
+  }, [currentPageConfig]);
 
   return (
     <div className={`min-h-screen flex flex-col font-sans relative selection:bg-indigo-500 selection:text-white transition-colors duration-300 pb-20 ${
@@ -81,6 +346,16 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       <main className="flex-1">
         <PageBuilderRenderer
           config={effectivePageConfig}
+          isEditing={isEditing}
+          onUpdateSection={handleUpdateSection}
+          onSaveSection={handleSaveSection}
+          onDeleteSection={handleDeleteSection}
+          onDuplicateSection={handleDuplicateSection}
+          onMoveSectionUp={handleMoveUp}
+          onMoveSectionDown={handleMoveDown}
+          onToggleSectionVisibility={handleToggleVisibility}
+          onAddSection={handleAddSection}
+          onUpdateGlobalSettings={handleUpdateGlobalSettings}
           onSelectDonationTier={(tierId, mode) => {
             console.log('[RootHomePage] Selected tier:', tierId, mode);
           }}
@@ -93,6 +368,9 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       {/* Floating System Dock (Cashwan Standard - Headerless Floating Dock at bottom) */}
       <FloatingSystemDock
         editPageUrl="/page-builder"
+        isEditing={isEditing}
+        onToggleEditMode={toggleEditMode}
+        isSaving={isSaving}
         onEnterDevWorkbench={onEnterDevWorkbench}
       />
     </div>

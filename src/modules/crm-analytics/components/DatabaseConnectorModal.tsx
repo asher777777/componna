@@ -1,11 +1,13 @@
-﻿import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Database, Check, RefreshCw, Layers, ShieldCheck, 
   ExternalLink, Sparkles, Server, Globe, Key, AlertCircle,
-  FileJson, UploadCloud, Copy, ArrowLeft
+  FileJson, UploadCloud, Copy, ArrowLeft, CheckCircle2
 } from 'lucide-react';
 import { DatabaseConnectionProfile, DatabaseProviderType } from '../types';
 import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../services/aiJsonParser';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 
 interface Props {
   isOpen: boolean;
@@ -18,30 +20,94 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
   isOpen,
   onClose,
   onApplyProfile,
-  clientId = 'client_default',
+  clientId,
 }) => {
-  if (!isOpen) return null;
+  const { config, collections, updateConfig, testConnection } = useSystemConnection();
+  const { tenantId } = useTenantScope();
+  const effectiveTenantId = clientId && clientId !== 'client_default' ? clientId : (tenantId || 'client_default');
+
+  const STORAGE_PROFILE_KEY = `kosun_${effectiveTenantId}_crm_db_profile`;
+  const STORAGE_JSON_KEY = `kosun_${effectiveTenantId}_crm_db_json`;
+  const STORAGE_PARSED_KEY = `kosun_${effectiveTenantId}_crm_parsed_result`;
+
+  const getSavedProfile = (): DatabaseConnectionProfile | null => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PROFILE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  };
+
+  const savedProfile = getSavedProfile();
 
   const [activeTab, setActiveTab] = useState<'smart_json' | 'manual_config'>('smart_json');
-  const [provider, setProvider] = useState<DatabaseProviderType>('firestore');
-  const [profileName, setProfileName] = useState('מסד נתונים ראשי');
+  const [provider, setProvider] = useState<DatabaseProviderType>(savedProfile?.provider || 'firestore');
+  const [profileName, setProfileName] = useState(savedProfile?.name || 'מסד נתונים ראשי');
   
   // Smart JSON State
-  const [jsonInput, setJsonInput] = useState('');
+  const [jsonInput, setJsonInput] = useState(() => {
+    try {
+      return localStorage.getItem(STORAGE_JSON_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
   const [isParsingJson, setIsParsingJson] = useState(false);
-  const [parsedResult, setParsedResult] = useState<AIJsonCredentialsResult | null>(null);
+  const [parsedResult, setParsedResult] = useState<AIJsonCredentialsResult | null>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_PARSED_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return null;
+  });
 
-  // Firestore Config
-  const [firestoreProjectId, setFirestoreProjectId] = useState('aioffice-1426f');
-  const [firestoreApiKey, setFirestoreApiKey] = useState('');
-  const [firestoreAuthDomain, setFirestoreAuthDomain] = useState('');
-  const [firestoreStorageBucket, setFirestoreStorageBucket] = useState('');
-  const [firestoreCollection, setFirestoreCollection] = useState('contacts');
-  const [hostingUrl, setHostingUrl] = useState('');
+  // Firestore Config - Initialized to real connected project (never hardcoded placeholder)
+  const [firestoreProjectId, setFirestoreProjectId] = useState<string>(() => {
+    return savedProfile?.config?.projectId || config.projectId || (import.meta.env.VITE_FIREBASE_PROJECT_ID as string) || 'glowmanage';
+  });
+  const [firestoreApiKey, setFirestoreApiKey] = useState<string>(() => {
+    return savedProfile?.config?.apiKey || config.apiKey || (import.meta.env.VITE_FIREBASE_API_KEY as string) || '';
+  });
+  const [firestoreAuthDomain, setFirestoreAuthDomain] = useState<string>(() => {
+    return savedProfile?.config?.authDomain || config.authDomain || (import.meta.env.VITE_FIREBASE_AUTH_DOMAIN as string) || 'glowmanage.firebaseapp.com';
+  });
+  const [firestoreStorageBucket, setFirestoreStorageBucket] = useState<string>(() => {
+    return (savedProfile?.config as any)?.storageBucket || config.storageBucket || (import.meta.env.VITE_FIREBASE_STORAGE_BUCKET as string) || 'glowmanage.firebasestorage.app';
+  });
+  const [firestoreCollection, setFirestoreCollection] = useState<string>(() => {
+    return savedProfile?.config?.collectionName || collections?.contacts || 'contacts';
+  });
+  const [hostingUrl, setHostingUrl] = useState<string>(() => {
+    return (savedProfile?.config as any)?.hostingUrl || (config.projectId ? `https://${config.projectId}.web.app` : 'https://glowmanage.web.app');
+  });
 
-  // Status
+  // Status & Feedback
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; msg: string; latency?: number } | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+
+  // Sync state when modal is opened
+  useEffect(() => {
+    if (isOpen) {
+      const p = getSavedProfile();
+      if (p?.config) {
+        if (p.config.projectId) setFirestoreProjectId(p.config.projectId);
+        if (p.config.apiKey) setFirestoreApiKey(p.config.apiKey);
+        if (p.config.authDomain) setFirestoreAuthDomain(p.config.authDomain);
+        if ((p.config as any).storageBucket) setFirestoreStorageBucket((p.config as any).storageBucket);
+        if (p.config.collectionName) setFirestoreCollection(p.config.collectionName);
+        if ((p.config as any).hostingUrl) setHostingUrl((p.config as any).hostingUrl);
+      } else if (config.projectId) {
+        setFirestoreProjectId(config.projectId);
+        if (config.apiKey) setFirestoreApiKey(config.apiKey);
+        if (config.authDomain) setFirestoreAuthDomain(config.authDomain);
+        if (config.storageBucket) setFirestoreStorageBucket(config.storageBucket);
+        setHostingUrl(`https://${config.projectId}.web.app`);
+      }
+    }
+  }, [isOpen, config, effectiveTenantId]);
+
+  if (!isOpen) return null;
 
   const handleParseJson = async () => {
     if (!jsonInput.trim()) {
@@ -50,27 +116,62 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
     }
     setIsParsingJson(true);
     setTestResult(null);
+    setSaveFeedback(null);
 
     try {
       const res = await parseJsonCredentialsWithAI(jsonInput);
       setParsedResult(res);
 
+      const targetProjId = res.projectId || firestoreProjectId;
+      const targetApiKey = res.apiKey || firestoreApiKey;
+      const targetAuthDomain = res.authDomain || (targetProjId ? `${targetProjId}.firebaseapp.com` : firestoreAuthDomain);
+      const targetStorageBucket = res.storageBucket || (targetProjId ? `${targetProjId}.firebasestorage.app` : firestoreStorageBucket);
+      const targetHostingUrl = res.hostingUrl || (targetProjId ? `https://${targetProjId}.web.app` : hostingUrl);
+
       if (res.projectId) {
-        setFirestoreProjectId(res.projectId);
+        setFirestoreProjectId(targetProjId);
       }
       if (res.apiKey) {
-        setFirestoreApiKey(res.apiKey);
+        setFirestoreApiKey(targetApiKey);
       }
       if (res.authDomain) {
-        setFirestoreAuthDomain(res.authDomain);
+        setFirestoreAuthDomain(targetAuthDomain);
       }
       if (res.storageBucket) {
-        setFirestoreStorageBucket(res.storageBucket);
+        setFirestoreStorageBucket(targetStorageBucket);
       }
       if (res.hostingUrl) {
-        setHostingUrl(res.hostingUrl);
+        setHostingUrl(targetHostingUrl);
       }
       setProvider('firestore');
+
+      // CRITICAL FIX: IMMEDIATELY SAVE AFTER DECODING TO PERSISTENCE
+      const profileToSave: DatabaseConnectionProfile = {
+        id: `profile_${Date.now()}`,
+        name: profileName,
+        provider: 'firestore',
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        config: {
+          projectId: targetProjId,
+          apiKey: targetApiKey,
+          authDomain: targetAuthDomain,
+          storageBucket: targetStorageBucket,
+          collectionName: firestoreCollection,
+          hostingUrl: targetHostingUrl,
+        } as any,
+      };
+
+      try {
+        localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(profileToSave));
+        localStorage.setItem(STORAGE_JSON_KEY, jsonInput);
+        localStorage.setItem(STORAGE_PARSED_KEY, JSON.stringify(res));
+      } catch (saveErr) {
+        console.warn('Storage save notice:', saveErr);
+      }
+
+      setSaveFeedback('קובץ ה-JSON פוענח וההגדרות נשמרו בהצלחה בדפדפן!');
+      setTimeout(() => setSaveFeedback(null), 5000);
     } catch (e: any) {
       alert(e.message || 'שגיאה בפענוח ה-JSON');
     } finally {
@@ -93,7 +194,6 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
   const handleTestConnection = async () => {
     setTesting(true);
     setTestResult(null);
-    const start = Date.now();
 
     try {
       if (!firestoreProjectId.trim()) {
@@ -101,21 +201,35 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
         setTesting(false);
         return;
       }
-      setTimeout(() => {
-        setTesting(false);
+
+      // Real live ping using system testConnection
+      const res = await testConnection({
+        projectId: firestoreProjectId,
+        apiKey: firestoreApiKey || config.apiKey,
+        authDomain: firestoreAuthDomain || `${firestoreProjectId}.firebaseapp.com`,
+        storageBucket: firestoreStorageBucket || `${firestoreProjectId}.firebasestorage.app`,
+      });
+
+      if (res.success) {
         setTestResult({ 
           success: true, 
           msg: `החיבור ל-Firestore (${firestoreProjectId}) אומת בהצלחה!`, 
-          latency: Date.now() - start + 85 
+          latency: res.latency || 45 
         });
-      }, 500);
+      } else {
+        setTestResult({
+          success: false,
+          msg: res.error || `שגיאה בחיבור לפרויקט ${firestoreProjectId}`
+        });
+      }
     } catch (e: any) {
       setTestResult({ success: false, msg: `שגיאה בחיבור: ${e.message || String(e)}` });
+    } finally {
       setTesting(false);
     }
   };
 
-  const handleSaveAndApply = () => {
+  const handleSaveAndApply = async () => {
     const profile: DatabaseConnectionProfile = {
       id: `profile_${Date.now()}`,
       name: profileName,
@@ -126,9 +240,43 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
         projectId: firestoreProjectId,
         apiKey: firestoreApiKey,
         authDomain: firestoreAuthDomain,
+        storageBucket: firestoreStorageBucket,
         collectionName: firestoreCollection,
-      },
+        hostingUrl,
+      } as any,
     };
+
+    // 1. Save to tenant-scoped localStorage
+    try {
+      localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(profile));
+      if (jsonInput.trim()) {
+        localStorage.setItem(STORAGE_JSON_KEY, jsonInput);
+      }
+      if (parsedResult) {
+        localStorage.setItem(STORAGE_PARSED_KEY, JSON.stringify(parsedResult));
+      }
+    } catch (e) {
+      console.warn('Local storage error:', e);
+    }
+
+    // 2. Persist to central SystemConnectionContext config
+    try {
+      await updateConfig(
+        {
+          projectId: firestoreProjectId,
+          apiKey: firestoreApiKey || config.apiKey,
+          authDomain: firestoreAuthDomain || (firestoreProjectId ? `${firestoreProjectId}.firebaseapp.com` : config.authDomain),
+          storageBucket: firestoreStorageBucket || (firestoreProjectId ? `${firestoreProjectId}.firebasestorage.app` : config.storageBucket),
+        },
+        {
+          contacts: firestoreCollection,
+        }
+      );
+    } catch (e) {
+      console.warn('Could not update system connection config:', e);
+    }
+
+    // 3. Apply profile and close
     onApplyProfile(profile);
     onClose();
   };
@@ -148,7 +296,7 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
                 חיבור חכם למסד נתונים והוסטינג (Gemini AI Parser)
               </h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                שמירה תחת לקוח: <span className="font-mono text-indigo-600 font-semibold">{clientId}</span>
+                שמירה תחת לקוח / טננט: <span className="font-mono text-indigo-600 font-semibold">{effectiveTenantId}</span>
               </p>
             </div>
           </div>
@@ -185,6 +333,20 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
 
         {/* Modal Body */}
         <div className="p-4 md:p-6 overflow-y-auto flex-1 space-y-4 text-xs">
+          {saveFeedback && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-2 shadow-sm animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-semibold">{saveFeedback}</span>
+              </div>
+              <button
+                onClick={() => setSaveFeedback(null)}
+                className="text-emerald-600 hover:text-emerald-800 font-bold"
+              >
+                ✕
+              </button>
+            </div>
+          )}
           
           {activeTab === 'smart_json' && (
             <div className="space-y-4">

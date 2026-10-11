@@ -19,12 +19,18 @@ import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegi
 
 interface FloatingSystemDockProps {
   editPageUrl?: string;
+  isEditing?: boolean;
+  onToggleEditMode?: () => void;
+  isSaving?: boolean;
   onEnterDevWorkbench?: () => void;
   className?: string;
 }
 
 export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
   editPageUrl,
+  isEditing = false,
+  onToggleEditMode,
+  isSaving = false,
   onEnterDevWorkbench,
   className = '',
 }) => {
@@ -102,18 +108,29 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
         aria-label="תפריט מערכת צף (קושאן)"
       >
         {/* Quick Edit Page button for admins/editors */}
-        {isAdminOrEditor && editPageUrl && (
+        {isAdminOrEditor && (onToggleEditMode || editPageUrl) && (
           <button
             type="button"
             onClick={() => {
-              if (onEnterDevWorkbench) onEnterDevWorkbench();
-              navigate(editPageUrl);
+              if (onToggleEditMode) {
+                onToggleEditMode();
+              } else if (editPageUrl) {
+                if (onEnterDevWorkbench) onEnterDevWorkbench();
+                navigate(editPageUrl);
+              }
             }}
-            className="flex items-center gap-1.5 text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-3 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
-            title="עריכת עמוד זה בבונה העמודים"
+            disabled={isSaving}
+            className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer ${
+              isEditing
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 border border-amber-300 font-black'
+                : 'bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40'
+            }`}
+            title={isEditing ? 'סיום עריכה ושמירת העמוד' : 'עריכת עמוד זה על גבי הדומיין'}
           >
-            <Edit3 className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden sm:inline">ערוך עמוד</span>
+            <Edit3 className={`w-3.5 h-3.5 ${isEditing ? 'text-slate-950' : 'text-indigo-400'}`} />
+            <span className="hidden sm:inline">
+              {isSaving ? 'שומר שינויים...' : isEditing ? 'סיום עריכה' : 'ערוך עמוד'}
+            </span>
           </button>
         )}
 

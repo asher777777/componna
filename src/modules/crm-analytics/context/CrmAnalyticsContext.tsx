@@ -42,6 +42,7 @@ interface CrmAnalyticsContextValue {
   createContact: (contact: Partial<Contact>) => Promise<Contact>;
   firebaseApp?: FirebaseApp;
   ownerId?: string;
+  resolvedCollections: typeof DEFAULT_COLLECTIONS;
 }
 
 const CrmAnalyticsContext = createContext<CrmAnalyticsContextValue | null>(null);
@@ -153,11 +154,29 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       refresh();
     });
 
+    const unsubPayment = eventBus.subscribe('payment:completed', (payload) => {
+      console.log('[CRM Analytics] Received payment completed from EventBus:', payload);
+      refresh();
+    });
+
+    const unsubContactUpdated = eventBus.subscribe('crm:contact:updated', (payload) => {
+      console.log('[CRM Analytics] Received contact updated from EventBus:', payload);
+      refresh();
+    });
+
+    const unsubAmbassador = eventBus.subscribe('campaign:ambassador:created', (payload) => {
+      console.log('[CRM Analytics] Received ambassador created from EventBus:', payload);
+      refresh();
+    });
+
     return () => {
       unsubLead();
       unsubForm();
       unsubSmartForm();
       unsubDonation();
+      unsubPayment();
+      unsubContactUpdated();
+      unsubAmbassador();
     };
   }, [refresh]);
 
@@ -262,6 +281,7 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
         createContact,
         firebaseApp,
         ownerId,
+        resolvedCollections,
       }}
     >
       {children}

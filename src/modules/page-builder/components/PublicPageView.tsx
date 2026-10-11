@@ -7,6 +7,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home } from 'lucide-react';
 import { FloatingSystemDock } from '../../../components/Navigation/FloatingSystemDock';
+import { useKosai } from '../../kosai-engine';
 
 export const PublicPageView: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
@@ -14,6 +15,7 @@ export const PublicPageView: React.FC = () => {
   const location = useLocation();
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
+  const { setPageSections } = useKosai();
 
   const [page, setPage] = useState<PageBuilderConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -42,6 +44,159 @@ export const PublicPageView: React.FC = () => {
   })();
 
   const isPreviewMode = searchParams.get('preview') === 'true';
+  const [isEditing, setIsEditing] = useState<boolean>(() => searchParams.get('edit') === 'true');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Notify KOSAI AI agent and system of edit mode toggle
+  const toggleEditMode = async () => {
+    if (!page) return;
+    if (isEditing) {
+      setIsSaving(true);
+      try {
+        await pageBuilderFirestore.savePage(page, db, tenantId);
+      } catch (err) {
+        console.warn('[PublicPageView] Failed saving page on exit edit:', err);
+      } finally {
+        setIsSaving(false);
+      }
+      setIsEditing(false);
+      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: false } }));
+    } else {
+      setIsEditing(true);
+      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
+    }
+  };
+
+  const handleUpdateSection = (sectionId: string, updatedData: any) => {
+    setPage((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: updatedData,
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
+
+  const handleDeleteSection = (sectionId: string) => {
+    if (!window.confirm('האם למחוק אזור זה מהעמוד?')) return;
+    setPage((prev) => {
+      if (!prev) return prev;
+      const nextOrder = prev.sectionOrder.filter((id) => id !== sectionId);
+      const nextSections = { ...prev.sections };
+      delete nextSections[sectionId];
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: nextSections,
+      };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
+
+  const handleDuplicateSection = (sectionId: string) => {
+    setPage((prev) => {
+      if (!prev) return prev;
+      const src = prev.sections[sectionId];
+      if (!src) return prev;
+      const newId = `${src.type}_${Date.now()}`;
+      const newIndex = prev.sectionOrder.indexOf(sectionId) + 1;
+      const nextOrder = [...prev.sectionOrder];
+      nextOrder.splice(newIndex, 0, newId);
+
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: {
+          ...prev.sections,
+          [newId]: {
+            ...src,
+            id: newId,
+            adminTitle: `${src.adminTitle || src.type} (משוכפל)`,
+          },
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
+
+  const handleMoveUp = (index: number) => {
+    if (index <= 0) return;
+    setPage((prev) => {
+      if (!prev) return prev;
+      const nextOrder = [...prev.sectionOrder];
+      const temp = nextOrder[index - 1];
+      nextOrder[index - 1] = nextOrder[index];
+      nextOrder[index] = temp;
+      const next = { ...prev, sectionOrder: nextOrder };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
+
+  const handleMoveDown = (index: number) => {
+    setPage((prev) => {
+      if (!prev) return prev;
+      if (index >= prev.sectionOrder.length - 1) return prev;
+      const nextOrder = [...prev.sectionOrder];
+      const temp = nextOrder[index + 1];
+      nextOrder[index + 1] = nextOrder[index];
+      nextOrder[index] = temp;
+      const next = { ...prev, sectionOrder: nextOrder };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
+
+  const handleToggleVisibility = (sectionId: string) => {
+    setPage((prev) => {
+      if (!prev) return prev;
+      const current = prev.sections[sectionId];
+      if (!current) return prev;
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: {
+            ...current,
+            visible: current.visible === false ? true : false,
+          },
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
+
+  const handleAddSection = (type: any, insertIndex?: number) => {
+    setPage((prev) => {
+      if (!prev) return prev;
+      const newId = `${type}_${Date.now()}`;
+      const defaultData = { id: newId, type, visible: true, title: type };
+      const nextOrder = [...prev.sectionOrder];
+      if (typeof insertIndex === 'number' && insertIndex >= 0) {
+        nextOrder.splice(insertIndex, 0, newId);
+      } else {
+        nextOrder.push(newId);
+      }
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: {
+          ...prev.sections,
+          [newId]: defaultData,
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      return next;
+    });
+  };
 
   useEffect(() => {
     let isMounted = true;
@@ -99,6 +254,21 @@ export const PublicPageView: React.FC = () => {
       isMounted = false;
     };
   }, [resolvedSlug, db, tenantId]);
+
+  // Sync active page sections to KOSAI agent for targeted editing
+  useEffect(() => {
+    if (page?.sectionOrder && page?.sections) {
+      const mapped = page.sectionOrder.map((id) => {
+        const sec = page.sections[id];
+        return {
+          id,
+          type: sec?.type || id,
+          title: sec?.title || sec?.adminTitle,
+        };
+      });
+      setPageSections(mapped);
+    }
+  }, [page, setPageSections]);
 
   if (loading) {
     return (
@@ -173,6 +343,29 @@ export const PublicPageView: React.FC = () => {
     );
   }
 
+  const handleSaveSection = async (sectionId: string, updatedData?: any) => {
+    if (!page) return;
+    const next = {
+      ...page,
+      sections: {
+        ...page.sections,
+        ...(updatedData ? { [sectionId]: updatedData } : {}),
+      },
+    };
+    setPage(next);
+    await pageBuilderFirestore.savePage(next, db, tenantId);
+  };
+
+  const handleUpdateGlobalSettings = (updatedGlobalSettings: any) => {
+    if (!page) return;
+    const next = {
+      ...page,
+      globalSettings: updatedGlobalSettings,
+    };
+    setPage(next);
+    pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+  };
+
   return (
     <div className="w-full min-h-screen bg-[#0a0a0c]">
       {/* If in preview mode of an unpublished draft, show top subtle banner */}
@@ -188,6 +381,16 @@ export const PublicPageView: React.FC = () => {
 
       <PageBuilderRenderer
         config={page}
+        isEditing={isEditing}
+        onUpdateSection={handleUpdateSection}
+        onSaveSection={handleSaveSection}
+        onDeleteSection={handleDeleteSection}
+        onDuplicateSection={handleDuplicateSection}
+        onMoveSectionUp={handleMoveUp}
+        onMoveSectionDown={handleMoveDown}
+        onToggleSectionVisibility={handleToggleVisibility}
+        onAddSection={handleAddSection}
+        onUpdateGlobalSettings={handleUpdateGlobalSettings}
         onSelectDonationTier={(tierId, mode) => {
           console.log('[PublicPageView] Selected donation tier:', tierId, mode);
         }}
@@ -198,6 +401,9 @@ export const PublicPageView: React.FC = () => {
 
       <FloatingSystemDock 
         editPageUrl={`/page-builder?pageId=${page.pageId}`}
+        isEditing={isEditing}
+        onToggleEditMode={toggleEditMode}
+        isSaving={isSaving}
       />
     </div>
   );

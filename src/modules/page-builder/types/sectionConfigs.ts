@@ -20,6 +20,7 @@ export interface HeaderSectionConfig extends BaseSectionConfig {
   phone?: string;
   showWhatsApp?: boolean;
   whatsApp?: string;
+  menuTitleOverrides?: Record<string, string>;
 }
 
 export interface HeroAvatarItem {

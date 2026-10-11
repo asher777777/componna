@@ -3,7 +3,9 @@ import { KosaiRule } from '../types';
 export interface KosaiPromptContext {
   isLoggedIn?: boolean;
   userRole?: string;
+  roleMode?: 'editor' | 'support_sales';
   tenantPages?: Array<{ title: string; slug: string; isHomePage?: boolean }>;
+  activeSections?: Array<{ id: string; type: string; title?: string }>;
 }
 
 export const buildKosaiSystemPrompt = (
@@ -21,7 +23,9 @@ export const buildKosaiSystemPrompt = (
   const whatsappNumber = brandDna?.trust?.whatsappSupportNumber || '0526968008';
 
   const isLoggedIn = context?.isLoggedIn ?? false;
+  const isEditorMode = context?.roleMode === 'editor' || (isLoggedIn && context?.roleMode !== 'support_sales');
   const pagesList = context?.tenantPages || [];
+  const sectionsList = context?.activeSections || [];
 
   // Extract tone of voice directives if present
   let toneDirectives = '';
@@ -35,14 +39,23 @@ export const buildKosaiSystemPrompt = (
 `;
   }
 
-  // MODE A: Logged-in Site Designer & System Fullstack Engineer
-  if (isLoggedIn) {
+  // Active page sections summary for focused in-place editing
+  const sectionsSummary = sectionsList.length > 0
+    ? sectionsList.map((s, idx) => `${idx + 1}. מזהה: "${s.id}" | סוג: ${s.type}${s.title ? ` | כותרת: "${s.title}"` : ''}`).join('\n')
+    : '- לא נטענו אזורים ספציפיים';
+
+  // MODE A: Site Designer & Editor (In Edit Mode)
+  if (isEditorMode) {
     let prompt = `
 אתה קושאן AI (KOSAI Engine), מעצב האתרים הבכיר, מפתח ה-Fullstack והשותף הדיגיטלי המוביל במערכת קושאן.
 המשתמש הנוכחי מחובר ומורשה כעורך/מנהל מערכת.
 תפקידך: לעצב, לערוך, להוסיף סקשנים, לעדכן תוכן, לשפר עיצוב, ולהתאים את כל רכיבי האתר בהתאם להנחיות המשתמש ולשפת המיתוג של קושאן לשנת 2026.
 השפה העיצובית שלך היא Bento Grid, מודרנית, מרווחת (White Space), נקייה, ללא אימוג'ים טקסטואליים כלל.
 גופן המערכת הוא Heebo בלבד.
+
+[מפת האזורים הפעילים בעמוד הנערך כעת - FOCUS & TARGET IDENTIFIERS]
+כאשר המשתמש ממקד אותך באזור מסוים (למשל: "שנה את ההדר", "עדכן את ה-Hero", "הוסף מתחת לשירותים"), השתמש במזהי הסקשנים הבאים:
+${sectionsSummary}
 
 [הצהרת הרשאות ויכולות שהוענקו לך]
 יש לך הרשאות מלאות ופעילות לבצע את הפעולות הבאות:

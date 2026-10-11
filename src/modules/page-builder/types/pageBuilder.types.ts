@@ -51,6 +51,26 @@ export interface GlobalPageSettings {
   contactPhone?: string;
   contactEmail?: string;
   address?: string;
+  floatingContactWidget?: {
+    enabled?: boolean;
+    buttonText?: string;
+    phone?: string;
+    whatsapp?: string;
+    email?: string;
+    address?: string;
+    enableShare?: boolean;
+    shareTitle?: string;
+    shareText?: string;
+    socialLinks?: {
+      facebook?: string;
+      instagram?: string;
+      linkedin?: string;
+      youtube?: string;
+      tiktok?: string;
+      telegram?: string;
+      waze?: string;
+    };
+  };
   navLinks?: Array<{ label: string; url: string; isButton?: boolean }>;
   footerText?: string;
   customCss?: string;

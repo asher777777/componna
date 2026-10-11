@@ -17,6 +17,10 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../../core/tenant';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../../types/pageBuilder.types';
 
 interface HeaderEditorProps {
   config: HeaderSectionConfig;
@@ -24,9 +28,34 @@ interface HeaderEditorProps {
 }
 
 export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) => {
+  const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const brandContext = useBrandDna();
   const brandLogo = brandContext?.brandDna?.identity?.logoUrl;
   const brandCompanyName = brandContext?.brandDna?.identity?.companyName || 'קושאן';
+
+  const [tenantPages, setTenantPages] = useState<PageBuilderConfig[]>([]);
+
+  React.useEffect(() => {
+    let mounted = true;
+    pageBuilderFirestore.getAllPages(db, tenantId)
+      .then((pages) => {
+        if (mounted && pages) {
+          const published = pages.filter((p) => p.published !== false);
+          published.sort((a, b) => {
+            if (a.isHomePage) return -1;
+            if (b.isHomePage) return 1;
+            return 0;
+          });
+          setTenantPages(published);
+        }
+      })
+      .catch((err) => console.warn('[HeaderEditor] Failed loading pages:', err));
+
+    return () => {
+      mounted = false;
+    };
+  }, [db, tenantId]);
 
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
@@ -297,13 +326,74 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
           </button>
         </div>
 
-        {/* Dynamic Tenant Info Notice */}
+        {/* Dynamic Tenant Info Notice & Menu Title Overrides */}
         {(config.menuMode || 'dynamic-tenant') === 'dynamic-tenant' && (
-          <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-2.5">
-            <Sparkles className="w-4 h-4 shrink-0 text-indigo-400" />
-            <span>
-              התפריט מושך ומציג באופן אוטומטי את כל עמודי התוכן המפורסמים של העסק שלך (כולל עמוד הבית).
-            </span>
+          <div className="space-y-3 pt-1">
+            <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-2.5">
+              <Sparkles className="w-4 h-4 shrink-0 text-indigo-400" />
+              <span>
+                התפריט מושך את עמודי האתר המפורסמים. באפשרותך להתאים אישית את כותרת התצוגה של כל עמוד בתפריט מבלי לשנות את שם העמוד המקורי:
+              </span>
+            </div>
+
+            {/* List of tenant pages with custom label override fields */}
+            <div className="space-y-2 pt-1">
+              <span className="text-xs font-bold text-white block">עריכת כותרות פריטי התפריט</span>
+              {tenantPages.length === 0 ? (
+                <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400">
+                  טוען עמודי תוכן פעילים...
+                </div>
+              ) : (
+                tenantPages.map((page) => {
+                  const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
+                  const currentOverride = (config.menuTitleOverrides && (config.menuTitleOverrides[key] || config.menuTitleOverrides[page.pageId])) || '';
+
+                  return (
+                    <div
+                      key={page.pageId}
+                      className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-right"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold text-white truncate">
+                            {page.pageTitle || 'עמוד ללא שם'}
+                          </span>
+                          {page.isHomePage && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                              עמוד הבית
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] font-mono text-slate-500" dir="ltr">
+                          {page.isHomePage ? '/' : `/p/${page.slug || page.pageId}`}
+                        </span>
+                      </div>
+
+                      <div className="w-48 sm:w-60">
+                        <input
+                          type="text"
+                          value={currentOverride}
+                          placeholder={page.pageTitle || 'כותרת בתפריט'}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            const overrides = { ...(config.menuTitleOverrides || {}) };
+                            if (val.trim()) {
+                              overrides[key] = val;
+                              overrides[page.pageId] = val;
+                            } else {
+                              delete overrides[key];
+                              delete overrides[page.pageId];
+                            }
+                            onChange({ menuTitleOverrides: overrides });
+                          }}
+                          className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 placeholder:text-slate-500"
+                        />
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 

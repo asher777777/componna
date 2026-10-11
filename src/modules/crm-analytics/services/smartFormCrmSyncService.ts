@@ -163,7 +163,7 @@ export async function syncSmartFormSubmissionsToContacts(
     // 3. Process each form's submissions directly from Firestore
     for (const form of formsToSync) {
       try {
-        const subCollRef = collection(db, formsCollName, form.id, subCollName);
+        const subCollRef = collection(db, `${formsCollName}/${form.id}/${subCollName}`);
         const subSnap = await getDocs(subCollRef);
 
         for (const subDoc of subSnap.docs) {
@@ -235,7 +235,7 @@ export async function syncSmartFormSubmissionsToContacts(
               }
             });
 
-            const contactRef = doc(db, collections.contacts, matchedContact.id);
+            const contactRef = doc(db, `${collections.contacts}/${matchedContact.id}`);
             await updateDoc(contactRef, updates);
 
             // Update in memory
@@ -271,7 +271,7 @@ export async function syncSmartFormSubmissionsToContacts(
               ...extracted.customFields,
             };
 
-            const newDocRef = doc(db, collections.contacts, newId);
+            const newDocRef = doc(db, `${collections.contacts}/${newId}`);
             await setDoc(newDocRef, newContact);
             existingContacts.push(newContact);
             result.createdCount += 1;
