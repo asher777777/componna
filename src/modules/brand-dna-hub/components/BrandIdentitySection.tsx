@@ -280,19 +280,176 @@ export const BrandIdentitySection: React.FC = () => {
             </div>
           </div>
 
-          {/* Company Name */}
-          <div>
-            <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-              שם {brandDna.identity.organizationType}
-              <Tooltip text="השם הרשמי של העסק כפי שיופיע בכותרות ובמסמכים רשמיים שה-AI כותב עבורך." />
-            </label>
-            <input
-              type="text"
-              value={brandDna.identity.companyName}
-              onChange={(e) => updateIdentity({ companyName: e.target.value })}
-              placeholder="לדוגמה: קומונה טכנולוגיות בע״מ"
-              className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors"
-            />
+          {/* Left Column: Company Name & Logo Area */}
+          <div className="flex flex-col space-y-3.5">
+            {/* Company Name */}
+            <div>
+              <label className="flex items-center text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                שם {brandDna.identity.organizationType}
+                <Tooltip text="השם הרשמי של העסק כפי שיופיע בכותרות ובמסמכים רשמיים שה-AI כותב עבורך." />
+              </label>
+              <input
+                type="text"
+                value={brandDna.identity.companyName}
+                onChange={(e) => updateIdentity({ companyName: e.target.value })}
+                placeholder="לדוגמה: קומונה טכנולוגיות בע״מ"
+                className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors"
+              />
+            </div>
+
+            {/* Embedded Logo & Color Extraction Area */}
+            <div className="bg-slate-50/80 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/70 rounded-2xl p-3.5 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center text-xs font-bold text-slate-800 dark:text-slate-200">
+                  <ImageIcon className="w-3.5 h-3.5 ml-1 text-indigo-500" />
+                  לוגו המותג וסנכרון גלריה
+                  <Tooltip text="בחר לוגו מהגלריה, העלה מהמחשב או הזן כתובת ישירה. הצבעים נחלצים אוטומטית ומסונכרנים לכל הרכיבים." />
+                </label>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  Live Sync
+                </span>
+              </div>
+
+              {/* URL input & Quick Buttons */}
+              <div className="flex flex-col sm:flex-row items-stretch gap-1.5">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    value={brandDna.identity.logoUrl || ''}
+                    onChange={(e) => handleLogoUrlInputChange(e.target.value)}
+                    onBlur={() => {
+                      if (brandDna.identity.logoUrl) {
+                        handleProcessLogoUrl(brandDna.identity.logoUrl);
+                      }
+                    }}
+                    placeholder="כתובת לוגו או בחירה מגלריה..."
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-8 pr-2.5 py-2 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono transition-all"
+                    dir="ltr"
+                  />
+                  {brandDna.identity.logoUrl && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateIdentity({ logoUrl: '' });
+                        if (setLogoUrl) setLogoUrl('');
+                        setExtractedColorsList([]);
+                      }}
+                      className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-0.5 transition-colors"
+                      title="נקה"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleOpenLogoFromGallery}
+                    className="px-2.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1"
+                    title="בחר מגלריית המדיה המערכתית"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>גלריה</span>
+                  </button>
+
+                  <label className="cursor-pointer px-2.5 py-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1">
+                    <UploadCloud className="w-3.5 h-3.5" />
+                    <span>העלה</span>
+                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                  </label>
+
+                  {brandDna.identity.logoUrl && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={handleCopyLogoUrl}
+                        className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl border border-slate-200 dark:border-slate-700 transition-colors"
+                        title="העתק קישור"
+                      >
+                        {logoCopied ? <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (brandDna.identity.logoUrl) {
+                            handleProcessLogoUrl(brandDna.identity.logoUrl);
+                          }
+                        }}
+                        disabled={isExtractingColors}
+                        className="p-2 bg-pink-50 hover:bg-pink-100 dark:bg-pink-950/40 text-pink-600 dark:text-pink-400 rounded-xl border border-pink-200 dark:border-pink-800/60 transition-colors"
+                        title="חלץ צבעים מחדש"
+                      >
+                        <Palette className="w-3.5 h-3.5" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Logo Preview and Extracted Colors Row */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 pt-1">
+                {/* Visual Preview Box */}
+                <div className="w-full sm:w-28 h-20 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900/60 flex items-center justify-center p-1.5 shrink-0 overflow-hidden">
+                  {brandDna.identity.logoUrl ? (
+                    <img
+                      src={brandDna.identity.logoUrl}
+                      alt="לוגו"
+                      className="max-h-full max-w-full object-contain"
+                    />
+                  ) : (
+                    <div className="text-center text-slate-400 dark:text-slate-500 text-[10px] flex flex-col items-center gap-0.5">
+                      <ImageIcon className="w-4 h-4 opacity-50" />
+                      <span>אין לוגו</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Extracted Colors Palette */}
+                <div className="flex-1 w-full bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-xl p-2.5">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1">
+                      <Palette className="w-3 h-3 text-pink-500" />
+                      צבעי מותג מחולצים
+                    </span>
+                    {isExtractingColors && <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />}
+                  </div>
+
+                  {extractedColorsList.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {extractedColorsList.map((hex, idx) => (
+                          <div key={idx} className="flex items-center gap-1 bg-slate-50 dark:bg-slate-800 px-1.5 py-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <span
+                              className="w-3.5 h-3.5 rounded-md border border-slate-300 dark:border-white/20 shadow-xs cursor-pointer"
+                              style={{ backgroundColor: hex }}
+                              title={`העתק ${hex}`}
+                              onClick={() => navigator.clipboard.writeText(hex)}
+                            />
+                            <span className="text-[10px] font-mono text-slate-600 dark:text-slate-300" dir="ltr">
+                              {hex}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleApplyExtractedColors}
+                        className="w-full py-1 px-2 bg-pink-50 hover:bg-pink-100 text-pink-700 dark:bg-pink-950/40 dark:hover:bg-pink-900/60 dark:text-pink-300 rounded-lg text-[11px] font-bold transition-all border border-pink-200 dark:border-pink-800/60 flex items-center justify-center gap-1"
+                      >
+                        <Palette className="w-3 h-3" />
+                        החל כצבעי עיצוב (Tokens)
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-[11px] text-slate-400 py-1 text-center">
+                      חילוץ צבעים אוטומטי בעת בחירת הלוגו
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -365,234 +522,7 @@ export const BrandIdentitySection: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Logo Upload & Automatic Color Extractor with Gallery Integration */}
-      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400 shrink-0">
-              <ImageIcon className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="flex items-center text-base font-bold text-slate-800 dark:text-white">
-                לוגו המותג 
-                <Tooltip text="העלה את הלוגו שלך. ה-AI שלנו יסרוק אותו ויחלץ ממנו אוטומטית צבעי מותג להתאמה מושלמת בכל רחבי המערכת." />
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                מסונכרן אוטומטית עם גלריית המדיה וכל רכיבי המערכת דרך קולקציית המיתוג (settings/brand_dna)
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30 text-emerald-700 dark:text-emerald-300">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              קולקציה מסונכרנת (Live Sync)
-            </span>
-          </div>
-        </div>
-
-        {/* Dedicated Logo URL Input Field */}
-        <div className="space-y-1.5 bg-slate-50/70 dark:bg-slate-900/50 p-3.5 rounded-xl border border-slate-200 dark:border-slate-700/70">
-          <div className="flex items-center justify-between">
-            <label className="flex items-center text-xs font-bold text-slate-700 dark:text-slate-300">
-              <Link className="w-3.5 h-3.5 ml-1 text-indigo-500" />
-              שדה כתובת הלוגו (URL)
-              <Tooltip text="הדבק כאן קישור ישיר ללוגו, בחר מגלריית המדיה או העלה קובץ מהמחשב. השדה מתעדכן מיידית בכל הרכיבים." />
-            </label>
-          </div>
-
-          <div className="flex flex-col sm:flex-row items-stretch gap-2">
-            <div className="relative flex-1">
-              <input
-                type="text"
-                value={brandDna.identity.logoUrl || ''}
-                onChange={(e) => handleLogoUrlInputChange(e.target.value)}
-                onBlur={() => {
-                  if (brandDna.identity.logoUrl) {
-                    handleProcessLogoUrl(brandDna.identity.logoUrl);
-                  }
-                }}
-                placeholder="הדבק כאן כתובת אינטרנט של הלוגו (https://... או בחר מגלריה)"
-                className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-xl pl-9 pr-3.5 py-2.5 text-xs text-slate-800 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 font-mono transition-all"
-                dir="ltr"
-              />
-              {brandDna.identity.logoUrl && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    updateIdentity({ logoUrl: '' });
-                    if (setLogoUrl) setLogoUrl('');
-                    setExtractedColorsList([]);
-                  }}
-                  className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-red-500 p-1 transition-colors"
-                  title="נקה שדה"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={handleOpenLogoFromGallery}
-                className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-1.5"
-                title="פתח את גלריית המדיה המערכתית לבחירת הלוגו"
-              >
-                <FolderOpen className="w-3.5 h-3.5" />
-                <span>בחר מגלריה</span>
-              </button>
-
-              <label className="cursor-pointer px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5">
-                <UploadCloud className="w-3.5 h-3.5" />
-                <span>העלה</span>
-                <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-              </label>
-
-              {brandDna.identity.logoUrl && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleCopyLogoUrl}
-                    className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition-colors"
-                    title="העתק כתובת לוגו ללוח"
-                  >
-                    {logoCopied ? <CheckCircle className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (brandDna.identity.logoUrl) {
-                        handleProcessLogoUrl(brandDna.identity.logoUrl);
-                      }
-                    }}
-                    disabled={isExtractingColors}
-                    className="p-2 bg-pink-50 hover:bg-pink-100 dark:bg-pink-500/10 dark:hover:bg-pink-500/20 text-pink-600 dark:text-pink-400 rounded-xl border border-pink-200 dark:border-pink-500/30 transition-colors"
-                    title="חלץ צבעים מחדש מהלוגו"
-                  >
-                    <Palette className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 items-start">
-          {/* Logo Area */}
-          <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl bg-slate-50 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-900/70 transition-colors relative min-h-[170px]">
-            {brandDna.identity.logoUrl ? (
-              <div className="flex flex-col items-center gap-3 w-full">
-                <img
-                  src={brandDna.identity.logoUrl}
-                  alt="Brand Logo"
-                  className="max-h-24 max-w-full object-contain drop-shadow-md rounded-lg"
-                />
-                <div className="flex flex-wrap items-center justify-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpenLogoFromGallery}
-                    className="text-xs font-semibold px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    בחר מגלריה
-                  </button>
-                  <label className="cursor-pointer text-xs font-semibold px-3 py-1.5 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-white rounded-lg transition-colors flex items-center gap-1.5 shadow-sm">
-                    <UploadCloud className="w-3.5 h-3.5" />
-                    העלה קובץ
-                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      updateIdentity({ logoUrl: '' });
-                      if (setLogoUrl) setLogoUrl('');
-                      setExtractedColorsList([]);
-                    }}
-                    className="text-xs px-2.5 py-1.5 bg-red-100 hover:bg-red-200 text-red-600 dark:bg-red-500/10 dark:hover:bg-red-500/20 dark:text-red-400 rounded-lg transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center text-center w-full space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-                  <UploadCloud className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="text-xs font-bold text-slate-700 dark:text-slate-200 block">הגדר את לוגו המותג</span>
-                  <span className="text-[11px] text-slate-500">בחר מגלריית המדיה או העלה ישירות</span>
-                </div>
-                <div className="flex flex-wrap justify-center items-center gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleOpenLogoFromGallery}
-                    className="px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 dark:hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition-all shadow-md flex items-center gap-2"
-                  >
-                    <FolderOpen className="w-4 h-4" />
-                    בחר מגלריה
-                  </button>
-                  <label className="cursor-pointer px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-300 dark:hover:text-white rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-1.5">
-                    <UploadCloud className="w-4 h-4" />
-                    העלה קובץ
-                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                  </label>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Color Extraction Palette Card */}
-          <div className="bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700/70 rounded-xl p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
-                <Palette className="w-4 h-4 text-pink-500 dark:text-pink-400" />
-                צבעים שחולצו
-              </span>
-              {isExtractingColors && <Loader2 className="w-4 h-4 animate-spin text-indigo-500 dark:text-indigo-400" />}
-            </div>
-
-            {extractedColorsList.length > 0 ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  {extractedColorsList.map((hex, idx) => (
-                    <div key={idx} className="flex flex-col items-center gap-1">
-                      <div
-                        className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-slate-200 dark:border-white/20 shadow-sm cursor-pointer hover:scale-105 transition-transform"
-                        style={{ backgroundColor: hex }}
-                        title={`העתק ${hex}`}
-                        onClick={() => {
-                          navigator.clipboard.writeText(hex);
-                        }}
-                      />
-                      <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400 select-all" dir="ltr">
-                        {hex}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleApplyExtractedColors}
-                  className="w-full py-2 px-3 bg-pink-100 hover:bg-pink-200 border border-pink-300 text-pink-700 dark:bg-pink-600/20 dark:hover:bg-pink-600/30 dark:border-pink-500/40 dark:text-pink-300 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm"
-                >
-                  <Palette className="w-3.5 h-3.5" />
-                  קבע כצבעי Design Tokens
-                </button>
-              </div>
-            ) : (
-              <p className="text-xs text-slate-500 py-3 text-center">
-                בחר לוגו או תמונת אווירה כדי לחלץ צבעים באופן אוטומטי.
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* 3. Vibe Images & Brand Media Gallery Section */}
+      {/* 2. Vibe Images & Brand Media Gallery Section */}
       <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
