@@ -2,9 +2,24 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useKosai } from '../context/KosaiContext';
 import { X, Send, Bot, User, Image as ImageIcon, Loader2, Sparkles, Trash2, Maximize2, Minimize2 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 
 export const KosaiChatDrawer: React.FC = () => {
   const { isOpen, setIsOpen, messages, sendMessage, clearChat, currentRule, triggerMediaGallery } = useKosai();
+  const { firebaseApp } = useSystemConnection();
+
+  const [canEdit, setCanEdit] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, (state: AuthState) => {
+      const allowed = state.isAuthenticated && (state.role === 'admin' || state.role === 'editor');
+      setCanEdit(allowed);
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
   const [inputText, setInputText] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -15,7 +30,7 @@ export const KosaiChatDrawer: React.FC = () => {
     }
   }, [messages, isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen || !canEdit) return null;
 
   const handleSend = () => {
     if (!inputText.trim()) return;

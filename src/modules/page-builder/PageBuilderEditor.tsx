@@ -55,7 +55,13 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   const [isBlueprintsModalOpen, setIsBlueprintsModalOpen] = useState(false);
   const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  // Default to Day Mode (isDarkMode = false) according to Cashwan Branding Rule 4
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    const saved = localStorage.getItem('kosun_theme');
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
+    return false; // Day Mode is default
+  });
   const [aiSectionTarget, setAiSectionTarget] = useState<string | null>(null);
 
   useEffect(() => {
@@ -103,10 +109,25 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('kosun_theme', 'dark');
+      localStorage.setItem('kosun_home_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('kosun_theme', 'light');
+      localStorage.setItem('kosun_home_theme', 'light');
     }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: isDarkMode ? 'dark' : 'light' } }));
   }, [isDarkMode]);
+
+  useEffect(() => {
+    const handleGlobalThemeChange = (e: any) => {
+      const newTheme = e?.detail?.theme;
+      if (newTheme === 'dark') setIsDarkMode(true);
+      else if (newTheme === 'light') setIsDarkMode(false);
+    };
+    window.addEventListener('kosun_theme_changed', handleGlobalThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleGlobalThemeChange);
+  }, []);
 
   useEffect(() => {
     setConfig(initialConfig);

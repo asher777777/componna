@@ -279,12 +279,29 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
         <div className="flex items-center gap-2">
           <button
+            type="button"
+            onClick={() => {
+              const kosaiBtn = document.querySelector('button[aria-label="סוכן AI לעריכה"]') as HTMLButtonElement;
+              if (kosaiBtn) {
+                kosaiBtn.click();
+              } else {
+                window.dispatchEvent(new CustomEvent('kosai:open_chat'));
+              }
+            }}
+            className="flex items-center gap-1.5 text-[11px] bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 text-indigo-300 border border-indigo-500/40 px-3 py-1.5 rounded-lg font-bold transition shadow-sm cursor-pointer"
+            title="עריכת העמוד באמצעות סוכן ה-AI (KOSAI)"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">עריכה באמצעות KOSAI AI</span>
+          </button>
+
+          <button
             onClick={() => setMode('admin')}
-            className="flex items-center gap-1.5 text-[11px] bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-md shadow-indigo-600/20"
+            className="flex items-center gap-1.5 text-[11px] bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-md shadow-indigo-600/20 cursor-pointer"
             title="כניסה לעריכת עמוד הבית וניהול הרכיבים"
           >
             <Lock className="w-3.5 h-3.5 text-indigo-200" />
-            <span>🔐 לוח בקרה / ניהול אתר</span>
+            <span>לוח בקרה / ניהול אתר</span>
           </button>
         </div>
       </div>

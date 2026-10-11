@@ -16,7 +16,9 @@ export type EmailCampaignStatus =
 export type EmailProviderType = 
   | 'resend' 
   | 'sendgrid' 
+  | 'smtp_proxy'
   | 'functions_smtp' 
+  | 'mock'
   | 'mock_local';
 
 export type EmailDeliveryStatus = 
@@ -224,6 +226,7 @@ export interface KosunAmContextValue {
   logs: EmailDeliveryLog[];
   isLoading: boolean;
   activeProvider: EmailProviderType;
+  setActiveProvider?: (provider: EmailProviderType) => void;
   createCampaign: (data: Partial<EmailCampaign>) => Promise<string>;
   updateCampaign: (id: string, data: Partial<EmailCampaign>) => Promise<void>;
   deleteCampaign: (id: string) => Promise<void>;
@@ -232,6 +235,8 @@ export interface KosunAmContextValue {
   deleteTemplate: (id: string) => Promise<void>;
   saveAutomation: (data: Partial<EmailAutomation>) => Promise<string>;
   toggleAutomation: (id: string, active: boolean) => Promise<void>;
+  deleteAutomation?: (id: string) => Promise<void>;
   generateAiContent: (prompt: string, context?: Record<string, unknown>) => Promise<AiGenerationResult>;
   refreshAll: () => Promise<void>;
+  hostCapabilities?: unknown;
 }

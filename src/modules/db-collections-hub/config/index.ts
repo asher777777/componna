@@ -329,4 +329,34 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
     category: 'system',
     icon: 'FileText',
   },
+
+  // 13. KOSUN AM - קושאן מייל אוטומטי (Smart Email & Multi-Channel Automations)
+  {
+    id: 'mod_kosun_am_campaigns',
+    name: 'קמפיינים ודיוור - קושאן מייל אוטומטי (KOSUN AM Campaigns)',
+    description: 'קמפיינים שיווקיים, ניוזלטרים ורשימות תפוצה מנוהלות בדייר',
+    category: 'crm',
+    icon: 'Mail',
+  },
+  {
+    id: 'mod_kosun_am_templates',
+    name: 'תבניות מייל מעוצבות (KOSUN AM Templates)',
+    description: 'תבניות ניוזלטר, בלוקים מודולריים ומבנה עיצוב Brand DNA',
+    category: 'crm',
+    icon: 'Layout',
+  },
+  {
+    id: 'mod_kosun_am_automations',
+    name: 'אוטומציות שיווקיות רב-ערוציות (KOSUN AM Automations)',
+    description: 'מסעות לקוח, שרשראות טריגרים חכמות ושליחות מתוזמנות',
+    category: 'crm',
+    icon: 'GitBranch',
+  },
+  {
+    id: 'mod_kosun_am_logs',
+    name: 'יומני שליחה ומסירה (KOSUN AM Delivery Logs)',
+    description: 'תיעוד משלוחי מייל, סטטוסי מסירה, פתיחות ושגיאות ספק',
+    category: 'crm',
+    icon: 'FileText',
+  },
 ];

@@ -32,6 +32,39 @@ export interface WhatsAppAiBotConfig {
 }
 
 /**
+ * Normalizes text for matching by removing invisible Unicode marks, RTL/LTR marks,
+ * Hebrew Niqqud, punctuation, and extraneous spacing.
+ */
+export function normalizeTextForMatching(text: string): string {
+  if (!text) return '';
+  return text
+    // Remove invisible unicode characters, bidirectional control, zero-width spaces
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+    // Remove Hebrew Niqqud
+    .replace(/[\u0591-\u05C7]/g, '')
+    // Replace non-breaking spaces with standard space
+    .replace(/\u00A0/g, ' ')
+    .toLowerCase()
+    .trim();
+}
+
+/**
+ * Splits and flattens keyword lists (handles comma, semicolon, newline delimiters)
+ */
+export function flattenKeywords(keywords: string[] | string): string[] {
+  if (!keywords) return [];
+  const list = Array.isArray(keywords) ? keywords : [String(keywords)];
+  const result: string[] = [];
+  for (const item of list) {
+    if (typeof item === 'string') {
+      const parts = item.split(/[,;\n\t]+/).map(p => p.trim()).filter(Boolean);
+      result.push(...parts);
+    }
+  }
+  return result;
+}
+
+/**
  * Smart Keyword Matching Helper for WhatsApp AI Agents
  * Normalizes text, handles punctuation, and matches by contains / exact / startsWith.
  */
@@ -40,37 +73,46 @@ export function checkKeywordMatch(
   keywords: string[] = [],
   matchMode: 'contains' | 'exact' | 'startsWith' = 'contains'
 ): { isMatch: boolean; matchedKeyword?: string } {
-  if (!messageText || !keywords || keywords.length === 0) {
+  if (!messageText || !keywords) {
     return { isMatch: false };
   }
 
-  const rawClean = messageText
-    .toLowerCase()
-    .replace(/[\u0591-\u05C7]/g, '')
-    .trim();
+  const normMsg = normalizeTextForMatching(messageText);
+  if (!normMsg) return { isMatch: false };
 
-  const strippedText = rawClean.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
-  const textWords = strippedText.split(/\s+/).filter(Boolean);
+  // Strip punctuation for clean tokenization
+  const strippedMsg = normMsg.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
+  const msgWords = strippedMsg.split(/\s+/).filter(Boolean);
+  const flattened = flattenKeywords(keywords);
 
-  for (const rawKw of keywords) {
-    const kw = rawKw
-      .toLowerCase()
-      .replace(/[\u0591-\u05C7]/g, '')
-      .replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, '')
-      .trim();
+  for (const rawKw of flattened) {
+    const normKw = normalizeTextForMatching(rawKw);
+    if (!normKw) continue;
 
-    if (!kw) continue;
+    const strippedKw = normKw.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ').trim();
+    if (!strippedKw) continue;
 
     if (matchMode === 'exact') {
-      if (rawClean === kw || textWords.includes(kw)) {
+      // 1. Direct equality
+      if (normMsg === normKw || strippedMsg === strippedKw) {
+        return { isMatch: true, matchedKeyword: rawKw };
+      }
+      // 2. Single-word token in message
+      if (msgWords.includes(strippedKw)) {
+        return { isMatch: true, matchedKeyword: rawKw };
+      }
+      // 3. Multi-word phrase boundary matching
+      const boundaryRegex = new RegExp(`(^|\\s)${strippedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i');
+      if (boundaryRegex.test(strippedMsg)) {
         return { isMatch: true, matchedKeyword: rawKw };
       }
     } else if (matchMode === 'startsWith') {
-      if (rawClean.startsWith(kw)) {
+      if (normMsg.startsWith(normKw) || strippedMsg.startsWith(strippedKw)) {
         return { isMatch: true, matchedKeyword: rawKw };
       }
     } else {
-      if (rawClean.includes(kw)) {
+      // Default: 'contains'
+      if (normMsg.includes(normKw) || strippedMsg.includes(strippedKw)) {
         return { isMatch: true, matchedKeyword: rawKw };
       }
     }

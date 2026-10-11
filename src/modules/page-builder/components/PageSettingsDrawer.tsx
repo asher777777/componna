@@ -198,6 +198,37 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                 onChange={(url) => updateGlobal('siteLogoUrl', url)}
               />
 
+              {/* Header Layout Options */}
+              <div className="flex flex-col gap-2 mt-2">
+                <label className="text-xs font-bold text-slate-300">פריסת אזור ההדר (Header Layout):</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'floating-glass', label: 'זכוכית צפה (Floating Glass)', desc: 'מעוגל ומרחף' },
+                    { id: 'classic', label: 'קלאסי מלא (Classic)', desc: 'לוגו בצד ופעולות בצד' },
+                    { id: 'centered', label: 'מרכוז מלא (Centered)', desc: 'לוגו ושם במרכז' },
+                    { id: 'minimal', label: 'מינימליסטי נקי (Minimal)', desc: 'קומפקטי ודק' },
+                    { id: 'transparent', label: 'שקוף מעל התוכן (Transparent)', desc: 'משתלב בהירו' },
+                  ].map((layout) => {
+                    const isSelected = (globalSettings.headerLayout || 'floating-glass') === layout.id;
+                    return (
+                      <button
+                        key={layout.id}
+                        type="button"
+                        onClick={() => updateGlobal('headerLayout', layout.id as any)}
+                        className={`p-3 rounded-2xl border text-right transition-all flex flex-col gap-1 cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-500/10'
+                            : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 hover:border-slate-700'
+                        }`}
+                      >
+                        <span className="text-xs font-bold text-slate-200">{layout.label}</span>
+                        <span className="text-[10px] text-slate-400">{layout.desc}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="flex items-center justify-between p-3 rounded-xl bg-slate-900 border border-slate-800 mt-2">
                 <label className="text-xs font-semibold text-slate-300">הצג תפריט עליון (Header)</label>
                 <input

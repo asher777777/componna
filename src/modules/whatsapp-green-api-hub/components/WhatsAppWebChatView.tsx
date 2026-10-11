@@ -1,14 +1,16 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   MessageSquare, Send, Search, Users, Phone, Video, MoreVertical,
   Paperclip, Smile, Check, CheckCheck, RefreshCw, Plus, Sparkles,
   ExternalLink, Image, FileText, ArrowRight, UserPlus, Filter,
-  CheckSquare, Square, Database, UserCheck, Tag, DownloadCloud, X, FolderOpen, Crown, Wand2
+  CheckSquare, Square, Database, UserCheck, Tag, DownloadCloud, X, FolderOpen, Crown, Wand2, Bot
 } from 'lucide-react';
 import { Firestore, collection, getDocs, query } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { GreenApiService } from '../services/greenApiService';
 import { GreenApiChat, GreenApiChatMessage } from '../types';
+import { WhatsAppAiBotService } from '../services/whatsappAiBotService';
 import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppCrmExportModal } from './WhatsAppCrmExportModal';
 import { WhatsAppDynamicBroadcastModal } from './WhatsAppDynamicBroadcastModal';
@@ -45,10 +47,52 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
   groupsCollectionName = 'crm_groups',
   connectedAccountName = '',
 }) => {
+  const { apiKeys } = useSystemConnection();
+  const [isAiResponding, setIsAiResponding] = useState(false);
   const [messages, setMessages] = useState<GreenApiChatMessage[]>([]);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const handleTriggerAgentForChat = async () => {
+    if (!selectedChatId || isAiResponding) return;
+    const apiKey = apiKeys.googleAiApiKey || '';
+    if (!apiKey) {
+      alert('לא הוגדר מפתח Google Gemini בהגדרות המערכת.');
+      return;
+    }
+
+    setIsAiResponding(true);
+    try {
+      const bots = WhatsAppAiBotService.getStoredBots();
+      const activeBot = bots.find(b => b.isActive) || bots[0];
+      if (!activeBot) {
+        alert('לא נמצא סוכן AI מוגדר.');
+        return;
+      }
+
+      const lastIncoming = [...messages].reverse().find(m => m.type === 'incoming') || messages[messages.length - 1];
+      const promptText = inputMessage.trim() || lastIncoming?.textMessage || 'שלום, אשמח לקבל מידע ושירות';
+
+      const res = await WhatsAppAiBotService.generateAiResponse({
+        apiKey,
+        botConfig: activeBot,
+        userMessage: promptText,
+        chatHistory: messages.slice(-6).map(m => ({
+          role: m.type === 'incoming' ? 'user' : 'model',
+          text: m.textMessage || '',
+        })),
+      });
+
+      if (res.replyText) {
+        setInputMessage(res.replyText);
+      }
+    } catch (err: any) {
+      alert('שגיאה בהפעלת הסוכן: ' + (err?.message || String(err)));
+    } finally {
+      setIsAiResponding(false);
+    }
+  };
 
   // Fast 120ms debounce on search term to ensure smooth 60fps input response
   useEffect(() => {
@@ -800,6 +844,22 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-2">
+                {/* Independent AI Agent Activation for this chat */}
+                {selectedChat && (
+                  <button
+                    onClick={handleTriggerAgentForChat}
+                    disabled={isAiResponding}
+                    className="p-2 sm:px-2.5 sm:py-1.5 bg-gradient-to-r from-amber-500/20 via-indigo-600/20 to-purple-600/20 hover:from-amber-500/30 hover:to-indigo-600/30 border border-amber-500/40 text-amber-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50 shadow-xs"
+                    title="שליחה והפעלה עצמאית של סוכן ה-AI לשיחה זו"
+                    aria-label="הפעל סוכן AI לשיחה זו"
+                  >
+                    <Bot className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="hidden sm:inline">
+                      {isAiResponding ? 'הסוכן מנסח...' : 'הפעל סוכן AI'}
+                    </span>
+                  </button>
+                )}
+
                 {/* Single Contact Save to CRM button */}
                 {selectedChat && !selectedChat.isGroup && (
                   <button
@@ -1005,6 +1065,19 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                   isDark ? 'bg-slate-950 border-slate-700 text-white placeholder:text-slate-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder:text-slate-400'
                 }`}
               />
+
+              <button
+                type="button"
+                onClick={handleTriggerAgentForChat}
+                disabled={isAiResponding}
+                className="p-3 bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/40 hover:to-purple-600/40 border border-indigo-500/40 text-indigo-300 rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                title="שליחה והפעלה עצמאית של סוכן ה-AI למענה אוטומטי"
+              >
+                <Bot className={`w-4 h-4 text-indigo-400 ${isAiResponding ? 'animate-spin' : ''}`} />
+                <span className="hidden lg:inline text-xs font-bold">
+                  {isAiResponding ? 'מנסח...' : 'סוכן AI'}
+                </span>
+              </button>
 
               <button
                 type="button"

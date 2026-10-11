@@ -1,17 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useKosai } from '../context/KosaiContext';
 import { Bot, Sparkles } from 'lucide-react';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 
 export const FloatingKosaiButton: React.FC = () => {
   const { isOpen, setIsOpen } = useKosai();
+  const { firebaseApp } = useSystemConnection();
 
-  if (isOpen) return null;
+  const [canEdit, setCanEdit] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, (state: AuthState) => {
+      const allowed = state.isAuthenticated && (state.role === 'admin' || state.role === 'editor');
+      setCanEdit(allowed);
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  // Only authorized authors/editors and admins can see and use KOSAI on the page
+  if (!canEdit || isOpen) return null;
 
   return (
     <button
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 left-6 z-[80] w-14 h-14 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl shadow-2xl shadow-indigo-500/30 flex items-center justify-center hover:scale-110 transition-transform group border border-indigo-400/50"
-      title="פתח את KOSAI"
+      className="fixed bottom-6 left-6 z-[80] w-14 h-14 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl shadow-2xl shadow-indigo-500/30 flex items-center justify-center hover:scale-110 transition-transform group border border-indigo-400/50 cursor-pointer"
+      title="פתח את סוכן ה-AI (KOSAI) לעריכת האתר"
+      aria-label="סוכן AI לעריכה"
     >
       <Bot className="w-6 h-6 text-white" />
       <span className="absolute -top-1 -right-1 flex h-4 w-4">

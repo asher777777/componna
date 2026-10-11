@@ -926,30 +926,40 @@ export class GreenApiService {
 
   public async receiveNotification(): Promise<any | null> {
     if (!this.isConfigured()) return null;
-    try {
-      const res = await fetch(`${this.baseUrl}/receiveNotification/${this.token}?receiveTimeout=5`, {
-        method: 'GET'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        return data || null;
+    const hosts = this.getCandidateHosts();
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`${h}/waInstance${this.idInstance}/receiveNotification/${this.token}?receiveTimeout=5`, {
+          method: 'GET'
+        });
+        if (res.ok) {
+          this.host = h;
+          const data = await res.json();
+          return data || null;
+        }
+      } catch (e) {
+        // try next candidate host
       }
-    } catch (e) {
-      console.warn('Error receiving notification:', e);
     }
     return null;
   }
 
   public async deleteNotification(receiptId: number): Promise<boolean> {
     if (!this.isConfigured()) return false;
-    try {
-      const res = await fetch(`${this.baseUrl}/deleteNotification/${this.token}/${receiptId}`, {
-        method: 'DELETE'
-      });
-      return res.ok;
-    } catch (e) {
-      console.warn('Error deleting notification:', e);
-      return false;
+    const hosts = this.getCandidateHosts();
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`${h}/waInstance${this.idInstance}/deleteNotification/${this.token}/${receiptId}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          this.host = h;
+          return true;
+        }
+      } catch (e) {
+        // try next candidate host
+      }
     }
+    return false;
   }
 }

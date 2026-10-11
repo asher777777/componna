@@ -104,20 +104,39 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
 
           {/* Quick Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* Admin Edit Shortcut */}
+            {/* Admin Edit Shortcut & KOSAI AI Assistant */}
             {isAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  if (onEnterDevWorkbench) onEnterDevWorkbench();
-                  navigate('/page-builder');
-                }}
-                className="flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-xl font-bold transition shadow-sm"
-                title="עריכת עמוד הבית בבונה העמודים"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">עריכה בבונה העמודים</span>
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (onEnterDevWorkbench) onEnterDevWorkbench();
+                    navigate('/page-builder');
+                  }}
+                  className="flex items-center gap-1.5 text-xs bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 px-3 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
+                  title="עריכת עמוד הבית בבונה העמודים"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">עריכה בבונה העמודים</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const kosaiBtn = document.querySelector('button[aria-label="סוכן AI לעריכה"]') as HTMLButtonElement;
+                    if (kosaiBtn) {
+                      kosaiBtn.click();
+                    } else {
+                      window.dispatchEvent(new CustomEvent('kosai:open_chat'));
+                    }
+                  }}
+                  className="flex items-center gap-1.5 text-xs bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 text-indigo-300 border border-indigo-500/40 px-3 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
+                  title="עריכת העמוד באמצעות סוכן ה-AI (KOSAI)"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="hidden sm:inline">עריכה באמצעות KOSAI AI</span>
+                </button>
+              </>
             )}
 
             {/* Link to SaaS Storefront */}

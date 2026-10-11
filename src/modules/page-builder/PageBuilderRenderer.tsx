@@ -65,37 +65,103 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
       )}
 
       {/* Floating Glass Navbar */}
-      {globalSettings.isHeaderVisible !== false && (
-        <header
-          className={clsx(
-            'w-full z-40 transition-all duration-300 px-4 sm:px-8 py-4',
-            globalSettings.headerSticky !== false && 'sticky top-0 backdrop-blur-2xl bg-[#0a0a0c]/85 border-b border-white/10 shadow-lg shadow-black/40'
-          )}
-        >
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
-            {/* Brand Logo & Name */}
-            <div className="flex items-center gap-3">
-              {globalSettings.siteLogoUrl ? (
-                <img src={globalSettings.siteLogoUrl} alt="Logo" className="h-10 w-auto object-contain rounded-lg" />
-              ) : (
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white text-base shadow-lg shadow-indigo-600/30">
-                  {globalSettings.companyName?.charAt(0) || 'C'}
-                </div>
+      {/* Dynamic Header Navbar with Layout Styles */}
+      {globalSettings.isHeaderVisible !== false && (() => {
+        const layout = globalSettings.headerLayout || 'floating-glass';
+
+        // Layout styles mapping
+        const isFloating = layout === 'floating-glass';
+        const isTransparent = layout === 'transparent';
+        const isCentered = layout === 'centered';
+        const isMinimal = layout === 'minimal';
+        const isClassic = layout === 'classic';
+
+        return (
+          <header
+            className={clsx(
+              'w-full z-40 transition-all duration-300',
+              isFloating && 'px-4 sm:px-8 py-3.5',
+              !isFloating && 'px-4 sm:px-6 py-3',
+              globalSettings.headerSticky !== false && 'sticky top-0',
+              isTransparent
+                ? 'bg-transparent text-white'
+                : 'backdrop-blur-2xl bg-white/90 dark:bg-[#0a0a0c]/85 border-b border-slate-200/80 dark:border-white/10 shadow-sm dark:shadow-black/40'
+            )}
+          >
+            <div
+              className={clsx(
+                'mx-auto flex items-center',
+                isFloating && 'max-w-7xl rounded-2xl sm:rounded-3xl bg-white/80 dark:bg-slate-900/80 border border-slate-200/70 dark:border-white/10 px-4 sm:px-6 py-2.5 shadow-lg shadow-indigo-500/5',
+                !isFloating && 'max-w-7xl',
+                isCentered && 'flex-col sm:flex-row justify-center sm:justify-between gap-3 text-center sm:text-right',
+                !isCentered && 'justify-between gap-4'
               )}
-              <div className="text-right">
-                <span className="font-black text-base sm:text-lg text-white block leading-tight">
-                  {globalSettings.siteTitle || globalSettings.companyName || 'אתר הקהילה'}
-                </span>
-                {globalSettings.slogan && (
-                  <span className="text-[11px] text-slate-400 block font-medium">{globalSettings.slogan}</span>
+            >
+              {/* Brand Logo & Name */}
+              <div className={clsx('flex items-center gap-3', isCentered && 'justify-center')}>
+                {globalSettings.siteLogoUrl ? (
+                  <img
+                    src={globalSettings.siteLogoUrl}
+                    alt="Logo"
+                    className={clsx(isMinimal ? 'h-8' : 'h-10', 'w-auto object-contain rounded-lg')}
+                  />
+                ) : (
+                  <div
+                    className={clsx(
+                      'rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center font-black text-white shadow-lg shadow-indigo-600/30',
+                      isMinimal ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-base'
+                    )}
+                  >
+                    {globalSettings.companyName?.charAt(0) || 'ק'}
+                  </div>
+                )}
+                <div className="text-right">
+                  <span
+                    className={clsx(
+                      'font-black block leading-tight text-slate-900 dark:text-white',
+                      isMinimal ? 'text-sm' : 'text-base sm:text-lg'
+                    )}
+                  >
+                    {globalSettings.siteTitle || globalSettings.companyName || 'קושאן'}
+                  </span>
+                  {globalSettings.slogan && (
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400 block font-medium">
+                      {globalSettings.slogan}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons / Contact (If defined) */}
+              <div className="flex items-center gap-3">
+                {globalSettings.contactPhone && (
+                  <a
+                    href={`tel:${globalSettings.contactPhone.replace(/[^0-9]/g, '')}`}
+                    className="hidden sm:inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-white transition"
+                    title="חיוג מהיר"
+                  >
+                    <Phone className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>{globalSettings.contactPhone}</span>
+                  </a>
+                )}
+
+                {globalSettings.contactWhatsApp && (
+                  <a
+                    href={`https://wa.me/${globalSettings.contactWhatsApp.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition shadow-md shadow-emerald-600/20"
+                    title="שיחה בוואטסאפ"
+                  >
+                    <MessageCircle className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">וואטסאפ</span>
+                  </a>
                 )}
               </div>
             </div>
-
-            {/* Nav and header buttons removed per user request */}
-          </div>
-        </header>
-      )}
+          </header>
+        );
+      })()}
 
       {/* Main Page Stream */}
       <main className="flex-1 flex flex-col">

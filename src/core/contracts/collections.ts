@@ -53,6 +53,16 @@ export const SYSTEM_COLLECTIONS = {
   CAMPAIGNS: 'mod_campaigns',
   CAMPAIGN_AMBASSADORS: 'mod_campaign_ambassadors',
   CAMPAIGN_DONATIONS: 'mod_campaign_donations',
+
+  // 10. KOSUN AM ("קושאן מייל אוטומטי" - Smart Email & Automations)
+  MOD_KOSUN_AM_CAMPAIGNS: 'mod_kosun_am_campaigns',
+  MOD_KOSUN_AM_TEMPLATES: 'mod_kosun_am_templates',
+  MOD_KOSUN_AM_AUTOMATIONS: 'mod_kosun_am_automations',
+  MOD_KOSUN_AM_LOGS: 'mod_kosun_am_logs',
+  KOSUN_AM_CAMPAIGNS: 'mod_kosun_am_campaigns',
+  KOSUN_AM_TEMPLATES: 'mod_kosun_am_templates',
+  KOSUN_AM_AUTOMATIONS: 'mod_kosun_am_automations',
+  KOSUN_AM_LOGS: 'mod_kosun_am_logs',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;

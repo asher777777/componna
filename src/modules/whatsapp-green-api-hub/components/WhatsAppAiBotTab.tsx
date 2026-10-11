@@ -189,20 +189,20 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     }
   };
 
-  const handleSimSend = async (userMsgText: string) => {
+  const handleSimSend = async (userMsgText: string, isManualOverride: boolean = false) => {
     if (!userMsgText.trim() || isSimLoading) return;
 
     const newHistory = [...simChat, { role: 'user' as const, text: userMsgText }];
     setSimChat(newHistory);
     setSimInput('');
 
-    // 1. Check if bot is active
-    if (!activeBot.isActive) {
+    // 1. Check if bot is active (allow manual test override)
+    if (!activeBot.isActive && !isManualOverride) {
       setSimChat((prev) => [
         ...prev,
         {
           role: 'model',
-          text: '[סטטוס סוכן: מושהה]\nהסוכן כרגע כבוי (isActive: false) ולכן אינו מגיב להודעות בוואטסאפ. יש להפעיל את מתג "הפעל סוכן אוטומטי" כדי להתחיל לקבל מענה.',
+          text: '[סטטוס סוכן: מושהה]\nהסוכן כרגע כבוי (isActive: false) ולכן אינו מגיב להודעות בוואטסאפ. יש להפעיל את מתג "הפעל סוכן אוטומטי", או להשתמש בלחצן "שליחה עצמאית" לבדיקה.',
         },
       ]);
       return;
@@ -212,7 +212,10 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     let shouldTrigger = false;
     let triggerSuccessNote = '';
     
-    if (activeBot.triggerType === 'all') {
+    if (isManualOverride) {
+      shouldTrigger = true;
+      triggerSuccessNote = '[שליחה עצמאית: הפעלת סוכן ישירה ללא תלות במילות מפתח]\n\n';
+    } else if (activeBot.triggerType === 'all') {
       shouldTrigger = true;
     } else if (activeBot.triggerType === 'welcome') {
       const userMessageCount = newHistory.filter(h => h.role === 'user').length;
@@ -222,7 +225,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
           ...prev,
           {
             role: 'model',
-            text: '[טריגר: הודעת פתיחה בלבד]\nסוכן זה מוגדר להגיב אך ורק להודעה הראשונה מלקוח. ההודעה הנוכחית אינה פתיחת שיחה, ולכן הסוכן אינו מגיב.',
+            text: '[טריגר: הודעת פתיחה בלבד]\nסוכן זה מוגדר להגיב אך ורק להודעה הראשונה מלקוח. ההודעה הנוכחית אינה פתיחת שיחה, ולכן הסוכן אינו מגיב (באפשרותך ללחוץ "שליחה עצמאית" להפעלה יזומה).',
           },
         ]);
         return;
@@ -243,7 +246,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
           ...prev,
           {
             role: 'model',
-            text: `[טריגר: אין התאמה]\nההודעה ששלחת אינה מכילה מילת מפתח מתאימה.\n• מילות מפתח מוגדרות: ${keywordsList}\n• מצב התאמה: ${modeLabel}\nהסוכן מסנן הודעה זו ואינו שולח מענה ללקוח.`,
+            text: `[טריגר: אין התאמה]\nההודעה ששלחת אינה מכילה מילת מפתח מתאימה.\n• מילות מפתח מוגדרות: ${keywordsList}\n• מצב התאמה: ${modeLabel}\nהסוכן מסנן הודעה זו ואינו שולח מענה ללקוח.\n(באפשרותך ללחוץ "שליחה עצמאית" כדי להפעיל את הסוכן ישירות).`,
           },
         ]);
         return;
@@ -986,9 +989,9 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
             <form
               onSubmit={(e) => {
                 e.preventDefault();
-                handleSimSend(simInput);
+                handleSimSend(simInput, false);
               }}
-              className="flex items-center gap-2"
+              className="flex items-center gap-1.5"
             >
               <input
                 type="text"
@@ -1003,8 +1006,24 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
                 type="submit"
                 disabled={!simInput.trim() || isSimLoading}
                 className="p-2.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl transition cursor-pointer disabled:opacity-50"
+                title="שליחה לפי טריגר (בדיקת התאמת מילות מפתח)"
               >
                 <Send className="w-4 h-4" />
+              </button>
+
+              {/* Independent / Direct Agent Activation Button */}
+              <button
+                type="button"
+                onClick={() => {
+                  const msgToSend = simInput.trim() || 'שלום, אשמח לקבל מידע ועזרה';
+                  handleSimSend(msgToSend, true);
+                }}
+                disabled={isSimLoading}
+                className="px-2.5 py-2.5 bg-gradient-to-r from-amber-600 to-indigo-600 hover:from-amber-500 hover:to-indigo-500 text-white rounded-xl transition cursor-pointer disabled:opacity-50 flex items-center gap-1 text-[11px] font-bold shrink-0 shadow-sm"
+                title="שליחה עצמאית והפעלת הסוכן ישירות ללא תלות במילות מפתח"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-200" />
+                <span className="hidden sm:inline">שליחה עצמאית</span>
               </button>
             </form>
 

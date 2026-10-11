@@ -542,4 +542,227 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
       },
     },
   ],
+
+  // 14. KOSUN AM ("קושאן מייל אוטומטי") Seed Data
+  mod_kosun_am_campaigns: [
+    {
+      id: 'cmp_welcome_2026',
+      name: 'קמפיין ברוכים הבאים - קושאן 2026',
+      data: {
+        id: 'cmp_welcome_2026',
+        name: 'קמפיין ברוכים הבאים - קושאן 2026',
+        subject: 'ברוכים הבאים למשפחת קושאן - המסע העסקי שלך מתחיל כאן',
+        preheader: 'השותף האישי שלך לניהול דיוורים ושיווק דיגיטלי חכם',
+        fromName: 'קושאן',
+        fromEmail: 'hello@kosun.pro',
+        templateId: 'tpl_welcome_modern',
+        htmlContent: '<div dir="rtl" style="text-align: right; font-family: Heebo, sans-serif;"><h1>שלום וברוכים הבאים!</h1><p>קושאן דואג שהמסר השיווקי שלך יגיע בדיוק ליעד.</p></div>',
+        status: 'sent',
+        audience: { type: 'all' },
+        sentAt: '2026-10-10T09:00:00Z',
+        stats: {
+          totalRecipients: 450,
+          deliveredCount: 442,
+          openedCount: 310,
+          clickedCount: 168,
+          bouncedCount: 8,
+          unsubscribedCount: 2,
+        },
+        provider: 'resend',
+        createdAt: '2026-10-09T14:20:00Z',
+        updatedAt: '2026-10-10T09:15:00Z',
+      },
+    },
+    {
+      id: 'cmp_summer_promo',
+      name: 'השקת קולקציית קיץ ומבצעים בלעדיים',
+      data: {
+        id: 'cmp_summer_promo',
+        name: 'השקת קולקציית קיץ ומבצעים בלעדיים',
+        subject: 'הטבה מיוחדת רק לחברי המועדון של קושאן',
+        preheader: '20% הנחה על כל השירותים הדיגיטליים למשך 48 שעות בלבד',
+        fromName: 'קושאן שיווק',
+        fromEmail: 'marketing@kosun.pro',
+        templateId: 'tpl_promo_bento',
+        htmlContent: '<div dir="rtl" style="text-align: right; font-family: Heebo, sans-serif;"><h2>מבצע קיץ מיוחד</h2><p>קושאן מכין לך הפתעות מיוחדות השבוע.</p></div>',
+        status: 'scheduled',
+        audience: { type: 'tags', tags: ['vip', 'club'] },
+        scheduledAt: '2026-10-15T10:00:00Z',
+        stats: {
+          totalRecipients: 1200,
+          deliveredCount: 0,
+          openedCount: 0,
+          clickedCount: 0,
+          bouncedCount: 0,
+          unsubscribedCount: 0,
+        },
+        provider: 'resend',
+        createdAt: '2026-10-11T08:00:00Z',
+        updatedAt: '2026-10-11T08:00:00Z',
+      },
+    },
+  ],
+
+  mod_kosun_am_templates: [
+    {
+      id: 'tpl_welcome_modern',
+      name: 'תבנית ברוכים הבאים מודרנית (Bento)',
+      data: {
+        id: 'tpl_welcome_modern',
+        name: 'תבנית ברוכים הבאים מודרנית (Bento)',
+        description: 'מבנה כרטיסיות נקי עם הצגת יתרונות מרכזיים והנעה לפעולה',
+        category: 'welcome',
+        blocks: [
+          {
+            id: 'b_header',
+            type: 'header',
+            content: { title: 'קושאן', subtitle: 'מערכת דיוור חכמה' },
+          },
+          {
+            id: 'b_hero',
+            type: 'hero',
+            content: {
+              title: 'ברוכים הבאים לעולם של שיווק חכם',
+              subtitle: 'קושאן לוקח אחריות על תהליך הדיוור שלך',
+              buttonText: 'להתחלת העבודה',
+              buttonUrl: 'https://kosun.pro',
+            },
+          },
+          {
+            id: 'b_footer',
+            type: 'footer',
+            content: {
+              bodyText: 'נשלח באמצעות קושאן מייל אוטומטי. להסרה מהרשימה לחץ כאן.',
+            },
+          },
+        ],
+        htmlSnapshot: '<div dir="rtl" style="text-align: right;">תבנית ברירת מחדל של קושאן</div>',
+        variables: ['contact_name', 'business_name'],
+        isDefault: true,
+        createdAt: '2026-10-01T12:00:00Z',
+        updatedAt: '2026-10-01T12:00:00Z',
+      },
+    },
+    {
+      id: 'tpl_promo_bento',
+      name: 'תבנית מבצעים וניוזלטר (Bento Grid)',
+      data: {
+        id: 'tpl_promo_bento',
+        name: 'תבנית מבצעים וניוזלטר (Bento Grid)',
+        description: 'חלוקה מודרנית לכרטיסיות עם תמונות וכפתורי הנעה לפעולה',
+        category: 'promotional',
+        blocks: [
+          {
+            id: 'b_hero',
+            type: 'hero',
+            content: {
+              title: 'מבצע מיוחד לחברי המועדון',
+              subtitle: 'אל תפספסו את ההזדמנות להגדיל מכירות',
+              buttonText: 'לפרטים נוספים',
+              buttonUrl: 'https://kosun.pro/promo',
+            },
+          },
+        ],
+        htmlSnapshot: '<div dir="rtl" style="text-align: right;">תבנית מבצעים של קושאן</div>',
+        variables: ['contact_name', 'discount_code'],
+        isDefault: false,
+        createdAt: '2026-10-02T10:00:00Z',
+        updatedAt: '2026-10-02T10:00:00Z',
+      },
+    },
+  ],
+
+  mod_kosun_am_automations: [
+    {
+      id: 'aut_new_lead_journey',
+      name: 'קליטת ליד חדש + וואטסאפ (רב-ערוצי)',
+      data: {
+        id: 'aut_new_lead_journey',
+        name: 'קליטת ליד חדש + וואטסאפ (רב-ערוצי)',
+        description: 'שליחת מייל ברוכים הבאים מיידי, השהיה של שעתיים ושליחת וואטסאפ Green API',
+        isActive: true,
+        trigger: {
+          event: 'crm:lead:created',
+        },
+        steps: [
+          {
+            id: 'step_1',
+            order: 1,
+            title: 'שליחת מייל היכרות ראשוני',
+            type: 'send_email',
+            emailConfig: {
+              subject: 'שמחים שהצטרפת - קושאן כאן בשבילך',
+              templateId: 'tpl_welcome_modern',
+              fromName: 'קושאן',
+            },
+          },
+          {
+            id: 'step_2',
+            order: 2,
+            title: 'השהיה של 120 דקות',
+            type: 'delay',
+            delayMinutes: 120,
+          },
+          {
+            id: 'step_3',
+            order: 3,
+            title: 'שליחת הודעת וואטסאפ Green API',
+            type: 'send_whatsapp',
+            whatsAppConfig: {
+              messageTemplate: 'היי {{contact_name}}, שמחים שבחרת בקושאן! קיבלת את המייל שלנו?',
+            },
+          },
+        ],
+        executionCount: 124,
+        lastExecutedAt: '2026-10-11T10:30:00Z',
+        createdAt: '2026-10-05T08:00:00Z',
+        updatedAt: '2026-10-11T10:30:00Z',
+      },
+    },
+  ],
+
+  mod_kosun_am_logs: [
+    {
+      id: 'log_1001',
+      name: 'יומן שליחה: ברוכים הבאים (client1@example.com)',
+      data: {
+        id: 'log_1001',
+        campaignId: 'cmp_welcome_2026',
+        recipientEmail: 'client1@example.com',
+        subject: 'ברוכים הבאים למשפחת קושאן - המסע העסקי שלך מתחיל כאן',
+        status: 'delivered',
+        provider: 'resend',
+        messageId: 're_mock_12345',
+        dispatchedAt: '2026-10-10T09:00:15Z',
+      },
+    },
+    {
+      id: 'log_1002',
+      name: 'יומן שליחה: פתיחה (client2@example.com)',
+      data: {
+        id: 'log_1002',
+        campaignId: 'cmp_welcome_2026',
+        recipientEmail: 'client2@example.com',
+        subject: 'ברוכים הבאים למשפחת קושאן - המסע העסקי שלך מתחיל כאן',
+        status: 'opened',
+        provider: 'resend',
+        messageId: 're_mock_12346',
+        dispatchedAt: '2026-10-10T09:00:20Z',
+      },
+    },
+    {
+      id: 'log_1003',
+      name: 'יומן שליחה: אוטומציה ליד (lead99@example.com)',
+      data: {
+        id: 'log_1003',
+        automationId: 'aut_new_lead_journey',
+        recipientEmail: 'lead99@example.com',
+        subject: 'שמחים שהצטרפת - קושאן כאן בשבילך',
+        status: 'simulated_success',
+        provider: 'mock_local',
+        messageId: 'mock_loc_9981',
+        dispatchedAt: '2026-10-11T10:30:05Z',
+      },
+    },
+  ],
 };

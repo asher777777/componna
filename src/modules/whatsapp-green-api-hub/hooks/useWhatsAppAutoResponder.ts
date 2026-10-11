@@ -107,14 +107,22 @@ export const useWhatsAppAutoResponder = ({
         if (notification && notification.receiptId) {
           const body = notification.body;
 
-          if (body?.typeWebhook === 'incomingMessageReceived') {
+          const isIncoming = body?.typeWebhook === 'incomingMessageReceived';
+          const isOutgoing = body?.typeWebhook === 'outgoingMessageReceived';
+
+          if (isIncoming || isOutgoing) {
             const senderChatId = body.senderData?.chatId || body.senderData?.sender;
             const senderName = body.senderData?.senderName || body.senderData?.senderContactName || '';
             const messageText =
               body.messageData?.textMessageData?.textMessage ||
               body.messageData?.extendedTextMessageData?.textMessage ||
+              body.messageData?.extendedTextMessageData?.description ||
+              body.messageData?.templateMessageData?.content ||
               body.messageData?.buttonsResponseMessageData?.selectedDisplayText ||
               body.messageData?.buttonsResponseMessageData?.selectedButtonId ||
+              body.messageData?.listResponseMessageData?.title ||
+              body.messageData?.listResponseMessageData?.selectedRowId ||
+              body.messageData?.quotedMessage?.textMessage ||
               '';
 
             if (senderChatId && messageText) {

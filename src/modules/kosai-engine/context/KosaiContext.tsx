@@ -67,6 +67,13 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     checkRules();
   }, [db!, tenantId, window.location.hash, window.location.pathname]);
 
+  // Listen to open_chat event from external buttons
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('kosai:open_chat', handleOpen);
+    return () => window.removeEventListener('kosai:open_chat', handleOpen);
+  }, []);
+
   const clearChat = () => {
     setMessages([
       {

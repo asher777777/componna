@@ -63,25 +63,57 @@ async function extractAndSaveContact(geminiKey: string, phone: string, messages:
   }
 }
 
+function normalizeTextForMatching(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/[\u200B-\u200F\u202A-\u202E\u2060-\u206F\uFEFF]/g, '')
+    .replace(/[\u0591-\u05C7]/g, '')
+    .replace(/\u00A0/g, ' ')
+    .toLowerCase()
+    .trim();
+}
+
+function flattenKeywords(keywords: any): string[] {
+  if (!keywords) return [];
+  const list = Array.isArray(keywords) ? keywords : [String(keywords)];
+  const result: string[] = [];
+  for (const item of list) {
+    if (typeof item === 'string') {
+      const parts = item.split(/[,;\n\t]+/).map(p => p.trim()).filter(Boolean);
+      result.push(...parts);
+    }
+  }
+  return result;
+}
+
 function matchKeywords(
   messageText: string,
   keywords: string[] = [],
   matchMode: 'contains' | 'exact' | 'startsWith' = 'contains'
 ): { isMatch: boolean; matchedKeyword?: string } {
-  if (!messageText || !keywords || keywords.length === 0) return { isMatch: false };
-  const rawClean = messageText.toLowerCase().replace(/[\u0591-\u05C7]/g, '').trim();
-  const strippedText = rawClean.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
-  const textWords = strippedText.split(/\s+/).filter(Boolean);
+  if (!messageText || !keywords) return { isMatch: false };
+  const normMsg = normalizeTextForMatching(messageText);
+  if (!normMsg) return { isMatch: false };
 
-  for (const rawKw of keywords) {
-    const kw = rawKw.toLowerCase().replace(/[\u0591-\u05C7]/g, '').replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, '').trim();
-    if (!kw) continue;
+  const strippedMsg = normMsg.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ');
+  const msgWords = strippedMsg.split(/\s+/).filter(Boolean);
+  const flattened = flattenKeywords(keywords);
+
+  for (const rawKw of flattened) {
+    const normKw = normalizeTextForMatching(rawKw);
+    if (!normKw) continue;
+    const strippedKw = normKw.replace(/[.,/#!$%^&*;:{}=\-_`~()?"'״׳]/g, ' ').trim();
+    if (!strippedKw) continue;
+
     if (matchMode === 'exact') {
-      if (rawClean === kw || textWords.includes(kw)) return { isMatch: true, matchedKeyword: rawKw };
+      if (normMsg === normKw || strippedMsg === strippedKw) return { isMatch: true, matchedKeyword: rawKw };
+      if (msgWords.includes(strippedKw)) return { isMatch: true, matchedKeyword: rawKw };
+      const boundaryRegex = new RegExp(`(^|\\s)${strippedKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(\\s|$)`, 'i');
+      if (boundaryRegex.test(strippedMsg)) return { isMatch: true, matchedKeyword: rawKw };
     } else if (matchMode === 'startsWith') {
-      if (rawClean.startsWith(kw)) return { isMatch: true, matchedKeyword: rawKw };
+      if (normMsg.startsWith(normKw) || strippedMsg.startsWith(strippedKw)) return { isMatch: true, matchedKeyword: rawKw };
     } else {
-      if (rawClean.includes(kw)) return { isMatch: true, matchedKeyword: rawKw };
+      if (normMsg.includes(normKw) || strippedMsg.includes(strippedKw)) return { isMatch: true, matchedKeyword: rawKw };
     }
   }
   return { isMatch: false };
@@ -148,17 +180,29 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     let triggeredBot = null;
     let activeBotId = chatDoc.data()?.botId;
 
-    const botsSnapshot = await db.collection('whatsapp_ai_bots').where('isActive', '==', true).get();
+    // Load active bots from root and collectionGroup to cover multi-tenant setups
+    const botDocsList: any[] = [];
+    try {
+      const rootSnap = await db.collection('whatsapp_ai_bots').where('isActive', '==', true).get();
+      rootSnap.forEach(d => botDocsList.push(d.data()));
+    } catch (e) {}
+
+    try {
+      const groupSnap = await db.collectionGroup('whatsapp_ai_bots').where('isActive', '==', true).get();
+      groupSnap.forEach(d => {
+        const data = d.data();
+        if (!botDocsList.some(b => b.id === data.id)) botDocsList.push(data);
+      });
+    } catch (e) {}
 
     // If bot was already engaged in this chat, keep using it
     if (activeBotId) {
-      triggeredBot = botsSnapshot.docs.find(d => d.id === activeBotId)?.data() || null;
+      triggeredBot = botDocsList.find(b => b.id === activeBotId) || null;
     }
     
     // Otherwise check for keyword triggers in whatsapp_ai_bots
     if (!triggeredBot) {
-      for (const doc of botsSnapshot.docs) {
-        const bot = doc.data();
+      for (const bot of botDocsList) {
         if (bot.triggerType === 'all') {
           triggeredBot = bot;
           break;
@@ -175,10 +219,10 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     // Check Kosai Engine Rules with WhatsApp Triggers if still no bot triggered
     if (!triggeredBot) {
       try {
-        const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').where('isActive', '==', true).get();
+        const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').get();
         for (const doc of kosaiRulesSnap.docs) {
           const rule = doc.data();
-          if (rule?.whatsappTrigger?.enabled) {
+          if (rule?.isActive !== false && rule?.whatsappTrigger?.enabled) {
             const trigger = rule.whatsappTrigger;
             if (trigger.triggerType === 'all') {
               triggeredBot = {
