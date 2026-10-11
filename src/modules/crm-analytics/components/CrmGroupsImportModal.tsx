@@ -3,12 +3,14 @@ import {
   Users, MessageSquare, Check, X, RefreshCw, CheckCircle2, 
   AlertCircle, Sparkles, Layers, ArrowRight, ShieldCheck,
   Search, CheckSquare, Square, FolderPlus, Tag, Smartphone,
-  ExternalLink, UserPlus, Filter
+  ExternalLink, UserPlus, Filter, KeyRound, Settings, Database, Save
 } from 'lucide-react';
 import { FirebaseApp } from 'firebase/app';
+import { getFirestore, doc, setDoc, onSnapshot } from 'firebase/firestore';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { DEFAULT_COLLECTIONS } from '../config';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 import { 
   WhatsAppGroupItem, 
   WhatsAppParticipant, 
@@ -16,7 +18,8 @@ import {
   fetchLiveWhatsAppGroups, 
   fetchGroupParticipants, 
   importParticipantsToCrmContacts, 
-  normalizePhoneNumber 
+  normalizePhoneNumber,
+  fetchTenantWhatsAppCredentials
 } from '../services/whatsappGroupImportService';
 
 interface Props {
@@ -38,16 +41,20 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
   ownerId,
   tenantId = '_master',
 }) => {
-  const { apiKeys } = useSystemConnection();
+  const { apiKeys, tenantApiKeys, apiKeysTenantId } = useSystemConnection();
+  const effectiveTenantId = tenantId || apiKeysTenantId || '_master';
 
   // Connection settings
-  const [instanceId, setInstanceId] = useState(apiKeys?.greenApiInstanceId || '');
-  const [token, setToken] = useState(apiKeys?.greenApiToken || '');
+  const [instanceId, setInstanceId] = useState('');
+  const [token, setToken] = useState('');
   const [isCheckingConn, setIsCheckingConn] = useState(false);
   const [connStatus, setConnStatus] = useState<{ authorized: boolean; message: string }>({
     authorized: false,
     message: 'בודק חיבור...'
   });
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [isSavingTenantKeys, setIsSavingTenantKeys] = useState(false);
+  const [settingsNotice, setSettingsNotice] = useState<string | null>(null);
 
   // Groups
   const [groups, setGroups] = useState<WhatsAppGroupItem[]>([]);
@@ -67,11 +74,57 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
   const [isImporting, setIsImporting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
-  // Sync state when apiKeys update
+  // 1. Direct Real-time Firestore Listener to Tenant Settings Collection:
+  //    tenants/{tenantId}/settings/api_keys
   useEffect(() => {
-    if (apiKeys?.greenApiInstanceId) setInstanceId(apiKeys.greenApiInstanceId);
-    if (apiKeys?.greenApiToken) setToken(apiKeys.greenApiToken);
-  }, [apiKeys]);
+    if (!firebaseApp || !isOpen) return;
+    try {
+      const db = getFirestore(firebaseApp);
+      const keysRef = doc(db, 'tenants', effectiveTenantId, 'settings', 'api_keys');
+      const unsub = onSnapshot(keysRef, (snap) => {
+        if (snap.exists()) {
+          const data = snap.data() || {};
+          const liveInstance = (data.greenApiInstanceId || data.greenApiIdInstance || data.idInstance || '').trim();
+          const liveToken = (data.greenApiToken || data.greenApiTokenInstance || data.apiTokenInstance || data.whatsappApiToken || '').trim();
+          if (liveInstance) setInstanceId(liveInstance);
+          if (liveToken) setToken(liveToken);
+        }
+      }, (err) => console.warn('[CrmGroupsImportModal] Tenant api_keys snapshot notice:', err));
+
+      return () => unsub();
+    } catch (err) {
+      console.warn('[CrmGroupsImportModal] Setup tenant listener error:', err);
+    }
+  }, [firebaseApp, effectiveTenantId, isOpen]);
+
+  // 2. Initial Hydration from Tenant Context and direct fetch
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const moduleCreds = getModuleGreenApiCredentials('whatsapp-green-api-hub');
+    const initInstance = (
+      tenantApiKeys?.greenApiInstanceId ||
+      apiKeys?.greenApiInstanceId ||
+      moduleCreds.instanceId ||
+      ''
+    ).trim();
+
+    const initToken = (
+      tenantApiKeys?.greenApiToken ||
+      apiKeys?.greenApiToken ||
+      moduleCreds.token ||
+      ''
+    ).trim();
+
+    if (initInstance) setInstanceId(initInstance);
+    if (initToken) setToken(initToken);
+
+    // Fallback: asynchronous direct load from Firestore for the specific tenant
+    fetchTenantWhatsAppCredentials(firebaseApp, effectiveTenantId).then((res) => {
+      if (res.instanceId) setInstanceId(res.instanceId);
+      if (res.token) setToken(res.token);
+    });
+  }, [isOpen, tenantApiKeys, apiKeys, effectiveTenantId, firebaseApp]);
 
   // Check connection & load groups
   const checkAndLoad = async () => {
@@ -201,6 +254,29 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
     }
   };
 
+  const handleSaveTenantKeys = async () => {
+    if (!firebaseApp) return;
+    setIsSavingTenantKeys(true);
+    setSettingsNotice(null);
+    try {
+      const db = getFirestore(firebaseApp);
+      const keysRef = doc(db, 'tenants', effectiveTenantId, 'settings', 'api_keys');
+      await setDoc(keysRef, {
+        greenApiInstanceId: instanceId.trim(),
+        greenApiToken: token.trim(),
+        updatedAt: Date.now(),
+      }, { merge: true });
+
+      setSettingsNotice(`המפתחות נשמרו בהצלחה בהגדרות טננט (${effectiveTenantId})!`);
+      setTimeout(() => setSettingsNotice(null), 4000);
+      await checkAndLoad();
+    } catch (err: any) {
+      setSettingsNotice(`שגיאה בשמירת מפתחות: ${err?.message || 'שגיאה כללית'}`);
+    } finally {
+      setIsSavingTenantKeys(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -234,15 +310,96 @@ export const CrmGroupsImportModal: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Exit Button: Exits ONLY via X button */}
-        <button
-          onClick={onClose}
-          className="p-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition shadow-xs"
-          title="סגור חלון (יציאה)"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Tenant indicator badge */}
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-xl text-xs font-mono text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 shadow-2xs">
+            <Database className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span>טננט: {effectiveTenantId}</span>
+          </div>
+
+          {/* Tenant settings toggle */}
+          <button
+            onClick={() => setShowSettingsDrawer(prev => !prev)}
+            className={`px-3 py-1.5 rounded-xl border transition shadow-xs flex items-center gap-1.5 text-xs font-bold ${
+              showSettingsDrawer
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300'
+                : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200'
+            }`}
+            title="הגדרות מפתחות טננט"
+          >
+            <KeyRound className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden md:inline">הגדרות טננט</span>
+          </button>
+
+          {/* Exit Button: Exits ONLY via X button */}
+          <button
+            onClick={onClose}
+            className="p-2.5 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition shadow-xs"
+            title="סגור חלון (יציאה)"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
+
+      {/* Collapsible Tenant Connection Settings Bar */}
+      {showSettingsDrawer && (
+        <div className="bg-emerald-50/70 dark:bg-emerald-950/30 border-b border-emerald-100 dark:border-emerald-900/40 p-4 shrink-0 transition-all animate-fadeIn">
+          <div className="max-w-4xl mx-auto space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                <ShieldCheck className="w-4 h-4 text-emerald-600" />
+                <span>הגדרות חיבור WhatsApp מתוך קולקציית הטננט: tenants/{effectiveTenantId}/settings/api_keys</span>
+              </div>
+              {settingsNotice && (
+                <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300 bg-white dark:bg-gray-900 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                  {settingsNotice}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 items-end">
+              <div className="md:col-span-5 space-y-1">
+                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
+                  Instance ID (מזהה מופע Green API):
+                </label>
+                <input
+                  type="text"
+                  placeholder="לדוגמה: 7103123456"
+                  value={instanceId}
+                  onChange={(e) => setInstanceId(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-xl text-gray-900 dark:text-white font-mono"
+                />
+              </div>
+
+              <div className="md:col-span-5 space-y-1">
+                <label className="text-[11px] font-bold text-gray-700 dark:text-gray-300">
+                  API Token Instance (טוקן מופע):
+                </label>
+                <input
+                  type="password"
+                  placeholder="טוקן סודי של המופע"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="w-full px-3 py-2 text-xs bg-white dark:bg-gray-900 border border-emerald-200 dark:border-emerald-800 rounded-xl text-gray-900 dark:text-white font-mono"
+                />
+              </div>
+
+              <div className="md:col-span-2 flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSaveTenantKeys}
+                  disabled={isSavingTenantKeys || !instanceId.trim() || !token.trim()}
+                  className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition disabled:opacity-50 shadow-xs"
+                >
+                  <Save className="w-3.5 h-3.5" />
+                  <span>{isSavingTenantKeys ? 'שומר...' : 'שמור לטננט'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Full-Screen Body */}
       <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-12 bg-gray-50/50 dark:bg-gray-950/50">

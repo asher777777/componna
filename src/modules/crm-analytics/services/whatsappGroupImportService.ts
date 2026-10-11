@@ -1,5 +1,5 @@
 import { FirebaseApp } from 'firebase/app';
-import { getFirestore, collection, doc, writeBatch, getDocs, query, where, setDoc } from 'firebase/firestore';
+import { getFirestore, collection, doc, writeBatch, getDocs, getDoc, query, where, setDoc } from 'firebase/firestore';
 import { DEFAULT_COLLECTIONS } from '../config';
 
 export interface WhatsAppGroupItem {
@@ -26,42 +26,112 @@ export function normalizePhoneNumber(raw?: string): string {
   return digits;
 }
 
+/**
+ * Returns candidate hosts for Green API to prevent 301 redirects and CORS blocks
+ */
+export function getGreenApiCandidateHosts(instanceId: string): string[] {
+  const clean = (instanceId || '').trim();
+  const hosts: string[] = [];
+  if (clean.length >= 4) {
+    const cluster = clean.slice(0, 4);
+    hosts.push(`https://${cluster}.api.greenapi.com`);
+  }
+  hosts.push('https://api.green-api.com');
+  hosts.push('https://media.green-api.com');
+  return Array.from(new Set(hosts));
+}
+
+/**
+ * Directly queries the Tenant Settings Collection from Firestore:
+ * tenants/{tenantId}/settings/api_keys
+ */
+export async function fetchTenantWhatsAppCredentials(
+  firebaseApp?: FirebaseApp,
+  tenantId: string = '_master'
+): Promise<{ instanceId: string; token: string }> {
+  if (!firebaseApp) return { instanceId: '', token: '' };
+  try {
+    const db = getFirestore(firebaseApp);
+    const targetTenant = tenantId || '_master';
+    
+    // 1. Primary path: tenants/{tenantId}/settings/api_keys
+    const primaryRef = doc(db, 'tenants', targetTenant, 'settings', 'api_keys');
+    const primarySnap = await getDoc(primaryRef);
+    if (primarySnap.exists()) {
+      const data = primarySnap.data() || {};
+      const id = data.greenApiInstanceId || data.greenApiIdInstance || data.idInstance || '';
+      const tok = data.greenApiToken || data.greenApiTokenInstance || data.apiTokenInstance || data.whatsappApiToken || '';
+      if (id && tok) {
+        return { instanceId: String(id).trim(), token: String(tok).trim() };
+      }
+    }
+
+    // 2. Fallback path: tenants/{tenantId}/settings/whatsapp
+    const fallbackRef = doc(db, 'tenants', targetTenant, 'settings', 'whatsapp');
+    const fallbackSnap = await getDoc(fallbackRef);
+    if (fallbackSnap.exists()) {
+      const data = fallbackSnap.data() || {};
+      const id = data.greenApiInstanceId || data.greenApiIdInstance || data.idInstance || '';
+      const tok = data.greenApiToken || data.greenApiTokenInstance || data.apiTokenInstance || data.token || '';
+      if (id && tok) {
+        return { instanceId: String(id).trim(), token: String(tok).trim() };
+      }
+    }
+  } catch (err) {
+    console.warn('[WhatsAppGroupImport] Error loading tenant credentials from Firestore:', err);
+  }
+  return { instanceId: '', token: '' };
+}
+
 export async function checkWhatsAppConnection(instanceId: string, token: string): Promise<{ authorized: boolean; message: string }> {
   if (!instanceId || !token) {
     return { authorized: false, message: 'חסרים פרטי חיבור ל-WhatsApp (Instance ID / Token)' };
   }
-  try {
-    const url = `https://api.green-api.com/waInstance${instanceId.trim()}/getStateInstance/${token.trim()}`;
-    const res = await fetch(url);
-    if (!res.ok) return { authorized: false, message: `שגיאת רשת (${res.status})` };
-    const data = await res.json();
-    if (data.stateInstance === 'authorized') {
-      return { authorized: true, message: 'חשבון WhatsApp מחובר ומאושר' };
+
+  const hosts = getGreenApiCandidateHosts(instanceId);
+  let lastError: any = null;
+
+  for (const host of hosts) {
+    try {
+      const url = `${host}/waInstance${instanceId.trim()}/getStateInstance/${token.trim()}`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (data.stateInstance === 'authorized') {
+        return { authorized: true, message: 'חשבון WhatsApp מחובר ומאושר' };
+      }
+      return { authorized: false, message: `סטטוס WhatsApp: ${data.stateInstance || 'אינו מורשה'}` };
+    } catch (e: any) {
+      lastError = e;
     }
-    return { authorized: false, message: `סטטוס WhatsApp: ${data.stateInstance || 'אינו מורשה'}` };
-  } catch (e: any) {
-    return { authorized: false, message: e?.message || 'שגיאה בבדיקת חיבור' };
   }
+
+  return { authorized: false, message: lastError?.message || 'שגיאה בבדיקת חיבור' };
 }
 
 export async function fetchLiveWhatsAppGroups(instanceId: string, token: string): Promise<WhatsAppGroupItem[]> {
   if (!instanceId || !token) return [];
-  try {
-    const url = `https://api.green-api.com/waInstance${instanceId.trim()}/getChats/${token.trim()}`;
-    const res = await fetch(url);
-    if (!res.ok) return [];
-    const chats: any[] = await res.json();
+  const hosts = getGreenApiCandidateHosts(instanceId);
 
-    return (chats || [])
-      .filter((c) => typeof c.id === 'string' && c.id.endsWith('@g.us'))
-      .map((c) => ({
-        id: c.id,
-        name: c.name || c.contactName || c.id.replace('@g.us', ''),
-      }));
-  } catch (err) {
-    console.warn('[WhatsAppGroupImport] Error fetching groups:', err);
-    return [];
+  for (const host of hosts) {
+    try {
+      const url = `${host}/waInstance${instanceId.trim()}/getChats/${token.trim()}`;
+      const res = await fetch(url);
+      if (!res.ok) continue;
+      const chats: any[] = await res.json();
+
+      return (chats || [])
+        .filter((c) => typeof c.id === 'string' && c.id.endsWith('@g.us'))
+        .map((c) => ({
+          id: c.id,
+          name: c.name || c.contactName || c.id.replace('@g.us', ''),
+        }));
+    } catch (err) {
+      console.warn(`[WhatsAppGroupImport] Error fetching groups from ${host}:`, err);
+    }
   }
+
+  return [];
 }
 
 export async function fetchGroupParticipants(
@@ -70,33 +140,38 @@ export async function fetchGroupParticipants(
   groupId: string
 ): Promise<WhatsAppParticipant[]> {
   if (!instanceId || !token || !groupId) return [];
-  try {
-    const url = `https://api.green-api.com/waInstance${instanceId.trim()}/getGroupData/${token.trim()}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groupId }),
-    });
+  const hosts = getGreenApiCandidateHosts(instanceId);
 
-    if (!res.ok) return [];
-    const data = await res.json();
+  for (const host of hosts) {
+    try {
+      const url = `${host}/waInstance${instanceId.trim()}/getGroupData/${token.trim()}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ groupId }),
+      });
 
-    const participants: WhatsAppParticipant[] = (data.participants || []).map((p: any) => {
-      const rawPhone = (p.id || '').replace('@c.us', '');
-      const normalized = normalizePhoneNumber(rawPhone);
-      return {
-        phone: normalized || rawPhone,
-        name: p.name || `איש קשר ${normalized || rawPhone}`,
-        isAdmin: Boolean(p.admin),
-        chatId: p.id,
-      };
-    });
+      if (!res.ok) continue;
+      const data = await res.json();
 
-    return participants;
-  } catch (err) {
-    console.warn('[WhatsAppGroupImport] Error fetching participants:', err);
-    return [];
+      const participants: WhatsAppParticipant[] = (data.participants || []).map((p: any) => {
+        const rawPhone = (p.id || '').replace('@c.us', '');
+        const normalized = normalizePhoneNumber(rawPhone);
+        return {
+          phone: normalized || rawPhone,
+          name: p.name || `איש קשר ${normalized || rawPhone}`,
+          isAdmin: Boolean(p.admin),
+          chatId: p.id,
+        };
+      });
+
+      return participants;
+    } catch (err) {
+      console.warn(`[WhatsAppGroupImport] Error fetching participants from ${host}:`, err);
+    }
   }
+
+  return [];
 }
 
 export async function importParticipantsToCrmContacts(
