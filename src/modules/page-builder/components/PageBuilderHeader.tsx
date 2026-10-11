@@ -92,8 +92,8 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
                 {config.pageTitle || 'עמוד ללא שם'}
               </h1>
               {config.isHomePage && (
-                <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30">
-                  עמוד בית 🏠
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
+                  עמוד בית ראשי
                 </span>
               )}
               {config.published ? (
@@ -219,7 +219,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
               title="צור עץ וידאו אינטראקטיבי מתוכן עמוד זה בסטודיו"
             >
               <Film className="w-3.5 h-3.5 text-pink-400" />
-              <span className="hidden xl:inline">צור וידאו אינטראקטיבי 🎬</span>
+              <span className="hidden xl:inline">צור וידאו אינטראקטיבי</span>
             </button>
           )}
 
@@ -319,7 +319,7 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
               )}
             >
               <Globe className="w-3.5 h-3.5" />
-              <span>{config.published ? 'מפורסם 🚀' : 'פרסם עמוד'}</span>
+              <span>{config.published ? 'מפורסם באוויר' : 'פרסם עמוד'}</span>
             </button>
           )}
 

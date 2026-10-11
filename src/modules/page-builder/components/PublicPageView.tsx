@@ -63,8 +63,8 @@ export const PublicPageView: React.FC = () => {
               p.pageId === target
           );
         } else {
-          // If no slug provided, load the homepage
-          foundPage = allPages.find((p) => p.isHomePage) || allPages[0];
+          // If no slug provided, load the designated homepage
+          foundPage = (await pageBuilderFirestore.getHomePage(db, tenantId)) || allPages.find((p) => p.isHomePage) || allPages[0];
         }
 
         if (isMounted) {
@@ -97,7 +97,7 @@ export const PublicPageView: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [resolvedSlug, db]);
+  }, [resolvedSlug, db, tenantId]);
 
   if (loading) {
     return (

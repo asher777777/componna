@@ -128,21 +128,38 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
     async function loadTenantHomePage() {
       try {
-        const allPages = await pageBuilderFirestore.getAllPages(db);
-        let targetPage = allPages.find((p) => p.isHomePage || p.pageId === `home_${tenantRecord.subdomain}`);
+        // 1. Try to get designated homepage for this subdomain
+        const targetPage = await pageBuilderFirestore.getHomePage(db, tenantRecord.subdomain);
         
-        if (!targetPage) {
-          // Initialize customized default home page and save it
-          const defaultPage = createDefaultTenantPage();
-          await pageBuilderFirestore.savePage(defaultPage, db);
-          targetPage = defaultPage;
+        if (targetPage) {
+          if (isMounted) {
+            setHomePageConfig(targetPage);
+            if (typeof document !== 'undefined') {
+              document.title = targetPage.seoSettings?.title || targetPage.pageTitle || tenantRecord.clientName;
+            }
+          }
+          return;
         }
 
-        if (isMounted) {
-          setHomePageConfig(targetPage);
-          if (typeof document !== 'undefined') {
-            document.title = targetPage.seoSettings?.title || targetPage.pageTitle || tenantRecord.clientName;
+        // 2. If no homepage flag is active, check if any pages exist for this tenant
+        const allPages = await pageBuilderFirestore.getAllPages(db, tenantRecord.subdomain);
+        if (allPages.length > 0) {
+          if (isMounted) {
+            setHomePageConfig(allPages[0]);
+            if (typeof document !== 'undefined') {
+              document.title = allPages[0].seoSettings?.title || allPages[0].pageTitle || tenantRecord.clientName;
+            }
           }
+          return;
+        }
+
+        // 3. Fallback: Initialize customized default home page and save it scoped to tenant
+        const defaultPage = createDefaultTenantPage();
+        await pageBuilderFirestore.savePage(defaultPage, db, tenantRecord.subdomain);
+        await pageBuilderFirestore.setHomePage(defaultPage.pageId, db, tenantRecord.subdomain);
+        
+        if (isMounted) {
+          setHomePageConfig(defaultPage);
         }
       } catch (err) {
         console.warn('[TenantSubdomainView] Error loading home page:', err);
@@ -154,10 +171,20 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
     loadTenantHomePage();
 
+    // Listen to homepage changes dispatched from PageBuilder
+    const handleHomeChange = (e: any) => {
+      const changed = e?.detail?.tenantId;
+      if (!changed || changed === tenantRecord.subdomain) {
+        loadTenantHomePage();
+      }
+    };
+    window.addEventListener('kosun_homepage_changed', handleHomeChange);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('kosun_homepage_changed', handleHomeChange);
     };
-  }, [db, tenantRecord.subdomain]);
+  }, [db, tenantRecord.subdomain, mode]);
 
   // 1. ADMIN MODE (Control Panel & Purchased Module Editors)
   if (mode === 'admin') {

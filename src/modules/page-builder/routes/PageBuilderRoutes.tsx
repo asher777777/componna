@@ -138,6 +138,10 @@ const DashboardRouteWrapper: React.FC = () => {
           await pageBuilderFirestore.setHomePage(pageId, db, tenantId);
           loadPages();
         }}
+        onUnsetHomePage={async () => {
+          await pageBuilderFirestore.setHomePage('', db, tenantId);
+          loadPages();
+        }}
         onTogglePublish={async (page) => {
           await pageBuilderFirestore.savePage({ ...page, published: !page.published }, db, tenantId);
           loadPages();

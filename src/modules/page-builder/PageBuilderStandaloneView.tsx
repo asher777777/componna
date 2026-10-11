@@ -230,8 +230,20 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
     await pageBuilderFirestore.setHomePage(pageId, db, tenantId);
     const all = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(all);
-    if (currentPage.pageId === pageId) {
-      setCurrentPage({ ...currentPage, isHomePage: true });
+    const updated = all.find((p) => p.pageId === currentPage.pageId);
+    if (updated) {
+      setCurrentPage(updated);
+    }
+  };
+
+  // Unset home page
+  const handleUnsetHomePage = async (_pageId: string) => {
+    await pageBuilderFirestore.setHomePage('', db, tenantId);
+    const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+    setPages(all);
+    const updated = all.find((p) => p.pageId === currentPage.pageId);
+    if (updated) {
+      setCurrentPage(updated);
     }
   };
 
@@ -260,6 +272,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           onDuplicatePage={handleDuplicatePage}
           onDeletePage={handleDeletePage}
           onSetHomePage={handleSetHomePage}
+          onUnsetHomePage={handleUnsetHomePage}
           onTogglePublish={handleTogglePublish}
           onOpenShortener={(page) => {
             setSelectedShortPage(page);

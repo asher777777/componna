@@ -18,6 +18,75 @@ const HomePage = React.lazy(() =>
   import('../pages/HomePage').then((m) => ({ default: m.HomePage }))
 );
 
+import { PageBuilderRenderer } from '../modules/page-builder/PageBuilderRenderer';
+import { pageBuilderFirestore } from '../modules/page-builder/services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../modules/page-builder/types/pageBuilder.types';
+import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
+
+const WorkbenchRootHome: React.FC = () => {
+  const { db } = useSystemConnection();
+  const [homePage, setHomePage] = React.useState<PageBuilderConfig | null>(null);
+  const [loading, setLoading] = React.useState(true);
+
+  const loadHome = React.useCallback(async () => {
+    try {
+      const page = await pageBuilderFirestore.getHomePage(db, ROOT_TENANT_ID);
+      setHomePage(page);
+    } catch {
+      setHomePage(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [db]);
+
+  React.useEffect(() => {
+    loadHome();
+    const handleHomeChange = (e: any) => {
+      const changed = e?.detail?.tenantId;
+      if (!changed || changed === ROOT_TENANT_ID) {
+        loadHome();
+      }
+    };
+    window.addEventListener('kosun_homepage_changed', handleHomeChange);
+    return () => window.removeEventListener('kosun_homepage_changed', handleHomeChange);
+  }, [loadHome]);
+
+  if (loading) {
+    return <div className="min-h-screen bg-slate-900 flex items-center justify-center text-indigo-400 font-bold">טוען עמוד בית...</div>;
+  }
+
+  if (homePage) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-white relative font-sans" dir="rtl">
+        <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md px-4 py-2 border-b border-indigo-500/30 flex items-center justify-between text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold text-white">עמוד הבית הפעיל שנבחר מבונה העמודים:</span>
+            <span className="text-indigo-300 font-bold font-mono bg-slate-800 px-2 py-0.5 rounded">{homePage.pageTitle}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <a
+              href="/page-builder"
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 shadow-sm"
+            >
+              ✏️ עריכה בבונה העמודים
+            </a>
+            <a
+              href="/saas-storefront"
+              className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700"
+            >
+              חנות המערכת והמודולים
+            </a>
+          </div>
+        </div>
+        <PageBuilderRenderer config={homePage} />
+      </div>
+    );
+  }
+
+  return <HomePage />;
+};
+
 export const WorkbenchApp: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -108,8 +177,8 @@ export const WorkbenchApp: React.FC = () => {
             <Route
               path="/"
               element={
-                <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-500 font-bold">טוען...</div>}>
-                  <HomePage />
+                <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-indigo-400 font-bold">טוען...</div>}>
+                  <WorkbenchRootHome />
                 </Suspense>
               }
             />
@@ -129,11 +198,13 @@ export const WorkbenchApp: React.FC = () => {
             <Route
               path="/"
               element={
-                <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-500 font-bold">טוען...</div>}>
-                  <HomePage />
+                <Suspense fallback={<div className="min-h-screen bg-slate-900 flex items-center justify-center text-indigo-400 font-bold">טוען...</div>}>
+                  <WorkbenchRootHome />
                 </Suspense>
               }
             />
+            <Route path="/store" element={<Navigate to="/saas-storefront" replace />} />
+            <Route path="/home" element={<Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-500 font-bold">טוען...</div>}><HomePage /></Suspense>} />
             
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

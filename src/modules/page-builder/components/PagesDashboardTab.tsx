@@ -28,6 +28,7 @@ interface PagesDashboardTabProps {
   onDuplicatePage: (page: PageBuilderConfig) => void;
   onDeletePage: (pageId: string) => void;
   onSetHomePage: (pageId: string) => void;
+  onUnsetHomePage?: (pageId: string) => void;
   onTogglePublish: (page: PageBuilderConfig) => void;
   onOpenShortener: (page: PageBuilderConfig) => void;
   onConvertToVideo?: (page: PageBuilderConfig) => void;
@@ -42,6 +43,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onDuplicatePage,
   onDeletePage,
   onSetHomePage,
+  onUnsetHomePage,
   onTogglePublish,
   onOpenShortener,
   onConvertToVideo,
@@ -269,16 +271,22 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                       <button
                         type="button"
                         onClick={() => onSetHomePage(page.pageId)}
-                        className="text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors"
+                        className="text-slate-400 hover:text-amber-400 flex items-center gap-1.5 transition-colors py-1 px-2 rounded-lg hover:bg-amber-400/10 cursor-pointer"
+                        title="קבע כעמוד הראשי של האתר"
                       >
                         <Home className="w-3.5 h-3.5" />
                         <span>קבע כעמוד הבית</span>
                       </button>
                     ) : (
-                      <span className="text-amber-400 font-semibold text-[11px] flex items-center gap-1">
-                        <Home className="w-3.5 h-3.5" />
-                        <span>עמוד בית פעיל</span>
-                      </span>
+                      <button
+                        type="button"
+                        onClick={() => onUnsetHomePage ? onUnsetHomePage(page.pageId) : onSetHomePage('')}
+                        className="text-amber-400 hover:text-amber-300 font-semibold text-[11px] flex items-center gap-1.5 transition-all bg-amber-500/15 hover:bg-amber-500/25 px-2.5 py-1 rounded-xl border border-amber-500/30 cursor-pointer group"
+                        title="עמוד הבית הפעיל של המערכת - לחץ לביטול וחזרה לרכיב החנות"
+                      >
+                        <Home className="w-3.5 h-3.5 fill-amber-400 group-hover:scale-110 transition-transform" />
+                        <span>עמוד בית פעיל (לחץ לביטול)</span>
+                      </button>
                     )}
 
                     <div className="flex items-center gap-2">

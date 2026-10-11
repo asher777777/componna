@@ -1,29 +1,45 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, orderBy, updateDoc, increment } from 'firebase/firestore';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
+import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 
 const DEFAULT_COLLECTION_NAME = 'mod_pages_documents';
 
+function resolveEffectiveTenant(tenantId?: string): string {
+  if (!tenantId || tenantId === ROOT_TENANT_ID || tenantId === '_master') {
+    return ROOT_TENANT_ID;
+  }
+  return tenantId;
+}
+
 function getCollectionName(tenantId?: string) {
-  return tenantId ? `tenants/${tenantId}/mod_pages_documents` : DEFAULT_COLLECTION_NAME;
+  const eff = resolveEffectiveTenant(tenantId);
+  return eff === ROOT_TENANT_ID ? 'tenants/_master/mod_pages_documents' : `tenants/${eff}/mod_pages_documents`;
 }
 
 function getDraftCollectionName(tenantId?: string) {
-  return tenantId ? `tenants/${tenantId}/mod_pages_drafts` : 'mod_pages_drafts';
+  const eff = resolveEffectiveTenant(tenantId);
+  return eff === ROOT_TENANT_ID ? 'tenants/_master/mod_pages_drafts' : `tenants/${eff}/mod_pages_drafts`;
 }
 
 function getStorageKey(tenantId?: string) {
-  return tenantId ? `kosun_${tenantId}_pagebuilder_all_pages` : 'kosun_pagebuilder_all_pages';
+  const eff = resolveEffectiveTenant(tenantId);
+  return `kosun_${eff}_pagebuilder_all_pages`;
 }
+
 function getDraftStorageKey(tenantId?: string) {
-  return tenantId ? `kosun_${tenantId}_pagebuilder_drafts` : 'kosun_pagebuilder_drafts';
+  const eff = resolveEffectiveTenant(tenantId);
+  return `kosun_${eff}_pagebuilder_drafts`;
 }
-const LOCAL_STORAGE_KEY_PAGES = 'kosun_pagebuilder_all_pages';
+
+const LEGACY_STORAGE_KEY_PAGES = 'kosun_pagebuilder_all_pages';
 
 export const pageBuilderFirestore = {
   // Get all saved pages
   async getAllPages(db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig[]> {
-    const collPath = getCollectionName(tenantId);
-    const storeKey = getStorageKey(tenantId);
+    const eff = resolveEffectiveTenant(tenantId);
+    const collPath = getCollectionName(eff);
+    const storeKey = getStorageKey(eff);
+
     if (db) {
       try {
         const colRef = collection(db, collPath);
@@ -35,17 +51,37 @@ export const pageBuilderFirestore = {
         if (pages.length > 0) {
           try {
             localStorage.setItem(storeKey, JSON.stringify(pages));
+            if (eff === ROOT_TENANT_ID) {
+              localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(pages));
+            }
           } catch {}
           return pages;
+        }
+
+        // If root tenant and no docs in tenants/_master/mod_pages_documents, check legacy root mod_pages_documents
+        if (eff === ROOT_TENANT_ID) {
+          const legacyRef = collection(db, DEFAULT_COLLECTION_NAME);
+          const legacySnap = await getDocs(legacyRef);
+          const legacyPages: PageBuilderConfig[] = [];
+          legacySnap.forEach((d) => {
+            legacyPages.push({ ...(d.data() as PageBuilderConfig), pageId: d.id });
+          });
+          if (legacyPages.length > 0) {
+            try {
+              localStorage.setItem(storeKey, JSON.stringify(legacyPages));
+              localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(legacyPages));
+            } catch {}
+            return legacyPages;
+          }
         }
       } catch (err) {
         console.warn('[PageBuilder] Firestore getAllPages error:', err);
       }
     }
 
-    // Fallback to local storage
+    // Fallback to local storage (both scoped and legacy keys for root tenant)
     try {
-      const saved = localStorage.getItem(storeKey);
+      const saved = localStorage.getItem(storeKey) || (eff === ROOT_TENANT_ID ? localStorage.getItem(LEGACY_STORAGE_KEY_PAGES) : null);
       if (saved) {
         return JSON.parse(saved);
       }
@@ -56,7 +92,8 @@ export const pageBuilderFirestore = {
 
   // Get single page by id
   async getPage(pageId: string, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig | null> {
-    const collPath = getCollectionName(tenantId);
+    const eff = resolveEffectiveTenant(tenantId);
+    const collPath = getCollectionName(eff);
     if (db) {
       try {
         const docRef = doc(db, collPath, pageId);
@@ -79,8 +116,9 @@ export const pageBuilderFirestore = {
 
   // Save or update a page
   async savePage(config: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<void> {
-    const collPath = getCollectionName(tenantId);
-    const storeKey = getStorageKey(tenantId);
+    const eff = resolveEffectiveTenant(tenantId);
+    const collPath = getCollectionName(eff);
+    const storeKey = getStorageKey(eff);
     const pageId = config.pageId || `page_${Date.now()}`;
     const now = new Date().toISOString();
     const payload: PageBuilderConfig = {
@@ -93,7 +131,7 @@ export const pageBuilderFirestore = {
 
     // Save in localStorage
     try {
-      const localPages = await this.getAllPages(null, tenantId);
+      const localPages = await this.getAllPages(null, eff);
       const existingIdx = localPages.findIndex((p) => p.pageId === pageId);
       if (existingIdx >= 0) {
         localPages[existingIdx] = payload;
@@ -101,6 +139,9 @@ export const pageBuilderFirestore = {
         localPages.push(payload);
       }
       localStorage.setItem(storeKey, JSON.stringify(localPages));
+      if (eff === ROOT_TENANT_ID) {
+        localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(localPages));
+      }
     } catch {}
 
     // Save in Firestore
@@ -117,11 +158,23 @@ export const pageBuilderFirestore = {
 
   // Delete page
   async deletePage(pageId: string, db?: Firestore | null, tenantId?: string): Promise<void> {
-    const collPath = getCollectionName(tenantId);
-    const storeKey = getStorageKey(tenantId);
+    const eff = resolveEffectiveTenant(tenantId);
+    const collPath = getCollectionName(eff);
+    const storeKey = getStorageKey(eff);
     try {
-      const localPages = (await this.getAllPages(null, tenantId)).filter((p) => p.pageId !== pageId);
+      const localPages = (await this.getAllPages(null, eff)).filter((p) => p.pageId !== pageId);
       localStorage.setItem(storeKey, JSON.stringify(localPages));
+      if (eff === ROOT_TENANT_ID) {
+        localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(localPages));
+      }
+      // If deleted page was homepage, clear homepage pointer
+      const explicitId = localStorage.getItem(`${storeKey}_homepage_id`);
+      if (explicitId === pageId) {
+        localStorage.removeItem(`${storeKey}_homepage_id`);
+        if (eff === ROOT_TENANT_ID) {
+          localStorage.removeItem('kosun_pagebuilder_homepage_id');
+        }
+      }
     } catch {}
 
     if (db) {
@@ -136,6 +189,7 @@ export const pageBuilderFirestore = {
 
   // Duplicate page
   async duplicatePage(sourcePage: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig> {
+    const eff = resolveEffectiveTenant(tenantId);
     const newId = `page_${Date.now()}`;
     const duplicated: PageBuilderConfig = {
       ...JSON.parse(JSON.stringify(sourcePage)),
@@ -153,19 +207,92 @@ export const pageBuilderFirestore = {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.savePage(duplicated, db, tenantId);
+    await this.savePage(duplicated, db, eff);
     return duplicated;
   },
 
-  // Set page as homepage
-  async setHomePage(targetPageId: string, db?: Firestore | null, tenantId?: string): Promise<void> {
-    const allPages = await this.getAllPages(db, tenantId);
-    for (const page of allPages) {
-      const isTarget = page.pageId === targetPageId;
-      if (page.isHomePage !== isTarget) {
-        page.isHomePage = isTarget;
-        await this.savePage(page, db, tenantId);
+  // Get active designated homepage config for a tenant (or root)
+  async getHomePage(db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig | null> {
+    const eff = resolveEffectiveTenant(tenantId);
+    const storeKey = getStorageKey(eff);
+    const allPages = await this.getAllPages(db, eff);
+    if (!allPages || allPages.length === 0) {
+      return null;
+    }
+
+    // 1. Check explicit stored homepage ID
+    let explicitId: string | null = null;
+    try {
+      explicitId = localStorage.getItem(`${storeKey}_homepage_id`);
+      if (!explicitId && eff === ROOT_TENANT_ID) {
+        explicitId = localStorage.getItem('kosun_pagebuilder_homepage_id');
       }
+    } catch {}
+
+    if (explicitId) {
+      const page = allPages.find((p) => p.pageId === explicitId);
+      if (page) return page;
+    }
+
+    // 2. Find page with isHomePage === true
+    const homePage = allPages.find((p) => Boolean(p.isHomePage));
+    if (homePage) return homePage;
+
+    // 3. For tenant subdomains, check default slug/id 'home_{tenantId}'
+    if (eff !== ROOT_TENANT_ID) {
+      const tenantNamedHome = allPages.find((p) => p.pageId === `home_${eff}`);
+      if (tenantNamedHome) return tenantNamedHome;
+    }
+
+    return null;
+  },
+
+  // Set page as homepage (or pass empty string/null to unset)
+  async setHomePage(targetPageId: string, db?: Firestore | null, tenantId?: string): Promise<void> {
+    const eff = resolveEffectiveTenant(tenantId);
+    const storeKey = getStorageKey(eff);
+    const allPages = await this.getAllPages(db, eff);
+
+    const updatedPages = allPages.map((page) => ({
+      ...page,
+      isHomePage: Boolean(targetPageId && page.pageId === targetPageId),
+    }));
+
+    // Update in-memory / localStorage immediately
+    try {
+      localStorage.setItem(storeKey, JSON.stringify(updatedPages));
+      if (eff === ROOT_TENANT_ID) {
+        localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(updatedPages));
+      }
+
+      if (targetPageId) {
+        localStorage.setItem(`${storeKey}_homepage_id`, targetPageId);
+        if (eff === ROOT_TENANT_ID) {
+          localStorage.setItem('kosun_pagebuilder_homepage_id', targetPageId);
+        }
+      } else {
+        localStorage.removeItem(`${storeKey}_homepage_id`);
+        if (eff === ROOT_TENANT_ID) {
+          localStorage.removeItem('kosun_pagebuilder_homepage_id');
+        }
+      }
+    } catch {}
+
+    // Save each changed page to Firestore
+    for (const page of updatedPages) {
+      const old = allPages.find((p) => p.pageId === page.pageId);
+      if (!old || old.isHomePage !== page.isHomePage) {
+        await this.savePage(page, db, eff);
+      }
+    }
+
+    // Notify listeners across tabs and components
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('kosun_homepage_changed', {
+          detail: { tenantId: eff, pageId: targetPageId },
+        })
+      );
     }
   },
 
