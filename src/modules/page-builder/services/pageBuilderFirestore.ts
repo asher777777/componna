@@ -40,37 +40,48 @@ const LEGACY_STORAGE_KEY_PAGES = 'kosun_pagebuilder_all_pages';
 export function ensureHeaderSection(page: PageBuilderConfig): PageBuilderConfig {
   if (!page || !page.sections) return page;
 
-  const hasHeader = Object.values(page.sections).some((s: any) => s && s.type === 'header');
-  if (hasHeader) return page;
+  // Find existing header if present
+  const existingHeaderEntry = Object.entries(page.sections).find(([_, s]: any) => s && s.type === 'header');
 
-  const headerId = 'header-1';
-  const headerSection = {
-    id: headerId,
-    type: 'header',
-    visible: true,
-    anchorId: 'header',
-    layout: (page.globalSettings?.headerLayout as any) || 'floating-glass',
-    sticky: page.globalSettings?.headerSticky ?? true,
-    useBrandLogo: true,
-    showLogoText: true,
-    logoText: page.globalSettings?.companyName || 'קושאן',
-    menuMode: 'dynamic-tenant',
-    showLoginButton: true,
-    showCtaButton: true,
-    ctaButtonText: 'התחל עכשיו',
-    ctaButtonUrl: '#contact',
-    showPhone: Boolean(page.globalSettings?.contactPhone),
-    phone: page.globalSettings?.contactPhone || '052-6968008',
-    showWhatsApp: Boolean(page.globalSettings?.contactWhatsApp),
-    whatsApp: page.globalSettings?.contactWhatsApp || '0526968008',
-  };
+  let headerId: string;
+  let headerSection: any;
+
+  if (existingHeaderEntry) {
+    headerId = existingHeaderEntry[0];
+    headerSection = existingHeaderEntry[1];
+  } else {
+    headerId = 'header-1';
+    headerSection = {
+      id: headerId,
+      type: 'header',
+      visible: true,
+      anchorId: 'header',
+      layout: (page.globalSettings?.headerLayout as any) || 'floating-glass',
+      sticky: page.globalSettings?.headerSticky ?? true,
+      useBrandLogo: true,
+      showLogoText: true,
+      logoText: page.globalSettings?.companyName || 'קושאן',
+      menuMode: 'dynamic-tenant',
+      showLoginButton: true,
+      showCtaButton: true,
+      ctaButtonText: 'התחל עכשיו',
+      ctaButtonUrl: '#contact',
+      showPhone: Boolean(page.globalSettings?.contactPhone),
+      phone: page.globalSettings?.contactPhone || '052-6968008',
+      showWhatsApp: Boolean(page.globalSettings?.contactWhatsApp),
+      whatsApp: page.globalSettings?.contactWhatsApp || '0526968008',
+      desktopMenuDisplay: 'links',
+    };
+  }
 
   const newSections = {
-    [headerId]: headerSection,
     ...page.sections,
+    [headerId]: headerSection,
   };
 
-  const newOrder = [headerId, ...(page.sectionOrder || []).filter((id) => id !== headerId)];
+  // Header is permanently fixed at position 0 at top of the page
+  const remainingOrder = (page.sectionOrder || []).filter((id) => id !== headerId);
+  const newOrder = [headerId, ...remainingOrder];
 
   return {
     ...page,

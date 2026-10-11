@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
-import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
+import { pageBuilderFirestore, ensureHeaderSection } from '../services/pageBuilderFirestore';
 import { PageBuilderRenderer } from '../PageBuilderRenderer';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
@@ -225,10 +225,11 @@ export const PublicPageView: React.FC = () => {
 
         if (isMounted) {
           if (foundPage) {
-            setPage(foundPage);
+            const pageWithHeader = ensureHeaderSection(foundPage);
+            setPage(pageWithHeader);
             // Update document title
             if (typeof document !== 'undefined') {
-              document.title = foundPage.seoSettings?.title || foundPage.pageTitle || 'Kosun Page';
+              document.title = pageWithHeader.seoSettings?.title || pageWithHeader.pageTitle || 'Kosun Page';
             }
             // Track page view for published pages
             if (foundPage.published) {

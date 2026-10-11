@@ -21,6 +21,7 @@ export interface HeaderSectionConfig extends BaseSectionConfig {
   showWhatsApp?: boolean;
   whatsApp?: string;
   menuTitleOverrides?: Record<string, string>;
+  desktopMenuDisplay?: 'links' | 'hamburger' | 'both';
 }
 
 export interface HeroAvatarItem {

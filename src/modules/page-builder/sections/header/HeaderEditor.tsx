@@ -15,16 +15,20 @@ import {
   LogIn,
   Layers,
   Image as ImageIcon,
+  Anchor,
+  FileText,
+  Globe,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../../core/tenant';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { PageBuilderConfig } from '../../types/pageBuilder.types';
+import { usePageBuilderContext } from '../../context/PageBuilderContext';
 
 interface HeaderEditorProps {
   config: HeaderSectionConfig;
-  onChange: (updated: Partial<HeaderSectionConfig>) => void;
+  onChange: (updated: HeaderSectionConfig) => void;
 }
 
 export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) => {
@@ -35,6 +39,13 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
   const brandCompanyName = brandContext?.brandDna?.identity?.companyName || 'קושאן';
 
   const [tenantPages, setTenantPages] = useState<PageBuilderConfig[]>([]);
+
+  const updateConfig = (patch: Partial<HeaderSectionConfig>) => {
+    onChange({
+      ...config,
+      ...patch,
+    });
+  };
 
   React.useEffect(() => {
     let mounted = true;
@@ -67,9 +78,38 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
     { id: 'transparent', label: 'שקוף מעל התוכן', desc: 'רקע שקוף המשתלב עם אזור ה-Hero' },
   ];
 
+  // Extract page sections for anchor selection
+  let pbContext: any = null;
+  try {
+    pbContext = usePageBuilderContext();
+  } catch (e) {
+    // Context might be optional if rendered standalone
+  }
+
+  const availableAnchors = React.useMemo(() => {
+    const pageCfg = pbContext?.currentPageConfig;
+    if (!pageCfg?.sections) return [];
+    const sectionOrder: string[] = pageCfg.sectionOrder || Object.keys(pageCfg.sections);
+
+    return sectionOrder
+      .map((secId) => {
+        const sec = pageCfg.sections[secId];
+        if (!sec || sec.type === 'header') return null; // Don't link to header itself
+        const anchor = sec.anchorId || sec.id || secId;
+        const title = sec.adminTitle || sec.title || sec.type;
+        return {
+          id: anchor,
+          label: `${title} (#${anchor})`,
+          value: `#${anchor}`,
+          cleanTitle: title,
+        };
+      })
+      .filter(Boolean) as Array<{ id: string; label: string; value: string; cleanTitle: string }>;
+  }, [pbContext?.currentPageConfig]);
+
   const handleAddCustomLink = () => {
     const existing = config.customLinks || [];
-    onChange({
+    updateConfig({
       customLinks: [...existing, { label: 'קישור חדש', url: '#' }],
     });
   };
@@ -78,13 +118,53 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
     const existing = [...(config.customLinks || [])];
     if (existing[index]) {
       existing[index] = { ...existing[index], [field]: value };
-      onChange({ customLinks: existing });
+      updateConfig({ customLinks: existing });
     }
+  };
+
+  const handleSelectLinkTarget = (index: number, selectedValue: string) => {
+    const existing = [...(config.customLinks || [])];
+    const current = existing[index];
+    if (!current) return;
+
+    if (selectedValue === 'custom') {
+      // Keep existing URL or set empty if default hash
+      updateConfig({ customLinks: existing });
+      return;
+    }
+
+    let suggestedLabel = current.label;
+
+    // Check if it's an anchor
+    const matchedAnchor = availableAnchors.find((a) => a.value === selectedValue);
+    if (matchedAnchor) {
+      if (!current.label || current.label === 'קישור חדש' || current.label.trim() === '') {
+        suggestedLabel = matchedAnchor.cleanTitle;
+      }
+    } else {
+      // Check if it's a tenant page
+      const matchedPage = tenantPages.find((p) => {
+        const pageUrl = p.isHomePage ? '/' : `/p/${p.slug || p.pageId}`;
+        return pageUrl === selectedValue;
+      });
+      if (matchedPage) {
+        if (!current.label || current.label === 'קישור חדש' || current.label.trim() === '') {
+          suggestedLabel = matchedPage.pageTitle || 'עמוד';
+        }
+      }
+    }
+
+    existing[index] = {
+      ...current,
+      label: suggestedLabel,
+      url: selectedValue,
+    };
+    updateConfig({ customLinks: existing });
   };
 
   const handleRemoveCustomLink = (index: number) => {
     const existing = (config.customLinks || []).filter((_, i) => i !== index);
-    onChange({ customLinks: existing });
+    updateConfig({ customLinks: existing });
   };
 
   return (
@@ -128,9 +208,9 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
               <button
                 key={l.id}
                 type="button"
-                onClick={() => onChange({ layout: l.id as any })}
+                onClick={() => updateConfig({ layout: l.id as any })}
                 className={clsx(
-                  'p-3 rounded-2xl border text-right transition-all flex flex-col justify-between gap-1',
+                  'p-3 rounded-2xl border text-right transition-all flex flex-col justify-between gap-1 cursor-pointer',
                   isSelected
                     ? 'bg-indigo-600/20 border-indigo-500 text-white shadow-md shadow-indigo-600/15'
                     : 'bg-slate-950/70 border-slate-800 hover:border-slate-700 text-slate-300'
@@ -154,7 +234,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
           </div>
           <button
             type="button"
-            onClick={() => onChange({ sticky: config.sticky === false ? true : false })}
+            onClick={() => updateConfig({ sticky: config.sticky === false ? true : false })}
             className={clsx(
               'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
               config.sticky !== false ? 'bg-indigo-600' : 'bg-slate-800'
@@ -164,6 +244,31 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
               className={clsx(
                 'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
                 config.sticky !== false ? 'left-1' : 'right-1'
+              )}
+            />
+          </button>
+        </div>
+
+        {/* Visibility Toggle Inside Editor */}
+        <div className="pt-2 flex items-center justify-between border-t border-slate-800">
+          <div>
+            <span className="text-xs font-bold text-white block">נראות אזור ההדר (הצג / הסתר)</span>
+            <span className="text-[11px] text-slate-400">
+              {config.visible !== false ? 'ההדר מוצג לגולשים בראש העמוד' : 'ההדר מוסתר מגולשים (מופיע כטיוטה בעריכה)'}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => updateConfig({ visible: config.visible === false ? true : false })}
+            className={clsx(
+              'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
+              config.visible !== false ? 'bg-indigo-600' : 'bg-slate-800'
+            )}
+          >
+            <span
+              className={clsx(
+                'absolute top-1 w-4 h-4 rounded-full bg-white transition-transform',
+                config.visible !== false ? 'left-1' : 'right-1'
               )}
             />
           </button>
@@ -209,7 +314,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
           </div>
           <button
             type="button"
-            onClick={() => onChange({ useBrandLogo: config.useBrandLogo === false ? true : false })}
+            onClick={() => updateConfig({ useBrandLogo: config.useBrandLogo === false ? true : false })}
             className={clsx(
               'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
               config.useBrandLogo !== false ? 'bg-indigo-600' : 'bg-slate-800'
@@ -230,7 +335,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
             label="כתובת לוגו מותאם אישית (URL)"
             placeholder="https://example.com/logo.png"
             value={config.customLogoUrl || ''}
-            onChange={(e) => onChange({ customLogoUrl: e.target.value })}
+            onChange={(e) => updateConfig({ customLogoUrl: e.target.value })}
           />
         )}
 
@@ -239,13 +344,13 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
             label="שם העסק / כותרת הלוגו"
             placeholder={brandCompanyName}
             value={config.logoText || ''}
-            onChange={(e) => onChange({ logoText: e.target.value })}
+            onChange={(e) => updateConfig({ logoText: e.target.value })}
           />
           <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/70 border border-slate-800 mt-5">
             <span className="text-xs font-bold text-white">הצג טקסט ליד הלוגו</span>
             <button
               type="button"
-              onClick={() => onChange({ showLogoText: config.showLogoText === false ? true : false })}
+              onClick={() => updateConfig({ showLogoText: config.showLogoText === false ? true : false })}
               className={clsx(
                 'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
                 config.showLogoText !== false ? 'bg-indigo-600' : 'bg-slate-800'
@@ -274,9 +379,9 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
           <button
             type="button"
-            onClick={() => onChange({ menuMode: 'dynamic-tenant' })}
+            onClick={() => updateConfig({ menuMode: 'dynamic-tenant' })}
             className={clsx(
-              'p-3 rounded-2xl border text-right transition-all flex flex-col gap-1',
+              'p-3 rounded-2xl border text-right transition-all flex flex-col gap-1 cursor-pointer',
               (config.menuMode || 'dynamic-tenant') === 'dynamic-tenant'
                 ? 'bg-indigo-600/20 border-indigo-500 text-white'
                 : 'bg-slate-950/70 border-slate-800 text-slate-300'
@@ -293,9 +398,9 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
 
           <button
             type="button"
-            onClick={() => onChange({ menuMode: 'custom' })}
+            onClick={() => updateConfig({ menuMode: 'custom' })}
             className={clsx(
-              'p-3 rounded-2xl border text-right transition-all flex flex-col gap-1',
+              'p-3 rounded-2xl border text-right transition-all flex flex-col gap-1 cursor-pointer',
               config.menuMode === 'custom'
                 ? 'bg-indigo-600/20 border-indigo-500 text-white'
                 : 'bg-slate-950/70 border-slate-800 text-slate-300'
@@ -310,9 +415,9 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
 
           <button
             type="button"
-            onClick={() => onChange({ menuMode: 'none' })}
+            onClick={() => updateConfig({ menuMode: 'none' })}
             className={clsx(
-              'p-3 rounded-2xl border text-right transition-all flex flex-col gap-1',
+              'p-3 rounded-2xl border text-right transition-all flex flex-col gap-1 cursor-pointer',
               config.menuMode === 'none'
                 ? 'bg-indigo-600/20 border-indigo-500 text-white'
                 : 'bg-slate-950/70 border-slate-800 text-slate-300'
@@ -325,6 +430,49 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
             <span className="text-[10px] text-slate-400">הצגת לוגו וכפתורי פעולה בלבד</span>
           </button>
         </div>
+
+        {/* Desktop vs Mobile Menu Display (Hamburger Option) */}
+        {config.menuMode !== 'none' && (
+          <div className="p-3.5 rounded-2xl bg-slate-950/70 border border-slate-800 space-y-3 pt-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-white block">תצוגת התפריט בדסקטופ ובמובייל</span>
+                <span className="text-[11px] text-slate-400">
+                  במובייל תפריט המבורגר מוגדר כברירת מחדל קבועה שאינה ניתנת לשינוי. בדסקטופ ניתן לבחור:
+                </span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { id: 'links', label: 'קישורים גלויים', desc: 'תפריט אופקי רגיל' },
+                { id: 'hamburger', label: 'תפריט המבורגר', desc: 'כפתור המבורגר בלבד' },
+                { id: 'both', label: 'קישורים + המבורגר', desc: 'תפריט גלוי וגם כפתור' },
+              ].map((opt) => {
+                const isSel = (config.desktopMenuDisplay || 'links') === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => updateConfig({ desktopMenuDisplay: opt.id as any })}
+                    className={clsx(
+                      'p-2.5 rounded-xl border text-right transition cursor-pointer flex flex-col gap-0.5',
+                      isSel
+                        ? 'bg-indigo-600/25 border-indigo-500 text-white'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold">{opt.label}</span>
+                      {isSel && <Check className="w-3 h-3 text-indigo-400" />}
+                    </div>
+                    <span className="text-[10px] text-slate-400">{opt.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Dynamic Tenant Info Notice & Menu Title Overrides */}
         {(config.menuMode || 'dynamic-tenant') === 'dynamic-tenant' && (
@@ -384,7 +532,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                               delete overrides[key];
                               delete overrides[page.pageId];
                             }
-                            onChange({ menuTitleOverrides: overrides });
+                            updateConfig({ menuTitleOverrides: overrides });
                           }}
                           className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 placeholder:text-slate-500"
                         />
@@ -401,49 +549,123 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
         {config.menuMode === 'custom' && (
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-white">רשימת קישורים</span>
+              <div>
+                <span className="text-xs font-bold text-white block">רשימת קישורים מותאמים אישית</span>
+                <span className="text-[11px] text-slate-400">
+                  ניתן לבחור ישירות מתוך עמודי האתר, עוגנים בעמוד הנוכחי או להזין כתובת חיצונית
+                </span>
+              </div>
               <button
                 type="button"
                 onClick={handleAddCustomLink}
-                className="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                className="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20 cursor-pointer transition hover:bg-indigo-500/20"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>הוסף קישור</span>
               </button>
             </div>
 
-            {(config.customLinks || []).map((link, idx) => (
-              <div
-                key={idx}
-                className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center gap-2"
-              >
-                <div className="flex-1 grid grid-cols-2 gap-2">
-                  <input
-                    type="text"
-                    value={link.label}
-                    onChange={(e) => handleUpdateCustomLink(idx, 'label', e.target.value)}
-                    placeholder="שם הקישור"
-                    className="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500"
-                  />
-                  <input
-                    type="text"
-                    value={link.url}
-                    onChange={(e) => handleUpdateCustomLink(idx, 'url', e.target.value)}
-                    placeholder="#section או https://"
-                    className="bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 font-mono"
-                    dir="ltr"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemoveCustomLink(idx)}
-                  className="p-2 text-slate-500 hover:text-rose-400 transition"
-                  title="מחק קישור"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
+            {(config.customLinks || []).length === 0 ? (
+              <div className="p-4 rounded-2xl bg-slate-950/50 border border-slate-800 text-center text-xs text-slate-400">
+                לא הוגדרו עדיין קישורים לתפריט. לחצו על "הוסף קישור" כדי להתחיל.
               </div>
-            ))}
+            ) : (
+              (config.customLinks || []).map((link, idx) => {
+                // Determine if link.url matches a page or an anchor
+                const isAnchor = link.url.startsWith('#');
+                const isTenantPage = tenantPages.some((p) => {
+                  const u = p.isHomePage ? '/' : `/p/${p.slug || p.pageId}`;
+                  return u === link.url;
+                });
+                const isKnownTarget = isAnchor || isTenantPage;
+                const selectValue = isKnownTarget ? link.url : 'custom';
+
+                return (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl bg-slate-950/80 border border-slate-800 flex flex-col gap-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1.5">
+                        <LinkIcon className="w-3 h-3 text-indigo-400" />
+                        <span>פריט #{idx + 1}</span>
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveCustomLink(idx)}
+                        className="p-1.5 text-slate-500 hover:text-rose-400 transition cursor-pointer rounded-lg hover:bg-rose-500/10"
+                        title="מחק קישור"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      {/* Name / Label */}
+                      <div className="sm:col-span-4">
+                        <label className="text-[10px] text-slate-400 mb-1 block">כותרת הקישור בתפריט</label>
+                        <input
+                          type="text"
+                          value={link.label}
+                          onChange={(e) => handleUpdateCustomLink(idx, 'label', e.target.value)}
+                          placeholder="לדוגמה: אודותינו"
+                          className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      {/* Dropdown Selector */}
+                      <div className="sm:col-span-4">
+                        <label className="text-[10px] text-slate-400 mb-1 block">יעד הקישור (בחירה מהירה)</label>
+                        <select
+                          value={selectValue}
+                          onChange={(e) => handleSelectLinkTarget(idx, e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 cursor-pointer"
+                        >
+                          <optgroup label="עמודי האתר (Tenant)">
+                            {tenantPages.map((p) => {
+                              const pageUrl = p.isHomePage ? '/' : `/p/${p.slug || p.pageId}`;
+                              return (
+                                <option key={p.pageId} value={pageUrl}>
+                                  עמוד: {p.pageTitle || 'עמוד'} {p.isHomePage ? '(ראשי)' : ''}
+                                </option>
+                              );
+                            })}
+                          </optgroup>
+
+                          {availableAnchors.length > 0 && (
+                            <optgroup label="עוגנים לאזורים בעמוד הנוכחי">
+                              {availableAnchors.map((anc) => (
+                                <option key={anc.id} value={anc.value}>
+                                  אזור: {anc.label}
+                                </option>
+                              ))}
+                            </optgroup>
+                          )}
+
+                          <optgroup label="מותאם אישית / חיצוני">
+                            <option value="custom">קישור חיצוני / הזנה ידנית</option>
+                          </optgroup>
+                        </select>
+                      </div>
+
+                      {/* Explicit URL string */}
+                      <div className="sm:col-span-4">
+                        <label className="text-[10px] text-slate-400 mb-1 block">כתובת יעד (URL / עוגן)</label>
+                        <input
+                          type="text"
+                          value={link.url}
+                          onChange={(e) => handleUpdateCustomLink(idx, 'url', e.target.value)}
+                          placeholder="#anchor או https://..."
+                          className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-2 focus:outline-none focus:border-indigo-500 font-mono"
+                          dir="ltr"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>
@@ -463,7 +685,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
           </div>
           <button
             type="button"
-            onClick={() => onChange({ showLoginButton: config.showLoginButton === false ? true : false })}
+            onClick={() => updateConfig({ showLoginButton: config.showLoginButton === false ? true : false })}
             className={clsx(
               'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
               config.showLoginButton !== false ? 'bg-indigo-600' : 'bg-slate-800'
@@ -487,7 +709,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
             </div>
             <button
               type="button"
-              onClick={() => onChange({ showCtaButton: config.showCtaButton === false ? true : false })}
+              onClick={() => updateConfig({ showCtaButton: config.showCtaButton === false ? true : false })}
               className={clsx(
                 'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
                 config.showCtaButton !== false ? 'bg-indigo-600' : 'bg-slate-800'
@@ -508,13 +730,13 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                 label="טקסט הכפתור"
                 placeholder="התחל עכשיו"
                 value={config.ctaButtonText || ''}
-                onChange={(e) => onChange({ ctaButtonText: e.target.value })}
+                onChange={(e) => updateConfig({ ctaButtonText: e.target.value })}
               />
               <PageBuilderInput
                 label="קישור הכפתור (URL / Anchor)"
                 placeholder="#contact"
                 value={config.ctaButtonUrl || ''}
-                onChange={(e) => onChange({ ctaButtonUrl: e.target.value })}
+                onChange={(e) => updateConfig({ ctaButtonUrl: e.target.value })}
                 dir="ltr"
               />
             </div>
@@ -531,7 +753,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
               </span>
               <button
                 type="button"
-                onClick={() => onChange({ showWhatsApp: !config.showWhatsApp })}
+                onClick={() => updateConfig({ showWhatsApp: !config.showWhatsApp })}
                 className={clsx(
                   'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
                   config.showWhatsApp ? 'bg-emerald-600' : 'bg-slate-800'
@@ -550,7 +772,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                 type="text"
                 placeholder="050-0000000"
                 value={config.whatsApp || ''}
-                onChange={(e) => onChange({ whatsApp: e.target.value })}
+                onChange={(e) => updateConfig({ whatsApp: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500 font-mono"
                 dir="ltr"
               />
@@ -565,7 +787,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
               </span>
               <button
                 type="button"
-                onClick={() => onChange({ showPhone: !config.showPhone })}
+                onClick={() => updateConfig({ showPhone: !config.showPhone })}
                 className={clsx(
                   'w-11 h-6 rounded-full transition-colors relative cursor-pointer',
                   config.showPhone ? 'bg-indigo-600' : 'bg-slate-800'
@@ -584,7 +806,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                 type="text"
                 placeholder="03-0000000"
                 value={config.phone || ''}
-                onChange={(e) => onChange({ phone: e.target.value })}
+                onChange={(e) => updateConfig({ phone: e.target.value })}
                 className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 font-mono"
                 dir="ltr"
               />

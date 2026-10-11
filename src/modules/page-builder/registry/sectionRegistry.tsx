@@ -118,6 +118,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ctaButtonUrl: '#contact',
       showWhatsApp: false,
       showPhone: false,
+      desktopMenuDisplay: 'links',
       customLinks: [],
     },
   },

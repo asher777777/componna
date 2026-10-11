@@ -4,7 +4,7 @@ import { PageBuilderRenderer } from '../modules/page-builder/PageBuilderRenderer
 import { FloatingSystemDock } from '../components/Navigation/FloatingSystemDock';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
-import { pageBuilderFirestore } from '../modules/page-builder/services/pageBuilderFirestore';
+import { pageBuilderFirestore, ensureHeaderSection } from '../modules/page-builder/services/pageBuilderFirestore';
 import { SECTION_REGISTRY } from '../modules/page-builder/registry/sectionRegistry';
 import { eventBus } from '../core/bridge/EventBus';
 
@@ -28,7 +28,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   });
 
   // Manage mutable page configuration for live on-page edits
-  const [currentPageConfig, setCurrentPageConfig] = useState<PageBuilderConfig>(pageConfig);
+  const [currentPageConfig, setCurrentPageConfig] = useState<PageBuilderConfig>(() => ensureHeaderSection(pageConfig));
   const [isEditing, setIsEditing] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const p = new URLSearchParams(window.location.search);
@@ -56,7 +56,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   // Sync external pageConfig changes if not currently editing
   useEffect(() => {
     if (!isEditing) {
-      setCurrentPageConfig(pageConfig);
+      setCurrentPageConfig(ensureHeaderSection(pageConfig));
     }
   }, [pageConfig, isEditing]);
 
@@ -302,40 +302,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   }, [db]);
 
   const effectivePageConfig = React.useMemo(() => {
-    if (!currentPageConfig || !currentPageConfig.sections) return currentPageConfig;
-    const hasHeader = Object.values(currentPageConfig.sections).some((s: any) => s && s.type === 'header');
-    if (hasHeader) return currentPageConfig;
-
-    const headerId = 'header-1';
-    const headerSection = {
-      id: headerId,
-      type: 'header',
-      visible: true,
-      anchorId: 'header',
-      layout: (currentPageConfig.globalSettings?.headerLayout as any) || 'floating-glass',
-      sticky: currentPageConfig.globalSettings?.headerSticky ?? true,
-      useBrandLogo: true,
-      showLogoText: true,
-      logoText: currentPageConfig.globalSettings?.companyName || 'קושאן',
-      menuMode: 'dynamic-tenant',
-      showLoginButton: true,
-      showCtaButton: true,
-      ctaButtonText: 'התחל עכשיו',
-      ctaButtonUrl: '#contact',
-      showPhone: Boolean(currentPageConfig.globalSettings?.contactPhone),
-      phone: currentPageConfig.globalSettings?.contactPhone || '052-6968008',
-      showWhatsApp: Boolean(currentPageConfig.globalSettings?.contactWhatsApp),
-      whatsApp: currentPageConfig.globalSettings?.contactWhatsApp || '0526968008',
-    };
-
-    return {
-      ...currentPageConfig,
-      sectionOrder: [headerId, ...(currentPageConfig.sectionOrder || []).filter((id) => id !== headerId)],
-      sections: {
-        [headerId]: headerSection,
-        ...currentPageConfig.sections,
-      },
-    };
+    return ensureHeaderSection(currentPageConfig);
   }, [currentPageConfig]);
 
   return (

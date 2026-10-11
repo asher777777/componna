@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  TrendingUp, BarChart2, BarChart3, ChevronDown, ChevronUp, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2 
+  TrendingUp, BarChart2, BarChart3, ChevronDown, ChevronUp, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2, GitMerge 
 } from 'lucide-react';
 import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
 import { Contact, DatabaseConnectionProfile } from '../types';
@@ -39,6 +39,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
     refresh,
     updateField,
     createContact,
+    mergeDuplicateContacts,
     firebaseApp,
     ownerId,
     resolvedCollections,
@@ -53,6 +54,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [showAnalyticsOverview, setShowAnalyticsOverview] = useState(false); // Hidden by default as requested
   const [showFilters, setShowFilters] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string | null>(null);
+  const [isMergingDuplicates, setIsMergingDuplicates] = useState(false);
   const [isSyncingForms, setIsSyncingForms] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
@@ -174,6 +176,22 @@ export const CrmAnalyticsMainView: React.FC = () => {
     return true;
   };
 
+  const handleMergeDuplicates = async () => {
+    if (!window.confirm('האם לבצע מיגרציה ומיזוג של רשומות כפולות בבסיס הנתונים? פעולה זו תאחד תגיות ועסקאות ותנקה רשומות כפולות וריקות.')) {
+      return;
+    }
+    setIsMergingDuplicates(true);
+    try {
+      const res = await mergeDuplicateContacts();
+      setSyncFeedback(`מיגרציה הושלמה בהצלחה: מוזגו ${res.mergedCount} קבוצות כפילויות, והוסרו ${res.removedCount} רשומות כפולות/ריקות.`);
+    } catch (e) {
+      console.error('Migration error:', e);
+      setSyncFeedback('שגיאה במהלך מיזוג הכפילויות.');
+    } finally {
+      setIsMergingDuplicates(false);
+    }
+  };
+
   const handleApplyDbProfile = (profile: DatabaseConnectionProfile) => {
     try {
       localStorage.setItem(`kosun_${tenantId || 'client_default'}_crm_db_profile`, JSON.stringify(profile));
@@ -252,6 +270,17 @@ export const CrmAnalyticsMainView: React.FC = () => {
           >
             <Database className="w-3.5 h-3.5 text-indigo-500" />
             <span>חיבור מסד נתונים (DB)</span>
+          </button>
+
+          {/* Merge Duplicates Migration Button */}
+          <button
+            onClick={handleMergeDuplicates}
+            disabled={isMergingDuplicates}
+            className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 rounded-lg flex items-center gap-1.5 shadow-sm transition disabled:opacity-50"
+            title="בצע מיגרציה ואיחוד של אנשי קשר כפולים בבסיס הנתונים"
+          >
+            <GitMerge className={`w-3.5 h-3.5 text-emerald-600 ${isMergingDuplicates ? 'animate-spin' : ''}`} />
+            <span>{isMergingDuplicates ? 'ממזג כפילויות...' : 'מיזוג כפילויות'}</span>
           </button>
 
           {/* Toggle Analytics Overview (KPIs, Views & Charts - Hidden by default) */}

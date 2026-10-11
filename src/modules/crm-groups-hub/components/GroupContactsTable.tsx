@@ -55,10 +55,13 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
     resetColumns,
     toggleContactTag,
     bulkDeleteContacts,
+    bulkAssignToGroup,
     recordInteraction,
   } = useCrmGroups();
 
   const [openTagDropdownId, setOpenTagDropdownId] = useState<string | null>(null);
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+  const [tagNameInput, setTagNameInput] = useState('');
 
   const isAllSelected =
     selectedContactIds.length === filteredContacts.length && filteredContacts.length > 0;
@@ -138,6 +141,15 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
             >
               <MessageSquare className="w-3.5 h-3.5" />
               <span>וואטסאפ לנבחרים</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsTagModalOpen(true)}
+              className="h-8 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer transition-colors"
+            >
+              <Tag className="w-3.5 h-3.5 text-teal-300" />
+              <span>הוספת תווית</span>
             </button>
 
             <button
@@ -577,6 +589,67 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
           </tbody>
         </table>
       </div>
+
+      {/* Modal: Bulk Add Tag */}
+      {isTagModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Tag className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-sm font-bold text-slate-900">
+                  הוספת תווית ל-{selectedContactIds.length} נבחרים
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsTagModalOpen(false); setTagNameInput(''); }}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">שם התווית / התגית:</label>
+                <input
+                  type="text"
+                  value={tagNameInput}
+                  onChange={(e) => setTagNameInput(e.target.value)}
+                  placeholder="הקלד תווית להוספה..."
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => { setIsTagModalOpen(false); setTagNameInput(''); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={!tagNameInput.trim()}
+                onClick={async () => {
+                  if (tagNameInput.trim() && selectedContactIds.length > 0) {
+                    await bulkAssignToGroup(selectedContactIds, tagNameInput.trim());
+                    setSelectedContactIds([]);
+                    setTagNameInput('');
+                    setIsTagModalOpen(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition disabled:opacity-50"
+              >
+                הוסף תווית
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

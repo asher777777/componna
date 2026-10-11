@@ -6,8 +6,11 @@ import {
   query, 
   where, 
   doc, 
+  getDoc,
+  setDoc,
   addDoc,
   updateDoc, 
+  deleteDoc,
   writeBatch 
 } from 'firebase/firestore';
 import { 
@@ -489,14 +492,89 @@ export async function fetchLiveCrmAnalytics(
       q = query(contactsRef, where('ownerId', '==', ownerId));
     }
 
-    const snapshot = await getDocs(q);
+    let snapshot = await getDocs(q);
+    
+    // If empty and ownerId was specified, attempt without ownerId filter
+    if (snapshot.empty && ownerId) {
+      snapshot = await getDocs(query(contactsRef));
+    }
+
+    // Fallback: If scoped collection is empty and path is tenant-scoped, query root 'contacts'
+    if (snapshot.empty && collections.contacts !== 'contacts') {
+      try {
+        const rootRef = collection(db, 'contacts');
+        const rootQ = ownerId ? query(rootRef, where('ownerId', '==', ownerId)) : query(rootRef);
+        let rootSnap = await getDocs(rootQ);
+        if (rootSnap.empty && ownerId) {
+          rootSnap = await getDocs(query(rootRef));
+        }
+        if (!rootSnap.empty) {
+          snapshot = rootSnap;
+          // Background auto-migration / mirroring into tenant-scoped collection
+          try {
+            let mirrorBatch = writeBatch(db);
+            let count = 0;
+            for (const docItem of rootSnap.docs) {
+              mirrorBatch.set(doc(db, collections.contacts, docItem.id), docItem.data(), { merge: true });
+              count++;
+              if (count >= 400) {
+                await mirrorBatch.commit();
+                mirrorBatch = writeBatch(db);
+                count = 0;
+              }
+            }
+            if (count > 0) {
+              await mirrorBatch.commit();
+            }
+          } catch (mErr) {
+            console.warn('[CRM Analytics] Background contacts mirror notice:', mErr);
+          }
+        }
+      } catch (e) {
+        console.warn('[CRM Analytics] Root contacts fallback query notice:', e);
+      }
+    }
+
     const contacts: Contact[] = snapshot.docs.map(d => {
       const data = d.data();
+      const rawEvents = Array.isArray(data.events) ? data.events : [];
+      const eventsSpent = rawEvents.reduce((acc: number, ev: any) => acc + (Number(ev.amount) || 0), 0);
+      const totalSpentVal = data.total_spent !== undefined && data.total_spent !== null
+        ? Number(data.total_spent)
+        : eventsSpent;
+
+      const contactName = (
+        data.conta_name || 
+        data.fullName || 
+        data.name || 
+        (data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : '') || 
+        data.f_m ||
+        'איש קשר'
+      );
+      const contactPhone = (
+        data.conta_phone || 
+        data.phone || 
+        data.normalizedPhone || 
+        data.mobile || 
+        ''
+      );
+
+      const contactTags = Array.isArray(data.tags)
+        ? data.tags.filter((t: any) => typeof t === 'string' && t.trim() !== '')
+        : [data.tg1, data.tg2, data.tg3].filter((t: any) => typeof t === 'string' && t.trim() !== '');
+
       return {
         id: d.id,
         status: data.status || 'active',
         is_lead: data.is_lead ?? false,
         contact_type: data.contact_type || (data.is_lead ? 'lead' : 'contact'),
+        conta_name: contactName,
+        conta_phone: contactPhone,
+        email: data.email || '',
+        company_name: data.company_name || data.company || '',
+        tags: contactTags,
+        total_spent: totalSpentVal,
+        order_count: Number(data.order_count || (rawEvents.length > 0 ? rawEvents.length : 0)),
         ...data,
       } as Contact;
     });
@@ -508,7 +586,17 @@ export async function fetchLiveCrmAnalytics(
       let leadsQuery = ownerId 
         ? query(leadsRef, where('ownerId', '==', ownerId)) 
         : query(leadsRef);
-      const leadsSnap = await getDocs(leadsQuery);
+      let leadsSnap = await getDocs(leadsQuery);
+      if (leadsSnap.empty && ownerId) {
+        leadsSnap = await getDocs(query(leadsRef));
+      }
+      if (leadsSnap.empty && leadsColName !== 'mod_crm_leads') {
+        const rootLeadsSnap = await getDocs(query(collection(db, 'mod_crm_leads')));
+        if (!rootLeadsSnap.empty) {
+          leadsSnap = rootLeadsSnap;
+        }
+      }
+
       leadsSnap.docs.forEach(d => {
         const raw = d.data();
         const inner = raw.data || raw;
@@ -546,7 +634,10 @@ export async function fetchLiveCrmAnalytics(
       let cfQuery = ownerId 
         ? query(customFieldsRef, where('ownerId', '==', ownerId)) 
         : query(customFieldsRef);
-      const cfSnap = await getDocs(cfQuery);
+      let cfSnap = await getDocs(cfQuery);
+      if (cfSnap.empty && ownerId) {
+        cfSnap = await getDocs(query(customFieldsRef));
+      }
       customFields = cfSnap.docs.map(d => ({
         id: d.id,
         ...d.data(),
@@ -558,10 +649,32 @@ export async function fetchLiveCrmAnalytics(
     try {
       const groupsColName = (collections as any).groups || 'crm_groups';
       const groupsRef = collection(db, groupsColName);
-      const groupsQuery = ownerId 
+      let groupsQuery = ownerId 
         ? query(groupsRef, where('ownerId', '==', ownerId)) 
         : query(groupsRef);
-      const groupsSnap = await getDocs(groupsQuery);
+      let groupsSnap = await getDocs(groupsQuery);
+      if (groupsSnap.empty && ownerId) {
+        groupsSnap = await getDocs(query(groupsRef));
+      }
+      // Fallback to root crm_groups if scoped collection is empty
+      if (groupsSnap.empty && groupsColName !== 'crm_groups') {
+        try {
+          const rootGRef = collection(db, 'crm_groups');
+          let rootGSnap = await getDocs(query(rootGRef));
+          if (!rootGSnap.empty) {
+            groupsSnap = rootGSnap;
+            // Background mirror to scoped collection
+            try {
+              let gBatch = writeBatch(db);
+              for (const gd of rootGSnap.docs) {
+                gBatch.set(doc(db, groupsColName, gd.id), gd.data(), { merge: true });
+              }
+              await gBatch.commit();
+            } catch {}
+          }
+        } catch {}
+      }
+
       groupsSnap.docs.forEach(d => {
         const gData = d.data();
         const gName = gData.name || gData.title;
@@ -573,12 +686,61 @@ export async function fetchLiveCrmAnalytics(
       console.warn('Groups collection fetch notice:', groupsErr);
     }
 
-    if (contacts.length === 0) {
-      // Authenticated live system: clean 0 data when empty, NO dummy mock data!
+    // In-memory intelligent deduplication to eliminate duplicates in the CRM table
+    const dedupedMap = new Map<string, Contact>();
+    
+    contacts.forEach(c => {
+      const normPhone = (c.conta_phone || '').replace(/\D/g, '');
+      const hasValidPhone = normPhone.length >= 7 && normPhone !== '0000000';
+      const cleanEmail = (c.email || '').toLowerCase().trim();
+      const cleanName = (c.conta_name || '').trim();
+      const isMeaningfulName = cleanName && cleanName !== 'NONAME' && cleanName !== 'איש קשר' && cleanName !== 'ליד ללא שם';
+
+      let key = '';
+      if (hasValidPhone) {
+        key = `phone:${normPhone}`;
+      } else if (cleanEmail && cleanEmail.includes('@')) {
+        key = `email:${cleanEmail}`;
+      } else if (isMeaningfulName) {
+        key = `name:${cleanName}`;
+      } else {
+        key = `id:${c.id}`;
+      }
+
+      if (!dedupedMap.has(key)) {
+        dedupedMap.set(key, { ...c });
+      } else {
+        const existing = dedupedMap.get(key)!;
+        const mergedTags = Array.from(new Set([...(existing.tags || []), ...(c.tags || [])])).filter(Boolean);
+        const mergedSpent = Math.max(Number(existing.total_spent || 0), Number(c.total_spent || 0));
+        const mergedOrders = Math.max(Number(existing.order_count || 0), Number(c.order_count || 0));
+        
+        dedupedMap.set(key, {
+          ...existing,
+          ...c,
+          id: existing.id,
+          conta_name: existing.conta_name && existing.conta_name !== 'NONAME' && existing.conta_name !== 'איש קשר' ? existing.conta_name : c.conta_name,
+          conta_phone: existing.conta_phone || c.conta_phone,
+          email: existing.email || c.email,
+          company_name: existing.company_name || c.company_name,
+          tags: mergedTags,
+          total_spent: mergedSpent,
+          order_count: mergedOrders,
+        });
+      }
+    });
+
+    // Exclude empty ghost entries with no name/phone and 0 spent
+    const cleanUniqueContacts = Array.from(dedupedMap.values()).filter(c => {
+      const isGhost = (!c.conta_name || c.conta_name === 'NONAME') && !c.conta_phone && (!c.total_spent || c.total_spent === 0);
+      return !isGhost;
+    });
+
+    if (cleanUniqueContacts.length === 0) {
       return computeAnalyticsMetrics([], customFields, filter, definedGroupNames);
     }
 
-    return computeAnalyticsMetrics(contacts, customFields, filter, definedGroupNames);
+    return computeAnalyticsMetrics(cleanUniqueContacts, customFields, filter, definedGroupNames);
   } catch (error) {
     console.warn('Firestore fetch failed, returning clean data:', error);
     return computeAnalyticsMetrics([], [], filter);
@@ -614,6 +776,16 @@ export async function createContact(
         createdAt: new Date().toISOString(),
       });
       newContact.id = docRef.id;
+
+      // Dual compatibility: mirror to root contacts if scoped collection is different
+      if (collections.contacts !== 'contacts') {
+        try {
+          await setDoc(doc(db, 'contacts', newContact.id), {
+            ...newContact,
+            ownerId: ownerId || null,
+          }, { merge: true });
+        } catch {}
+      }
     } catch (e) {
       console.warn('Failed to save contact to Firestore, kept locally:', e);
     }
@@ -640,9 +812,264 @@ export async function updateContactField(
       [field]: value,
       updatedAt: new Date().toISOString(),
     });
+
+    // Dual compatibility: mirror to root contacts if scoped collection is different
+    if (collections.contacts !== 'contacts') {
+      try {
+        const rootRef = doc(db, 'contacts', contactId);
+        await updateDoc(rootRef, {
+          [field]: value,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {}
+    }
     return true;
   } catch (e) {
     console.error('Failed to update contact field:', e);
     return false;
   }
+}
+
+/**
+ * Bulk Delete Contacts from Firestore (marks status as 'trashed')
+ */
+export async function bulkDeleteContacts(
+  firebaseApp: FirebaseApp | undefined,
+  contactIds: string[],
+  collections = DEFAULT_COLLECTIONS
+): Promise<boolean> {
+  if (!firebaseApp || contactIds.length === 0) return true;
+  try {
+    const db = getFirestore(firebaseApp);
+    let batch = writeBatch(db);
+    let opCount = 0;
+
+    for (const cid of contactIds) {
+      const contactRef = doc(db, collections.contacts, cid);
+      batch.update(contactRef, { status: 'trashed', updatedAt: new Date().toISOString() });
+      if (collections.contacts !== 'contacts') {
+        try {
+          batch.update(doc(db, 'contacts', cid), { status: 'trashed', updatedAt: new Date().toISOString() });
+        } catch {}
+      }
+      opCount++;
+
+      if (opCount >= 400) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
+      }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
+    }
+    return true;
+  } catch (err) {
+    console.error('bulkDeleteContacts error:', err);
+    return false;
+  }
+}
+
+/**
+ * Bulk Add Tag to Contacts in Firestore
+ */
+export async function bulkAddTagToContacts(
+  firebaseApp: FirebaseApp | undefined,
+  contactIds: string[],
+  tag: string,
+  collections = DEFAULT_COLLECTIONS
+): Promise<boolean> {
+  if (!firebaseApp || contactIds.length === 0 || !tag.trim()) return true;
+  const cleanTag = tag.trim();
+  try {
+    const db = getFirestore(firebaseApp);
+    let batch = writeBatch(db);
+    let opCount = 0;
+
+    for (const cid of contactIds) {
+      const contactRef = doc(db, collections.contacts, cid);
+      const snap = await getDoc(contactRef);
+      if (snap.exists()) {
+        const currentTags: string[] = snap.data().tags || [];
+        if (!currentTags.includes(cleanTag)) {
+          const nextTags = [...currentTags, cleanTag];
+          batch.update(contactRef, { tags: nextTags, updatedAt: new Date().toISOString() });
+          if (collections.contacts !== 'contacts') {
+            try {
+              batch.update(doc(db, 'contacts', cid), { tags: nextTags, updatedAt: new Date().toISOString() });
+            } catch {}
+          }
+          opCount++;
+        }
+      }
+
+      if (opCount >= 400) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
+      }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
+    }
+    return true;
+  } catch (err) {
+    console.error('bulkAddTagToContacts error:', err);
+    return false;
+  }
+}
+
+/**
+ * Bulk Assign Contacts to Group or Community
+ */
+export async function bulkAssignGroupToContacts(
+  firebaseApp: FirebaseApp | undefined,
+  contactIds: string[],
+  groupName: string,
+  collections = DEFAULT_COLLECTIONS
+): Promise<boolean> {
+  return bulkAddTagToContacts(firebaseApp, contactIds, groupName, collections);
+}
+
+/**
+ * Permanent One-time Database Migration & De-duplication:
+ * Consolidates duplicate records into canonical contacts, merges tags and events,
+ * and removes redundant duplicates from Firestore.
+ */
+export async function mergeDuplicateContactsInDb(
+  firebaseApp: FirebaseApp | undefined,
+  collections = DEFAULT_COLLECTIONS
+): Promise<{ mergedCount: number; removedCount: number }> {
+  if (!firebaseApp) return { mergedCount: 0, removedCount: 0 };
+  const db = getFirestore(firebaseApp);
+  
+  const snap = await getDocs(collection(db, collections.contacts));
+  if (snap.empty) return { mergedCount: 0, removedCount: 0 };
+
+  const byKey: Record<string, { id: string; ref: any; data: any }[]> = {};
+  const ghostDocIds: string[] = [];
+
+  snap.docs.forEach(d => {
+    const data = d.data();
+    const id = d.id;
+    const normPhone = (data.conta_phone || data.phone || data.normalizedPhone || '').replace(/\D/g, '');
+    const cleanEmail = (data.email || '').toLowerCase().trim();
+    const cleanName = (data.conta_name || data.fullName || data.name || (data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : '') || '').trim();
+    const rawEvents = Array.isArray(data.events) ? data.events : [];
+
+    // Identify ghost noname docs
+    if ((!cleanName || cleanName === 'NONAME') && !normPhone && rawEvents.length === 0 && (!data.total_spent || Number(data.total_spent) === 0)) {
+      ghostDocIds.push(id);
+      return;
+    }
+
+    let key = '';
+    if (normPhone && normPhone.length >= 7 && normPhone !== '0000000') {
+      key = `phone:${normPhone}`;
+    } else if (cleanEmail && cleanEmail.includes('@')) {
+      key = `email:${cleanEmail}`;
+    } else if (cleanName && cleanName !== 'NONAME' && cleanName !== 'איש קשר' && cleanName.length > 2) {
+      key = `name:${cleanName}`;
+    } else {
+      key = `id:${id}`;
+    }
+
+    if (!byKey[key]) byKey[key] = [];
+    byKey[key].push({ id, ref: d.ref, data });
+  });
+
+  let mergedCount = 0;
+  let removedCount = 0;
+
+  for (const [key, group] of Object.entries(byKey)) {
+    if (group.length <= 1) continue;
+
+    // Pick canonical document (prefer doc with highest event count or most complete data)
+    group.sort((a, b) => {
+      const aEvents = Array.isArray(a.data.events) ? a.data.events.length : 0;
+      const bEvents = Array.isArray(b.data.events) ? b.data.events.length : 0;
+      if (bEvents !== aEvents) return bEvents - aEvents;
+      const aSpent = Number(a.data.total_spent || 0);
+      const bSpent = Number(b.data.total_spent || 0);
+      return bSpent - aSpent;
+    });
+
+    const canonical = group[0];
+    const duplicates = group.slice(1);
+
+    // Combine tags, events, and fields
+    let allTags = Array.isArray(canonical.data.tags) ? [...canonical.data.tags] : [];
+    let allEvents = Array.isArray(canonical.data.events) ? [...canonical.data.events] : [];
+    let bestPhone = canonical.data.conta_phone || canonical.data.phone || '';
+    let bestEmail = canonical.data.email || '';
+    let bestName = canonical.data.conta_name || canonical.data.fullName || canonical.data.name || '';
+    let bestCompany = canonical.data.company_name || canonical.data.company || '';
+
+    duplicates.forEach(dup => {
+      const dTags = Array.isArray(dup.data.tags) ? dup.data.tags : [];
+      allTags.push(...dTags);
+      const dEvents = Array.isArray(dup.data.events) ? dup.data.events : [];
+      allEvents.push(...dEvents);
+      if (!bestPhone) bestPhone = dup.data.conta_phone || dup.data.phone || '';
+      if (!bestEmail) bestEmail = dup.data.email || '';
+      if (!bestCompany) bestCompany = dup.data.company_name || dup.data.company || '';
+      if ((!bestName || bestName === 'NONAME') && dup.data.conta_name) bestName = dup.data.conta_name;
+    });
+
+    const uniqueTags = Array.from(new Set(allTags.map(t => typeof t === 'string' ? t.trim() : '').filter(Boolean)));
+    const eventsSpent = allEvents.reduce((acc, ev) => acc + (Number(ev.amount) || 0), 0);
+    const finalSpent = Math.max(Number(canonical.data.total_spent || 0), eventsSpent);
+
+    // Update canonical doc
+    await updateDoc(canonical.ref, {
+      conta_name: bestName || canonical.data.conta_name,
+      conta_phone: bestPhone,
+      email: bestEmail,
+      company_name: bestCompany,
+      tags: uniqueTags,
+      events: allEvents,
+      total_spent: finalSpent,
+      order_count: Math.max(allEvents.length, Number(canonical.data.order_count || 0)),
+      updatedAt: new Date().toISOString(),
+    });
+
+    // If scoped path, mirror canonical update to root
+    if (collections.contacts !== 'contacts') {
+      try {
+        await updateDoc(doc(db, 'contacts', canonical.id), {
+          conta_name: bestName || canonical.data.conta_name,
+          conta_phone: bestPhone,
+          email: bestEmail,
+          tags: uniqueTags,
+          events: allEvents,
+          total_spent: finalSpent,
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {}
+    }
+
+    // Delete redundant duplicates
+    for (const dup of duplicates) {
+      await deleteDoc(dup.ref).catch(() => {});
+      if (collections.contacts !== 'contacts') {
+        await deleteDoc(doc(db, 'contacts', dup.id)).catch(() => {});
+      }
+      removedCount++;
+    }
+
+    mergedCount++;
+  }
+
+  // Also clean ghost noname docs
+  for (const ghostId of ghostDocIds) {
+    await deleteDoc(doc(db, collections.contacts, ghostId)).catch(() => {});
+    if (collections.contacts !== 'contacts') {
+      await deleteDoc(doc(db, 'contacts', ghostId)).catch(() => {});
+    }
+    removedCount++;
+  }
+
+  return { mergedCount, removedCount };
 }

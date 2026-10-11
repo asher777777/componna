@@ -43,6 +43,7 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     return () => unsub();
   }, [firebaseApp]);
 
+  const safeConfig = config || {} as HeaderSectionConfig;
   const {
     anchorId = 'header',
     layout = 'floating-glass',
@@ -61,7 +62,8 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     phone,
     showWhatsApp = true,
     whatsApp,
-  } = config;
+    desktopMenuDisplay = 'links',
+  } = safeConfig;
 
   // Direct live fetch of tenant Brand DNA from Firestore
   useEffect(() => {
@@ -159,19 +161,30 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     };
   }, [menuMode, db, tenantId]);
 
-  // Determine navigation items (with optional title overrides)
+  // Determine navigation items (with fallback so menu never becomes completely empty while tenant pages load)
+  const defaultTenantItems = [
+    { label: 'עמוד הבית', url: '/' },
+    { label: 'שירותים', url: '#services' },
+    { label: 'אודות', url: '#about' },
+    { label: 'צור קשר', url: '#contact' },
+  ];
+
+  const dynamicItems = tenantPages.length > 0
+    ? tenantPages.map((page) => {
+        const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
+        const labelOverride = (safeConfig.menuTitleOverrides && (safeConfig.menuTitleOverrides[key] || safeConfig.menuTitleOverrides[page.pageId])) || page.pageTitle || 'עמוד';
+        return {
+          label: labelOverride,
+          url: page.isHomePage ? '/' : `/p/${page.slug || page.shortSlug || page.pageId}`,
+        };
+      })
+    : defaultTenantItems;
+
   const navItems =
     menuMode === 'dynamic-tenant'
-      ? tenantPages.map((page) => {
-          const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
-          const labelOverride = (config.menuTitleOverrides && (config.menuTitleOverrides[key] || config.menuTitleOverrides[page.pageId])) || page.pageTitle || 'עמוד';
-          return {
-            label: labelOverride,
-            url: page.isHomePage ? '/' : `/p/${page.slug || page.shortSlug || page.pageId}`,
-          };
-        })
+      ? dynamicItems
       : menuMode === 'custom'
-      ? customLinks
+      ? (customLinks && customLinks.length > 0 ? customLinks : [{ label: 'עמוד הבית', url: '/' }])
       : [];
 
   const isFloating = layout === 'floating-glass';
@@ -254,8 +267,8 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
             )}
           </div>
 
-          {/* Center Navigation Menu (Desktop) */}
-          {navItems.length > 0 && (
+          {/* Center Navigation Menu (Desktop links when enabled) */}
+          {navItems.length > 0 && desktopMenuDisplay !== 'hamburger' && (
             <nav className="hidden md:flex items-center gap-6 text-xs sm:text-sm font-semibold text-slate-700 dark:text-slate-300">
               {navItems.map((item, idx) => (
                 <a
@@ -336,13 +349,16 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
               )
             )}
 
-            {/* Mobile Burger Button */}
+            {/* Burger Button (Always active on mobile; available on desktop when configured) */}
             {navItems.length > 0 && (
               <button
                 type="button"
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-white"
-                title="תפריט"
+                className={clsx(
+                  "p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-white transition cursor-pointer",
+                  desktopMenuDisplay === 'links' ? 'md:hidden' : 'flex items-center justify-center'
+                )}
+                title="תפריט ניווט"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -350,18 +366,22 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
           </div>
         </div>
 
-        {/* Mobile Dropdown Menu */}
+        {/* Dropdown Menu (Always on mobile; on desktop when hamburger display is active) */}
         {mobileMenuOpen && navItems.length > 0 && (
-          <div className="md:hidden mt-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3">
+          <div className={clsx(
+            "mt-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl space-y-3 animate-in fade-in duration-200 max-w-7xl mx-auto",
+            desktopMenuDisplay === 'links' && 'md:hidden'
+          )}>
             <div className="flex flex-col gap-2">
               {navItems.map((item, idx) => (
                 <a
                   key={idx}
                   href={item.url}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="px-3 py-2 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                  className="px-3 py-2.5 rounded-xl text-sm font-semibold text-slate-800 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center justify-between"
                 >
-                  {item.label}
+                  <span>{item.label}</span>
+                  <ArrowLeft className="w-3.5 h-3.5 text-slate-400" />
                 </a>
               ))}
             </div>

@@ -49,12 +49,53 @@ export async function fetchGroupsAndContactsData(
 }> {
   const colls = getCollNames(customCollections);
 
-  // 1. Fetch contacts
-  const contactsQuery = ownerId
+  // 1. Fetch contacts with fallback to root collection if scoped collection is empty
+  let contactsQuery = ownerId
     ? query(collection(db, colls.contacts), where('ownerId', '==', ownerId))
     : query(collection(db, colls.contacts));
 
-  const contactsSnap = await getDocs(contactsQuery);
+  let contactsSnap = await getDocs(contactsQuery);
+  if (contactsSnap.empty && ownerId) {
+    contactsSnap = await getDocs(query(collection(db, colls.contacts)));
+  }
+
+  // Fallback to legacy root 'contacts' collection
+  if (contactsSnap.empty && colls.contacts !== 'contacts') {
+    try {
+      const rootContactsQuery = ownerId
+        ? query(collection(db, 'contacts'), where('ownerId', '==', ownerId))
+        : query(collection(db, 'contacts'));
+      let rootContactsSnap = await getDocs(rootContactsQuery);
+      if (rootContactsSnap.empty && ownerId) {
+        rootContactsSnap = await getDocs(query(collection(db, 'contacts')));
+      }
+      if (!rootContactsSnap.empty) {
+        contactsSnap = rootContactsSnap;
+        // Background mirror to tenant-scoped collection
+        try {
+          let mirrorBatch = writeBatch(db);
+          let count = 0;
+          for (const d of rootContactsSnap.docs) {
+            mirrorBatch.set(doc(db, colls.contacts, d.id), d.data(), { merge: true });
+            count++;
+            if (count >= 400) {
+              await mirrorBatch.commit();
+              mirrorBatch = writeBatch(db);
+              count = 0;
+            }
+          }
+          if (count > 0) {
+            await mirrorBatch.commit();
+          }
+        } catch (mErr) {
+          console.warn('[CRM Groups] Contacts mirror notice:', mErr);
+        }
+      }
+    } catch (rootErr) {
+      console.warn('[CRM Groups] Root contacts fallback query notice:', rootErr);
+    }
+  }
+
   const contacts: ContactRecord[] = [];
   const tagsMap = new Map<string, number>();
   const citiesSet = new Set<string>();
@@ -66,14 +107,33 @@ export async function fetchGroupsAndContactsData(
 
     const tags: string[] = Array.isArray(data.tags)
       ? data.tags.filter((t: any) => typeof t === 'string' && t.trim() !== '' && !isNumericTag(t))
-      : [];
+      : [data.tg1, data.tg2, data.tg3].filter((t: any) => typeof t === 'string' && t.trim() !== '' && !isNumericTag(t));
 
     if (data.mh_crm_city && typeof data.mh_crm_city === 'string' && data.mh_crm_city.trim()) {
       citiesSet.add(data.mh_crm_city.trim());
     }
 
+    const contactName = (
+      data.conta_name || 
+      data.fullName || 
+      data.name || 
+      (data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : '') || 
+      data.f_m ||
+      'איש קשר'
+    );
+    const contactPhone = (
+      data.conta_phone || 
+      data.phone || 
+      data.normalizedPhone || 
+      data.mobile || 
+      ''
+    );
+
     const contactItem: ContactRecord = {
       id: d.id,
+      conta_name: contactName,
+      conta_phone: contactPhone,
+      email: data.email || '',
       ...data,
       tags,
     };
@@ -88,12 +148,42 @@ export async function fetchGroupsAndContactsData(
     });
   });
 
-  // 2. Fetch saved groups from crm_groups collection
-  const groupsQuery = ownerId
+  // 2. Fetch saved groups from crm_groups collection with root fallback
+  let groupsQuery = ownerId
     ? query(collection(db, colls.groups), where('ownerId', '==', ownerId))
     : query(collection(db, colls.groups));
 
-  const groupsSnap = await getDocs(groupsQuery);
+  let groupsSnap = await getDocs(groupsQuery);
+  if (groupsSnap.empty && ownerId) {
+    groupsSnap = await getDocs(query(collection(db, colls.groups)));
+  }
+
+  // Fallback to legacy root 'crm_groups' collection
+  if (groupsSnap.empty && colls.groups !== 'crm_groups') {
+    try {
+      const rootGroupsQuery = ownerId
+        ? query(collection(db, 'crm_groups'), where('ownerId', '==', ownerId))
+        : query(collection(db, 'crm_groups'));
+      let rootGroupsSnap = await getDocs(rootGroupsQuery);
+      if (rootGroupsSnap.empty && ownerId) {
+        rootGroupsSnap = await getDocs(query(collection(db, 'crm_groups')));
+      }
+      if (!rootGroupsSnap.empty) {
+        groupsSnap = rootGroupsSnap;
+        // Background mirror to tenant-scoped collection
+        try {
+          let gBatch = writeBatch(db);
+          for (const gd of rootGroupsSnap.docs) {
+            gBatch.set(doc(db, colls.groups, gd.id), gd.data(), { merge: true });
+          }
+          await gBatch.commit();
+        } catch {}
+      }
+    } catch (gErr) {
+      console.warn('[CRM Groups] Root crm_groups fallback query notice:', gErr);
+    }
+  }
+
   const savedGroups = new Map<string, SmartGroup>();
 
   groupsSnap.forEach((gDoc) => {
@@ -377,6 +467,13 @@ export async function saveGroupOrCommunityRecord(
   const groupRef = doc(db, colls.groups, docId);
   await setDoc(groupRef, dataToSave, { merge: true });
 
+  // Dual sync with root crm_groups for backwards compatibility
+  if (colls.groups !== 'crm_groups') {
+    try {
+      await setDoc(doc(db, 'crm_groups', docId), dataToSave, { merge: true });
+    } catch {}
+  }
+
   return { success: true, id: docId, pageUrl: shouldCreatePage ? pageUrl : undefined };
 }
 
@@ -423,6 +520,9 @@ export async function deleteGroupRecord(
   // Delete group doc
   if (group.id && !group.id.startsWith('tag_')) {
     await deleteDoc(doc(db, colls.groups, group.id)).catch(() => {});
+    if (colls.groups !== 'crm_groups') {
+      await deleteDoc(doc(db, 'crm_groups', group.id)).catch(() => {});
+    }
   }
 
   // Remove tag from contacts in batches
@@ -439,6 +539,11 @@ export async function deleteGroupRecord(
         const currentTags: string[] = contactDoc.data().tags || [];
         const newTags = currentTags.filter((t) => t !== group.name);
         batch.update(contactDoc.ref, { tags: newTags, updatedAt: new Date().toISOString() });
+        if (colls.contacts !== 'contacts') {
+          try {
+            batch.update(doc(db, 'contacts', contactDoc.id), { tags: newTags, updatedAt: new Date().toISOString() });
+          } catch {}
+        }
         opCount++;
 
         if (opCount >= 450) {
@@ -472,6 +577,14 @@ export async function bulkDeleteContactsRecord(
       status: 'trashed',
       updatedAt: new Date().toISOString(),
     });
+    if (colls.contacts !== 'contacts') {
+      try {
+        batch.update(doc(db, 'contacts', cid), {
+          status: 'trashed',
+          updatedAt: new Date().toISOString(),
+        });
+      } catch {}
+    }
     opCount++;
 
     if (opCount >= 450) {
@@ -498,14 +611,31 @@ export async function bulkAssignGroupToContacts(
 
   for (const cid of contactIds) {
     const contactRef = doc(db, colls.contacts, cid);
-    const snap = await getDoc(contactRef);
+    let snap = await getDoc(contactRef);
+    if (!snap.exists() && colls.contacts !== 'contacts') {
+      const rootDoc = await getDoc(doc(db, 'contacts', cid));
+      if (rootDoc.exists()) {
+        snap = rootDoc;
+        await setDoc(contactRef, rootDoc.data(), { merge: true });
+      }
+    }
+
     if (snap.exists()) {
       const currentTags: string[] = snap.data().tags || [];
       if (!currentTags.includes(groupName)) {
+        const nextTags = [...currentTags, groupName];
         batch.update(contactRef, {
-          tags: [...currentTags, groupName],
+          tags: nextTags,
           updatedAt: new Date().toISOString(),
         });
+        if (colls.contacts !== 'contacts') {
+          try {
+            batch.update(doc(db, 'contacts', cid), {
+              tags: nextTags,
+              updatedAt: new Date().toISOString(),
+            });
+          } catch {}
+        }
         opCount++;
       }
     }
@@ -535,7 +665,15 @@ export async function moveContactsBetweenGroups(
 
   for (const cid of contactIds) {
     const contactRef = doc(db, colls.contacts, cid);
-    const snap = await getDoc(contactRef);
+    let snap = await getDoc(contactRef);
+    if (!snap.exists() && colls.contacts !== 'contacts') {
+      const rootDoc = await getDoc(doc(db, 'contacts', cid));
+      if (rootDoc.exists()) {
+        snap = rootDoc;
+        await setDoc(contactRef, rootDoc.data(), { merge: true });
+      }
+    }
+
     if (snap.exists()) {
       let currentTags: string[] = snap.data().tags || [];
       if (sourceGroupName) {
@@ -548,6 +686,14 @@ export async function moveContactsBetweenGroups(
         tags: currentTags,
         updatedAt: new Date().toISOString(),
       });
+      if (colls.contacts !== 'contacts') {
+        try {
+          batch.update(doc(db, 'contacts', cid), {
+            tags: currentTags,
+            updatedAt: new Date().toISOString(),
+          });
+        } catch {}
+      }
       opCount++;
     }
 
@@ -571,7 +717,14 @@ export async function toggleContactTag(
 ): Promise<string[]> {
   const colls = getCollNames(customCollections);
   const contactRef = doc(db, colls.contacts, contactId);
-  const snap = await getDoc(contactRef);
+  let snap = await getDoc(contactRef);
+  if (!snap.exists() && colls.contacts !== 'contacts') {
+    const rootDoc = await getDoc(doc(db, 'contacts', contactId));
+    if (rootDoc.exists()) {
+      snap = rootDoc;
+      await setDoc(contactRef, rootDoc.data(), { merge: true });
+    }
+  }
 
   if (!snap.exists()) throw new Error('Contact not found');
 
@@ -583,6 +736,15 @@ export async function toggleContactTag(
     tags: newTags,
     updatedAt: new Date().toISOString(),
   });
+
+  if (colls.contacts !== 'contacts') {
+    try {
+      await updateDoc(doc(db, 'contacts', contactId), {
+        tags: newTags,
+        updatedAt: new Date().toISOString(),
+      });
+    } catch {}
+  }
 
   return newTags;
 }

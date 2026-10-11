@@ -17,7 +17,11 @@ import {
   fetchLiveCrmAnalytics, 
   updateContactField,
   createContact as createContactService,
-  computeAnalyticsMetrics
+  computeAnalyticsMetrics,
+  bulkDeleteContacts as bulkDeleteContactsService,
+  bulkAssignGroupToContacts as bulkAssignGroupService,
+  bulkAddTagToContacts as bulkAddTagService,
+  mergeDuplicateContactsInDb
 } from '../services/crmAnalyticsService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -40,6 +44,10 @@ interface CrmAnalyticsContextValue {
   refresh: () => Promise<void>;
   updateField: (contactId: string, field: string, value: any) => Promise<boolean>;
   createContact: (contact: Partial<Contact>) => Promise<Contact>;
+  bulkDeleteContacts: (contactIds: string[]) => Promise<boolean>;
+  bulkAssignToGroup: (contactIds: string[], groupName: string) => Promise<boolean>;
+  bulkAddTag: (contactIds: string[], tagName: string) => Promise<boolean>;
+  mergeDuplicateContacts: () => Promise<{ mergedCount: number; removedCount: number }>;
   firebaseApp?: FirebaseApp;
   ownerId?: string;
   resolvedCollections: typeof DEFAULT_COLLECTIONS;
@@ -261,6 +269,36 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
     return newContact;
   };
 
+  const bulkDeleteContacts = async (contactIds: string[]) => {
+    const ok = await bulkDeleteContactsService(firebaseApp, contactIds, resolvedCollections);
+    if (ok) {
+      await refresh();
+    }
+    return ok;
+  };
+
+  const bulkAssignToGroup = async (contactIds: string[], groupName: string) => {
+    const ok = await bulkAssignGroupService(firebaseApp, contactIds, groupName, resolvedCollections);
+    if (ok) {
+      await refresh();
+    }
+    return ok;
+  };
+
+  const bulkAddTag = async (contactIds: string[], tagName: string) => {
+    const ok = await bulkAddTagService(firebaseApp, contactIds, tagName, resolvedCollections);
+    if (ok) {
+      await refresh();
+    }
+    return ok;
+  };
+
+  const mergeDuplicateContacts = async () => {
+    const res = await mergeDuplicateContactsInDb(firebaseApp, resolvedCollections);
+    await refresh();
+    return res;
+  };
+
   return (
     <CrmAnalyticsContext.Provider
       value={{
@@ -279,6 +317,10 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
         refresh,
         updateField,
         createContact,
+        bulkDeleteContacts,
+        bulkAssignToGroup,
+        bulkAddTag,
+        mergeDuplicateContacts,
         firebaseApp,
         ownerId,
         resolvedCollections,

@@ -1,15 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Download, Columns, ArrowUpDown, ArrowUp, ArrowDown, 
   Edit2, Check, X, Filter, ChevronLeft, ChevronRight, FileSpreadsheet,
   MessageSquare, CheckSquare, Square, Send, Smartphone, Sparkles,
-  LayoutGrid, Table as TableIcon, Phone
+  LayoutGrid, Table as TableIcon, Phone, Trash2, Tag, Users, Loader2, Plus
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Contact, DynamicColumn } from '../types';
 import { CrmWhatsAppBulkSenderModal } from './CrmWhatsAppBulkSenderModal';
 import { MobileContactFeedCard } from './MobileContactFeedCard';
 import { useContactFilters } from '../hooks/useContactFilters';
+import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
 
 interface Props {
   contacts: Contact[];
@@ -74,6 +75,14 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
   const [isBulkWhatsAppOpen, setIsBulkWhatsAppOpen] = useState(false);
   const [singleWhatsAppTarget, setSingleWhatsAppTarget] = useState<Contact | null>(null);
 
+  const { bulkDeleteContacts, bulkAssignToGroup, bulkAddTag, data: ctxData } = useCrmAnalyticsContext();
+  const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
+  const [isBulkGroupOpen, setIsBulkGroupOpen] = useState(false);
+  const [isBulkTagOpen, setIsBulkTagOpen] = useState(false);
+  const [targetGroupName, setTargetGroupName] = useState('');
+  const [targetTagName, setTargetTagName] = useState('');
+  const [isPerformingBulk, setIsPerformingBulk] = useState(false);
+
   // Selection handlers
   const handleToggleSelectRow = (id: string) => {
     setSelectedIds(prev => 
@@ -99,6 +108,45 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
   const selectedContactsList = useMemo(() => {
     return contacts.filter(c => c.id && selectedIds.includes(c.id));
   }, [contacts, selectedIds]);
+
+  // Bulk Action Execution
+  const handleExecuteBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    setIsPerformingBulk(true);
+    try {
+      await bulkDeleteContacts(selectedIds);
+      setSelectedIds([]);
+      setIsBulkDeleteOpen(false);
+    } finally {
+      setIsPerformingBulk(false);
+    }
+  };
+
+  const handleExecuteBulkGroup = async () => {
+    if (selectedIds.length === 0 || !targetGroupName.trim()) return;
+    setIsPerformingBulk(true);
+    try {
+      await bulkAssignToGroup(selectedIds, targetGroupName.trim());
+      setSelectedIds([]);
+      setTargetGroupName('');
+      setIsBulkGroupOpen(false);
+    } finally {
+      setIsPerformingBulk(false);
+    }
+  };
+
+  const handleExecuteBulkTag = async () => {
+    if (selectedIds.length === 0 || !targetTagName.trim()) return;
+    setIsPerformingBulk(true);
+    try {
+      await bulkAddTag(selectedIds, targetTagName.trim());
+      setSelectedIds([]);
+      setTargetTagName('');
+      setIsBulkTagOpen(false);
+    } finally {
+      setIsPerformingBulk(false);
+    }
+  };
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -159,22 +207,52 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* WhatsApp Bulk Send Button */}
             <button
               type="button"
               onClick={() => setIsBulkWhatsAppOpen(true)}
-              className="px-3.5 py-1.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition"
+              className="px-3 py-1.5 bg-white text-emerald-800 hover:bg-emerald-50 rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition"
             >
               <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
-              <span>שליחת WhatsApp לקבוצה ({selectedIds.length})</span>
+              <span>וואטסאפ ({selectedIds.length})</span>
+            </button>
+
+            {/* Bulk Add to Group / Community */}
+            <button
+              type="button"
+              onClick={() => setIsBulkGroupOpen(true)}
+              className="px-3 py-1.5 bg-indigo-800 hover:bg-indigo-900 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition"
+            >
+              <Users className="w-3.5 h-3.5 text-indigo-300" />
+              <span>הוספה לקבוצה/קהילה</span>
+            </button>
+
+            {/* Bulk Add Tag / Label */}
+            <button
+              type="button"
+              onClick={() => setIsBulkTagOpen(true)}
+              className="px-3 py-1.5 bg-teal-800 hover:bg-teal-900 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition"
+            >
+              <Tag className="w-3.5 h-3.5 text-teal-300" />
+              <span>הוספת תווית</span>
+            </button>
+
+            {/* Bulk Delete */}
+            <button
+              type="button"
+              onClick={() => setIsBulkDeleteOpen(true)}
+              className="px-3 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-bold flex items-center gap-1.5 shadow-sm transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>מחיקה</span>
             </button>
 
             {/* Export Selected */}
             <button
               type="button"
               onClick={handleExportExcel}
-              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-medium flex items-center gap-1 shadow-sm transition"
+              className="px-3 py-1.5 bg-white/20 hover:bg-white/30 text-white rounded-lg font-medium flex items-center gap-1 shadow-sm transition"
             >
               <Download className="w-3.5 h-3.5" />
               <span>ייצוא נבחרים</span>
@@ -598,6 +676,219 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
           onClose={() => setSingleWhatsAppTarget(null)}
           selectedContacts={[singleWhatsAppTarget]}
         />
+      )}
+
+      {/* Modal: Bulk Add to Group / Community */}
+      {isBulkGroupOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  הוספת {selectedIds.length} נבחרים לקבוצה או קהילה
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsBulkGroupOpen(false); setTargetGroupName(''); }}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  שם הקבוצה או הקהילה:
+                </label>
+                <input
+                  type="text"
+                  value={targetGroupName}
+                  onChange={(e) => setTargetGroupName(e.target.value)}
+                  placeholder="הקלד שם קבוצה חדשה או בחר מרשימה..."
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-indigo-500 font-semibold"
+                />
+              </div>
+
+              {(() => {
+                const availableGroups = ctxData?.communitiesCount 
+                  ? Object.keys(ctxData.communitiesCount).filter(Boolean)
+                  : Array.from(new Set((ctxData?.contacts || []).map(c => c.community || c.mh_crm_community).filter(Boolean))) as string[];
+
+                if (availableGroups.length === 0) return null;
+
+                return (
+                  <div>
+                    <span className="block text-gray-500 mb-1.5 font-medium">קבוצות קיימות במערכת:</span>
+                    <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                      {availableGroups.map((gName: string) => (
+                        <button
+                          key={gName}
+                          type="button"
+                          onClick={() => setTargetGroupName(gName)}
+                          className={`px-2.5 py-1 rounded-lg border text-xs font-semibold transition ${
+                            targetGroupName === gName
+                              ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                              : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-indigo-50 hover:text-indigo-600'
+                          }`}
+                        >
+                          {gName}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => { setIsBulkGroupOpen(false); setTargetGroupName(''); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={!targetGroupName.trim() || isPerformingBulk}
+                onClick={handleExecuteBulkGroup}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 transition disabled:opacity-50 shadow-sm"
+              >
+                {isPerformingBulk ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                <span>שייך לקבוצה</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Bulk Add Tag */}
+      {isBulkTagOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Tag className="w-5 h-5 text-teal-600 dark:text-teal-400" />
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  הוספת תווית ל-{selectedIds.length} נבחרים
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => { setIsBulkTagOpen(false); setTargetTagName(''); }}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <label className="block font-bold text-gray-700 dark:text-gray-300 mb-1.5">
+                  שם התווית / התגית:
+                </label>
+                <input
+                  type="text"
+                  value={targetTagName}
+                  onChange={(e) => setTargetTagName(e.target.value)}
+                  placeholder="לדוגמה: לקוח פוטנציאלי, שגריר פעיל..."
+                  className="w-full px-3 py-2 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:outline-hidden focus:ring-2 focus:ring-teal-500 font-semibold"
+                />
+              </div>
+
+              {ctxData?.tagsCount && Object.keys(ctxData.tagsCount).length > 0 && (
+                <div>
+                  <span className="block text-gray-500 mb-1.5 font-medium">תוויות נפוצות:</span>
+                  <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto p-1 bg-gray-50 dark:bg-gray-800/50 rounded-xl border border-gray-100 dark:border-gray-800">
+                    {Object.keys(ctxData.tagsCount).slice(0, 15).map(tName => (
+                      <button
+                        key={tName}
+                        type="button"
+                        onClick={() => setTargetTagName(tName)}
+                        className={`px-2.5 py-1 rounded-lg border text-xs font-semibold transition ${
+                          targetTagName === tName
+                            ? 'bg-teal-600 text-white border-teal-600 shadow-xs'
+                            : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-teal-50 hover:text-teal-600'
+                        }`}
+                      >
+                        {tName}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => { setIsBulkTagOpen(false); setTargetTagName(''); }}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={!targetTagName.trim() || isPerformingBulk}
+                onClick={handleExecuteBulkTag}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-teal-600 hover:bg-teal-700 text-white flex items-center gap-1.5 transition disabled:opacity-50 shadow-sm"
+              >
+                {isPerformingBulk ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+                <span>החל תווית</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Bulk Delete Confirmation */}
+      {isBulkDeleteOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl w-full max-w-md shadow-2xl p-5 space-y-4 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-gray-100 dark:border-gray-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Trash2 className="w-5 h-5 text-rose-600" />
+                <h3 className="text-base font-bold text-gray-900 dark:text-white">
+                  מחיקת {selectedIds.length} אנשי קשר שנבחרו
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsBulkDeleteOpen(false)}
+                className="p-1 rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+              האם אתה בטוח שברצונך למחוק {selectedIds.length} אנשי קשר ולידים שנבחרו? 
+              הרשומות יועברו לסטטוס ארכיון/אשפה ולא יופיעו יותר בטבלאות הפעילות.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 dark:border-gray-800">
+              <button
+                type="button"
+                onClick={() => setIsBulkDeleteOpen(false)}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition"
+              >
+                ביטול
+              </button>
+              <button
+                type="button"
+                disabled={isPerformingBulk}
+                onClick={handleExecuteBulkDelete}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white flex items-center gap-1.5 transition disabled:opacity-50 shadow-sm"
+              >
+                {isPerformingBulk ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <span>מחק {selectedIds.length} רשומות</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

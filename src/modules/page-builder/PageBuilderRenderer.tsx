@@ -154,7 +154,10 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
             >
               {/* On-Page Live Edit Floating Toolbar */}
               {isEditing && (
-                <div className="sticky top-20 z-40 max-w-7xl mx-auto px-4 mb-2">
+                <div className={clsx(
+                  "max-w-7xl mx-auto px-4 mb-2",
+                  sectionData.type === 'header' ? 'relative z-50 pt-2' : 'sticky top-4 z-40'
+                )}>
                   <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl text-right animate-in fade-in duration-150">
                     {/* Left: Section Type & Title */}
                     <div className="flex items-center gap-2 min-w-0 pr-1">
@@ -218,7 +221,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         <Sparkles className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* Visibility Toggle */}
+                      {/* Visibility Toggle (Hide / Show) */}
                       {onToggleSectionVisibility && (
                         <button
                           type="button"
@@ -235,8 +238,8 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         </button>
                       )}
 
-                      {/* Move Up */}
-                      {onMoveSectionUp && (
+                      {/* Move Up (Not applicable to permanent top Header) */}
+                      {onMoveSectionUp && sectionData.type !== 'header' && (
                         <button
                           type="button"
                           disabled={isFirst}
@@ -248,8 +251,8 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         </button>
                       )}
 
-                      {/* Move Down */}
-                      {onMoveSectionDown && (
+                      {/* Move Down (Not applicable to permanent top Header) */}
+                      {onMoveSectionDown && sectionData.type !== 'header' && (
                         <button
                           type="button"
                           disabled={isLast}
@@ -261,8 +264,8 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         </button>
                       )}
 
-                      {/* Duplicate */}
-                      {onDuplicateSection && (
+                      {/* Duplicate (Not applicable to permanent top Header) */}
+                      {onDuplicateSection && sectionData.type !== 'header' && (
                         <button
                           type="button"
                           onClick={() => onDuplicateSection(sectionId)}
@@ -273,8 +276,8 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         </button>
                       )}
 
-                      {/* Delete */}
-                      {onDeleteSection && (
+                      {/* Delete (Header is permanent, user uses visibility toggle to hide/show) */}
+                      {onDeleteSection && sectionData.type !== 'header' && (
                         <button
                           type="button"
                           onClick={() => onDeleteSection(sectionId)}
