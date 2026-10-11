@@ -63,6 +63,10 @@ const KosunAmModule = React.lazy(() =>
   import('../modules/kosun-am').then((m) => ({ default: m.KosunAmStandaloneView }))
 );
 
+const KosunBoardComposerStandaloneView = React.lazy(() =>
+  import('../modules/kosun-board-composer').then((m) => ({ default: m.KosunBoardComposerStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -73,6 +77,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'kosun-board-composer',
+    name: 'קושאן בורד - מחולל מערכות AI',
+    description: 'חיבור רכיבי המערכת באמצעות Gemini AI לייצור לוחות בקרה ומערכות מותאמות אישית המשודכות לסאב-דומיינים של משתמשים.',
+    component: KosunBoardComposerStandaloneView,
+    route: '/board-composer',
+    collectionPrefix: 'mod_kosun_board_',
+  },
   {
     id: 'kosun-am',
     name: 'קושאן מייל אוטומטי',

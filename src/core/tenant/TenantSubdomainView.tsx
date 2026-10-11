@@ -12,7 +12,11 @@ import { ControlCenterStandaloneView } from '../../modules/control-center-hub/St
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from '../../workbench/components/ModuleLoadingFallback';
-import { Globe, Lock, ArrowRight, Eye, LayoutDashboard, Sparkles } from 'lucide-react';
+import { Globe, Lock, ArrowRight, Eye, LayoutDashboard, Sparkles, LayoutGrid } from 'lucide-react';
+import { DashboardFirestoreService } from '../../modules/kosun-board-composer/services/dashboardFirestoreService';
+import { DynamicCustomDashboardView } from '../../modules/kosun-board-composer/components/DynamicCustomDashboardView';
+import { GeneratedCustomDashboard } from '../../modules/kosun-board-composer/types';
+import { KosunBoardProvider } from '../../modules/kosun-board-composer/context/ModuleContext';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -49,6 +53,26 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   const [homePageConfig, setHomePageConfig] = useState<PageBuilderConfig | null>(() => {
     return pageBuilderFirestore.getHomePageSync(tenantRecord.subdomain);
   });
+
+  const [customDashboard, setCustomDashboard] = useState<GeneratedCustomDashboard | null>(null);
+  const [adminViewType, setAdminViewType] = useState<'custom_board' | 'standard'>('custom_board');
+
+  useEffect(() => {
+    let isMounted = true;
+    DashboardFirestoreService.getDashboardsForTenant(db, tenantRecord.subdomain).then((list) => {
+      if (!isMounted) return;
+      const matched =
+        list.find((d) => d.pairedSubdomain?.toLowerCase() === tenantRecord.subdomain.toLowerCase()) ||
+        list[0] ||
+        null;
+      setCustomDashboard(matched);
+    }).catch((err) => {
+      console.warn('[TenantSubdomainView] Error fetching custom dashboard:', err);
+    });
+    return () => {
+      isMounted = false;
+    };
+  }, [db, tenantRecord.subdomain]);
 
   // Generate fallback default landing page config customized for this tenant
   const createDefaultTenantPage = (): PageBuilderConfig => {
@@ -206,6 +230,35 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {customDashboard && (
+              <div className="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setAdminViewType('custom_board')}
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition ${
+                    adminViewType === 'custom_board'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3 h-3" />
+                  <span>לוח מותאם AI</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminViewType('standard')}
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition ${
+                    adminViewType === 'standard'
+                      ? 'bg-indigo-600 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <LayoutDashboard className="w-3 h-3" />
+                  <span>מרכז שליטה מלא</span>
+                </button>
+              </div>
+            )}
+
             <button
               onClick={() => setMode('public')}
               className="flex items-center gap-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-md shadow-emerald-600/20"
@@ -229,7 +282,20 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         {/* Modern Control Center Hub & Registered Modules Router */}
         <div className="flex-1 overflow-auto bg-slate-950">
           <Routes>
-            <Route path="/" element={<ControlCenterStandaloneView />} />
+            <Route
+              path="/"
+              element={
+                customDashboard && adminViewType === 'custom_board' ? (
+                  <KosunBoardProvider>
+                    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+                      <DynamicCustomDashboardView dashboard={customDashboard} />
+                    </div>
+                  </KosunBoardProvider>
+                ) : (
+                  <ControlCenterStandaloneView />
+                )
+              }
+            />
             <Route path="/control-center/*" element={<ControlCenterStandaloneView />} />
             {REGISTERED_MODULES.map((module) => {
               const Component = module.component;

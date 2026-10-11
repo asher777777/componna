@@ -1,6 +1,6 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Grid, X, Check, Lock, Edit3 } from 'lucide-react';
+import { Sparkles, Grid, X, Check, Lock, Edit3, User, LogOut } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { CashwanTopNav } from './components/CashwanTopNav';
 import { REGISTERED_MODULES } from './moduleRegistry';
@@ -8,7 +8,7 @@ import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from './components/ModuleLoadingFallback';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { AuthModal } from '../components/Auth/AuthModal';
-import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../services/firebaseAuth';
+import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole, logoutUser } from '../services/firebaseAuth';
 
 // PublicPageView loaded lazily to isolate page-builder from shell
 const PublicPageView = React.lazy(() =>
@@ -311,6 +311,54 @@ export const WorkbenchApp: React.FC = () => {
                       </button>
                     );
                   })}
+                </div>
+              )}
+            </div>
+
+            {/* User Session & Logout Footer */}
+            <div className="p-4 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+              {authState.isAuthenticated && !authState.isAnonymous ? (
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
+                      {authState.displayName ? authState.displayName[0].toUpperCase() : <User className="w-4 h-4" />}
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        {authState.displayName || authState.email?.split('@')[0]}
+                      </span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
+                        {authState.email}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsMenuOpen(false);
+                      await logoutUser(firebaseApp);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    title="התנתק מהחשבון"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                    <span>התנתק</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between w-full">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">אורח במערכת</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>כניסה</span>
+                  </button>
                 </div>
               )}
             </div>

@@ -4,7 +4,7 @@
  */
 
 import { TargetAudience, DynamicModuleCapability, ModuleActionDescriptor, ModuleKpiDescriptor } from '../types';
-import { ModuleDefinition } from '../../workbench/moduleRegistry';
+import type { ModuleDefinition } from '../../../workbench/moduleRegistry';
 
 export const MODULE_COLLECTION_PREFIX = 'mod_kosun_board_';
 export const CUSTOM_DASHBOARDS_COLLECTION = 'custom_dashboards';

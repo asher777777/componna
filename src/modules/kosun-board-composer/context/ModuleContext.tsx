@@ -4,9 +4,9 @@
  */
 
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
-import { useSystemConnection } from '../../..//core/connection/SystemConnectionContext';
-import { useTenantScope } from '../../..//core/tenant/TenantScopeContext';
-import { REGISTERED_MODULES } from '../../..//workbench/moduleRegistry';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
+import { REGISTERED_MODULES } from '../../../workbench/moduleRegistry';
 import {
   TargetAudience,
   DynamicModuleCapability,

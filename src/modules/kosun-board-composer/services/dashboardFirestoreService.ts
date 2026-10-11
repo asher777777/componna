@@ -17,7 +17,7 @@ import {
 } from 'firebase/firestore';
 import { GeneratedCustomDashboard, SubdomainPairingRecord } from '../types';
 import { CUSTOM_DASHBOARDS_COLLECTION } from '../config';
-import { StorefrontService } from '../..//saas-storefront-composer/services/storefrontService';
+import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
 
 const LOCAL_STORAGE_KEY_PREFIX = 'kosun_custom_dashboards_';
 

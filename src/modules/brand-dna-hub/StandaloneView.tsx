@@ -53,7 +53,7 @@ export interface BrandDnaViewProps {
 
 export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   initialTab = 'identity',
-  initialMode = 'dashboard',
+  initialMode = 'tabs',
 }) => {
   const {
     brandDna,
@@ -67,17 +67,24 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
 
   const [viewMode, setViewMode] = useState<'dashboard' | 'stepper' | 'tabs'>(initialMode);
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    const saved = localStorage.getItem('kosun_theme');
+    if (saved === 'dark') return true;
+    if (saved === 'light') return false;
+    return false; // ברירת מחדל: מצב יום
+  });
   
   // Floating Action Button state
   const [isFabOpen, setIsFabOpen] = useState(false);
 
-  // Requirement ה: Global Dark/Light mode
+  // Requirement ה: Global Dark/Light mode - Default is Day mode
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
+      localStorage.setItem('kosun_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
+      localStorage.setItem('kosun_theme', 'light');
     }
   }, [isDarkMode]);
 
@@ -185,6 +192,19 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
               >
                 {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
                 <span>{isDarkMode ? 'מצב יום' : 'מצב לילה'}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setIsFabOpen(false);
+                  await handleSave();
+                }}
+                disabled={isSaving}
+                className="px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-[10px] font-bold flex items-center gap-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                <span>שמור שינויים</span>
               </button>
 
               <button
@@ -300,7 +320,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
 
 export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = ({
   initialTab = 'identity',
-  initialMode = 'dashboard',
+  initialMode = 'tabs',
 }) => {
   return (
     <BrandDnaProvider>

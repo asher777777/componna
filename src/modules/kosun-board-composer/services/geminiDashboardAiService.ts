@@ -10,6 +10,7 @@ import {
   GenerateDashboardAiRequest,
   GeneratedCustomDashboard,
   DashboardWidget,
+  DynamicModuleCapability,
 } from '../types';
 import { GEMINI_DASHBOARD_SYSTEM_INSTRUCTION, buildDashboardPrompt } from '../prompts';
 

@@ -217,6 +217,51 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
                     );
                   })}
                 </div>
+
+                {/* User Session & Logout in Modules Menu */}
+                <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800/80">
+                  {authState.isAuthenticated && !authState.isAnonymous ? (
+                    <div className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-800/50">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs shrink-0">
+                          {authState.displayName ? authState.displayName[0].toUpperCase() : <User className="w-3.5 h-3.5" />}
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block truncate">
+                            {authState.displayName || authState.email?.split('@')[0]}
+                          </span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 block truncate">
+                            {authState.email}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setIsDropdownOpen(false);
+                          await logoutUser(firebaseApp);
+                        }}
+                        className="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 text-[11px] font-bold flex items-center gap-1 transition shrink-0 cursor-pointer"
+                        title="התנתק מהחשבון"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>התנתק</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDropdownOpen(false);
+                        onOpenAuthModal?.();
+                      }}
+                      className="w-full flex items-center justify-center gap-2 p-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/50 dark:hover:bg-indigo-900/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold transition cursor-pointer"
+                    >
+                      <User className="w-3.5 h-3.5" />
+                      <span>כניסה לחשבון</span>
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>

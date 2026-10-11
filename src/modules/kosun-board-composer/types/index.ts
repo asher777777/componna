@@ -61,7 +61,7 @@ export interface DashboardWidget {
   iconName?: string;
   config: {
     collectionName?: string;
-    calculation?: 'count' | 'sum' | 'active_count' | 'latest';
+    calculation?: 'count' | 'sum' | 'active_count' | 'latest' | 'latest_status';
     field?: string;
     actions?: ModuleActionDescriptor[];
     statSuffix?: string;

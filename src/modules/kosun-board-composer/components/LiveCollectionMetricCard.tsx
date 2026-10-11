@@ -42,7 +42,7 @@ export interface LiveCollectionMetricCardProps {
   iconName?: string;
   size?: BentoWidgetSize;
   collectionName?: string;
-  calculation?: 'count' | 'sum' | 'active_count' | 'latest';
+  calculation?: 'count' | 'sum' | 'active_count' | 'latest' | 'latest_status';
   field?: string;
   statPrefix?: string;
   statSuffix?: string;
