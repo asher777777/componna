@@ -39,7 +39,8 @@ export type KosaiCapability =
   | 'ADD_SECTION'
   | 'UPDATE_SECTION'
   | 'UPDATE_GLOBAL_SETTINGS'
-  | 'UPDATE_SEO';
+  | 'UPDATE_SEO'
+  | 'CREATE_CRM_CHART';
 
 export interface KosaiMessage {
   id: string;

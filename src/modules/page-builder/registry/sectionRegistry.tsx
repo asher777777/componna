@@ -54,6 +54,8 @@ import { SmartFormEditor } from '../sections/smartForm/SmartFormEditor';
 import { FlowPlayerEditor } from '../sections/flowPlayer/FlowPlayerEditor';
 import { CustomHtmlView } from '../sections/customHtml/CustomHtmlView';
 import { CustomHtmlEditor } from '../sections/customHtml/CustomHtmlEditor';
+import { LiveAnalyticsSection } from '../sections/liveAnalytics/LiveAnalyticsSection';
+import { LiveAnalyticsEditor } from '../sections/liveAnalytics/LiveAnalyticsEditor';
 
 
 // Icons
@@ -81,6 +83,8 @@ import {
   SlidersHorizontal,
   MapPin,
   Menu,
+  Activity,
+  BarChart3,
 } from 'lucide-react';
 
 export interface SectionDefinition {
@@ -212,6 +216,34 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
           statLabel: 'מהירות טעינה',
         },
       ],
+    },
+  },
+
+  liveAnalytics: {
+    type: 'liveAnalytics',
+    name: 'אנליטיקס וביצועי דף חיים (Live Analytics)',
+    category: 'marketing',
+    description: 'הצגת מדדי צפיות, מבקרים, המרות ותנועה ממנועי AI ומגוגל בזמן אמת',
+    icon: Activity,
+    viewComponent: LiveAnalyticsSection as any,
+    editorComponent: LiveAnalyticsEditor as any,
+    defaultConfig: {
+      type: 'liveAnalytics',
+      visible: true,
+      anchorId: 'analytics',
+      title: 'מדדי ביצועים ואנליטיקס בזמן אמת',
+      subtitle: 'נתוני צפייה, אינטראקציה ותנועה ממנועי AI ומגוגל',
+      adminOnly: false,
+      displayStyle: 'bento',
+      showViews: true,
+      showUniqueVisitors: true,
+      showCtaClicks: true,
+      showLeads: true,
+      showConversionRate: true,
+      showTrafficSources: true,
+      showAiTrafficBadge: true,
+      showGa4StatusBadge: true,
+      customBadgeText: 'Live Telemetry Active',
     },
   },
 

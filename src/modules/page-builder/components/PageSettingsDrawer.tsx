@@ -6,7 +6,7 @@ import { PageBuilderImageUpload } from '../ui/PageBuilderImageUpload';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
-import { X, Settings2, Palette, Globe, Sparkles, Layout, Phone, MapPin, CheckCircle2, ShieldCheck, Check, AlertCircle } from 'lucide-react';
+import { X, Settings2, Palette, Globe, Sparkles, Layout, Phone, MapPin, CheckCircle2, ShieldCheck, Check, AlertCircle, BarChart3, Activity } from 'lucide-react';
 import { clsx } from 'clsx';
 import { generateGoogleCompliantSeo } from '../services/aiGoogleSeoService';
 
@@ -36,7 +36,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
 
-  const [activeTab, setActiveTab] = useState<'general' | 'design' | 'seo' | 'contact'>('general');
+  const [activeTab, setActiveTab] = useState<'general' | 'design' | 'seo' | 'analytics' | 'contact'>('general');
   const [isAiGeneratingSeo, setIsAiGeneratingSeo] = useState(false);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
   const [auditRecommendations, setAuditRecommendations] = useState<string[]>(seoSettings.googleAuditRecommendations || []);
@@ -111,6 +111,10 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
         googleAuditScore: result.googleAuditScore,
         googleAuditRecommendations: result.googleAuditRecommendations,
         faviconUrl: seoSettings.faviconUrl || brandDna?.identity?.logoUrl || globalSettings.siteLogoUrl,
+        aiKnowledgeSummary: result.aiKnowledgeSummary,
+        aiTargetQuestions: result.aiTargetQuestions,
+        aiEntitySchemaType: result.aiEntitySchemaType,
+        aiBotIndexingEnabled: result.aiBotIndexingEnabled ?? true,
       });
 
       setAuditScore(result.googleAuditScore);
@@ -123,92 +127,105 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/70 backdrop-blur-sm animate-in fade-in duration-200" dir="rtl">
-      <div className="fixed inset-0" onClick={onClose} />
-      <div className="relative w-full max-w-lg bg-[#0c0c0e] border-r border-slate-800 h-full shadow-2xl flex flex-col z-10 animate-in slide-in-from-right duration-200">
-        {/* Header */}
-        <div className="flex items-center justify-between p-5 border-b border-slate-800 bg-slate-900/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
-              <Settings2 className="w-4 h-4" />
+    <div className="fixed inset-0 w-screen h-screen z-50 bg-[#090a0f]/98 backdrop-blur-2xl flex flex-col overflow-hidden animate-in fade-in duration-200" dir="rtl">
+      {/* Header */}
+      <div className="p-4 sm:p-5 border-b border-slate-800 bg-slate-900/80 backdrop-blur shrink-0">
+        <div className="max-w-4xl mx-auto w-full flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+              <Settings2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">הגדרות עמוד ועיצוב גלובלי</h3>
-              <p className="text-[11px] text-slate-400">מיתוג Brand DNA, צבעים, תפריטים ו-SEO</p>
+              <h3 className="text-base font-black text-white">הגדרות עמוד, קידום ו-SEO</h3>
+              <p className="text-xs text-slate-400">קידום במנועי AI, דירוג גוגל E-E-A-T, אנליטיקס ומיתוג</p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-white/10"
+            className="p-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+            title="סגירה"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
+      </div>
 
-        {/* Brand DNA Sync Banner */}
-        <div className="p-4 bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border-b border-indigo-500/30 flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-xs text-indigo-200">
-            <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
-            <span>
-              סנכרון מיתוג מ-<strong>Brand DNA Hub</strong>
-            </span>
+      <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+        <div className="max-w-4xl mx-auto w-full flex-1 flex flex-col p-4 sm:p-8 gap-6">
+          {/* Brand DNA Sync Banner */}
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/80 to-purple-950/80 border border-indigo-500/30 flex items-center justify-between gap-3 shrink-0">
+            <div className="flex items-center gap-2 text-xs text-indigo-200">
+              <Sparkles className="w-4 h-4 text-indigo-400 shrink-0" />
+              <span>
+                סנכרון מיתוג מ-<strong>Brand DNA Hub</strong>
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleSyncBrandDna}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shrink-0"
+            >
+              {isBrandSynced ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" /> : <Sparkles className="w-3.5 h-3.5" />}
+              <span>{isBrandSynced ? 'סונכרן בהצלחה!' : 'סנכרן עכשיו'}</span>
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handleSyncBrandDna}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition-all shadow-md shrink-0"
-          >
-            {isBrandSynced ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-300" /> : <Sparkles className="w-3.5 h-3.5" />}
-            <span>{isBrandSynced ? 'סונכרן בהצלחה!' : 'סנכרן עכשיו'}</span>
-          </button>
-        </div>
 
-        {/* Tab Switcher */}
-        <div className="grid grid-cols-4 p-2 bg-slate-950/80 border-b border-slate-800 text-xs font-bold gap-1">
+          {/* Tab Switcher */}
+        <div className="grid grid-cols-5 p-2 bg-slate-950/80 border-b border-slate-800 text-[11px] font-bold gap-1">
           <button
             type="button"
             onClick={() => setActiveTab('general')}
             className={clsx(
-              'py-2 rounded-xl transition-all',
+              'py-2 rounded-xl transition-all text-center',
               activeTab === 'general' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             )}
           >
-            כללי ומיתוג
+            כללי
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('design')}
             className={clsx(
-              'py-2 rounded-xl transition-all',
+              'py-2 rounded-xl transition-all text-center',
               activeTab === 'design' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             )}
           >
-            צבעים וסגנון
+            צבעים
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('seo')}
             className={clsx(
-              'py-2 rounded-xl transition-all',
+              'py-2 rounded-xl transition-all text-center',
               activeTab === 'seo' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             )}
           >
-            SEO ורשתות
+            SEO ו-AI
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('analytics')}
+            className={clsx(
+              'py-2 rounded-xl transition-all text-center',
+              activeTab === 'analytics' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
+            )}
+          >
+            אנליטיקס
           </button>
           <button
             type="button"
             onClick={() => setActiveTab('contact')}
             className={clsx(
-              'py-2 rounded-xl transition-all',
+              'py-2 rounded-xl transition-all text-center',
               activeTab === 'contact' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
             )}
           >
-            פרטי קשר ו-GEO
+            קשר ו-GEO
           </button>
         </div>
 
         {/* Body Content */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 text-right">
+        <div className="flex flex-col gap-6 text-right">
           {activeTab === 'general' && (
             <div className="flex flex-col gap-4">
               <PageBuilderInput
@@ -472,6 +489,138 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                 value={seoSettings.ogImage}
                 onChange={(url) => updateSeo('ogImage', url)}
               />
+
+              {/* Generative Engine Optimization (GEO / AIO) Card */}
+              <div className="mt-2 p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-indigo-400" />
+                    <span>קידום במנועי AI (ChatGPT, Perplexity, Gemini)</span>
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-200 border border-indigo-500/30 font-bold">
+                    AIO / GEO 2026
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  הגדרות אלו מעשירות את נתוני ה-JSON-LD והמטא-תגיות כדי שמנועי AI יוכלו לצטט את האתר כמקור מוסמך ואמין בתשובותיהם לגולשים.
+                </p>
+
+                <PageBuilderTextarea
+                  label="תמצית ידע מותאמת ל-AI (Knowledge Snippet for LLMs)"
+                  value={seoSettings.aiKnowledgeSummary || ''}
+                  onChange={(val) => updateSeo('aiKnowledgeSummary', val)}
+                  rows={3}
+                  placeholder="הסבר תמציתי ומדויק על הפעילות, השירות או הארגון שבוטי AI יצטטו..."
+                />
+
+                <PageBuilderTextarea
+                  label="שאלות מפתח שהעמוד עונה עליהן (שאלה אחת בכל שורה)"
+                  value={(seoSettings.aiTargetQuestions || []).join('\n')}
+                  onChange={(val) =>
+                    updateSeo(
+                      'aiTargetQuestions',
+                      val.split('\n').map((q: string) => q.trim()).filter(Boolean)
+                    )
+                  }
+                  rows={3}
+                  placeholder="מה זה השירות?&#10;איך מצטרפים?&#10;מה היתרונות?"
+                />
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1.5">סוג ישות סכמה (Schema Type):</label>
+                    <select
+                      value={seoSettings.aiEntitySchemaType || 'ProfessionalService'}
+                      onChange={(e) => updateSeo('aiEntitySchemaType', e.target.value as any)}
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    >
+                      <option value="ProfessionalService">ProfessionalService (שירות מקצועי / עסק)</option>
+                      <option value="Organization">Organization (ארגון / עמותה / חברה)</option>
+                      <option value="Product">Product (מוצר / שירות ספציפי)</option>
+                      <option value="FAQPage">FAQPage (דף שאלות ותשובות מקיף)</option>
+                      <option value="Article">Article (מאמר תוכן מקצועי)</option>
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col justify-end">
+                    <button
+                      type="button"
+                      onClick={() => updateSeo('aiBotIndexingEnabled', seoSettings.aiBotIndexingEnabled !== false ? false : true)}
+                      className={clsx(
+                        'w-full p-2.5 rounded-xl border text-right flex items-center justify-between text-xs transition',
+                        seoSettings.aiBotIndexingEnabled !== false
+                          ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                          : 'bg-slate-900 border-slate-800 text-slate-400'
+                      )}
+                    >
+                      <span>אינדוקס ע"י בוטים (GPTBot / Claude / Perplexity)</span>
+                      <div
+                        className={clsx(
+                          'w-4 h-4 rounded-md border flex items-center justify-center',
+                          seoSettings.aiBotIndexingEnabled !== false
+                            ? 'bg-emerald-600 border-emerald-500 text-white'
+                            : 'border-slate-700 bg-slate-800'
+                        )}
+                      >
+                        {seoSettings.aiBotIndexingEnabled !== false && <Check className="w-3 h-3 stroke-[3]" />}
+                      </div>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'analytics' && (
+            <div className="flex flex-col gap-4">
+              <div className="p-4 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="w-5 h-5 text-amber-400" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">חיבור Google Analytics 4 (GA4)</span>
+                      <span className="text-[11px] text-slate-400">מעקב תנועה, אירועים והמרות בנכס שלכם</span>
+                    </div>
+                  </div>
+                  {globalSettings.googleAnalyticsId ? (
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-bold">
+                      פעיל ומחובר
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 text-[10px]">
+                      טרם הוגדר
+                    </span>
+                  )}
+                </div>
+
+                <PageBuilderInput
+                  label="מזהה מדידה של Google Analytics (Measurement ID)"
+                  value={globalSettings.googleAnalyticsId || ''}
+                  onChange={(val) => updateGlobal('googleAnalyticsId', val)}
+                  placeholder="G-XXXXXXXXXX"
+                  dir="ltr"
+                />
+                <p className="text-[11px] text-slate-400 leading-tight">
+                  הזינו את מזהה המדידה מתוך מסוף Google Analytics (מתחיל ב-<strong>G-</strong>). בעת טעינת העמוד הציבורי, המערכת תטעין את תגית המעקב ותשדר אירועים בזמן אמת.
+                </p>
+              </div>
+
+              {/* Tenant Storage Isolation Card */}
+              <div className="p-4 rounded-2xl bg-indigo-950/40 border border-indigo-500/30 space-y-2">
+                <div className="flex items-center gap-2 text-xs font-bold text-indigo-300">
+                  <Activity className="w-4 h-4 text-indigo-400" />
+                  <span>אחסון נתוני אנליטיקס תחת ה-Tenant שלכם</span>
+                </div>
+                <p className="text-[11px] text-indigo-200/80 leading-relaxed">
+                  כל נתוני הגולשים, הצפיות, האינטראקציות, הקלקות על CTA וציטוטי מנועי AI נשמרים ומבודדים באופן מלא בקולקציה תחת הטננט שלכם:
+                </p>
+                <div className="p-2.5 rounded-xl bg-slate-950/80 border border-slate-800 text-[11px] font-mono text-cyan-300 text-left" dir="ltr">
+                  tenants/{'{tenantId}'}/page_analytics_telemetry/{'{pageId}'}
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  ניתן להוסיף את אזור <strong>"אנליטיקס וביצועי דף חיים"</strong> ישירות לעמוד שלכם מתוך כפתור "הוסף אזור", כדי להציג את הנתונים בלייב למנהלים או לגולשים.
+                </p>
+              </div>
             </div>
           )}
 
@@ -492,7 +641,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                     }}
                     className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md"
                   >
-                    פתח הגדרות GEO 📍
+                    פתח הגדרות GEO
                   </button>
                 </div>
               )}
@@ -527,9 +676,12 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
             </div>
           )}
         </div>
+      </div>
+    </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-slate-800 bg-slate-900/60 flex items-center justify-end">
+      {/* Footer */}
+      <div className="p-4 border-t border-slate-800 bg-slate-900/80 backdrop-blur shrink-0">
+        <div className="max-w-4xl mx-auto w-full flex items-center justify-end">
           <PageBuilderButton size="sm" variant="primary" onClick={onClose}>
             סגור הגדרות
           </PageBuilderButton>

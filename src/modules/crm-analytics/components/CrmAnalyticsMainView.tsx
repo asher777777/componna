@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
-  TrendingUp, BarChart2, BarChart3, ChevronDown, ChevronUp, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2, GitMerge, FileSpreadsheet, Link2 
+  TrendingUp, BarChart2, BarChart3, ChevronDown, ChevronUp, Filter, RefreshCw, Layers, Plus, Database, Sparkles, CheckCircle2, GitMerge, FileSpreadsheet, Link2, Table as TableIcon, DownloadCloud, FolderInput 
 } from 'lucide-react';
 import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
 import { Contact, DatabaseConnectionProfile } from '../types';
@@ -13,6 +13,10 @@ import { Contact360Modal } from './Contact360Modal';
 import { DatabaseConnectorModal } from './DatabaseConnectorModal';
 import { ExcelImportModal } from './ExcelImportModal';
 import { GoogleSheetsSyncModal } from './GoogleSheetsSyncModal';
+import { CrmIngestionActionsBar } from './CrmIngestionActionsBar';
+import { CrmGroupsImportModal } from './CrmGroupsImportModal';
+import { CustomChartsSection } from './CustomChartsSection';
+import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { FormBuilderContract, FormItemSummary } from '../../../core/contracts';
 import { syncSmartFormSubmissionsToContacts } from '../services/smartFormCrmSyncService';
@@ -113,8 +117,13 @@ export const CrmAnalyticsMainView: React.FC = () => {
     }
   };
 
-  // Modal states
+  // Modal states & Main View Tab
   const { tenantId } = useTenantScope();
+  const [activeMainTab, setActiveMainTab] = useState<'table' | 'analytics'>('table');
+  const [isIngestionBarOpen, setIsIngestionBarOpen] = useState(false);
+  const [isGroupsImportOpen, setIsGroupsImportOpen] = useState(false);
+  const [isSyncingKesher, setIsSyncingKesher] = useState(false);
+
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
@@ -130,6 +139,40 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [isCardScannerOpen, setIsCardScannerOpen] = useState(false);
   const [isBulkWhatsAppOpen, setIsBulkWhatsAppOpen] = useState(false);
   const [mobileActiveNavTab, setMobileActiveNavTab] = useState<'all' | 'leads' | 'charts' | 'filters'>('all');
+
+  // Trigger Kesher financial sync over EventBus
+  const handleSyncKesher = () => {
+    setIsSyncingKesher(true);
+    setSyncFeedback(null);
+    eventBus.publish('kesher:sync:requested', {
+      timeframe: 'all',
+      tenantId,
+    });
+    setSyncFeedback('בקשת סנכרון נתוני קשר (תקבולים ועסקאות) שודרה בהצלחה!');
+    setTimeout(() => setIsSyncingKesher(false), 2000);
+  };
+
+  // Listen to external completion events from EventBus (Kesher, Groups)
+  useEffect(() => {
+    const unsubKesher = eventBus.subscribe('kesher:sync:completed', (payload) => {
+      if (payload.success) {
+        setSyncFeedback(payload.message || 'סנכרון קשר הושלם בהצלחה!');
+        refresh();
+      } else {
+        setSyncFeedback(payload.message || 'שגיאה בסנכרון נתוני קשר');
+      }
+    });
+
+    const unsubGroups = eventBus.subscribe('crm:groups:import_completed', (payload) => {
+      setSyncFeedback(`סנכרון קבוצות הושלם! יובאו ${payload.importedCount} אנשי קשר.`);
+      refresh();
+    });
+
+    return () => {
+      unsubKesher();
+      unsubGroups();
+    };
+  }, [refresh]);
 
   const toggleColumn = (colId: string) => {
     setSelectedColumns(prev => 
@@ -244,86 +287,6 @@ export const CrmAnalyticsMainView: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* Smart Sync Forms to CRM Button */}
-          <button
-            onClick={handleSyncAllFormsToCrm}
-            disabled={isSyncingForms}
-            className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
-            title="סנכרן את כל הגשות הטפסים החכמים ישירות למאגר אנשי הקשר והלידים"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isSyncingForms ? 'animate-spin text-emerald-600' : 'text-emerald-600'}`} />
-            <span>{isSyncingForms ? 'מסנכרן טפסים...' : 'סנכרון טפסים ל-CRM'}</span>
-          </button>
-
-          {/* Scan Business Card Button */}
-          <button
-            onClick={() => setIsCardScannerOpen(true)}
-            className="px-3 py-1.5 text-xs font-semibold bg-amber-50 dark:bg-amber-950/40 text-amber-800 dark:text-amber-200 hover:bg-amber-100 border border-amber-200 dark:border-amber-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
-            title="סרוק כרטיס ביקור במצלמה וחלוץ נתונים אוטומטית ב-AI"
-          >
-            <Camera className="w-3.5 h-3.5 text-amber-600" />
-            <span className="hidden sm:inline">סריקת כרטיס ביקור (AI)</span>
-          </button>
-
-          {/* Add Contact Button */}
-          <button
-            onClick={handleOpenNewContact}
-            className="px-3 py-1.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg flex items-center gap-1.5 shadow transition"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span>איש קשר חדש</span>
-          </button>
-
-          {/* Excel Import Button */}
-          <button
-            onClick={() => setIsExcelModalOpen(true)}
-            className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 border border-emerald-200 dark:border-emerald-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
-            title="ייבוא אנשי קשר מקובץ אקסל (.xlsx / .xls) עם מיפוי עמודות חכם"
-          >
-            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>ייבוא מאקסל</span>
-          </button>
-
-          {/* Google Sheets Sync & Gallery Button */}
-          <button
-            onClick={() => setIsGSheetsModalOpen(true)}
-            className="px-3 py-1.5 text-xs font-semibold bg-blue-50 dark:bg-blue-950/40 text-blue-800 dark:text-blue-200 hover:bg-blue-100 border border-blue-200 dark:border-blue-800 rounded-lg flex items-center gap-1.5 shadow-sm transition"
-            title="שיתוף וסנכרון קובץ Google Sheets עם שמירה בגלריה"
-          >
-            <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-            <span>Google Sheets</span>
-          </button>
-
-          {/* Merge Duplicates Migration Button */}
-          <button
-            onClick={handleMergeDuplicates}
-            disabled={isMergingDuplicates}
-            className="px-3 py-1.5 text-xs font-semibold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 hover:bg-emerald-100 rounded-lg flex items-center gap-1.5 shadow-sm transition disabled:opacity-50"
-            title="בצע מיגרציה ואיחוד של אנשי קשר כפולים בבסיס הנתונים"
-          >
-            <GitMerge className={`w-3.5 h-3.5 text-emerald-600 ${isMergingDuplicates ? 'animate-spin' : ''}`} />
-            <span>{isMergingDuplicates ? 'ממזג כפילויות...' : 'מיזוג כפילויות'}</span>
-          </button>
-
-          {/* Toggle Analytics Overview (KPIs, Views & Charts - Hidden by default) */}
-          <button
-            onClick={() => setShowAnalyticsOverview(prev => !prev)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm transition ${
-              showAnalyticsOverview 
-                ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50'
-            }`}
-            title={showAnalyticsOverview ? 'הסתר נתונים ואנליטיקה' : 'הצג נתונים, סיכומי KPI וגרפים'}
-          >
-            <BarChart3 className={`w-3.5 h-3.5 ${showAnalyticsOverview ? 'text-white' : 'text-indigo-600 dark:text-indigo-400'}`} />
-            <span>{showAnalyticsOverview ? 'הסתר נתונים' : 'נתונים ואנליטיקה'}</span>
-            {showAnalyticsOverview ? (
-              <ChevronUp className="w-3 h-3 text-white/80" />
-            ) : (
-              <ChevronDown className="w-3 h-3 text-gray-400" />
-            )}
-          </button>
-
           {/* Toggle Filter Panel */}
           <button
             onClick={() => setShowFilters(!showFilters)}
@@ -365,10 +328,46 @@ export const CrmAnalyticsMainView: React.FC = () => {
         </div>
       )}
 
-      {/* Analytics, KPIs & Visuals Section - Hidden by default under icon */}
-      {showAnalyticsOverview && (
-        <div className="space-y-4 animate-fadeIn">
-          {/* KPI Summary Metric Cards (Interactive click filters) */}
+      {/* Advanced Filter Drawer */}
+      {showFilters && (
+        <AdvancedFilterDrawer
+          filter={filter}
+          onChangeFilter={setFilter}
+          data={data}
+          onReset={handleResetFilters}
+        />
+      )}
+
+      {/* TAB 1: DATA & ANALYTICS DASHBOARD (Hides Table completely) */}
+      {activeMainTab === 'analytics' && (
+        <div className="space-y-5 animate-fadeIn">
+          {/* Header Switcher inside Analytics Tab */}
+          <div className="flex items-center justify-between bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl p-3.5 shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                <BarChart3 className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-sm font-black text-gray-900 dark:text-white">
+                  תצוגת נתונים ואנליטיקה (Analytics Dashboard)
+                </h2>
+                <p className="text-[11px] text-gray-400">
+                  סיכומי מדדי ביצוע (KPI), גרפים מובנים ודוחות AI מותאמים אישית
+                </p>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setActiveMainTab('table')}
+              className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2"
+              title="סגור אנליטיקה וחזור לתצוגת טבלה"
+            >
+              <TableIcon className="w-4 h-4" />
+              <span>חזרה לתצוגת טבלה</span>
+            </button>
+          </div>
+
+          {/* KPI Summary Metric Cards */}
           <AnalyticsSummaryCards
             data={data}
             loading={loading}
@@ -407,7 +406,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
             onDeleteView={deleteView}
           />
 
-          {/* Visual Charts */}
+          {/* Core Visual Charts */}
           {data && (
             <AnalyticsChartsView
               data={data}
@@ -415,114 +414,137 @@ export const CrmAnalyticsMainView: React.FC = () => {
               onCommunityClick={handleCommunityClick}
             />
           )}
+
+          {/* Custom BI Charts & AI Generator Section (Requirement ג) */}
+          <CustomChartsSection
+            contacts={data?.contacts || []}
+            firebaseApp={firebaseApp}
+            tenantId={tenantId}
+          />
         </div>
       )}
 
-      {/* If activeMetric is set but analytics section is collapsed, show compact active filter pill so user is aware */}
-      {!showAnalyticsOverview && activeMetric && (
-        <div className="flex items-center justify-between px-4 py-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 animate-fadeIn">
-          <div className="flex items-center gap-2">
-            <span className="font-bold">סינון פעיל:</span>
-            <span className="px-2 py-0.5 rounded-md bg-indigo-200/60 dark:bg-indigo-900 font-semibold text-indigo-800 dark:text-indigo-200">
-              {metricLabels[activeMetric] || activeMetric}
-            </span>
-            <span className="text-gray-500">
-              ({data?.contacts?.length || 0} תוצאות)
-            </span>
-          </div>
-          <button
-            onClick={() => handleMetricClick(activeMetric)}
-            className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
-          >
-            ביטול סינון
-          </button>
-        </div>
-      )}
+      {/* TAB 2: TABLE VIEW (Default) */}
+      {activeMainTab === 'table' && (
+        <div className="space-y-3 animate-fadeIn">
+          {/* Hidden Collapsible Ingestion Actions Bar (Requirement א, ד, ה) */}
+          <CrmIngestionActionsBar
+            isOpen={isIngestionBarOpen}
+            onToggle={() => setIsIngestionBarOpen(prev => !prev)}
+            onNewContact={handleOpenNewContact}
+            onScanCard={() => setIsCardScannerOpen(true)}
+            onExcelImport={() => setIsExcelModalOpen(true)}
+            onGoogleSheets={() => setIsGSheetsModalOpen(true)}
+            onSyncForms={handleSyncAllFormsToCrm}
+            isSyncingForms={isSyncingForms}
+            onMergeDuplicates={handleMergeDuplicates}
+            isMergingDuplicates={isMergingDuplicates}
+            onOpenGroupsImport={() => setIsGroupsImportOpen(true)}
+            onSyncKesher={handleSyncKesher}
+            isSyncingKesher={isSyncingKesher}
+          />
 
-      {/* Advanced Filter Drawer */}
-      {showFilters && (
-        <AdvancedFilterDrawer
-          filter={filter}
-          onChangeFilter={setFilter}
-          data={data}
-          onReset={handleResetFilters}
-        />
-      )}
-
-      {/* If activeMetric is 'forms', show dedicated Smart Form Submissions inspector */}
-      {activeMetric === 'forms' && (
-        <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-3">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-rose-500" />
-              <span className="text-xs font-bold text-gray-800 dark:text-gray-200">טבלאות טפסים חכמים והגשות:</span>
-              <select
-                value={selectedFormId}
-                onChange={(e) => setSelectedFormId(e.target.value)}
-                className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-white"
-              >
-                {smartForms.length === 0 ? (
-                  <option value="">לא נמצאו טפסים במערכת</option>
-                ) : (
-                  smartForms.map((sf) => (
-                    <option key={sf.id} value={sf.id}>
-                      {sf.title} {sf.submissionsCount !== undefined ? `(${sf.submissionsCount} הגשות)` : ''}
-                    </option>
-                  ))
-                )}
-              </select>
-            </div>
-            {selectedFormId && (
-              <span className="text-xs text-gray-400 font-mono">
-                קולקציה: `mod_forms/{selectedFormId}/submissions`
-              </span>
-            )}
-          </div>
-
-          {selectedFormId ? (
-            formCapability?.renderSubmissionsTable ? (
-              formCapability.renderSubmissionsTable(selectedFormId, smartForms.find(f => f.id === selectedFormId)?.title)
-            ) : (
-              <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 space-y-3">
-                <div className="w-12 h-12 mx-auto rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
-                  <FileText className="w-6 h-6" />
-                </div>
-                <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
-                  טופס נבחר: {smartForms.find(f => f.id === selectedFormId)?.title || selectedFormId}
-                </h4>
-                <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
-                  רכיב תצוגת הטפסים המלאה (smart-form-builder) אינו מוטמע בחבילה זו או לא נטען. כל ההגשות והלידים מסונכרנים ומנוהלים אוטומטית בטבלת אנשי הקשר הראשית למטה.
-                </p>
-                <div className="flex items-center justify-center gap-3 pt-2">
-                  <button
-                    onClick={handleSyncAllFormsToCrm}
-                    disabled={isSyncingForms}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-2"
-                  >
-                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingForms ? 'animate-spin' : ''}`} />
-                    <span>סנכרן הגשות טופס זה ל-CRM עכשיו</span>
-                  </button>
-                </div>
+          {/* Active Metric Filter pill if set */}
+          {activeMetric && (
+            <div className="flex items-center justify-between px-4 py-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs text-indigo-900 dark:text-indigo-200 animate-fadeIn">
+              <div className="flex items-center gap-2">
+                <span className="font-bold">סינון מדד פעיל:</span>
+                <span className="px-2 py-0.5 rounded-md bg-indigo-200/60 dark:bg-indigo-900 font-semibold text-indigo-800 dark:text-indigo-200">
+                  {metricLabels[activeMetric] || activeMetric}
+                </span>
+                <span className="text-gray-500">
+                  ({data?.contacts?.length || 0} תוצאות)
+                </span>
               </div>
-            )
-          ) : (
-            <div className="p-6 text-center text-xs text-gray-400">
-              בחר טופס מהתפריט למעלה לצפייה בטבלת ההגשות.
+              <button
+                onClick={() => handleMetricClick(activeMetric)}
+                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline"
+              >
+                ביטול סינון
+              </button>
             </div>
           )}
+
+          {/* If activeMetric is 'forms', show dedicated Smart Form Submissions inspector */}
+          {activeMetric === 'forms' && (
+            <div className="p-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-sm space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 dark:border-gray-700 pb-3">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-rose-500" />
+                  <span className="text-xs font-bold text-gray-800 dark:text-gray-200">טבלאות טפסים חכמים והגשות:</span>
+                  <select
+                    value={selectedFormId}
+                    onChange={(e) => setSelectedFormId(e.target.value)}
+                    className="px-3 py-1.5 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-800 dark:text-white"
+                  >
+                    {smartForms.length === 0 ? (
+                      <option value="">לא נמצאו טפסים במערכת</option>
+                    ) : (
+                      smartForms.map((sf) => (
+                        <option key={sf.id} value={sf.id}>
+                          {sf.title} {sf.submissionsCount !== undefined ? `(${sf.submissionsCount} הגשות)` : ''}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                {selectedFormId && (
+                  <span className="text-xs text-gray-400 font-mono">
+                    קולקציה: `mod_forms/{selectedFormId}/submissions`
+                  </span>
+                )}
+              </div>
+
+              {selectedFormId ? (
+                formCapability?.renderSubmissionsTable ? (
+                  formCapability.renderSubmissionsTable(selectedFormId, smartForms.find(f => f.id === selectedFormId)?.title)
+                ) : (
+                  <div className="p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-dashed border-gray-300 dark:border-gray-700 space-y-3">
+                    <div className="w-12 h-12 mx-auto rounded-full bg-rose-50 dark:bg-rose-950/40 text-rose-500 flex items-center justify-center">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <h4 className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                      טופס נבחר: {smartForms.find(f => f.id === selectedFormId)?.title || selectedFormId}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 max-w-md mx-auto leading-relaxed">
+                      רכיב תצוגת הטפסים המלאה (smart-form-builder) אינו מוטמע בחבילה זו או לא נטען. כל ההגשות והלידים מסונכרנים ומנוהלים אוטומטית בטבלת אנשי הקשר הראשית למטה.
+                    </p>
+                    <div className="flex items-center justify-center gap-3 pt-2">
+                      <button
+                        onClick={handleSyncAllFormsToCrm}
+                        disabled={isSyncingForms}
+                        className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-sm transition flex items-center gap-2"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncingForms ? 'animate-spin' : ''}`} />
+                        <span>סנכרן הגשות טופס זה ל-CRM עכשיו</span>
+                      </button>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="p-6 text-center text-xs text-gray-400">
+                  בחר טופס מהתפריט למעלה לצפייה בטבלת ההגשות.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Dynamic Data Table (Unified Contacts & Leads) */}
+          <DynamicAnalyticsTable
+            contacts={data?.contacts || []}
+            columns={availableColumns}
+            selectedColumnIds={selectedColumns}
+            onToggleColumn={toggleColumn}
+            onUpdateField={updateField}
+            onSelectContact={handleOpenContact}
+            loading={loading}
+            activeMainTab={activeMainTab}
+            onSelectMainTab={setActiveMainTab}
+            isIngestionBarOpen={isIngestionBarOpen}
+            onToggleIngestionBar={() => setIsIngestionBarOpen(prev => !prev)}
+          />
         </div>
       )}
-
-      {/* Dynamic Data Table (Unified Contacts & Leads) */}
-      <DynamicAnalyticsTable
-        contacts={data?.contacts || []}
-        columns={availableColumns}
-        selectedColumnIds={selectedColumns}
-        onToggleColumn={toggleColumn}
-        onUpdateField={updateField}
-        onSelectContact={handleOpenContact}
-        loading={loading}
-      />
 
 
       {/* Contact 360 & AI Copilot Modal */}
@@ -557,6 +579,17 @@ export const CrmAnalyticsMainView: React.FC = () => {
         isOpen={isGSheetsModalOpen}
         onClose={() => setIsGSheetsModalOpen(false)}
         onSyncComplete={() => refresh()}
+        firebaseApp={firebaseApp}
+        collections={resolvedCollections}
+        ownerId={ownerId}
+        tenantId={tenantId}
+      />
+
+      {/* WhatsApp & Community Groups Import Modal (Requirement ד) */}
+      <CrmGroupsImportModal
+        isOpen={isGroupsImportOpen}
+        onClose={() => setIsGroupsImportOpen(false)}
+        onImportComplete={() => refresh()}
         firebaseApp={firebaseApp}
         collections={resolvedCollections}
         ownerId={ownerId}

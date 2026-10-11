@@ -5,6 +5,7 @@ export type SectionType =
   | 'testimonials'
   | 'logoMarquee'
   | 'statsBento'
+  | 'liveAnalytics'
   | 'beforeAfter'
   | 'geoLocal'
   | 'pricing'
@@ -35,6 +36,7 @@ export interface GlobalPageSettings {
   headerSticky?: boolean;
   isHeaderVisible?: boolean;
   isFooterVisible?: boolean;
+  googleAnalyticsId?: string; // GA4 Measurement ID e.g. G-XXXXXXXXXX
   primaryColor?: string;
   secondaryColor?: string;
   backgroundColor?: string;
@@ -110,6 +112,11 @@ export interface SeoSettings {
   noFollow?: boolean;
   googleAuditScore?: number;
   googleAuditRecommendations?: string[];
+  // AI Engine Optimization (GEO / AIO) Fields
+  aiKnowledgeSummary?: string; // Direct snippet for ChatGPT, Gemini, Perplexity
+  aiTargetQuestions?: string[]; // Questions this page directly answers for AI bots
+  aiBotIndexingEnabled?: boolean; // GPTBot, ClaudeBot, PerplexityBot
+  aiEntitySchemaType?: 'Organization' | 'ProfessionalService' | 'Product' | 'FAQPage' | 'Article';
   geo?: GeoSeoSettings;
 }
 

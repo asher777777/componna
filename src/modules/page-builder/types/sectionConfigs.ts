@@ -445,3 +445,21 @@ export interface FlowPlayerSectionConfig extends BaseSectionConfig {
   mode?: 'live' | 'edit';
 }
 
+export interface LiveAnalyticsSectionConfig extends BaseSectionConfig {
+  type: 'liveAnalytics';
+  title?: string;
+  subtitle?: string;
+  adminOnly?: boolean; // When true, only visible when editing or logged in as admin
+  displayStyle?: 'bento' | 'glass-cards' | 'ticker' | 'minimal';
+  showViews?: boolean;
+  showUniqueVisitors?: boolean;
+  showCtaClicks?: boolean;
+  showLeads?: boolean;
+  showConversionRate?: boolean;
+  showTrafficSources?: boolean;
+  showAiTrafficBadge?: boolean;
+  showGa4StatusBadge?: boolean;
+  customBadgeText?: string;
+  accentColor?: string;
+}
+

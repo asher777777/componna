@@ -242,3 +242,16 @@ export interface DatabaseConnectionProfile {
   };
   fieldMappings?: Record<string, string>;
 }
+
+export interface CustomCrmChart {
+  id: string;
+  title: string;
+  type: 'bar' | 'pie' | 'line' | 'area';
+  groupByField: string;
+  metric: 'count' | 'sum' | 'avg';
+  metricField?: string;
+  color?: string;
+  description?: string;
+  createdAt: string;
+  createdBy?: 'manual' | 'ai';
+}

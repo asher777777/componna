@@ -109,6 +109,17 @@ ${capabilities.map(c => `- ${c}`).join('\n')}
   "geoTags": "תגיות מיקום"
 }
 
+5. יצירת גרף אנליטיקה ו-CRM (CREATE_CRM_CHART):
+כאשר המשתמש מבקש לנתח, ליצור או להוסיף גרף חדש למערכת ה-CRM:
+{
+  "title": "כותרת הגרף בעברית (למשל: התפלגות אנשי קשר לפי ערים)",
+  "type": "bar" | "pie" | "line" | "area",
+  "groupByField": "city" | "tags" | "community" | "lead_source" | "status" | "contact_type" | "total_spent",
+  "metric": "count" | "sum" | "avg",
+  "metricField": "total_spent" (אם מדובר בסכום רכישות/תרומות) או "count",
+  "description": "הסבר קצר על מה שהגרף מציג"
+}
+
 [BRAND DNA מחובר]
 - שם המותג: ${brandName}
 - סלוגן: ${brandSlogan}

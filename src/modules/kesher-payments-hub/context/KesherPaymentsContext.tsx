@@ -130,6 +130,33 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
     return unsub;
   }, []);
 
+  // Subscribe to external EventBus sync requests (e.g. from CRM Analytics)
+  useEffect(() => {
+    const unsubSync = eventBus.subscribe('kesher:sync:requested', async (payload) => {
+      console.log('[KesherPayments] Received kesher:sync:requested on EventBus:', payload);
+      try {
+        const res = await kesherService.syncCustomersToCRM(payload.timeframe || 'all');
+        eventBus.publish('kesher:sync:completed', {
+          success: res.success,
+          createdCount: res.createdContactsCount,
+          updatedCount: res.updatedContactsCount,
+          totalTransactions: res.totalTransactions,
+          message: res.message || 'סנכרון קשר הושלם בהצלחה',
+          timestamp: new Date().toISOString(),
+        });
+      } catch (err: any) {
+        console.error('[KesherPayments] EventBus sync error:', err);
+        eventBus.publish('kesher:sync:completed', {
+          success: false,
+          message: err?.message || 'שגיאה בביצוע סנכרון נתוני קשר',
+          timestamp: new Date().toISOString(),
+        });
+      }
+    });
+
+    return () => unsubSync();
+  }, []);
+
   const refreshSettings = () => {
     const s = kesherService.loadSettings();
     setSettings(s);

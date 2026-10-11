@@ -8,6 +8,8 @@ import { useTenantScope } from '../../../core/tenant';
 import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home } from 'lucide-react';
 import { FloatingSystemDock } from '../../../components/Navigation/FloatingSystemDock';
 import { useKosai } from '../../kosai-engine';
+import { pageAnalyticsService } from '../services/pageAnalyticsService';
+import { PageSettingsDrawer } from './PageSettingsDrawer';
 
 export const PublicPageView: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
@@ -20,6 +22,7 @@ export const PublicPageView: React.FC = () => {
   const [page, setPage] = useState<PageBuilderConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [notFound, setNotFound] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
   // Extract slug from URL path, params, or hash (supports both /p/slug and /#/p/slug)
   const resolvedSlug = (() => {
@@ -240,8 +243,58 @@ export const PublicPageView: React.FC = () => {
                 }
                 link.href = faviconUrl;
               }
+
+              // Inject AIO / GEO Meta Tags for AI bots (ChatGPT, Gemini, Perplexity)
+              if (pageWithHeader.seoSettings?.aiKnowledgeSummary) {
+                let aiMeta: HTMLMetaElement | null = document.querySelector("meta[name='ai-knowledge-summary']");
+                if (!aiMeta) {
+                  aiMeta = document.createElement('meta');
+                  aiMeta.name = 'ai-knowledge-summary';
+                  document.head.appendChild(aiMeta);
+                }
+                aiMeta.content = pageWithHeader.seoSettings.aiKnowledgeSummary;
+              }
+
+              // AI Bot Indexing policy
+              let robotsMeta: HTMLMetaElement | null = document.querySelector("meta[name='robots']");
+              if (!robotsMeta) {
+                robotsMeta = document.createElement('meta');
+                robotsMeta.name = 'robots';
+                document.head.appendChild(robotsMeta);
+              }
+              robotsMeta.content = pageWithHeader.seoSettings?.aiBotIndexingEnabled !== false
+                ? 'index, follow, max-image-preview:large, max-snippet:-1'
+                : 'noindex, nofollow';
+
+              // Inject GA4 (Google Analytics 4) Measurement Script if ID is configured
+              const gaId = pageWithHeader.globalSettings?.googleAnalyticsId?.trim();
+              if (gaId && !document.getElementById('ga4-tracking-script')) {
+                const gaScript = document.createElement('script');
+                gaScript.id = 'ga4-tracking-script';
+                gaScript.async = true;
+                gaScript.src = `https://www.googletagmanager.com/gtag/js?id=${gaId}`;
+                document.head.appendChild(gaScript);
+
+                const gaInit = document.createElement('script');
+                gaInit.id = 'ga4-init-script';
+                gaInit.innerHTML = `
+                  window.dataLayer = window.dataLayer || [];
+                  function gtag(){dataLayer.push(arguments);}
+                  gtag('js', new Date());
+                  gtag('config', '${gaId}', { send_page_view: true });
+                `;
+                document.head.appendChild(gaInit);
+              }
             }
-            // Track page view for published pages
+
+            // Track page view and record telemetry in the Tenant's collection
+            pageAnalyticsService.recordPageView(
+              db || null,
+              tenantId,
+              foundPage.pageId,
+              pageWithHeader.globalSettings?.googleAnalyticsId
+            );
+
             if (foundPage.published) {
               pageBuilderFirestore.incrementViews(foundPage.pageId, db, tenantId);
             }
@@ -280,6 +333,37 @@ export const PublicPageView: React.FC = () => {
       setPageSections(mapped);
     }
   }, [page, setPageSections]);
+
+  const handleInteraction = (type: 'cta_click' | 'whatsapp' | 'phone' | 'lead', label?: string) => {
+    if (page?.pageId) {
+      pageAnalyticsService.recordInteraction(db || null, tenantId, page.pageId, type, label);
+      if (typeof (window as any).gtag === 'function') {
+        (window as any).gtag('event', type, { event_label: label, page_id: page.pageId });
+      }
+    }
+  };
+
+  // Global click listener for telemetry & CTA clicks
+  useEffect(() => {
+    if (!page?.pageId) return;
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest('a, button');
+      if (!target) return;
+      const href = target.getAttribute('href') || '';
+      if (href.includes('wa.me') || href.includes('whatsapp')) {
+        handleInteraction('whatsapp', 'WhatsApp click');
+      } else if (href.startsWith('tel:')) {
+        handleInteraction('phone', 'Phone call click');
+      } else if (target.tagName.toLowerCase() === 'button') {
+        const text = target.textContent?.trim().slice(0, 30);
+        if (text && !text.includes('ערוך') && !text.includes('מחק')) {
+          handleInteraction('cta_click', text);
+        }
+      }
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, [page?.pageId, db, tenantId]);
 
   if (loading) {
     return (
@@ -404,9 +488,11 @@ export const PublicPageView: React.FC = () => {
         onUpdateGlobalSettings={handleUpdateGlobalSettings}
         onSelectDonationTier={(tierId, mode) => {
           console.log('[PublicPageView] Selected donation tier:', tierId, mode);
+          handleInteraction('cta_click', `Donation tier ${tierId}`);
         }}
         onLeadSubmit={(formData) => {
           console.log('[PublicPageView] Received lead submission:', formData);
+          handleInteraction('lead', 'Form submission');
         }}
       />
 
@@ -415,6 +501,27 @@ export const PublicPageView: React.FC = () => {
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+
+      <PageSettingsDrawer
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        globalSettings={page.globalSettings}
+        onUpdateGlobalSettings={(updated) => {
+          handleUpdateGlobalSettings(updated);
+        }}
+        seoSettings={page.seoSettings}
+        onUpdateSeoSettings={(updated) => {
+          setPage((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, seoSettings: updated };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+            return next;
+          });
+        }}
+        pageTitle={page.pageTitle}
+        pageSections={Object.values(page.sections || {})}
       />
     </div>
   );

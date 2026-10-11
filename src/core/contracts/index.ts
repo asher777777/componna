@@ -166,6 +166,32 @@ export interface CoreEventMap {
     reason: string;
     timestamp: string;
   };
+  'crm:groups:import_requested': {
+    source?: string;
+    tenantId?: string;
+  };
+  'crm:groups:import_completed': {
+    importedCount: number;
+    groupsCount?: number;
+    timestamp: string;
+  };
+  'kesher:sync:requested': {
+    timeframe?: 'all' | 'year' | '3months' | 'week';
+    tenantId?: string;
+    force?: boolean;
+  };
+  'kesher:sync:completed': {
+    success: boolean;
+    createdCount?: number;
+    updatedCount?: number;
+    totalTransactions?: number;
+    message: string;
+    timestamp?: string;
+  };
+  'crm:chart:create_requested': {
+    chart: any;
+    tenantId?: string;
+  };
 }
 
 // ========================

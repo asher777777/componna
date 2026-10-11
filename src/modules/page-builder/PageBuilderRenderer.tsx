@@ -72,25 +72,46 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
     fontFamily: globalSettings.fontFamily || 'Heebo, sans-serif',
   };
 
-  // Schema.org GEO JSON-LD
+  // Schema.org GEO & AIO (Generative Engine Optimization) JSON-LD
   const geo = seoSettings?.geo;
-  const jsonLd = geo?.enabled
+  const hasAio = Boolean(seoSettings?.aiKnowledgeSummary || seoSettings?.aiTargetQuestions?.length);
+
+  const mainEntityLd = (geo?.enabled || hasAio)
     ? {
         '@context': 'https://schema.org',
-        '@type': geo.localBusinessType || 'LocalBusiness',
-        name: geo.localBusinessName || config.pageTitle,
-        description: seoSettings?.description || globalSettings?.slogan,
-        address: {
-          '@type': 'PostalAddress',
-          streetAddress: geo.businessAddress || globalSettings.address,
-          addressLocality: geo.targetCity,
-          addressRegion: geo.targetRegion,
-          addressCountry: geo.targetCountry || 'IL',
-        },
-        telephone: geo.businessPhone || globalSettings.contactPhone,
-        email: geo.businessEmail || globalSettings.contactEmail,
-        openingHours: geo.openingHours,
-        areaServed: geo.serviceAreas,
+        '@type': seoSettings?.aiEntitySchemaType || geo?.localBusinessType || 'LocalBusiness',
+        name: geo?.localBusinessName || config.pageTitle,
+        description: seoSettings?.aiKnowledgeSummary || seoSettings?.description || globalSettings?.slogan,
+        ...(geo?.enabled
+          ? {
+              address: {
+                '@type': 'PostalAddress',
+                streetAddress: geo.businessAddress || globalSettings.address,
+                addressLocality: geo.targetCity,
+                addressRegion: geo.targetRegion,
+                addressCountry: geo.targetCountry || 'IL',
+              },
+              telephone: geo.businessPhone || globalSettings.contactPhone,
+              email: geo.businessEmail || globalSettings.contactEmail,
+              openingHours: geo.openingHours,
+              areaServed: geo.serviceAreas,
+            }
+          : {}),
+      }
+    : null;
+
+  const faqLd = seoSettings?.aiTargetQuestions && seoSettings.aiTargetQuestions.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'FAQPage',
+        mainEntity: seoSettings.aiTargetQuestions.map((q) => ({
+          '@type': 'Question',
+          name: q,
+          acceptedAnswer: {
+            '@type': 'Answer',
+            text: seoSettings.aiKnowledgeSummary || seoSettings.description || config.pageTitle,
+          },
+        })),
       }
     : null;
 
@@ -103,11 +124,17 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
       style={customStyle}
       dir="rtl"
     >
-      {/* Schema.org GEO Script Tag */}
-      {jsonLd && (
+      {/* Schema.org GEO & AIO Entity and FAQ Script Tags */}
+      {mainEntityLd && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(mainEntityLd) }}
+        />
+      )}
+      {faqLd && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }}
         />
       )}
 

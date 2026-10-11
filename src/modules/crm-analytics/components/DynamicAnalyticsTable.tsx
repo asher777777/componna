@@ -3,7 +3,8 @@ import {
   Search, Download, Columns, ArrowUpDown, ArrowUp, ArrowDown, 
   Edit2, Check, X, Filter, ChevronLeft, ChevronRight, FileSpreadsheet,
   MessageSquare, CheckSquare, Square, Send, Smartphone, Sparkles,
-  LayoutGrid, Table as TableIcon, Phone, Trash2, Tag, Users, Loader2, Plus
+  LayoutGrid, Table as TableIcon, Phone, Trash2, Tag, Users, Loader2, Plus,
+  FolderInput, ChevronUp, ChevronDown, BarChart3
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { Contact, DynamicColumn } from '../types';
@@ -20,6 +21,10 @@ interface Props {
   onUpdateField?: (contactId: string, field: string, value: any) => Promise<boolean>;
   onSelectContact?: (contact: Contact) => void;
   loading?: boolean;
+  activeMainTab?: 'table' | 'analytics';
+  onSelectMainTab?: (tab: 'table' | 'analytics') => void;
+  isIngestionBarOpen?: boolean;
+  onToggleIngestionBar?: () => void;
 }
 
 export const DynamicAnalyticsTable: React.FC<Props> = ({
@@ -30,6 +35,10 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
   onUpdateField,
   onSelectContact,
   loading,
+  activeMainTab = 'table',
+  onSelectMainTab,
+  isIngestionBarOpen = false,
+  onToggleIngestionBar,
 }) => {
   // Mobile adaptive view mode detection & toggle
   const [viewMode, setViewMode] = useState<'cards' | 'table'>('table');
@@ -321,6 +330,19 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Main Tab Toggle: Switch to Analytics View (hides table) */}
+          {onSelectMainTab && (
+            <button
+              type="button"
+              onClick={() => onSelectMainTab('analytics')}
+              className="px-2.5 py-1.5 text-xs font-bold bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 border border-indigo-200 dark:border-indigo-800 rounded-lg flex items-center gap-1.5 shadow-xs transition"
+              title="מעבר לתצוגת נתונים, KPI ואנליטיקה (מסתיר את הטבלה)"
+            >
+              <BarChart3 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>נתונים ואנליטיקה</span>
+            </button>
+          )}
+
           {/* Adaptive View Switcher (Cards / Table Toggle) */}
           <div className="flex bg-gray-100 dark:bg-gray-800 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700">
             <button
@@ -348,6 +370,24 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
               <TableIcon className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Ingestion & Sync Hidden Bar Trigger */}
+          {onToggleIngestionBar && (
+            <button
+              type="button"
+              onClick={onToggleIngestionBar}
+              className={`px-2.5 py-1.5 text-xs font-bold rounded-lg flex items-center gap-1.5 border transition ${
+                isIngestionBarOpen
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
+                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-700 hover:bg-gray-50'
+              }`}
+              title="פתח/סגור סרגל פעולות ייבוא, יצירה וסנכרון"
+            >
+              <FolderInput className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">ייבוא וסנכרון</span>
+              {isIngestionBarOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          )}
 
           {/* Column Selector */}
           <div className="relative">
