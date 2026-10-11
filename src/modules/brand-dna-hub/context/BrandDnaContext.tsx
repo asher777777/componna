@@ -38,25 +38,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Register brand-dna capability to host context
-  useEffect(() => {
-    const contract: BrandDnaContract = {
-      getBrandDna: () => brandDna,
-      getSystemPrompt: (moduleRole?: string) => buildBrandSystemContext(brandDna, moduleRole),
-      getDesignTokens: () => brandDna.designTokens,
-      updateBrandDna: async (partial: Partial<BrandDna>) => {
-        setBrandDna((prev) => ({ ...prev, ...partial }));
-        return true;
-      },
-      setLogoUrl,
-      addVibeImage,
-      removeVibeImage,
-    };
-    registerCapability('brand-dna', contract);
-    return () => {
-      unregisterCapability('brand-dna');
-    };
-  }, [brandDna, registerCapability, unregisterCapability, setLogoUrl, addVibeImage, removeVibeImage]);
+
 
 
   // Load initially or when tenant changes
@@ -197,8 +179,25 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   }, [db]);
 
-
-  // Brand Completeness Score & Missing Recommendations calculation
+  // Register brand-dna capability to host context
+  useEffect(() => {
+    const contract: BrandDnaContract = {
+      getBrandDna: () => brandDna,
+      getSystemPrompt: (moduleRole?: string) => buildBrandSystemContext(brandDna, moduleRole),
+      getDesignTokens: () => brandDna.designTokens,
+      updateBrandDna: async (partial: Partial<BrandDna>) => {
+        setBrandDna((prev) => ({ ...prev, ...partial }));
+        return true;
+      },
+      setLogoUrl,
+      addVibeImage,
+      removeVibeImage,
+    };
+    registerCapability('brand-dna', contract);
+    return () => {
+      unregisterCapability('brand-dna');
+    };
+  }, [brandDna, registerCapability, unregisterCapability, setLogoUrl, addVibeImage, removeVibeImage]);
   const { completenessScore, missingRecommendations } = useMemo(() => {
     let score = 0;
     const recommendations: string[] = [];

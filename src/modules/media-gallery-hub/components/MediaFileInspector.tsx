@@ -20,10 +20,16 @@ import {
   Code2,
   Eye,
   Pencil,
+  Wand2,
+  PenTool,
+  Flame,
+  CheckCircle2,
 } from 'lucide-react';
 import { useMediaGallery } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaItem } from '../types';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 
 export const MediaFileInspector: React.FC = () => {
   const {
@@ -47,7 +53,28 @@ export const MediaFileInspector: React.FC = () => {
   const [copied, setCopied] = useState(false);
   const [isEditingName, setIsEditingName] = useState(false);
   const [editNameValue, setEditNameValue] = useState('');
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const { getCapability } = useHostCapabilities();
+  const brandContract = getCapability<BrandDnaContract>('brand-dna');
+  const brandDna = brandContract?.getBrandDna();
+  const isCurrentLogo = Boolean(focusedItem?.url && brandDna?.identity?.logoUrl === focusedItem.url);
+  const isInVibeImages = Boolean(focusedItem?.url && (brandDna?.identity?.vibeImages || []).includes(focusedItem.url));
+
+  const handleSetAsBrandLogo = async () => {
+    if (!focusedItem || !brandContract?.setLogoUrl) return;
+    await brandContract.setLogoUrl(focusedItem.url);
+    setFeedbackMsg('הוגדר כלוגו המותג ב-Brand DNA');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  const handleAddToBrandVibe = async () => {
+    if (!focusedItem || !brandContract?.addVibeImage) return;
+    await brandContract.addVibeImage(focusedItem.url);
+    setFeedbackMsg('נוסף לתמונות האווירה ב-Brand DNA');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
 
   useEffect(() => {
     if (focusedItem) {
@@ -413,17 +440,65 @@ export const MediaFileInspector: React.FC = () => {
           </button>
         </div>
 
-        {/* Gemini AI Image Variation button for images */}
+        {/* Feedback message banner */}
+        {feedbackMsg && (
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5 animate-fade-in">
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{feedbackMsg}</span>
+          </div>
+        )}
+
+        {/* AI Studio & Brand DNA Actions for Images */}
         {focusedItem.type === 'image' && (
-          <button
-            type="button"
-            onClick={() => openAiImageGenerator(focusedItem)}
-            className="w-full p-2 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black text-xs font-black flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer"
-            title="השתמש בתמונה זו כייחוס ליצירת תמונות חדשות ב-Gemini AI"
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>צור וריאציה ב-AI</span>
-          </button>
+          <div className="space-y-1.5">
+            {/* Edit Image with Kosai AI */}
+            <button
+              type="button"
+              onClick={() => openAiImageGenerator(focusedItem)}
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black text-xs font-black flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer"
+              title="ערוך תמונה זו או צור וריאציות עם קושאן AI"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>ערוך עם קושאן AI</span>
+            </button>
+
+            {/* Set as Brand Logo / Add to Vibe Grid */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={handleSetAsBrandLogo}
+                className={`p-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1 rtl:space-x-reverse border transition-all cursor-pointer ${
+                  isCurrentLogo
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                }`}
+                title="קבע תמונה זו כלוגו הרשמי של המותג ב-Brand DNA"
+              >
+                <PenTool className="w-3 h-3 text-amber-500" />
+                <span>{isCurrentLogo ? 'לוגו מותג' : 'קבע כלוגו'}</span>
+                {isCurrentLogo && <Check className="w-3 h-3 text-emerald-400" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddToBrandVibe}
+                className={`p-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1 rtl:space-x-reverse border transition-all cursor-pointer ${
+                  isInVibeImages
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                }`}
+                title="הוסף תמונה זו לתמונות האווירה של המותג ב-Brand DNA"
+              >
+                <Flame className="w-3 h-3 text-amber-500" />
+                <span>{isInVibeImages ? 'באווירה' : 'הוסף לאווירה'}</span>
+                {isInVibeImages && <Check className="w-3 h-3 text-emerald-400" />}
+              </button>
+            </div>
+          </div>
         )}
 
         <div className="grid grid-cols-2 gap-2">

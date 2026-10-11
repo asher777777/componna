@@ -1,6 +1,6 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Grid, X, Check, Lock } from 'lucide-react';
+import { Sparkles, Grid, X, Check, Lock, Edit3 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { CashwanTopNav } from './components/CashwanTopNav';
 import { REGISTERED_MODULES } from './moduleRegistry';
@@ -68,9 +68,10 @@ const WorkbenchRootHome: React.FC = () => {
           <div className="flex items-center gap-2">
             <a
               href="/page-builder"
-              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1 shadow-sm"
+              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-sm"
             >
-              ✏️ עריכה בבונה העמודים
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>עריכה בבונה העמודים</span>
             </a>
             <a
               href="/saas-storefront"

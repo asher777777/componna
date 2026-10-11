@@ -6,6 +6,7 @@ import { HostCapabilitiesProvider } from './core/bridge/HostCapabilitiesContext'
 import { SystemConnectionProvider } from './core/connection/SystemConnectionContext';
 import { MediaPickerHostBridge } from './modules/media-gallery-hub';
 import { BrandDnaProvider } from './modules/brand-dna-hub/context/BrandDnaContext';
+import { KosaiProvider, FloatingKosaiButton, KosaiChatDrawer } from './modules/kosai-engine';
 
 export const App: React.FC = () => {
   return (
@@ -14,8 +15,12 @@ export const App: React.FC = () => {
         <SystemConnectionProvider>
           <BrandDnaProvider>
             <HostCapabilitiesProvider>
-              <TenantAppResolver />
-              <MediaPickerHostBridge />
+              <KosaiProvider>
+                <TenantAppResolver />
+                <MediaPickerHostBridge />
+                <FloatingKosaiButton />
+                <KosaiChatDrawer />
+              </KosaiProvider>
             </HostCapabilitiesProvider>
           </BrandDnaProvider>
         </SystemConnectionProvider>

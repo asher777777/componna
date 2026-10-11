@@ -12,9 +12,11 @@ import {
   Undo2,
   Image as ImageIcon,
   Loader2,
+  Wand2,
 } from 'lucide-react';
 import { MediaItem } from '../types';
 import { useFileEditor, ImageCropArea } from '../hooks/useFileEditor';
+import { useOptionalMediaGallery } from '../context/MediaGalleryContext';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
 

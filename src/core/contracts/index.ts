@@ -146,6 +146,8 @@ export interface CoreEventMap {
     transactionId?: string;
     completedAt: string;
   };
+  'email:automation:triggered': any;
+  'email:campaign:sent': any;
 }
 
 // ========================

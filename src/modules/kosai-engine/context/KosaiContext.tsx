@@ -7,6 +7,9 @@ import { useBrandDna } from '../../brand-dna-hub/context/BrandDnaContext';
 import { callGeminiApi } from '../api/kosaiApi';
 import { buildKosaiSystemPrompt } from '../prompts';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { KosaiAgentContract } from '../../../core/contracts';
+import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
 
 interface KosaiContextValue {
   isOpen: boolean;
@@ -35,6 +38,22 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { brandDna } = useBrandDna();
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
+
+  // Register kosai-agent AI capability for cross-module orchestration
+  useEffect(() => {
+    const contract: KosaiAgentContract = {
+      generateImage: (opts) => kosaiImageAgentService.generateImage({ ...opts, brandDna: opts.brandDna || brandDna }),
+      generateBrandLogo: (opts) => kosaiImageAgentService.generateBrandLogo({ ...opts, brandDna: opts.brandDna || brandDna }),
+      generateBrandVibeImage: (opts) => kosaiImageAgentService.generateBrandVibeImage({ ...opts, brandDna: opts.brandDna || brandDna }),
+      editImageWithAi: (opts) => kosaiImageAgentService.editImageWithAi({ ...opts, brandDna: opts.brandDna || brandDna }),
+      enhancePromptWithBrandContext: (prompt, type, bDna) => kosaiImageAgentService.enhancePromptWithBrandContext(prompt, type, bDna || brandDna),
+    };
+    registerCapability('kosai-agent', contract);
+    return () => {
+      unregisterCapability('kosai-agent');
+    };
+  }, [brandDna, registerCapability, unregisterCapability]);
 
   // Route listening
   useEffect(() => {

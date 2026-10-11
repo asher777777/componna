@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageBuilderConfig } from '../modules/page-builder/types/pageBuilder.types';
 import { PageBuilderRenderer } from '../modules/page-builder/PageBuilderRenderer';
-import { Globe, ShoppingBag, ShieldCheck, Edit3, ArrowRight, Sparkles, UserCheck } from 'lucide-react';
+import { Globe, ShoppingBag, ShieldCheck, Edit3, ArrowRight, Sparkles, UserCheck, Sun, Moon } from 'lucide-react';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { subscribeToAuth, AuthState } from '../services/firebaseAuth';
 import { AuthModal } from '../components/Auth/AuthModal';
@@ -19,6 +19,33 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   const navigate = useNavigate();
   const { firebaseApp } = useSystemConnection();
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('kosun_theme') as 'light' | 'dark') || 
+      (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+  });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      const newTheme = e?.detail?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      setTheme(newTheme);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('kosun_theme', next);
+    localStorage.setItem('kosun_home_theme', next);
+    if (next === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
+  };
   const [authState, setAuthState] = useState<AuthState>({
     user: null,
     uid: null,
@@ -52,9 +79,15 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   const isAdmin = authState.role === 'admin' || authState.role === 'editor';
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0a0c] text-white font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
+    <div className={`min-h-screen flex flex-col font-sans relative selection:bg-indigo-500 selection:text-white transition-colors duration-300 ${
+      theme === 'light' ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#0a0a0c] text-white'
+    }`} dir="rtl">
       {/* Discreet Platform Header Bar */}
-      <header className="sticky top-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/80 px-4 sm:px-6 py-2.5 transition-all">
+      <header className={`sticky top-0 z-50 backdrop-blur-xl border-b px-4 sm:px-6 py-2.5 transition-all ${
+        theme === 'light'
+          ? 'bg-white/90 border-slate-200/90 shadow-sm text-slate-900'
+          : 'bg-slate-950/80 border-slate-800/80 text-white'
+      }`}>
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
           {/* Brand & Badge */}
           <div className="flex items-center gap-2.5">
@@ -124,6 +157,16 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
                 <span>כניסה למערכת</span>
               </button>
             )}
+            {/* Day / Night Mode Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-xl border border-slate-700/80 hover:bg-slate-800 text-amber-400 transition"
+              title={theme === 'light' ? 'מעבר למצב לילה (Dark Mode)' : 'מעבר למצב יום (Light Mode)'}
+              aria-label="החלף ערכת נושא"
+            >
+              {theme === 'light' ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-300" />}
+            </button>
           </div>
         </div>
       </header>

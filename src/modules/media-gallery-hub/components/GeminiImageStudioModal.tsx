@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   X,
   Sparkles,
@@ -11,7 +11,6 @@ import {
   Sliders,
   Layers,
   Info,
-  DollarSign,
   Maximize2,
   ChevronDown,
   UploadCloud,
@@ -26,10 +25,26 @@ import {
   Key,
   Send,
   Crown,
+  PenTool,
+  Palette,
+  Camera,
+  Building,
+  Box,
+  ShoppingBag,
+  ExternalLink,
+  CheckCircle2,
+  SlidersHorizontal,
+  Flame,
+  Compass,
 } from 'lucide-react';
-import { doc, setDoc, collection } from 'firebase/firestore';
 import { useOptionalMediaGallery } from '../context/MediaGalleryContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import {
+  BrandDnaContract,
+  KosaiAgentContract,
+  BrandDna,
+} from '../../../core/contracts';
 import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
 import { FirestoreMediaService } from '../services/firestoreMediaService';
 import {
@@ -45,11 +60,15 @@ import {
 } from '../services/geminiPromptAssistant';
 import { MediaItem } from '../types';
 import { calculateGeminiCost } from '../../../core/ai/geminiCostTracker';
+import { eventBus } from '../../../core/bridge/EventBus';
+
+export type StudioTabMode = 'logo' | 'vibe' | 'edit' | 'custom';
 
 export interface GeminiImageStudioModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialReferenceImage?: MediaItem | null;
+  initialMode?: StudioTabMode;
   onUseImage?: (imageUrl: string, metadata: { title: string; prompt: string; tags: string[] }) => void;
   useButtonLabel?: string;
   defaultAspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4';
@@ -57,10 +76,63 @@ export interface GeminiImageStudioModalProps {
   subtitle?: string;
 }
 
+// Cashwan Branding Tooltip Component (Rule 3: i icon, outside click close, X button)
+const CashwanTooltip = ({ text, title = 'מידע על היכולת' }: { text: string; title?: string }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [isOpen]);
+
+  return (
+    <div className="relative inline-flex items-center ml-1 z-30" ref={containerRef}>
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        className="w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold border border-slate-300 dark:border-slate-700 hover:border-amber-500 bg-slate-100 dark:bg-slate-800 hover:bg-amber-50 dark:hover:bg-amber-950/40 text-slate-500 dark:text-slate-400 hover:text-amber-500 transition cursor-pointer"
+        title={title}
+      >
+        i
+      </button>
+
+      {isOpen && (
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 text-xs rounded-2xl shadow-2xl z-50 border border-slate-200 dark:border-slate-800 animate-fade-in"
+        >
+          <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 dark:border-slate-800">
+            <span className="font-bold text-amber-500 text-[11px]">{title}</span>
+            <button
+              type="button"
+              onClick={() => setIsOpen(false)}
+              className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-0.5"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <p className="leading-relaxed font-normal text-slate-600 dark:text-slate-300 text-[11px]">{text}</p>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-white dark:border-t-slate-900" />
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   isOpen,
   onClose,
   initialReferenceImage,
+  initialMode,
   onUseImage,
   useButtonLabel,
   defaultAspectRatio = '1:1',
@@ -73,38 +145,80 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   const activeFolderId = gallery?.activeFolderId;
   const { apiKeys, updateApiKeys, db, collections, firebaseApp } = useSystemConnection();
   const isLight = theme === 'light';
-  const [isSavingToStorage, setIsSavingToStorage] = useState<boolean>(false);
 
-  // Generation Parameters
-  const [prompt, setPrompt] = useState<string>('');
-  const [enhancedPrompt, setEnhancedPrompt] = useState<string>('');
+  // Host Capabilities Bridges (Rule 4: Zero direct cross-module imports)
+  const { getCapability } = useHostCapabilities();
+  const brandContract = getCapability<BrandDnaContract>('brand-dna');
+  const kosaiAgent = getCapability<KosaiAgentContract>('kosai-agent');
+
+  // Brand DNA context
+  const [brandDna, setBrandDna] = useState<BrandDna | null>(null);
+
+  useEffect(() => {
+    if (brandContract) {
+      setBrandDna(brandContract.getBrandDna());
+    }
+  }, [brandContract, isOpen]);
+
+  // Listen for brand updates over EventBus
+  useEffect(() => {
+    const unsub = eventBus.subscribe('brand:updated', (data) => {
+      if (data?.brandDna) {
+        setBrandDna(data.brandDna);
+      }
+    });
+    return () => unsub();
+  }, []);
+
+  // Studio Mode: Logo, Vibe, Edit, Custom
+  const [activeTab, setActiveTab] = useState<StudioTabMode>(
+    initialMode || (initialReferenceImage ? 'edit' : 'logo')
+  );
+
+  // Logo Studio State
+  const [logoPresetId, setLogoPresetId] = useState<string>('minimalist-vector');
+  const [logoCustomPrompt, setLogoCustomPrompt] = useState<string>('');
+
+  // Vibe Studio State
+  const [vibePresetId, setVibePresetId] = useState<string>('commercial-product');
+  const [vibeCustomPrompt, setVibeCustomPrompt] = useState<string>('');
+
+  // AI Edit Studio State
+  const [editInstruction, setEditInstruction] = useState<string>('');
+
+  // Custom Studio State
+  const [customPrompt, setCustomPrompt] = useState<string>('');
+  const [enhancedCustomPrompt, setEnhancedCustomPrompt] = useState<string>('');
   const [selectedPresetId, setSelectedPresetId] = useState<string>('minimalist-logo');
+  const [injectBrandDnaInCustom, setInjectBrandDnaInCustom] = useState<boolean>(true);
+
+  // Shared Settings
   const [aspectRatio, setAspectRatio] = useState<'1:1' | '16:9' | '9:16' | '4:3' | '3:4'>(defaultAspectRatio);
   const [selectedModel, setSelectedModel] = useState<
     'gemini-3.1-flash-image' | 'gemini-3-pro-image' | 'gemini-3.1-flash-lite-image' | 'imagen-3.0-generate-002'
   >('gemini-3.1-flash-image');
 
-  // Helper to resolve available Google AI API key
+  // Reference Image
+  const [referenceImageBase64, setReferenceImageBase64] = useState<string | null>(null);
+  const [referenceImageName, setReferenceImageName] = useState<string | null>(null);
+
+  // API Key Setting
   const resolveInitialKey = () => {
     if (apiKeys.googleAiApiKey) return apiKeys.googleAiApiKey;
     if (import.meta.env.VITE_GEMINI_API_KEY) return import.meta.env.VITE_GEMINI_API_KEY as string;
     return '';
   };
-
-  // API Key Setting
   const [apiKeyInput, setApiKeyInput] = useState<string>(resolveInitialKey);
   const [isKeyInputOpen, setIsKeyInputOpen] = useState<boolean>(false);
 
-  // Reference Image
-  const [referenceImageBase64, setReferenceImageBase64] = useState<string | null>(null);
-  const [referenceImageName, setReferenceImageName] = useState<string | null>(null);
-
   // Status & Progress
-  const [isEnhancingPrompt, setIsEnhancingPrompt] = useState<boolean>(false);
-  const [enhancementNote, setEnhancementNote] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generationStep, setGenerationStep] = useState<string>('');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSavingToStorage, setIsSavingToStorage] = useState<boolean>(false);
+
+  // Brand DNA Sync Status Feedback
+  const [brandSyncMessage, setBrandSyncMessage] = useState<string | null>(null);
 
   // Result State
   const [generatedResult, setGeneratedResult] = useState<GeminiImageResult | null>(null);
@@ -114,9 +228,6 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   const [newTagInput, setNewTagInput] = useState<string>('');
   const [isSaved, setIsSaved] = useState<boolean>(false);
 
-  // Fullscreen preview in modal
-  const [isFullscreenPreview, setIsFullscreenPreview] = useState<boolean>(false);
-
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load initial reference image if provided
@@ -124,6 +235,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
     if (initialReferenceImage) {
       setReferenceImageBase64(initialReferenceImage.url);
       setReferenceImageName(initialReferenceImage.name);
+      setActiveTab('edit');
     }
   }, [initialReferenceImage]);
 
@@ -138,7 +250,12 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Real-time estimated cost badge calculation
+  const brandName = brandDna?.identity?.companyName || 'קושאן';
+  const brandSlogan = brandDna?.identity?.slogan || '';
+  const brandPrimaryColor = brandDna?.designTokens?.primaryColor || '#6366f1';
+  const brandSecondaryColor = brandDna?.designTokens?.secondaryColor || '#0ea5e9';
+
+  // Cost calculation
   const currentDimensions = getDimensionsForAspectRatio(aspectRatio);
   const estimatedTokens = aspectRatio === '1:1' ? 1120 : 1680;
   const liveCostReport = calculateGeminiCost({
@@ -147,24 +264,13 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
     candidatesTokens: estimatedTokens,
   });
 
-  // Handle AI Prompt Enhancement
-  const handleEnhancePrompt = async () => {
-    if (!prompt.trim()) return;
-    setIsEnhancingPrompt(true);
-    setErrorMessage(null);
-    try {
-      const res = await enhancePromptWithAi(prompt, selectedPresetId, apiKeyInput || apiKeys.googleAiApiKey);
-      setEnhancedPrompt(res.enhancedPromptEn);
-      setEnhancementNote(res.explanationHe);
-    } catch (e: any) {
-      console.warn('Enhance error:', e);
-      setErrorMessage('שגיאה בשדרוג הפרומפט. נסה שנית.');
-    } finally {
-      setIsEnhancingPrompt(false);
-    }
+  // Handle API Key Save
+  const handleSaveApiKey = async () => {
+    await updateApiKeys({ googleAiApiKey: apiKeyInput.trim() });
+    setIsKeyInputOpen(false);
   };
 
-  // Handle Image File Upload for Reference
+  // Reference File Select
   const handleReferenceFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -177,74 +283,204 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  // Save API key
-  const handleSaveApiKey = async () => {
-    await updateApiKeys({ googleAiApiKey: apiKeyInput.trim() });
-    setIsKeyInputOpen(false);
-  };
+  // Quick Action Pills for Editing
+  const quickEditActions = [
+    { label: 'התאם לצבעי המותג', text: `התאם את פלטת הצבעים והתאורה לגווני המותג (${brandPrimaryColor} ו-${brandSecondaryColor}) תוך שמירה על המבנה המקורי` },
+    { label: 'תאורת סטודיו יוקרתית', text: 'הוסף תאורת סטודיו יוקרתית רכה, חדות קולנועית וניגודיות עשירה' },
+    { label: 'הפוך לאיור וקטורי', text: 'הפוך את התמונה לאיור וקטורי מינימליסטי מודרני בסגנון 2026' },
+    { label: 'החלף רקע לחלל הייטק', text: 'הסר את הרקע והחלף בחלל משרדי הייטקיסטי מודרני מואר עם זכוכית ועץ בהיר' },
+    { label: 'שפר חדות ואיכות', text: 'שפר חדות, שחזר פרטים עדינים, והעלה רזולוציה לאיכות הדפסה גבוהה' },
+  ];
 
-  // Main Generation Handler
+  // Main Generation Handler calling KOSAI AI Agent orchestrator
   const handleGenerate = async () => {
-    if (!prompt.trim() && !enhancedPrompt.trim()) {
-      setErrorMessage('אנא הזן תיאור לתמונה.');
-      return;
-    }
-
     setIsGenerating(true);
     setErrorMessage(null);
     setIsSaved(false);
+    setBrandSyncMessage(null);
+
+    const effectiveKey = apiKeyInput || apiKeys.googleAiApiKey || '';
 
     try {
-      let activePrompt = enhancedPrompt.trim();
+      let finalResult: GeminiImageResult;
+      let finalTitle = '';
+      let finalDescription = '';
+      let finalTags: string[] = [];
 
-      // If not enhanced yet, translate & enrich automatically in the background
-      if (!activePrompt) {
-        setGenerationStep('מתרגם ומשדרג פרומפט בעזרת עוזר AI...');
-        try {
-          const enh = await enhancePromptWithAi(prompt, selectedPresetId, apiKeyInput || apiKeys.googleAiApiKey);
-          activePrompt = enh.enhancedPromptEn;
-          setEnhancedPrompt(enh.enhancedPromptEn);
-          setEnhancementNote(enh.explanationHe);
-        } catch {
-          activePrompt = prompt.trim();
+      // 1. Brand Logo Mode
+      if (activeTab === 'logo') {
+        setGenerationStep(`קושאן מייצר לוגו מקצועי עבור "${brandName}"...`);
+        if (kosaiAgent) {
+          const res = await kosaiAgent.generateBrandLogo({
+            prompt: logoCustomPrompt,
+            stylePreset: logoPresetId,
+            brandDna: brandDna || undefined,
+          });
+          finalResult = {
+            imageUrl: res.imageUrl,
+            base64Data: res.base64Data || '',
+            mimeType: res.mimeType || 'image/png',
+            width: res.width,
+            height: res.height,
+            model: res.model,
+            usageReport: res.usageReport || liveCostReport,
+          };
+          finalTitle = res.suggestedTitle || `לוגו מותג - ${brandName}`;
+          finalDescription = res.suggestedDescription || `לוגו מקצועי שנוצר עבור ${brandName} בסנכרון עם Brand DNA.`;
+          finalTags = res.suggestedTags || ['לוגו', 'מיתוג', 'קושאן_AI'];
+        } else {
+          // Fallback direct synthesis
+          const promptEn = `Professional sleek minimalist vector logo for "${brandName}", colors ${brandPrimaryColor} and ${brandSecondaryColor}, ${logoCustomPrompt || 'modern clean geometric branding'}, clean white isolated background`;
+          finalResult = await generateGeminiImage(effectiveKey, {
+            prompt: promptEn,
+            model: 'gemini-3.1-flash-image',
+            aspectRatio: '1:1',
+            customApiKey: effectiveKey,
+          });
+          finalTitle = `לוגו מותג - ${brandName}`;
+          finalDescription = `לוגו מעוצב עבור ${brandName}.`;
+          finalTags = ['לוגו', 'מיתוג', 'קושאן_AI'];
         }
       }
 
-      // Step 1: Generate the Image
-      setGenerationStep(`יוצר תמונה איכותית עם מודל ${selectedModel}...`);
-      const effectiveKey = apiKeyInput || apiKeys.googleAiApiKey || '';
-      const result = await generateGeminiImage(effectiveKey, {
-        prompt: activePrompt,
-        model: selectedModel,
-        aspectRatio: aspectRatio,
-        referenceImageBase64: referenceImageBase64 || undefined,
-        customApiKey: effectiveKey,
-      });
+      // 2. Brand Vibe Mode
+      else if (activeTab === 'vibe') {
+        setGenerationStep(`קושאן מייצר תמונת אווירה עבור "${brandName}"...`);
+        if (kosaiAgent) {
+          const res = await kosaiAgent.generateBrandVibeImage({
+            prompt: vibeCustomPrompt,
+            vibeStyle: vibePresetId,
+            brandDna: brandDna || undefined,
+            aspectRatio: aspectRatio,
+          });
+          finalResult = {
+            imageUrl: res.imageUrl,
+            base64Data: res.base64Data || '',
+            mimeType: res.mimeType || 'image/jpeg',
+            width: res.width,
+            height: res.height,
+            model: res.model,
+            usageReport: res.usageReport || liveCostReport,
+          };
+          finalTitle = res.suggestedTitle || `תמונת אווירה - ${brandName}`;
+          finalDescription = res.suggestedDescription || `תמונת אווירה שנוצרה עבור ${brandName} בסטודיו קושאן.`;
+          finalTags = res.suggestedTags || ['תמונת_אווירה', 'מיתוג', 'קושאן_AI'];
+        } else {
+          const promptEn = `Atmospheric commercial photography for brand "${brandName}", conveying luxury and professionalism, color harmony ${brandPrimaryColor}, ${vibeCustomPrompt}`;
+          finalResult = await generateGeminiImage(effectiveKey, {
+            prompt: promptEn,
+            model: selectedModel,
+            aspectRatio: aspectRatio,
+            customApiKey: effectiveKey,
+          });
+          finalTitle = `תמונת אווירה - ${brandName}`;
+          finalDescription = `תמונת אווירה עבור ${brandName}.`;
+          finalTags = ['תמונת_אווירה', 'מיתוג', 'קושאן_AI'];
+        }
+      }
 
-      setGeneratedResult(result);
+      // 3. AI Edit Mode (With Reference Image)
+      else if (activeTab === 'edit') {
+        if (!referenceImageBase64) {
+          setErrorMessage('אנא בחר תמונה מתוך הגלריה או העלה תמונה לעריכה.');
+          setIsGenerating(false);
+          return;
+        }
+        if (!editInstruction.trim()) {
+          setErrorMessage('אנא הזן הנחיות עריכה עבור קושאן AI.');
+          setIsGenerating(false);
+          return;
+        }
 
-      // Step 2: Auto-encode Hebrew Title, Rich Description, and Semantic Tags with AI
-      setGenerationStep('מקודד כותרת, תיאור ותגיות סמנטיות ב-AI...');
-      const metadata = await generateImageMetadataWithAi(
-        prompt || activePrompt,
-        activePrompt,
-        effectiveKey
-      );
+        setGenerationStep('קושאן מעבד ועורך את התמונה לפי ההנחיות...');
+        if (kosaiAgent) {
+          const res = await kosaiAgent.editImageWithAi({
+            referenceImageBase64,
+            instruction: editInstruction,
+            brandDna: brandDna || undefined,
+            aspectRatio,
+            model: selectedModel,
+            customApiKey: effectiveKey,
+          });
+          finalResult = {
+            imageUrl: res.imageUrl,
+            base64Data: res.base64Data || '',
+            mimeType: res.mimeType || 'image/jpeg',
+            width: res.width,
+            height: res.height,
+            model: res.model,
+            usageReport: res.usageReport || liveCostReport,
+          };
+          finalTitle = res.suggestedTitle || `עריכת תמונה - קושאן AI`;
+          finalDescription = res.suggestedDescription || `עריכה חכמה: ${editInstruction}`;
+          finalTags = res.suggestedTags || ['עריכת_תמונה', 'קושאן_AI'];
+        } else {
+          finalResult = await generateGeminiImage(effectiveKey, {
+            prompt: `Transform and edit image: ${editInstruction}`,
+            model: selectedModel,
+            aspectRatio,
+            referenceImageBase64,
+            customApiKey: effectiveKey,
+          });
+          finalTitle = `עריכת תמונה - קושאן AI`;
+          finalDescription = `עריכה: ${editInstruction}`;
+          finalTags = ['עריכת_תמונה', 'קושאן_AI'];
+        }
+      }
 
-      setResultTitle(metadata.title);
-      setResultDescription(metadata.description);
-      setResultTags(metadata.tags);
+      // 4. Custom Prompt Mode
+      else {
+        if (!customPrompt.trim() && !enhancedCustomPrompt.trim()) {
+          setErrorMessage('אנא הזן תיאור לתמונה.');
+          setIsGenerating(false);
+          return;
+        }
 
-      setGenerationStep('התמונה מוכנה!');
+        let activeP = enhancedCustomPrompt.trim();
+        if (!activeP) {
+          setGenerationStep('קושאן משדרג את הפרומפט בעברית...');
+          try {
+            const enh = await enhancePromptWithAi(customPrompt, selectedPresetId, effectiveKey);
+            activeP = enh.enhancedPromptEn;
+            setEnhancedCustomPrompt(enh.enhancedPromptEn);
+          } catch {
+            activeP = customPrompt.trim();
+          }
+        }
+
+        if (injectBrandDnaInCustom && brandDna) {
+          activeP += `, subtle color palette matching ${brandPrimaryColor} and ${brandSecondaryColor}`;
+        }
+
+        setGenerationStep(`קושאן מייצר תמונה באיכות גבוהה...`);
+        finalResult = await generateGeminiImage(effectiveKey, {
+          prompt: activeP,
+          model: selectedModel,
+          aspectRatio,
+          referenceImageBase64: referenceImageBase64 || undefined,
+          customApiKey: effectiveKey,
+        });
+
+        const meta = await generateImageMetadataWithAi(customPrompt || activeP, activeP, effectiveKey);
+        finalTitle = meta.title;
+        finalDescription = meta.description;
+        finalTags = meta.tags;
+      }
+
+      setGeneratedResult(finalResult);
+      setResultTitle(finalTitle);
+      setResultDescription(finalDescription);
+      setResultTags(finalTags);
+      setGenerationStep('התמונה מוכנה בהצלחה!');
     } catch (err: any) {
-      console.error('Generation failure:', err);
-      setErrorMessage(err?.message || 'חלה שגיאה במהלך יצירת התמונה. אנא נסה שוב.');
+      console.error('[KOSAI Studio Error]:', err);
+      setErrorMessage(err?.message || 'חלה שגיאה ביצירת התמונה. נסה שוב.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Helper to convert generated base64 to File object
+  // Convert Base64 result to File
   const createMediaFile = (name: string): File | undefined => {
     if (!generatedResult?.base64Data) return undefined;
     try {
@@ -256,17 +492,16 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       }
       const blob = new Blob([ab], { type: generatedResult.mimeType || 'image/png' });
       return new File([blob], name, { type: generatedResult.mimeType || 'image/png' });
-    } catch (b64Err) {
-      console.warn('Blob conversion notice:', b64Err);
+    } catch {
       return undefined;
     }
   };
 
-  // Save to Gallery
+  // Save Image To Gallery
   const handleSaveToGallery = async () => {
     if (!generatedResult) return;
 
-    let finalName = resultTitle.trim() || `Gemini_Creation_${Date.now()}.png`;
+    let finalName = resultTitle.trim() || `Kosai_Creation_${Date.now()}.png`;
     if (!finalName.includes('.')) {
       finalName = `${finalName}.png`;
     }
@@ -276,7 +511,6 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       const file = createMediaFile(finalName);
       let storageUrl = generatedResult.imageUrl;
 
-      // 1. Direct Cloud Storage Upload
       if (firebaseApp && file) {
         try {
           storageUrl = await FirebaseStorageMediaService.uploadFileToStorage(
@@ -285,13 +519,12 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
             finalName
           );
         } catch (storageErr) {
-          console.warn('Direct Firebase Storage upload notice:', storageErr);
+          console.warn('Direct upload notice:', storageErr);
         }
       }
 
-      // 2. Prepare lightweight MediaItem without multi-megabyte inline base64 dataUrl
       const newMediaItem: MediaItem = {
-        id: `gemini_img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+        id: `kosai_img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         name: finalName,
         type: 'image',
         mimeType: generatedResult.mimeType || 'image/png',
@@ -305,13 +538,13 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
         description: resultDescription.trim(),
         tags: resultTags,
         folderId: activeFolderId,
-        sourceModule: 'gemini-image-generation',
-        sourceModuleLabel: 'מחולל Gemini AI',
+        sourceModule: 'kosai-engine',
+        sourceModuleLabel: 'קושאן AI Studio',
         metadata: {
-          aiPrompt: enhancedPrompt || prompt,
-          originalUserPrompt: prompt,
+          studioMode: activeTab,
+          brandDnaSynced: true,
           model: generatedResult.model,
-          aspectRatio: aspectRatio,
+          aspectRatio,
           estimatedCostUSD: generatedResult.usageReport.estimatedCostUSD,
           estimatedCostILS: generatedResult.usageReport.estimatedCostILS,
           totalTokens: generatedResult.usageReport.totalTokens,
@@ -328,47 +561,48 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       setIsSaved(true);
     } catch (saveErr: any) {
       console.error('Failed to save to gallery:', saveErr);
-      setErrorMessage(`שגיאה בשמירת התמונה לגלריה: ${saveErr.message || saveErr}`);
+      setErrorMessage(`שגיאה בשמירת התמונה: ${saveErr.message || saveErr}`);
     } finally {
       setIsSavingToStorage(false);
     }
   };
 
-  // Use image in WhatsApp / chat / status with automatic storage upload
-  const handleUseImageAction = async () => {
-    if (!generatedResult || !onUseImage) return;
-
-    let finalName = resultTitle.trim() || `Gemini_Creation_${Date.now()}.png`;
-    if (!finalName.includes('.')) {
-      finalName = `${finalName}.png`;
-    }
-
-    let publicUrl = generatedResult.imageUrl;
-    if (publicUrl.startsWith('data:') && firebaseApp) {
-      setIsSavingToStorage(true);
-      try {
-        const file = createMediaFile(finalName);
-        if (file) {
-          publicUrl = await FirebaseStorageMediaService.uploadFileToStorage(
-            firebaseApp,
-            file,
-            finalName
-          );
-          setGeneratedResult((prev) => (prev ? { ...prev, imageUrl: publicUrl } : null));
-        }
-      } catch (uploadErr) {
-        console.warn('Failed to upload image before use:', uploadErr);
-      } finally {
-        setIsSavingToStorage(false);
+  // Sync to Brand DNA as Logo
+  const handleSyncToBrandLogo = async () => {
+    if (!generatedResult) return;
+    try {
+      const targetUrl = generatedResult.imageUrl;
+      if (brandContract?.setLogoUrl) {
+        await brandContract.setLogoUrl(targetUrl);
       }
+      eventBus.publish('brand:logo_updated', {
+        logoUrl: targetUrl,
+        updatedAt: new Date().toISOString(),
+      });
+      setBrandSyncMessage('הלוגו עודכן בהצלחה ב-Brand DNA של המותג!');
+      setTimeout(() => setBrandSyncMessage(null), 4000);
+    } catch (err: any) {
+      setErrorMessage('שגיאה בסנכרון הלוגו ל-Brand DNA');
     }
+  };
 
-    onUseImage(publicUrl, {
-      title: resultTitle || prompt,
-      prompt: enhancedPrompt || prompt,
-      tags: resultTags,
-    });
-    onClose();
+  // Sync to Brand DNA as Vibe Image
+  const handleSyncToBrandVibe = async () => {
+    if (!generatedResult) return;
+    try {
+      const targetUrl = generatedResult.imageUrl;
+      if (brandContract?.addVibeImage) {
+        await brandContract.addVibeImage(targetUrl);
+      }
+      eventBus.publish('brand:vibe_image_added', {
+        imageUrl: targetUrl,
+        updatedAt: new Date().toISOString(),
+      });
+      setBrandSyncMessage('התמונה נוספה בהצלחה לתמונות האווירה ב-Brand DNA!');
+      setTimeout(() => setBrandSyncMessage(null), 4000);
+    } catch (err: any) {
+      setErrorMessage('שגיאה בסנכרון תמונת האווירה ל-Brand DNA');
+    }
   };
 
   // Download locally
@@ -376,33 +610,10 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
     if (!generatedResult) return;
     const a = document.createElement('a');
     a.href = generatedResult.imageUrl;
-    a.download = resultTitle || 'gemini-ai-image.png';
+    a.download = resultTitle || 'kosai-image.png';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-  };
-
-  // Use as new reference image
-  const handleUseAsReference = () => {
-    if (!generatedResult) return;
-    setReferenceImageBase64(generatedResult.imageUrl);
-    setReferenceImageName(resultTitle || 'תמונת_ייחוס.png');
-    setGeneratedResult(null);
-    setIsSaved(false);
-  };
-
-  // Add Tag
-  const handleAddTag = () => {
-    const trimmed = newTagInput.trim();
-    if (trimmed && !resultTags.includes(trimmed)) {
-      setResultTags([...resultTags, trimmed]);
-      setNewTagInput('');
-    }
-  };
-
-  // Remove Tag
-  const handleRemoveTag = (tagToRemove: string) => {
-    setResultTags(resultTags.filter((t) => t !== tagToRemove));
   };
 
   return (
@@ -411,18 +622,18 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       dir="rtl"
     >
       <div
-        className={`relative w-full max-w-5xl max-h-[92vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden transition-colors duration-200 ${
+        className={`relative w-full max-w-5xl max-h-[94vh] flex flex-col rounded-3xl border shadow-2xl overflow-hidden transition-colors duration-200 ${
           isLight
             ? 'bg-white border-slate-200 text-slate-900'
             : 'bg-slate-900 border-slate-800 text-white'
         }`}
       >
-        {/* Modal Header */}
+        {/* 1. Top Bar (Top Navigation 2026 style, no emojis, Heebo) */}
         <div
-          className={`px-5 py-4 border-b flex items-center justify-between flex-shrink-0 ${
+          className={`px-5 py-3.5 border-b flex items-center justify-between flex-shrink-0 ${
             isLight
-              ? 'bg-gradient-to-r from-amber-50 via-yellow-50 to-orange-50 border-slate-200'
-              : 'bg-gradient-to-r from-yellow-950/30 via-slate-900 to-amber-950/30 border-slate-800'
+              ? 'bg-slate-50 border-slate-200'
+              : 'bg-slate-950 border-slate-800'
           }`}
         >
           <div className="flex items-center space-x-3 rtl:space-x-reverse">
@@ -432,58 +643,51 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
             <div>
               <div className="flex items-center space-x-2 rtl:space-x-reverse">
                 <h2 className="text-base sm:text-lg font-black tracking-tight">
-                  {title || 'סטודיו Gemini AI • יצירת תמונות מושלמות'}
+                  {title || 'קושאן AI Studio • גלריה ומיתוג'}
                 </h2>
-                <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-slate-950 border border-amber-400/50 shadow-xs flex items-center gap-1">
-                  <Crown className="w-3 h-3 text-slate-950 fill-slate-950" />
-                  <span>פונקציית AI למנויים משודרגים (PRO)</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 border border-amber-500/30 flex items-center gap-1">
+                  <Crown className="w-3 h-3 text-amber-500" />
+                  <span>שותף AI חכם</span>
                 </span>
+                <CashwanTooltip
+                  title="אודות הסטודיו של קושאן"
+                  text="רכיב ה-AI של קושאן מסנכרן במדויק את יצירת הלוגואים ותמונות האווירה ישירות עם ה-Brand DNA ומאפשר עריכת תמונות מתוך הגלריה."
+                />
               </div>
-              <p className={`text-xs ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
-                {subtitle || 'מחולל תמונות מתקדם עם עוזר פרומפטים וקידוד כותרת ותיאור אוטומטיים'}
+              <p className={`text-xs ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                {subtitle || `מחובר לזהות המותג: ${brandName}`}
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            {/* API Key configuration toggle */}
+            {/* API Key Modal Trigger */}
             <button
               type="button"
               onClick={() => setIsKeyInputOpen(!isKeyInputOpen)}
-              className={`p-1.5 px-2.5 rounded-xl border text-xs font-semibold flex items-center space-x-1 rtl:space-x-reverse transition-colors cursor-pointer ${
-                apiKeyInput || apiKeys.googleAiApiKey
-                  ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
-                  : 'bg-amber-500/10 text-amber-600 border-amber-500/30'
+              className={`p-2 rounded-xl border text-xs flex items-center gap-1 transition-colors cursor-pointer ${
+                apiKeyInput
+                  ? isLight
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                    : 'bg-emerald-950/40 text-emerald-400 border-emerald-800'
+                  : isLight
+                  ? 'bg-amber-50 text-amber-700 border-amber-300'
+                  : 'bg-amber-950/40 text-amber-400 border-amber-800'
               }`}
-              title="הגדרות מפתח Google AI Gemini"
+              title="הגדרת מפתח Google AI"
             >
               <Key className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">
-                {apiKeyInput || apiKeys.googleAiApiKey ? 'API מחובר' : 'הגדר מפתח API'}
-              </span>
+              <span className="hidden sm:inline font-bold">API</span>
             </button>
 
-            {/* Live Token Cost Tag */}
-            <div
-              className={`hidden sm:flex items-center space-x-1.5 rtl:space-x-reverse text-xs px-3 py-1.5 rounded-xl border font-mono font-medium ${
-                isLight
-                  ? 'bg-white text-slate-700 border-slate-300 shadow-xs'
-                  : 'bg-slate-950 text-yellow-300 border-slate-800'
-              }`}
-              title="עלות משוערת ליצירת תמונה בודדת"
-            >
-              <DollarSign className="w-3.5 h-3.5 text-amber-500" />
-              <span>${liveCostReport.estimatedCostUSD.toFixed(4)}</span>
-              <span className="text-[10px] opacity-75">({liveCostReport.estimatedCostILS.toFixed(3)} ₪)</span>
-            </div>
-
+            {/* Close Button */}
             <button
               type="button"
               onClick={onClose}
-              className={`p-2 rounded-xl transition-colors cursor-pointer ${
+              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
                 isLight
-                  ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                  ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-500'
+                  : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-400'
               }`}
             >
               <X className="w-5 h-5" />
@@ -491,580 +695,622 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
           </div>
         </div>
 
-        {/* Optional Inline API Key Bar */}
+        {/* API Key Dropdown Bar */}
         {isKeyInputOpen && (
           <div
-            className={`px-5 py-2.5 border-b text-xs flex items-center justify-between gap-3 animate-fade-in ${
-              isLight ? 'bg-amber-50/90 border-amber-200' : 'bg-amber-950/40 border-amber-900/60'
+            className={`p-3 border-b flex flex-col sm:flex-row items-center gap-2 text-xs ${
+              isLight ? 'bg-amber-50/70 border-amber-200' : 'bg-slate-950 border-amber-500/20'
             }`}
           >
-            <div className="flex items-center space-x-2 rtl:space-x-reverse flex-1">
-              <Key className="w-4 h-4 text-amber-500 flex-shrink-0" />
-              <span className="font-bold whitespace-nowrap">Google Gemini API Key:</span>
-              <input
-                type="password"
-                placeholder="הדבק כאן את המפתח (AIzaSy...)"
-                value={apiKeyInput}
-                onChange={(e) => setApiKeyInput(e.target.value)}
-                className={`w-full max-w-md px-3 py-1 rounded-lg text-xs font-mono border focus:outline-none ${
-                  isLight ? 'bg-white border-slate-300 text-slate-900' : 'bg-slate-900 border-slate-700 text-white'
-                }`}
-              />
-            </div>
-            <div className="flex items-center space-x-2 rtl:space-x-reverse">
-              <button
-                type="button"
-                onClick={handleSaveApiKey}
-                className="px-3 py-1 bg-amber-500 text-black font-bold rounded-lg hover:bg-amber-400 text-xs shadow cursor-pointer"
-              >
-                שמור
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsKeyInputOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
+            <span className="font-bold flex items-center gap-1.5 flex-shrink-0 text-amber-500">
+              <Key className="w-4 h-4" />
+              <span>מפתח Gemini API:</span>
+            </span>
+            <input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="הזן מפתח API..."
+              className="flex-1 px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-xs font-mono"
+            />
+            <button
+              type="button"
+              onClick={handleSaveApiKey}
+              className="px-4 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-bold text-xs cursor-pointer shadow-sm"
+            >
+              שמור מפתח
+            </button>
           </div>
         )}
 
-        {/* Modal Body - 2 Columns */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 custom-scrollbar">
-          {/* Left Column: Controls & Prompt Studio (7 cols) */}
-          <div className="lg:col-span-7 space-y-5">
-            {/* 1. Prompt Input with AI Assistant Wizard */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse">
-                  <Wand2 className="w-4 h-4 text-amber-500" />
-                  <span>מה תרצה ליצור? (תיאור בעברית או באנגלית)</span>
-                </label>
+        {/* 2. Bento Navigation Tabs (2026 Mobile First Bento) */}
+        <div
+          className={`px-4 pt-3 pb-2 border-b flex items-center gap-2 overflow-x-auto scrollbar-none flex-shrink-0 ${
+            isLight ? 'bg-slate-100/60 border-slate-200' : 'bg-slate-950/70 border-slate-800'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setActiveTab('logo')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'logo'
+                ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20 ring-2 ring-amber-400/50'
+                : isLight
+                ? 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+            }`}
+          >
+            <PenTool className="w-3.5 h-3.5" />
+            <span>לוגו מקצועי למותג</span>
+          </button>
 
-                <button
-                  type="button"
-                  onClick={handleEnhancePrompt}
-                  disabled={isEnhancingPrompt || !prompt.trim()}
-                  className={`text-xs px-3 py-1 rounded-xl font-bold flex items-center space-x-1 rtl:space-x-reverse transition-all cursor-pointer shadow-sm ${
-                    isEnhancingPrompt || !prompt.trim()
-                      ? 'opacity-50 cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600'
-                      : isLight
-                      ? 'bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300'
-                      : 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30 border border-yellow-500/40'
-                  }`}
-                  title="שדרג את הפרומפט לפרומפט קולנועי עשיר באנגלית עם עוזר ה-AI"
-                >
-                  <Sparkles className={`w-3.5 h-3.5 ${isEnhancingPrompt ? 'animate-spin' : ''}`} />
-                  <span>{isEnhancingPrompt ? 'משדרג ב-AI...' : 'שדרג בעזרת AI'}</span>
-                </button>
-              </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('vibe')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'vibe'
+                ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20 ring-2 ring-amber-400/50'
+                : isLight
+                ? 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+            }`}
+          >
+            <Flame className="w-3.5 h-3.5" />
+            <span>תמונות אווירה למותג</span>
+          </button>
 
-              <textarea
-                value={prompt}
-                onChange={(e) => {
-                  setPrompt(e.target.value);
-                  setEnhancedPrompt('');
-                }}
-                placeholder="לדוגמה: לוגו עבור חברת תוכנה לגיבוש קהילות, או: אסטרונאוט שותה קפה בחלל ליד כוכב שבתאי..."
-                rows={3}
-                className={`w-full p-3 rounded-2xl text-xs sm:text-sm resize-none focus:outline-none transition-colors ${
-                  isLight
-                    ? 'bg-slate-50 border border-slate-300 text-slate-900 placeholder-slate-400 focus:border-amber-500 focus:bg-white'
-                    : 'bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:border-yellow-500'
-                }`}
-              />
+          <button
+            type="button"
+            onClick={() => setActiveTab('edit')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'edit'
+                ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20 ring-2 ring-amber-400/50'
+                : isLight
+                ? 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+            }`}
+          >
+            <Wand2 className="w-3.5 h-3.5" />
+            <span>עריכת תמונה ב-AI</span>
+            {referenceImageBase64 && <span className="w-2 h-2 rounded-full bg-emerald-400" />}
+          </button>
 
-              {/* Enhanced Prompt Preview Card */}
-              {enhancedPrompt && (
+          <button
+            type="button"
+            onClick={() => setActiveTab('custom')}
+            className={`px-4 py-2 rounded-2xl text-xs font-black flex items-center gap-2 transition-all cursor-pointer whitespace-nowrap ${
+              activeTab === 'custom'
+                ? 'bg-amber-500 text-black shadow-md shadow-amber-500/20 ring-2 ring-amber-400/50'
+                : isLight
+                ? 'bg-white hover:bg-slate-200 text-slate-700 border border-slate-200'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>יצירה חופשית</span>
+          </button>
+        </div>
+
+        {/* 3. Main Bento Body (2 columns: Form controls on Right, Result/Preview on Left in RTL) */}
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
+          {/* Controls Panel */}
+          <div
+            className={`w-full md:w-[420px] p-4 sm:p-5 overflow-y-auto custom-scrollbar flex-shrink-0 border-b md:border-b-0 md:border-l space-y-4 ${
+              isLight ? 'bg-slate-50/50 border-slate-200' : 'bg-slate-900/60 border-slate-800'
+            }`}
+          >
+            {/* Brand DNA Indicator Card */}
+            <div
+              className={`p-3 rounded-2xl border flex items-center justify-between text-xs ${
+                isLight ? 'bg-white border-slate-200 shadow-xs' : 'bg-slate-850 border-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
                 <div
-                  className={`p-3 rounded-2xl border text-xs space-y-1.5 animate-fade-in ${
-                    isLight
-                      ? 'bg-purple-50/70 border-purple-200 text-purple-950'
-                      : 'bg-purple-950/30 border-purple-900/60 text-purple-200'
-                  }`}
-                >
-                  <div className="flex items-center justify-between font-bold text-[11px] text-purple-600 dark:text-purple-400">
-                    <span className="flex items-center space-x-1 rtl:space-x-reverse">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      <span>פרומפט משודרג באנגלית (יועבר למודל):</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setEnhancedPrompt('')}
-                      className="hover:underline text-[10px] text-purple-500 cursor-pointer"
-                    >
-                      הסר שדרוג
-                    </button>
+                  className="w-4 h-4 rounded-full border shadow-xs"
+                  style={{ backgroundColor: brandPrimaryColor }}
+                />
+                <div>
+                  <span className="font-black text-slate-900 dark:text-white">{brandName}</span>
+                  {brandSlogan && <span className="text-[11px] text-slate-400 block truncate max-w-[200px]">{brandSlogan}</span>}
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                DNA מחובר
+              </span>
+            </div>
+
+            {/* TAB 1: Brand Logo Controls */}
+            {activeTab === 'logo' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 flex items-center justify-between mb-1.5">
+                    <span>סגנון הלוגו</span>
+                    <CashwanTooltip
+                      title="סגנונות לוגו לקושאן"
+                      text="בחר סגנון עיצובי מוביל. קושאן יסנתז את שם המותג, הסלוגן וצבעי ה-DNA לתוך פרומפט וקטורי מלוטש."
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'minimalist-vector', label: 'וקטורי נקי', icon: PenTool },
+                      { id: 'luxury-emblem', label: 'סמל יוקרתי', icon: Crown },
+                      { id: 'modern-3d-glyph', label: 'תלת-ממד 3D', icon: Box },
+                      { id: 'tech-monogram', label: 'מונוגרמה הייטק', icon: Zap },
+                      { id: 'organic-crest', label: 'חותם אלגנטי', icon: Compass },
+                    ].map((st) => {
+                      const Icon = st.icon;
+                      return (
+                        <button
+                          key={st.id}
+                          type="button"
+                          onClick={() => setLogoPresetId(st.id)}
+                          className={`p-2.5 rounded-2xl border text-xs font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                            logoPresetId === st.id
+                              ? 'bg-amber-500 text-black border-amber-500 shadow-sm'
+                              : isLight
+                              ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                              : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                          }`}
+                        >
+                          <Icon className="w-3.5 h-3.5" />
+                          <span>{st.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
-                  <p className="font-mono text-[11px] leading-relaxed text-slate-700 dark:text-slate-300 select-all" dir="ltr">
-                    {enhancedPrompt}
-                  </p>
-                  {enhancementNote && (
-                    <p className="text-[10px] italic text-purple-700 dark:text-purple-300 pt-1 border-t border-purple-200/50 dark:border-purple-800/40">
-                      💡 {enhancementNote}
-                    </p>
-                  )}
                 </div>
-              )}
-            </div>
 
-            {/* 2. Style Presets Selection */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse">
-                <Sliders className="w-4 h-4 text-amber-500" />
-                <span>סגנון אמנותי (Style Preset)</span>
-              </label>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {IMAGE_STYLE_PRESETS.map((preset) => {
-                  const isSelected = selectedPresetId === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => {
-                        setSelectedPresetId(preset.id);
-                        if (enhancedPrompt) {
-                          handleEnhancePrompt();
-                        }
-                      }}
-                      className={`p-2.5 rounded-2xl border text-right transition-all cursor-pointer flex flex-col justify-between ${
-                        isSelected
-                          ? isLight
-                            ? 'bg-amber-100 text-amber-950 border-amber-500 shadow-sm font-bold ring-2 ring-amber-500/20'
-                            : 'bg-yellow-500/20 text-yellow-200 border-yellow-500 shadow-md font-bold ring-2 ring-yellow-500/30'
-                          : isLight
-                          ? 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          : 'bg-slate-950 border-slate-800 text-slate-300 hover:bg-slate-800/60'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-1.5 rtl:space-x-reverse mb-1">
-                        <span className="text-base">{preset.icon}</span>
-                        <span className="text-[11px] font-bold truncate">{preset.nameHe}</span>
-                      </div>
-                      <span className={`text-[9px] line-clamp-2 leading-tight ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                        {preset.description}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* 3. Aspect Ratio & Model Selector */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Aspect Ratio */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold flex items-center space-x-1 rtl:space-x-reverse">
-                  <Maximize2 className="w-3.5 h-3.5 text-amber-500" />
-                  <span>יחס תמונה (Aspect Ratio)</span>
-                </label>
-                <div className="grid grid-cols-5 gap-1">
-                  {(['1:1', '16:9', '9:16', '4:3', '3:4'] as const).map((ratio) => (
-                    <button
-                      key={ratio}
-                      type="button"
-                      onClick={() => setAspectRatio(ratio)}
-                      className={`py-2 px-1 rounded-xl text-xs font-bold text-center border transition-all cursor-pointer ${
-                        aspectRatio === ratio
-                          ? isLight
-                            ? 'bg-amber-500 text-black border-amber-500 shadow-sm'
-                            : 'bg-yellow-500 text-black border-yellow-500 shadow-md'
-                          : isLight
-                          ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:bg-slate-800'
-                      }`}
-                    >
-                      {ratio}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Gemini Model */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold flex items-center space-x-1 rtl:space-x-reverse">
-                  <Zap className="w-3.5 h-3.5 text-amber-500" />
-                  <span>מודל AI</span>
-                </label>
-                <select
-                  value={selectedModel}
-                  onChange={(e) => setSelectedModel(e.target.value as any)}
-                  className={`w-full p-2 rounded-xl text-xs font-semibold border cursor-pointer focus:outline-none ${
-                    isLight
-                      ? 'bg-slate-100 border-slate-300 text-slate-800'
-                      : 'bg-slate-950 border-slate-800 text-white'
-                  }`}
-                >
-                  <option value="gemini-3.1-flash-image">⚡ Nano Banana 2 (Gemini 3.1 Flash Image)</option>
-                  <option value="gemini-3-pro-image">💎 Nano Banana Pro (Gemini 3 Pro Image)</option>
-                  <option value="gemini-3.1-flash-lite-image">🚀 Nano Banana 2 Lite (Fast & Cheap)</option>
-                  <option value="imagen-3.0-generate-002">🎨 Google Imagen 3 (Studio Grade)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* 4. Reference Image (Image-to-Image / Style Transfer) */}
-            <div className="space-y-2 pt-1 border-t border-dashed border-slate-300 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse">
-                  <ImageIcon className="w-4 h-4 text-amber-500" />
-                  <span>תמונת ייחוס (אופציונלי - להעברת סגנון / Image-to-Image)</span>
-                </label>
-                {referenceImageBase64 && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setReferenceImageBase64(null);
-                      setReferenceImageName(null);
-                    }}
-                    className="text-[11px] text-red-500 hover:underline cursor-pointer"
-                  >
-                    הסר תמונת ייחוס
-                  </button>
-                )}
-              </div>
-
-              {referenceImageBase64 ? (
-                <div
-                  className={`p-2.5 rounded-2xl border flex items-center space-x-3 rtl:space-x-reverse ${
-                    isLight ? 'bg-amber-50 border-amber-300' : 'bg-yellow-500/10 border-yellow-500/30'
-                  }`}
-                >
-                  <img
-                    src={referenceImageBase64}
-                    alt="Reference"
-                    className="w-12 h-12 rounded-xl object-cover border border-amber-500/40"
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1 block">
+                    דגשים נוספים לקושאן (אופציונלי)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={logoCustomPrompt}
+                    onChange={(e) => setLogoCustomPrompt(e.target.value)}
+                    placeholder="למשל: סמל של נשר גיאומטרי, אותיות K ו-C משולבות..."
+                    className={`w-full p-3 rounded-2xl border text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors ${
+                      isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                    }`}
                   />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-bold truncate">{referenceImageName || 'תמונת ייחוס נבחרה'}</p>
-                    <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      המודל ישתמש בתמונה זו כבסיס לקומפוזיציה ולסגנון
-                    </p>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: Brand Vibe Controls */}
+            {activeTab === 'vibe' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 flex items-center justify-between mb-1.5">
+                    <span>סוג תמונת האווירה</span>
+                    <CashwanTooltip
+                      title="תמונות אווירה למותג"
+                      text="תמונות פרסומיות קולנועיות המותאמות לחזון, לתחום העיסוק ולצבעי המותג עבור דפי נחיתה, רשתות וקמפיינים."
+                    />
+                  </label>
+                  <div className="grid grid-cols-1 gap-2">
+                    {[
+                      { id: 'commercial-product', label: 'צילום מוצר מסחרי יוקרתי', icon: ShoppingBag },
+                      { id: 'modern-workspace', label: 'סביבת עבודה והייטק', icon: Building },
+                      { id: 'warm-executive', label: 'אווירה חמימה ויוקרתית', icon: Palette },
+                      { id: 'cinematic-story', label: 'סיפור מותג קולנועי (85mm)', icon: Camera },
+                      { id: 'creative-abstract', label: 'אבסטרקט ואמנות דיגיטלית', icon: Wand2 },
+                    ].map((vt) => {
+                      const Icon = vt.icon;
+                      return (
+                        <button
+                          key={vt.id}
+                          type="button"
+                          onClick={() => setVibePresetId(vt.id)}
+                          className={`p-2.5 rounded-2xl border text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
+                            vibePresetId === vt.id
+                              ? 'bg-amber-500 text-black border-amber-500 shadow-sm'
+                              : isLight
+                              ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                              : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                          }`}
+                        >
+                          <span className="flex items-center gap-2">
+                            <Icon className="w-3.5 h-3.5" />
+                            <span>{vt.label}</span>
+                          </span>
+                          {vibePresetId === vt.id && <Check className="w-3.5 h-3.5" />}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`p-3 rounded-2xl border border-dashed text-center cursor-pointer transition-colors flex items-center justify-center space-x-2 rtl:space-x-reverse ${
-                    isLight
-                      ? 'border-slate-300 hover:border-amber-500 hover:bg-amber-50/50 text-slate-600'
-                      : 'border-slate-700 hover:border-yellow-500 hover:bg-slate-800/40 text-slate-400'
-                  }`}
-                >
-                  <UploadCloud className="w-4 h-4 text-amber-500" />
-                  <span className="text-xs font-medium">העלה תמונת ייחוס מהמחשב או גרור לכאן</span>
+
+                {/* Aspect Ratio for Vibe */}
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1.5 block">
+                    יחס תמונה (Aspect Ratio)
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: '16:9', label: '16:9 לרוחב' },
+                      { id: '1:1', label: '1:1 ריבוע' },
+                      { id: '9:16', label: '9:16 סטורי' },
+                    ].map((ar) => (
+                      <button
+                        key={ar.id}
+                        type="button"
+                        onClick={() => setAspectRatio(ar.id as any)}
+                        className={`py-2 px-1 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          aspectRatio === ar.id
+                            ? 'bg-amber-500 text-black border-amber-500'
+                            : isLight
+                            ? 'bg-white border-slate-200 text-slate-700'
+                            : 'bg-slate-800 border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {ar.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1 block">
+                    תיאור הסצנה לקושאן (אופציונלי)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={vibeCustomPrompt}
+                    onChange={(e) => setVibeCustomPrompt(e.target.value)}
+                    placeholder="למשל: יזם יושב מול לפטופ בבית קפה מואר, כוס קפה ועציץ..."
+                    className={`w-full p-3 rounded-2xl border text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors ${
+                      isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: AI Edit Controls */}
+            {activeTab === 'edit' && (
+              <div className="space-y-4">
+                {/* Reference Image preview */}
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 flex items-center justify-between mb-1.5">
+                    <span>תמונת המקור לעריכה</span>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-amber-500 hover:underline text-[11px] font-bold"
+                    >
+                      החלף תמונה
+                    </button>
+                  </label>
                   <input
                     ref={fileInputRef}
                     type="file"
                     accept="image/*"
-                    onChange={handleReferenceFileSelect}
                     className="hidden"
+                    onChange={handleReferenceFileSelect}
+                  />
+
+                  {referenceImageBase64 ? (
+                    <div className="relative p-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-black/40 flex items-center gap-3">
+                      <img
+                        src={referenceImageBase64}
+                        alt="Reference"
+                        className="w-14 h-14 object-cover rounded-xl border border-slate-700"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-bold block truncate">{referenceImageName || 'תמונה מתוך הגלריה'}</span>
+                        <span className="text-[10px] text-emerald-400 flex items-center gap-1">
+                          <Check className="w-3 h-3" /> טעונה ומוכנה לעריכה
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className={`w-full p-4 rounded-2xl border border-dashed flex flex-col items-center justify-center gap-2 cursor-pointer transition-colors ${
+                        isLight
+                          ? 'border-slate-300 hover:border-amber-500 bg-white'
+                          : 'border-slate-700 hover:border-amber-500 bg-slate-900/60'
+                      }`}
+                    >
+                      <UploadCloud className="w-6 h-6 text-amber-500" />
+                      <span className="text-xs font-bold">העלה או בחר תמונה מתוך הגלריה לעריכה</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Edit Instructions */}
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1.5 block">
+                    הנחיות עריכה לקושאן AI
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={editInstruction}
+                    onChange={(e) => setEditInstruction(e.target.value)}
+                    placeholder="הסבר לקושאן מה לשנות או לשפר בתמונה (למשל: שנה תאורה לקולנועית, התאם לצבעי המותג, הסר רקע...)"
+                    className={`w-full p-3 rounded-2xl border text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors ${
+                      isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                    }`}
                   />
                 </div>
-              )}
-            </div>
 
-            {/* Error Message */}
-            {errorMessage && (
-              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-500 text-xs flex items-center space-x-2 rtl:space-x-reverse">
-                <Info className="w-4 h-4 flex-shrink-0" />
-                <span>{errorMessage}</span>
+                {/* Quick Edit Pills */}
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 mb-1.5 block">פעולות עריכה מהירות:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {quickEditActions.map((qa) => (
+                      <button
+                        key={qa.label}
+                        type="button"
+                        onClick={() => setEditInstruction(qa.text)}
+                        className={`text-[11px] px-2.5 py-1 rounded-xl border font-bold transition-all cursor-pointer ${
+                          editInstruction === qa.text
+                            ? 'bg-amber-500 text-black border-amber-500'
+                            : isLight
+                            ? 'bg-white hover:bg-slate-100 border-slate-200 text-slate-700'
+                            : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {qa.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* Main Action Button */}
+            {/* TAB 4: Custom Studio Controls */}
+            {activeTab === 'custom' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1.5 block">
+                    תיאור התמונה (פרומפט חופשי)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={customPrompt}
+                    onChange={(e) => setCustomPrompt(e.target.value)}
+                    placeholder="תאר את התמונה שתרצה ליצור..."
+                    className={`w-full p-3 rounded-2xl border text-xs focus:outline-none focus:ring-1 focus:ring-amber-500 transition-colors ${
+                      isLight ? 'bg-white border-slate-200 text-slate-900' : 'bg-slate-900 border-slate-800 text-white'
+                    }`}
+                  />
+                </div>
+
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 text-xs">
+                  <span className="font-bold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>סנכרן עם צבעי Brand DNA</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={injectBrandDnaInCustom}
+                    onChange={(e) => setInjectBrandDnaInCustom(e.target.checked)}
+                    className="w-4 h-4 rounded text-amber-500"
+                  />
+                </div>
+
+                {/* Aspect Ratio */}
+                <div>
+                  <label className="text-xs font-black uppercase text-slate-500 dark:text-slate-400 mb-1 block">
+                    יחס תמונה
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: '1:1', label: '1:1 ריבוע' },
+                      { id: '16:9', label: '16:9 רוחב' },
+                      { id: '9:16', label: '9:16 סטורי' },
+                    ].map((ar) => (
+                      <button
+                        key={ar.id}
+                        type="button"
+                        onClick={() => setAspectRatio(ar.id as any)}
+                        className={`py-1.5 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                          aspectRatio === ar.id
+                            ? 'bg-amber-500 text-black border-amber-500'
+                            : isLight
+                            ? 'bg-white border-slate-200 text-slate-700'
+                            : 'bg-slate-800 border-slate-700 text-slate-300'
+                        }`}
+                      >
+                        {ar.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Error Message */}
+            {errorMessage && (
+              <div className="p-3 rounded-2xl bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold animate-fade-in">
+                {errorMessage}
+              </div>
+            )}
+
+            {/* Sync Feedback Message */}
+            {brandSyncMessage && (
+              <div className="p-3 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-2 animate-fade-in">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{brandSyncMessage}</span>
+              </div>
+            )}
+
+            {/* Generate Action Button */}
             <button
               type="button"
               onClick={handleGenerate}
-              disabled={isGenerating || (!prompt.trim() && !enhancedPrompt.trim())}
-              className={`w-full py-3.5 rounded-2xl font-black text-sm flex items-center justify-center space-x-2 rtl:space-x-reverse shadow-xl transition-all cursor-pointer active:scale-98 ${
-                isGenerating || (!prompt.trim() && !enhancedPrompt.trim())
-                  ? 'opacity-50 cursor-not-allowed bg-slate-300 text-slate-500 dark:bg-slate-800 dark:text-slate-600'
-                  : 'bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black shadow-amber-500/25 hover:shadow-amber-500/40'
-              }`}
+              disabled={isGenerating}
+              className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-400 text-black font-black text-sm flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 transition-all cursor-pointer disabled:opacity-50 active:scale-98"
             >
               {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 animate-spin" />
-                  <span>{generationStep || 'מעבד תמונה ב-AI...'}</span>
+                  <span>{generationStep || 'מעבד ב-AI...'}</span>
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>צור תמונה מושלמת עכשיו</span>
+                  <Wand2 className="w-4 h-4 text-black" />
+                  <span>
+                    {activeTab === 'logo'
+                      ? `קושאן, עצב לוגו עבור ${brandName}`
+                      : activeTab === 'vibe'
+                      ? `קושאן, צור תמונת אווירה`
+                      : activeTab === 'edit'
+                      ? `קושאן, בצע עריכה לתמונה`
+                      : `קושאן, צור תמונה ב-AI`}
+                  </span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Right Column: Live Generation Canvas & Metadata Studio (5 cols) */}
-          <div className="lg:col-span-5 flex flex-col space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold flex items-center space-x-1.5 rtl:space-x-reverse">
-                <FileImage className="w-4 h-4 text-amber-500" />
-                <span>תצוגה מקדימה וקידוד נתונים</span>
-              </label>
-
-              {generatedResult && (
-                <div className="flex items-center space-x-1 rtl:space-x-reverse">
-                  <button
-                    type="button"
-                    onClick={() => setIsFullscreenPreview(true)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 text-xs cursor-pointer"
-                    title="תצוגה מוגדלת"
-                  >
-                    <Maximize2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Result Image Preview Card */}
-            <div
-              className={`relative w-full rounded-3xl border overflow-hidden flex items-center justify-center min-h-[260px] max-h-[340px] ${
-                isLight ? 'bg-slate-100 border-slate-200' : 'bg-slate-950 border-slate-800'
-              }`}
-            >
+          {/* Result / Preview Canvas */}
+          <div
+            className={`flex-1 min-h-[350px] p-4 sm:p-6 flex flex-col justify-between overflow-y-auto ${
+              isLight ? 'bg-slate-100/50' : 'bg-slate-950/90'
+            }`}
+          >
+            {/* Center Canvas */}
+            <div className="flex-1 flex items-center justify-center min-h-[280px] relative">
               {isGenerating ? (
-                <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
-                  <div className="w-14 h-14 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-500 flex items-center justify-center animate-pulse">
-                    <Sparkles className="w-7 h-7 animate-spin" />
+                <div className="flex flex-col items-center justify-center space-y-3 text-center p-6">
+                  <div className="w-16 h-16 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-500 animate-pulse">
+                    <Sparkles className="w-8 h-8" />
                   </div>
-                  <div className="space-y-1">
-                    <p className="font-bold text-xs">{generationStep}</p>
-                    <p className={`text-[10px] ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-                      יוצר רזולוציה אופטימלית {currentDimensions.width}x{currentDimensions.height}
-                    </p>
+                  <div>
+                    <h4 className="font-black text-sm sm:text-base">קושאן יוצר עבורך תוצר מושלם...</h4>
+                    <p className="text-xs text-slate-400 mt-1">{generationStep}</p>
                   </div>
                 </div>
               ) : generatedResult ? (
-                <img
-                  src={generatedResult.imageUrl}
-                  alt={resultTitle}
-                  className="w-full h-full object-contain cursor-pointer hover:scale-102 transition-transform duration-300"
-                  onClick={() => setIsFullscreenPreview(true)}
-                />
+                <div className="relative max-h-full max-w-full flex items-center justify-center group">
+                  <img
+                    src={generatedResult.imageUrl}
+                    alt={resultTitle || 'נוצר ב-AI'}
+                    className="max-h-[55vh] max-w-full object-contain rounded-2xl shadow-2xl border border-slate-700/60"
+                  />
+                  {isSaved && (
+                    <span className="absolute top-3 right-3 px-3 py-1 rounded-full bg-emerald-500/90 text-black text-xs font-black shadow-md flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> נשמר בגלריה
+                    </span>
+                  )}
+                </div>
               ) : (
-                <div className="flex flex-col items-center justify-center p-6 text-center space-y-2">
-                  <div
-                    className={`w-12 h-12 rounded-2xl border flex items-center justify-center text-xl ${
-                      isLight ? 'bg-white border-slate-300 text-slate-400' : 'bg-slate-900 border-slate-800 text-slate-600'
-                    }`}
-                  >
-                    🎨
+                <div className="text-center p-6 space-y-3 max-w-sm">
+                  <div className="w-16 h-16 rounded-3xl bg-slate-800/40 border border-slate-700/50 flex items-center justify-center mx-auto text-slate-500">
+                    <ImageIcon className="w-8 h-8 opacity-40" />
                   </div>
-                  <p className={`text-xs font-bold ${isLight ? 'text-slate-700' : 'text-slate-300'}`}>
-                    התמונה שתיווצר תוצג כאן
-                  </p>
-                  <p className={`text-[10px] max-w-xs ${isLight ? 'text-slate-500' : 'text-slate-500'}`}>
-                    הזן תיאור משמאל ולחץ על "צור תמונה מושלמת"
-                  </p>
+                  <div>
+                    <h4 className="font-black text-sm text-slate-400">התצוגה המקדימה תופיע כאן</h4>
+                    <p className="text-xs text-slate-500 mt-1">
+                      בחר הגדרות ולחץ על כפתור היצירה של קושאן כדי להפיק לוגו, תמונות אווירה או עריכת AI
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Generated Metadata Panel (Auto-Encoded by AI) */}
+            {/* Bottom Actions Bar (Appears when result is ready) */}
             {generatedResult && (
               <div
-                className={`p-3.5 rounded-2xl border space-y-3 animate-fade-in ${
-                  isLight ? 'bg-white border-slate-200 shadow-sm' : 'bg-slate-950/80 border-slate-800'
+                className={`mt-4 p-3.5 rounded-2xl border flex flex-col sm:flex-row items-center justify-between gap-3 animate-fade-in ${
+                  isLight ? 'bg-white border-slate-200' : 'bg-slate-900 border-slate-800'
                 }`}
               >
-                {/* Auto Title */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold flex items-center space-x-1 rtl:space-x-reverse text-amber-600 dark:text-yellow-400">
-                    <Type className="w-3 h-3" />
-                    <span>כותרת קובץ שנוצרה ב-AI:</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={resultTitle}
-                    onChange={(e) => setResultTitle(e.target.value)}
-                    className={`w-full p-2 rounded-xl text-xs font-bold border focus:outline-none ${
-                      isLight
-                        ? 'bg-slate-50 border-slate-300 text-slate-900 focus:border-amber-500'
-                        : 'bg-slate-900 border-slate-700 text-white focus:border-yellow-500'
-                    }`}
-                    dir="auto"
-                  />
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-bold text-xs sm:text-sm truncate">{resultTitle}</h4>
+                  <p className="text-[11px] text-slate-400 truncate">{resultDescription}</p>
                 </div>
 
-                {/* Auto Description */}
-                <div className="space-y-1">
-                  <label className="text-[11px] font-bold flex items-center space-x-1 rtl:space-x-reverse text-amber-600 dark:text-yellow-400">
-                    <FileText className="w-3 h-3" />
-                    <span>תיאור תוכן ואווירה שקודד ב-AI:</span>
-                  </label>
-                  <textarea
-                    value={resultDescription}
-                    onChange={(e) => setResultDescription(e.target.value)}
-                    rows={2}
-                    className={`w-full p-2 rounded-xl text-xs resize-none border focus:outline-none ${
-                      isLight
-                        ? 'bg-slate-50 border-slate-300 text-slate-800 focus:border-amber-500'
-                        : 'bg-slate-900 border-slate-700 text-slate-200 focus:border-yellow-500'
-                    }`}
-                    dir="auto"
-                  />
-                </div>
-
-                {/* Semantic Tags */}
-                <div className="space-y-1.5">
-                  <label className="text-[11px] font-bold flex items-center space-x-1 rtl:space-x-reverse text-amber-600 dark:text-yellow-400">
-                    <Tag className="w-3 h-3" />
-                    <span>תגיות סמנטיות:</span>
-                  </label>
-                  <div className="flex flex-wrap gap-1">
-                    {resultTags.map((tag) => (
-                      <span
-                        key={tag}
-                        className={`text-[10px] font-semibold px-2 py-0.5 rounded-lg border flex items-center space-x-1 rtl:space-x-reverse ${
-                          isLight
-                            ? 'bg-amber-50 text-amber-900 border-amber-200'
-                            : 'bg-yellow-500/10 text-yellow-300 border-yellow-500/30'
-                        }`}
-                      >
-                        <span>#{tag}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveTag(tag)}
-                          className="hover:text-red-500 mr-1"
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))}
-                    <div className="inline-flex items-center space-x-1 rtl:space-x-reverse">
-                      <input
-                        type="text"
-                        placeholder="+ תגית..."
-                        value={newTagInput}
-                        onChange={(e) => setNewTagInput(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
-                        className={`text-[10px] px-2 py-0.5 rounded-lg border focus:outline-none w-16 ${
-                          isLight ? 'bg-slate-50 border-slate-300' : 'bg-slate-900 border-slate-700 text-white'
-                        }`}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Cost & Token Accounting */}
-                <div
-                  className={`p-2 rounded-xl text-[10px] font-mono flex items-center justify-between border ${
-                    isLight ? 'bg-slate-50 border-slate-200 text-slate-600' : 'bg-slate-900 border-slate-800 text-slate-400'
-                  }`}
-                >
-                  <span>טוקנים: {generatedResult.usageReport.totalTokens.toLocaleString()}</span>
-                  <span className="font-bold text-amber-600 dark:text-yellow-400">
-                    עלות: ${generatedResult.usageReport.estimatedCostUSD.toFixed(5)} ({generatedResult.usageReport.estimatedCostILS.toFixed(4)} ₪)
-                  </span>
-                </div>
-
-                {/* Result Actions */}
-                <div className="space-y-2 pt-1">
-                  {onUseImage && (
+                <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
+                  {/* Brand DNA Synchronization Buttons */}
+                  {activeTab === 'logo' && (
                     <button
                       type="button"
-                      onClick={handleUseImageAction}
-                      disabled={isSavingToStorage}
-                      className="w-full py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white shadow-lg shadow-emerald-600/30 cursor-pointer transition transform hover:scale-[1.01] disabled:opacity-60"
+                      onClick={handleSyncToBrandLogo}
+                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black text-xs flex items-center gap-1.5 shadow-md cursor-pointer hover:opacity-90 transition"
+                      title="קבע תמונה זו כלוגו הרשמי של המותג"
                     >
-                      {isSavingToStorage ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                      <span>{isSavingToStorage ? 'מעלה ומכין תמונה לשליחה...' : (useButtonLabel || '🚀 השתמש בתמונה ושגר')}</span>
+                      <PenTool className="w-3.5 h-3.5" />
+                      <span>סנכרן כלוגו ב-DNA</span>
                     </button>
                   )}
 
-                  <div className="grid grid-cols-2 gap-2">
+                  {activeTab === 'vibe' && (
                     <button
                       type="button"
-                      onClick={handleSaveToGallery}
-                      disabled={isSaved || isSavingToStorage}
-                      className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse cursor-pointer shadow transition-all ${
-                        isSaved
-                          ? 'bg-emerald-600 text-white cursor-default'
-                          : 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black'
-                      } disabled:opacity-60`}
+                      onClick={handleSyncToBrandVibe}
+                      className="px-3 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black text-xs flex items-center gap-1.5 shadow-md cursor-pointer hover:opacity-90 transition"
+                      title="הוסף תמונה זו לתמונות האווירה של המותג"
                     >
-                      {isSavingToStorage ? (
-                        <>
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                          <span>מעלה לענן...</span>
-                        </>
-                      ) : isSaved ? (
-                        <>
-                          <Check className="w-3.5 h-3.5" />
-                          <span>נשמר בהצלחה בגלריה!</span>
-                        </>
-                      ) : (
-                        <>
-                          <FolderPlus className="w-3.5 h-3.5" />
-                          <span>שמור לגלריה</span>
-                        </>
-                      )}
+                      <Flame className="w-3.5 h-3.5" />
+                      <span>הוסף לאווירת DNA</span>
                     </button>
+                  )}
 
+                  {/* Save to Drive Gallery */}
+                  <button
+                    type="button"
+                    onClick={handleSaveToGallery}
+                    disabled={isSavingToStorage || isSaved}
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                      isSaved
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                        : 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-md'
+                    }`}
+                  >
+                    {isSavingToStorage ? (
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    ) : isSaved ? (
+                      <Check className="w-3.5 h-3.5" />
+                    ) : (
+                      <FolderPlus className="w-3.5 h-3.5" />
+                    )}
+                    <span>{isSaved ? 'נשמר' : 'שמור בגלריה'}</span>
+                  </button>
+
+                  {/* Use Image Callback (e.g. from picker host) */}
+                  {onUseImage && (
                     <button
                       type="button"
-                      onClick={handleDownloadImage}
-                      className={`py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center space-x-1.5 rtl:space-x-reverse border cursor-pointer transition-all ${
-                        isLight
-                          ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-800'
-                          : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                      }`}
+                      onClick={() => {
+                        onUseImage(generatedResult.imageUrl, {
+                          title: resultTitle,
+                          prompt: resultDescription,
+                          tags: resultTags,
+                        });
+                        onClose();
+                      }}
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
                     >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>הורד למחשב</span>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>{useButtonLabel || 'בחר תמונה זו'}</span>
                     </button>
-                  </div>
+                  )}
+
+                  {/* Download locally */}
+                  <button
+                    type="button"
+                    onClick={handleDownloadImage}
+                    className={`p-2 rounded-xl border text-xs transition cursor-pointer ${
+                      isLight
+                        ? 'bg-slate-100 hover:bg-slate-200 border-slate-300 text-slate-700'
+                        : 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
+                    }`}
+                    title="הורד תמונה למחשב"
+                  >
+                    <Download className="w-4 h-4" />
+                  </button>
                 </div>
-
-                {/* Iterate / Image-to-Image helper */}
-                <button
-                  type="button"
-                  onClick={handleUseAsReference}
-                  className={`w-full py-1.5 rounded-xl text-[11px] font-medium flex items-center justify-center space-x-1 rtl:space-x-reverse transition-colors cursor-pointer ${
-                    isLight
-                      ? 'text-purple-700 hover:bg-purple-50'
-                      : 'text-purple-300 hover:bg-purple-950/40'
-                  }`}
-                >
-                  <ArrowRight className="w-3 h-3 rtl:rotate-180" />
-                  <span>השתמש בתמונה זו כייחוס ליצירת וריאציה נוספת</span>
-                </button>
               </div>
             )}
           </div>
         </div>
       </div>
-
-      {/* Fullscreen Zoom Preview Modal */}
-      {isFullscreenPreview && generatedResult && (
-        <div
-          className="fixed inset-0 z-60 bg-black/95 flex flex-col items-center justify-center p-4 animate-fade-in"
-          onClick={() => setIsFullscreenPreview(false)}
-        >
-          <button
-            type="button"
-            onClick={() => setIsFullscreenPreview(false)}
-            className="absolute top-4 right-4 p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-colors cursor-pointer"
-          >
-            <X className="w-6 h-6" />
-          </button>
-          <img
-            src={generatedResult.imageUrl}
-            alt={resultTitle}
-            className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-          <div className="mt-4 text-center text-white space-y-1" onClick={(e) => e.stopPropagation()}>
-            <p className="font-bold text-sm">{resultTitle}</p>
-            <p className="text-xs text-slate-400 max-w-lg">{resultDescription}</p>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
