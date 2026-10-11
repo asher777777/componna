@@ -61,6 +61,8 @@ import { StorefrontService } from '../modules/saas-storefront-composer/services/
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { brandDna } = useBrandDna();
+  const [logoError, setLogoError] = useState(false);
+  const logoUrl = brandDna?.identity?.logoUrl || '/images/kosun-logo.svg';
   const { firebaseApp, isConnected } = useSystemConnection();
 
   // Theme state: defaults to light (Day Mode) according to Cashwan Branding Rule 4
@@ -260,9 +262,18 @@ export const HomePage: React.FC = () => {
           
           {/* Logo & Brand Identity */}
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400/30 shrink-0">
-              <Sparkles className="w-6 h-6 animate-pulse" />
-            </div>
+            {!logoError && logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={companyName}
+                onError={() => setLogoError(true)}
+                className="h-10 sm:h-11 w-auto max-w-[160px] object-contain shrink-0"
+              />
+            ) : (
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/25 ring-2 ring-indigo-400/30 shrink-0">
+                <Sparkles className="w-6 h-6 animate-pulse" />
+              </div>
+            )}
             <div>
               <div className="flex items-center gap-2">
                 <span className={`font-black text-lg sm:text-xl tracking-tight ${isLight ? 'text-slate-900' : 'text-white'}`}>

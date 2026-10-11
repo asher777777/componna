@@ -16,6 +16,27 @@ const BUCKET = 'aioffice-1426f.firebasestorage.app';
 
 export const INITIAL_SERVER_MEDIA: MediaItem[] = [
   {
+    id: 'media_kosun_official_logo',
+    name: 'kosun-logo.svg',
+    type: 'image',
+    mimeType: 'image/svg+xml',
+    url: '/images/kosun-logo.svg',
+    sizeBytes: 8192,
+    createdAt: Date.now() - 5000,
+    tags: ['לוגו', 'רשמי', 'קושאן', 'brand_dna', 'זהות_עסקית'],
+  },
+  {
+    id: 'media_kosun_symbol',
+    name: 'kosun-symbol.svg',
+    type: 'image',
+    mimeType: 'image/svg+xml',
+    url: '/images/kosun-symbol.svg',
+    sizeBytes: 4096,
+    createdAt: Date.now() - 4500,
+    tags: ['לוגו', 'אייקון', 'סמל', 'קושאן', 'brand_dna'],
+  },
+
+  {
     id: 'storage_1788087385571_scene_1_animated_mp4',
     name: 'scene_1_animated.mp4',
     type: 'video',

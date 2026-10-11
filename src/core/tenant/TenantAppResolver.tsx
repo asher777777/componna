@@ -8,7 +8,7 @@ import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { PageBuilderConfig } from '../../modules/page-builder/types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../modules/page-builder/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
-import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS } from './tenantResolver';
+import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost } from './tenantResolver';
 import { TenantScopeProvider } from './TenantScopeContext';
 import { TenantSubdomainView } from './TenantSubdomainView';
 import { RootPublicHomePageView } from '../../pages/RootPublicHomePageView';
@@ -100,21 +100,15 @@ export const TenantAppResolver: React.FC = () => {
     const tenantParam = params.get('tenant');
     const hostname = window.location.hostname;
     
-    // Check if subdomain exists in hostname (ignore localhost root / web.app standard root)
+    // Check if subdomain exists in hostname (using accurate production resolver)
     let sub: string | null = null;
     if (tenantParam) {
       const cleanParam = tenantParam.trim().toLowerCase();
       if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam)) {
         sub = cleanParam;
       }
-    } else if (!hostname.startsWith('localhost') && !hostname.startsWith('127.0.0.1') && !hostname.startsWith('kosun') && !hostname.startsWith('glowmanage') && !hostname.startsWith('kosun.pro') && !hostname.startsWith('www.kosun.pro')) {
-      const parts = hostname.split('.');
-      if (parts.length > 2) {
-        const potentialSub = parts[0].toLowerCase().trim();
-        if (!RESERVED_TENANT_SUBDOMAINS.includes(potentialSub)) {
-          sub = potentialSub;
-        }
-      }
+    } else {
+      sub = extractSubdomainFromHost(hostname);
     }
 
     if (sub) {

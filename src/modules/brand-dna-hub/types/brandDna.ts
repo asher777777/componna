@@ -30,8 +30,13 @@ export const DEFAULT_BRAND_DNA: BrandDna = {
     slogan: 'כל אדם זה נכס',
     companyVision: 'להוביל את תחום השירותים והפתרונות הדיגיטליים תוך מתן יחס אישי, מקצועיות ללא פשרות, וערך אמיתי ומתמשך לכל לקוח ושותף לדרך.',
     shortVision: 'כל אדם זה נכס.',
-    logoUrl: '',
-    vibeImages: [],
+    logoUrl: '/images/kosun-logo.svg',
+    vibeImages: [
+      '/images/crm_showcase.jpg',
+      '/images/whatsapp_automation.jpg',
+      '/images/page_builder_mockup.jpg',
+      '/images/campaign_fundraising.jpg'
+    ],
   },
   ecosystem: {
     services: [

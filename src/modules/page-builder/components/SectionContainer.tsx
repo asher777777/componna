@@ -16,6 +16,7 @@ import {
   Monitor,
   Check,
   Sparkles,
+  Info,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -71,7 +72,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
   const effectiveType = (sectionType || sectionData?.type || sectionId) as SectionType;
   const regDef = SECTION_REGISTRY[effectiveType];
   const Icon = regDef?.icon || LayoutTemplate;
-  const displayTitle = title || sectionData?.title || regDef?.name || sectionId;
+  const displayTitle = title || regDef?.name || sectionData?.adminTitle || sectionId;
 
   return (
     <div
@@ -85,27 +86,41 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
       dir="rtl"
     >
       {/* Header Row */}
-      <div className="p-4 sm:p-5 flex items-center justify-between gap-4 select-none">
+      <div className="p-3.5 sm:p-4 flex items-center justify-between gap-4 select-none">
         {/* Left: Section Icon & Name */}
         <div
           onClick={onToggleOpen}
           className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
         >
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
-            <Icon className="w-5 h-5" />
+          <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+            <Icon className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm sm:text-base font-bold text-white truncate">
+              <h3 className="text-sm font-bold text-white truncate">
                 {displayTitle}
               </h3>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline">
                 {effectiveType}
               </span>
+              {regDef?.description && (
+                <div
+                  className="relative group/info"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    type="button"
+                    className="p-0.5 text-slate-500 hover:text-indigo-400 transition"
+                    title={regDef.description}
+                  >
+                    <Info className="w-3.5 h-3.5" />
+                  </button>
+                  <div className="hidden group-hover/info:block absolute z-30 right-0 top-full mt-1.5 w-60 p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-[11px] text-slate-300 shadow-2xl pointer-events-none">
+                    {regDef.description}
+                  </div>
+                </div>
+              )}
             </div>
-            <p className="text-[11px] text-slate-400 truncate mt-0.5">
-              {regDef?.description || 'הגדרות ועריכת אזור'}
-            </p>
           </div>
         </div>
 

@@ -12,6 +12,7 @@ import {
   Plus,
   GripVertical,
   Check,
+  Layers,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
@@ -52,18 +53,18 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
   return (
     <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 flex flex-col gap-4 text-right shadow-2xl" dir="rtl">
       <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-        <div>
-          <h3 className="text-sm font-bold text-white">שכבות ואזורי העמוד</h3>
-          <p className="text-[11px] text-slate-400">ניהול סדר הרכיבים, נראות ומחיקה</p>
+        <div className="flex items-center gap-2">
+          <Layers className="w-4 h-4 text-amber-400" />
+          <span className="text-xs font-bold text-white">{sectionOrder.length} שכבות</span>
         </div>
-        <PageBuilderButton
-          size="xs"
-          variant="primary"
-          onClick={onOpenAddModal}
-          icon={<Plus className="w-3.5 h-3.5" />}
+        <button
+          type="button"
+          onClick={handleAddClick}
+          className="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30 transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          title="הוסף אזור"
         >
-          הוסף אזור
-        </PageBuilderButton>
+          <Plus className="w-4 h-4" />
+        </button>
       </div>
 
       <div className="flex flex-col gap-2 max-h-[calc(100vh-280px)] overflow-y-auto custom-scrollbar pr-1">

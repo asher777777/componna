@@ -6,7 +6,7 @@ import { KosaiChatDrawer, FloatingKosaiButton } from '../kosai-engine';
 
 
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
-import { PageBuilderHeader } from './components/PageBuilderHeader';
+import { PageBuilderFloatingNav } from './components/PageBuilderFloatingNav';
 import { SectionNavigator } from './components/SectionNavigator';
 import { SectionContainer } from './components/SectionContainer';
 import { AddSectionModal } from './components/AddSectionModal';
@@ -20,7 +20,10 @@ import { AiSectionDesignerModal } from './components/AiSectionDesignerModal';
 import { PageBlueprintsModal } from './components/PageBlueprintsModal';
 import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderButton } from './ui/PageBuilderButton';
-import { Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
+import { useTenantScope } from '../../core/tenant/TenantScopeContext';
+import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
+import { loadBrandDna } from '../brand-dna-hub/services/brandDnaFirestore';
+import { ArrowUp, ArrowDown, Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';
 
 interface PageBuilderEditorProps {
@@ -63,6 +66,25 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
     return false; // Day Mode is default
   });
   const [aiSectionTarget, setAiSectionTarget] = useState<string | null>(null);
+
+  // Dynamic Tenant Branding integration
+  const { tenantId } = useTenantScope();
+  const { db } = useSystemConnection();
+  const [brandColor, setBrandColor] = useState<string>('#6366f1');
+
+  useEffect(() => {
+    let isMounted = true;
+    loadBrandDna(db, tenantId)
+      .then((dna) => {
+        if (isMounted && dna?.designTokens?.primaryColor) {
+          setBrandColor(dna.designTokens.primaryColor);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [db, tenantId]);
 
   useEffect(() => {
     const unsubscribe = eventBus.subscribe('kosai:action', (data: any) => {
@@ -269,12 +291,9 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   };
 
     return (
-    <>
-      <KosaiChatDrawer />
-      <FloatingKosaiButton />
       <div className="flex flex-col min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-white select-none transition-colors duration-300">
-      {/* Top Navigation Bar */}
-      <PageBuilderHeader
+      {/* Floating Action Dock & Navigation - Headerless 2026 Kosun Standard */}
+      <PageBuilderFloatingNav
         config={config}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -294,6 +313,8 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         onConvertToVideo={onConvertToVideo}
         isDarkMode={isDarkMode}
         onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        tenantId={tenantId}
+        brandPrimaryColor={brandColor}
       />
 
       {/* Main Workspace based on Active Tab */}
@@ -328,7 +349,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                       key={sectionId}
                       sectionId={sectionId}
                       sectionType={sectionData.type}
-                      title={sectionData.title || regDef?.name || sectionId}
+                      title={sectionData.adminTitle || regDef?.name || sectionId}
                       isOpen={isOpen}
                       onToggleOpen={() => setOpenSectionId(isOpen ? null : sectionId)}
                       visible={sectionData.visible !== false}
@@ -397,7 +418,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                     key={sectionId}
                     sectionId={sectionId}
                     sectionType={sectionData.type}
-                    title={sectionData.title || regDef?.name || sectionId}
+                    title={sectionData.adminTitle || regDef?.name || sectionId}
                     isOpen={isOpen}
                     onToggleOpen={() => setOpenSectionId(isOpen ? null : sectionId)}
                     visible={sectionData.visible !== false}
@@ -439,9 +460,8 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
 
         {/* TAB 4: Reorder Layers */}
         {activeTab === 'reorder' && (
-          <div className="flex-1 overflow-y-auto p-8 bg-[#09090b]" dir="rtl">
-            <div className="max-w-2xl mx-auto flex flex-col gap-4">
-              <h3 className="text-xl font-bold text-white mb-2">סידור שכבות ואזורי העמוד</h3>
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-[#09090b]" dir="rtl">
+            <div className="max-w-2xl mx-auto flex flex-col gap-3">
               {config.sectionOrder.map((sectionId, idx) => {
                 const sec = config.sections[sectionId];
                 const reg = SECTION_REGISTRY[sec?.type as SectionType];
@@ -464,17 +484,19 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                         type="button"
                         disabled={idx === 0}
                         onClick={() => handleMoveUp(idx)}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white text-xs"
+                        className="p-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white text-xs flex items-center gap-1.5"
                       >
-                        העלה ⬆
+                        <ArrowUp className="w-3.5 h-3.5 text-slate-300" />
+                        <span>העלה</span>
                       </button>
                       <button
                         type="button"
                         disabled={idx === config.sectionOrder.length - 1}
                         onClick={() => handleMoveDown(idx)}
-                        className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white text-xs"
+                        className="p-2 px-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-white text-xs flex items-center gap-1.5"
                       >
-                        הורד ⬇
+                        <ArrowDown className="w-3.5 h-3.5 text-slate-300" />
+                        <span>הורד</span>
                       </button>
                     </div>
                   </div>
@@ -572,6 +594,5 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         />
       )}
       </div>
-    </>
-  );
+    );
 };

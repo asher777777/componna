@@ -72,9 +72,11 @@ export class FirebaseStorageMediaService {
     }
 
     // 2. Asynchronously index in Firestore without blocking upload
-    const initialUrl = existingItemMeta?.url?.startsWith('data:')
+    // Never persist ephemeral blob: URLs into Firestore - use direct Storage URL or data URL
+    const isBlobUrl = workingLocalUrl.startsWith('blob:');
+    const safeFirestoreUrl = existingItemMeta?.url && !existingItemMeta.url.startsWith('blob:')
       ? existingItemMeta.url
-      : (file instanceof Blob && (file as any).type?.startsWith('image/') ? workingLocalUrl : directUrl);
+      : directUrl;
 
     try {
       const db = getFirestore(app);
@@ -88,7 +90,8 @@ export class FirebaseStorageMediaService {
         id: localMediaItem.id,
         name: safeName,
         fullName: `${timeStamp}_${safeName}`,
-        url: initialUrl,
+        url: safeFirestoreUrl,
+        thumbnailUrl: safeFirestoreUrl,
         type: localMediaItem.type,
         mimeType: localMediaItem.mimeType,
         sizeBytes: file.size || localMediaItem.sizeBytes,
@@ -118,16 +121,18 @@ export class FirebaseStorageMediaService {
         // Update IndexedDB record with confirmed URL
         MediaIndexedDbService.saveMedia(updatedItem, file).catch(() => {});
 
-        // Update Firestore with verified permanent URL
-        try {
-          const db = getFirestore(app);
-          const vaultColl = tenantId ? `tenants/${tenantId}/sdo_media_vault` : 'sdo_media_vault';
-          const itemsColl = tenantId ? `tenants/${tenantId}/sdo_media_items` : 'sdo_media_items';
-          const vaultDocRef = doc(db, vaultColl, `${timeStamp}_${safeName}`);
-          const itemsDocRef = doc(db, itemsColl, localMediaItem.id);
-          setDoc(vaultDocRef, { url: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
-          setDoc(itemsDocRef, { url: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
-        } catch {}
+        // Update Firestore with verified permanent URL (only if not ephemeral blob)
+        if (!finalUrl.startsWith('blob:')) {
+          try {
+            const db = getFirestore(app);
+            const vaultColl = tenantId ? `tenants/${tenantId}/sdo_media_vault` : 'sdo_media_vault';
+            const itemsColl = tenantId ? `tenants/${tenantId}/sdo_media_items` : 'sdo_media_items';
+            const vaultDocRef = doc(db, vaultColl, `${timeStamp}_${safeName}`);
+            const itemsDocRef = doc(db, itemsColl, localMediaItem.id);
+            setDoc(vaultDocRef, { url: finalUrl, thumbnailUrl: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+            setDoc(itemsDocRef, { url: finalUrl, thumbnailUrl: finalUrl, updatedAt: Date.now() }, { merge: true }).catch(() => {});
+          } catch {}
+        }
 
         if (typeof window !== 'undefined') {
           window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: updatedItem }));

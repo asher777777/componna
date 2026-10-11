@@ -6,7 +6,12 @@ import { SECTION_REGISTRY } from '../registry/sectionRegistry';
  * 5 Premium Built-in Page Blueprints (תבניות פרימיום מובנות)
  */
 
-export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
+let _cachedBlueprints: PageTemplateBlueprint[] | null = null;
+
+export function getPageBlueprints(): PageTemplateBlueprint[] {
+  if (_cachedBlueprints) return _cachedBlueprints;
+
+  _cachedBlueprints = [
   // 1. Sales & Checkout Funnel
   {
     id: 'sales-funnel',
@@ -26,7 +31,8 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
       leadsCount: 0,
       globalSettings: {
         siteTitle: 'ההצעה הבלעדית של השנה',
-        companyName: 'קמונה פתרונות דיגיטליים',
+        companyName: 'קושאן',
+        siteLogoUrl: '/images/kosun-logo.svg',
         slogan: 'מקפצה אמיתית לתוצאות בלתי מתפשרות',
         theme: 'modern',
         headerLayout: 'floating-glass',
@@ -479,6 +485,29 @@ export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = [
     },
   },
 ];
+
+  return _cachedBlueprints;
+}
+
+export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = new Proxy([] as PageTemplateBlueprint[], {
+  get(target, prop, receiver) {
+    const list = getPageBlueprints();
+    const val = Reflect.get(list, prop, receiver);
+    if (typeof val === 'function') {
+      return val.bind(list);
+    }
+    return val;
+  },
+  has(target, prop) {
+    return Reflect.has(getPageBlueprints(), prop);
+  },
+  ownKeys() {
+    return Reflect.ownKeys(getPageBlueprints());
+  },
+  getOwnPropertyDescriptor(target, prop) {
+    return Reflect.getOwnPropertyDescriptor(getPageBlueprints(), prop);
+  },
+});
 
 /**
  * Hydrates a blueprint with live Brand DNA contact details, colors and identity

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { SECTION_REGISTRY, SectionDefinition } from '../registry/sectionRegistry';
 import { SectionType } from '../types/pageBuilder.types';
 import { PageBuilderModal } from '../ui/PageBuilderModal';
@@ -21,7 +21,7 @@ export const AddSectionModal: React.FC<AddSectionModalProps> = ({
 
   const categories = [
     { id: 'all', label: 'כל האזורים' },
-    { id: 'headers', label: 'כותרות ו-Hero 2.0' },
+    { id: 'headers', label: 'הדר וכותרות' },
     { id: 'content', label: 'Bento Grid ותוכן' },
     { id: 'social_proof', label: 'הוכחה חברתית וביקורות' },
     { id: 'marketing', label: 'מחירונים ושיווק' },

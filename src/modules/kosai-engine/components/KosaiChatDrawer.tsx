@@ -23,7 +23,8 @@ export const KosaiChatDrawer: React.FC = () => {
     loadConversation,
     deleteConversation,
     startNewConversation,
-    refreshRules
+    refreshRules,
+    isLoggedIn
   } = useKosai();
   
   const { firebaseApp } = useSystemConnection();
@@ -51,7 +52,7 @@ export const KosaiChatDrawer: React.FC = () => {
     }
   }, [messages, isOpen, showHistory]);
 
-  if (!isOpen || !canEdit) return null;
+  if (!isOpen) return null;
 
   const handleSend = () => {
     if (!inputText.trim()) return;
@@ -79,31 +80,45 @@ export const KosaiChatDrawer: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-indigo-500/5">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
-              <Sparkles className="w-4 h-4 text-white" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0 p-1.5">
+              <img
+                src="/images/kosun-symbol.svg"
+                alt="Kosun AI"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+                }}
+              />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h3 className="font-black text-white text-sm">קושאן AI</h3>
-                {currentRule && (
-                  <span className="px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-400 text-[10px] border border-indigo-500/30">
-                    {currentRule.name || 'סוכן מחובר'}
-                  </span>
-                )}
+                <span className={clsx(
+                  "px-1.5 py-0.5 rounded text-[10px] border",
+                  isLoggedIn 
+                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                )}>
+                  {isLoggedIn ? 'מעצב האתר והמערכת' : 'שירות ומכירות'}
+                </span>
               </div>
-              <span className="text-[10px] text-slate-400 block">עוזר ושותף עיצוב חכם</span>
+              <span className="text-[10px] text-slate-400 block">
+                {isLoggedIn ? 'שותף עיצוב ופיתוח חכם (2026)' : 'שירות לקוחות והכוונה דיגיטלית'}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-1 text-slate-400">
-            {/* Point ד: Settings Button */}
-            <button 
-              onClick={() => setShowSettings(true)} 
-              title="הגדרות סוכן" 
-              className="p-1.5 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
+            {/* Point ד: Settings Button (Only for authorized editors) */}
+            {canEdit && (
+              <button 
+                onClick={() => setShowSettings(true)} 
+                title="הגדרות סוכן" 
+                className="p-1.5 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
 
             {/* Point ג: History Button */}
             <button 

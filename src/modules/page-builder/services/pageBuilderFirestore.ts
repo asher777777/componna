@@ -1,7 +1,6 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, orderBy, updateDoc, increment } from 'firebase/firestore';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
-import { PAGE_BLUEPRINTS } from '../blueprints/pageBlueprints';
 
 const DEFAULT_COLLECTION_NAME = 'mod_pages_documents';
 
@@ -33,6 +32,52 @@ function getDraftStorageKey(tenantId?: string) {
 }
 
 const LEGACY_STORAGE_KEY_PAGES = 'kosun_pagebuilder_all_pages';
+
+/**
+ * Ensures that a page configuration contains an editable header section at the very top.
+ * If the page already has a header section, returns it intact.
+ */
+export function ensureHeaderSection(page: PageBuilderConfig): PageBuilderConfig {
+  if (!page || !page.sections) return page;
+
+  const hasHeader = Object.values(page.sections).some((s: any) => s && s.type === 'header');
+  if (hasHeader) return page;
+
+  const headerId = 'header-1';
+  const headerSection = {
+    id: headerId,
+    type: 'header',
+    visible: true,
+    anchorId: 'header',
+    layout: (page.globalSettings?.headerLayout as any) || 'floating-glass',
+    sticky: page.globalSettings?.headerSticky ?? true,
+    useBrandLogo: true,
+    showLogoText: true,
+    logoText: page.globalSettings?.companyName || 'קושאן',
+    menuMode: 'dynamic-tenant',
+    showLoginButton: true,
+    showCtaButton: true,
+    ctaButtonText: 'התחל עכשיו',
+    ctaButtonUrl: '#contact',
+    showPhone: Boolean(page.globalSettings?.contactPhone),
+    phone: page.globalSettings?.contactPhone || '052-6968008',
+    showWhatsApp: Boolean(page.globalSettings?.contactWhatsApp),
+    whatsApp: page.globalSettings?.contactWhatsApp || '0526968008',
+  };
+
+  const newSections = {
+    [headerId]: headerSection,
+    ...page.sections,
+  };
+
+  const newOrder = [headerId, ...(page.sectionOrder || []).filter((id) => id !== headerId)];
+
+  return {
+    ...page,
+    sectionOrder: newOrder,
+    sections: newSections,
+  };
+}
 
 export const pageBuilderFirestore = {
   // Get all saved pages
@@ -241,36 +286,39 @@ export const pageBuilderFirestore = {
     if (explicitId) {
       const page = allPages.find((p) => p.pageId === explicitId);
       if (page) {
+        const enriched = ensureHeaderSection(page);
         try {
-          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(page));
+          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(enriched));
           if (eff === ROOT_TENANT_ID) {
-            localStorage.setItem('kosun_active_root_homepage', JSON.stringify(page));
+            localStorage.setItem('kosun_active_root_homepage', JSON.stringify(enriched));
           }
         } catch {}
-        return page;
+        return enriched;
       }
     }
 
     // 2. Find page with isHomePage === true
     const homePage = allPages.find((p) => Boolean(p.isHomePage));
     if (homePage) {
+      const enriched = ensureHeaderSection(homePage);
       try {
-        localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(homePage));
+        localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(enriched));
         if (eff === ROOT_TENANT_ID) {
-          localStorage.setItem('kosun_active_root_homepage', JSON.stringify(homePage));
+          localStorage.setItem('kosun_active_root_homepage', JSON.stringify(enriched));
         }
       } catch {}
-      return homePage;
+      return enriched;
     }
 
     // 3. For tenant subdomains, check default slug/id 'home_{tenantId}'
     if (eff !== ROOT_TENANT_ID) {
       const tenantNamedHome = allPages.find((p) => p.pageId === `home_${eff}`);
       if (tenantNamedHome) {
+        const enriched = ensureHeaderSection(tenantNamedHome);
         try {
-          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(tenantNamedHome));
+          localStorage.setItem(`kosun_${eff}_active_homepage`, JSON.stringify(enriched));
         } catch {}
-        return tenantNamedHome;
+        return enriched;
       }
     }
 
@@ -289,7 +337,7 @@ export const pageBuilderFirestore = {
       if (directCached) {
         const parsed = JSON.parse(directCached);
         if (parsed && parsed.pageId && parsed.sections) {
-          return parsed;
+          return ensureHeaderSection(parsed);
         }
       }
 
@@ -302,21 +350,21 @@ export const pageBuilderFirestore = {
           const explicitId = localStorage.getItem(`${storeKey}_homepage_id`) || (eff === ROOT_TENANT_ID ? localStorage.getItem('kosun_pagebuilder_homepage_id') : null);
           if (explicitId) {
             const explicitPage = pages.find((p) => p.pageId === explicitId);
-            if (explicitPage) return explicitPage;
+            if (explicitPage) return ensureHeaderSection(explicitPage);
           }
 
           // Check isHomePage flag
           const flaggedPage = pages.find((p) => Boolean(p.isHomePage));
-          if (flaggedPage) return flaggedPage;
+          if (flaggedPage) return ensureHeaderSection(flaggedPage);
 
           // If tenant subdomain, check default slug/id 'home_{tenantId}'
           if (eff !== ROOT_TENANT_ID) {
             const tenantHome = pages.find((p) => p.pageId === `home_${eff}`);
-            if (tenantHome) return tenantHome;
+            if (tenantHome) return ensureHeaderSection(tenantHome);
           }
 
           // Fallback to first page
-          if (pages[0]) return pages[0];
+          if (pages[0]) return ensureHeaderSection(pages[0]);
         }
       }
     } catch (err) {
@@ -328,25 +376,84 @@ export const pageBuilderFirestore = {
 
   // Built-in pristine root homepage template (used when no saved pages exist yet)
   createDefaultRootHomePage(): PageBuilderConfig {
-    const bp = PAGE_BLUEPRINTS[0];
     return {
-      ...bp.config,
       pageId: 'bp-sales-funnel',
       pageTitle: 'קושאן | כל אדם זה נכס',
       slug: 'home',
       published: true,
       isHomePage: true,
+      viewsCount: 0,
+      leadsCount: 0,
       globalSettings: {
-        ...bp.config.globalSettings,
         siteTitle: 'קושאן | כל אדם זה נכס',
         companyName: 'קושאן',
         slogan: 'כל אדם זה נכס',
+        siteLogoUrl: '/images/kosun-logo.svg',
         theme: 'modern',
         headerLayout: 'floating-glass',
         headerSticky: true,
         isHeaderVisible: true,
         isFooterVisible: true,
         brandDnaSynced: true,
+        primaryColor: '#6366f1',
+        secondaryColor: '#ec4899',
+        backgroundColor: '#090a0f',
+        textColor: '#f8fafc',
+        fontFamily: 'Heebo, sans-serif',
+      },
+      seoSettings: {
+        title: 'קושאן | כל אדם זה נכס',
+        description: 'הפלטפורמה המובילה לניהול קהילות ודפי נחיתה',
+      },
+      sectionOrder: ['header-1', 'hero-1', 'services-1', 'contact-1'],
+      sections: {
+        'header-1': {
+          id: 'header-1',
+          type: 'header',
+          visible: true,
+          anchorId: 'header',
+          layout: 'floating-glass',
+          sticky: true,
+          useBrandLogo: true,
+          showLogoText: true,
+          logoText: 'קושאן',
+          menuMode: 'dynamic-tenant',
+          showLoginButton: true,
+          showCtaButton: true,
+          ctaButtonText: 'התחל עכשיו',
+          ctaButtonUrl: '#contact',
+          showPhone: true,
+          phone: '052-6968008',
+          showWhatsApp: true,
+          whatsApp: '0526968008',
+        },
+        'hero-1': {
+          id: 'hero-1',
+          type: 'hero',
+          visible: true,
+          anchorId: 'hero',
+          title: 'כל אדם זה נכס. כל הפעילות תחת קורת גג אחת.',
+          subtitle: 'ניהול קהילות, דפי תוכן ומועדון לקוחות מתקדם',
+          layout: 'bento-hero',
+          heroStyle: 'mesh-glow',
+        },
+        'services-1': {
+          id: 'services-1',
+          type: 'services',
+          visible: true,
+          anchorId: 'services',
+          title: 'השירותים והיכולות שלנו',
+          layout: 'bento',
+          items: [],
+        },
+        'contact-1': {
+          id: 'contact-1',
+          type: 'contact',
+          visible: true,
+          anchorId: 'contact',
+          title: 'צרו איתנו קשר',
+          showForm: true,
+        },
       },
     };
   },

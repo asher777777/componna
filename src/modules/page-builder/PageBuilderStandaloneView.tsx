@@ -258,7 +258,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#09090b] text-white select-none">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-[#09090b] text-slate-900 dark:text-white select-none transition-colors duration-300">
       {viewMode === 'pages' ? (
         <PagesDashboardTab
           pages={pages}

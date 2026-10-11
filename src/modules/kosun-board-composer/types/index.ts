@@ -98,7 +98,7 @@ export interface GenerateDashboardAiRequest {
   selectedModules: DynamicModuleCapability[];
   customPrompt?: string;
   tenantId: string;
-  model?: 'gemini-2.5-flash' | 'gemini-3.8-flash' | 'gemini-2.5-pro';
+  model?: 'gemini-3.8-flash' | 'gemini-3.5-flash' | 'gemini-3.8-flash-lite';
 }
 
 export interface SubdomainPairingRecord {

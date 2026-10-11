@@ -13,12 +13,95 @@ export const RESERVED_TENANT_SUBDOMAINS = [
 ];
 
 /** Hosting hostnames that always represent the main platform path (root tenant) */
-export const ROOT_PLATFORM_HOST_PREFIXES = ['kosun', 'glowmanage'];
+export const ROOT_PLATFORM_HOST_PREFIXES = ['kosun', 'glowmanage', 'compona', 'comona', 'aioffice'];
+
+/**
+ * Checks whether the current hostname represents the primary platform (root tenant _master)
+ */
+export function isRootPlatformHost(hostname: string): boolean {
+  if (!hostname) return true;
+  const h = hostname.toLowerCase().trim();
+
+  // 1. Localhost and development domains
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local') || h.includes('localhost:')) {
+    return true;
+  }
+
+  // 2. Known root platform brand / project names
+  if (ROOT_PLATFORM_HOST_PREFIXES.some((p) => h.startsWith(p))) {
+    // If it's a direct project hosting (e.g. compona.web.app or kosun.pro or glowmanage.web.app)
+    const parts = h.split('.');
+    if (h.endsWith('.web.app') || h.endsWith('.firebaseapp.com')) {
+      return parts.length <= 3;
+    }
+    // Apex domain or reserved subdomain (e.g. kosun.pro, www.kosun.pro)
+    if (parts.length <= 2 || (parts.length === 3 && RESERVED_TENANT_SUBDOMAINS.includes(parts[0]))) {
+      return true;
+    }
+  }
+
+  // 3. Firebase Hosting root project sites (*.web.app or *.firebaseapp.com)
+  if (h.endsWith('.web.app') || h.endsWith('.firebaseapp.com')) {
+    const parts = h.split('.');
+    // Standard site root (e.g. compona.web.app) has exactly 3 parts: site + web + app
+    if (parts.length <= 3) {
+      return true;
+    }
+  }
+
+  // 4. Standard Apex domains with 2 parts (e.g. kosun.pro, compona.com)
+  const parts = h.split('.');
+  if (parts.length <= 2) {
+    return true;
+  }
+
+  // 5. Reserved subdomains on apex domains (e.g. www.kosun.pro)
+  if (parts.length === 3 && RESERVED_TENANT_SUBDOMAINS.includes(parts[0])) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Extracts custom tenant subdomain from hostname if present, or null if on root platform
+ */
+export function extractSubdomainFromHost(hostname: string): string | null {
+  if (!hostname) return null;
+  const h = hostname.toLowerCase().trim();
+
+  if (isRootPlatformHost(h)) {
+    return null;
+  }
+
+  const parts = h.split('.');
+
+  // On Firebase Hosting, subdomains require 4 parts: e.g. client1.compona.web.app
+  if (h.endsWith('.web.app') || h.endsWith('.firebaseapp.com')) {
+    if (parts.length > 3) {
+      const sub = parts[0];
+      if (!RESERVED_TENANT_SUBDOMAINS.includes(sub)) {
+        return sub;
+      }
+    }
+    return null;
+  }
+
+  // On custom domain: e.g. client1.kosun.pro (3 parts)
+  if (parts.length > 2) {
+    const sub = parts[0];
+    if (!RESERVED_TENANT_SUBDOMAINS.includes(sub)) {
+      return sub;
+    }
+  }
+
+  return null;
+}
 
 /**
  * Extracts tenant identifier based on production hostname:
  * - `subdomain.domain.com` -> `subdomain`
- * - `domain.com` / `www.domain.com` -> `_master`
+ * - `domain.com` / `www.domain.com` / `compona.web.app` -> `_master`
  * - `localhost` / `127.0.0.1` -> checks URL query `?tenant=X` or localStorage override, default `_master`
  */
 export function resolveCurrentTenantId(): string {
@@ -46,27 +129,12 @@ export function resolveCurrentTenantId(): string {
   // 3. Resolve from actual Hostname (Production Subdomain)
   const hostname = window.location.hostname.toLowerCase().trim();
 
-  // If localhost, default to root tenant unless configured
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local')) {
-    return ROOT_TENANT_ID;
+  const extracted = extractSubdomainFromHost(hostname);
+  if (extracted) {
+    return extracted;
   }
 
-  // Platform hosting hosts (e.g. glowmanage.web.app / kosun.*) are the main path → root tenant
-  if (ROOT_PLATFORM_HOST_PREFIXES.some((p) => hostname.startsWith(p))) {
-    return ROOT_TENANT_ID;
-  }
-
-  const parts = hostname.split('.');
-
-  // e.g., "demo.kosun.pro" -> parts: ["demo", "kosun", "pro"]
-  if (parts.length > 2) {
-    const sub = parts[0];
-    if (!RESERVED_TENANT_SUBDOMAINS.includes(sub)) {
-      return sub;
-    }
-  }
-
-  // Root / Apex Domain (e.g. kosun.pro)
+  // Root / Apex Domain
   return ROOT_TENANT_ID;
 }
 

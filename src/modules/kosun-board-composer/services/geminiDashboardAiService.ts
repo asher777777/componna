@@ -22,11 +22,13 @@ export class GeminiDashboardAiService {
     apiKey: string,
     request: GenerateDashboardAiRequest
   ): Promise<GeneratedCustomDashboard> {
-    const model = request.model || 'gemini-2.5-flash';
+    // Default to the 2026 authorized Gemini Flash model: gemini-3.8-flash
+    const primaryModel = request.model && !request.model.includes('2.5') ? request.model : 'gemini-3.8-flash';
+    const modelsToTry = [primaryModel, 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.8-flash-lite'];
+    const uniqueModels = Array.from(new Set(modelsToTry));
     const cleanKey = apiKey?.trim();
 
     if (!cleanKey) {
-      // Return smart programmatic blueprint if key is not yet set
       console.warn('[GeminiDashboardAiService] No Gemini API key provided, generating high-fidelity deterministic layout');
       return this.generateDeterministicFallback(request);
     }
@@ -38,56 +40,51 @@ export class GeminiDashboardAiService {
       request.customPrompt
     );
 
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
-      
-      const payload = {
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: promptText }],
-          },
-        ],
-        systemInstruction: {
-          parts: [{ text: GEMINI_DASHBOARD_SYSTEM_INSTRUCTION }],
+    const payload = {
+      contents: [
+        {
+          role: 'user',
+          parts: [{ text: promptText }],
         },
-        generationConfig: {
-          temperature: 0.3,
-          responseMimeType: 'application/json',
-        },
-      };
+      ],
+      systemInstruction: {
+        parts: [{ text: GEMINI_DASHBOARD_SYSTEM_INSTRUCTION }],
+      },
+      generationConfig: {
+        temperature: 0.3,
+        responseMimeType: 'application/json',
+      },
+    };
 
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+    // Attempt models in cascade order
+    for (const modelToAttempt of uniqueModels) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelToAttempt}:generateContent?key=${cleanKey}`;
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[GeminiDashboardAiService] Gemini API call error:', response.status, errorText);
-        throw new Error(`שגיאה בקריאה ל-Gemini API (${response.status}): ${errorText}`);
+        if (response.ok) {
+          const data = await response.json();
+          const rawOutput = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (rawOutput) {
+            const parsedJson = this.parseJsonSafely(rawOutput);
+            console.info(`[GeminiDashboardAiService] Successfully generated via ${modelToAttempt}`);
+            return this.formatGeneratedDashboard(parsedJson, request);
+          }
+        } else {
+          console.warn(`[GeminiDashboardAiService] Model ${modelToAttempt} failed (${response.status}), trying next fallback...`);
+        }
+      } catch (e) {
+        console.warn(`[GeminiDashboardAiService] Network error with ${modelToAttempt}:`, e);
       }
-
-      const data = await response.json();
-      const rawOutput = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-      if (!rawOutput) {
-        throw new Error('התקבלה תשובה ריקה ממודל Gemini');
-      }
-
-      const parsedJson = this.parseJsonSafely(rawOutput);
-
-      return this.formatGeneratedDashboard(parsedJson, request);
-    } catch (err: any) {
-      console.warn('[GeminiDashboardAiService] Fallback to structured generator:', err);
-      // If error occurs, create robust fallback based on requested components
-      const fallback = this.generateDeterministicFallback(request);
-      fallback.subtitle += ` (נוצר במצב אוטונומי: ${err.message || 'זמני'})`;
-      return fallback;
     }
+
+    // Graceful offline fallback with clean Hebrew subtitle
+    console.warn('[GeminiDashboardAiService] All remote Gemini models unavailable, using intelligent local engine');
+    return this.generateDeterministicFallback(request);
   }
 
   private static parseJsonSafely(rawText: string): any {

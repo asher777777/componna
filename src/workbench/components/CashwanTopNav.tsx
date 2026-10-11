@@ -25,12 +25,27 @@ import {
   X,
   Menu,
   Mail,
+  Building2,
+  Sliders,
+  Target,
+  Palette,
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../moduleRegistry';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { DatabaseConnectorModal } from '../../modules/db-connector-hub';
 import { subscribeToAuth, AuthState, logoutUser } from '../../services/firebaseAuth';
 import { SmartTooltip } from '../../components/Ui/SmartTooltip';
+import { useBrandDna } from '../../modules/brand-dna-hub/hooks/useBrandDna';
+
+const BRAND_DNA_TABS = [
+  { id: 'identity', label: '1. זהות עסקית', icon: Building2 },
+  { id: 'voice', label: '2. שפת מותג וטון', icon: Sliders },
+  { id: 'audience', label: '3. קהלי יעד ובידול', icon: Target },
+  { id: 'ecosystem', label: '4. מבנה שירותים', icon: Layers },
+  { id: 'design', label: '5. שפה חזותית', icon: Palette },
+  { id: 'trust', label: '6. אמינות וסליקה', icon: ShieldCheck },
+  { id: 'market', label: '7. מחקר שוק ומתחרים (AI)', icon: Globe },
+];
 
 const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   'kosun-am': Mail,
@@ -66,6 +81,9 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
   const location = useLocation();
   const navigate = useNavigate();
   const { firebaseApp, purchasedModules } = useSystemConnection();
+  const { brandDna } = useBrandDna();
+  const [logoError, setLogoError] = useState(false);
+  const logoUrl = brandDna?.identity?.logoUrl || '/images/kosun-logo.svg';
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -114,6 +132,37 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isDropdownOpen]);
 
+  const isBrandDna = location.pathname.startsWith('/brand-dna');
+  const [dnaActiveTab, setDnaActiveTab] = useState<string>('identity');
+  const [dnaScore, setDnaScore] = useState<number | null>(() => {
+    const saved = localStorage.getItem('brand_dna_score');
+    return saved ? Number(saved) : 100;
+  });
+
+  useEffect(() => {
+    const handleScoreChange = (e: any) => {
+      if (typeof e.detail?.score === 'number') {
+        setDnaScore(e.detail.score);
+      }
+    };
+    const handleTabChange = (e: any) => {
+      if (e.detail?.tab) {
+        setDnaActiveTab(e.detail.tab);
+      }
+    };
+    window.addEventListener('brand_dna_score_changed', handleScoreChange);
+    window.addEventListener('brand_dna_active_tab_changed', handleTabChange);
+    return () => {
+      window.removeEventListener('brand_dna_score_changed', handleScoreChange);
+      window.removeEventListener('brand_dna_active_tab_changed', handleTabChange);
+    };
+  }, []);
+
+  const handleSwitchBrandDnaTab = (tabId: string) => {
+    setDnaActiveTab(tabId);
+    window.dispatchEvent(new CustomEvent('brand_dna_switch_tab', { detail: { tab: tabId } }));
+  };
+
   const activeModule = REGISTERED_MODULES.find((m) =>
     location.pathname.startsWith(m.route)
   );
@@ -134,17 +183,28 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
             className="flex items-center gap-2 group cursor-pointer"
             title="קושאן - דף הבית"
           >
-            <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/20 group-hover:bg-indigo-500 transition-all">
-              ק
-            </div>
-            <div className="flex flex-col">
-              <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white leading-tight">
-                קושאן
-              </span>
-              <span className="text-[10px] text-slate-400 font-medium leading-none hidden sm:inline">
-                שותף אישי חכם
-              </span>
-            </div>
+            {!logoError && logoUrl ? (
+              <img
+                src={logoUrl}
+                alt={brandDna?.identity?.companyName || 'קושאן'}
+                onError={() => setLogoError(true)}
+                className="h-8 sm:h-9 w-auto max-w-[130px] object-contain group-hover:scale-105 transition-transform"
+              />
+            ) : (
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold text-sm shadow-md shadow-indigo-600/20 group-hover:bg-indigo-500 transition-all">
+                  ק
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-extrabold text-sm tracking-tight text-slate-900 dark:text-white leading-tight">
+                    {brandDna?.identity?.companyName || 'קושאן'}
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-medium leading-none hidden sm:inline">
+                    {brandDna?.identity?.slogan || 'שותף אישי חכם'}
+                  </span>
+                </div>
+              </div>
+            )}
           </NavLink>
 
           {/* Module Selector Pill */}
@@ -267,158 +327,62 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
           </div>
         </div>
 
-        {/* Center: Top Nav Quick Links (Desktop) */}
-        <nav className="hidden md:flex items-center gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
-          <NavLink
-            to="/control-center"
-            className={({ isActive }) =>
-              `px-3 py-1.5 rounded-xl transition ${
-                isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`
-            }
-          >
-            מרכז שליטה
-          </NavLink>
-          <NavLink
-            to="/page-builder"
-            className={({ isActive }) =>
-              `px-3 py-1.5 rounded-xl transition ${
-                isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`
-            }
-          >
-            בונה עמודים
-          </NavLink>
-          <NavLink
-            to="/kosun-am"
-            className={({ isActive }) =>
-              `px-3 py-1.5 rounded-xl transition ${
-                isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`
-            }
-          >
-            מייל ואוטומציה
-          </NavLink>
-          <NavLink
-            to="/saas-storefront"
-            className={({ isActive }) =>
-              `px-3 py-1.5 rounded-xl transition ${
-                isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`
-            }
-          >
-            חנות רכיבים
-          </NavLink>
-          <NavLink
-            to="/kesher-payments"
-            className={({ isActive }) =>
-              `px-3 py-1.5 rounded-xl transition ${
-                isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold'
-                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
-              }`
-            }
-          >
-            תשלומים
-          </NavLink>
-        </nav>
+        {/* Center: Component Category Tabs (Pinned to Top) */}
+        {isBrandDna && (
+          <div className="flex-1 flex items-center justify-center overflow-x-auto scrollbar-none px-2">
+            <nav className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-1">
+              {BRAND_DNA_TABS.map((tab) => {
+                const Icon = tab.icon;
+                const isActive = dnaActiveTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => handleSwitchBrandDnaTab(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition cursor-pointer ${
+                      isActive
+                        ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                    <span>{tab.label}</span>
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+        )}
 
-        {/* Right: Actions, Theme Toggle & Auth */}
+        {/* Right: Only Day / Night Mode Toggle with Attached Completeness Score */}
         <div className="flex items-center gap-2">
-          {/* Day / Night Mode Toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className="p-2 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-            title={theme === 'dark' ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
-          >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
-          </button>
-
-          {/* User Profile or Login */}
-          {authState.isAuthenticated && !authState.isAnonymous ? (
-            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 py-1 px-2 rounded-xl text-xs">
-              <span className="font-semibold text-slate-800 dark:text-slate-200 hidden sm:inline max-w-[100px] truncate">
-                {authState.displayName || authState.email?.split('@')[0]}
-              </span>
-              <button
-                type="button"
-                onClick={() => logoutUser(firebaseApp)}
-                className="text-slate-400 hover:text-rose-500 p-1"
-                title="התנתק"
+          <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+            {isBrandDna && dnaScore !== null && (
+              <div
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-colors ${
+                  dnaScore >= 80
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
+                    : dnaScore >= 50
+                    ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
+                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60'
+                }`}
+                title="אחוז שלמות ה-Brand DNA"
               >
-                <LogOut className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          ) : (
+                <span>{dnaScore}%</span>
+                <span className="text-[10px] font-normal hidden sm:inline">שלמות</span>
+              </div>
+            )}
             <button
               type="button"
-              onClick={onOpenAuthModal}
-              className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+              onClick={toggleTheme}
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
+              title={theme === 'dark' ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
             >
-              כניסה
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
             </button>
-          )}
-
-          {/* Mobile Menu Button */}
-          <button
-            type="button"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="md:hidden p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-          >
-            {isMobileMenuOpen ? <X className="w-4 h-4" /> : <Menu className="w-4 h-4" />}
-          </button>
+          </div>
         </div>
       </div>
-
-      {/* Mobile Drawer Navigation */}
-      {isMobileMenuOpen && (
-        <div className="md:hidden px-4 py-3 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2 animate-in slide-in-from-top-2 duration-150">
-          <NavLink
-            to="/control-center"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            מרכז שליטה
-          </NavLink>
-          <NavLink
-            to="/page-builder"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            בונה עמודים
-          </NavLink>
-          <NavLink
-            to="/kosun-am"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            מייל ואוטומציה (KOSUN AM)
-          </NavLink>
-          <NavLink
-            to="/saas-storefront"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            חנות רכיבים
-          </NavLink>
-          <NavLink
-            to="/kesher-payments"
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
-          >
-            תשלומים
-          </NavLink>
-        </div>
-      )}
 
       <DatabaseConnectorModal />
     </header>

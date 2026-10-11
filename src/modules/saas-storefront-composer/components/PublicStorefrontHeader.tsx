@@ -49,9 +49,11 @@ export const PublicStorefrontHeader: React.FC<PublicStorefrontHeaderProps> = ({
         
         {/* Brand Logo */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20 font-black text-base">
-            K
-          </div>
+          <img
+            src="/images/kosun-logo.svg"
+            alt={settings.platformName || 'Kosun Platform'}
+            className="h-9 w-auto max-w-[140px] object-contain shrink-0"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-base tracking-tight text-gray-900 dark:text-white">

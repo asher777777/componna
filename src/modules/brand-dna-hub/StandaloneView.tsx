@@ -101,6 +101,27 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
     }
   };
 
+  // Synchronize completeness score & tab with top nav
+  useEffect(() => {
+    localStorage.setItem('brand_dna_score', String(completenessScore));
+    window.dispatchEvent(new CustomEvent('brand_dna_score_changed', { detail: { score: completenessScore } }));
+  }, [completenessScore]);
+
+  useEffect(() => {
+    const handleSwitchTab = (e: any) => {
+      if (e.detail?.tab) {
+        setActiveTab(e.detail.tab);
+        setViewMode('tabs');
+      }
+    };
+    window.addEventListener('brand_dna_switch_tab', handleSwitchTab);
+    return () => window.removeEventListener('brand_dna_switch_tab', handleSwitchTab);
+  }, []);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('brand_dna_active_tab_changed', { detail: { tab: activeTab } }));
+  }, [activeTab]);
+
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-12 text-slate-400">
@@ -112,24 +133,62 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-200">
-      <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 select-text" dir="rtl">
-          {/* 1. Minimal Header (Completeness Badge on Desktop only) */}
-          <div className="hidden md:flex justify-end mb-2">
-            <div className="flex items-center gap-2 px-2.5 py-1.5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700/70 rounded-lg shadow-sm">
-              <span className="text-[10px] text-slate-500 dark:text-slate-400 font-medium">שלמות ה-DNA:</span>
-              <span
-                className={`text-[10px] font-bold font-mono ${
+      {/* Pinned Top Bar: Component Tabs + Completeness Score + Day/Night Toggle */}
+      <div className="sticky top-0 z-40 bg-white/95 dark:bg-[#09090b]/95 backdrop-blur-xl border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-6 lg:px-8 py-2.5 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
+          {/* Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-none py-0.5">
+            {TAB_CONFIG.map((tab) => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => { setActiveTab(tab.id); setViewMode('tabs'); }}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                      : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800/80 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                  }`}
+                >
+                  <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                  <span>{tab.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right (In RTL: Left side): Progress Score attached to Day/Night Toggle */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+              <div
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold font-mono transition-colors ${
                   completenessScore >= 80
-                    ? 'text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800/60'
                     : completenessScore >= 50
-                    ? 'text-amber-600 dark:text-amber-400'
-                    : 'text-pink-600 dark:text-pink-400'
+                    ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800/60'
+                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800/60'
                 }`}
+                title="אחוז שלמות ה-Brand DNA"
               >
-                {completenessScore}%
-              </span>
+                <span>{completenessScore}%</span>
+                <span className="text-[10px] font-normal hidden sm:inline">שלמות</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDarkMode((prev) => !prev)}
+                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white dark:hover:bg-slate-700 transition cursor-pointer"
+                title={isDarkMode ? 'מעבר לתצוגת יום' : 'מעבר לתצוגת לילה'}
+              >
+                {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
+              </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 lg:p-8 space-y-6 select-text" dir="rtl">
 
           {/* Floating Action Button (FAB) Menu */}
           <div className="fixed top-6 left-6 z-50 flex flex-col items-start gap-2">
@@ -243,29 +302,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
             </div>
           )}
 
-          {/* Permanent Category Tabs */}
-          {/* Category Tabs */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-slate-200 dark:border-slate-800">
-                {TAB_CONFIG.map((tab) => {
-                  const Icon = tab.icon;
-                  const isActive = activeTab === tab.id;
-                  return (
-                    <button
-                      key={tab.id}
-                      type="button"
-                      onClick={() => { setActiveTab(tab.id); setViewMode('tabs'); }}
-                      className={`px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 whitespace-nowrap transition-all ${
-                        isActive
-                          ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20 border border-indigo-500'
-                          : 'bg-white hover:bg-slate-100 text-slate-600 dark:bg-slate-800/60 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:text-slate-200 border border-slate-200 dark:border-slate-700/50'
-                      }`}
-                    >
-                      <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
-                      <span>{tab.label}</span>
-                    </button>
-                  );
-                })}
-              </div>
+          {/* Tabbed Content */}
 
               {/* Tabbed Content */}
 

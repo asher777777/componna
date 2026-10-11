@@ -10,11 +10,20 @@ import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { KosaiAgentContract } from '../../../core/contracts';
 import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
+import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
+import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
 
 const DEFAULT_WELCOME_MSG: KosaiMessage = {
   id: 'welcome',
   role: 'assistant',
   content: 'היי! אני קושאן AI. העוזר והשותף החכם שלך. מחובר כעת ל-Brand DNA ומודע לכל הרשאות העיצוב והמערכת שלך. מה נרצה לעצב או לעדכן היום?',
+  timestamp: new Date()
+};
+
+const VISITOR_WELCOME_MSG: KosaiMessage = {
+  id: 'welcome',
+  role: 'assistant',
+  content: 'שלום וברוכים הבאים לקושאן! אני כאן לענות על כל שאלה בנוגע לשירותים, המוצרים ופתרונות הפלטפורמה שלנו. איך אוכל לסייע לך היום?',
   timestamp: new Date()
 };
 
@@ -35,6 +44,7 @@ interface KosaiContextValue {
   refreshConversations: () => Promise<void>;
   refreshRules: () => Promise<void>;
   cachedContentId?: string | null;
+  isLoggedIn: boolean;
 }
 
 const KosaiContext = createContext<KosaiContextValue | undefined>(undefined);
@@ -46,11 +56,52 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<KosaiConversation[]>([]);
   const [cachedContentId, setCachedContentId] = useState<string | null>(null);
+  const [authState, setAuthState] = useState<AuthState | null>(null);
+  const [tenantPages, setTenantPages] = useState<Array<{ title: string; slug: string; isHomePage?: boolean }>>([]);
   
-  const { db } = useSystemConnection();
+  const { db, firebaseApp } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { brandDna } = useBrandDna();
   const { registerCapability, unregisterCapability } = useHostCapabilities();
+
+  const isLoggedIn = Boolean(authState?.isAuthenticated && (authState.role === 'admin' || authState.role === 'editor'));
+
+  // Subscribe to auth state
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, (state) => {
+      setAuthState(state);
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  // Load tenant published pages for public visitor sales and support context
+  useEffect(() => {
+    let mounted = true;
+    pageBuilderFirestore.getAllPages(db, tenantId)
+      .then((pages) => {
+        if (mounted && pages) {
+          const mapped = pages.map((p) => ({
+            title: p.pageTitle || 'עמוד',
+            slug: p.slug || p.pageId,
+            isHomePage: Boolean(p.isHomePage),
+          }));
+          setTenantPages(mapped);
+        }
+      })
+      .catch((err) => console.warn('[KosaiContext] Failed loading tenant pages:', err));
+
+    return () => {
+      mounted = false;
+    };
+  }, [db, tenantId]);
+
+  // Set appropriate welcome message on initial empty chat
+  useEffect(() => {
+    if (messages.length === 1 && messages[0].id === 'welcome') {
+      setMessages([isLoggedIn ? DEFAULT_WELCOME_MSG : VISITOR_WELCOME_MSG]);
+    }
+  }, [isLoggedIn]);
 
   // Register kosai-agent AI capability for cross-module orchestration
   useEffect(() => {
@@ -260,9 +311,17 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         content: m.content
       }));
 
+      const promptContext = {
+        isLoggedIn,
+        userRole: authState?.role,
+        tenantPages,
+      };
+
+      const systemInstruction = buildKosaiSystemPrompt(currentRule, brandDna, capabilities, promptContext);
+
       const response = await callGeminiApi({
         prompt: content,
-        systemInstruction: buildKosaiSystemPrompt(currentRule, brandDna, capabilities),
+        systemInstruction,
         imageBase64,
         history: historyForApi,
         cachedContentId: cachedContentId || undefined
@@ -351,7 +410,8 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       startNewConversation,
       refreshConversations,
       refreshRules,
-      cachedContentId
+      cachedContentId,
+      isLoggedIn
     }}>
       {children}
     </KosaiContext.Provider>

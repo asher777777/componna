@@ -1,5 +1,27 @@
 import { BaseSectionConfig } from './pageBuilder.types';
 
+export interface HeaderSectionConfig extends BaseSectionConfig {
+  type: 'header';
+  title?: string;
+  adminTitle?: string;
+  layout?: 'floating-glass' | 'classic' | 'centered' | 'minimal' | 'transparent';
+  sticky?: boolean;
+  useBrandLogo?: boolean;
+  customLogoUrl?: string;
+  logoText?: string;
+  showLogoText?: boolean;
+  menuMode?: 'dynamic-tenant' | 'custom' | 'none';
+  customLinks?: Array<{ label: string; url: string; isButton?: boolean }>;
+  showLoginButton?: boolean;
+  showCtaButton?: boolean;
+  ctaButtonText?: string;
+  ctaButtonUrl?: string;
+  showPhone?: boolean;
+  phone?: string;
+  showWhatsApp?: boolean;
+  whatsApp?: string;
+}
+
 export interface HeroAvatarItem {
   id: string;
   avatarUrl: string;

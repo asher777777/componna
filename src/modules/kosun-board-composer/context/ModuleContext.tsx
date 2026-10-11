@@ -29,8 +29,8 @@ export interface KosunBoardContextValue {
   toggleModuleSelection: (moduleId: string) => void;
   customPrompt: string;
   setCustomPrompt: (prompt: string) => void;
-  selectedModel: 'gemini-2.5-flash' | 'gemini-3.8-flash' | 'gemini-2.5-pro';
-  setSelectedModel: (model: 'gemini-2.5-flash' | 'gemini-3.8-flash' | 'gemini-2.5-pro') => void;
+  selectedModel: 'gemini-3.8-flash' | 'gemini-3.5-flash' | 'gemini-3.8-flash-lite';
+  setSelectedModel: (model: 'gemini-3.8-flash' | 'gemini-3.5-flash' | 'gemini-3.8-flash-lite') => void;
   isGenerating: boolean;
   generatedDashboard: GeneratedCustomDashboard | null;
   setGeneratedDashboard: (dash: GeneratedCustomDashboard | null) => void;
@@ -80,7 +80,7 @@ export const KosunBoardProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   }, []);
 
   const [customPrompt, setCustomPrompt] = useState<string>('');
-  const [selectedModel, setSelectedModel] = useState<'gemini-2.5-flash' | 'gemini-3.8-flash' | 'gemini-2.5-pro'>('gemini-2.5-flash');
+  const [selectedModel, setSelectedModel] = useState<'gemini-3.8-flash' | 'gemini-3.5-flash' | 'gemini-3.8-flash-lite'>('gemini-3.8-flash');
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatedDashboard, setGeneratedDashboard] = useState<GeneratedCustomDashboard | null>(null);
   const [savedDashboards, setSavedDashboards] = useState<GeneratedCustomDashboard[]>([]);

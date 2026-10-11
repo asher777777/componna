@@ -1,6 +1,6 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Grid, X, Check, Lock, Edit3, User, LogOut } from 'lucide-react';
+import { Sparkles, Grid, X, Check, Lock, Edit3, User, LogOut, Sun, Moon } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { CashwanTopNav } from './components/CashwanTopNav';
 import { REGISTERED_MODULES } from './moduleRegistry';
@@ -104,6 +104,32 @@ export const WorkbenchApp: React.FC = () => {
   
   const [isAdmin, setIsAdmin] = useState(false);
 
+  // Day / Night Theme (Light Mode is Default)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('kosun_theme') as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('kosun_theme', next);
+    localStorage.setItem('kosun_home_theme', next);
+    if (next === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
+  };
+
   useEffect(() => {
     if (!firebaseApp) return;
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
@@ -189,12 +215,11 @@ export const WorkbenchApp: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-slate-100 relative font-sans" dir="rtl">
-      {/* Cashwan 2026: Pure Top Navigation - Zero Sidebars */}
-      <CashwanTopNav onOpenAuthModal={() => setIsAuthModalOpen(true)} />
+    <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-slate-100 relative font-sans transition-colors duration-300" dir="rtl">
+      {/* 2026 Kosun Standard: 100% Headerless - Zero Top Header */}
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative">
+        <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative transition-colors duration-300">
           <Routes>
             <Route
               path="/"
@@ -235,13 +260,24 @@ export const WorkbenchApp: React.FC = () => {
       </div>
 
       {!isPublicPage && !isHomePage && (
-        <button
-          onClick={() => setIsMenuOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center justify-center w-14 h-14 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer"
-          title="תפריט מודולים (קושאן)"
-        >
-          <Grid className="w-6 h-6" />
-        </button>
+        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5">
+          <button
+            onClick={toggleTheme}
+            type="button"
+            className="w-12 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-amber-500 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            title={theme === 'dark' ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
+          </button>
+          <button
+            onClick={() => setIsMenuOpen(true)}
+            type="button"
+            className="flex items-center justify-center w-12 h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer"
+            title="תפריט מודולים (קושאן)"
+          >
+            <Grid className="w-5 h-5" />
+          </button>
+        </div>
       )}
 
       {isMenuOpen && (

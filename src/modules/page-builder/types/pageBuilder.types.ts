@@ -1,4 +1,5 @@
 export type SectionType =
+  | 'header'
   | 'hero'
   | 'services'
   | 'testimonials'

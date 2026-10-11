@@ -1,41 +1,38 @@
 import React, { useState, useEffect } from 'react';
 import { useKosai } from '../context/KosaiContext';
-import { Bot, Sparkles } from 'lucide-react';
-import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
-import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
+import { Sparkles, Bot, ShieldCheck } from 'lucide-react';
 
 export const FloatingKosaiButton: React.FC = () => {
-  const { isOpen, setIsOpen } = useKosai();
-  const { firebaseApp } = useSystemConnection();
+  const { isOpen, setIsOpen, isLoggedIn } = useKosai();
 
-  const [canEdit, setCanEdit] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!firebaseApp) return;
-    const unsub = subscribeToAuth(firebaseApp, (state: AuthState) => {
-      const allowed = state.isAuthenticated && (state.role === 'admin' || state.role === 'editor');
-      setCanEdit(allowed);
-    });
-    return () => unsub();
-  }, [firebaseApp]);
-
-  // Only authorized authors/editors and admins can see and use KOSAI on the page
-  if (!canEdit || isOpen) return null;
+  if (isOpen) return null;
 
   return (
     <button
       onClick={() => setIsOpen(true)}
-      className="fixed bottom-6 left-6 z-[80] w-14 h-14 bg-gradient-to-tr from-indigo-600 to-purple-600 rounded-2xl shadow-2xl shadow-indigo-500/30 flex items-center justify-center hover:scale-110 transition-transform group border border-indigo-400/50 cursor-pointer"
-      title="פתח את סוכן ה-AI (KOSAI) לעריכת האתר"
-      aria-label="סוכן AI לעריכה"
+      className="fixed bottom-6 left-6 z-[80] w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-700 via-slate-900 to-indigo-600 shadow-2xl shadow-indigo-600/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group border border-indigo-400/40 cursor-pointer p-2 overflow-hidden"
+      title={isLoggedIn ? 'קושאן AI - מעצב האתרים והמערכת' : 'קושאן AI - שירות לקוחות ומידע'}
+      aria-label="קושאן AI צ׳אט"
     >
-      <Bot className="w-6 h-6 text-white" />
+      {/* Kosun Official Symbol from public gallery */}
+      <img
+        src="/images/kosun-symbol.svg"
+        alt="קושאן AI"
+        onError={(e) => {
+          // Fallback to official logo if symbol SVG is unavailable
+          (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+        }}
+        className="w-8 h-8 object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-300"
+      />
+
+      {/* Status Badge */}
       <span className="absolute -top-1 -right-1 flex h-4 w-4">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-4 w-4 bg-purple-500">
-          <Sparkles className="w-2.5 h-2.5 text-white absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500 items-center justify-center">
+          <Sparkles className="w-2.5 h-2.5 text-white absolute" />
         </span>
       </span>
     </button>
   );
 };
+

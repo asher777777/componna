@@ -1,5 +1,6 @@
-import { resolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../page-builder/api/functionsApi';
+import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../page-builder/api/functionsApi';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 interface KosaiApiOptions {
   prompt: string;
@@ -7,6 +8,7 @@ interface KosaiApiOptions {
   imageBase64?: string;
   history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   cachedContentId?: string;
+  apiKey?: string;
 }
 
 export interface KosaiApiResponse<T = any> {
@@ -63,9 +65,12 @@ export const callGeminiApi = async ({
   systemInstruction, 
   imageBase64,
   history,
-  cachedContentId
+  cachedContentId,
+  apiKey: customApiKey
 }: KosaiApiOptions): Promise<KosaiApiResponse> => {
-  const apiKey = resolveApiKey();
+  const apiKey = (customApiKey && customApiKey.trim().length > 5)
+    ? customApiKey.trim()
+    : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('page-builder') || defaultResolveApiKey();
   const model = imageBase64 ? 'gemini-1.5-pro-vision' : 'gemini-3.8-flash';
 
   if (apiKey) {

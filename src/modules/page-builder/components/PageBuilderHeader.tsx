@@ -88,8 +88,11 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
 
           <div className="text-right">
             <div className="flex items-center gap-2">
-              <h1 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white max-w-[180px] sm:max-w-xs truncate">
-                {config.pageTitle || 'עמוד ללא שם'}
+              <h1
+                className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white max-w-[140px] sm:max-w-[200px] truncate"
+                title={config.pageTitle || 'עמוד ללא שם'}
+              >
+                {config.pageTitle?.includes('|') ? config.pageTitle.split('|')[0].trim() : (config.pageTitle || 'עמוד ללא שם')}
               </h1>
               {config.isHomePage && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">

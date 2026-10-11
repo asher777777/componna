@@ -25,8 +25,10 @@ import { LandingSection } from '../sections/landing/LandingSection';
 import { ContactSection } from '../sections/contact/ContactSection';
 import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
 import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
+import { HeaderSection } from '../sections/header/HeaderSection';
 
 // Editors
+import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { ServicesGridEditor } from '../sections/services/ServicesGridEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
@@ -78,6 +80,7 @@ import {
   TrendingUp,
   SlidersHorizontal,
   MapPin,
+  Menu,
 } from 'lucide-react';
 
 export interface SectionDefinition {
@@ -92,6 +95,32 @@ export interface SectionDefinition {
 }
 
 export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
+  header: {
+    type: 'header',
+    name: 'תפריט ראשי (Header)',
+    category: 'headers',
+    description: 'תפריט עליון מודרני, לוגו מותג, פריסות שונות ותפריט דינמי',
+    icon: Menu,
+    viewComponent: HeaderSection,
+    editorComponent: HeaderEditor,
+    defaultConfig: {
+      type: 'header',
+      visible: true,
+      anchorId: 'header',
+      layout: 'floating-glass',
+      sticky: true,
+      useBrandLogo: true,
+      showLogoText: true,
+      menuMode: 'dynamic-tenant',
+      showLoginButton: true,
+      showCtaButton: true,
+      ctaButtonText: 'התחל עכשיו',
+      ctaButtonUrl: '#contact',
+      showWhatsApp: false,
+      showPhone: false,
+      customLinks: [],
+    },
+  },
   hero: {
     type: 'hero',
     name: 'אזור ראשי 2.0 (Hero)',

@@ -215,30 +215,30 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   // 1. ADMIN MODE (Control Panel & Purchased Module Editors)
   if (mode === 'admin') {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-950 font-sans" dir="rtl">
+      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans" dir="rtl">
         {/* Top Admin Status Bar */}
-        <header className="bg-slate-900 text-white px-4 py-2 text-xs flex items-center justify-between border-b border-indigo-500/30 shrink-0">
+        <header className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white px-4 py-2 text-xs flex items-center justify-between border-b border-slate-200 dark:border-indigo-500/30 shrink-0 shadow-2xs">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-bold text-white">לוח בקרת סאב-דומיין (מנהל):</span>
-            <span className="font-mono text-indigo-300 bg-slate-800 px-2 py-0.5 rounded">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold text-slate-900 dark:text-white">לוח בקרת סאב-דומיין (מנהל):</span>
+            <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-medium">
               {tenantRecord.fullDomain}
             </span>
-            <span className="text-gray-400 hidden md:inline">
-              | DB מבודד: <code className="text-emerald-400 font-mono">{tenantRecord.collectionPrefix}*</code>
+            <span className="text-slate-500 dark:text-gray-400 hidden md:inline">
+              | DB מבודד: <code className="text-emerald-600 dark:text-emerald-400 font-mono">{tenantRecord.collectionPrefix}*</code>
             </span>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
             {customDashboard && (
-              <div className="flex items-center bg-slate-800 p-0.5 rounded-lg border border-slate-700">
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
                 <button
                   type="button"
                   onClick={() => setAdminViewType('custom_board')}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition ${
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
                     adminViewType === 'custom_board'
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <Sparkles className="w-3 h-3" />
@@ -247,10 +247,10 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                 <button
                   type="button"
                   onClick={() => setAdminViewType('standard')}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition ${
+                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
                     adminViewType === 'standard'
-                      ? 'bg-indigo-600 text-white shadow-sm'
-                      : 'text-slate-400 hover:text-white'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                   }`}
                 >
                   <LayoutDashboard className="w-3 h-3" />
@@ -261,7 +261,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
             <button
               onClick={() => setMode('public')}
-              className="flex items-center gap-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-md shadow-emerald-600/20"
+              className="flex items-center gap-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-xs cursor-pointer"
             >
               <Eye className="w-3.5 h-3.5" />
               <span>צפייה באתר (עבור מבקרים)</span>
@@ -271,7 +271,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               onClick={() => {
                 window.location.href = window.location.origin;
               }}
-              className="flex items-center gap-1 text-[11px] bg-slate-800 hover:bg-slate-700 text-gray-300 px-2.5 py-1.5 rounded-lg transition border border-slate-700"
+              className="flex items-center gap-1 text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-gray-300 px-2.5 py-1.5 rounded-lg transition border border-slate-200 dark:border-slate-700 cursor-pointer font-medium"
             >
               <ArrowRight className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">חזרה לחנות kosun.pro</span>
@@ -280,7 +280,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         </header>
 
         {/* Modern Control Center Hub & Registered Modules Router */}
-        <div className="flex-1 overflow-auto bg-slate-950">
+        <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
           <Routes>
             <Route
               path="/"

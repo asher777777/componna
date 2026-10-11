@@ -10,10 +10,10 @@ let failures = 0;
 
 function assert(condition, message) {
   if (!condition) {
-    console.error(`❌ FAIL: ${message}`);
+    console.error(`[FAIL]: ${message}`);
     failures++;
   } else {
-    console.log(`✔ PASS: ${message}`);
+    console.log(`[PASS]: ${message}`);
   }
 }
 
@@ -98,13 +98,13 @@ for (const file of sourceFiles) {
   lines.forEach((line, lineIdx) => {
     if (line.includes('from ') && (line.includes('/modules/') || line.includes('../modules/'))) {
       if (!line.includes('kosun-am')) {
-        console.error(`❌ Sibling module import detected at ${path.relative(MODULE_ROOT, file)}:${lineIdx + 1}: ${line.trim()}`);
+        console.error(`[FAIL] Sibling module import detected at ${path.relative(MODULE_ROOT, file)}:${lineIdx + 1}: ${line.trim()}`);
         crossModuleImportViolations++;
         failures++;
       }
     }
     if (line.includes('localStorage') && !line.includes('//')) {
-      console.error(`❌ Direct localStorage access detected at ${path.relative(MODULE_ROOT, file)}:${lineIdx + 1}: ${line.trim()}`);
+      console.error(`[FAIL] Direct localStorage access detected at ${path.relative(MODULE_ROOT, file)}:${lineIdx + 1}: ${line.trim()}`);
       localStorageViolations++;
       failures++;
     }
@@ -160,9 +160,9 @@ for (const file of sourceFiles) {
 }
 
 if (cycles.length === 0) {
-  console.log('✔ PASS: Zero circular dependencies detected in src/modules/kosun-am');
+  console.log('[PASS]: Zero circular dependencies detected in src/modules/kosun-am');
 } else {
-  console.error(`❌ FAIL: Found ${cycles.length} circular dependencies:`);
+  console.error(`[FAIL]: Found ${cycles.length} circular dependencies:`);
   for (const c of cycles) {
     console.error('   Cycle:', c.map(f => path.relative(MODULE_ROOT, f)).join(' -> '));
   }
@@ -179,7 +179,7 @@ let emojiCount = 0;
 for (const file of sourceFiles) {
   const content = fs.readFileSync(file, 'utf8');
   if (emojiRegex.test(content)) {
-    console.error(`❌ Textual emoji found in ${path.relative(MODULE_ROOT, file)}`);
+    console.error(`[FAIL] Textual emoji found in ${path.relative(MODULE_ROOT, file)}`);
     emojiCount++;
   }
 }
@@ -205,11 +205,11 @@ assert(!mainViewContent.includes('<Sidebar') && !mainViewContent.includes('sideb
 // -------------------------------------------------------------
 console.log('\n================================================================');
 if (failures === 0) {
-  console.log('🎉 ALL EMPIRICAL CHECKS PASSED PERFECTLY (0 FAILURES)');
+  console.log('[PASS] ALL EMPIRICAL CHECKS PASSED PERFECTLY (0 FAILURES)');
   console.log('VERDICT: APPROVE');
   process.exit(0);
 } else {
-  console.error(`💥 EMPIRICAL CHECKS FAILED WITH ${failures} FAILURES`);
+  console.error(`[FAIL] EMPIRICAL CHECKS FAILED WITH ${failures} FAILURES`);
   console.error('VERDICT: REQUEST_CHANGES');
   process.exit(1);
 }

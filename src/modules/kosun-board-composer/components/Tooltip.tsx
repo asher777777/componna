@@ -49,14 +49,14 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, className = '' }) => 
         <div
           role="tooltip"
           dir="rtl"
-          className="absolute z-50 bottom-full mb-1.5 right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 p-2.5 bg-slate-900 border border-slate-700/80 rounded-xl shadow-2xl backdrop-blur-md text-xs text-slate-200 animate-in fade-in zoom-in-95 duration-150"
+          className="absolute z-50 bottom-full mb-1.5 right-0 sm:right-auto sm:left-1/2 sm:-translate-x-1/2 w-56 p-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700/80 rounded-xl shadow-xl text-xs text-slate-800 dark:text-slate-200 animate-in fade-in zoom-in-95 duration-150"
         >
           <div className="flex items-start justify-between gap-1.5">
             <span className="leading-relaxed">{content}</span>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
-              className="text-slate-400 hover:text-white p-0.5 rounded transition"
+              className="text-slate-400 hover:text-slate-700 dark:hover:text-white p-0.5 rounded transition cursor-pointer"
               aria-label="סגור הסבר"
             >
               <X className="w-3 h-3" />
