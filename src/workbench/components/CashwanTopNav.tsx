@@ -249,6 +249,18 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
             בונה עמודים
           </NavLink>
           <NavLink
+            to="/kosun-am"
+            className={({ isActive }) =>
+              `px-3 py-1.5 rounded-xl transition ${
+                isActive
+                  ? 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-bold'
+                  : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`
+            }
+          >
+            מייל ואוטומציה
+          </NavLink>
+          <NavLink
             to="/saas-storefront"
             className={({ isActive }) =>
               `px-3 py-1.5 rounded-xl transition ${
@@ -338,6 +350,13 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
             className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             בונה עמודים
+          </NavLink>
+          <NavLink
+            to="/kosun-am"
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+          >
+            מייל ואוטומציה (KOSUN AM)
           </NavLink>
           <NavLink
             to="/saas-storefront"

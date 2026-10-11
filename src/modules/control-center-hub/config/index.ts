@@ -27,6 +27,32 @@ export const MODULE_CATALOG: ControlCenterModuleItem[] = [
     actionLabel: 'הגדר מנוע AI',
   },
 
+  // 0. Marketing & Direct Email Automation
+  {
+    id: 'kosun-am',
+    name: 'קושאן מייל אוטומטי (KOSUN AM)',
+    shortTitle: 'קושאן מייל אוטומטי',
+    description: 'מערכת דיוור, ניוזלטרים ואוטומציות שיווקיות רב-ערוציות חכמות – עורך ויזואלי וחיבור ישיר ל-CRM',
+    route: '/kosun-am',
+    category: 'marketing',
+    categoryTitle: 'שיווק וצמיחה',
+    pipelineStage: 'attract',
+    pipelineStageTitle: '1. משיכה וחשיפה',
+    collectionName: 'mod_kosun_am_campaigns',
+    iconName: 'Mail',
+    badge: 'KOSUN AM',
+    colorScheme: {
+      from: 'from-pink-600',
+      to: 'to-rose-600',
+      border: 'border-pink-500/40',
+      text: 'text-pink-400',
+      glow: 'shadow-pink-500/20',
+      bgHover: 'hover:bg-pink-950/30',
+    },
+    features: ['עורך תבניות מייל בלוקים', 'אוטומציות רב-ערוציות מבוססות טריגרים', 'חיבור ישיר ללידים ו-CRM', 'סייען AI לכותרות ותוכן'],
+    actionLabel: 'ניהול דיוור ואוטומציה',
+  },
+
   // 1. Marketing & Growth
   {
     id: 'page-builder',

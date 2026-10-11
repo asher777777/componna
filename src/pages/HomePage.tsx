@@ -312,6 +312,14 @@ export const HomePage: React.FC = () => {
             >
               מערכת הגיוס
             </button>
+            <button
+              onClick={() => navigate('/kosun-am')}
+              className={`px-3.5 py-1.5 rounded-xl transition cursor-pointer font-bold ${
+                isLight ? 'text-indigo-600 hover:text-indigo-700 hover:bg-white' : 'text-indigo-400 hover:text-white hover:bg-slate-800'
+              }`}
+            >
+              קושאן מייל (KOSUN AM)
+            </button>
           </nav>
 
           {/* Right Controls: Theme Toggle + Login Modal Icon + Control Center Button */}
