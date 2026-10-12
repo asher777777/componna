@@ -7,7 +7,14 @@ description: Official Google AI Studio and Gemini API development skill. Enforce
 
 ## Purpose & Overview
 This skill provides the authoritative engineering standard for integrating **Google AI Studio** and the **Gemini API** within the Kosun workspace.
-It eliminates the critical mistakes made by previous agents (such as hallucinating non-existent models like `gemini-3.6-flash`, requesting shut down models like `gemini-2.0-flash` / `gemini-1.5-flash`, hardcoding invalid endpoints, or failing to implement automatic model fallback chains).
+
+### Critical Architecture Directives:
+1. **Module Monopoly (סמכות בלעדית)**: רכיב סוכני ה-AI (`kosai-engine`) ופונקציות ה-Cloud Functions הם האוטוריטה הבלעדית לכל תקשורת עם Gemini.
+   - רכיבים אחרים **אינם רשאים** להגדיר קריאות API ישירות ל-Gemini, מנועי תמלול, או שכפול שירותי AI.
+   - רכיב המעוניין ביכולת AI מייצר **רק שכבת UI** ומשתמש ב-`useHostCapabilities().getCapability(...)`.
+2. **Backend Only (Cloud Functions)**: חל איסור מוחלט על קריאת Gemini REST API ישירות מתוך הדפדפן (`fetch('https://generativelanguage...')` בקליינט אסור בהחלט). כל פנייה ל-Gemini מבוצעת אך ורק דרך Firebase Cloud Functions או שרת ייעודי, תוך שמירה על מפתחות ה-API מאובטחים.
+3. **Graceful Degradation**: אם שירות ה-AI אינו זמין, שגיאה ברשת או חוסר במפתח - הרכיב המארח **לעולם אינו קורס** ומציג ממשק חלופי או הודעת שגיאה מובנת בעברית.
+4. **Valid 2026 Models**: שימוש אך ורק במודלים תקפים (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-pro`), חיסול מלא של מודלים מומצאים או מושבתים, ושרשרת fallback אוטומטית.
 
 ---
 
@@ -40,21 +47,13 @@ It eliminates the critical mistakes made by previous agents (such as hallucinati
 
 ---
 
-## 2. Universal Model Fallback Chain Principle
+## 2. No Fallbacks & Clear Pleasant User Error Messages (הצגת שגיאה ברורה ללא פולבאק)
 
-**MANDATORY**: Any service, hook, or API caller that sends requests to the Gemini API MUST implement a cascading fallback array:
-
-```typescript
-export const GEMINI_FALLBACK_MODELS = [
-  'gemini-3.8-flash',      // 1st choice: Frontier speed & intelligence
-  'gemini-3.5-flash',      // 2nd choice: Ultra-stable GA workhorse
-  'gemini-3.8-flash-lite', // 3rd choice: High-speed lite
-  'gemini-3.5-flash-lite', // 4th choice: Budget fallback
-  'gemini-2.5-flash',      // 5th choice: Legacy account compatibility
-] as const;
-```
-
-If a model returns `404 Not Found`, `429 Resource Exhausted`, `403 Forbidden`, or model retirement error, the request must immediately attempt the next model in the chain before failing.
+**MANDATORY RULE**: חל איסור על ביצוע שרשרת פולבאק (Fallback) אוטומטית בין מודלים שונים.
+כאשר מתרחשת תקלת רשת, מכסה שהסתיימה, עומס במודל או שגיאת API:
+1. **לא לבצע פולבאק אוטומטי למודל אחר**.
+2. **לתפוס את השגיאה ולהציג תמיד למשתמש הקצה הודעה נעימה, שירותית וברורה בעברית מלאה** (למשל: "שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים").
+3. **הגנה על הממשק**: הרכיב לעולם אינו קורס ואינו זורק חריגה לא מטופלת שמפילה את מסך המשתמש.
 
 ---
 

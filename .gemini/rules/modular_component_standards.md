@@ -6,18 +6,34 @@ Whenever creating, refactoring, or extending any module in this workspace, you M
 - A module under `src/modules/[name]/` is strictly forbidden from importing files from sibling modules (`import { X } from '../other-module/...'` is NEVER allowed).
 - All shared interfaces and DTOs must be placed in or imported from `src/core/contracts/`.
 
-## 2. Capability-Based Communication & Graceful Degradation
-- If Module A needs a feature typically provided by Module B (e.g. Media Picker, Lead Capture), it MUST use `useHostCapabilities()` from `src/core/bridge/HostCapabilitiesContext`:
-  ```tsx
-  const { getCapability } = useHostCapabilities();
-  const mediaService = getCapability<MediaPickerContract>('media-picker');
-  if (mediaService) {
-    // Rich module interaction
-  } else {
-    // MANDATORY: Built-in local fallback (e.g. native file input)
-  }
-  ```
-- Every feature MUST have a graceful fallback if the target module is not included in the client export.
+## 2. Module Monopoly & Capability-Based Bridge (עקרון המונופול והסמכות הבלעדית)
+- **Single Authority Principle (סמכות בלעדית לכל תחום)**: לכל תחום מערכתי יש רכיב אוטוריטה יחיד בעל מונופול:
+  - רכיב ה-AI (`kosai-engine` / סוכני AI דרך Cloud Functions): הסמכות הבלעדית לכל תקשורת עם מודלי Gemini.
+  - רכיב מסד הנתונים (`db-collections-hub`): הסמכות לרישום וניהול קולקציות ו-seed.
+  - רכיב המדיה (`media-vault` / `media-gallery-hub`): הסמכות לניהול והעלאת קבצים ותמונות.
+  - רכיב התחברות והרשאות (`auth-portal`): הסמכות הבלעדית לאימות משתמשים, ניהול סשנים והרשאות מערכת.
+  - רכיב הגדרות ומיתוג (`brand-dna-hub`): הסמכות הבלעדית להגדרות מותג, שפת מותג, צבעים ו-Brand DNA.
+- **The 4-Step Capability Bridge Protocol (פרוטוקול 4 השלבים לגישור יכולות)**:
+  1. **Step 1 - Contracts Only**: רכיבים לעולם אינם מייבאים קוד זה מזה. אם נדרשת יכולת, מגדירים את הטיפוס ב-`src/core/contracts/index.ts` (לדוגמה `AiTextAssistantContract`).
+  2. **Step 2 - Authority Registration**: רכיב האוטוריטה (לדוגמה `kosai-engine`) רושם את המימוש שלו בעת טעינה לתוך `HostCapabilitiesProvider`:
+     ```typescript
+     registerCapability('ai-assistant', kosaiImplementation);
+     ```
+  3. **Step 3 - Consumer Module (UI Only)**: הרכיב המשתמש (לדוגמה `whatsapp-green-api-hub`) מייבא אך ורק את החוזה מ-`src/core/contracts/` וצורך את השירות דרך ה-Hook:
+     ```tsx
+     import { AiTextAssistantContract } from '../../../core/contracts';
+     const { getCapability } = useHostCapabilities();
+     const aiService = getCapability<AiTextAssistantContract>('ai-assistant');
+     ```
+  4. **Step 4 - Graceful Degradation (התדרדרות חיננית)**:
+     ```tsx
+     if (!aiService) {
+       // הצגת הודעה ברורה ונעימה בעברית - הרכיב לעולם אינו קורס!
+       return <AlertNotice text="שירות סוכני ה-AI אינו מופעל או אינו כלול בחבילת המנוי שלכם." />;
+     }
+     ```
+- **Zero Duplication**: חל איסור מוחלט על רכיב לממש בעצמו קריאות API ישירות ל-Gemini, שכפול מנועי תמלול, או יצירת שירותי ענן עצמאיים שכבר קיימים ברכיב האוטוריטה.
+- **Graceful Degradation (התדרדרות חיננית)**: אי-זמינות או קריסה של רכיב האוטוריטה **לעולם לא תפיל** את הרכיב המארח או את המערכת. על הרכיב להציג הודעה ברורה או ממשק חלופי שאינו תלוי.
 
 ## 3. Asynchronous Decoupling via EventBus
 - For background notifications, lead captures, and telemetry, publish events to `eventBus` from `src/core/bridge/EventBus`:
@@ -26,20 +42,20 @@ Whenever creating, refactoring, or extending any module in this workspace, you M
   ```
 - Modules subscribe only if active. Publishers never depend on subscribers existing.
 
-## 4. Strict 11-Layer Self-Contained Anatomy
-Every module MUST contain:
+## 4. Standard Component Anatomy (אנטומיית הרכיב התקנית)
+Every feature module MUST strictly adhere to the standard isolated structure:
 1. `types/index.ts` - Strict TypeScript definitions.
 2. `config/index.ts` - Scoped collection prefixes (`mod_[name]_[coll]`) and constants.
-3. `context/ModuleContext.tsx` - React Context Provider for DI.
+3. `context/ModuleContext.tsx` - React Context Provider for DI and state.
 4. `hooks/` - Internal scoped React hooks.
-5. `services/` - Scoped Firestore/backend CRUD services connected directly to real DB (STRICT RULE: Zero mock data, zero localStorage fallback. Everything is always connected to real DB).
-6. `api/functionsApi.ts` - Cloud Function callers / proxy.
-7. `prompts/index.ts` - AI system prompts & schemas (if AI-enabled).
-8. `routes/` - Internal relative sub-routing.
-9. `components/` - Tailwind UI components with strict RTL support (`dir="rtl"`).
-10. `StandaloneView.tsx`, `index.ts` & `README.md` - Clean public export and test runner.
-11. `.gemini/` (`rules.md` & `skills.md`) - **MANDATORY**: Module-specific rules, isolation boundaries, EventBus contracts, and agent skills definition.
+5. `services/` - Scoped Firestore CRUD services connected directly to real DB under `useTenantScope()`.
+6. `api/functionsApi.ts` - Dedicated Cloud Function callers for module-specific backend tasks (e.g. webhooks, payment clearing). **חל איסור מוחלט לשכפל כאן קריאות ל-Gemini או מנועי AI!**
+7. `routes/ModuleRoutes.tsx` - Internal relative sub-routing.
+8. `components/` - Tailwind UI components with strict RTL support (`dir="rtl"`).
+9. `StandaloneView.tsx`, `index.ts` & `README.md` - Clean public export, isolated test runner, and docs.
+10. `.gemini/` (`rules.md` & `skills.md`) - **MANDATORY**: Module-specific rules, isolation boundaries, and skills.
 
+> **חוק בלעדיות שכבת ה-AI (`prompts/`)**: שכבת `prompts/` ושירותי קריאה ל-Gemini שייכים **אך ורק לרכיב האוטוריטה ל-AI (`kosai-engine`)**. רכיבים רגילים (וואטסאפ, טפסים, דפי נחיתה וכו') אינם יוצרים שכבת פרומפטים ואינם פונים ישירות למודלים, אלא צורכים את שירות ה-AI אך ורק דרך החוזה המערכתי: `useHostCapabilities().getCapability<AiTextAssistantContract>('ai-assistant')`.
 
 ## 5. Master Registration & Dynamic Lazy Loading
 - Always register the new module in:
@@ -69,6 +85,8 @@ Every module MUST contain:
   const contactsRef = getScopedCollectionRef(db, SYSTEM_COLLECTIONS.CONTACTS);
   // Yields: collection(db, 'tenants', tenantId, 'contacts')
   ```
+- **Never touch `firestore.rules`**: חל איסור חמור לשנות את `firestore.rules` או להרפות הרשאות כדי "לפתור" שגיאות גישה. אם יש שגיאת הרשאה, הבעיה היא בקוד שקרא לקולקציה שטוחה במקום ל-tenant scope!
+- **Data Ingestion Schema Verification (שאיבת נתונים מרכיב אחר)**: במידה ופונקציית הרכיב היא שאיבת נתונים מרכיב אחר והצגתם, **חובה לבנות את הקריאה/השאילתה אך ורק לאחר לימוד מעמיק של הפרמטרים והשדות** הקיימים בפועל בקולקציה של הרכיב שמייצא את הנתונים או מקבל אותם. חל איסור מוחלט לנחש שמות שדות או מבנה נתונים.
 - **Apex / Root Domain Handling**: When running on the apex domain without a subdomain, `tenantId` is automatically `_master`.
 - **Cloud Storage**: File uploads must be isolated to `tenants/${tenantId}/${folder}/${fileName}`.
 
@@ -85,14 +103,22 @@ Every module MUST contain:
 - **Entitlement Checks**: The resolver automatically checks `activeModules` on the tenant document (`tenants/{tenantId}`). If the tenant hasn't purchased the module, the keys are stripped and the component must gracefully degrade (block access/functionality).
 - **Master Fallback**: Keys are stored at `tenants/_master/settings/api_keys` and inherited by subdomain tenants ONLY if they purchased the component.
 
-
-## 10. Official Google AI Studio & Gemini API Standards (חוק שימוש בבינה מלאכותית)
-- **Zero Hallucinated Models**: Only use active Google AI Studio models documented in `@skill:google-ai-studio-gemini` (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-pro`). Calling non-existent (`gemini-3.6-flash`) or shut-down models (`gemini-2.0-flash`, `gemini-1.5-flash`) is strictly forbidden.
-- **Mandatory Fallback Chain**: Every service or AI agent calling Gemini MUST implement automatic model fallback cascading (`['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.8-flash-lite', 'gemini-3.5-flash-lite']`).
+## 10. AI Standards & Firebase Cloud Functions Backend (חוק קריאות AI ו-Gemini)
+- **Cloud Functions Only**: חל איסור מוחלט על קריאות Gemini ישירות מתוך דפדפן הלקוח (`fetch('https://generativelanguage...')` אסור בקליינט). כל קריאות ה-Gemini מבוצעות אך ורק דרך Firebase Cloud Functions (או רכיב ה-AI האוטוריטי).
+- **Zero Hallucinated Models**: Only use active Google AI Studio models documented in `@skill:google-ai-studio-gemini` (`gemini-3.8-flash`, `gemini-3.5-flash`, `gemini-3.1-pro`). Calling non-existent or shut-down models is strictly forbidden.
+- **הצגת שגיאה ברורה ללא פולבאק (No Fallbacks / Clear User Errors)**: אין לבצע שרשרת פולבאק (Fallback) אוטומטית בין מודלים. במקרה של שגיאה, עומס או מכסה שהסתיימה – יש לתפוס את השגיאה ולהציג תמיד למשתמש הקצה הודעה בשפה ברורה, נעימה, שירותית ובעברית מלאה (לדוגמה: "שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים"), מבלי להפיל את המערכת.
 - **Token & Cost Tracking**: Every generation call must extract `usageMetadata` and calculate costs with `calculateGeminiCost` from `src/core/ai`.
 - **System Prompt & Brand DNA**: Inject brand voice and enforce RTL-compliant Hebrew without mixing disruptive English terms.
 
-## 11. Verification
-- Always verify clean compilation with `npm run build` after changes.
+## 11. Root Directory Hygiene & Component Scripts (איסור זיהום תקיית השורש)
+- **Zero Root Pollution**: חל איסור מוחלט על יצירת קבצים חדשים (סקריפטים, קבצי בדיקה, seeds, דוחות וכו') בתיקיית השורש הראשית של הפרויקט.
+- **Component Scripts Folder**: כל סקריפט תחזוקה, יבוא, בדיקה או seed ששייך לרכיב ספציפי חייב להישמר אך ורק בתוך:
+  `src/modules/[module-name]/scripts/`
+- **Temporary Scratch**: קבצי scratch זמניים מותרים אך ורק בתיקיית `scratch/` ואסור שיישמרו בשורש הפרויקט.
+
+## 12. Mandatory Gatekeeper Audit (שומר הסף)
+- לפני סיום כל משימה, עדכון פיצ'ר או יצירת רכיב, הסוכן מחויב להריץ את שומר הסף:
+  `npm run gatekeeper`
+- הסוכן חייב לצרף דו"ח צ'קליסט מלא המוודא שכל 12 הכללים מתקיימים. רכיב שאינו עובר את ביקורת שומר הסף אינו מאושר להגשה!
 
 

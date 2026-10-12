@@ -2,6 +2,7 @@ import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
 import { BrandDna } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { functionsApi } from '../api/functionsApi';
 export interface WhatsAppBotButton {
   buttonId: string;
   buttonText: string;
@@ -406,10 +407,11 @@ export class WhatsAppAiBotService {
   }
 
   /**
-   * Resilient Gemini API Caller using Kosun's Next-Gen 3.x Flash/Pro model hierarchy
+   * AI Assistant Caller routed securely through Cloud Functions (functionsApi)
+   * Follows Kosun Module Monopoly: Sibling modules never call Gemini directly from browser.
    */
   public static async callGeminiApi(params: {
-    apiKey: string;
+    apiKey?: string;
     prompt: string;
     systemInstruction?: string;
     temperature?: number;
@@ -418,36 +420,11 @@ export class WhatsAppAiBotService {
     brandDna?: BrandDna | null;
   }): Promise<{ text: string; costReport: TokenUsageReport }> {
     const {
-      apiKey,
       prompt,
       systemInstruction,
       temperature = 0.7,
-      preferredModel,
-      maxOutputTokens = 1000,
       brandDna,
     } = params;
-
-    const effectiveApiKey = (apiKey && apiKey.trim()) ||
-      getModuleGeminiKey('whatsapp-green-api-hub') ||
-      '';
-
-    if (!effectiveApiKey) {
-      throw new Error('לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח ברכיב סנכרון וחיבורי המערכת (DB Connector).');
-    }
-
-    const cleanKey = effectiveApiKey.trim();
-    const primaryModel = getValidGeminiModel(preferredModel);
-
-    // Reliable Google Gemini Production Model Chain (google-ai-studio-gemini SKILL.md)
-    const modelsToTry: string[] = [];
-    if (primaryModel && !modelsToTry.includes(primaryModel)) {
-      modelsToTry.push(primaryModel);
-    }
-    for (const m of OFFICIAL_GEMINI_MODELS) {
-      if (!modelsToTry.includes(m)) modelsToTry.push(m);
-    }
-
-    let lastError: any = null;
 
     const brandDnaBlock = buildBrandDnaPromptBlock(brandDna);
     const combinedSystemInstruction = [
@@ -455,53 +432,25 @@ export class WhatsAppAiBotService {
       brandDnaBlock
     ].filter(Boolean).join('\n\n');
 
-    for (const model of modelsToTry) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`;
+    // Secure call through functionsApi - no direct browser fetch and no fallback loops
+    const result = await functionsApi.callAiAssistant({
+      prompt,
+      systemInstruction: combinedSystemInstruction,
+      temperature,
+      brandDna
+    });
 
-        const bodyPayload: any = {
-          contents: [{ role: 'user', parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature,
-            maxOutputTokens,
-          },
-        };
-
-        if (combinedSystemInstruction) {
-          bodyPayload.systemInstruction = {
-            parts: [{ text: combinedSystemInstruction }],
-          };
-        }
-
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(bodyPayload),
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-          if (text) {
-            const promptTokens = data.usageMetadata?.promptTokenCount || 200;
-            const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 150;
-            const costReport = calculateGeminiCost({
-              model,
-              promptTokens,
-              candidatesTokens,
-            });
-            return { text, costReport };
-          }
-        } else {
-          const errData = await res.json().catch(() => ({}));
-          lastError = new Error(errData?.error?.message || `Google API Error (${res.status} ${res.statusText})`);
-        }
-      } catch (err: any) {
-        lastError = err;
-      }
+    if (result.error || !result.text) {
+      throw new Error(result.error || 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.');
     }
 
-    throw lastError || new Error('לא התקבלה תשובה משירות ה-AI של Google Gemini.');
+    const costReport = result.costReport || calculateGeminiCost({
+      model: 'gemini-3.8-flash',
+      promptTokens: 200,
+      candidatesTokens: 150
+    });
+
+    return { text: result.text, costReport };
   }
 
   /**

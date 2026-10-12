@@ -375,7 +375,21 @@ export interface KosaiAgentContract {
   generateBrandVibeImage: (options: { prompt?: string; vibeStyle?: string; brandDna?: BrandDna; aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' }) => Promise<KosaiImageGenerationResult>;
   editImageWithAi: (options: KosaiImageEditOptions) => Promise<KosaiImageGenerationResult>;
   enhancePromptWithBrandContext: (prompt: string, type: 'logo' | 'vibe' | 'edit' | 'general', brandDna?: BrandDna) => Promise<{ enhancedPromptEn: string; explanationHe: string }>;
+}
 
+export interface AiTextAssistantContract {
+  generateReply: (params: {
+    systemPrompt?: string;
+    userMessage: string;
+    chatHistory?: Array<{ role: 'user' | 'model'; text: string }>;
+    brandDna?: BrandDna | null;
+  }) => Promise<{ text: string; error?: string }>;
+
+  enhanceText: (params: {
+    originalText: string;
+    instruction: string;
+    brandDna?: BrandDna | null;
+  }) => Promise<{ text: string; error?: string }>;
 }
 
 export * from './collections';

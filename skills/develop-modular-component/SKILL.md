@@ -1,0 +1,71 @@
+---
+name: develop-modular-component
+description: Guides the end-to-end creation, isolation, and integration of a new self-contained, exportable full-stack component with Contract-First decoupling, Host Capabilities DI, EventBus, RTL Tailwind UI, and Workbench registration.
+---
+
+# Develop Modular Component Skill (The Component Architect)
+
+## Purpose
+This skill instructs the agent on how to build, isolate, and register any new component or feature in this workspace, ensuring it can operate 100% standalone and be selectively exported to client platforms without causing broken imports or dependencies.
+
+## Step-by-Step Development Workflow
+
+### Step 1: Contract & Capability Planning
+1. Identify if the new module:
+   - **Provides a capability** (e.g. `media-picker`, `lead-capture`, `payment-gateway`). If so, define the interface in `src/core/contracts/index.ts`.
+   - **Consumes a capability** (e.g. needs to pick an image or save a contact). Use `useHostCapabilities().getCapability<Contract>('name')` with a built-in fallback.
+   - **Emits or listens to events**. Register the event payload in `CoreEventMap` in `src/core/contracts/index.ts`.
+
+### Step 2: Scaffold the 12-Layer Anatomy & Present Immediate Skills
+Create `src/modules/[module-name]/`:
+1. `types/index.ts`: Strict TypeScript interfaces, props, and data models (NO `any`).
+2. `config/index.ts`: Define module ID, title, scoped Firestore collection names (`mod_[module]_[coll]`), and defaults.
+3. `context/ModuleContext.tsx`: React Context for Firebase app DI, tenant scope, and state.
+4. `hooks/`: Internal scoped React hooks (e.g. `use[Module]State.ts`, `index.ts`).
+5. `services/`: Scoped Firestore service with live/offline mock dataset fallback.
+6. `api/functionsApi.ts`: Cloud Function endpoints and backend callers.
+7. `prompts/index.ts`: AI system prompts, few-shot examples, and Gemini schemas (if AI features are used).
+8. `routes/ModuleRoutes.tsx`: Internal sub-routing with relative paths.
+9. `components/`: UI components with Tailwind CSS, RTL layout (`dir="rtl"`), and responsive styling.
+10. `StandaloneView.tsx`, `index.ts` & `README.md`: Public exports, Workbench standalone view, and documented Firestore security rules.
+11. `.gemini/` (`rules.md` & `skills.md`):
+    - **`rules.md`**: Strict module-specific isolation rules, prohibited sibling imports, host capabilities consumed/provided, and EventBus topics.
+    - **`skills.md`**: Core agent capabilities, immediate development skills, and checklist.
+12. `scripts/`: Local utility and patch scripts. Any automated `.mjs` code modifiers or build-time scripts MUST reside here and not in the global root.
+
+**MANDATORY AGENT ACTION UPON MODULE CREATION**:
+When creating a new module, the agent MUST immediately present to the user:
+- The urgent/critical skills needed for this module.
+- The isolation boundaries and consumed/provided capabilities.
+- And generate the corresponding `.gemini/rules.md` and `.gemini/skills.md` inside the module.
+
+### Step 3: Register in Workbench via Dynamic React.lazy and Client Platform
+1. **Workbench**: Add entry to `REGISTERED_MODULES` in `src/workbench/moduleRegistry.ts` using **ONLY** dynamic `React.lazy()` import:
+   ```typescript
+   const MyModuleStandaloneView = React.lazy(() =>
+     import('../modules/my-module').then((m) => ({ default: m.MyModuleStandaloneView }))
+   );
+   ```
+2. **Client Platform Shell**: Add entry to `MASTER_AVAILABLE_MODULES` in `src/modules/client-receiver-platform/config/index.ts`.
+
+### Step 4: Full DB Component & Core Contract Synchronization (סנכרון מלא עם רכיב ה-DB)
+**MANDATORY**: Whenever a module introduces or relies on Firestore collections:
+1. **Core Registry (`src/core/contracts/collections.ts`)**:
+   - Register all collection identifiers in `SYSTEM_COLLECTIONS` (e.g. `MY_MODULE_ITEMS: 'mod_my_module_items'`).
+2. **DB Collections Hub Metadata (`src/modules/db-collections-hub/config/index.ts`)**:
+   - Add entry to `PREDEFINED_COLLECTIONS` with user-friendly Hebrew title, clear description, Lucide icon, and correct `category`.
+3. **Seed & Explorer Mock Data (`src/modules/db-collections-hub/config/seedData.ts`)**:
+   - Add realistic seed records under `PROJECT_SEED_DATA[collectionId]` so developers and tenant admins can inspect and seed sample documents immediately in the DB explorer.
+4. **Tenant-Scoped Access**:
+   - Ensure all service queries use `useTenantScope().getScopedCollectionRef(db, SYSTEM_COLLECTIONS.X)`.
+
+### Step 5: API Keys & Multi-Tenant Entitlements (חוק הרשאות ומפתחות)
+**MANDATORY**: Whenever a module requires an API key (Gemini, Green API, HeyGen, etc.):
+1. **Never use `localStorage`**: Storing or reading keys directly from `localStorage` is strictly forbidden.
+2. **Use Tenant Resolver**: Always fetch keys using `getModuleApiKeys('module-name')`, `getModuleGeminiKey()`, or `getModuleGreenApiCredentials()` from `src/core/connection/tenantApiKeys.ts`.
+3. **Graceful Degradation**: Always handle the case where keys are undefined (which happens automatically if the tenant hasn't purchased the module).
+
+### Step 6: Verification & Compilation
+1. Run `npm run build` to verify clean TypeScript compilation with zero broken references.
+2. Test exportability via `node scripts/export-client-platform.js --client=test --modules=[module-name]`.
+
