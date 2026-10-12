@@ -7,6 +7,7 @@ export interface KosaiPromptContext {
   activeModuleId?: string;
   tenantPages?: Array<{ title: string; slug: string; isHomePage?: boolean }>;
   activeSections?: Array<{ id: string; type: string; title?: string }>;
+  groundingData?: string;
 }
 
 export const buildKosaiSystemPrompt = (
@@ -29,6 +30,7 @@ export const buildKosaiSystemPrompt = (
   const isPublicVisitor = !isLoggedIn || context?.roleMode === 'support_sales' || activeModuleId === 'public-site';
   const pagesList = context?.tenantPages || [];
   const sectionsList = context?.activeSections || [];
+  const groundingData = context?.groundingData || '';
 
   // Extract tone of voice directives if present
   let toneDirectives = '';
@@ -56,11 +58,14 @@ export const buildKosaiSystemPrompt = (
 שפת התקשורת: עברית רהוטה, מקצועית, שירותית ועסקית, ללא אימוג'ים טקסטואליים כלל.
 גופן המערכת הוא Heebo בלבד.
 
-[מאגרי מידע מחוברים וזמינים]
-- מאגר לקוחות ולידים (contacts): שמות, טלפונים, מיילים, תגיות, ערים, סכום רכישות (total_spent), סטטוסים.
-- קבוצות וקהילות (crm_groups): חלוקה לסגמנטים, מועדוני לקוחות ורשימות תפוצה.
-- עסקאות וסליקה (kesher_transactions): הכנסות, תשלומים, אמצעי תשלום, קבלות וחשבוניות.
-- טפסים חכמים (smart_forms): לידים שהתקבלו מדפי נחיתה ושאלוני הרשמה.
+${groundingData}
+
+[חוקי יסוד קריטיים למניעת הזיות ודיוק מקסימלי (ANTI-HALLUCINATION ENFORCEMENT)]
+1. בדיקת מאגרי המידע: הנתונים המופיעים לעיל תחת "[נתוני אמת חיים ממאגרי המידע]" הם הנתונים האמיתיים היחידים שקיימים בעסק!
+2. איסור מוחלט על המצאת נתונים (ZERO HALLUCINATION): חל איסור מוחלט להמציא לקוחות שלא קיימים, להמציא שמות, מספרי טלפון, סכומים, ערים או קבוצות!
+3. מענה מדויק על כמויות וסכומים: כאשר המשתמש שואל "כמה לקוחות יש לי?", "כמה לידים יש?", "מה סך ההכנסות?", או "מי קנה הכי הרבה?", עליך להשתמש אך ורק במספרים ובשמות המדויקים מתוך הנתונים שנשלפו לעיל.
+4. נתונים שאינם קיימים: אם המשתמש שואל על לקוח, קבוצה או נתון שלא נמצא ברשימה, ציין במפורש: "על פי מאגר הנתונים שלך (הכולל כרגע X לקוחות), לא נמצא לקוח/נתון כזה", ופרט מה כן מופיע במאגר.
+5. כאשר מבוקש גרף: בחר groupByField מתוך שדות אמיתיים שמופיעים בנתונים (כגון city, tags, status, lead_source).
 
 [יכולות ביצוע עיקריות]
 ${capabilities.map(c => `- ${c}`).join('\n')}
@@ -80,7 +85,7 @@ ${capabilities.map(c => `- ${c}`).join('\n')}
 [מבנה תשובה מחייב - RAW JSON בלבד]
 אתה חייב להחזיר אובייקט JSON גולמי בלבד (בלי סימוני markdown ובלי עטיפות של \`\`\`json):
 {
-  "message": "תשובה מקצועית, בהירה ותמציתית בעברית על הנתונים או על הגרף שנוצר",
+  "message": "תשובה מקצועית, מבוססת נתונים אמיתיים, בהירה ותמציתית בעברית",
   "action": "CREATE_CRM_CHART" או "NONE",
   "payload": { ... }
 }
@@ -114,6 +119,8 @@ ${sectionsSummary}
 [הצהרת הרשאות ויכולות שהוענקו לך]
 יש לך הרשאות מלאות ופעילות לבצע את הפעולות הבאות:
 ${capabilities.map(c => `- ${c}`).join('\n')}
+
+${groundingData}
 
 [חוק ביצוע קריטי - MANDATORY EXECUTION RULE]
 כאשר המשתמש מבקש ממך לשנות, להוסיף, לעצב, לתקן או לעדכן אלמנט כלשהו באתר:

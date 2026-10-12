@@ -11,6 +11,7 @@ import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { KosaiAgentContract, MediaPickerContract } from '../../../core/contracts';
 import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
+import { kosaiDataGroundingService } from '../services/kosaiDataGroundingService';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
 import { 
@@ -449,6 +450,21 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         content: m.content
       }));
 
+      // Fetch live data from allowed data sources under tenant scope
+      const allowedSources = currentRule?.allowedDataSources?.length 
+        ? currentRule.allowedDataSources 
+        : activeModule.allowedDataSources;
+
+      let groundingData = '';
+      try {
+        groundingData = await kosaiDataGroundingService.fetchGroundingContext(db, tenantId, {
+          allowedDataSources: allowedSources,
+          userQuery: content
+        });
+      } catch (groundingErr) {
+        console.warn('[KosaiContext] Grounding data retrieval notice:', groundingErr);
+      }
+
       const promptContext: KosaiPromptContext = {
         isLoggedIn,
         userRole: authState?.role,
@@ -456,6 +472,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         activeModuleId: activeModule.moduleId,
         tenantPages,
         activeSections: pageSections,
+        groundingData,
       };
 
       const systemInstruction = buildKosaiSystemPrompt(currentRule, brandDna, capabilities, promptContext);

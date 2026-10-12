@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KOSUN26 - Master Design & Component Showcase</title>
+  <title>KOSUN26 - Master Design & Ultra-Component Showcase</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -26,119 +26,143 @@
       }
     }
   </script>
-  <!-- Lucide Icons Library -->
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@300;400;500;600;700;800&family=Heebo:wght@300;400;500;700;900&family=Rubik:wght@400;500;600;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800;900&family=Heebo:wght@400;500;700;900&family=Rubik:wght@500;600;800;900&display=swap" rel="stylesheet">
   <style>
     :root {
-      /* Day / Light Mode Default */
-      --brand-primary: #2563eb;
-      --brand-secondary: #0891b2;
-      --brand-bg: #f8fafc;
+      /* Day Mode - High Contrast Edition */
+      --brand-primary: #1d4ed8;       /* כחול עמוק חד וברור */
+      --brand-secondary: #0e7490;     /* ציאן/טורקיז כהה קריא */
+      --brand-bg: #f8fafc;            /* רקע אפור בהיר יוקרתי */
       --brand-surface: #ffffff;
-      --brand-surface-card: rgba(255, 255, 255, 0.85);
-      --brand-border: rgba(226, 232, 240, 0.8);
-      --brand-text: #0f172a;
-      --brand-text-muted: #64748b;
+      --brand-surface-card: #ffffff;  /* אטום מלא לקונטרסט מושלם */
+      --brand-border: #cbd5e1;        /* מסגרות ברורות */
+      --brand-text: #0f172a;          /* שחור פחם עמוק (WCAG AAA) */
+      --brand-text-muted: #1e293b;    /* טקסט משנה כהה, חד ולא דהוי! */
       --brand-font: 'Assistant', sans-serif;
       --brand-radius: 1rem;
     }
 
     html.dark {
-      /* Night / Dark Mode */
+      /* Night Mode */
       --brand-primary: #3b82f6;
       --brand-secondary: #06b6d4;
       --brand-bg: #090d16;
       --brand-surface: #111827;
-      --brand-surface-card: rgba(17, 24, 39, 0.8);
-      --brand-border: rgba(148, 163, 184, 0.12);
+      --brand-surface-card: rgba(17, 24, 39, 0.9);
+      --brand-border: rgba(148, 163, 184, 0.18);
       --brand-text: #f8fafc;
-      --brand-text-muted: #94a3b8;
+      --brand-text-muted: #cbd5e1;    /* אפור בהיר קריא לחלוטין בלילה */
     }
 
     body {
       font-family: var(--brand-font);
       background-color: var(--brand-bg);
       color: var(--brand-text);
-      transition: background-color 0.3s ease, color 0.3s ease;
+      transition: background-color 0.25s ease, color 0.25s ease;
+      overflow-x: hidden;
+    }
+
+    /* Scroll Reveal & Motion */
+    .reveal-on-scroll {
+      opacity: 0;
+      transform: translateY(25px);
+      transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      will-change: opacity, transform;
+    }
+    .reveal-on-scroll.is-revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Reading Progress Bar */
+    #scroll-progress {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(to left, var(--brand-primary), var(--brand-secondary));
+      transform-origin: 100% 50%;
+      transform: scaleX(0);
+      z-index: 60;
+      transition: transform 0.05s ease-out;
     }
 
     .glass-card {
       background: var(--brand-surface-card);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
       border: 1px solid var(--brand-border);
-      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
+      box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.08);
     }
 
     html.dark .glass-card {
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
       box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.6);
     }
 
     .floating-dock {
-      background: rgba(255, 255, 255, 0.88);
-      backdrop-filter: blur(24px);
-      border: 1px solid rgba(0, 0, 0, 0.08);
-      box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.15);
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid var(--brand-border);
+      box-shadow: 0 15px 40px -10px rgba(15, 23, 42, 0.18);
     }
 
     html.dark .floating-dock {
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
     }
 
-    .glow-hover:hover {
-      box-shadow: 0 0 30px -5px var(--brand-primary);
-      border-color: var(--brand-primary);
-    }
-
-    /* Carousel Smooth Transition */
     .carousel-slide {
-      transition: opacity 0.6s ease-in-out;
+      transition: opacity 0.5s ease-in-out;
     }
   </style>
 </head>
 <body class="min-h-screen pb-36 text-right" dir="rtl">
 
+  <!-- אינדיקטור גלילה דינמי עליון -->
+  <div id="scroll-progress"></div>
+
   <!-- ========================================================================= -->
-  <!-- סעיף ב': הדר לוח בקרה (Backoffice OS) מול הדר פרונטהנד (Storefront) -->
+  <!-- הדר: השוואת שפות (לוח בקרה קושאן מול פרונטהנד לקוח) -->
   <!-- ========================================================================= -->
-  <section id="headers-comparison-section" class="border-b border-[var(--brand-border)] bg-[var(--brand-surface)]/50">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between text-xs">
-      <div class="flex items-center gap-2 text-[var(--brand-text-muted)]">
+  <section id="headers-comparison-section" class="border-b border-[var(--brand-border)] bg-[var(--brand-surface)] shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-2.5 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2 text-[var(--brand-text-muted)] font-bold">
         <i data-lucide="split" class="w-4 h-4 text-[var(--brand-primary)]"></i>
-        <span class="font-bold">השוואת שפות ממשק:</span>
-        <span>מערכת ניהול KOSUN (ללא הדר סטטי) לעומת פרונטהנד לקוח (הדר מותג מלא)</span>
+        <span class="font-extrabold text-[var(--brand-text)]">השוואת שפות ממשק:</span>
+        <span>מערכת ניהול KOSUN (ללא הדר סטטי) לעומת פרונטהנד לקוח (הדר מלא)</span>
       </div>
       <div class="flex items-center gap-2">
-        <button onclick="toggleHeaderMode('front')" id="btn-mode-front" class="px-3 py-1 rounded-md bg-[var(--brand-primary)] text-white font-semibold transition">
-          צפה בהדר פרונטהנד
+        <button onclick="toggleHeaderMode('front')" id="btn-mode-front" class="px-3 py-1 rounded-md bg-[var(--brand-primary)] text-white font-bold transition">
+          הדר פרונטהנד
         </button>
-        <button onclick="toggleHeaderMode('backoffice')" id="btn-mode-backoffice" class="px-3 py-1 rounded-md bg-transparent text-[var(--brand-text-muted)] hover:text-white transition">
-          צפה בתקן ניהול KOSUN (ללא הדר)
+        <button onclick="toggleHeaderMode('backoffice')" id="btn-mode-backoffice" class="px-3 py-1 rounded-md bg-transparent text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] font-bold transition">
+          תקן ניהול KOSUN (ללא הדר)
         </button>
       </div>
     </div>
 
-    <!-- 1. Frontend Header Example (מוצג כשהלקוח גולש באתר הפרונט) -->
+    <!-- Frontend Header -->
     <header id="frontend-header" class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between border-t border-[var(--brand-border)] transition-all">
-      <div class="flex items-center gap-4">
+      <div class="flex items-center gap-3">
         <div class="w-9 h-9 rounded-xl bg-[var(--brand-primary)] text-white flex items-center justify-center font-black text-lg shadow-md">
           K
         </div>
         <div>
-          <span class="font-extrabold text-base tracking-tight block">KOSUN STOREFRONT</span>
-          <span class="text-[10px] text-[var(--brand-text-muted)]">פרונטהנד ממותג לקוח</span>
+          <span class="font-extrabold text-base tracking-tight block text-[var(--brand-text)]">KOSUN STOREFRONT</span>
+          <span class="text-[11px] text-[var(--brand-text-muted)] font-bold">פרונטהנד ממותג לקוח</span>
         </div>
       </div>
-      <nav class="hidden md:flex items-center gap-6 text-sm font-medium">
+      <nav class="hidden md:flex items-center gap-6 text-sm font-bold text-[var(--brand-text-muted)]">
         <a href="#hero-full-bg" class="hover:text-[var(--brand-primary)] transition">ראשי</a>
-        <a href="#hero-carousel" class="hover:text-[var(--brand-primary)] transition">מבצעים</a>
-        <a href="#step-form-section" class="hover:text-[var(--brand-primary)] transition">הרשמה מהירה</a>
-        <a href="#cards-grid-section" class="hover:text-[var(--brand-primary)] transition">פתרונות</a>
+        <a href="#hero-carousel" class="hover:text-[var(--brand-primary)] transition">קרוסלת הירו</a>
+        <a href="#video-section" class="hover:text-[var(--brand-primary)] transition">וידאו</a>
+        <a href="#tables-section" class="hover:text-[var(--brand-primary)] transition">טבלאות ופריסות</a>
+        <a href="#step-form-section" class="hover:text-[var(--brand-primary)] transition">אשף שלבים</a>
         <a href="#faq-section" class="hover:text-[var(--brand-primary)] transition">שאלות נפוצות</a>
       </nav>
       <div class="flex items-center gap-3">
@@ -149,44 +173,41 @@
       </div>
     </header>
 
-    <!-- 2. Backoffice Zero-Header Notice (הסבר לתקן הניהול) -->
-    <div id="backoffice-notice" class="hidden max-w-7xl mx-auto px-4 py-4 text-center text-xs text-[var(--brand-text-muted)] border-t border-[var(--brand-border)] bg-amber-500/5">
-      <span class="font-bold text-amber-500 flex items-center justify-center gap-1.5">
+    <div id="backoffice-notice" class="hidden max-w-7xl mx-auto px-4 py-4 text-center text-xs border-t border-[var(--brand-border)] bg-amber-500/10">
+      <span class="font-bold text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1.5">
         <i data-lucide="shield-alert" class="w-4 h-4"></i>
-        תקן ניהול KOSUN OS: אין הדר סטטי כלל! כל הפעולות מנוהלות מהמעגן הצף בתחתית המסך.
+        תקן ניהול KOSUN OS: אין הדר סטטי כלל! הניווט והשליטה מנוהלים כולם מהמעגן הצף התחתון.
       </span>
     </div>
   </section>
 
   <!-- ========================================================================= -->
-  <!-- סעיף ג': הירו תמונה רקע מלא עם קריאה לפעולה (Full-Screen Image Hero) -->
+  <!-- הירו תמונה רקע מלא עם קריאה לפעולה (High Contrast Box) -->
   <!-- ========================================================================= -->
   <section id="hero-full-bg" class="relative min-h-[82vh] flex items-center justify-center overflow-hidden border-b border-[var(--brand-border)]">
-    <!-- Full Background Image with Dark Vignette Overlay -->
     <div class="absolute inset-0 z-0">
       <img src="https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1920&q=80" alt="רקע טכנולוגי מלא" class="w-full h-full object-cover">
-      <div class="absolute inset-0 bg-gradient-to-t from-[var(--brand-bg)] via-[var(--brand-bg)]/80 to-[var(--brand-bg)]/60"></div>
+      <div class="absolute inset-0 bg-gradient-to-t from-[var(--brand-bg)] via-[var(--brand-bg)]/90 to-[var(--brand-bg)]/75"></div>
     </div>
 
-    <!-- Hero Content -->
-    <div class="relative z-10 max-w-4xl mx-auto px-4 text-center space-y-6 py-16">
-      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider glass-card text-[var(--brand-secondary)] border border-[var(--brand-border)]">
+    <div class="relative z-10 max-w-4xl mx-auto px-4 text-center space-y-6 py-16 reveal-on-scroll">
+      <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider glass-card text-[var(--brand-primary)] border border-[var(--brand-border)]">
         <i data-lucide="sparkles" class="w-3.5 h-3.5"></i>
         <span>KOSUN Enterprise Platform</span>
       </div>
-      <h2 class="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+      <h2 class="text-4xl md:text-6xl font-black tracking-tight leading-tight text-[var(--brand-text)]">
         עוצמה דיגיטלית שלמה, <br>
         <span class="bg-gradient-to-r from-[var(--brand-primary)] to-[var(--brand-secondary)] bg-clip-text text-transparent">במהירות שיא וללא פשרות</span>
       </h2>
-      <p class="text-base md:text-lg text-[var(--brand-text-muted)] max-w-2xl mx-auto font-light leading-relaxed">
+      <p class="text-base md:text-lg text-[var(--brand-text-muted)] max-w-2xl mx-auto font-bold leading-relaxed">
         מערכת מודולרית עצמאית המחברת אוטומציה, סליקה, בינה מלאכותית ומיתוג רב-דיירי תחת ארכיטקטורת חוזים מבודדת.
       </p>
       <div class="flex flex-wrap items-center justify-center gap-4 pt-2">
-        <button onclick="openStepModal()" class="px-8 py-3.5 rounded-[var(--brand-radius)] bg-[var(--brand-primary)] text-white font-bold text-sm shadow-xl shadow-[var(--brand-primary)]/25 hover:opacity-95 active:scale-95 transition flex items-center gap-2">
+        <button onclick="openStepModal()" class="px-8 py-3.5 rounded-[var(--brand-radius)] bg-[var(--brand-primary)] text-white font-black text-sm shadow-lg hover:opacity-95 active:scale-95 transition flex items-center gap-2">
           <span>התחל עכשיו בחינם</span>
           <i data-lucide="arrow-left" class="w-4 h-4"></i>
         </button>
-        <button onclick="openDetailModal()" class="px-8 py-3.5 rounded-[var(--brand-radius)] glass-card font-bold text-sm hover:border-[var(--brand-primary)] active:scale-95 transition flex items-center gap-2">
+        <button onclick="openFullscreenModal()" class="px-8 py-3.5 rounded-[var(--brand-radius)] glass-card font-bold text-sm hover:border-[var(--brand-primary)] text-[var(--brand-text)] active:scale-95 transition flex items-center gap-2">
           <i data-lucide="play" class="w-4 h-4 text-[var(--brand-secondary)]"></i>
           <span>הדגמת מודאל 100%</span>
         </button>
@@ -195,53 +216,64 @@
   </section>
 
   <!-- ========================================================================= -->
-  <!-- סעיף ד': הירו קרוסלת תמונות עם קריאה לפעולה (Image Carousel Hero) -->
+  <!-- סעיף א' המתוקן: קרוסלת הירו עם כרטיס תוכן מוגן (Content Scrim / Backplate) -->
   <!-- ========================================================================= -->
-  <section id="hero-carousel" class="max-w-7xl mx-auto px-4 py-16">
-    <div class="relative glass-card rounded-3xl overflow-hidden min-h-[500px] flex items-center border border-[var(--brand-border)] shadow-2xl">
+  <section id="hero-carousel" class="max-w-7xl mx-auto px-4 py-16 reveal-on-scroll">
+    <div class="relative rounded-3xl overflow-hidden min-h-[520px] flex items-center border border-[var(--brand-border)] shadow-2xl">
       
       <!-- Slide 1 -->
-      <div id="carousel-slide-0" class="carousel-slide absolute inset-0 z-0 opacity-100 flex items-center">
-        <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1600&q=80" alt="שקופית 1" class="absolute inset-0 w-full h-full object-cover">
-        <div class="absolute inset-0 bg-gradient-to-r from-[var(--brand-bg)] via-[var(--brand-bg)]/85 to-transparent"></div>
-        <div class="relative z-10 max-w-xl p-8 md:p-14 space-y-4">
-          <span class="px-3 py-1 rounded-full text-xs font-bold bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] border border-[var(--brand-primary)]/30">
+      <div id="carousel-slide-0" class="carousel-slide absolute inset-0 z-0 opacity-100 flex items-center p-6 md:p-14">
+        <!-- Background Image -->
+        <img src="https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=1600&q=80" alt="חומרה ותשתיות" class="absolute inset-0 w-full h-full object-cover">
+        
+        <!-- כרטיס הגנה אטום לחלוטין לקונטרסט מושלם (Backplate Content Scrim) -->
+        <div class="relative z-10 max-w-xl p-8 md:p-10 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-[var(--brand-border)] shadow-2xl space-y-4">
+          <span class="inline-block px-3 py-1 rounded-full text-xs font-black bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 border border-blue-300 dark:border-blue-700">
             חומרה ותשתיות ענן
           </span>
-          <h3 class="text-3xl md:text-5xl font-extrabold leading-tight">שליטה מלאה בכל הנתונים שלך</h3>
-          <p class="text-sm text-[var(--brand-text-muted)]">בידוד טננטים הרמטי ברמת Firestore ו-Cloud Functions ללא זליגת מידע.</p>
-          <button onclick="openStepModal()" class="px-6 py-3 rounded-[var(--brand-radius)] bg-[var(--brand-primary)] text-white text-xs font-bold hover:opacity-90 transition">
+          <h3 class="text-3xl md:text-4xl font-black leading-tight text-slate-900 dark:text-white">
+            שליטה מלאה בכל הנתונים שלך
+          </h3>
+          <p class="text-sm md:text-base font-bold text-slate-700 dark:text-slate-200 leading-relaxed">
+            בידוד טננטים הרמטי ברמת Firestore ו-Cloud Functions ללא זליגת מידע, עם הגנה מלאה על סודיות הלקוח.
+          </p>
+          <button onclick="openStepModal()" class="px-6 py-3 rounded-[var(--brand-radius)] bg-[var(--brand-primary)] text-white text-xs font-black shadow-md hover:opacity-90 transition">
             גלה את יכולות השרת
           </button>
         </div>
       </div>
 
       <!-- Slide 2 -->
-      <div id="carousel-slide-1" class="carousel-slide absolute inset-0 z-0 opacity-0 pointer-events-none flex items-center">
-        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80" alt="שקופית 2" class="absolute inset-0 w-full h-full object-cover">
-        <div class="absolute inset-0 bg-gradient-to-r from-[var(--brand-bg)] via-[var(--brand-bg)]/85 to-transparent"></div>
-        <div class="relative z-10 max-w-xl p-8 md:p-14 space-y-4">
-          <span class="px-3 py-1 rounded-full text-xs font-bold bg-[var(--brand-secondary)]/20 text-[var(--brand-secondary)] border border-[var(--brand-secondary)]/30">
+      <div id="carousel-slide-1" class="carousel-slide absolute inset-0 z-0 opacity-0 pointer-events-none flex items-center p-6 md:p-14">
+        <img src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1600&q=80" alt="מיתוג וסגנון" class="absolute inset-0 w-full h-full object-cover">
+        
+        <!-- כרטיס הגנה אטום לחלוטין (Backplate Content Scrim) -->
+        <div class="relative z-10 max-w-xl p-8 md:p-10 rounded-2xl bg-white/95 dark:bg-slate-900/95 border border-[var(--brand-border)] shadow-2xl space-y-4">
+          <span class="inline-block px-3 py-1 rounded-full text-xs font-black bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700">
             עולם המיתוג וה-DNA
           </span>
-          <h3 class="text-3xl md:text-5xl font-extrabold leading-tight">התאמה עיצובית לכל מותג</h3>
-          <p class="text-sm text-[var(--brand-text-muted)]">שליטה סמנטית במשתני CSS, צבעים, טיפוגרפיה ורדיוס פינות בזמן אמת.</p>
-          <button onclick="openDetailModal()" class="px-6 py-3 rounded-[var(--brand-radius)] bg-[var(--brand-secondary)] text-white text-xs font-bold hover:opacity-90 transition">
+          <h3 class="text-3xl md:text-4xl font-black leading-tight text-slate-900 dark:text-white">
+            התאמה עיצובית לכל מותג
+          </h3>
+          <p class="text-sm md:text-base font-bold text-slate-700 dark:text-slate-200 leading-relaxed">
+            שליטה סמנטית במשתני CSS, צבעים, טיפוגרפיה ורדיוס פינות בזמן אמת, כולל ניתוק מיתוג לעמודי קמפיין מיוחדים.
+          </p>
+          <button onclick="openDetailModal()" class="px-6 py-3 rounded-[var(--brand-radius)] bg-[var(--brand-secondary)] text-white text-xs font-black shadow-md hover:opacity-90 transition">
             צפה במנוע העיצוב
           </button>
         </div>
       </div>
 
-      <!-- Carousel Controls -->
+      <!-- Carousel Navigation Controls -->
       <div class="absolute bottom-6 left-8 z-20 flex items-center gap-2">
-        <button onclick="prevSlide()" class="p-2.5 rounded-xl glass-card hover:bg-white/10 text-white transition">
+        <button onclick="prevSlide()" class="p-3 rounded-xl bg-white/90 dark:bg-black/80 hover:bg-white text-slate-900 dark:text-white shadow-md transition" title="שקופית קודמת">
           <i data-lucide="chevron-right" class="w-5 h-5"></i>
         </button>
-        <div class="flex items-center gap-1.5 px-3">
-          <span id="dot-0" class="w-3 h-3 rounded-full bg-[var(--brand-primary)] transition-all"></span>
-          <span id="dot-1" class="w-3 h-3 rounded-full bg-white/30 transition-all"></span>
+        <div class="flex items-center gap-2 px-3">
+          <span id="dot-0" class="w-3.5 h-3.5 rounded-full bg-[var(--brand-primary)] shadow-sm transition-all"></span>
+          <span id="dot-1" class="w-3.5 h-3.5 rounded-full bg-slate-300 dark:bg-slate-600 transition-all"></span>
         </div>
-        <button onclick="nextSlide()" class="p-2.5 rounded-xl glass-card hover:bg-white/10 text-white transition">
+        <button onclick="nextSlide()" class="p-3 rounded-xl bg-white/90 dark:bg-black/80 hover:bg-white text-slate-900 dark:text-white shadow-md transition" title="שקופית הבאה">
           <i data-lucide="chevron-left" class="w-5 h-5"></i>
         </button>
       </div>
@@ -249,41 +281,264 @@
   </section>
 
   <!-- ========================================================================= -->
-  <!-- סעיף ז': טופס שלבים עם שאלה אחת בכל שלב (Single Question Step Wizard) -->
+  <!-- אזור וידאו מודרני ממותג -->
   <!-- ========================================================================= -->
-  <section id="step-form-section" class="max-w-3xl mx-auto px-4 py-16">
-    <div class="glass-card p-8 md:p-12 rounded-3xl space-y-8 border border-[var(--brand-border)]">
+  <section id="video-section" class="max-w-6xl mx-auto px-4 py-16 space-y-8 reveal-on-scroll">
+    <div class="text-center space-y-2">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black bg-[var(--brand-primary)]/10 text-[var(--brand-primary)]">
+        <i data-lucide="video" class="w-4 h-4"></i>
+        <span>הכר את המערכת בוידאו</span>
+      </div>
+      <h3 class="text-3xl md:text-4xl font-black text-[var(--brand-text)]">איך קושאן בונה רכיב עצמאי ביום?</h3>
+      <p class="text-sm font-bold text-[var(--brand-text-muted)] max-w-xl mx-auto">
+        צפה בהדמיה מלאה של ארכיטקטורת ה-Slots, עבודת הצוות, ושומר הסף המאשר 6 שערים בזמן אמת.
+      </p>
+    </div>
+
+    <div class="relative glass-card rounded-3xl overflow-hidden border border-[var(--brand-border)] shadow-2xl aspect-video group">
+      <img id="video-poster" src="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80" alt="פוסטר וידאו" class="w-full h-full object-cover">
       
-      <!-- Progress Bar -->
+      <video id="main-video-player" class="hidden w-full h-full object-cover" controls>
+        <source src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4" type="video/mp4">
+        הדפדפן שלך אינו תומך בניגון וידאו.
+      </video>
+
+      <div id="video-overlay" class="absolute inset-0 bg-black/45 backdrop-blur-[2px] flex flex-col items-center justify-center p-6 text-center space-y-4 transition-opacity duration-300">
+        <button onclick="playCustomVideo()" class="w-20 h-20 rounded-full bg-[var(--brand-primary)] text-white shadow-2xl flex items-center justify-center transform group-hover:scale-110 active:scale-95 transition-all">
+          <i data-lucide="play" class="w-8 h-8 fill-white ml-[-2px]"></i>
+        </button>
+        <div class="text-white space-y-1">
+          <span class="font-black text-lg block">הדרכת וידאו: תהליך הקמת רכיב ב-6 שלבים</span>
+          <span class="text-xs font-bold text-gray-200">משך הסרטון: 3:45 דקות • איכות 4K</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- סעיף ב' המתוקן: טבלאות נתונים עם 3 פריסות + פתיחת מודאל איש קשר בלחיצה -->
+  <!-- ========================================================================= -->
+  <section id="tables-section" class="max-w-7xl mx-auto px-4 py-16 space-y-8 reveal-on-scroll">
+    <div class="flex flex-wrap items-center justify-between gap-4">
+      <div>
+        <h3 class="text-3xl font-black text-[var(--brand-text)] flex items-center gap-2">
+          <i data-lucide="table" class="w-7 h-7 text-[var(--brand-primary)]"></i>
+          טבלאות נתונים ואנשי קשר (Data Views)
+        </h3>
+        <p class="text-sm font-bold text-[var(--brand-text-muted)]">
+          בחר תצוגה מועדפת (שורות, כרטיסים או קומפקטי) ולחץ על כל איש קשר לפתיחת תיק אישי מלא
+        </p>
+      </div>
+      
+      <!-- Layout View Mode Switcher -->
+      <div class="flex items-center gap-2 bg-slate-200 dark:bg-slate-800 p-1.5 rounded-2xl border border-[var(--brand-border)]">
+        <button onclick="setTableLayout('table')" id="view-btn-table" class="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 shadow-sm text-xs font-black flex items-center gap-1.5 text-[var(--brand-primary)]">
+          <i data-lucide="rows-3" class="w-3.5 h-3.5"></i> שורות רגיל
+        </button>
+        <button onclick="setTableLayout('cards')" id="view-btn-cards" class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]">
+          <i data-lucide="grid-2x2" class="w-3.5 h-3.5"></i> כרטיסים
+        </button>
+        <button onclick="setTableLayout('compact')" id="view-btn-compact" class="px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]">
+          <i data-lucide="align-justify" class="w-3.5 h-3.5"></i> צפוף קומפקטי
+        </button>
+      </div>
+    </div>
+
+    <!-- 1. Table View (תצוגת שורות רגילה וצפופה) -->
+    <div id="container-table-view" class="glass-card rounded-2xl overflow-hidden border border-[var(--brand-border)] shadow-md">
+      <div class="overflow-x-auto">
+        <table class="w-full text-right text-xs">
+          <thead class="bg-slate-100 dark:bg-slate-800/60 text-slate-900 dark:text-white font-black uppercase border-b border-[var(--brand-border)]">
+            <tr>
+              <th class="p-4">שם איש קשר וחברה</th>
+              <th class="p-4">תפקיד</th>
+              <th class="p-4">טלפון / וואטסאפ</th>
+              <th class="p-4">סטטוס פנייה</th>
+              <th class="p-4">מודול מקושר</th>
+              <th class="p-4 text-left">פעולה</th>
+            </tr>
+          </thead>
+          <tbody id="contacts-table-body" class="divide-y divide-[var(--brand-border)] text-[var(--brand-text)] font-semibold">
+            <!-- Contact Row 1 -->
+            <tr onclick="openContactModal('ישראל ישראלי', 'סמנכ״ל טכנולוגיות', 'Tech Solutions בע״מ', '050-1234567', 'israel@tech.co.il', 'whatsapp-green-api', 'פנייה חמה לקמפיין')" class="hover:bg-blue-50 dark:hover:bg-slate-800/80 cursor-pointer transition">
+              <td class="p-4 font-bold flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-black flex items-center justify-center text-sm">
+                  יי
+                </div>
+                <div>
+                  <span class="block font-black text-slate-900 dark:text-white text-sm">ישראל ישראלי</span>
+                  <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Tech Solutions בע״מ</span>
+                </div>
+              </td>
+              <td class="p-4 font-bold">סמנכ״ל טכנולוגיות</td>
+              <td class="p-4 font-mono font-bold text-blue-600 dark:text-blue-400">050-1234567</td>
+              <td class="p-4">
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700">
+                  פנייה חמה
+                </span>
+              </td>
+              <td class="p-4 font-mono text-[11px] font-bold">whatsapp-green-api</td>
+              <td class="p-4 text-left">
+                <button class="px-3 py-1 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-black shadow-sm">
+                  צפה בתיק
+                </button>
+              </td>
+            </tr>
+
+            <!-- Contact Row 2 -->
+            <tr onclick="openContactModal('רונית כהן', 'מנהלת שיווק ומותג', 'Fashion Group', '052-9876543', 'ronit@fashion.co.il', 'brand-dna-hub', 'דריסת מיתוג לקמפיין חג')" class="hover:bg-blue-50 dark:hover:bg-slate-800/80 cursor-pointer transition">
+              <td class="p-4 font-bold flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 font-black flex items-center justify-center text-sm">
+                  רכ
+                </div>
+                <div>
+                  <span class="block font-black text-slate-900 dark:text-white text-sm">רונית כהן</span>
+                  <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Fashion Group</span>
+                </div>
+              </td>
+              <td class="p-4 font-bold">מנהלת שיווק ומותג</td>
+              <td class="p-4 font-mono font-bold text-blue-600 dark:text-blue-400">052-9876543</td>
+              <td class="p-4">
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 border border-purple-300 dark:border-purple-700">
+                  התאמת DNA
+                </span>
+              </td>
+              <td class="p-4 font-mono text-[11px] font-bold">brand-dna-hub</td>
+              <td class="p-4 text-left">
+                <button class="px-3 py-1 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-black shadow-sm">
+                  צפה בתיק
+                </button>
+              </td>
+            </tr>
+
+            <!-- Contact Row 3 -->
+            <tr onclick="openContactModal('דני לוי', 'מפתח ראשי', 'Cloud Automation', '054-5554321', 'dani@automation.io', 'kosai-engine', 'חיבור Cloud Functions AI')" class="hover:bg-blue-50 dark:hover:bg-slate-800/80 cursor-pointer transition">
+              <td class="p-4 font-bold flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full bg-cyan-100 text-cyan-700 dark:bg-cyan-900/60 dark:text-cyan-300 font-black flex items-center justify-center text-sm">
+                  דל
+                </div>
+                <div>
+                  <span class="block font-black text-slate-900 dark:text-white text-sm">דני לוי</span>
+                  <span class="text-[11px] font-bold text-slate-600 dark:text-slate-400">Cloud Automation</span>
+                </div>
+              </td>
+              <td class="p-4 font-bold">מפתח ראשי</td>
+              <td class="p-4 font-mono font-bold text-blue-600 dark:text-blue-400">054-5554321</td>
+              <td class="p-4">
+                <span class="px-2.5 py-1 rounded-full text-[11px] font-black bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 border border-cyan-300 dark:border-cyan-700">
+                  אינטגרציית AI
+                </span>
+              </td>
+              <td class="p-4 font-mono text-[11px] font-bold">kosai-engine</td>
+              <td class="p-4 text-left">
+                <button class="px-3 py-1 rounded-lg bg-[var(--brand-primary)] text-white text-xs font-black shadow-sm">
+                  צפה בתיק
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 2. Cards Layout (תצוגת כרטיסי אנשי קשר) -->
+    <div id="container-cards-view" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6">
+      <!-- Card 1 -->
+      <div onclick="openContactModal('ישראל ישראלי', 'סמנכ״ל טכנולוגיות', 'Tech Solutions בע״מ', '050-1234567', 'israel@tech.co.il', 'whatsapp-green-api', 'פנייה חמה לקמפיין')" class="glass-card p-6 rounded-3xl space-y-4 hover:border-[var(--brand-primary)] cursor-pointer transition shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="w-12 h-12 rounded-2xl bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300 font-black flex items-center justify-center text-base">
+            יי
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-black bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 border border-emerald-300">
+            פנייה חמה
+          </span>
+        </div>
+        <div>
+          <h4 class="text-xl font-black text-slate-900 dark:text-white">ישראל ישראלי</h4>
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Tech Solutions בע״מ • סמנכ״ל טכנולוגיות</span>
+        </div>
+        <div class="pt-3 border-t border-[var(--brand-border)] text-xs font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between">
+          <span>050-1234567</span>
+          <span class="text-slate-500">לחץ לפרטים ←</span>
+        </div>
+      </div>
+
+      <!-- Card 2 -->
+      <div onclick="openContactModal('רונית כהן', 'מנהלת שיווק ומותג', 'Fashion Group', '052-9876543', 'ronit@fashion.co.il', 'brand-dna-hub', 'דריסת מיתוג לקמפיין חג')" class="glass-card p-6 rounded-3xl space-y-4 hover:border-[var(--brand-primary)] cursor-pointer transition shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="w-12 h-12 rounded-2xl bg-purple-100 text-purple-700 dark:bg-purple-900/60 dark:text-purple-300 font-black flex items-center justify-center text-base">
+            רכ
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-black bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-300 border border-purple-300">
+            התאמת DNA
+          </span>
+        </div>
+        <div>
+          <h4 class="text-xl font-black text-slate-900 dark:text-white">רונית כהן</h4>
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Fashion Group • מנהלת שיווק ומותג</span>
+        </div>
+        <div class="pt-3 border-t border-[var(--brand-border)] text-xs font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between">
+          <span>052-9876543</span>
+          <span class="text-slate-500">לחץ לפרטים ←</span>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div onclick="openContactModal('דני לוי', 'מפתח ראשי', 'Cloud Automation', '054-5554321', 'dani@automation.io', 'kosai-engine', 'חיבור Cloud Functions AI')" class="glass-card p-6 rounded-3xl space-y-4 hover:border-[var(--brand-primary)] cursor-pointer transition shadow-lg">
+        <div class="flex items-center justify-between">
+          <div class="w-12 h-12 rounded-2xl bg-cyan-100 text-cyan-700 dark:bg-cyan-900/60 dark:text-cyan-300 font-black flex items-center justify-center text-base">
+            דל
+          </div>
+          <span class="px-3 py-1 rounded-full text-xs font-black bg-cyan-100 text-cyan-800 dark:bg-cyan-900/50 dark:text-cyan-300 border border-cyan-300">
+            אינטגרציית AI
+          </span>
+        </div>
+        <div>
+          <h4 class="text-xl font-black text-slate-900 dark:text-white">דני לוי</h4>
+          <span class="text-xs font-bold text-slate-600 dark:text-slate-400">Cloud Automation • מפתח ראשי</span>
+        </div>
+        <div class="pt-3 border-t border-[var(--brand-border)] text-xs font-mono font-bold text-blue-600 dark:text-blue-400 flex items-center justify-between">
+          <span>054-5554321</span>
+          <span class="text-slate-500">לחץ לפרטים ←</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================================================= -->
+  <!-- טופס שלבים (שאלה אחת בכל שלב) -->
+  <!-- ========================================================================= -->
+  <section id="step-form-section" class="max-w-3xl mx-auto px-4 py-16 reveal-on-scroll">
+    <div class="glass-card p-8 md:p-12 rounded-3xl space-y-8 border border-[var(--brand-border)]">
       <div class="space-y-2">
         <div class="flex items-center justify-between text-xs font-bold text-[var(--brand-text-muted)]">
           <span id="wizard-step-label">שלב 1 מתוך 3</span>
           <span id="wizard-step-title">הגדרת פרופיל פעילות</span>
         </div>
-        <div class="w-full h-2 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden">
+        <div class="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden">
           <div id="wizard-progress-bar" class="h-full bg-[var(--brand-primary)] w-1/3 transition-all duration-300"></div>
         </div>
       </div>
 
       <!-- Question 1 -->
       <div id="wizard-question-1" class="space-y-6">
-        <h3 class="text-2xl md:text-3xl font-extrabold">מהו סוג העסק העיקרי שלך?</h3>
-        <p class="text-xs text-[var(--brand-text-muted)]">נבחר עבורך את תבנית המודולים והאוטומציות האופטימלית.</p>
+        <h3 class="text-2xl md:text-3xl font-black text-[var(--brand-text)]">מהו סוג העסק העיקרי שלך?</h3>
+        <p class="text-xs font-bold text-[var(--brand-text-muted)]">נבחר עבורך את תבנית המודולים והאוטומציות האופטימלית.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button onclick="selectOption(this, 1)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">חנות אינטרנטית וסחר (E-Commerce)</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">חנות אינטרנטית וסחר (E-Commerce)</span>
             <i data-lucide="shopping-cart" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
           <button onclick="selectOption(this, 1)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">נותן שירותים / חברה עסקית (B2B)</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">נותן שירותים / חברה עסקית (B2B)</span>
             <i data-lucide="briefcase" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
           <button onclick="selectOption(this, 1)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">קהילה, קורסים ומנויים</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">קהילה, קורסים ומנויים</span>
             <i data-lucide="users" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
           <button onclick="selectOption(this, 1)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">סוכנות שיווק ופיתוח דיגיטלי</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">סוכנות שיווק ופיתוח דיגיטלי</span>
             <i data-lucide="sparkles" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
         </div>
@@ -291,23 +546,23 @@
 
       <!-- Question 2 -->
       <div id="wizard-question-2" class="space-y-6 hidden">
-        <h3 class="text-2xl md:text-3xl font-extrabold">איזה ערוץ אוטומציה הכי קריטי עבורך?</h3>
-        <p class="text-xs text-[var(--brand-text-muted)]">שומר הסף יבדוק הרשאות וחיבורי API מתאימים.</p>
+        <h3 class="text-2xl md:text-3xl font-black text-[var(--brand-text)]">איזה ערוץ אוטומציה הכי קריטי עבורך?</h3>
+        <p class="text-xs font-bold text-[var(--brand-text-muted)]">שומר הסף יבדוק הרשאות וחיבורי API מתאימים.</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <button onclick="selectOption(this, 2)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">בוט וואטסאפ (Green API)</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">בוט וואטסאפ (Green API)</span>
             <i data-lucide="message-square" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
           <button onclick="selectOption(this, 2)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">טפסים חכמים עם ולידציה</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">טפסים חכמים עם ולידציה</span>
             <i data-lucide="file-text" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
           <button onclick="selectOption(this, 2)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">מנוע AI מרכזי (KOSAI)</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">מנוע AI מרכזי (KOSAI)</span>
             <i data-lucide="bot" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
           <button onclick="selectOption(this, 2)" class="p-4 rounded-[var(--brand-radius)] border border-[var(--brand-border)] text-right hover:border-[var(--brand-primary)] transition flex items-center justify-between group">
-            <span class="font-bold text-sm">סליקה וניהול הזמנות</span>
+            <span class="font-bold text-sm text-[var(--brand-text)]">סליקה וניהול הזמנות</span>
             <i data-lucide="credit-card" class="w-4 h-4 text-[var(--brand-text-muted)] group-hover:text-[var(--brand-primary)]"></i>
           </button>
         </div>
@@ -315,274 +570,229 @@
 
       <!-- Question 3 -->
       <div id="wizard-question-3" class="space-y-6 hidden">
-        <h3 class="text-2xl md:text-3xl font-extrabold">מהו היקף הפניות החודשי הצפוי?</h3>
-        <p class="text-xs text-[var(--brand-text-muted)]">נכין את משאבי ה-Firebase וה-Cloud Functions בהתאם.</p>
+        <h3 class="text-2xl md:text-3xl font-black text-[var(--brand-text)]">מהו היקף הפניות החודשי הצפוי?</h3>
+        <p class="text-xs font-bold text-[var(--brand-text-muted)]">נכין את משאבי ה-Firebase וה-Cloud Functions בהתאם.</p>
         <div class="space-y-3">
-          <input type="text" placeholder="שם העסק שלך באנגלית או עברית..." class="w-full p-4 rounded-[var(--brand-radius)] bg-black/5 dark:bg-black/30 border border-[var(--brand-border)] text-sm focus:outline-none focus:border-[var(--brand-primary)]">
-          <input type="email" placeholder="דוא״ל לקבלת דוח אבחון וחיבור..." class="w-full p-4 rounded-[var(--brand-radius)] bg-black/5 dark:bg-black/30 border border-[var(--brand-border)] text-sm focus:outline-none focus:border-[var(--brand-primary)]">
+          <input type="text" placeholder="שם העסק שלך באנגלית או עברית..." class="w-full p-4 rounded-[var(--brand-radius)] bg-white dark:bg-black/30 border border-[var(--brand-border)] text-sm text-[var(--brand-text)] font-bold focus:outline-none focus:border-[var(--brand-primary)]">
+          <input type="email" placeholder="דוא״ל לקבלת דוח אבחון וחיבור..." class="w-full p-4 rounded-[var(--brand-radius)] bg-white dark:bg-black/30 border border-[var(--brand-border)] text-sm text-[var(--brand-text)] font-bold focus:outline-none focus:border-[var(--brand-primary)]">
         </div>
       </div>
 
-      <!-- Navigation Actions -->
       <div class="flex items-center justify-between pt-6 border-t border-[var(--brand-border)]">
-        <button id="wizard-btn-prev" onclick="stepWizardBack()" class="px-5 py-2.5 rounded-xl border border-[var(--brand-border)] text-xs font-bold hover:bg-white/5 opacity-50 cursor-not-allowed">
+        <button id="wizard-btn-prev" onclick="stepWizardBack()" class="px-5 py-2.5 rounded-xl border border-[var(--brand-border)] text-xs font-black text-[var(--brand-text)] hover:bg-black/5 dark:hover:bg-white/5 opacity-50 cursor-not-allowed">
           חזור
         </button>
-        <button id="wizard-btn-next" onclick="stepWizardNext()" class="px-6 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-bold hover:opacity-90 transition flex items-center gap-1.5">
+        <button id="wizard-btn-next" onclick="stepWizardNext()" class="px-6 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-black hover:opacity-90 transition flex items-center gap-1.5 shadow-md">
           <span>המשך לשלב הבא</span>
           <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i>
         </button>
       </div>
-
     </div>
   </section>
 
   <!-- ========================================================================= -->
-  <!-- סעיף ח': אזור תוכן משולב תמונות (Mixed Content & Imagery Showcase) -->
+  <!-- אזור שאלות ותשובות (FAQ) -->
   <!-- ========================================================================= -->
-  <section class="max-w-7xl mx-auto px-4 py-16 space-y-12">
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-10 items-center">
-      <div class="space-y-6">
-        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] border border-[var(--brand-primary)]/25">
-          <i data-lucide="check-circle" class="w-3.5 h-3.5"></i>
-          <span>אפס תלות צולבת בין מודולים</span>
-        </div>
-        <h3 class="text-3xl md:text-4xl font-extrabold leading-snug">
-          חיבורי ממשק חלקים דרך <span class="text-[var(--brand-primary)]">Capability Slots</span>
-        </h3>
-        <p class="text-sm text-[var(--brand-text-muted)] leading-relaxed">
-          במקום לייבא רכיבים ממודולים שכנים בצורה שיוצרת ספגטי של תלויות, כל מודול צורך יכולות דרך שקע גלובלי.
-          אם מודול חיצוני אינו זמין, המערכת מציגה תצוגת Fallback אלגנטית מבלי לקרוס.
-        </p>
-        <div class="space-y-3 text-xs">
-          <div class="flex items-center gap-3">
-            <i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-            <span>שומר סף אוטומטי (Gatekeeper) האוכף 6 שערי איכות</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-            <span>אפס קריאות ישירות ל-Gemini מדפדפן הלקוח</span>
-          </div>
-          <div class="flex items-center gap-3">
-            <i data-lucide="check" class="w-4 h-4 text-emerald-500"></i>
-            <span>תמיכה מלאה בכיווניות ימין-שמאל (RTL)</span>
-          </div>
-        </div>
-      </div>
-      <div class="glass-card rounded-3xl overflow-hidden border border-[var(--brand-border)] shadow-xl relative aspect-video md:aspect-square">
-        <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1000&q=80" alt="שילוב תמונות ותוכן" class="w-full h-full object-cover">
-        <div class="absolute inset-0 bg-gradient-to-t from-[var(--brand-bg)]/90 via-transparent to-transparent flex items-end p-8">
-          <div class="glass-card p-4 rounded-2xl w-full flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <i data-lucide="image" class="w-5 h-5 text-[var(--brand-primary)]"></i>
-              <div>
-                <span class="font-bold text-xs block">media-gallery-hub</span>
-                <span class="text-[10px] text-[var(--brand-text-muted)]">ניהול מדיה מבודד טננט</span>
-              </div>
-            </div>
-            <span class="text-xs font-bold text-emerald-400">100% תקין</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========================================================================= -->
-  <!-- סעיף ט': טבלת כרטיסים (Feature Cards Grid) -->
-  <!-- ========================================================================= -->
-  <section id="cards-grid-section" class="max-w-7xl mx-auto px-4 py-16 space-y-8">
+  <section id="faq-section" class="max-w-4xl mx-auto px-4 py-16 space-y-6 reveal-on-scroll">
     <div class="text-center space-y-2">
-      <h3 class="text-3xl font-extrabold">טבלת רכיבים וכרטיסי יכולת</h3>
-      <p class="text-xs text-[var(--brand-text-muted)]">כל רכיב עומד עצמאית ב-100% ומנוהל תחת אנטומיית 10 השכבות</p>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <!-- Card 1 -->
-      <div class="glass-card p-8 rounded-3xl space-y-4 glow-hover transition-all duration-300">
-        <div class="w-12 h-12 rounded-2xl bg-[var(--brand-primary)]/15 text-[var(--brand-primary)] flex items-center justify-center">
-          <i data-lucide="message-square" class="w-6 h-6"></i>
-        </div>
-        <h4 class="text-xl font-bold">whatsapp-green-api</h4>
-        <p class="text-xs text-[var(--brand-text-muted)] leading-relaxed">
-          מרכז שליחת הודעות, קבלת Webhooks, וניהול בוטים חכמים. אוטריטה בלעדית לתקשורת וואטסאפ.
-        </p>
-        <div class="pt-4 border-t border-[var(--brand-border)] flex items-center justify-between text-xs">
-          <span class="text-[var(--brand-text-muted)]">מונופול בלעדי</span>
-          <span class="font-bold text-emerald-400 flex items-center gap-1">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i> שער 6 ירוק
-          </span>
-        </div>
-      </div>
-
-      <!-- Card 2 -->
-      <div class="glass-card p-8 rounded-3xl space-y-4 glow-hover transition-all duration-300">
-        <div class="w-12 h-12 rounded-2xl bg-[var(--brand-secondary)]/15 text-[var(--brand-secondary)] flex items-center justify-center">
-          <i data-lucide="bot" class="w-6 h-6"></i>
-        </div>
-        <h4 class="text-xl font-bold">kosai-engine</h4>
-        <p class="text-xs text-[var(--brand-text-muted)] leading-relaxed">
-          מנוע ה-AI המרכזי של קושאן. האוטריטה הבלעדית לקריאות Gemini מאובטחות מאחורי Cloud Functions.
-        </p>
-        <div class="pt-4 border-t border-[var(--brand-border)] flex items-center justify-between text-xs">
-          <span class="text-[var(--brand-text-muted)]">שרת בלבד</span>
-          <span class="font-bold text-emerald-400 flex items-center gap-1">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i> שער 6 ירוק
-          </span>
-        </div>
-      </div>
-
-      <!-- Card 3 -->
-      <div class="glass-card p-8 rounded-3xl space-y-4 glow-hover transition-all duration-300">
-        <div class="w-12 h-12 rounded-2xl bg-purple-500/15 text-purple-400 flex items-center justify-center">
-          <i data-lucide="sparkles" class="w-6 h-6"></i>
-        </div>
-        <h4 class="text-xl font-bold">brand-dna-hub</h4>
-        <p class="text-xs text-[var(--brand-text-muted)] leading-relaxed">
-          ניהול שפת מותג, סמלים, פונטים, צבעים וערכות נושא דינמיות. מאפשר דריסה ברמת עמוד ובלוק.
-        </p>
-        <div class="pt-4 border-t border-[var(--brand-border)] flex items-center justify-between text-xs">
-          <span class="text-[var(--brand-text-muted)]">טננט דינמי</span>
-          <span class="font-bold text-emerald-400 flex items-center gap-1">
-            <i data-lucide="check" class="w-3.5 h-3.5"></i> שער 6 ירוק
-          </span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========================================================================= -->
-  <!-- סעיף י': אזור שאלות ותשובות (Accordion FAQ) -->
-  <!-- ========================================================================= -->
-  <section id="faq-section" class="max-w-4xl mx-auto px-4 py-16 space-y-6">
-    <div class="text-center space-y-2">
-      <h3 class="text-3xl font-extrabold">שאלות נפוצות ותשובות (FAQ)</h3>
-      <p class="text-xs text-[var(--brand-text-muted)]">תשובות ברורות על ארכיטקטורת KOSUN26 וההתנהלות המודולרית</p>
+      <h3 class="text-3xl font-black text-[var(--brand-text)]">שאלות נפוצות ותשובות (FAQ)</h3>
+      <p class="text-xs font-bold text-[var(--brand-text-muted)]">תשובות ברורות על ארכיטקטורת KOSUN26 וההתנהלות המודולרית</p>
     </div>
 
     <div class="space-y-3">
-      <!-- FAQ 1 -->
       <div class="glass-card rounded-2xl overflow-hidden border border-[var(--brand-border)]">
-        <button onclick="toggleFaq(1)" class="w-full p-5 text-right font-bold text-sm flex items-center justify-between hover:bg-white/5 transition">
+        <button onclick="toggleFaq(1)" class="w-full p-5 text-right font-black text-sm text-[var(--brand-text)] flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition">
           <span>מדוע ביטלנו את ההדר הסטטי במערכת הניהול (Zero Header)?</span>
           <i id="faq-icon-1" data-lucide="chevron-down" class="w-4 h-4 text-[var(--brand-primary)] transition-transform duration-300"></i>
         </button>
-        <div id="faq-content-1" class="hidden p-5 pt-0 text-xs text-[var(--brand-text-muted)] leading-relaxed border-t border-[var(--brand-border)]/50">
+        <div id="faq-content-1" class="hidden p-5 pt-0 text-xs text-[var(--brand-text-muted)] font-bold leading-relaxed border-t border-[var(--brand-border)]/50">
           כדי להעניק מקסימום שטח מסך לעבודה נקייה ומרווחת (Desktop-Class App). במקום באנר עליון קבוע שתופס שטח יקר, הניווט מתבצע דרך מעגן צף תחתון (Floating Dock) ומודאלים של 100% מסך מלא.
         </div>
       </div>
 
-      <!-- FAQ 2 -->
       <div class="glass-card rounded-2xl overflow-hidden border border-[var(--brand-border)]">
-        <button onclick="toggleFaq(2)" class="w-full p-5 text-right font-bold text-sm flex items-center justify-between hover:bg-white/5 transition">
+        <button onclick="toggleFaq(2)" class="w-full p-5 text-right font-black text-sm text-[var(--brand-text)] flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition">
           <span>איך רכיב עמוד מציג טופס בלי לייבא את קוד הטופס ישירות?</span>
           <i id="faq-icon-2" data-lucide="chevron-down" class="w-4 h-4 text-[var(--brand-primary)] transition-transform duration-300"></i>
         </button>
-        <div id="faq-content-2" class="hidden p-5 pt-0 text-xs text-[var(--brand-text-muted)] leading-relaxed border-t border-[var(--brand-border)]/50">
+        <div id="faq-content-2" class="hidden p-5 pt-0 text-xs text-[var(--brand-text-muted)] font-bold leading-relaxed border-t border-[var(--brand-border)]/50">
           באמצעות רכיב CapabilitySlot. מודול העמוד בסך הכל מציין שהוא זקוק ל-Slot מסוג "form-renderer". מעטפת הליבה (Core) מזריקה את הקומפוננטה שנרשמה במרשם. במידה ומודול הטפסים אינו מותקן, מוצג כרטיס Fallback אלגנטי בעברית.
         </div>
       </div>
 
-      <!-- FAQ 3 -->
       <div class="glass-card rounded-2xl overflow-hidden border border-[var(--brand-border)]">
-        <button onclick="toggleFaq(3)" class="w-full p-5 text-right font-bold text-sm flex items-center justify-between hover:bg-white/5 transition">
-          <span>מה קורה אם לקוח רוצה עמוד קמפיין עם צבעים שונים ממותג החברה?</span>
+        <button onclick="toggleFaq(3)" class="w-full p-5 text-right font-black text-sm text-[var(--brand-text)] flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition">
+          <span>מהו "חוק הברזל של הניגודיות" (The Scrim Law)?</span>
           <i id="faq-icon-3" data-lucide="chevron-down" class="w-4 h-4 text-[var(--brand-primary)] transition-transform duration-300"></i>
         </button>
-        <div id="faq-content-3" class="hidden p-5 pt-0 text-xs text-[var(--brand-text-muted)] leading-relaxed border-t border-[var(--brand-border)]/50">
-          המערכת תומכת במודל 4 שכבות של הורשה ודריסה (Overrides). הלקוח מסמן בעורך העמוד שהוא מעוניין בניתוק מיתוג (Detached Campaign Mode), ומשתני ה-CSS נדרסים מקומית ברמת אותו עמוד בלבד.
+        <div id="faq-content-3" class="hidden p-5 pt-0 text-xs text-[var(--brand-text-muted)] font-bold leading-relaxed border-t border-[var(--brand-border)]/50">
+          איסור מוחלט על כתיבת טקסט ישירות מעל תמונה ללא כרטיס הגנה אטום (Backplate Card ב-95%+ אטימות) או מסכת גרדיאנט מלאה. זה מבטיח קריאות מושלמת של כותרות המשנה בכל תמונה ובכל תנאי תאורה.
         </div>
       </div>
     </div>
   </section>
 
   <!-- ========================================================================= -->
-  <!-- סעיף א' & תקן קושאן: מעגן צף (Floating Action Dock) -->
+  <!-- מעגן צף (Floating Action Dock) -->
   <!-- ========================================================================= -->
   <footer class="fixed bottom-6 inset-x-0 z-50 flex justify-center px-4">
     <div class="floating-dock px-6 py-3.5 rounded-full flex items-center gap-5 text-xs">
       
-      <!-- כפתור יום / לילה (סעיף א') -->
-      <button onclick="toggleDarkMode()" class="flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-white transition" title="החלף מצב יום / לילה">
+      <!-- כפתור יום / לילה -->
+      <button onclick="toggleDarkMode()" class="flex items-center gap-1.5 text-[var(--brand-text)] hover:text-[var(--brand-primary)] font-black transition" title="החלף מצב יום / לילה">
         <i id="theme-toggle-icon" data-lucide="sun" class="w-4 h-4 text-amber-500"></i>
-        <span class="font-bold hidden sm:inline" id="theme-toggle-label">מצב יום</span>
+        <span class="hidden sm:inline" id="theme-toggle-label">מצב יום</span>
       </button>
 
-      <div class="w-px h-5 bg-white/15"></div>
+      <div class="w-px h-5 bg-black/15 dark:bg-white/20"></div>
 
-      <!-- קיצורי דרך -->
-      <a href="#hero-full-bg" class="flex items-center gap-1.5 text-white hover:text-[var(--brand-primary)] font-bold transition">
+      <a href="#hero-full-bg" class="flex items-center gap-1.5 text-[var(--brand-text)] hover:text-[var(--brand-primary)] font-black transition">
         <i data-lucide="home" class="w-4 h-4"></i>
         <span class="hidden sm:inline">ראשי</span>
       </a>
 
-      <a href="#step-form-section" class="flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-white transition">
-        <i data-lucide="list-checks" class="w-4 h-4"></i>
-        <span class="hidden sm:inline">אשף שלבים</span>
+      <a href="#hero-carousel" class="flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] font-bold transition">
+        <i data-lucide="images" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">קרוסלה</span>
       </a>
 
-      <div class="w-px h-5 bg-white/15"></div>
+      <a href="#tables-section" class="flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] font-bold transition">
+        <i data-lucide="table" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">אנשי קשר</span>
+      </a>
 
-      <!-- אייקון סוכן AI (סעיף ה' + חוקי קושאן: איש שירות/תחזוקה ולא רובוט!) -->
-      <button onclick="openChatDrawer()" class="flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-white transition" title="סוכן שירות ותחזוקה KOSAI">
-        <i data-lucide="wrench" class="w-4 h-4 text-emerald-400"></i>
-        <span class="hidden sm:inline font-bold">KOSAI שירות</span>
+      <div class="w-px h-5 bg-black/15 dark:bg-white/20"></div>
+
+      <!-- אייקון סוכן AI (איש שירות ותחזוקה - תקן קושאן) -->
+      <button onclick="openChatDrawer()" class="flex items-center gap-1.5 text-[var(--brand-text)] hover:text-[var(--brand-primary)] transition" title="סוכן שירות ותחזוקה KOSAI">
+        <i data-lucide="wrench" class="w-4 h-4 text-emerald-600 dark:text-emerald-400"></i>
+        <span class="hidden sm:inline font-black">KOSAI שירות</span>
       </button>
 
-      <!-- כפתור מודאל 100% מסך מלא (סעיף ו' + תקן קושאן) -->
-      <button onclick="openFullscreenModal()" class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white font-bold hover:opacity-95 shadow-md transition">
+      <!-- מודאל 100% מסך מלא -->
+      <button onclick="openFullscreenModal()" class="flex items-center gap-1.5 px-4 py-2 rounded-full bg-[var(--brand-primary)] text-white font-black hover:opacity-95 shadow-md transition">
         <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
         <span>מודאל 100%</span>
       </button>
-
     </div>
   </footer>
 
   <!-- ========================================================================= -->
-  <!-- סעיף ה': צ'אט שנפתח על ידי אייקון צף (Service Concierge Chat Drawer) -->
+  <!-- סעיף ב' החדש: מודאל תיק איש קשר מלא (Contact Card Modal - 100% Fullscreen) -->
   <!-- ========================================================================= -->
-  <!-- Floating Chat Trigger Button in Bottom Left -->
-  <div class="fixed bottom-6 left-6 z-40">
-    <button onclick="openChatDrawer()" class="w-13 h-13 p-3.5 rounded-full bg-[var(--brand-primary)] text-white shadow-2xl flex items-center justify-center hover:scale-105 active:scale-95 transition-all glow-hover" title="פתח צ'אט סוכן KOSAI">
-      <i data-lucide="wrench" class="w-6 h-6"></i>
-    </button>
+  <div id="contact-modal" class="fixed inset-0 z-50 bg-[var(--brand-bg)]/98 backdrop-blur-3xl flex flex-col p-6 md:p-10 transition-all duration-300 opacity-0 pointer-events-none">
+    <div class="flex items-center justify-between pb-6 border-b border-[var(--brand-border)]">
+      <div class="flex items-center gap-3">
+        <div id="contact-modal-avatar" class="w-11 h-11 rounded-2xl bg-[var(--brand-primary)]/20 text-[var(--brand-primary)] font-black flex items-center justify-center text-lg border border-[var(--brand-primary)]/40">
+          יי
+        </div>
+        <div>
+          <h3 id="contact-modal-name" class="text-2xl font-black text-[var(--brand-text)]">ישראל ישראלי</h3>
+          <span id="contact-modal-role" class="text-xs font-bold text-[var(--brand-text-muted)]">Tech Solutions בע״מ • סמנכ״ל טכנולוגיות</span>
+        </div>
+      </div>
+      <button onclick="closeContactModal()" class="px-4 py-2 rounded-xl bg-slate-200 dark:bg-white/10 hover:bg-slate-300 text-[var(--brand-text)] font-black text-xs flex items-center gap-1.5 transition">
+        <i data-lucide="x" class="w-4 h-4"></i>
+        <span>סגור תיק</span>
+      </button>
+    </div>
+
+    <!-- Contact Dossier Body -->
+    <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 overflow-y-auto">
+      <!-- Contact Info Card -->
+      <div class="glass-card p-6 rounded-3xl space-y-5">
+        <h4 class="font-black text-sm text-[var(--brand-primary)] flex items-center gap-2">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          פרטי התקשרות וסנכרון
+        </h4>
+        <div class="space-y-4 text-xs font-bold">
+          <div>
+            <span class="block text-slate-500 text-[10px] uppercase">מספר טלפון / וואטסאפ</span>
+            <span id="contact-modal-phone" class="font-mono text-sm text-blue-600 dark:text-blue-400">050-1234567</span>
+          </div>
+          <div>
+            <span class="block text-slate-500 text-[10px] uppercase">כתובת דוא״ל</span>
+            <span id="contact-modal-email" class="font-mono text-sm">israel@tech.co.il</span>
+          </div>
+          <div>
+            <span class="block text-slate-500 text-[10px] uppercase">מודול אחראי (Authority)</span>
+            <span id="contact-modal-module" class="font-mono text-xs px-2.5 py-1 rounded bg-slate-200 dark:bg-slate-800 inline-block mt-1">whatsapp-green-api</span>
+          </div>
+        </div>
+        
+        <div class="pt-4 border-t border-[var(--brand-border)] flex gap-2">
+          <button class="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs flex items-center justify-center gap-2 shadow-md">
+            <i data-lucide="message-circle" class="w-4 h-4"></i>
+            <span>שלח הודעת וואטסאפ</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Activity & Notes -->
+      <div class="md:col-span-2 glass-card p-8 rounded-3xl space-y-6 flex flex-col justify-between">
+        <div class="space-y-4">
+          <h4 class="text-xl font-black text-[var(--brand-text)] flex items-center gap-2">
+            <i data-lucide="history" class="w-5 h-5 text-[var(--brand-primary)]"></i>
+            היסטוריית אינטראקציה ופניות
+          </h4>
+          <div class="p-4 rounded-2xl bg-slate-100 dark:bg-slate-800/60 border border-[var(--brand-border)] space-y-2">
+            <div class="flex items-center justify-between text-xs">
+              <span class="font-black text-[var(--brand-primary)]">רישום אוטומטי מטופס חכם</span>
+              <span class="text-[10px] text-slate-500 font-mono">היום • 14:32</span>
+            </div>
+            <p id="contact-modal-notes" class="text-xs font-bold text-[var(--brand-text)] leading-relaxed">
+              פנייה חמה לקמפיין. הלקוח מעוניין בשילוב בוט וואטסאפ וסליקה אוטומטית.
+            </p>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-500"></i>
+            <span class="text-xs font-bold text-slate-800 dark:text-slate-200">איש קשר מנוהל תחת סקופ טננט מבודד (useTenantScope)</span>
+          </div>
+          <button onclick="closeContactModal()" class="px-5 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-black shadow-md">
+            סגור וחזור
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Chat Drawer Panel -->
-  <aside id="chat-drawer" class="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-[var(--brand-surface)]/95 backdrop-blur-2xl border-r border-[var(--brand-border)] shadow-2xl flex flex-col transition-transform duration-300 -translate-x-full">
+  <aside id="chat-drawer" class="fixed inset-y-0 left-0 z-50 w-full max-w-md bg-[var(--brand-surface)] border-r border-[var(--brand-border)] shadow-2xl flex flex-col transition-transform duration-300 -translate-x-full">
     <div class="p-4 border-b border-[var(--brand-border)] flex items-center justify-between bg-black/5 dark:bg-white/5">
       <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+        <div class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/30">
           <i data-lucide="wrench" class="w-4 h-4"></i>
         </div>
         <div>
-          <h4 class="font-bold text-sm">קושאן - סוכן שירות ותחזוקה (KOSAI)</h4>
-          <span class="text-[10px] text-emerald-400 flex items-center gap-1 font-semibold">
-            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span> מחובר ל-Cloud Functions
+          <h4 class="font-black text-sm text-[var(--brand-text)]">קושאן - סוכן שירות ותחזוקה (KOSAI)</h4>
+          <span class="text-[10px] text-emerald-600 dark:text-emerald-400 flex items-center gap-1 font-black">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span> מחובר ל-Cloud Functions
           </span>
         </div>
       </div>
-      <button onclick="closeChatDrawer()" class="p-1.5 rounded-lg hover:bg-white/10 text-[var(--brand-text-muted)] hover:text-white transition">
+      <button onclick="closeChatDrawer()" class="p-1.5 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)] transition">
         <i data-lucide="x" class="w-4 h-4"></i>
       </button>
     </div>
 
-    <!-- Chat Messages Scroll Area -->
     <div class="flex-1 p-4 space-y-4 overflow-y-auto text-xs">
       <div class="flex items-start gap-2.5">
-        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0">
+        <div class="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
           <i data-lucide="wrench" class="w-3.5 h-3.5"></i>
         </div>
         <div class="glass-card p-3.5 rounded-2xl rounded-tr-none space-y-1">
-          <p class="font-semibold text-white">שלום! אני קושאן, השותף שלך לתחזוקה ואוטומציה.</p>
-          <p class="text-[var(--brand-text-muted)]">כל 6 השערים של שומר הסף עברו בהצלחה. איך אוכל לסייע לך בפיתוח הרכיב היום?</p>
+          <p class="font-black text-[var(--brand-text)]">שלום! אני קושאן, השותף שלך לתחזוקה ואוטומציה.</p>
+          <p class="text-[var(--brand-text-muted)] font-bold">חוק הניגודיות עוגן, כרטיס ההגנה הוטמע, וטבלאות אנשי הקשר זמינות ב-3 תצוגות שונות.</p>
         </div>
       </div>
     </div>
 
-    <!-- Chat Input Area -->
-    <div class="p-4 border-t border-[var(--brand-border)] bg-black/10 dark:bg-white/5">
-      <form onsubmit="event.preventDefault(); sendChatMessage();" class="flex items-center gap-2">
-        <input id="chat-input-text" type="text" placeholder="שאל שאלה על הרכיב, החוזים או המיתוג..." class="flex-1 px-4 py-2.5 rounded-xl bg-black/5 dark:bg-black/40 border border-[var(--brand-border)] text-xs focus:outline-none focus:border-[var(--brand-primary)]">
+    <div class="p-4 border-t border-[var(--brand-border)] bg-black/5 dark:bg-white/5">
+      <form onsubmit="event.preventDefault();" class="flex items-center gap-2">
+        <input id="chat-input-text" type="text" placeholder="שאל שאלה..." class="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-black/40 border border-[var(--brand-border)] text-xs text-[var(--brand-text)] font-bold focus:outline-none focus:border-[var(--brand-primary)]">
         <button type="submit" class="p-2.5 rounded-xl bg-[var(--brand-primary)] text-white hover:opacity-90 transition">
           <i data-lucide="send" class="w-4 h-4"></i>
         </button>
@@ -590,95 +800,60 @@
     </div>
   </aside>
 
-  <!-- ========================================================================= -->
-  <!-- סעיף ו': מודאל 100% מסך מלא (תקן קושאן - 100% Fullscreen Modal) -->
-  <!-- ========================================================================= -->
+  <!-- מודאל 100% מסך מלא כללי -->
   <div id="fullscreen-modal" class="fixed inset-0 z-50 bg-[var(--brand-bg)]/98 backdrop-blur-3xl flex flex-col p-6 md:p-10 transition-all duration-300 opacity-0 pointer-events-none">
-    
-    <!-- Top Modal Header -->
     <div class="flex items-center justify-between pb-6 border-b border-[var(--brand-border)]">
       <div class="flex items-center gap-3">
         <div class="w-10 h-10 rounded-2xl bg-[var(--brand-primary)]/20 border border-[var(--brand-primary)]/40 flex items-center justify-center text-[var(--brand-primary)]">
           <i data-lucide="maximize-2" class="w-5 h-5"></i>
         </div>
         <div>
-          <h3 class="text-xl font-bold">סביבת עבודה מלאה (100% Fullscreen Modal Standard)</h3>
-          <p class="text-xs text-[var(--brand-text-muted)]">תקן קושאן מחייב מודאל על פני כל המסך – ללא דיאלוגים צרים ומגבילים</p>
+          <h3 class="text-xl font-black text-[var(--brand-text)]">סביבת עבודה מלאה (100% Fullscreen Modal Standard)</h3>
+          <p class="text-xs text-[var(--brand-text-muted)] font-bold">תקן קושאן מחייב מודאל על פני כל המסך</p>
         </div>
       </div>
-      <button onclick="closeFullscreenModal()" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-medium text-xs flex items-center gap-1.5 transition">
+      <button onclick="closeFullscreenModal()" class="px-4 py-2 rounded-xl bg-black/10 dark:bg-white/10 hover:bg-black/20 text-[var(--brand-text)] font-bold text-xs flex items-center gap-1.5 transition">
         <i data-lucide="x" class="w-4 h-4"></i>
         <span>סגור חלון</span>
       </button>
     </div>
-
-    <!-- Modal Content: 3 Columns Workspace -->
-    <div class="flex-1 grid grid-cols-1 md:grid-cols-3 gap-6 pt-6 overflow-y-auto">
-      
-      <!-- Left Panel: Theme Overrides Controls -->
-      <div class="glass-card p-6 rounded-3xl space-y-5">
-        <div class="flex items-center gap-2 font-bold text-sm text-[var(--brand-primary)]">
-          <i data-lucide="sliders" class="w-4 h-4"></i>
-          <span>הגדרות דריסת מיתוג (Theming Overrides)</span>
-        </div>
-        <div class="space-y-4 text-xs">
-          <div>
-            <label class="block text-[var(--brand-text-muted)] mb-2 font-semibold">סגנון פינות עמוד (Border Radius)</label>
-            <div class="grid grid-cols-3 gap-2">
-              <button onclick="setRadius('0.25rem')" class="p-2 rounded border border-[var(--brand-border)] hover:border-[var(--brand-primary)]">חד (0.25rem)</button>
-              <button onclick="setRadius('1rem')" class="p-2 rounded-xl border border-[var(--brand-border)] hover:border-[var(--brand-primary)]">רגיל (1rem)</button>
-              <button onclick="setRadius('1.75rem')" class="p-2 rounded-2xl border border-[var(--brand-border)] hover:border-[var(--brand-primary)]">עגול (1.75rem)</button>
-            </div>
-          </div>
-
-          <div>
-            <label class="block text-[var(--brand-text-muted)] mb-2 font-semibold">צבע ראשי פעיל</label>
-            <div class="flex items-center gap-3">
-              <button onclick="setColor('#2563eb')" class="w-7 h-7 rounded-full bg-blue-600 ring-2 ring-white"></button>
-              <button onclick="setColor('#f59e0b')" class="w-7 h-7 rounded-full bg-amber-500"></button>
-              <button onclick="setColor('#10b981')" class="w-7 h-7 rounded-full bg-emerald-500"></button>
-              <button onclick="setColor('#8b5cf6')" class="w-7 h-7 rounded-full bg-purple-500"></button>
-            </div>
-          </div>
-        </div>
+    <div class="flex-1 flex items-center justify-center text-center p-8">
+      <div class="glass-card p-10 rounded-3xl max-w-lg space-y-4">
+        <h4 class="text-2xl font-black text-[var(--brand-text)]">סביבת עבודה מרווחת ונקייה</h4>
+        <p class="text-xs font-bold text-[var(--brand-text-muted)] leading-relaxed">
+          במקום פופאפים חונקים באמצע המסך, המשתמש מקבל שטח עבודה מלא, שקט וממוקד ב-100% פריסה.
+        </p>
+        <button onclick="closeFullscreenModal()" class="px-6 py-2.5 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-black">
+          הבנתי, סגור
+        </button>
       </div>
-
-      <!-- Main Center & Right Work Area -->
-      <div class="md:col-span-2 glass-card p-8 rounded-3xl flex flex-col justify-between space-y-6">
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-[var(--brand-secondary)] uppercase">סביבת עריכה נקייה</span>
-            <span class="text-xs text-[var(--brand-text-muted)]">ללא כותרות ענק וללא אימוג'י</span>
-          </div>
-          <h4 class="text-2xl font-extrabold">פוקוס מושלם על היצירה</h4>
-          <p class="text-xs text-[var(--brand-text-muted)] leading-relaxed">
-            כל הכלים מסודרים במרחב נוח המאפשר בניית דפי נחיתה, קביעת תצורות אוטומציה ובדיקת חיבורים.
-          </p>
-        </div>
-
-        <div class="p-6 rounded-2xl bg-black/5 dark:bg-white/5 border border-[var(--brand-border)] flex items-center justify-between">
-          <div class="flex items-center gap-3">
-            <i data-lucide="shield-check" class="w-5 h-5 text-emerald-400"></i>
-            <div>
-              <span class="font-bold text-xs block">אישור שומר הסף (Gatekeeper)</span>
-              <span class="text-[10px] text-[var(--brand-text-muted)]">אין שגיאות קומפילציה, היגיינה מלאה</span>
-            </div>
-          </div>
-          <button onclick="closeFullscreenModal()" class="px-5 py-2 rounded-xl bg-[var(--brand-primary)] text-white text-xs font-bold hover:opacity-90">
-            החל שינויים וסגור
-          </button>
-        </div>
-      </div>
-
     </div>
   </div>
 
   <!-- Scripts -->
   <script>
-    // Initialize Lucide Icons
     lucide.createIcons();
 
-    // 1. Day / Night Mode Handler (סעיף א')
+    // 1. אינדיקטור גלילה טבעי בחומרה
+    window.addEventListener('scroll', () => {
+      const winScroll = document.body.scrollTop || document.documentElement.scrollTop;
+      const height = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrolled = (winScroll / height);
+      document.getElementById('scroll-progress').style.transform = `scaleX(${scrolled})`;
+    }, { passive: true });
+
+    // 2. אפקט גלילה ותזוזה טבעי
+    const revealObserver = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('is-revealed');
+        }
+      });
+    }, { threshold: 0.12 });
+
+    document.querySelectorAll('.reveal-on-scroll').forEach(el => revealObserver.observe(el));
+
+    // 3. החלפת יום / לילה בקונטרסט מושלם
     function toggleDarkMode() {
       const html = document.documentElement;
       const isDark = html.classList.toggle('dark');
@@ -695,44 +870,84 @@
       lucide.createIcons();
     }
 
-    // 2. Header Switching (סעיף ב')
-    function toggleHeaderMode(mode) {
-      const frontHeader = document.getElementById('frontend-header');
-      const backNotice = document.getElementById('backoffice-notice');
-      const btnFront = document.getElementById('btn-mode-front');
-      const btnBack = document.getElementById('btn-mode-backoffice');
+    // 4. ניגון וידאו
+    function playCustomVideo() {
+      const video = document.getElementById('main-video-player');
+      const poster = document.getElementById('video-poster');
+      const overlay = document.getElementById('video-overlay');
 
-      if (mode === 'front') {
-        frontHeader.classList.remove('hidden');
-        backNotice.classList.add('hidden');
-        btnFront.className = 'px-3 py-1 rounded-md bg-[var(--brand-primary)] text-white font-semibold transition';
-        btnBack.className = 'px-3 py-1 rounded-md bg-transparent text-[var(--brand-text-muted)] hover:text-white transition';
-      } else {
-        frontHeader.classList.add('hidden');
-        backNotice.classList.remove('hidden');
-        btnBack.className = 'px-3 py-1 rounded-md bg-[var(--brand-primary)] text-white font-semibold transition';
-        btnFront.className = 'px-3 py-1 rounded-md bg-transparent text-[var(--brand-text-muted)] hover:text-white transition';
+      overlay.classList.add('opacity-0', 'pointer-events-none');
+      poster.classList.add('hidden');
+      video.classList.remove('hidden');
+      video.play();
+    }
+
+    // 5. החלפת פריסת טבלה (3 פריסות: Rows, Cards, Compact)
+    function setTableLayout(mode) {
+      const tableView = document.getElementById('container-table-view');
+      const cardsView = document.getElementById('container-cards-view');
+      const btnTable = document.getElementById('view-btn-table');
+      const btnCards = document.getElementById('view-btn-cards');
+      const btnCompact = document.getElementById('view-btn-compact');
+
+      // Reset button styles
+      [btnTable, btnCards, btnCompact].forEach(b => {
+        b.className = 'px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]';
+      });
+
+      if (mode === 'table') {
+        tableView.classList.remove('hidden');
+        cardsView.classList.add('hidden');
+        document.querySelectorAll('#contacts-table-body td').forEach(td => td.className = 'p-4');
+        btnTable.className = 'px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 shadow-sm text-xs font-black flex items-center gap-1.5 text-[var(--brand-primary)]';
+      } else if (mode === 'cards') {
+        tableView.classList.add('hidden');
+        cardsView.classList.remove('hidden');
+        btnCards.className = 'px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 shadow-sm text-xs font-black flex items-center gap-1.5 text-[var(--brand-primary)]';
+      } else if (mode === 'compact') {
+        tableView.classList.remove('hidden');
+        cardsView.classList.add('hidden');
+        document.querySelectorAll('#contacts-table-body td').forEach(td => td.className = 'py-2 px-4 text-[11px]');
+        btnCompact.className = 'px-3 py-1.5 rounded-xl bg-white dark:bg-slate-700 shadow-sm text-xs font-black flex items-center gap-1.5 text-[var(--brand-primary)]';
       }
     }
 
-    // 3. Carousel Handler (סעיף ד')
+    // 6. פתיחת מודאל איש קשר בלחיצה
+    function openContactModal(name, role, company, phone, email, module, notes) {
+      document.getElementById('contact-modal-name').innerText = name;
+      document.getElementById('contact-modal-role').innerText = `${company} • ${role}`;
+      document.getElementById('contact-modal-phone').innerText = phone;
+      document.getElementById('contact-modal-email').innerText = email;
+      document.getElementById('contact-modal-module').innerText = module;
+      document.getElementById('contact-modal-notes').innerText = notes;
+      document.getElementById('contact-modal-avatar').innerText = name.split(' ').map(n => n[0]).join('');
+
+      const m = document.getElementById('contact-modal');
+      m.classList.remove('opacity-0', 'pointer-events-none');
+    }
+    function closeContactModal() {
+      const m = document.getElementById('contact-modal');
+      m.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // 7. Carousel Logic
     let currentSlide = 0;
     function showSlide(index) {
       currentSlide = index;
       document.getElementById('carousel-slide-0').className = index === 0 
-        ? 'carousel-slide absolute inset-0 z-0 opacity-100 flex items-center' 
-        : 'carousel-slide absolute inset-0 z-0 opacity-0 pointer-events-none flex items-center';
+        ? 'carousel-slide absolute inset-0 z-0 opacity-100 flex items-center p-6 md:p-14' 
+        : 'carousel-slide absolute inset-0 z-0 opacity-0 pointer-events-none flex items-center p-6 md:p-14';
       document.getElementById('carousel-slide-1').className = index === 1 
-        ? 'carousel-slide absolute inset-0 z-0 opacity-100 flex items-center' 
-        : 'carousel-slide absolute inset-0 z-0 opacity-0 pointer-events-none flex items-center';
+        ? 'carousel-slide absolute inset-0 z-0 opacity-100 flex items-center p-6 md:p-14' 
+        : 'carousel-slide absolute inset-0 z-0 opacity-0 pointer-events-none flex items-center p-6 md:p-14';
 
-      document.getElementById('dot-0').className = index === 0 ? 'w-3 h-3 rounded-full bg-[var(--brand-primary)] transition-all' : 'w-3 h-3 rounded-full bg-white/30 transition-all';
-      document.getElementById('dot-1').className = index === 1 ? 'w-3 h-3 rounded-full bg-[var(--brand-primary)] transition-all' : 'w-3 h-3 rounded-full bg-white/30 transition-all';
+      document.getElementById('dot-0').className = index === 0 ? 'w-3.5 h-3.5 rounded-full bg-[var(--brand-primary)] shadow-sm transition-all' : 'w-3.5 h-3.5 rounded-full bg-slate-300 dark:bg-slate-600 transition-all';
+      document.getElementById('dot-1').className = index === 1 ? 'w-3.5 h-3.5 rounded-full bg-[var(--brand-primary)] shadow-sm transition-all' : 'w-3.5 h-3.5 rounded-full bg-slate-300 dark:bg-slate-600 transition-all';
     }
     function nextSlide() { showSlide((currentSlide + 1) % 2); }
     function prevSlide() { showSlide((currentSlide - 1 + 2) % 2); }
 
-    // 4. Step Wizard Handler (סעיף ז')
+    // 8. Wizard Steps
     let currentWizardStep = 1;
     function updateWizardUI() {
       document.getElementById('wizard-question-1').classList.toggle('hidden', currentWizardStep !== 1);
@@ -777,36 +992,12 @@
       btn.classList.add('border-[var(--brand-primary)]', 'bg-[var(--brand-primary)]/10');
     }
 
-    // 5. Chat Drawer Handlers (סעיף ה')
-    function openChatDrawer() {
-      document.getElementById('chat-drawer').classList.remove('-translate-x-full');
-    }
-    function closeChatDrawer() {
-      document.getElementById('chat-drawer').classList.add('-translate-x-full');
-    }
-    function sendChatMessage() {
-      const input = document.getElementById('chat-input-text');
-      if (!input.value.trim()) return;
-      input.value = '';
-    }
-
-    // 6. Fullscreen Modal Handlers (סעיף ו')
-    function openFullscreenModal() {
-      const m = document.getElementById('fullscreen-modal');
-      m.classList.remove('opacity-0', 'pointer-events-none');
-    }
-    function closeFullscreenModal() {
-      const m = document.getElementById('fullscreen-modal');
-      m.classList.add('opacity-0', 'pointer-events-none');
-    }
-
-    // 7. FAQ Accordion Handler (סעיף י')
+    // 9. FAQ Toggle
     function toggleFaq(id) {
       const content = document.getElementById(`faq-content-${id}`);
       const icon = document.getElementById(`faq-icon-${id}`);
       const isHidden = content.classList.contains('hidden');
 
-      // Close all first
       [1, 2, 3].forEach(i => {
         document.getElementById(`faq-content-${i}`).classList.add('hidden');
         document.getElementById(`faq-icon-${i}`).classList.remove('rotate-180');
@@ -818,13 +1009,11 @@
       }
     }
 
-    // Theming custom overrides
-    function setColor(color) {
-      document.documentElement.style.setProperty('--brand-primary', color);
-    }
-    function setRadius(radius) {
-      document.documentElement.style.setProperty('--brand-radius', radius);
-    }
+    // 10. Drawer & Modals
+    function openChatDrawer() { document.getElementById('chat-drawer').classList.remove('-translate-x-full'); }
+    function closeChatDrawer() { document.getElementById('chat-drawer').classList.add('-translate-x-full'); }
+    function openFullscreenModal() { document.getElementById('fullscreen-modal').classList.remove('opacity-0', 'pointer-events-none'); }
+    function closeFullscreenModal() { document.getElementById('fullscreen-modal').classList.add('opacity-0', 'pointer-events-none'); }
   </script>
 </body>
 </html>
