@@ -217,7 +217,7 @@ export const generateAgentPromptWithAi = async (
   capabilities: string[], 
   allowedDataSources: string[], 
   toneOfVoice: { professionalism: number, detail: number, creativity: number }
-): Promise<{ prompt: string, usage: TokenUsageReport }> => {
+): Promise<{ prompt: string; usage: TokenUsageReport; error?: string }> => {
   
   const systemInstruction = `You are a world-class prompt engineer and AI system designer for Kosun's KOSAI engine.
 Your task is to write a highly effective, professional system prompt IN HEBREW for a new AI assistant acting inside the component "${moduleName}".
@@ -236,14 +236,14 @@ Instructions:
 3. The prompt should explain to the AI what tools it has and what data it can access.
 4. Do NOT wrap the response in markdown blocks (no \`\`\` text). Return plain text only.`;
 
-  const model = 'gemini-2.5-flash';
+  const model = 'gemini-3.8-flash';
 
   const response = await coreCallGeminiApi({
     prompt: `Please generate the system prompt for the "${moduleName}" assistant.`,
     systemInstruction,
     responseMimeType: 'text/plain',
     model,
-    timeoutMs: 60000,
+    timeoutMs: 30000,
   });
 
   const usage = calculateGeminiCost({
@@ -252,17 +252,22 @@ Instructions:
     candidatesTokens: response.usageMetadata?.candidatesTokenCount || 100,
   });
 
-  if (!response.success || response.isFallback) {
-    let errorReason = response.error || 'שגיאה לא ידועה';
-    if (errorReason === 'NO_API_KEY_FOUND') {
-      errorReason = 'חסר מפתח API של Google Gemini בהגדרות.';
-    }
-    return {
-      prompt: `[שגיאה בניסוח אוטומטי - אנא בדוק הגדרות] 
-הסיבה: ${errorReason}
+  if (!response.success || response.isFallback || !response.data) {
+    // Graceful Degradation: Provide a tailored professional prompt without exposing raw error strings
+    let defaultPrompt = `אתה סוכן AI מקצועי, שירותי ומדויק של קושאן עבור ${moduleName}.
+תפקידך העיקרי לסייע למשתמש בניהול המודול, ביצוע פעולות חכמות, הפקת תובנות ומענה מדויק.
+שפת הפעולה שלך היא עברית רהוטה ללא אימוג'ים טקסטואליים.`;
 
-אתה עוזר AI מקצועי. המטרה שלך היא לעזור למשתמש לנהל את המודול הנוכחי.`,
-      usage
+    if (moduleName.includes('CRM') || moduleName.includes('אנליטיקה') || moduleName.includes('crm')) {
+      defaultPrompt = `אתה סוכן ה-CRM, הנתונים והאנליטיקה המתקדם של קושאן.
+תפקידך לסייע בפילוח לקוחות, מעקב עסקאות, ניהול קהילות וקבוצות, ויצירת גרפים ותרשימים אנליטיים בזמן אמת באמצעות פעולת CREATE_CRM_CHART.
+השב תמיד בעברית מקצועית, שירותית ועסקית.`;
+    }
+
+    return {
+      prompt: defaultPrompt,
+      usage,
+      error: response.error
     };
   }
   let textData = typeof response.data === 'string' ? response.data.trim() : JSON.stringify(response.data);

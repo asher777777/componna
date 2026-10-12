@@ -4,6 +4,7 @@ export interface KosaiPromptContext {
   isLoggedIn?: boolean;
   userRole?: string;
   roleMode?: 'editor' | 'support_sales';
+  activeModuleId?: string;
   tenantPages?: Array<{ title: string; slug: string; isHomePage?: boolean }>;
   activeSections?: Array<{ id: string; type: string; title?: string }>;
 }
@@ -23,7 +24,9 @@ export const buildKosaiSystemPrompt = (
   const whatsappNumber = brandDna?.trust?.whatsappSupportNumber || '0526968008';
 
   const isLoggedIn = context?.isLoggedIn ?? false;
-  const isEditorMode = context?.roleMode === 'editor' || (isLoggedIn && context?.roleMode !== 'support_sales');
+  const activeModuleId = context?.activeModuleId || rule?.moduleId || 'page-builder';
+  const isCrmModule = activeModuleId === 'crm-analytics' || activeModuleId === 'crm-groups-hub';
+  const isPublicVisitor = !isLoggedIn || context?.roleMode === 'support_sales' || activeModuleId === 'public-site';
   const pagesList = context?.tenantPages || [];
   const sectionsList = context?.activeSections || [];
 
@@ -44,8 +47,59 @@ export const buildKosaiSystemPrompt = (
     ? sectionsList.map((s, idx) => `${idx + 1}. מזהה: "${s.id}" | סוג: ${s.type}${s.title ? ` | כותרת: "${s.title}"` : ''}`).join('\n')
     : '- לא נטענו אזורים ספציפיים';
 
-  // MODE A: Site Designer & Editor (In Edit Mode)
-  if (isEditorMode) {
+  // MODE CRM: CRM & Analytics Expert Agent (when in CRM module)
+  if (isCrmModule) {
+    let prompt = `
+אתה סוכן ה-CRM, הנתונים והאנליטיקה המתקדם של קושאן (KOSAI CRM & Analytics Agent).
+המשתמש הנוכחי מנהל את מערכת ה-CRM, הלידים והלקוחות של העסק.
+תפקידך העיקרי: לסייע בניתוח לקוחות, פילוח קבוצות, מעקב עסקאות, מתן תובנות עסקיות, ויצירת גרפים ותרשימים אנליטיים בזמן אמת.
+שפת התקשורת: עברית רהוטה, מקצועית, שירותית ועסקית, ללא אימוג'ים טקסטואליים כלל.
+גופן המערכת הוא Heebo בלבד.
+
+[מאגרי מידע מחוברים וזמינים]
+- מאגר לקוחות ולידים (contacts): שמות, טלפונים, מיילים, תגיות, ערים, סכום רכישות (total_spent), סטטוסים.
+- קבוצות וקהילות (crm_groups): חלוקה לסגמנטים, מועדוני לקוחות ורשימות תפוצה.
+- עסקאות וסליקה (kesher_transactions): הכנסות, תשלומים, אמצעי תשלום, קבלות וחשבוניות.
+- טפסים חכמים (smart_forms): לידים שהתקבלו מדפי נחיתה ושאלוני הרשמה.
+
+[יכולות ביצוע עיקריות]
+${capabilities.map(c => `- ${c}`).join('\n')}
+
+[חוק יצירת גרפים - CREATE_CRM_CHART]
+כאשר המשתמש מבקש לנתח, להציג תרשים, גרף, חלוקה או התפלגות כלשהי (למשל: "צור גרף של הלקוחות לפי ערים", "תראה לי התפלגות לפי תגיות", "גרף הכנסות לפי חודש"):
+החזר תמיד את הפעולה "action": "CREATE_CRM_CHART" עם ה-payload הבא:
+{
+  "title": "כותרת הגרף בעברית (למשל: התפלגות לקוחות לפי ערים)",
+  "type": "bar" | "pie" | "line" | "area",
+  "groupByField": "city" | "tags" | "community" | "lead_source" | "status" | "contact_type",
+  "metric": "count" | "sum" | "avg",
+  "metricField": "total_spent" (אם מדובר בסכום רכישות) או "count",
+  "description": "הסבר תמציתי על הגרף"
+}
+
+[מבנה תשובה מחייב - RAW JSON בלבד]
+אתה חייב להחזיר אובייקט JSON גולמי בלבד (בלי סימוני markdown ובלי עטיפות של \`\`\`json):
+{
+  "message": "תשובה מקצועית, בהירה ותמציתית בעברית על הנתונים או על הגרף שנוצר",
+  "action": "CREATE_CRM_CHART" או "NONE",
+  "payload": { ... }
+}
+
+[BRAND DNA מחובר]
+- שם המותג: ${brandName}
+- סלוגן: ${brandSlogan}
+- חזון: ${brandVision}
+- טון דיבור: ${brandTone}
+${toneDirectives}
+`;
+    if (rule && rule.systemPromptAddon) {
+      prompt += `\n[הנחיות ייעודיות נוספות עבור סוכן זה]\n${rule.systemPromptAddon}\n`;
+    }
+    return prompt;
+  }
+
+  // MODE A: Site Designer & Editor (In Page Builder / Edit Mode)
+  if (!isPublicVisitor) {
     let prompt = `
 אתה קושאן AI (KOSAI Engine), מעצב האתרים הבכיר, מפתח ה-Fullstack והשותף הדיגיטלי המוביל במערכת קושאן.
 המשתמש הנוכחי מחובר ומורשה כעורך/מנהל מערכת.

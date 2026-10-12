@@ -432,11 +432,13 @@ export class WhatsAppAiBotService {
       brandDnaBlock
     ].filter(Boolean).join('\n\n');
 
-    // Secure call through functionsApi - no direct browser fetch and no fallback loops
+    // Secure call through functionsApi with fallback
     const result = await functionsApi.callAiAssistant({
       prompt,
       systemInstruction: combinedSystemInstruction,
       temperature,
+      preferredModel: params.preferredModel,
+      apiKey: params.apiKey,
       brandDna
     });
 
@@ -593,6 +595,9 @@ export class WhatsAppAiBotService {
 
     const effectiveApiKey = (apiKey && apiKey.trim()) ||
       getModuleGeminiKey('whatsapp-green-api-hub') ||
+      getModuleGeminiKey('kosai-engine') ||
+      getModuleGeminiKey('page-builder') ||
+      (import.meta as any).env?.VITE_GEMINI_API_KEY ||
       '';
 
     if (!effectiveApiKey) {

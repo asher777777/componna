@@ -3,7 +3,7 @@ import { useKosai } from '../context/KosaiContext';
 import { 
   X, Send, Bot, User, Image as ImageIcon, Loader2, Sparkles, 
   Trash2, Maximize2, Minimize2, Settings, History, Plus, MessageSquare,
-  Mic, MicOff
+  Mic, MicOff, Save, Check
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -18,7 +18,9 @@ export const KosaiChatDrawer: React.FC = () => {
     sendMessage, 
     clearChat, 
     currentRule, 
-    triggerMediaGallery,
+    activeModule,
+    openMediaPicker,
+    saveCurrentConversation,
     activeConversationId,
     conversations,
     loadConversation,
@@ -33,6 +35,8 @@ export const KosaiChatDrawer: React.FC = () => {
 
   const [canEdit, setCanEdit] = useState<boolean>(false);
   const [inputText, setInputText] = useState('');
+  const [attachedImageUrl, setAttachedImageUrl] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -120,7 +124,6 @@ export const KosaiChatDrawer: React.FC = () => {
       };
 
       recognition.onend = () => {
-        // Stop ONLY when user clicks Send (or intentionally toggles off)
         if (isListeningRef.current) {
           try {
             recognition.start();
@@ -167,18 +170,19 @@ export const KosaiChatDrawer: React.FC = () => {
   }, []);
 
   const handleSend = () => {
-    // Dictation stops ONLY when Send is clicked!
     if (isListeningRef.current) {
       stopVoiceDictation();
     }
     const cleanText = autoCorrectText(inputText);
-    if (!cleanText.trim()) return;
-    sendMessage(cleanText.trim());
+    if (!cleanText.trim() && !attachedImageUrl) return;
+    
+    sendMessage(cleanText.trim() || 'הוספתי תמונה זו מספריית המדיה:', attachedImageUrl || undefined);
     setInputText('');
+    setAttachedImageUrl(null);
     baseTextRef.current = '';
   };
 
-  // Keyboard Escape key handler (מקש היציאה)
+  // Keyboard Escape key handler
   useEffect(() => {
     if (!isOpen) return;
 
@@ -204,6 +208,28 @@ export const KosaiChatDrawer: React.FC = () => {
     }
   };
 
+  const handleSaveConversation = async () => {
+    const success = await saveCurrentConversation();
+    if (success) {
+      setSaveStatus('השיחה נשמרה בהצלחה במאגר השיחות!');
+      setTimeout(() => setSaveStatus(null), 3000);
+    } else {
+      setSaveStatus('שגיאה בשמירת השיחה');
+      setTimeout(() => setSaveStatus(null), 3000);
+    }
+  };
+
+  const handleSelectMedia = async () => {
+    try {
+      const url = await openMediaPicker();
+      if (url) {
+        setAttachedImageUrl(url);
+      }
+    } catch (err) {
+      console.warn('[KosaiChatDrawer] Failed opening media picker:', err);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -218,7 +244,7 @@ export const KosaiChatDrawer: React.FC = () => {
       >
         {/* Header */}
         <div className="flex items-center justify-between p-3.5 border-b border-slate-800 bg-indigo-500/5">
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="w-8 h-8 flex items-center justify-center shrink-0">
               <img
                 src="/images/kosun-symbol.svg"
@@ -229,38 +255,68 @@ export const KosaiChatDrawer: React.FC = () => {
                 }}
               />
             </div>
-            <div>
-              <div className="flex items-center gap-1.5">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 flex-wrap">
                 <h3 className="font-black text-white text-sm">קושאן AI</h3>
                 <span className={clsx(
-                  "px-1.5 py-0.5 rounded text-[10px] border font-bold",
-                  activeRoleMode === 'editor' 
-                    ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                    : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+                  "px-1.5 py-0.5 rounded text-[10px] border font-bold truncate max-w-[150px]",
+                  activeModule.moduleId === 'crm-analytics'
+                    ? "bg-purple-500/20 text-purple-300 border-purple-500/30"
+                    : activeRoleMode === 'editor' 
+                      ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                      : "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
                 )}>
-                  {activeRoleMode === 'editor' ? 'מעצב ועורך האתר' : 'שירות, שיווק ומכירות'}
+                  {activeModule.roleBadge}
                 </span>
               </div>
-              <span className="text-[10px] text-slate-400 block">
-                {activeRoleMode === 'editor' ? 'מצב עריכה: עיצוב, תוכן והוספת אזורים' : 'מצב צפייה: שירות לקוחות והכוונה דיגיטלית'}
+              <span className="text-[10px] text-slate-400 block truncate max-w-[200px]">
+                {activeModule.roleDescription}
               </span>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 text-slate-400">
-            {/* Point ד: Settings Button (Only for authorized editors) */}
+          <div className="flex items-center gap-0.5 sm:gap-1 text-slate-400 shrink-0">
+            {/* New Conversation Button */}
+            <button
+              type="button"
+              onClick={() => {
+                startNewConversation();
+                setShowHistory(false);
+              }}
+              title="שיחה חדשה"
+              className="p-1.5 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+            </button>
+
+            {/* Save Conversation Button */}
+            <button
+              type="button"
+              onClick={handleSaveConversation}
+              title="שמירת שיחה"
+              className={clsx(
+                "p-1.5 rounded-lg transition-colors cursor-pointer",
+                saveStatus ? "text-emerald-400 bg-emerald-500/20" : "hover:text-indigo-400 hover:bg-slate-800/80"
+              )}
+            >
+              <Save className="w-4 h-4" />
+            </button>
+
+            {/* Settings Button (Only for authorized editors) */}
             {canEdit && (
               <button 
+                type="button"
                 onClick={() => setShowSettings(true)} 
-                title="הגדרות סוכן" 
+                title={`הגדרות ${activeModule.name}`}
                 className="p-1.5 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
               >
                 <Settings className="w-4 h-4" />
               </button>
             )}
 
-            {/* Point ג: History Button */}
+            {/* History Button */}
             <button 
+              type="button"
               onClick={() => setShowHistory(!showHistory)} 
               title="היסטוריית שיחות" 
               className={clsx(
@@ -271,8 +327,9 @@ export const KosaiChatDrawer: React.FC = () => {
               <History className="w-4 h-4" />
             </button>
 
-            {/* Point ג: Trash / Clear Chat */}
+            {/* Trash / Clear Chat */}
             <button 
+              type="button"
               onClick={handleConfirmClear} 
               title="זרוק שיחה לפח והתחל חדשה" 
               className="p-1.5 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
@@ -281,6 +338,7 @@ export const KosaiChatDrawer: React.FC = () => {
             </button>
 
             <button 
+              type="button"
               onClick={() => setIsExpanded(!isExpanded)} 
               className="p-1.5 hover:text-white hover:bg-slate-800/80 rounded-lg transition-colors cursor-pointer"
             >
@@ -305,15 +363,26 @@ export const KosaiChatDrawer: React.FC = () => {
           </div>
         </div>
 
+        {/* Save Status Banner */}
+        {saveStatus && (
+          <div className="bg-emerald-500/20 border-b border-emerald-500/30 text-emerald-300 text-[11px] px-3.5 py-1.5 flex items-center justify-between animate-fadeIn">
+            <span className="font-bold flex items-center gap-1.5">
+              <Check className="w-3.5 h-3.5 text-emerald-400" />
+              {saveStatus}
+            </span>
+          </div>
+        )}
+
         {/* Content Area: Either History List or Chat Messages */}
         {showHistory ? (
           <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 scrollbar-thin scrollbar-thumb-slate-700">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
               <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <History className="w-3.5 h-3.5 text-indigo-400" />
-                שיחות קודמות
+                שיחות קודמות ({activeModule.name})
               </span>
               <button
+                type="button"
                 onClick={() => {
                   startNewConversation();
                   setShowHistory(false);
@@ -328,7 +397,7 @@ export const KosaiChatDrawer: React.FC = () => {
             {conversations.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-slate-500 text-xs gap-2">
                 <MessageSquare className="w-8 h-8 text-slate-700" />
-                <span>אין עדיין שיחות שמורות במאגר.</span>
+                <span>אין עדיין שיחות שמורות במאגר עבור רכיב זה.</span>
               </div>
             ) : (
               conversations.map(conv => {
@@ -444,9 +513,28 @@ export const KosaiChatDrawer: React.FC = () => {
           )}
 
           <div className="p-3.5">
+            {attachedImageUrl && (
+              <div className="mb-2.5 relative inline-block">
+                <img 
+                  src={attachedImageUrl} 
+                  alt="תמונה מצורפת" 
+                  className="w-16 h-16 object-cover rounded-xl border border-indigo-500/50 shadow-md"
+                />
+                <button
+                  type="button"
+                  onClick={() => setAttachedImageUrl(null)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-rose-600 hover:bg-rose-500 text-white rounded-full flex items-center justify-center transition shadow cursor-pointer"
+                  title="הסר תמונה"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            )}
+
             <div className="flex items-end gap-2 bg-slate-900 border border-slate-700 rounded-2xl p-2 focus-within:border-indigo-500 focus-within:ring-1 focus-within:ring-indigo-500 transition-all">
               <button 
-                onClick={triggerMediaGallery} 
+                type="button"
+                onClick={handleSelectMedia} 
                 className="p-2.5 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 rounded-xl transition-colors shrink-0 cursor-pointer"
                 title="בחר תמונה מספריית המדיה"
               >
@@ -462,7 +550,7 @@ export const KosaiChatDrawer: React.FC = () => {
                     handleSend();
                   }
                 }}
-                placeholder={isListening ? "מקשיב ומקליד ברצף... לחץ שליחה לעצירה וביצוע" : "איך קושאן יכול לעזור בעיצוב האתר?"}
+                placeholder={isListening ? "מקשיב ומקליד ברצף... לחץ שליחה לעצירה וביצוע" : activeModule.inputPlaceholder}
                 className="flex-1 max-h-32 min-h-[44px] bg-transparent border-none focus:ring-0 text-white text-xs resize-none py-2.5 px-2 placeholder-slate-500"
                 rows={1}
               />
@@ -490,8 +578,9 @@ export const KosaiChatDrawer: React.FC = () => {
               </button>
               
               <button 
+                type="button"
                 onClick={handleSend}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() && !attachedImageUrl}
                 className="p-2.5 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-800 disabled:text-slate-500 text-white rounded-xl transition-colors shrink-0 shadow-lg shadow-indigo-500/20 disabled:shadow-none cursor-pointer"
                 title="שליחה וסיום הקראה"
               >
@@ -502,10 +591,11 @@ export const KosaiChatDrawer: React.FC = () => {
         </div>
       </div>
 
-      {/* Point ד: Settings Modal from Chat Component */}
+      {/* Settings Modal: Opens 100% full screen modal dedicated to the specific agent */}
       {showSettings && (
         <KosaiSettingsBackoffice
           initialRuleId={currentRule?.id}
+          moduleId={activeModule.moduleId}
           isModal={true}
           onClose={() => {
             setShowSettings(false);
@@ -516,4 +606,3 @@ export const KosaiChatDrawer: React.FC = () => {
     </>
   );
 };
-

@@ -1,31 +1,24 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
 import { KosaiRule, KosaiMessage, KosaiCapability, KosaiActionPayload, KosaiConversation } from '../types';
 import { kosaiRulesService, kosaiConversationsService } from '../services/kosaiFirestoreService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { useBrandDna } from '../../brand-dna-hub/context/BrandDnaContext';
 import { callGeminiApi } from '../api/kosaiApi';
-import { buildKosaiSystemPrompt } from '../prompts';
+import { buildKosaiSystemPrompt, KosaiPromptContext } from '../prompts';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { KosaiAgentContract } from '../../../core/contracts';
+import { KosaiAgentContract, MediaPickerContract } from '../../../core/contracts';
 import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
-
-const DEFAULT_WELCOME_MSG: KosaiMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content: 'היי! אני קושאן AI. העוזר והשותף החכם שלך. מחובר כעת ל-Brand DNA ומודע לכל הרשאות העיצוב והמערכת שלך. מה נרצה לעצב או לעדכן היום?',
-  timestamp: new Date()
-};
-
-const VISITOR_WELCOME_MSG: KosaiMessage = {
-  id: 'welcome',
-  role: 'assistant',
-  content: 'שלום וברוכים הבאים לקושאן! אני כאן לענות על כל שאלה בנוגע לשירותים, המוצרים ופתרונות הפלטפורמה שלנו. איך אוכל לסייע לך היום?',
-  timestamp: new Date()
-};
+import { 
+  MODULE_AGENTS_MAP, 
+  resolveActiveModule, 
+  createDefaultRuleForModule, 
+  ModuleAgentMeta 
+} from '../config/moduleAgents';
 
 interface KosaiContextValue {
   isOpen: boolean;
@@ -35,7 +28,10 @@ interface KosaiContextValue {
   clearChat: () => Promise<void>;
   currentRule: KosaiRule | null;
   setCurrentRule: React.Dispatch<React.SetStateAction<KosaiRule | null>>;
+  activeModule: ModuleAgentMeta;
   triggerMediaGallery: () => void;
+  openMediaPicker: () => Promise<string | null>;
+  saveCurrentConversation: () => Promise<boolean>;
   activeConversationId: string | null;
   conversations: KosaiConversation[];
   loadConversation: (conversationId: string) => Promise<void>;
@@ -56,7 +52,7 @@ const KosaiContext = createContext<KosaiContextValue | undefined>(undefined);
 
 export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<KosaiMessage[]>([DEFAULT_WELCOME_MSG]);
+  const [messages, setMessages] = useState<KosaiMessage[]>([]);
   const [currentRule, setCurrentRule] = useState<KosaiRule | null>(null);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [conversations, setConversations] = useState<KosaiConversation[]>([]);
@@ -68,7 +64,11 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { db, firebaseApp } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { brandDna } = useBrandDna();
-  const { registerCapability, unregisterCapability } = useHostCapabilities();
+  const { registerCapability, unregisterCapability, getCapability } = useHostCapabilities();
+
+  // Location listening for dynamic module synchronization
+  const location = useLocation();
+  const currentPath = location.pathname;
 
   const [isEditMode, setIsEditMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
@@ -80,8 +80,17 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const isLoggedIn = Boolean(authState?.isAuthenticated && (authState.role === 'admin' || authState.role === 'editor'));
 
-  // Active role mode: 'editor' when logged in and in edit mode; 'support_sales' when in view mode
-  const activeRoleMode: 'editor' | 'support_sales' = (isLoggedIn && isEditMode) ? 'editor' : 'support_sales';
+  // Active module synchronization based on URL pathname & auth
+  const activeModule = useMemo(() => {
+    return resolveActiveModule(currentPath, isLoggedIn);
+  }, [currentPath, isLoggedIn]);
+
+  // Active role mode: 'editor' in backoffice modules or when admin; 'support_sales' only for public visitors
+  const activeRoleMode: 'editor' | 'support_sales' = useMemo(() => {
+    if (activeModule.moduleId === 'public-site') return 'support_sales';
+    if (isLoggedIn) return 'editor';
+    return isEditMode ? 'editor' : 'support_sales';
+  }, [activeModule.moduleId, isLoggedIn, isEditMode]);
 
   useEffect(() => {
     const handleEditModeChange = (e: any) => {
@@ -123,12 +132,20 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
   }, [db, tenantId]);
 
-  // Set appropriate welcome message on initial empty chat or role mode switch
+  // Set initial or module-updated welcome message
   useEffect(() => {
-    if (messages.length === 1 && messages[0].id === 'welcome') {
-      setMessages([activeRoleMode === 'editor' ? DEFAULT_WELCOME_MSG : VISITOR_WELCOME_MSG]);
-    }
-  }, [activeRoleMode]);
+    setMessages(prev => {
+      if (prev.length === 0 || (prev.length === 1 && prev[0].id === 'welcome')) {
+        return [{
+          id: 'welcome',
+          role: 'assistant',
+          content: activeModule.welcomeMessage,
+          timestamp: new Date()
+        }];
+      }
+      return prev;
+    });
+  }, [activeModule]);
 
   // Register kosai-agent AI capability for cross-module orchestration
   useEffect(() => {
@@ -145,19 +162,30 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     };
   }, [brandDna, registerCapability, unregisterCapability]);
 
-  // Route listening & Rule detection
+  // Route & Module listening - Rule detection synchronized with active component
   const refreshRules = useCallback(async () => {
     if (!db || !tenantId) return;
     try {
-      const path = window.location.hash || window.location.pathname;
       const rules = await kosaiRulesService.getRules(db, tenantId);
       
-      const activeRule = rules.find(r => r.isActive && (path.includes(r.slugPattern.replace('*', '')) || (r.moduleId === 'page-builder' && path.includes('page-builder'))));
-      setCurrentRule(activeRule || null);
+      const matched = rules.find(r => 
+        r.isActive && (
+          r.moduleId === activeModule.moduleId ||
+          (r.slugPattern && currentPath.includes(r.slugPattern.replace('*', '')))
+        )
+      );
+
+      if (matched) {
+        setCurrentRule(matched);
+      } else {
+        // Fallback to active module's standard default rule
+        setCurrentRule(createDefaultRuleForModule(activeModule));
+      }
     } catch (err) {
-      console.warn('[KosaiContext] Failed to load rules:', err);
+      console.warn('[KosaiContext] Failed to load rules, using default module rule:', err);
+      setCurrentRule(createDefaultRuleForModule(activeModule));
     }
-  }, [db, tenantId]);
+  }, [db, tenantId, activeModule, currentPath]);
 
   useEffect(() => {
     refreshRules();
@@ -167,22 +195,22 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const refreshConversations = useCallback(async () => {
     if (!db || !tenantId) return;
     try {
-      const list = await kosaiConversationsService.getConversations(db, tenantId);
+      const list = await kosaiConversationsService.getConversations(db, tenantId, activeModule.moduleId);
       setConversations(list);
     } catch (err) {
       console.warn('[KosaiContext] Failed to load conversations:', err);
     }
-  }, [db, tenantId]);
+  }, [db, tenantId, activeModule.moduleId]);
 
   useEffect(() => {
     refreshConversations();
   }, [refreshConversations]);
 
-  // Load active conversation on mount (persists across drawer closes and page reloads)
+  // Load active conversation on mount or module switch
   useEffect(() => {
     if (!db || !tenantId) return;
     const initActiveChat = async () => {
-      const savedConvId = localStorage.getItem(`kosai_active_conv_${tenantId}`);
+      const savedConvId = localStorage.getItem(`kosai_active_conv_${tenantId}_${activeModule.moduleId}`);
       if (savedConvId) {
         try {
           const conv = await kosaiConversationsService.getConversation(db, tenantId, savedConvId);
@@ -196,9 +224,18 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           console.warn('[KosaiContext] Could not load saved conversation:', e);
         }
       }
+      // If none saved, set clean welcome message for active module
+      setActiveConversationId(null);
+      setCachedContentId(null);
+      setMessages([{
+        id: 'welcome',
+        role: 'assistant',
+        content: activeModule.welcomeMessage,
+        timestamp: new Date()
+      }]);
     };
     initActiveChat();
-  }, [db, tenantId]);
+  }, [db, tenantId, activeModule.moduleId]);
 
   // Listen to open_chat event from external buttons
   useEffect(() => {
@@ -207,7 +244,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     return () => window.removeEventListener('kosai:open_chat', handleOpen);
   }, []);
 
-  // Point ג: Clear chat = Throw current conversation to TRASH and start fresh!
+  // Clear chat / Delete current conversation and start fresh
   const clearChat = async () => {
     if (activeConversationId && db && tenantId) {
       try {
@@ -216,29 +253,71 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         console.warn('[KosaiContext] Failed to delete conversation from Firestore:', err);
       }
     }
-    localStorage.removeItem(`kosai_active_conv_${tenantId}`);
+    localStorage.removeItem(`kosai_active_conv_${tenantId}_${activeModule.moduleId}`);
     setActiveConversationId(null);
     setCachedContentId(null);
     setMessages([
       {
-        id: Date.now().toString(),
+        id: 'welcome',
         role: 'assistant',
-        content: 'השיחה נמחקה בהצלחה. התחלנו שיחה חדשה ונקייה! איך אפשר לעזור?',
+        content: activeModule.welcomeMessage,
         timestamp: new Date()
       }
     ]);
     refreshConversations();
   };
 
-  // Start new conversation without necessarily deleting the previous one from history
+  // Start new conversation without deleting previous from history
   const startNewConversation = () => {
-    localStorage.removeItem(`kosai_active_conv_${tenantId}`);
+    localStorage.removeItem(`kosai_active_conv_${tenantId}_${activeModule.moduleId}`);
     setActiveConversationId(null);
     setCachedContentId(null);
-    setMessages([DEFAULT_WELCOME_MSG]);
+    setMessages([{
+      id: 'welcome',
+      role: 'assistant',
+      content: activeModule.welcomeMessage,
+      timestamp: new Date()
+    }]);
   };
 
-  // Load specific conversation from history (Point ג)
+  // Explicit Save Conversation to Firestore
+  const saveCurrentConversation = async (): Promise<boolean> => {
+    if (!db || !tenantId) return false;
+    let currentConvId = activeConversationId;
+    let convTitle = `שיחה עם ${activeModule.name}`;
+    const firstUserMsg = messages.find(m => m.role === 'user');
+    if (firstUserMsg) {
+      convTitle = firstUserMsg.content.trim().slice(0, 35);
+    }
+    if (!currentConvId) {
+      currentConvId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      setActiveConversationId(currentConvId);
+      localStorage.setItem(`kosai_active_conv_${tenantId}_${activeModule.moduleId}`, currentConvId);
+    }
+
+    const conversationToSave: KosaiConversation = {
+      id: currentConvId,
+      tenantId,
+      moduleId: activeModule.moduleId,
+      title: convTitle,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      cachedContentId: cachedContentId || undefined,
+      status: 'active',
+      messages
+    };
+
+    try {
+      await kosaiConversationsService.saveConversation(db, tenantId, conversationToSave);
+      await refreshConversations();
+      return true;
+    } catch (err) {
+      console.warn('[KosaiContext] Failed saving conversation:', err);
+      return false;
+    }
+  };
+
+  // Load specific conversation from history
   const loadConversation = async (conversationId: string) => {
     if (!db || !tenantId) return;
     try {
@@ -247,7 +326,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setActiveConversationId(conv.id);
         setMessages(conv.messages);
         setCachedContentId(conv.cachedContentId || null);
-        localStorage.setItem(`kosai_active_conv_${tenantId}`, conv.id);
+        localStorage.setItem(`kosai_active_conv_${tenantId}_${activeModule.moduleId}`, conv.id);
       }
     } catch (err) {
       console.warn('[KosaiContext] Failed to load conversation:', err);
@@ -268,12 +347,45 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }
   };
 
-  const triggerMediaGallery = () => {
-    eventBus.publish('media:request_picker', {
-      onSelect: (url: string) => {
-        sendMessage(`בבקשה תשתמש בתמונה הזו מהספרייה שלי: ${url}`);
+  // Media Picker Capability Consumption (Rule 2 - Module Monopoly & Contracts)
+  const openMediaPicker = async (): Promise<string | null> => {
+    const mediaService = getCapability<MediaPickerContract>('media-picker');
+    if (mediaService) {
+      try {
+        const result = await mediaService.openPicker({ accept: 'image/*', multiple: false });
+        if (typeof result === 'string') return result;
+        if (Array.isArray(result) && result[0]) return result[0];
+        return null;
+      } catch (err) {
+        console.warn('[KosaiContext] Error using media-picker capability:', err);
       }
+    }
+
+    // Secondary fallback via EventBus
+    return new Promise((resolve) => {
+      let resolved = false;
+      eventBus.publish('media:request_picker', {
+        onSelect: (url: string) => {
+          if (!resolved) {
+            resolved = true;
+            resolve(url);
+          }
+        }
+      });
+      setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          resolve(null);
+        }
+      }, 1500);
     });
+  };
+
+  const triggerMediaGallery = async () => {
+    const url = await openMediaPicker();
+    if (url) {
+      sendMessage(`בבקשה תשתמש בתמונה הזו מהספרייה שלי: ${url}`);
+    }
   };
 
   const sendMessage = async (content: string, imageBase64?: string) => {
@@ -288,12 +400,12 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // Ensure conversation exists or create one
     let currentConvId = activeConversationId;
-    let convTitle = content.trim().slice(0, 35) || 'שיחה עם קושאן';
+    let convTitle = content.trim().slice(0, 35) || `שיחה עם ${activeModule.name}`;
     if (!currentConvId) {
       currentConvId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       setActiveConversationId(currentConvId);
       if (tenantId) {
-        localStorage.setItem(`kosai_active_conv_${tenantId}`, currentConvId);
+        localStorage.setItem(`kosai_active_conv_${tenantId}_${activeModule.moduleId}`, currentConvId);
       }
     } else {
       const found = conversations.find(c => c.id === currentConvId);
@@ -313,35 +425,35 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }]);
 
     try {
-      // Point א: Check capabilities and make sure agent is 100% aware of them
-      const isPageBuilderRoute = window.location.hash.includes('page-builder') || 
-                                 window.location.pathname.includes('page-builder') || 
-                                 currentRule?.moduleId === 'page-builder';
-
+      // Determine capabilities based on rule or active module default
       let capabilities: string[] = currentRule?.enabledCapabilities && currentRule.enabledCapabilities.length > 0
         ? [...currentRule.enabledCapabilities]
-        : [];
+        : [...activeModule.enabledCapabilities];
 
-      // If in page-builder, ensure design & builder capabilities are enabled
-      if (isPageBuilderRoute || capabilities.length === 0) {
+      if (activeModule.moduleId === 'page-builder') {
         const pageBuilderCaps = ['ADD_SECTION', 'UPDATE_SECTION', 'UPDATE_GLOBAL_SETTINGS', 'UPDATE_SEO'];
         for (const cap of pageBuilderCaps) {
           if (!capabilities.includes(cap)) {
             capabilities.push(cap);
           }
         }
+      } else if (activeModule.moduleId === 'crm-analytics') {
+        if (!capabilities.includes('CREATE_CRM_CHART')) {
+          capabilities.push('CREATE_CRM_CHART');
+        }
       }
 
-      // Point ג: Pass conversation history and cachedContentId (Gemini Cache / Multi-turn)
+      // Pass conversation history and cachedContentId (Gemini Multi-turn)
       const historyForApi = updatedMessagesWithUser.map(m => ({
         role: m.role,
         content: m.content
       }));
 
-      const promptContext = {
+      const promptContext: KosaiPromptContext = {
         isLoggedIn,
         userRole: authState?.role,
         roleMode: activeRoleMode,
+        activeModuleId: activeModule.moduleId,
         tenantPages,
         activeSections: pageSections,
       };
@@ -358,16 +470,15 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (!response || !response.data) throw new Error('No AI response');
       
-      // Update cachedContentId if returned by Gemini API
       if (response.cachedContentId) {
         setCachedContentId(response.cachedContentId);
       }
 
-      // LOG USAGE TO FIRESTORE
+      // Log usage to Firestore
       if (db && tenantId && currentRule) {
         kosaiRulesService.logAiUsage(db, tenantId, {
           ruleId: currentRule.id,
-          moduleName: currentRule.moduleId || 'page-builder',
+          moduleName: currentRule.moduleId || activeModule.moduleId,
           actionType: 'CHAT_MESSAGE',
           usage: response.usageReport
         }).catch(console.error);
@@ -394,12 +505,12 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       const finalMessagesList = [...updatedMessagesWithUser, finalAssistantMsg];
       setMessages(finalMessagesList);
 
-      // Point ב & ג: Save conversation state under tenants/{tenantId}/kosai_conversations
+      // Save conversation state under tenants/{tenantId}/kosai_conversations
       if (db && tenantId && currentConvId) {
         const updatedConversation: KosaiConversation = {
           id: currentConvId,
           tenantId,
-          moduleId: currentRule?.moduleId || 'page-builder',
+          moduleId: currentRule?.moduleId || activeModule.moduleId,
           title: convTitle,
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -431,7 +542,10 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       clearChat, 
       currentRule, 
       setCurrentRule,
+      activeModule,
       triggerMediaGallery,
+      openMediaPicker,
+      saveCurrentConversation,
       activeConversationId,
       conversations,
       loadConversation,
@@ -463,7 +577,10 @@ export const useKosai = () => {
       clearChat: async () => {},
       currentRule: null,
       setCurrentRule: () => {},
+      activeModule: MODULE_AGENTS_MAP['page-builder'],
       triggerMediaGallery: () => {},
+      openMediaPicker: async () => null,
+      saveCurrentConversation: async () => false,
       activeConversationId: null,
       conversations: [],
       loadConversation: async () => {},
@@ -482,4 +599,3 @@ export const useKosai = () => {
   }
   return context;
 };
-

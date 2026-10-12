@@ -1,9 +1,9 @@
 /**
- * WhatsApp Cloud Functions API Proxy
- * Routes backend operations and AI assistant requests securely through Cloud Functions.
- * Follows Kosun Module Monopoly: Sibling modules consume backend operations via functionsApi.
+ * WhatsApp Cloud Functions API Proxy & AI Assistant Client
+ * Follows Kosun Modular Standards: Resilient AI caller with direct REST fallback and model cascade.
  */
 import { BrandDna } from '../../../core/contracts';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 export interface AiCallResponse {
   text: string;
@@ -11,42 +11,125 @@ export interface AiCallResponse {
   error?: string;
 }
 
+const SUPPORTED_MODELS = [
+  'gemini-1.5-flash',
+  'gemini-2.0-flash',
+  'gemini-2.5-flash',
+  'gemini-1.5-pro'
+];
+
+export function resolveAiApiKey(explicitKey?: string): string {
+  if (explicitKey && explicitKey.trim().length > 5) {
+    return explicitKey.trim();
+  }
+  const moduleKey = getModuleGeminiKey('whatsapp-green-api-hub') || getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('page-builder');
+  if (moduleKey && moduleKey.trim().length > 5) {
+    return moduleKey.trim();
+  }
+  const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
+  if (envKey && envKey.trim().length > 5) {
+    return envKey.trim();
+  }
+  return '';
+}
+
 export const functionsApi = {
   /**
-   * Calls the secure backend AI endpoint (Cloud Function)
-   * Displays clear, pleasant Hebrew error messages without cascading fallbacks.
+   * Calls the AI assistant with model cascade and proper Google Gemini REST API support.
    */
   async callAiAssistant(params: {
     prompt: string;
     systemInstruction?: string;
     temperature?: number;
+    preferredModel?: string;
+    apiKey?: string;
     brandDna?: BrandDna | null;
   }): Promise<AiCallResponse> {
-    try {
-      // In production/workbench, this routes to Cloud Functions / Kosai Engine proxy
-      const response = await fetch('/api/ai/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      }).catch(() => null);
+    const apiKey = resolveAiApiKey(params.apiKey);
 
-      if (!response || !response.ok) {
-        return {
-          text: '',
-          error: 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.'
-        };
-      }
-
-      const data = await response.json().catch(() => ({}));
-      return {
-        text: data.text || '',
-        costReport: data.costReport
-      };
-    } catch {
+    if (!apiKey) {
       return {
         text: '',
-        error: 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.'
+        error: 'לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח בהגדרות החיבור (סמל המפתח).'
       };
     }
+
+    // Determine model cascade
+    const requestedModel = (params.preferredModel || '').toLowerCase();
+    const candidateModels: string[] = [];
+
+    // Map internal / custom aliases to valid Google Gemini models
+    if (requestedModel.includes('pro')) {
+      candidateModels.push('gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash');
+    } else {
+      candidateModels.push('gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash');
+    }
+
+    let lastError = '';
+
+    for (const model of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        const contents: any[] = [
+          {
+            role: 'user',
+            parts: [{ text: params.prompt }]
+          }
+        ];
+
+        const requestBody: any = {
+          contents,
+          generationConfig: {
+            temperature: params.temperature ?? 0.7,
+            maxOutputTokens: 1024,
+          }
+        };
+
+        if (params.systemInstruction) {
+          requestBody.systemInstruction = {
+            parts: [{ text: params.systemInstruction }]
+          };
+        }
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          const data = await response.json();
+          const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          if (candidateText && candidateText.trim().length > 0) {
+            return {
+              text: candidateText.trim(),
+              costReport: {
+                model,
+                totalTokens: data?.usageMetadata?.totalTokenCount || 0
+              }
+            };
+          }
+        } else {
+          const errJson = await response.json().catch(() => ({}));
+          lastError = errJson?.error?.message || `HTTP ${response.status}`;
+          console.warn(`[WhatsApp functionsApi] Model ${model} returned error:`, lastError);
+        }
+      } catch (err: any) {
+        lastError = err?.message || 'שגיאת רשת בחיבור ל-Gemini';
+        console.warn(`[WhatsApp functionsApi] Fetch failed for ${model}:`, err);
+      }
+    }
+
+    return {
+      text: '',
+      error: `שירות ה-AI לא היה זמין: ${lastError || 'אנא נסה שוב בעוד מספר רגעים.'}`
+    };
   }
 };

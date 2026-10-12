@@ -108,10 +108,10 @@ export const useWhatsAppAutoResponder = ({
           const body = notification.body;
 
           const isIncoming = body?.typeWebhook === 'incomingMessageReceived';
-          const isOutgoing = body?.typeWebhook === 'outgoingMessageReceived';
 
-          if (isIncoming || isOutgoing) {
-            const senderChatId = body.senderData?.chatId || body.senderData?.sender;
+          if (isIncoming) {
+            const rawSender = body.senderData?.chatId || body.senderData?.sender;
+            const senderChatId = GreenApiService.sanitizeChatId(rawSender);
             const senderName = body.senderData?.senderName || body.senderData?.senderContactName || '';
             const messageText =
               body.messageData?.textMessageData?.textMessage ||

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract, MediaPickerOptions } from '../../../core/contracts';
+import { eventBus } from '../../../core/bridge/EventBus';
 import { MediaPickerModal } from './MediaPickerModal';
 import { MediaItem, MediaType } from '../types';
 import { FirebaseApp } from 'firebase/app';
@@ -41,6 +42,16 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
       unregisterCapability('media-picker');
     };
   }, [openPicker, registerCapability, unregisterCapability]);
+
+  useEffect(() => {
+    const unsub = eventBus.subscribe('media:request_picker', async (payload: any) => {
+      const selected = await openPicker({ accept: 'image/*', multiple: false });
+      if (selected && typeof payload?.onSelect === 'function') {
+        payload.onSelect(selected);
+      }
+    });
+    return () => unsub();
+  }, [openPicker]);
 
   const handleClose = () => {
     setIsOpen(false);

@@ -204,6 +204,20 @@ export class GreenApiService {
     }
   }
 
+  public static sanitizeChatId(phoneOrChatId: string): string {
+    if (!phoneOrChatId) return '';
+    const trimmed = phoneOrChatId.trim();
+    if (trimmed.includes('@g.us') || trimmed.includes('@newsletter')) return trimmed;
+    if (trimmed.endsWith('@c.us')) {
+      const rawDigits = trimmed.replace('@c.us', '').replace(/\D/g, '');
+      const cleanDigits = rawDigits.startsWith('0') ? '972' + rawDigits.slice(1) : rawDigits;
+      return `${cleanDigits}@c.us`;
+    }
+    const digits = trimmed.replace(/\D/g, '');
+    const clean = digits.startsWith('0') ? '972' + digits.slice(1) : digits;
+    return `${clean}@c.us`;
+  }
+
   // --- SENDING METHODS ---
 
   public async sendMessage(params: {
@@ -213,25 +227,36 @@ export class GreenApiService {
     linkPreview?: boolean;
   }): Promise<{ idMessage?: string; error?: string }> {
     if (!this.isConfigured()) return { error: 'לא הוגדרו מפתחות Green-API' };
-    try {
-      const res = await fetch(`${this.baseUrl}/sendMessage/${this.token}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          chatId: params.chatId.includes('@') ? params.chatId : `${params.chatId.replace(/\D/g, '')}@c.us`,
-          message: params.message,
-          quotedMessageId: params.quotedMessageId || undefined,
-          linkPreview: params.linkPreview,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${res.status}`);
+    const hosts = this.getCandidateHosts();
+    const cleanChatId = GreenApiService.sanitizeChatId(params.chatId);
+
+    const body: any = {
+      chatId: cleanChatId,
+      message: params.message,
+    };
+    if (params.quotedMessageId) body.quotedMessageId = params.quotedMessageId;
+    if (params.linkPreview !== undefined) body.linkPreview = params.linkPreview;
+
+    let lastError: any = null;
+    for (const h of hosts) {
+      try {
+        const res = await fetch(`${h}/waInstance${this.idInstance}/sendMessage/${this.token}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          this.host = h;
+          return await res.json();
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          lastError = new Error(errData.message || `HTTP ${res.status}`);
+        }
+      } catch (e: any) {
+        lastError = e;
       }
-      return await res.json();
-    } catch (e: any) {
-      return { error: e.message || 'שגיאה בשליחת הודעה' };
     }
+    return { error: lastError?.message || 'שגיאה בשליחת הודעה' };
   }
 
   public async sendButtons(params: {

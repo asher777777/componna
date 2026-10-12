@@ -3,7 +3,7 @@ import { useKosai } from '../context/KosaiContext';
 import { Sparkles, Bot, ShieldCheck } from 'lucide-react';
 
 export const FloatingKosaiButton: React.FC = () => {
-  const { isOpen, setIsOpen, activeRoleMode } = useKosai();
+  const { isOpen, setIsOpen, activeRoleMode, activeModule } = useKosai();
 
   if (isOpen) return null;
 
@@ -11,7 +11,7 @@ export const FloatingKosaiButton: React.FC = () => {
     <button
       onClick={() => setIsOpen(true)}
       className="fixed bottom-6 left-6 z-[80] w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-700 via-slate-900 to-indigo-600 shadow-2xl shadow-indigo-600/30 flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group border border-indigo-400/40 cursor-pointer p-2 overflow-hidden"
-      title={activeRoleMode === 'editor' ? 'קושאן AI - מעצב ועורך האתר' : 'קושאן AI - שירות, שיווק ומכירות'}
+      title={`קושאן AI - ${activeModule?.roleBadge || (activeRoleMode === 'editor' ? 'מעצב ועורך האתר' : 'שירות, שיווק ומכירות')}`}
       aria-label="קושאן AI צ׳אט"
     >
       {/* Kosun Official Symbol from public gallery */}

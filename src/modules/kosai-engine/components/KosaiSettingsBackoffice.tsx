@@ -8,7 +8,7 @@ import {
   Sliders, LineChart, Database, Zap, X, Search, Filter, Check, Eye,
   Code2, FileText, Globe, Image, Film, Layers, CheckSquare, Users,
   CreditCard, ChevronDown, Settings, CheckCircle2, AlertCircle, Info,
-  SlidersHorizontal, ChevronLeft, ShieldCheck, ArrowRight, MessageSquare, Phone, Tag, CheckCircle
+  SlidersHorizontal, ChevronLeft, ChevronRight, ShieldCheck, ArrowRight, MessageSquare, Phone, Tag, CheckCircle
 } from 'lucide-react';
 import { KOSAI_SUPPORTED_MODULES } from '../config/kosaiModules';
 import { KOSAI_TEMPLATES } from '../config/kosaiTemplates';
@@ -17,6 +17,7 @@ import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { checkKeywordMatch, WhatsAppAiBotService, WhatsAppAiBotConfig } from '../../whatsapp-green-api-hub/services/whatsappAiBotService';
 import { doc, setDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
+import { MODULE_AGENTS_MAP, createDefaultRuleForModule } from '../config/moduleAgents';
 
 // Capability Definitions with High-Quality Lucide Icons (Cashwan 2026: Zero Emojis)
 const CAPABILITIES_META: {
@@ -29,6 +30,7 @@ const CAPABILITIES_META: {
   { id: 'UPDATE_SECTION', label: 'עריכת תוכן וסקשנים', desc: 'שינוי כותרות, טקסטים ואלמנטים קיימים בעמוד', icon: Sliders },
   { id: 'UPDATE_GLOBAL_SETTINGS', label: 'הגדרות עיצוב ומיתוג', desc: 'שינוי צבעים ראשיים, פונטים וסגנון גלובלי', icon: Sparkles },
   { id: 'UPDATE_SEO', label: 'הגדרות קידום ו-SEO', desc: 'עדכון כותרות מטא, תיאורים ותגיות לעמוד', icon: Target },
+  { id: 'CREATE_CRM_CHART', label: 'יצירת גרפים ב-CRM', desc: 'הפקת תרשימים וגרפים סטטיסטיים בזמן אמת', icon: LineChart },
   { id: 'CODE_GENERATION', label: 'כתיבת קוד', desc: 'יצירה ועדכון קוד מערכת', icon: Code2 },
   { id: 'PDF_READING', label: 'קריאת מסמכים', desc: 'חילוץ ידע מקבצי PDF', icon: FileText },
   { id: 'WEB_SEARCH', label: 'חיפוש ברשת', desc: 'שליפת מידע אונליין', icon: Search },
@@ -48,6 +50,7 @@ const DATA_SOURCES_META: {
   { id: SYSTEM_COLLECTIONS.PAGES, label: 'אתרים ודפי נחיתה', desc: 'תוכן העמודים והעיצובים', icon: Globe },
   { id: SYSTEM_COLLECTIONS.SMART_FORMS, label: 'טפסים ושאלונים', desc: 'שדות ולידים מטפסים', icon: CheckSquare },
   { id: SYSTEM_COLLECTIONS.CONTACTS, label: 'מאגר לקוחות (CRM)', desc: 'פרטי לקוחות ורשימות תפוצה', icon: Users },
+  { id: 'crm_groups', label: 'קהילות וקבוצות CRM', desc: 'פילוח סגמנטים וקבוצות לקוחות', icon: Users },
   { id: 'wa_bot_chats', label: 'שיחות וואטסאפ', desc: 'היסטוריית פניות מלקוחות', icon: MessageSquare },
   { id: SYSTEM_COLLECTIONS.MEDIA_ITEMS, label: 'ספריית מדיה', desc: 'תמונות וקבצי מדיה אישיים', icon: Image },
   { id: SYSTEM_COLLECTIONS.KESHER_TRANSACTIONS, label: 'עסקאות והכנסות', desc: 'נתוני תשלומים ורכישות', icon: CreditCard },
@@ -55,7 +58,7 @@ const DATA_SOURCES_META: {
   { id: SYSTEM_COLLECTIONS.VIDEO_PROJECTS, label: 'סרטי וידאו', desc: 'פרויקטים והפקות סרטונים', icon: Film },
 ];
 
-// Cashwan Branding: Tooltip component (Rule 3: i icon, closes on outside click and has X)
+// Cashwan Branding Tooltip
 const InfoTooltip = ({ text, title = 'מידע נוסף' }: { text: string; title?: string }) => {
   const [isOpen, setIsOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -109,12 +112,14 @@ const InfoTooltip = ({ text, title = 'מידע נוסף' }: { text: string; titl
 
 export interface KosaiSettingsBackofficeProps {
   initialRuleId?: string;
+  moduleId?: string;
   onClose?: () => void;
   isModal?: boolean;
 }
 
 export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = ({
   initialRuleId,
+  moduleId,
   onClose,
   isModal = false
 }) => {
@@ -126,7 +131,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
   const [analytics, setAnalytics] = useState<KosaiAnalyticsLog[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Filter & Search states (2026 Management Fleet)
+  // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [moduleFilter, setModuleFilter] = useState<string>('all');
@@ -136,17 +141,51 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
   const [newKeywordInput, setNewKeywordInput] = useState('');
   const [triggerTesterInput, setTriggerTesterInput] = useState('');
 
-  // Filter modules based on what the user actually purchased (Cashwan Business Logic)
   const availableModules = KOSAI_SUPPORTED_MODULES;
 
   const loadData = async () => {
     if (!db) return;
     setLoading(true);
-    const r = await kosaiRulesService.getRules(db, tenantId);
+    let r = await kosaiRulesService.getRules(db, tenantId);
     const a = await kosaiRulesService.getRecentAnalytics(db, tenantId);
+    
+    // Find matching rule
+    let targetRule = r.find(x => 
+      (initialRuleId && x.id === initialRuleId) || 
+      (moduleId && x.moduleId === moduleId)
+    );
+
+    // If not found and moduleId is provided, auto-create and persist the default rule for this module!
+    if (!targetRule && moduleId) {
+      const meta = MODULE_AGENTS_MAP[moduleId] || MODULE_AGENTS_MAP['crm-analytics'];
+      targetRule = createDefaultRuleForModule(meta);
+      try {
+        await kosaiRulesService.saveRule(db, tenantId, targetRule);
+      } catch (e) {
+        console.warn('[KosaiSettings] Could not auto-save rule:', e);
+      }
+    }
+    // Auto-sanitize any previously corrupted error strings in prompt
+    r = r.map(rule => {
+      if (rule.systemPromptAddon && (rule.systemPromptAddon.includes('שגיאה בניסוח') || rule.systemPromptAddon.includes('API_ERROR'))) {
+        const meta = MODULE_AGENTS_MAP[rule.moduleId] || MODULE_AGENTS_MAP['crm-analytics'];
+        const sanitized = { ...rule, systemPromptAddon: meta.systemPrompt };
+        kosaiRulesService.saveRule(db, tenantId, sanitized).catch(console.warn);
+        return sanitized;
+      }
+      return rule;
+    });
+
     setRules(r);
     setAnalytics(a);
-    if (initialRuleId) {
+    if (targetRule) {
+      // If targetRule was corrupt, sanitize its active prompt too
+      if (targetRule.systemPromptAddon && (targetRule.systemPromptAddon.includes('שגיאה בניסוח') || targetRule.systemPromptAddon.includes('API_ERROR'))) {
+        const meta = MODULE_AGENTS_MAP[targetRule.moduleId] || MODULE_AGENTS_MAP['crm-analytics'];
+        targetRule.systemPromptAddon = meta.systemPrompt;
+      }
+      setSelectedRuleId(targetRule.id);
+    } else if (initialRuleId) {
       setSelectedRuleId(initialRuleId);
     }
     setLoading(false);
@@ -173,9 +212,9 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
     }
   }, [initialRuleId]);
 
-  const handleCreateRule = async (moduleId?: string) => {
+  const handleCreateRule = async (modId?: string) => {
     if (!db) return;
-    const defaultModule = moduleId ? availableModules.find(m => m.id === moduleId) : null;
+    const defaultModule = modId ? availableModules.find(m => m.id === modId) : null;
     const newRule: KosaiRule = {
       id: `rule_${Date.now()}_${Math.floor(Math.random()*1000)}`,
       name: defaultModule ? `סוכן ${defaultModule.name}` : 'סוכן חדש',
@@ -185,7 +224,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
       isActive: true,
       enabledCapabilities: [],
       allowedDataSources: [],
-      toneOfVoice: { professionalism: 50, detail: 50, creativity: 50 },
+      toneOfVoice: { professionalism: 60, detail: 50, creativity: 50 },
       createdAt: Date.now()
     };
     
@@ -235,7 +274,6 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
           const botPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
           await setDoc(doc(db, botPath, botConfig.id), botConfig, { merge: true });
 
-          // Also update local storage so client components get immediate access
           try {
             const currentStored = WhatsAppAiBotService.getStoredBots();
             const existingIdx = currentStored.findIndex(b => b.id === botConfig.id || b.kosaiRuleId === updated.id);
@@ -279,7 +317,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
       modName,
       caps,
       rule.allowedDataSources || [],
-      rule.toneOfVoice || { professionalism: 50, detail: 50, creativity: 50 }
+      rule.toneOfVoice || { professionalism: 60, detail: 50, creativity: 50 }
     );
     
     if (db) {
@@ -335,18 +373,515 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
 
   if (loading) {
     return (
-      <div className="min-h-screen p-12 text-center bg-slate-50 text-slate-800 flex flex-col items-center justify-center gap-3" dir="rtl" style={{ fontFamily: 'Heebo, sans-serif' }}>
+      <div className={clsx("min-h-screen p-12 text-center bg-slate-50 text-slate-800 flex flex-col items-center justify-center gap-3", isModal && "fixed inset-0 z-[120]")} dir="rtl" style={{ fontFamily: 'Heebo, sans-serif' }}>
         <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <p className="font-bold text-sm text-slate-600">טוען את צוות הסוכנים של קושאן...</p>
+        <p className="font-bold text-sm text-slate-600">טוען את הגדרות הסוכן של קושאן...</p>
       </div>
     );
   }
 
+  // ============================================================================
+  // VIEW A: DIRECT SPECIFIC AGENT EDITOR (When an agent is selected)
+  // High Focus, Clean Light Mode, 100% Full-Screen, Comfortable & Usable
+  // ============================================================================
+  if (activeRule) {
+    const assignedModule = availableModules.find(m => m.id === activeRule.moduleId);
+
+    return (
+      <div 
+        className={clsx(
+          "bg-slate-50 text-slate-900 flex flex-col font-sans",
+          isModal ? "fixed inset-0 w-screen h-screen z-[120] overflow-y-auto" : "min-h-screen pb-24"
+        )} 
+        dir="rtl" 
+        style={{ fontFamily: 'Heebo, sans-serif' }}
+      >
+        {/* Top Header */}
+        <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedRuleId(null)}
+                className="p-2 text-slate-500 hover:text-indigo-600 hover:bg-slate-100 rounded-xl transition flex items-center gap-1 text-xs font-bold cursor-pointer"
+                title="חזרה לכל צוות הסוכנים"
+              >
+                <ChevronRight className="w-4 h-4" />
+                <span className="hidden sm:inline">לכל הסוכנים</span>
+              </button>
+              <div className="h-6 w-px bg-slate-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
+                  <Bot className="w-4 h-4" />
+                </div>
+                <div>
+                  <h1 className="font-black text-sm sm:text-base text-slate-900 leading-tight">
+                    הגדרות סוכן: {activeRule.name}
+                  </h1>
+                  <span className="text-[10px] text-slate-400 block">
+                    {assignedModule ? assignedModule.name : 'שיוך מודול מותאם'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Active Toggle */}
+              <button
+                type="button"
+                onClick={() => handleUpdateRule({ ...activeRule, isActive: !activeRule.isActive })}
+                className={clsx(
+                  "px-3 py-1.5 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer",
+                  activeRule.isActive 
+                    ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" 
+                    : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
+                )}
+              >
+                <span className={clsx("w-2 h-2 rounded-full", activeRule.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
+                <span>{activeRule.isActive ? 'סוכן פעיל' : 'סוכן מושהה'}</span>
+              </button>
+
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                  title="סגור וחזור לצ'אט"
+                  aria-label="סגירה"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+            </div>
+          </div>
+        </header>
+
+        {/* Form Body */}
+        <main className="max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6 flex-1 pb-28">
+
+          {/* Card 1: Name & Module Mapping */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
+                <Settings className="w-4 h-4 text-indigo-500" />
+                פרטי הסוכן ושיוך למודול
+              </span>
+              <span className="text-[11px] text-slate-400">הגדרת זיהוי במערכת</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="font-bold text-xs text-slate-700 block mb-1.5">
+                  שם הסוכן
+                </label>
+                <input 
+                  type="text" 
+                  value={activeRule.name} 
+                  placeholder="למשל: סוכן CRM וניתוח לקוחות"
+                  onChange={e => handleUpdateRule({ ...activeRule, name: e.target.value })}
+                  className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none transition"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-xs text-slate-700 block mb-1.5">
+                  שיוך לרכיב מערכת (Module)
+                </label>
+                <select
+                  value={activeRule.moduleId || ''}
+                  onChange={e => {
+                    const mId = e.target.value;
+                    const m = availableModules.find(x => x.id === mId);
+                    handleUpdateRule({ ...activeRule, moduleId: mId, slugPattern: m?.route || '' });
+                  }}
+                  className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-800 focus:bg-white focus:border-indigo-500 outline-none cursor-pointer transition"
+                >
+                  <option value="">-- בחר רכיב מערכת משויך --</option>
+                  {availableModules.map(m => (
+                    <option key={m.id} value={m.id}>
+                      {purchasedModules.includes(m.id) ? 'פעיל ברישיון: ' : 'מודול: '}{m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Card 2: Interactive Capabilities */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <Zap className="w-4 h-4 text-purple-600" />
+                <span className="font-bold text-xs text-slate-900">יכולות ביצוע מורשות (Capabilities)</span>
+                <InfoTooltip text="הדלק או כבה בלחיצה את הכלים והיכולות המורשות שיעמדו לרשות הסוכן בעת ביצוע משימות." />
+              </div>
+              <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
+                {activeRule.enabledCapabilities.length} מופעלות
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {CAPABILITIES_META.map(cap => {
+                const isEnabled = activeRule.enabledCapabilities.includes(cap.id);
+                return (
+                  <div
+                    key={cap.id}
+                    onClick={() => {
+                      const newCaps = isEnabled
+                        ? activeRule.enabledCapabilities.filter(c => c !== cap.id)
+                        : [...activeRule.enabledCapabilities, cap.id];
+                      handleUpdateRule({ ...activeRule, enabledCapabilities: newCaps });
+                    }}
+                    className={clsx(
+                      "p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 select-none",
+                      isEnabled
+                        ? "bg-purple-50/70 border-purple-300 text-purple-900 shadow-xs"
+                        : "bg-slate-50/60 border-slate-200 text-slate-600 hover:bg-slate-100/80"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={clsx(
+                        "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                        isEnabled ? "bg-purple-600 text-white" : "bg-white text-slate-400 border border-slate-200"
+                      )}>
+                        <cap.icon className="w-4 h-4" />
+                      </div>
+                      <div className="truncate">
+                        <span className="font-bold text-xs block truncate">{cap.label}</span>
+                        <span className="text-[10px] text-slate-400 block truncate">{cap.desc}</span>
+                      </div>
+                    </div>
+
+                    <div className={clsx(
+                      "w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition",
+                      isEnabled ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"
+                    )}>
+                      {isEnabled && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Card 3: Allowed Data Sources */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <div className="flex items-center gap-1.5">
+                <Database className="w-4 h-4 text-indigo-600" />
+                <span className="font-bold text-xs text-slate-900">מאגרי מידע מחוברים (Data Sources)</span>
+                <InfoTooltip text="מאפשר לסוכן לחקור ולשלוף מידע בזמן אמת מתוך מאגרי המידע שבחרת בעסק שלך." />
+              </div>
+              <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                {(activeRule.allowedDataSources || []).length} מורשים
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {DATA_SOURCES_META.map(src => {
+                const isAllowed = (activeRule.allowedDataSources || []).includes(src.id);
+                return (
+                  <div
+                    key={src.id}
+                    onClick={() => {
+                      const curr = activeRule.allowedDataSources || [];
+                      const newSources = isAllowed
+                        ? curr.filter(c => c !== src.id)
+                        : [...curr, src.id];
+                      handleUpdateRule({ ...activeRule, allowedDataSources: newSources });
+                    }}
+                    className={clsx(
+                      "p-3 rounded-2xl border transition cursor-pointer flex items-center justify-between gap-3 select-none",
+                      isAllowed
+                        ? "bg-indigo-50/70 border-indigo-300 text-indigo-900 shadow-xs"
+                        : "bg-slate-50/60 border-slate-200 text-slate-600 hover:bg-slate-100/80"
+                    )}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className={clsx(
+                        "w-8 h-8 rounded-xl flex items-center justify-center shrink-0",
+                        isAllowed ? "bg-indigo-600 text-white" : "bg-white text-slate-400 border border-slate-200"
+                      )}>
+                        <src.icon className="w-4 h-4" />
+                      </div>
+                      <div className="truncate">
+                        <span className="font-bold text-xs block truncate">{src.label}</span>
+                        <span className="text-[10px] text-slate-400 block truncate">{src.desc}</span>
+                      </div>
+                    </div>
+
+                    <div className={clsx(
+                      "w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition",
+                      isAllowed ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
+                    )}>
+                      {isAllowed && <Check className="w-3 h-3 stroke-[3]" />}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Card 4: Persona & Custom Prompt */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900">
+                <Sparkles className="w-4 h-4 text-indigo-500" />
+                <span>הנחיות ייעודיות ופרומפט סוכן</span>
+                <InfoTooltip text="הנחה את הסוכן כיצד להתנהג ולהגיב, או בחר תבנית מוכנה שנוסחה על ידי המומחים של קושאן." />
+              </div>
+
+              <select
+                value={activeRule.templateId || ''}
+                onChange={e => applyTemplate(activeRule, e.target.value)}
+                className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 text-[11px] font-bold text-slate-700 shadow-xs outline-none cursor-pointer"
+              >
+                <option value="">תבניות AI מוכנות מראש...</option>
+                {KOSAI_TEMPLATES.filter(t => t.targetModules.includes('all') || t.targetModules.includes(activeRule.moduleId || '')).map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="relative">
+              <textarea 
+                value={activeRule.systemPromptAddon || ''} 
+                onChange={e => handleUpdateRule({ ...activeRule, systemPromptAddon: e.target.value })}
+                placeholder="הסבר במילים פשוטות ל-Kosun איזה סוג סוכן אתה צריך שיהיה, או בחר תבנית..."
+                className="w-full h-36 p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs focus:bg-white focus:border-indigo-500 focus:outline-none resize-none leading-relaxed text-slate-800"
+              />
+              <button 
+                type="button"
+                onClick={() => handleGeneratePrompt(activeRule)}
+                disabled={!activeRule.moduleId}
+                className="absolute bottom-3 left-3 px-3.5 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-md shadow-indigo-600/20 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>נסח לי פרומפט בעזרת AI</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Card 5: Tone of Voice Sliders */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center gap-1.5 font-bold text-xs text-slate-900 border-b pb-3 border-slate-100">
+              <SlidersHorizontal className="w-4 h-4 text-indigo-500" />
+              <span>סגנון שיחה והתנסחות</span>
+              <InfoTooltip text="קובע את אופי וטון המענה של הסוכן – רשמי או קליל, ממוקד או מפורט, שמרני או יצירתי." />
+            </div>
+
+            <div className="space-y-4 pt-1">
+              {/* Professionalism */}
+              <div>
+                <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+                  <span>חברי וקליל</span>
+                  <span className="text-purple-600">{activeRule.toneOfVoice?.professionalism ?? 50}%</span>
+                  <span>רשמי ומקצועי</span>
+                </div>
+                <input 
+                  type="range" min="0" max="100" 
+                  value={activeRule.toneOfVoice?.professionalism ?? 50}
+                  onChange={e => handleUpdateRule({ ...activeRule, toneOfVoice: { ...activeRule.toneOfVoice!, professionalism: Number(e.target.value) } })}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+                />
+              </div>
+
+              {/* Detail */}
+              <div>
+                <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+                  <span>קצר וממוקד</span>
+                  <span className="text-indigo-600">{activeRule.toneOfVoice?.detail ?? 50}%</span>
+                  <span>מפורט ומעמיק</span>
+                </div>
+                <input 
+                  type="range" min="0" max="100" 
+                  value={activeRule.toneOfVoice?.detail ?? 50}
+                  onChange={e => handleUpdateRule({ ...activeRule, toneOfVoice: { ...activeRule.toneOfVoice!, detail: Number(e.target.value) } })}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+              </div>
+
+              {/* Creativity */}
+              <div>
+                <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
+                  <span>סולידי ומדויק</span>
+                  <span className="text-pink-600">{activeRule.toneOfVoice?.creativity ?? 50}%</span>
+                  <span>יצירתי ונועז</span>
+                </div>
+                <input 
+                  type="range" min="0" max="100" 
+                  value={activeRule.toneOfVoice?.creativity ?? 50}
+                  onChange={e => handleUpdateRule({ ...activeRule, toneOfVoice: { ...activeRule.toneOfVoice!, creativity: Number(e.target.value) } })}
+                  className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pink-600"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Card 6: WhatsApp Trigger (Optional) */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  <MessageSquare className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
+                    <span>הפעלת סוכן בוואטסאפ (Green API)</span>
+                    <InfoTooltip text="מאפשר לסוכן לקבל הודעות מלקוחות בוואטסאפ ולהגיב להן אוטומטית לפי מילות מפתח מוגדרות." />
+                  </div>
+                  <span className="text-[10px] text-slate-400">אינטגרציה ישירה לשירות לקוחות ומכירות</span>
+                </div>
+              </div>
+
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <span className="text-[11px] font-bold text-slate-600">חיבור לוואטסאפ:</span>
+                <input
+                  type="checkbox"
+                  checked={Boolean(activeRule.whatsappTrigger?.enabled)}
+                  onChange={e => {
+                    const enabled = e.target.checked;
+                    handleUpdateRule({
+                      ...activeRule,
+                      whatsappTrigger: {
+                        enabled,
+                        triggerType: activeRule.whatsappTrigger?.triggerType || 'keyword',
+                        keywords: activeRule.whatsappTrigger?.keywords || [],
+                        matchMode: activeRule.whatsappTrigger?.matchMode || 'contains',
+                        botDisplayName: activeRule.whatsappTrigger?.botDisplayName || activeRule.name
+                      }
+                    });
+                  }}
+                  className="w-4 h-4 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                />
+              </label>
+            </div>
+
+            {activeRule.whatsappTrigger?.enabled && (
+              <div className="pt-2 space-y-3">
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newKeywordInput}
+                    onChange={e => setNewKeywordInput(e.target.value)}
+                    placeholder="הוסף מילת מפתח להפעלת הסוכן (למשל: מחיר, עזרה, ליד)..."
+                    className="flex-1 p-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:bg-white focus:border-emerald-500 outline-none"
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && newKeywordInput.trim()) {
+                        e.preventDefault();
+                        const kw = newKeywordInput.trim();
+                        const existing = activeRule.whatsappTrigger?.keywords || [];
+                        if (!existing.includes(kw)) {
+                          handleUpdateRule({
+                            ...activeRule,
+                            whatsappTrigger: {
+                              ...activeRule.whatsappTrigger!,
+                              keywords: [...existing, kw]
+                            }
+                          });
+                        }
+                        setNewKeywordInput('');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const kw = newKeywordInput.trim();
+                      if (!kw) return;
+                      const existing = activeRule.whatsappTrigger?.keywords || [];
+                      if (!existing.includes(kw)) {
+                        handleUpdateRule({
+                          ...activeRule,
+                          whatsappTrigger: {
+                            ...activeRule.whatsappTrigger!,
+                            keywords: [...existing, kw]
+                          }
+                        });
+                      }
+                      setNewKeywordInput('');
+                    }}
+                    className="px-3 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition cursor-pointer"
+                  >
+                    הוסף מילה
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5">
+                  {(activeRule.whatsappTrigger.keywords || []).map(kw => (
+                    <span key={kw} className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs font-bold flex items-center gap-1.5">
+                      <span>{kw}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const updatedKw = (activeRule.whatsappTrigger?.keywords || []).filter(k => k !== kw);
+                          handleUpdateRule({
+                            ...activeRule,
+                            whatsappTrigger: {
+                              ...activeRule.whatsappTrigger!,
+                              keywords: updatedKw
+                            }
+                          });
+                        }}
+                        className="text-emerald-500 hover:text-rose-600 cursor-pointer"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+        </main>
+
+        {/* Sticky Footer */}
+        <footer className="bg-white border-t border-slate-200 sticky bottom-0 z-30 p-3.5 shadow-lg">
+          <div className="max-w-4xl mx-auto flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => handleDeleteRule(activeRule.id)}
+              className="px-3.5 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>מחק סוכן</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedRuleId(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition cursor-pointer"
+              >
+                לכל הסוכנים
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (onClose) onClose();
+                  else setSelectedRuleId(null);
+                }}
+                className="px-6 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-bold transition shadow-md shadow-indigo-500/20 cursor-pointer"
+              >
+                שמירה וחזרה לצ'אט
+              </button>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // ============================================================================
+  // VIEW B: FLEET MANAGEMENT OVERVIEW (When no specific agent is active)
+  // Grid of all agents, Search, KPIs, Filter pills
+  // ============================================================================
   const mainContent = (
-    <div className={clsx("bg-slate-50 text-slate-900 flex flex-col", isModal ? "w-full max-w-6xl h-[90vh] rounded-3xl overflow-hidden shadow-2xl border border-slate-200 relative" : "min-h-screen pb-24")} dir="rtl" style={{ fontFamily: 'Heebo, sans-serif' }}>
+    <div className={clsx("bg-slate-50 text-slate-900 flex flex-col font-sans", isModal ? "w-screen h-screen overflow-y-auto relative" : "min-h-screen pb-24")} dir="rtl" style={{ fontFamily: 'Heebo, sans-serif' }}>
       
-      {/* Top Navigation (Cashwan Mobile First, Clean Top Nav) */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
+      {/* Top Navigation */}
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
@@ -393,14 +928,14 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 flex-1 pb-16">
         
-        {/* KPI & Cost Summary (Collapsible by Default - Rule 7) */}
+        {/* KPI & Cost Summary */}
         <div className="mb-5">
           <button
             type="button"
             onClick={() => setShowStats(!showStats)}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer shadow-sm"
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-white hover:bg-slate-100 border border-slate-200 text-slate-600 transition cursor-pointer shadow-xs"
           >
             <Activity className="w-3.5 h-3.5 text-indigo-500" />
             <span>{showStats ? 'הסתר נתונים סטטיסטיים' : 'הצג נתוני צריכה ועלויות AI'}</span>
@@ -415,7 +950,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                 { label: 'טוקנים החודש', value: totalTokens.toLocaleString(), icon: LineChart, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
                 { label: 'עלות AI משוערת', value: `₪${totalCostIls.toFixed(4)}`, icon: Zap, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
               ].map((stat, i) => (
-                <div key={i} className={clsx("p-4 rounded-2xl border shadow-sm flex flex-col justify-between", stat.bg, stat.border)}>
+                <div key={i} className={clsx("p-4 rounded-2xl border shadow-xs flex flex-col justify-between", stat.bg, stat.border)}>
                   <div className="flex items-center justify-between text-xs font-bold text-slate-600 mb-2">
                     <span>{stat.label}</span>
                     <stat.icon className={clsx("w-4 h-4", stat.color)} />
@@ -427,8 +962,8 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
           )}
         </div>
 
-        {/* Filter and Search Bar for Fleet Management (Handles Dozens of Agents) */}
-        <div className="bg-white border border-slate-200 p-3 rounded-2xl shadow-sm mb-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+        {/* Filter and Search Bar */}
+        <div className="bg-white border border-slate-200 p-3 rounded-2xl shadow-xs mb-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           <div className="relative flex-1">
             <Search className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2" />
             <input
@@ -449,36 +984,34 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
           </div>
 
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
-            {/* Status Filter Pills */}
             <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200 text-[11px] font-bold">
               <button
                 type="button"
                 onClick={() => setStatusFilter('all')}
-                className={clsx("px-2.5 py-1 rounded-lg transition", statusFilter === 'all' ? "bg-white text-indigo-600 shadow-sm" : "text-slate-600 hover:text-slate-900")}
+                className={clsx("px-2.5 py-1 rounded-lg transition", statusFilter === 'all' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900")}
               >
                 הכל ({rules.length})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('active')}
-                className={clsx("px-2.5 py-1 rounded-lg transition", statusFilter === 'active' ? "bg-white text-emerald-600 shadow-sm" : "text-slate-600 hover:text-slate-900")}
+                className={clsx("px-2.5 py-1 rounded-lg transition", statusFilter === 'active' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900")}
               >
                 פעילים ({rules.filter(r => r.isActive).length})
               </button>
               <button
                 type="button"
                 onClick={() => setStatusFilter('inactive')}
-                className={clsx("px-2.5 py-1 rounded-lg transition", statusFilter === 'inactive' ? "bg-white text-slate-700 shadow-sm" : "text-slate-600 hover:text-slate-900")}
+                className={clsx("px-2.5 py-1 rounded-lg transition", statusFilter === 'inactive' ? "bg-white text-indigo-600 shadow-xs" : "text-slate-600 hover:text-slate-900")}
               >
                 מושהים ({rules.filter(r => !r.isActive).length})
               </button>
             </div>
 
-            {/* Module Filter Select */}
             <select
               value={moduleFilter}
               onChange={(e) => setModuleFilter(e.target.value)}
-              className="p-1.5 bg-slate-100 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none cursor-pointer"
+              className="bg-slate-100 border border-slate-200 rounded-xl px-2.5 py-1.5 text-[11px] font-bold text-slate-700 focus:bg-white outline-none cursor-pointer"
             >
               <option value="all">כל המודולים</option>
               {availableModules.map(m => (
@@ -488,29 +1021,28 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
           </div>
         </div>
 
-        {/* Bento Grid: Digital Team Roster */}
+        {/* Fleet Grid */}
         {filteredRules.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredRules.map(rule => {
               const assignedModule = availableModules.find(m => m.id === rule.moduleId);
-              const enabledCapsCount = rule.enabledCapabilities?.length || 0;
-              const dataSourcesCount = rule.allowedDataSources?.length || 0;
+              const enabledCapsCount = (rule.enabledCapabilities || []).length;
+              const dataSourcesCount = (rule.allowedDataSources || []).length;
 
               return (
                 <div
                   key={rule.id}
                   onClick={() => setSelectedRuleId(rule.id)}
                   className={clsx(
-                    "group bg-white rounded-2xl p-4 sm:p-5 border transition-all cursor-pointer relative flex flex-col justify-between shadow-sm hover:shadow-md hover:border-indigo-300",
+                    "group bg-white rounded-3xl p-5 border transition-all cursor-pointer relative flex flex-col justify-between shadow-xs hover:shadow-md hover:border-indigo-300",
                     rule.isActive ? "border-slate-200" : "border-slate-200/60 opacity-80 bg-slate-50/50"
                   )}
                 >
-                  {/* Top Bar of the Card */}
                   <div>
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5">
                         <div className={clsx(
-                          "w-10 h-10 rounded-xl flex items-center justify-center font-bold shrink-0 transition",
+                          "w-10 h-10 rounded-2xl flex items-center justify-center font-bold shrink-0 transition",
                           rule.isActive ? "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white" : "bg-slate-100 text-slate-400"
                         )}>
                           <Bot className="w-5 h-5" />
@@ -540,16 +1072,13 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                       </div>
                     </div>
 
-                    {/* Personality & Purpose Snippet */}
                     <p className="text-xs text-slate-600 line-clamp-2 min-h-[32px] mb-4 font-normal leading-relaxed">
                       {rule.systemPromptAddon || 'סוכן אוטונומי חכם המסייע בביצוע משימות ומענה במערכת.'}
                     </p>
                   </div>
 
-                  {/* Badges Summary (Capabilities & Data Sources) */}
                   <div className="pt-3 border-t border-slate-100">
                     <div className="flex flex-wrap items-center gap-1.5 mb-3 text-[10px] font-bold">
-                      {/* Capabilities Badge */}
                       <span className={clsx(
                         "px-2 py-0.5 rounded-lg flex items-center gap-1 border",
                         enabledCapsCount > 0 ? "bg-purple-50 text-purple-700 border-purple-200" : "bg-slate-100 text-slate-400 border-slate-200"
@@ -558,7 +1087,6 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                         <span>{enabledCapsCount} יכולות</span>
                       </span>
 
-                      {/* Data Sources Badge */}
                       <span className={clsx(
                         "px-2 py-0.5 rounded-lg flex items-center gap-1 border",
                         dataSourcesCount > 0 ? "bg-indigo-50 text-indigo-700 border-indigo-200" : "bg-slate-100 text-slate-400 border-slate-200"
@@ -567,20 +1095,14 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                         <span>{dataSourcesCount} מאגרים</span>
                       </span>
 
-                      {/* WhatsApp Trigger Badge */}
                       {rule.whatsappTrigger?.enabled && (
                         <span className="px-2 py-0.5 rounded-lg flex items-center gap-1 border bg-emerald-50 text-emerald-700 border-emerald-200">
                           <MessageSquare className="w-3 h-3" />
-                          <span>
-                            {rule.whatsappTrigger.triggerType === 'keyword'
-                              ? `וואטסאפ (${(rule.whatsappTrigger.keywords || []).length} מילים)`
-                              : 'וואטסאפ פעיל'}
-                          </span>
+                          <span>וואטסאפ פעיל</span>
                         </span>
                       )}
                     </div>
 
-                    {/* Card Actions */}
                     <div className="flex items-center justify-between">
                       <button
                         type="button"
@@ -591,7 +1113,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                         className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 transition"
                       >
                         <Settings className="w-3.5 h-3.5" />
-                        <span>הגדרות סוכן</span>
+                        <span>ערוך הגדרות סוכן</span>
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </button>
 
@@ -613,7 +1135,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
             })}
           </div>
         ) : (
-          <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 shadow-sm">
+          <div className="p-12 text-center rounded-3xl bg-white border border-slate-200 shadow-xs">
             <div className="w-14 h-14 mx-auto bg-slate-100 rounded-2xl flex items-center justify-center mb-3">
               <Target className="w-6 h-6 text-slate-400" />
             </div>
@@ -632,654 +1154,12 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
         )}
 
       </main>
-
-      {/* Slide-over Drawer for Agent Configuration (Option 1 Core: High Focus, Clean Light Mode) */}
-      {activeRule && (
-        <div className="fixed inset-0 z-50 overflow-hidden">
-          {/* Backdrop */}
-          <div 
-            onClick={() => setSelectedRuleId(null)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity animate-fadeIn"
-          />
-
-          {/* Drawer Container */}
-          <div className="fixed inset-y-0 left-0 max-w-full flex pl-0 sm:pl-10">
-            <div className="w-screen max-w-xl bg-white shadow-2xl flex flex-col border-r border-slate-200 animate-slideLeft">
-              
-              {/* Drawer Header */}
-              <div className="p-4 sm:p-5 border-b border-slate-200 bg-slate-50/50 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 shadow-sm">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <input 
-                      type="text" 
-                      value={activeRule.name} 
-                      placeholder="שם הסוכן..."
-                      onChange={e => handleUpdateRule({ ...activeRule, name: e.target.value })}
-                      className="font-black text-base sm:text-lg text-slate-900 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-indigo-500 focus:outline-none transition w-full"
-                    />
-                    <span className="text-[11px] text-slate-400 block">הגדרות פעילות והרשאות מערכת</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  {/* Status Pill Toggle */}
-                  <button
-                    type="button"
-                    onClick={() => handleUpdateRule({ ...activeRule, isActive: !activeRule.isActive })}
-                    className={clsx(
-                      "px-2.5 py-1 rounded-lg text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer",
-                      activeRule.isActive ? "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100" : "bg-slate-100 text-slate-500 border-slate-200 hover:bg-slate-200"
-                    )}
-                  >
-                    <span className={clsx("w-1.5 h-1.5 rounded-full", activeRule.isActive ? "bg-emerald-500 animate-pulse" : "bg-slate-400")} />
-                    <span>{activeRule.isActive ? 'פעיל' : 'מושהה'}</span>
-                  </button>
-
-                  <button 
-                    type="button"
-                    onClick={() => setSelectedRuleId(null)}
-                    className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-200 rounded-xl transition"
-                    title="סגור"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Drawer Scrollable Content */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6 text-xs text-slate-800">
-
-                {/* Section 1: Assigned Module */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <label className="font-bold text-xs text-slate-700 flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-1">
-                      <span>שיוך לרכיב מערכת (Module)</span>
-                      <InfoTooltip text="קובע באיזה מסך או רכיב במערכת הסוכן יפעל ויסייע לך באופן אוטומטי." />
-                    </div>
-                  </label>
-                  <select
-                    value={activeRule.moduleId || ''}
-                    onChange={e => {
-                      const mId = e.target.value;
-                      const m = availableModules.find(x => x.id === mId);
-                      handleUpdateRule({ ...activeRule, moduleId: mId, slugPattern: m?.route || '' });
-                    }}
-                    className="w-full p-2.5 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-800 focus:border-indigo-500 outline-none cursor-pointer"
-                  >
-                    <option value="">-- בחר רכיב מערכת משויך --</option>
-                    {availableModules.map(m => (
-                      <option key={m.id} value={m.id}>
-                        {purchasedModules.includes(m.id) ? 'פעיל ברישיון: ' : 'מודול: '}{m.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Section 2: Interactive Capabilities (Replaces Wall of Checkboxes!) */}
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-1">
-                      <Zap className="w-4 h-4 text-purple-600" />
-                      <span className="font-bold text-xs text-slate-900">מה הסוכן מסוגל לעשות? (יכולות ביצוע)</span>
-                      <InfoTooltip text="הדלק או כבה בלחיצה את הכלים והיכולות המורשות שיעמדו לרשות הסוכן בעת ביצוע משימות." />
-                    </div>
-                    <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-md">
-                      {activeRule.enabledCapabilities.length} מופעלות
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {CAPABILITIES_META.map(cap => {
-                      const isEnabled = activeRule.enabledCapabilities.includes(cap.id);
-                      return (
-                        <div
-                          key={cap.id}
-                          onClick={() => {
-                            const newCaps = isEnabled
-                              ? activeRule.enabledCapabilities.filter(c => c !== cap.id)
-                              : [...activeRule.enabledCapabilities, cap.id];
-                            handleUpdateRule({ ...activeRule, enabledCapabilities: newCaps });
-                          }}
-                          className={clsx(
-                            "p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 select-none",
-                            isEnabled
-                              ? "bg-purple-50/80 border-purple-300 text-purple-900 shadow-xs"
-                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className={clsx(
-                              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                              isEnabled ? "bg-purple-600 text-white" : "bg-slate-100 text-slate-400"
-                            )}>
-                              <cap.icon className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="truncate">
-                              <span className="font-bold text-xs block truncate">{cap.label}</span>
-                              <span className="text-[9px] text-slate-400 block truncate">{cap.desc}</span>
-                            </div>
-                          </div>
-
-                          <div className={clsx(
-                            "w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition",
-                            isEnabled ? "bg-purple-600 border-purple-600 text-white" : "border-slate-300 bg-white"
-                          )}>
-                            {isEnabled && <Check className="w-3 h-3 stroke-[3]" />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Section 3: Interactive Data Sources (Replaces Wall of Checkboxes!) */}
-                <div>
-                  <div className="flex items-center justify-between mb-2.5">
-                    <div className="flex items-center gap-1">
-                      <Database className="w-4 h-4 text-indigo-600" />
-                      <span className="font-bold text-xs text-slate-900">לאילו נתונים בעסק יש לו גישה? (מאגרי מידע)</span>
-                      <InfoTooltip text="מאפשר לסוכן לחקור ולשלוף מידע בזמן אמת מתוך מאגרי המידע שבחרת בעסק שלך." />
-                    </div>
-                    <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                      {(activeRule.allowedDataSources || []).length} מורשים
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {DATA_SOURCES_META.map(src => {
-                      const isAllowed = (activeRule.allowedDataSources || []).includes(src.id);
-                      return (
-                        <div
-                          key={src.id}
-                          onClick={() => {
-                            const curr = activeRule.allowedDataSources || [];
-                            const newSources = isAllowed
-                              ? curr.filter(c => c !== src.id)
-                              : [...curr, src.id];
-                            handleUpdateRule({ ...activeRule, allowedDataSources: newSources });
-                          }}
-                          className={clsx(
-                            "p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 select-none",
-                            isAllowed
-                              ? "bg-indigo-50/80 border-indigo-300 text-indigo-900 shadow-xs"
-                              : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
-                          )}
-                        >
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div className={clsx(
-                              "w-7 h-7 rounded-lg flex items-center justify-center shrink-0",
-                              isAllowed ? "bg-indigo-600 text-white" : "bg-slate-100 text-slate-400"
-                            )}>
-                              <src.icon className="w-3.5 h-3.5" />
-                            </div>
-                            <div className="truncate">
-                              <span className="font-bold text-xs block truncate">{src.label}</span>
-                              <span className="text-[9px] text-slate-400 block truncate">{src.desc}</span>
-                            </div>
-                          </div>
-
-                          <div className={clsx(
-                            "w-4 h-4 rounded-md flex items-center justify-center shrink-0 border transition",
-                            isAllowed ? "bg-indigo-600 border-indigo-600 text-white" : "border-slate-300 bg-white"
-                          )}>
-                            {isAllowed && <Check className="w-3 h-3 stroke-[3]" />}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Section 4: Persona & Custom Prompt */}
-                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
-                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                      <span>אופי ומומחיות הסוכן</span>
-                      <InfoTooltip text="הנחה את הסוכן כיצד להתנהג ולהגיב, או בחר תבנית מוכנה שנוסחה על ידי המומחים של קושאן." />
-                    </div>
-
-                    <select
-                      value={activeRule.templateId || ''}
-                      onChange={e => applyTemplate(activeRule, e.target.value)}
-                      className="p-1 rounded-lg border border-slate-200 bg-white text-[11px] font-bold text-slate-700 shadow-xs outline-none cursor-pointer"
-                    >
-                      <option value="">תבניות AI מוכנות...</option>
-                      {KOSAI_TEMPLATES.filter(t => t.targetModules.includes('all') || t.targetModules.includes(activeRule.moduleId || '')).map(t => (
-                        <option key={t.id} value={t.id}>{t.name}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="relative">
-                    <textarea 
-                      value={activeRule.systemPromptAddon || ''} 
-                      onChange={e => handleUpdateRule({ ...activeRule, systemPromptAddon: e.target.value })}
-                      placeholder="הסבר במילים פשוטות ל-Kosun איזה סוג סוכן אתה צריך שיהיה, או בחר תבנית..."
-                      className="w-full h-28 p-3 bg-white border border-slate-200 rounded-xl text-xs focus:border-indigo-500 focus:outline-none resize-none leading-relaxed"
-                    />
-                    <button 
-                      type="button"
-                      onClick={() => handleGeneratePrompt(activeRule)}
-                      disabled={!activeRule.moduleId}
-                      className="absolute bottom-2.5 left-2.5 px-3 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
-                    >
-                      <Sparkles className="w-3 h-3" />
-                      <span>נסח לי פרומפט</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Section 5: Tone of Voice Sliders */}
-                <div className="bg-white p-4 rounded-2xl border border-slate-200">
-                  <div className="flex items-center gap-1 font-bold text-xs text-slate-900 mb-4">
-                    <SlidersHorizontal className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>סגנון שיחה והתנסחות</span>
-                    <InfoTooltip text="קובע את אופי וטון המענה של הסוכן – רשמי או קליל, ממוקד או מפורט, שמרני או יצירתי." />
-                  </div>
-
-                  <div className="space-y-4">
-                    {/* Professionalism */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-                        <span>זורם וקליל</span>
-                        <span className="text-purple-600">{activeRule.toneOfVoice?.professionalism ?? 50}%</span>
-                        <span>רשמי ומקצועי</span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="100" 
-                        value={activeRule.toneOfVoice?.professionalism ?? 50}
-                        onChange={e => handleUpdateRule({ ...activeRule, toneOfVoice: { ...activeRule.toneOfVoice!, professionalism: Number(e.target.value) } })}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
-                      />
-                    </div>
-
-                    {/* Detail */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-                        <span>קצר ולעניין</span>
-                        <span className="text-indigo-600">{activeRule.toneOfVoice?.detail ?? 50}%</span>
-                        <span>מפורט ומעמיק</span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="100" 
-                        value={activeRule.toneOfVoice?.detail ?? 50}
-                        onChange={e => handleUpdateRule({ ...activeRule, toneOfVoice: { ...activeRule.toneOfVoice!, detail: Number(e.target.value) } })}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
-                      />
-                    </div>
-
-                    {/* Creativity */}
-                    <div>
-                      <div className="flex justify-between text-[11px] font-bold text-slate-500 mb-1">
-                        <span>שמרני ומדויק</span>
-                        <span className="text-pink-600">{activeRule.toneOfVoice?.creativity ?? 50}%</span>
-                        <span>נועז ויצירתי</span>
-                      </div>
-                      <input 
-                        type="range" min="0" max="100" 
-                        value={activeRule.toneOfVoice?.creativity ?? 50}
-                        onChange={e => handleUpdateRule({ ...activeRule, toneOfVoice: { ...activeRule.toneOfVoice!, creativity: Number(e.target.value) } })}
-                        className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-pink-600"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 6: WhatsApp Green API Triggers (הפעלת הסוכן לפי מילים בוואטסאפ) */}
-                <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                  <div className="flex items-center justify-between border-b pb-3 border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-                        <MessageSquare className="w-4 h-4" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-1 font-bold text-xs text-slate-900">
-                          <span>הפעלת סוכן בוואטסאפ (Green API)</span>
-                          <InfoTooltip text="מאפשר לסוכן לקבל הודעות מלקוחות בוואטסאפ ולהגיב להן אוטומטית לפי מילות מפתח מוגדרות." />
-                        </div>
-                        <span className="text-[10px] text-slate-400">אינטגרציה ישירה לשירות לקוחות ומכירות</span>
-                      </div>
-                    </div>
-
-                    {/* Enable WhatsApp Toggle */}
-                    <label className="flex items-center gap-2 cursor-pointer select-none">
-                      <span className="text-[11px] font-bold text-slate-600">חיבור לוואטסאפ:</span>
-                      <div 
-                        onClick={() => {
-                          const currentEnabled = activeRule.whatsappTrigger?.enabled ?? false;
-                          const updatedTrigger = {
-                            enabled: !currentEnabled,
-                            triggerType: activeRule.whatsappTrigger?.triggerType || 'keyword',
-                            keywords: activeRule.whatsappTrigger?.keywords || ['שלום', 'מחיר', 'עזרה'],
-                            matchMode: activeRule.whatsappTrigger?.matchMode || 'contains',
-                            autoReply: true,
-                            botDisplayName: activeRule.whatsappTrigger?.botDisplayName || activeRule.name,
-                          };
-                          handleUpdateRule({ ...activeRule, whatsappTrigger: updatedTrigger });
-                        }}
-                        className="flex items-center shrink-0 cursor-pointer"
-                      >
-                        <div className={clsx("w-8 h-4 rounded-full transition-colors relative", activeRule.whatsappTrigger?.enabled ? "bg-emerald-500" : "bg-slate-300")}>
-                          <div className={clsx("absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform", activeRule.whatsappTrigger?.enabled ? "right-0.5" : "left-0.5")} />
-                        </div>
-                      </div>
-                    </label>
-                  </div>
-
-                  {activeRule.whatsappTrigger?.enabled ? (
-                    <div className="space-y-4 pt-1 animate-fadeIn">
-                      {/* Bot Display Name in WhatsApp */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                          שם הסוכן המופיע בשיחות וואטסאפ
-                        </label>
-                        <input
-                          type="text"
-                          value={activeRule.whatsappTrigger.botDisplayName || activeRule.name}
-                          onChange={(e) => {
-                            handleUpdateRule({
-                              ...activeRule,
-                              whatsappTrigger: {
-                                ...activeRule.whatsappTrigger!,
-                                botDisplayName: e.target.value,
-                              },
-                            });
-                          }}
-                          placeholder="שם הסוכן בוואטסאפ (למשל: נציג שירות חכם)"
-                          className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold text-slate-900 focus:bg-white focus:border-indigo-500 outline-none"
-                        />
-                      </div>
-
-                      {/* Trigger Type Selection */}
-                      <div>
-                        <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
-                          מתי הסוכן יופעל בוואטסאפ?
-                        </label>
-                        <div className="grid grid-cols-3 gap-2">
-                          {[
-                            { id: 'keyword', label: 'מילות מפתח (מומלץ)', desc: 'מופעל לפי מילים' },
-                            { id: 'all', label: 'כל הודעה נכנסת', desc: 'מענה לכל פנייה' },
-                            { id: 'welcome', label: 'הודעת פתיחה', desc: 'רק לפונים חדשים' },
-                          ].map((t) => (
-                            <button
-                              key={t.id}
-                              type="button"
-                              onClick={() => {
-                                handleUpdateRule({
-                                  ...activeRule,
-                                  whatsappTrigger: {
-                                    ...activeRule.whatsappTrigger!,
-                                    triggerType: t.id as any,
-                                  },
-                                });
-                              }}
-                              className={clsx(
-                                "p-2 rounded-xl border text-right transition cursor-pointer select-none",
-                                activeRule.whatsappTrigger?.triggerType === t.id
-                                  ? "bg-emerald-50 border-emerald-300 text-emerald-900 shadow-xs"
-                                  : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                              )}
-                            >
-                              <span className="font-bold text-xs block">{t.label}</span>
-                              <span className="text-[9px] text-slate-400 block">{t.desc}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Keyword Triggers Configuration */}
-                      {activeRule.whatsappTrigger.triggerType === 'keyword' && (
-                        <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-xs text-slate-800">הגדרת מילות מפתח מפעילות:</span>
-                            <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
-                              {(activeRule.whatsappTrigger.keywords || []).length} מילים מוגדרות
-                            </span>
-                          </div>
-
-                          {/* Match Mode Selection */}
-                          <div>
-                            <span className="block text-[10px] font-bold text-slate-500 mb-1">אופן התאמת המילים:</span>
-                            <div className="flex gap-2">
-                              {[
-                                { id: 'contains', label: 'מכיל את המילה' },
-                                { id: 'exact', label: 'מילה שלמה בלבד' },
-                                { id: 'startsWith', label: 'מתחיל במילה' },
-                              ].map((mode) => (
-                                <button
-                                  key={mode.id}
-                                  type="button"
-                                  onClick={() => {
-                                    handleUpdateRule({
-                                      ...activeRule,
-                                      whatsappTrigger: {
-                                        ...activeRule.whatsappTrigger!,
-                                        matchMode: mode.id as any,
-                                      },
-                                    });
-                                  }}
-                                  className={clsx(
-                                    "px-2.5 py-1 rounded-lg text-[10px] font-bold border transition cursor-pointer",
-                                    (activeRule.whatsappTrigger?.matchMode || 'contains') === mode.id
-                                      ? "bg-emerald-600 text-white border-emerald-600 shadow-xs"
-                                      : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
-                                  )}
-                                >
-                                  {mode.label}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-
-                          {/* Current Keywords Tags / Chips */}
-                          <div className="flex flex-wrap gap-1.5 min-h-[32px] p-2 bg-white rounded-xl border border-slate-200">
-                            {(activeRule.whatsappTrigger.keywords || []).length > 0 ? (
-                              activeRule.whatsappTrigger.keywords.map((kw, i) => (
-                                <span
-                                  key={i}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-lg text-xs font-bold"
-                                >
-                                  <span>{kw}</span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const updatedKws = activeRule.whatsappTrigger!.keywords.filter((_, idx) => idx !== i);
-                                      handleUpdateRule({
-                                        ...activeRule,
-                                        whatsappTrigger: {
-                                          ...activeRule.whatsappTrigger!,
-                                          keywords: updatedKws,
-                                        },
-                                      });
-                                    }}
-                                    className="text-emerald-500 hover:text-rose-600 p-0.5 rounded transition"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </button>
-                                </span>
-                              ))
-                            ) : (
-                              <span className="text-[11px] text-slate-400 py-0.5">לא הוגדרו עדיין מילות מפתח</span>
-                            )}
-                          </div>
-
-                          {/* Add Keyword Input */}
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={newKeywordInput}
-                              onChange={(e) => setNewKeywordInput(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  const trimmed = newKeywordInput.trim();
-                                  if (trimmed) {
-                                    const curr = activeRule.whatsappTrigger?.keywords || [];
-                                    if (!curr.includes(trimmed)) {
-                                      handleUpdateRule({
-                                        ...activeRule,
-                                        whatsappTrigger: {
-                                          ...activeRule.whatsappTrigger!,
-                                          keywords: [...curr, trimmed],
-                                        },
-                                      });
-                                    }
-                                    setNewKeywordInput('');
-                                  }
-                                }
-                              }}
-                              placeholder="הוסף מילה (לדוגמה: מחיר, תמיכה, שלום)..."
-                              className="flex-1 p-2 bg-white rounded-xl border border-slate-200 text-xs font-medium focus:border-emerald-500 outline-none"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const trimmed = newKeywordInput.trim();
-                                if (trimmed) {
-                                  const curr = activeRule.whatsappTrigger?.keywords || [];
-                                  if (!curr.includes(trimmed)) {
-                                    handleUpdateRule({
-                                      ...activeRule,
-                                      whatsappTrigger: {
-                                        ...activeRule.whatsappTrigger!,
-                                        keywords: [...curr, trimmed],
-                                      },
-                                    });
-                                  }
-                                  setNewKeywordInput('');
-                                }
-                              }}
-                              className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                              <span>הוסף</span>
-                            </button>
-                          </div>
-
-                          {/* Quick Suggested Keywords */}
-                          <div>
-                            <span className="block text-[10px] text-slate-400 mb-1">הוספה מהירה של מילות מפתח מומלצות:</span>
-                            <div className="flex flex-wrap gap-1">
-                              {['מחיר', 'הצעה', 'שלום', 'נציג', 'תמיכה', 'שירות', 'פרטים', 'מידע'].map((quickKw) => {
-                                const isAdded = (activeRule.whatsappTrigger?.keywords || []).includes(quickKw);
-                                return (
-                                  <button
-                                    key={quickKw}
-                                    type="button"
-                                    disabled={isAdded}
-                                    onClick={() => {
-                                      const curr = activeRule.whatsappTrigger?.keywords || [];
-                                      handleUpdateRule({
-                                        ...activeRule,
-                                        whatsappTrigger: {
-                                          ...activeRule.whatsappTrigger!,
-                                          keywords: [...curr, quickKw],
-                                        },
-                                      });
-                                    }}
-                                    className={clsx(
-                                      "px-2 py-0.5 rounded-md text-[10px] font-bold border transition",
-                                      isAdded
-                                        ? "bg-slate-100 border-slate-200 text-slate-400 cursor-default"
-                                        : "bg-white border-slate-200 text-slate-700 hover:border-emerald-400 hover:text-emerald-700 cursor-pointer"
-                                    )}
-                                  >
-                                    + {quickKw}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* Live Trigger Simulator Tester */}
-                          <div className="pt-2 border-t border-slate-200">
-                            <span className="block text-[11px] font-bold text-slate-700 mb-1">
-                              בדיקת טריגר חיה (בדוק האם הודעה תפעיל את הסוכן):
-                            </span>
-                            <input
-                              type="text"
-                              value={triggerTesterInput}
-                              onChange={(e) => setTriggerTesterInput(e.target.value)}
-                              placeholder="הקלד כאן הודעת לקוח לבדיקה, לדוגמה: 'היי, מה המחיר שלכם?'"
-                              className="w-full p-2 bg-white rounded-xl border border-slate-200 text-xs font-medium focus:border-indigo-500 outline-none mb-1.5"
-                            />
-                            {triggerTesterInput.trim() && (() => {
-                              const matchRes = checkKeywordMatch(
-                                triggerTesterInput,
-                                activeRule.whatsappTrigger?.keywords || [],
-                                activeRule.whatsappTrigger?.matchMode || 'contains'
-                              );
-                              return (
-                                <div className={clsx(
-                                  "p-2 rounded-xl text-[11px] font-bold flex items-center gap-1.5 border animate-fadeIn",
-                                  matchRes.isMatch
-                                    ? "bg-emerald-50 border-emerald-300 text-emerald-800"
-                                    : "bg-slate-100 border-slate-200 text-slate-500"
-                                )}>
-                                  {matchRes.isMatch ? (
-                                    <>
-                                      <CheckCircle className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                                      <span>הסוכן יופעל בהצלחה! זוהתה מילת המפתח: "{matchRes.matchedKeyword}"</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                                      <span>הסוכן לא יופעל - הודעה זו אינה מכילה אף אחת ממילות המפתח המוגדרות.</span>
-                                    </>
-                                  )}
-                                </div>
-                              );
-                            })()}
-                          </div>
-
-                        </div>
-                      )}
-
-                    </div>
-                  ) : (
-                    <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-500">
-                      סוכן זה אינו מחובר כרגע לקבלת פניות בוואטסאפ. הפעל את המתג למעלה כדי לחבר אותו לשירות לקוחות ומענה אוטומטי בוואטסאפ.
-                    </div>
-                  )}
-                </div>
-
-              </div>
-
-              {/* Drawer Footer */}
-              <div className="p-4 border-t border-slate-200 bg-slate-50 flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => handleDeleteRule(activeRule.id)}
-                  className="px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>מחק סוכן</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedRuleId(null)}
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition shadow-sm cursor-pointer"
-                >
-                  סיום ושמירה
-                </button>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
-
     </div>
   );
 
   if (isModal) {
     return (
-      <div className="fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6 animate-fadeIn">
+      <div className="fixed inset-0 w-screen h-screen z-[120] bg-slate-50 overflow-hidden flex flex-col animate-fadeIn">
         {mainContent}
       </div>
     );
