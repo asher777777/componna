@@ -12,7 +12,7 @@ const db = admin.firestore();
 async function extractAndSaveContact(geminiKey: string, phone: string, messages: any[]) {
   try {
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
     const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
     
     const prompt = `
@@ -330,48 +330,69 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     }
     strictPrompt += '5. אם אין לך תשובה טובה, תגיד שאתה מעביר את הפנייה לנציג אנושי.\n';
 
-    // 6. Generate AI Response with valid models cascade
-    const genAI = new GoogleGenerativeAI(geminiKey);
-    const candidateModels = [
-      (triggeredBot.model && !triggeredBot.model.includes('3.8') && !triggeredBot.model.includes('3.5')) ? triggeredBot.model : null,
-      'gemini-1.5-flash',
-      'gemini-2.0-flash',
-      'gemini-2.5-flash'
-    ].filter(Boolean) as string[];
+    // Loop Guard 1: Anti-Duplication via Message ID
+    const messageId = body.idMessage;
+    if (messageId) {
+      const processedRef = db.collection('processed_webhook_messages').doc(messageId);
+      const processedSnap = await processedRef.get();
+      if (processedSnap.exists) {
+        console.log(`[whatsappWebhook] Message ${messageId} already processed. Skipping to prevent loop.`);
+        res.status(200).send('Already processed');
+        return;
+      }
+      await processedRef.set({ timestamp: admin.firestore.FieldValue.serverTimestamp() });
+    }
 
+    // Loop Guard 2: Throttle per Chat (Rate limit: at least 15 seconds between bot replies)
+    const chatThrottleRef = db.collection('wa_chat_throttles').doc(targetChatId);
+    const throttleSnap = await chatThrottleRef.get();
+    if (throttleSnap.exists) {
+      const lastReplyTime = throttleSnap.data()?.lastReplyTime || 0;
+      if (Date.now() - lastReplyTime < 15000) {
+        console.warn(`[whatsappWebhook] Throttling reply to ${targetChatId} to break loop (last reply < 15s ago).`);
+        res.status(200).send('Throttled');
+        return;
+      }
+    }
+
+    // 6. Generate AI Response strictly using valid 2026 model per google-ai-studio-gemini skill
+    const targetModel = triggeredBot.model || 'gemini-3.8-flash';
     const contents = chatHistory.map(msg => ({
       role: msg.role === 'model' ? 'model' : 'user',
       parts: [{ text: msg.text }]
     }));
     contents.push({ role: 'user', parts: [{ text: messageText }] });
 
+    const genAI = new GoogleGenerativeAI(geminiKey);
     let replyText = '';
-    for (const mName of candidateModels) {
-      try {
-        const model = genAI.getGenerativeModel({
-          model: mName,
-          systemInstruction: strictPrompt
-        });
-        const result = await model.generateContent({
-          contents,
-          generationConfig: {
-            temperature: triggeredBot.temperature || 0.7,
-          }
-        });
-        const candidate = result.response.text();
-        if (candidate && candidate.trim()) {
-          replyText = candidate.trim();
-          break;
+
+    try {
+      const model = genAI.getGenerativeModel({
+        model: targetModel,
+        systemInstruction: strictPrompt
+      });
+      const result = await model.generateContent({
+        contents,
+        generationConfig: {
+          temperature: triggeredBot.temperature || 0.7,
         }
-      } catch (err) {
-        console.warn(`[whatsappWebhook] Model ${mName} generation error:`, err);
-      }
+      });
+      replyText = result.response.text()?.trim() || '';
+    } catch (err: any) {
+      console.error(`[whatsappWebhook] Gemini model ${targetModel} generation failed:`, err?.message || err);
+      // PER SKILL RULE: Do NOT send looping filler messages if AI fails or quota is exhausted!
+      res.status(200).send('AI Generation Failed - Loop Prevented');
+      return;
     }
     
-    // Prevent empty loop
-    if (!replyText || replyText.trim() === '') {
-      replyText = 'אני מיד אבדוק את זה ואחזור אליך. בינתיים, במה אוכל לעזור?';
+    // If empty response, do not send
+    if (!replyText) {
+      res.status(200).send('Empty reply - not sent');
+      return;
     }
+
+    // Mark throttle timestamp
+    await chatThrottleRef.set({ lastReplyTime: Date.now() });
 
     // 7. Update Chat History
     chatHistory.push({ role: 'user', text: messageText, timestamp: Date.now() });

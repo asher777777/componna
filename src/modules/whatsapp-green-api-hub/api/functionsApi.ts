@@ -11,12 +11,8 @@ export interface AiCallResponse {
   error?: string;
 }
 
-const SUPPORTED_MODELS = [
-  'gemini-1.5-flash',
-  'gemini-2.0-flash',
-  'gemini-2.5-flash',
-  'gemini-1.5-pro'
-];
+// Valid 2026 Models per google-ai-studio-gemini skill
+const DEFAULT_MODEL = 'gemini-3.8-flash';
 
 export function resolveAiApiKey(explicitKey?: string): string {
   if (explicitKey && explicitKey.trim().length > 5) {
@@ -35,7 +31,7 @@ export function resolveAiApiKey(explicitKey?: string): string {
 
 export const functionsApi = {
   /**
-   * Calls the AI assistant with model cascade and proper Google Gemini REST API support.
+   * Calls the AI assistant strictly using valid 2026 models per google-ai-studio-gemini skill.
    */
   async callAiAssistant(params: {
     prompt: string;
@@ -54,15 +50,13 @@ export const functionsApi = {
       };
     }
 
-    // Determine model cascade
     const requestedModel = (params.preferredModel || '').toLowerCase();
     const candidateModels: string[] = [];
 
-    // Map internal / custom aliases to valid Google Gemini models
     if (requestedModel.includes('pro')) {
-      candidateModels.push('gemini-1.5-pro', 'gemini-2.0-flash', 'gemini-1.5-flash');
+      candidateModels.push('gemini-3.1-pro', 'gemini-3.8-flash');
     } else {
-      candidateModels.push('gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.5-flash');
+      candidateModels.push('gemini-3.8-flash', 'gemini-3.5-flash');
     }
 
     let lastError = '';
