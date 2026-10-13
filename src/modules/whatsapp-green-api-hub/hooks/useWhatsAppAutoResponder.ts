@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
 import { WhatsAppAiBotService, checkKeywordMatch, WhatsAppAiBotConfig } from '../services/whatsappAiBotService';
+import { whatsappAutoCrmService } from '../services/whatsappAutoCrmService';
 
 interface AutoResponderOptions {
   greenApiService: GreenApiService;
@@ -152,9 +153,10 @@ export const useWhatsAppAutoResponder = ({
                 console.log(`[AutoResponder] Bot "${triggeredBot.name}" triggered by "${matchedKeyword || 'all'}" from ${senderChatId}`);
                 setLastActivity(Date.now());
 
-                // Read chat history from Firestore if available
+                // Read chat history & cachedContentId from Firestore if available
                 let historyForAi: { role: 'user' | 'model'; text: string }[] = [];
                 let existingMessages: any[] = [];
+                let existingCachedContentId: string | undefined = undefined;
                 let chatDocRef: any = null;
 
                 if (db) {
@@ -164,6 +166,7 @@ export const useWhatsAppAutoResponder = ({
                     if (chatSnap.exists()) {
                       const chatData = chatSnap.data() as any;
                       existingMessages = chatData?.messages || [];
+                      existingCachedContentId = chatData?.cachedContentId;
                       historyForAi = existingMessages.slice(-6).map((m: any) => ({
                         role: m.role === 'model' ? 'model' : 'user',
                         text: m.text,
@@ -180,6 +183,7 @@ export const useWhatsAppAutoResponder = ({
                     botConfig: triggeredBot,
                     userMessage: messageText,
                     chatHistory: historyForAi,
+                    cachedContentId: existingCachedContentId,
                   });
 
                   if (res?.replyText) {
@@ -187,6 +191,32 @@ export const useWhatsAppAutoResponder = ({
                       chatId: senderChatId,
                       message: res.replyText,
                     });
+
+                    const senderPhoneNumber = senderChatId.replace('@c.us', '').replace('@g.us', '');
+                    const effectiveCachedContentId = res.cachedContentId || existingCachedContentId;
+
+                    // Automatically document conversation under contact card & extract contact details
+                    let linkedContactId = '';
+                    if (db && tenantId) {
+                      try {
+                        const syncRes = await whatsappAutoCrmService.syncChatAndContact({
+                          db,
+                          tenantId,
+                          senderPhone: senderPhoneNumber,
+                          senderName: senderName || '',
+                          channel: 'whatsapp',
+                          botId: triggeredBot.id,
+                          botName: triggeredBot.name,
+                          userMessage: messageText,
+                          replyMessage: res.replyText,
+                          cachedContentId: effectiveCachedContentId || null,
+                          existingMessages,
+                        });
+                        linkedContactId = syncRes.contactId;
+                      } catch (cErr) {
+                        console.warn('[AutoResponder] Auto CRM sync error:', cErr);
+                      }
+                    }
 
                     // Save chat log to Firestore so it appears in "שיחות בוט" tab
                     if (db && chatDocRef) {
@@ -201,8 +231,10 @@ export const useWhatsAppAutoResponder = ({
                         chatDocRef,
                         {
                           id: senderChatId,
-                          phone: senderChatId.replace('@c.us', '').replace('@g.us', ''),
-                          contactName: senderName || senderChatId.replace('@c.us', ''),
+                          phone: senderPhoneNumber,
+                          contactName: senderName || senderPhoneNumber,
+                          contactId: linkedContactId || null,
+                          cachedContentId: effectiveCachedContentId || null,
                           botId: triggeredBot.id,
                           botName: triggeredBot.name,
                           lastUpdatedAt: now,

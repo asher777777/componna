@@ -544,6 +544,7 @@ export async function fetchLiveCrmAnalytics(
         : eventsSpent;
 
       const contactName = (
+        data.kosun_crm_name ||
         data.conta_name || 
         data.fullName || 
         data.name || 
@@ -552,29 +553,56 @@ export async function fetchLiveCrmAnalytics(
         'איש קשר'
       );
       const contactPhone = (
+        data.kosun_crm_phone ||
         data.conta_phone || 
         data.phone || 
         data.normalizedPhone || 
         data.mobile || 
         ''
       );
+      const contactEmail = data.kosun_crm_email || data.email || '';
+      const contactCompany = data.kosun_crm_company || data.company_name || data.company || '';
+      const contactCity = data.kosun_crm_city || data.mh_crm_city || data.city || '';
+      const contactStreet = data.kosun_crm_street || data.mh_crm_street || data.street || '';
+      const contactGovId = data.kosun_crm_gov_id || data.tg1 || data.tz || '';
+      const contactNotes = data.kosun_crm_notes || data.notes || '';
+      const contactSource = data.kosun_crm_source || data.lead_source || data.source || '';
 
-      const contactTags = Array.isArray(data.tags)
+      const contactTags = Array.isArray(data.kosun_crm_tags)
+        ? data.kosun_crm_tags
+        : Array.isArray(data.tags)
         ? data.tags.filter((t: any) => typeof t === 'string' && t.trim() !== '')
         : [data.tg1, data.tg2, data.tg3].filter((t: any) => typeof t === 'string' && t.trim() !== '');
 
       return {
         id: d.id,
-        status: data.status || 'active',
-        is_lead: data.is_lead ?? false,
-        contact_type: data.contact_type || (data.is_lead ? 'lead' : 'contact'),
+        status: data.kosun_crm_status || data.status || 'active',
+        is_lead: data.is_lead ?? (data.kosun_crm_type === 'lead'),
+        contact_type: data.kosun_crm_type || data.contact_type || (data.is_lead ? 'lead' : 'contact'),
+        // Canonical KOSUN CRM Fields
+        kosun_crm_name: contactName,
+        kosun_crm_phone: contactPhone,
+        kosun_crm_email: contactEmail,
+        kosun_crm_company: contactCompany,
+        kosun_crm_city: contactCity,
+        kosun_crm_street: contactStreet,
+        kosun_crm_gov_id: contactGovId,
+        kosun_crm_notes: contactNotes,
+        kosun_crm_tags: contactTags,
+        kosun_crm_source: contactSource,
+        // Legacy aliases
         conta_name: contactName,
         conta_phone: contactPhone,
-        email: data.email || '',
-        company_name: data.company_name || data.company || '',
+        email: contactEmail,
+        company_name: contactCompany,
+        mh_crm_city: contactCity,
+        mh_crm_street: contactStreet,
+        tg1: contactGovId,
+        notes: contactNotes,
+        lead_source: contactSource,
         tags: contactTags,
         total_spent: totalSpentVal,
-        order_count: Number(data.order_count || (rawEvents.length > 0 ? rawEvents.length : 0)),
+        order_count: Number(data.kosun_crm_order_count || data.order_count || (rawEvents.length > 0 ? rawEvents.length : 0)),
         ...data,
       } as Contact;
     });

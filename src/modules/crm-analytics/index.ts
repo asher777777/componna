@@ -23,4 +23,5 @@ export * from './services/crmWhatsAppService';
 export * from './services/smartFormCrmSyncService';
 export * from './services/vcardService';
 export * from './routes/CrmAnalyticsRoutes';
+export * from './services/kosunCrmMigrationService';
 export * from './StandaloneView';

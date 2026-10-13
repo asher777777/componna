@@ -19,7 +19,10 @@ const CrmGroupsHubStandaloneView = React.lazy(() =>
   import('../modules/crm-groups-hub').then((m) => ({ default: m.CrmGroupsHubStandaloneView }))
 );
 const SmartFormBuilderStandaloneView = React.lazy(() =>
-  import('../modules/smart-form-builder').then((m) => ({ default: m.SmartFormBuilderStandaloneView }))
+  import('../modules/KSF').then((m) => ({ default: m.KSFStandaloneView }))
+);
+const KSFStandaloneView = React.lazy(() =>
+  import('../modules/KSF').then((m) => ({ default: m.KSFStandaloneView }))
 );
 const VideoProducerStudioView = React.lazy(() =>
   import('../modules/video-producer-studio').then((m) => ({ default: m.VideoProducerStudioView }))
@@ -150,10 +153,18 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'crm_groups',
   },
   {
+    id: 'ksf',
+    name: 'KSF',
+    description: 'KOSUN Smart Forms - מערכת טפסים שלביים (שאלה אחת בלבד בכל שלב), תפריט צף, הקראה קולית ובידוד מודולרי מלא.',
+    component: KSFStandaloneView,
+    route: '/ksf',
+    collectionPrefix: 'mod_forms',
+  },
+  {
     id: 'smart-form-builder',
-    name: 'קשואן Forms - מחולל טפסים חכמים',
-    description: 'יצירת טפסים יוקרתיים בעזרת AI. כלים מתקדמים המספקים חוויה מקצועית למשתמשים ואינטגרציה חלקה להגדלת ההמרות.',
-    component: SmartFormBuilderStandaloneView,
+    name: 'KSF (Legacy Route)',
+    description: 'הפניה ישירה למערכת KSF.',
+    component: KSFStandaloneView,
     route: '/smart-forms',
     collectionPrefix: 'mod_forms',
   },

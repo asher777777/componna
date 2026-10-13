@@ -60,6 +60,7 @@ export interface KosaiConversation {
   updatedAt: number;
   messages: KosaiMessage[];
   cachedContentId?: string;
+  contactId?: string;
   status: 'active' | 'archived' | 'deleted';
 }
 

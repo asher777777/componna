@@ -58,17 +58,27 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
     allowedDataSources: ['wa_bot_chats', SYSTEM_COLLECTIONS.CONTACTS],
     systemPrompt: `אתה סוכן הוואטסאפ והאוטומציות של קושאן. תפקידך לנסח תבניות הודעה, להגדיר בוטים וסנכרון פניות.`
   },
-  'smart-form-builder': {
-    moduleId: 'smart-form-builder',
-    routes: ['/smart-forms', '/smart-form'],
-    name: 'סוכן טפסים חכמים',
-    roleBadge: 'סוכן טפסים חכמים',
-    roleDescription: 'אפיון טפסים, שאלונים ואיסוף לידים',
-    welcomeMessage: 'שלום! אני סוכן הטפסים החכמים של קושאן. אני יכול לעזור לך לבנות שאלונים ממירים, להגדיר שדות ליד ולחבר אותם ישירות ל-CRM. איזה טופס נרצה ליצור?',
-    inputPlaceholder: 'איך קושאן יכול לעזור בבניית טופס חכם?',
+  'KSF': {
+    moduleId: 'KSF',
+    routes: ['/ksf', '/smart-forms', '/smart-form'],
+    name: 'סוכן טפסים ושאלונים חכמים (KSF)',
+    roleBadge: 'סוכן KSF & KOSAI',
+    roleDescription: 'אפיון שאלונים מבוססי שלב-אחר-שלב, חיבור לקולקציית ה-CRM וסנכרון לידים',
+    welcomeMessage: 'שלום! אני סוכן KSF של קושאן. אני מתמחה בבניית טפסים חכמים עם שאלה אחת בלבד בכל שלב, חיבור מלא לקולקציית ה-CRM וסנכרון לידים ישיר. מה תרצה שנאפיין היום?',
+    inputPlaceholder: 'איך סוכן KSF יכול לסייע באפיון הטופס הבא שלך?',
     enabledCapabilities: ['ADD_SECTION', 'DEEP_RESEARCH'],
-    allowedDataSources: [SYSTEM_COLLECTIONS.SMART_FORMS, SYSTEM_COLLECTIONS.CONTACTS],
-    systemPrompt: `אתה סוכן הטפסים החכמים של קושאן. תפקידך לעזור בבניית טפסים, שאלונים וסנכרון לידים.`
+    allowedDataSources: [
+      SYSTEM_COLLECTIONS.SMART_FORMS,
+      SYSTEM_COLLECTIONS.CONTACTS,
+      SYSTEM_COLLECTIONS.GROUPS,
+      SYSTEM_COLLECTIONS.BRAND_DNA_DOC
+    ],
+    systemPrompt: `אתה סוכן הטפסים והשאלונים החכמים (KSF) של קושאן.
+תפקידך לאפיין טפסים ושאלונים ברמת פרימיום:
+1. שאלה אחת בלבד בכל שלב (Step-by-Step Luxury Form).
+2. שמות מזהים תקניים ב-CRM (mappingKey): conta_name, conta_phone, email, company, city, tg1, notes.
+3. אפס אימוג'ים - שימוש בלעדי באייקונים וקטוריים יוקרתיים.
+4. סנכרון ישיר לקולקציית contacts ב-Firestore.`
   },
   'media-gallery-hub': {
     moduleId: 'media-gallery-hub',

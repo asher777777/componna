@@ -74,24 +74,37 @@ export interface Contact {
   // Subscriptions
   subscriptions?: UserSubscription[];
 
-  // Core Fields
-  conta_name: string;
+  // Canonical KOSUN CRM Schema (kosun_crm_*)
+  kosun_crm_name?: string;
+  kosun_crm_phone?: string;
+  kosun_crm_email?: string;
+  kosun_crm_company?: string;
+  kosun_crm_city?: string;
+  kosun_crm_street?: string;
+  kosun_crm_gov_id?: string;
+  kosun_crm_notes?: string;
+  kosun_crm_tags?: string[];
+  kosun_crm_source?: string;
+  kosun_crm_role?: string;
+
+  // Legacy Core Fields (being migrated to kosun_crm_*)
+  conta_name?: string;
   f_m?: string;
-  conta_phone: string;
+  conta_phone?: string;
   email?: string;
   gender?: string;
   
-  // Address Fields
+  // Legacy Address Fields
   mh_crm_city?: string;
   mh_crm_street?: string;
   
-  // Tag Fields
+  // Legacy Tag Fields
   tg1?: string;
   tg2?: string;
   tg3?: string;
   tags?: string[];
 
-  // Company Fields
+  // Legacy Company Fields
   company_name?: string;
   job_title?: string;
   lead_source?: string;

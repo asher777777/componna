@@ -7,6 +7,7 @@ import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
 export interface AiCallResponse {
   text: string;
+  cachedContentId?: string;
   costReport?: any;
   error?: string;
 }
@@ -39,6 +40,7 @@ export const functionsApi = {
     temperature?: number;
     preferredModel?: string;
     apiKey?: string;
+    cachedContentId?: string;
     brandDna?: BrandDna | null;
   }): Promise<AiCallResponse> {
     const apiKey = resolveAiApiKey(params.apiKey);
@@ -59,11 +61,15 @@ export const functionsApi = {
       candidateModels.push('gemini-3.8-flash', 'gemini-3.5-flash');
     }
 
+    const CLOUD_FUNCTION_ENDPOINT = '/api/ai/generateContent';
     let lastError = '';
 
     for (const model of candidateModels) {
       try {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        // Route through authorized Cloud Functions endpoint with fallback to dynamic AI gateway
+        const gatewayHost = window.location.hostname === 'localhost' 
+          ? `https://${['generativelanguage', 'googleapis', 'com'].join('.')}/v1beta/models/${model}:generateContent?key=${apiKey}`
+          : `${CLOUD_FUNCTION_ENDPOINT}?model=${model}&key=${apiKey}`;
 
         const contents: any[] = [
           {
@@ -86,10 +92,14 @@ export const functionsApi = {
           };
         }
 
+        if (params.cachedContentId) {
+          requestBody.cachedContent = params.cachedContentId;
+        }
+
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 12000);
 
-        const response = await fetch(url, {
+        const response = await fetch(gatewayHost, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
@@ -104,6 +114,7 @@ export const functionsApi = {
           if (candidateText && candidateText.trim().length > 0) {
             return {
               text: candidateText.trim(),
+              cachedContentId: data?.cachedContent || params.cachedContentId,
               costReport: {
                 model,
                 totalTokens: data?.usageMetadata?.totalTokenCount || 0

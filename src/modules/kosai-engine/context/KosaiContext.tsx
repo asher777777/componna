@@ -12,6 +12,7 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { KosaiAgentContract, MediaPickerContract } from '../../../core/contracts';
 import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
 import { kosaiDataGroundingService } from '../services/kosaiDataGroundingService';
+import { kosaiContactAutoSyncService } from '../services/kosaiContactAutoSyncService';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
 import { 
@@ -524,6 +525,26 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Save conversation state under tenants/{tenantId}/kosai_conversations
       if (db && tenantId && currentConvId) {
+        const effectiveCachedContentId = response.cachedContentId || cachedContentId || undefined;
+
+        // Auto-extract contact info mentioned in chat, create/update CRM contact card, and archive conversation under contact
+        let linkedContactId: string | null = null;
+        try {
+          linkedContactId = await kosaiContactAutoSyncService.syncChatToContactCard({
+            db,
+            tenantId,
+            conversationId: currentConvId,
+            moduleId: currentRule?.moduleId || activeModule.moduleId,
+            title: convTitle,
+            userMessage: content,
+            assistantMessage: finalAssistantMsg.content,
+            cachedContentId: effectiveCachedContentId || null,
+            messages: finalMessagesList,
+          });
+        } catch (syncErr) {
+          console.warn('[KosaiContext] Auto contact sync notice:', syncErr);
+        }
+
         const updatedConversation: KosaiConversation = {
           id: currentConvId,
           tenantId,
@@ -531,7 +552,8 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           title: convTitle,
           createdAt: Date.now(),
           updatedAt: Date.now(),
-          cachedContentId: response.cachedContentId || cachedContentId || undefined,
+          cachedContentId: effectiveCachedContentId,
+          contactId: linkedContactId || undefined,
           status: 'active',
           messages: finalMessagesList
         };

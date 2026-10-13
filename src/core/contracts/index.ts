@@ -13,9 +13,24 @@ export interface MediaPickerContract {
   openPicker: (options?: MediaPickerOptions) => Promise<string | string[] | null>;
 }
 
+export * from './collections';
+
 export interface LeadPayload {
-  conta_name: string;
-  conta_phone: string;
+  // Canonical KOSUN CRM Schema
+  kosun_crm_name?: string;
+  kosun_crm_phone?: string;
+  kosun_crm_email?: string;
+  kosun_crm_company?: string;
+  kosun_crm_city?: string;
+  kosun_crm_street?: string;
+  kosun_crm_gov_id?: string;
+  kosun_crm_notes?: string;
+  kosun_crm_tags?: string[];
+  kosun_crm_source?: string;
+
+  // Legacy fields (maintained for backward compatibility during migration)
+  conta_name?: string;
+  conta_phone?: string;
   email?: string;
   source?: string;
   tags?: string[];
@@ -57,7 +72,12 @@ export interface AuthSessionContract {
 
 export interface CrmContactSummary {
   id: string;
-  conta_name: string;
+  kosun_crm_name?: string;
+  kosun_crm_phone?: string;
+  kosun_crm_email?: string;
+  kosun_crm_gov_id?: string;
+  // Legacy fields
+  conta_name?: string;
   conta_phone?: string;
   email?: string;
   tg1?: string; // ת.ז. / ח.פ.

@@ -417,8 +417,9 @@ export class WhatsAppAiBotService {
     temperature?: number;
     preferredModel?: string;
     maxOutputTokens?: number;
+    cachedContentId?: string;
     brandDna?: BrandDna | null;
-  }): Promise<{ text: string; costReport: TokenUsageReport }> {
+  }): Promise<{ text: string; cachedContentId?: string; costReport: TokenUsageReport }> {
     const {
       prompt,
       systemInstruction,
@@ -439,6 +440,7 @@ export class WhatsAppAiBotService {
       temperature,
       preferredModel: params.preferredModel,
       apiKey: params.apiKey,
+      cachedContentId: params.cachedContentId,
       brandDna
     });
 
@@ -452,7 +454,7 @@ export class WhatsAppAiBotService {
       candidatesTokens: 150
     });
 
-    return { text: result.text, costReport };
+    return { text: result.text, cachedContentId: result.cachedContentId, costReport };
   }
 
   /**
@@ -589,9 +591,10 @@ export class WhatsAppAiBotService {
     botConfig: WhatsAppAiBotConfig;
     userMessage: string;
     chatHistory?: { role: 'user' | 'model'; text: string }[];
+    cachedContentId?: string;
     brandDna?: BrandDna | null;
-  }): Promise<{ replyText: string; buttons: { buttonId: string; buttonText: string }[]; costReport?: TokenUsageReport }> {
-    const { apiKey, botConfig, userMessage, chatHistory = [], brandDna } = params;
+  }): Promise<{ replyText: string; buttons: { buttonId: string; buttonText: string }[]; cachedContentId?: string; costReport?: TokenUsageReport }> {
+    const { apiKey, botConfig, userMessage, chatHistory = [], cachedContentId, brandDna } = params;
 
     const effectiveApiKey = (apiKey && apiKey.trim()) ||
       getModuleGeminiKey('whatsapp-green-api-hub') ||
@@ -607,6 +610,7 @@ export class WhatsAppAiBotService {
           buttonId: b.buttonId,
           buttonText: b.buttonText,
         })),
+        cachedContentId
       };
     }
 
@@ -623,7 +627,8 @@ export class WhatsAppAiBotService {
         prompt,
         systemInstruction: `SYSTEM INSTRUCTIONS:\n${botConfig.systemPrompt}\nהשב בעברית קולחת, תמציתית ונעימה לוואטסאפ.`,
         temperature: botConfig.temperature ?? 0.7,
-        preferredModel: botConfig.model || 'gemini-2.5-flash',
+        preferredModel: botConfig.model || 'gemini-3.8-flash',
+        cachedContentId,
         brandDna,
       });
 
@@ -635,6 +640,7 @@ export class WhatsAppAiBotService {
       return {
         replyText: res.text.trim(),
         buttons,
+        cachedContentId: res.cachedContentId || cachedContentId,
         costReport: res.costReport,
       };
     } catch (err: any) {
