@@ -1,7 +1,7 @@
-﻿import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { PageBuilderConfig, SectionType } from '../modules/KosWebAi/types/pageBuilder.types';
 import { PageBuilderRenderer } from '../modules/KosWebAi/PageBuilderRenderer';
-import { FloatingSystemDock } from '../components/Navigation/FloatingSystemDock';
+import { KosWebAiFrontDock } from '../modules/KosWebAi';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
 import { pageBuilderFirestore, ensureHeaderSection } from '../modules/KosWebAi/services/pageBuilderFirestore';
@@ -75,7 +75,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         currentPageConfig.seoSettings?.title ||
         currentPageConfig.globalSettings?.siteTitle ||
         currentPageConfig.pageTitle ||
-        'Kosun Platform';
+        'Kosun-S-D-A';
     }
   }, [currentPageConfig]);
 
@@ -332,13 +332,12 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         />
       </main>
 
-      {/* Floating System Dock (Cashwan Standard - Headerless Floating Dock at bottom) */}
-      <FloatingSystemDock
-        editPageUrl="/KosWebAi"
+      {/* KosWebAi Official Frontend Dock (Full Front Monopoly, zero control center interference) */}
+      <KosWebAiFrontDock
+        pageId={effectivePageConfig.pageId}
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}
-        onEnterDevWorkbench={onEnterDevWorkbench}
       />
     </div>
   );

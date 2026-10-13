@@ -27,6 +27,7 @@ const HomePage = React.lazy(() =>
 import { PageBuilderRenderer } from '../modules/KosWebAi/PageBuilderRenderer';
 import { pageBuilderFirestore } from '../modules/KosWebAi/services/pageBuilderFirestore';
 import { PageBuilderConfig } from '../modules/KosWebAi/types/pageBuilder.types';
+import { KosWebAiFrontDock } from '../modules/KosWebAi';
 import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
 
 const WorkbenchRootHome: React.FC = () => {
@@ -65,29 +66,8 @@ const WorkbenchRootHome: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-white relative font-sans" dir="rtl">
-      <div className="sticky top-0 z-50 bg-slate-900/95 backdrop-blur-md px-4 py-2 border-b border-indigo-500/30 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="font-bold text-white">עמוד הבית הפעיל שנבחר מבונה העמודים:</span>
-          <span className="text-indigo-300 font-bold font-mono bg-slate-800 px-2 py-0.5 rounded">{activePage.pageTitle}</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <a
-            href="/KosWebAi"
-            className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-sm"
-          >
-            <Edit3 className="w-3.5 h-3.5" />
-            <span>עריכה בבונה העמודים</span>
-          </a>
-          <a
-            href="/saas-storefront"
-            className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition border border-slate-700"
-          >
-            חנות המערכת והמודולים
-          </a>
-        </div>
-      </div>
       <PageBuilderRenderer config={activePage} />
+      <KosWebAiFrontDock pageId={activePage.pageId} />
     </div>
   );
 };

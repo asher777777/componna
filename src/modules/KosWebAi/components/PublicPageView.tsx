@@ -6,7 +6,7 @@ import { PageBuilderRenderer } from '../PageBuilderRenderer';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home } from 'lucide-react';
-import { FloatingSystemDock } from '../../../components/Navigation/FloatingSystemDock';
+import { KosWebAiFrontDock } from './KosWebAiFrontDock';
 import { useKosai } from '../../kosai-engine';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
@@ -496,8 +496,9 @@ export const PublicPageView: React.FC = () => {
         }}
       />
 
-      <FloatingSystemDock 
-        editPageUrl={`/KosWebAi?pageId=${page.pageId}`}
+      {/* KosWebAi Front Dock - Full Front Monopoly */}
+      <KosWebAiFrontDock 
+        pageId={page.pageId}
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}

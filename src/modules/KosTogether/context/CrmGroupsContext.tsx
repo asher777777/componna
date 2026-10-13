@@ -197,6 +197,14 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
       setUntaggedCount(res.untaggedCount);
       setAvailableCities(res.availableCities);
       setCampaigns(campList);
+
+      // Default selection: select the first community or group instead of __all__
+      setActiveGroupId((prev) => {
+        if (prev === '__all__' || prev === '__untagged__' || !prev) {
+          return res.groups.length > 0 ? (res.groups[0].id || res.groups[0].name) : '';
+        }
+        return prev;
+      });
     } catch (err: any) {
       console.error('Failed to load groups data:', err);
     } finally {

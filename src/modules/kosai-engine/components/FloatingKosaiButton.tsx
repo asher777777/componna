@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useKosai } from '../context/KosaiContext';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
@@ -25,13 +25,24 @@ import {
   Target
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../../../workbench/moduleRegistry';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 export const FloatingKosaiButton: React.FC = () => {
   const { isOpen, setIsOpen, activeRoleMode, activeModule } = useKosai();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Detect whether we are on the frontend / website / page builder
+  const isFront =
+    location.pathname === '/' ||
+    location.pathname === '' ||
+    location.pathname.startsWith('/p/') ||
+    location.pathname.startsWith('/to/') ||
+    location.pathname.startsWith('/page/') ||
+    location.pathname.startsWith('/preview/') ||
+    location.pathname.startsWith('/KosWebAi');
 
   // Day / Night mode handling (Day is strict default per Cashwan constitution)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -333,12 +344,16 @@ export const FloatingKosaiButton: React.FC = () => {
   return (
     <div 
       ref={menuRef} 
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[90] flex flex-col items-center select-none"
+      className={`fixed select-none z-[60] flex flex-col items-center transition-all duration-300 ${
+        isFront
+          ? 'bottom-6 left-6'
+          : 'bottom-6 left-1/2 -translate-x-1/2'
+      }`}
       dir="rtl"
       style={{ fontFamily: 'Heebo, sans-serif' }}
     >
-      {/* 1. Dynamic Component Quick Actions Popup (Triggered by the Plus button) */}
-      {isQuickActionsOpen && (
+      {/* 1. Dynamic Component Quick Actions Popup (Internal modules only, hidden on front) */}
+      {!isFront && isQuickActionsOpen && (
         <div className="mb-3.5 w-80 max-w-[90vw] bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-3xl p-3 shadow-2xl shadow-indigo-500/20 flex flex-col gap-1.5 animate-scaleUp">
           <div className="flex items-center justify-between pb-2 mb-1 border-b border-slate-100 dark:border-slate-800 px-1">
             <div className="flex items-center gap-2">
@@ -380,8 +395,8 @@ export const FloatingKosaiButton: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Expanded Central Actions Dock Menu */}
-      {isMenuOpen && (
+      {/* 2. Expanded Central Actions Dock Menu (Control Center menu - internal modules only, hidden on front) */}
+      {!isFront && isMenuOpen && (
         <div className="mb-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shadow-2xl shadow-indigo-500/20 flex items-center gap-2 animate-scaleUp">
           {/* 1. Open KosAi Chat */}
           <button
@@ -448,16 +463,22 @@ export const FloatingKosaiButton: React.FC = () => {
         </div>
       )}
 
-      {/* Main Single Central Floating Button: K blinking with Star */}
+      {/* Main Single Floating Button: K blinking with Star */}
       <button
-        onClick={() => setIsMenuOpen(prev => !prev)}
+        onClick={() => {
+          if (isFront) {
+            setIsOpen(!isOpen);
+          } else {
+            setIsMenuOpen((prev) => !prev);
+          }
+        }}
         style={{
           background: `linear-gradient(135deg, ${primaryColor}, #4338ca)`,
           boxShadow: `0 12px 36px -6px ${primaryColor}80`,
         }}
         className="relative w-14 h-14 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group border border-white/30 cursor-pointer overflow-visible animate-pulse"
-        title="תפריט KOSAI - לחץ לפתיחת כל כפתורי ופעולות המערכת"
-        aria-label="תפריט KOSAI מרכזי"
+        title={isFront ? "KosAi - פתח צ'אט בינה מלאכותית" : "תפריט KOSAI - לחץ לפתיחת כל כפתורי ופעולות המערכת"}
+        aria-label="כפתור KosAi"
       >
         {/* Kosun Official Vector Symbol from Gallery */}
         <img

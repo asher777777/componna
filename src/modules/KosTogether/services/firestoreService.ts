@@ -148,26 +148,8 @@ export async function fetchGroupsAndContactsData(
     }
   });
 
-  // 3. Auto-discover tags from contacts that are not yet saved in crm_groups
-  let colorIdx = 0;
-  tagsMap.forEach((_cnt, tagName) => {
-    const cleanTag = tagName.trim();
-    if (!savedGroups.has(cleanTag) && cleanTag && !isNumericTag(cleanTag)) {
-      savedGroups.set(cleanTag, {
-        id: `tag_${encodeURIComponent(cleanTag)}`,
-        name: cleanTag,
-        color: PRESET_COLORS[colorIdx % PRESET_COLORS.length],
-        description: 'קבוצת תגית אוטומטית',
-        type: 'manual',
-        isCommunity: false,
-        category: 'group',
-        rules: [],
-        matchType: 'all',
-        ownerId,
-      });
-      colorIdx++;
-    }
-  });
+  // 3. Do not auto-discover raw contact tags as groups.
+  // KosTogether strictly manages explicit communities and groups defined in crm_groups.
 
   // 4. Calculate dynamic member count for all groups and communities
   const groups: SmartGroup[] = Array.from(savedGroups.values()).map((g) => {

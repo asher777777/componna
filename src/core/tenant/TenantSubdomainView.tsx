@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useLocation, NavLink } from 'react-router-dom';
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
@@ -17,7 +17,7 @@ import { DashboardFirestoreService } from '../../modules/kosun-board-composer/se
 import { DynamicCustomDashboardView } from '../../modules/kosun-board-composer/components/DynamicCustomDashboardView';
 import { GeneratedCustomDashboard } from '../../modules/kosun-board-composer/types';
 import { KosunBoardProvider } from '../../modules/kosun-board-composer/context/ModuleContext';
-import { FloatingSystemDock } from '../../components/Navigation/FloatingSystemDock';
+import { KosWebAiFrontDock } from '../../modules/KosWebAi';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -394,7 +394,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         )}
       </div>
 
-      <FloatingSystemDock />
+      <KosWebAiFrontDock pageId={homePageConfig?.pageId} />
     </div>
   );
 };

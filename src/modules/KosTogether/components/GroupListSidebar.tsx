@@ -98,60 +98,13 @@ export const GroupListSidebar: React.FC<GroupListSidebarProps> = ({
         </div>
       </div>
 
-      {/* Global Filter Buttons: All Contacts & Untagged */}
-      <div className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => setActiveGroupId('__all__')}
-          className={`p-2.5 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer ${
-            activeGroupId === '__all__'
-              ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-100'
-              : 'bg-slate-50/80 border-slate-200/60 text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Users className="w-3.5 h-3.5" />
-            <span className="text-xs font-bold">הכל</span>
-          </div>
-          <span
-            className={`text-[10px] font-mono px-1.5 py-0.5 rounded-lg ${
-              activeGroupId === '__all__' ? 'bg-indigo-700 text-white' : 'bg-slate-200 text-slate-600'
-            }`}
-          >
-            {totalContacts}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveGroupId('__untagged__')}
-          className={`p-2.5 rounded-2xl border text-right transition-all flex items-center justify-between cursor-pointer ${
-            activeGroupId === '__untagged__'
-              ? 'bg-rose-600 text-white border-rose-600 shadow-sm shadow-rose-100'
-              : 'bg-slate-50/80 border-slate-200/60 text-slate-700 hover:bg-slate-100'
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Tag className="w-3.5 h-3.5" />
-            <span className="text-xs font-bold">ללא שיוך</span>
-          </div>
-          <span
-            className={`text-[10px] font-mono px-1.5 py-0.5 rounded-lg ${
-              activeGroupId === '__untagged__' ? 'bg-rose-700 text-white' : 'bg-slate-200 text-slate-600'
-            }`}
-          >
-            {untaggedCount}
-          </span>
-        </button>
-      </div>
-
-      {/* Category Pills Filter */}
-      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-2xl text-[11px] font-bold text-slate-600">
+      {/* Category Pills Filter: Only Communities & Groups */}
+      <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl text-[11px] font-bold text-slate-600 dark:text-slate-300">
         <button
           type="button"
           onClick={() => setCategoryFilter('all')}
-          className={`flex-1 py-1 rounded-xl transition-all text-center cursor-pointer ${
-            categoryFilter === 'all' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+          className={`flex-1 py-1.5 rounded-xl transition-all text-center cursor-pointer ${
+            categoryFilter === 'all' ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs font-extrabold' : 'hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           הכל ({groups.length})
@@ -159,8 +112,8 @@ export const GroupListSidebar: React.FC<GroupListSidebarProps> = ({
         <button
           type="button"
           onClick={() => setCategoryFilter('communities')}
-          className={`flex-1 py-1 rounded-xl transition-all text-center cursor-pointer ${
-            categoryFilter === 'communities' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+          className={`flex-1 py-1.5 rounded-xl transition-all text-center cursor-pointer ${
+            categoryFilter === 'communities' ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs font-extrabold' : 'hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           קהילות ({communities.length})
@@ -168,8 +121,8 @@ export const GroupListSidebar: React.FC<GroupListSidebarProps> = ({
         <button
           type="button"
           onClick={() => setCategoryFilter('groups')}
-          className={`flex-1 py-1 rounded-xl transition-all text-center cursor-pointer ${
-            categoryFilter === 'groups' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+          className={`flex-1 py-1.5 rounded-xl transition-all text-center cursor-pointer ${
+            categoryFilter === 'groups' ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs font-extrabold' : 'hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           קבוצות ({tagGroups.length})
@@ -177,8 +130,8 @@ export const GroupListSidebar: React.FC<GroupListSidebarProps> = ({
         <button
           type="button"
           onClick={() => setCategoryFilter('smart')}
-          className={`flex-1 py-1 rounded-xl transition-all text-center cursor-pointer ${
-            categoryFilter === 'smart' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'hover:text-slate-900'
+          className={`flex-1 py-1.5 rounded-xl transition-all text-center cursor-pointer ${
+            categoryFilter === 'smart' ? 'bg-white dark:bg-slate-700 text-indigo-700 dark:text-indigo-300 shadow-2xs font-extrabold' : 'hover:text-slate-900 dark:hover:text-white'
           }`}
         >
           חכמות ({smartGroups.length})
