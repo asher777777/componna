@@ -18,6 +18,9 @@ import { DynamicCustomDashboardView } from '../../modules/kosun-board-composer/c
 import { GeneratedCustomDashboard } from '../../modules/kosun-board-composer/types';
 import { KosunBoardProvider } from '../../modules/kosun-board-composer/context/ModuleContext';
 import { KosWebAiFrontDock } from '../../modules/KosWebAi';
+import { TenantAdminLoginView } from './TenantAdminLoginView';
+import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
+import { Grid, Sun, Moon, LogOut, ChevronLeft, Check } from 'lucide-react';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -213,21 +216,70 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     };
   }, [db, tenantRecord.subdomain, mode]);
 
-  // 1. ADMIN MODE (Control Panel & Purchased Module Editors)
+  const [authVersion, setAuthVersion] = useState(0);
+  const [isKosNevOpen, setIsKosNevOpen] = useState(false);
+  const [tenantTheme, setTenantTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem(`kosun_theme_${tenantRecord.subdomain}`) as 'light' | 'dark') || 'dark';
+  });
+
+  const toggleTenantTheme = () => {
+    const next = tenantTheme === 'dark' ? 'light' : 'dark';
+    setTenantTheme(next);
+    try {
+      localStorage.setItem(`kosun_theme_${tenantRecord.subdomain}`, next);
+    } catch {}
+  };
+
+  const isAuthenticated = TenantAuthService.isTenantAuthenticated(tenantRecord.subdomain);
+
+  // 1. ADMIN LOGIN GUARD: Check tenant admin authentication
+  if (mode === 'admin' && !isAuthenticated) {
+    return (
+      <TenantAdminLoginView
+        tenantRecord={tenantRecord}
+        onLoginSuccess={() => setAuthVersion((v) => v + 1)}
+        onBackToPublic={() => setMode('public')}
+      />
+    );
+  }
+
+  // Active provisioned modules for this tenant
+  const activeModuleIds = tenantRecord.activeModules || ['KosWebAi', 'KSF'];
+  const allowedModules = REGISTERED_MODULES.filter((m) => {
+    if (m.id === 'control-center-hub' || m.id === 'kosun-board-composer') return true;
+    return activeModuleIds.includes(m.id);
+  });
+
+  // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
     return (
-      <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 font-sans" dir="rtl">
-        {/* Top Admin Status Bar */}
-        <header className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white px-4 py-2 text-xs flex items-center justify-between border-b border-slate-200 dark:border-indigo-500/30 shrink-0 shadow-2xs">
-          <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="font-bold text-slate-900 dark:text-white">לוח בקרת סאב-דומיין (מנהל):</span>
-            <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded font-medium">
-              {tenantRecord.fullDomain}
-            </span>
-            <span className="text-slate-500 dark:text-gray-400 hidden md:inline">
-              | DB מבודד: <code className="text-emerald-600 dark:text-emerald-400 font-mono">{tenantRecord.collectionPrefix}*</code>
-            </span>
+      <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${tenantTheme === 'dark' ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`} dir="rtl">
+        {/* Full Manager Cashwan TopNav Bar */}
+        <header className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-2.5 text-xs flex items-center justify-between border-b border-slate-200 dark:border-slate-800 shrink-0 shadow-2xs z-30">
+          <div className="flex items-center gap-3">
+            {/* KosNev Module Launcher Button */}
+            <button
+              type="button"
+              onClick={() => setIsKosNevOpen(true)}
+              className="relative p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition cursor-pointer group"
+              title="תפריט רכיבים מוטענים (KosNev)"
+            >
+              <Grid className="w-4 h-4" />
+              <span className="hidden sm:inline font-mono">KosNev</span>
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping pointer-events-none" />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-900 dark:text-white text-sm">
+                {tenantRecord.clientName}
+              </span>
+              <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] font-medium" dir="ltr">
+                {tenantRecord.fullDomain}
+              </span>
+              <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-bold border border-emerald-500/20 hidden md:inline">
+                {allowedModules.length} רכיבים מוטענים
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
@@ -255,32 +307,47 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                   }`}
                 >
                   <LayoutDashboard className="w-3 h-3" />
-                  <span>מרכז שליטה מלא</span>
+                  <span>מרכז שליטה</span>
                 </button>
               </div>
             )}
 
+            {/* Day / Night Mode Toggle */}
             <button
-              onClick={() => setMode('public')}
-              className="flex items-center gap-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-xs cursor-pointer"
+              type="button"
+              onClick={toggleTenantTheme}
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
+              title={tenantTheme === 'dark' ? 'עבור למצב יום' : 'עבור למצב לילה'}
             >
-              <Eye className="w-3.5 h-3.5" />
-              <span>צפייה באתר (עבור מבקרים)</span>
+              {tenantTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
             </button>
 
+            {/* View as Visitor */}
             <button
-              onClick={() => {
-                window.location.href = window.location.origin;
-              }}
-              className="flex items-center gap-1 text-[11px] bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-gray-300 px-2.5 py-1.5 rounded-lg transition border border-slate-200 dark:border-slate-700 cursor-pointer font-medium"
+              onClick={() => setMode('public')}
+              className="flex items-center gap-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer"
             >
-              <ArrowRight className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">חזרה לחנות kosun.pro</span>
+              <Eye className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">צפייה באתר (עבור מבקרים)</span>
+            </button>
+
+            {/* Logout Button */}
+            <button
+              type="button"
+              onClick={() => {
+                TenantAuthService.logoutTenant(tenantRecord.subdomain);
+                setAuthVersion((v) => v + 1);
+              }}
+              className="flex items-center gap-1 text-[11px] bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 px-2.5 py-1.5 rounded-xl transition cursor-pointer font-bold"
+              title="התנתק מחשבון הניהול"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">התנתק</span>
             </button>
           </div>
         </header>
 
-        {/* Modern Control Center Hub & Registered Modules Router */}
+        {/* Manager Workspace Router - Strictly Filtered to Provisioned Modules */}
         <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
           <Routes>
             <Route
@@ -298,7 +365,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               }
             />
             <Route path="/control-center/*" element={<ControlCenterStandaloneView />} />
-            {REGISTERED_MODULES.map((module) => {
+            {allowedModules.map((module) => {
               const Component = module.component;
               return (
                 <Route
@@ -317,6 +384,81 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
             <Route path="*" element={<ControlCenterStandaloneView />} />
           </Routes>
         </div>
+
+        {/* KosNev Module Launcher Modal (Exact Manager UI Launcher) */}
+        {isKosNevOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn" dir="rtl">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
+              
+              <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex items-center justify-between z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
+                    <Grid className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-black text-slate-900 dark:text-white font-mono">
+                      KosNev - רכיבים מוטענים
+                    </h2>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      הרכיבים המופעלים בסאב-דומיין {tenantRecord.fullDomain}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsKosNevOpen(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                >
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-4 sm:p-6 space-y-3">
+                {allowedModules.map((module) => {
+                  const isActive = location.pathname.startsWith(module.route);
+                  return (
+                    <NavLink
+                      key={module.id}
+                      to={module.route}
+                      onClick={() => setIsKosNevOpen(false)}
+                      className={`text-right w-full p-3.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-3 group cursor-pointer ${
+                        isActive
+                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/20'
+                          : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-300'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
+                          isActive ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                        }`}>
+                          <Grid className="w-5 h-5" />
+                        </div>
+
+                        <div className="min-w-0 flex-1">
+                          <span className={`font-bold text-sm block truncate ${isActive ? 'text-indigo-950 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
+                            {module.name}
+                          </span>
+                          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
+                            {module.description}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0" dir="ltr">
+                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800">
+                          {module.id}
+                        </span>
+                        <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition" />
+                      </div>
+                    </NavLink>
+                  );
+                })}
+              </div>
+
+            </div>
+          </div>
+        )}
 
         {/* Floating Return Pill for other modules (when not in control center) */}
         {!isControlCenter && (

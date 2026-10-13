@@ -71,6 +71,10 @@ const KosunBoardComposerStandaloneView = React.lazy(() =>
   import('../modules/kosun-board-composer').then((m) => ({ default: m.KosunBoardComposerStandaloneView }))
 );
 
+const KosTenantProvisionerStandaloneView = React.lazy(() =>
+  import('../modules/KosTenantProvisioner').then((m) => ({ default: m.KosTenantProvisionerStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -81,6 +85,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosTenantProvisioner',
+    name: 'ניהול סאב-דומיינים והטענת רכיבים',
+    description: 'הקמת סאב-דומיינים מבודדים 100%, הטענת רכיבים מודולריים, ניהול שמות משתמש וסיסמאות לפי חוקי KOSUN26.',
+    component: KosTenantProvisionerStandaloneView,
+    route: '/tenant-provisioner',
+    collectionPrefix: 'sys_tenants_',
+  },
   {
     id: 'kosun-board-composer',
     name: 'קושאן בורד - מחולל מערכות AI',

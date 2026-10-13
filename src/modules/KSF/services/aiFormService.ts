@@ -2,6 +2,7 @@ import { SmartFormDefinition, FormStep, ToneStyle, FormThemeSettings } from '../
 import { TONE_PRESETS } from '../config/tonePresets';
 import { DEFAULT_THEME_SETTINGS, DEFAULT_COMPLETION_SETTINGS } from '../config/constants';
 import { SYSTEM_COLLECTIONS, KOSUN_CRM_FIELD_KEYS } from '../../../core/contracts/collections';
+import { executeCloudAi } from '../../../core/ai';
 
 /**
  * מילון שדות הסנכרון התקניים לקולקציית ה-CRM (contacts) עם קידומת kosun_crm_
@@ -184,24 +185,16 @@ export async function generateSmartFormWithAI(
 
   if (apiKey && apiKey.length > 10) {
     try {
-      const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: systemPrompt }] }],
-            generationConfig: { responseMimeType: 'application/json' },
-          }),
-        }
-      );
+      const aiRes = await executeCloudAi({
+        prompt: systemPrompt,
+        model: 'gemini-3.8-flash',
+        responseMimeType: 'application/json',
+        apiKey,
+      });
 
-      if (response.ok) {
-        const json = await response.json();
-        const rawText = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (rawText) {
-          const parsed = JSON.parse(rawText);
-          return {
+      if (aiRes.success && aiRes.data) {
+        const parsed = typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data;
+        return {
             form: {
               title: parsed.title || input.goal,
               slug: (parsed.title || 'form')
@@ -246,8 +239,7 @@ export async function generateSmartFormWithAI(
             ],
           };
         }
-      }
-    } catch (e) {
+      } catch (e) {
       console.warn('Gemini API call failed, falling back to KOSAI intelligent local generator:', e);
     }
   }

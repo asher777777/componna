@@ -13,19 +13,18 @@ import {
   DynamicModuleCapability,
 } from '../types';
 import { GEMINI_DASHBOARD_SYSTEM_INSTRUCTION, buildDashboardPrompt } from '../prompts';
+import { executeCloudAi } from '../../../core/ai';
 
 export class GeminiDashboardAiService {
   /**
-   * Generates a tailor-made Bento Grid dashboard using Google Gemini.
+   * Generates a tailor-made Bento Grid dashboard using Google Gemini via Cloud Functions proxy.
    */
   static async generateDashboard(
     apiKey: string,
     request: GenerateDashboardAiRequest
   ): Promise<GeneratedCustomDashboard> {
-    // Default to the 2026 authorized Gemini Flash model: gemini-3.8-flash
+    // Authorized 2026 Gemini model
     const primaryModel = request.model && !request.model.includes('2.5') ? request.model : 'gemini-3.8-flash';
-    const modelsToTry = [primaryModel, 'gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-3.8-flash-lite'];
-    const uniqueModels = Array.from(new Set(modelsToTry));
     const cleanKey = apiKey?.trim();
 
     if (!cleanKey) {
@@ -40,50 +39,27 @@ export class GeminiDashboardAiService {
       request.customPrompt
     );
 
-    const payload = {
-      contents: [
-        {
-          role: 'user',
-          parts: [{ text: promptText }],
-        },
-      ],
-      systemInstruction: {
-        parts: [{ text: GEMINI_DASHBOARD_SYSTEM_INSTRUCTION }],
-      },
-      generationConfig: {
-        temperature: 0.3,
+    try {
+      const aiRes = await executeCloudAi({
+        prompt: promptText,
+        systemInstruction: GEMINI_DASHBOARD_SYSTEM_INSTRUCTION,
+        model: primaryModel,
         responseMimeType: 'application/json',
-      },
-    };
+        temperature: 0.3,
+        apiKey: cleanKey,
+      });
 
-    // Attempt models in cascade order
-    for (const modelToAttempt of uniqueModels) {
-      try {
-        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelToAttempt}:generateContent?key=${cleanKey}`;
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const rawOutput = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawOutput) {
-            const parsedJson = this.parseJsonSafely(rawOutput);
-            console.info(`[GeminiDashboardAiService] Successfully generated via ${modelToAttempt}`);
-            return this.formatGeneratedDashboard(parsedJson, request);
-          }
-        } else {
-          console.warn(`[GeminiDashboardAiService] Model ${modelToAttempt} failed (${response.status}), trying next fallback...`);
-        }
-      } catch (e) {
-        console.warn(`[GeminiDashboardAiService] Network error with ${modelToAttempt}:`, e);
+      if (aiRes.success && aiRes.data) {
+        const parsedJson = typeof aiRes.data === 'string' ? this.parseJsonSafely(aiRes.data) : aiRes.data;
+        console.info(`[GeminiDashboardAiService] Successfully generated via Cloud AI (${primaryModel})`);
+        return this.formatGeneratedDashboard(parsedJson, request);
       }
+    } catch (e) {
+      console.warn('[GeminiDashboardAiService] AI Cloud call error:', e);
     }
 
     // Graceful offline fallback with clean Hebrew subtitle
-    console.warn('[GeminiDashboardAiService] All remote Gemini models unavailable, using intelligent local engine');
+    console.warn('[GeminiDashboardAiService] Remote AI unavailable, using intelligent local engine');
     return this.generateDeterministicFallback(request);
   }
 

@@ -1,12 +1,12 @@
 /**
  * KOSUN AM (קושאן מייל אוטומטי) - Kosai Email AI Copilot Service
- * 12-Layer Scaffolding Layer 5: Gemini Flash Cascade, Cost Tracking & Brand DNA Integration
+ * 12-Layer Scaffolding Layer 5: Cloud Functions AI, Cost Tracking & Brand DNA Integration
  */
 
 import { AiGenerationResult } from '../types';
 import { KOSUN_AM_AI_MODELS, KOSUN_AM_MODULE_ID } from '../config';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
-import { calculateGeminiCost } from '../../../core/ai/geminiCostTracker';
+import { calculateGeminiCost, executeCloudAi } from '../../../core/ai';
 import { EMAIL_COPILOT_SYSTEM_PROMPT } from '../prompts';
 
 export class KosaiEmailAiService {
@@ -26,22 +26,13 @@ export class KosaiEmailAiService {
       return this.generateSmartMock(userPrompt, context);
     }
 
-    // Fallback Cascade: Primary -> Secondary -> Tertiary -> Local Mock
-    const modelsToTry = [
-      KOSUN_AM_AI_MODELS.PRIMARY,
-      KOSUN_AM_AI_MODELS.SECONDARY,
-      KOSUN_AM_AI_MODELS.TERTIARY,
-    ];
-
-    for (const model of modelsToTry) {
-      try {
-        const result = await this.callGeminiApi(model, apiKey, userPrompt, context);
-        if (result.success) {
-          return result;
-        }
-      } catch (err) {
-        console.warn(`[Kosun AM] AI model ${model} failed, trying next fallback:`, err);
+    try {
+      const result = await this.callGeminiApi(KOSUN_AM_AI_MODELS.PRIMARY, apiKey, userPrompt, context);
+      if (result.success) {
+        return result;
       }
+    } catch (err) {
+      console.warn('[Kosun AM] AI Cloud execution error, falling back to smart mock:', err);
     }
 
     return this.generateSmartMock(userPrompt, context);
@@ -53,68 +44,29 @@ export class KosaiEmailAiService {
     userPrompt: string,
     context?: Record<string, unknown>
   ): Promise<AiGenerationResult> {
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-    const promptPayload = {
-      systemInstruction: {
-        parts: [{ text: EMAIL_COPILOT_SYSTEM_PROMPT }],
-      },
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: `מטרת הקמפיין: ${userPrompt}\nהקשר נוסף: ${JSON.stringify(context || {})}`,
-            },
-          ],
-        },
-      ],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.7,
-      },
-    };
-
-    const res = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(promptPayload),
+    const aiRes = await executeCloudAi({
+      prompt: `מטרת הקמפיין: ${userPrompt}\nהקשר נוסף: ${JSON.stringify(context || {})}`,
+      systemInstruction: EMAIL_COPILOT_SYSTEM_PROMPT,
+      model,
+      responseMimeType: 'application/json',
+      temperature: 0.7,
+      apiKey,
     });
 
-    if (!res.ok) {
-      throw new Error(`Gemini API returned status ${res.status}`);
+    if (!aiRes.success || !aiRes.data) {
+      throw new Error(aiRes.error || 'Empty Gemini response content');
     }
 
-    const data = (await res.json()) as {
-      candidates?: Array<{
-        content?: {
-          parts?: Array<{ text?: string }>;
-        };
-      }>;
-      usageMetadata?: {
-        promptTokenCount?: number;
-        candidatesTokenCount?: number;
-      };
-    };
-
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) {
-      throw new Error('Empty Gemini response content');
-    }
-
-    const parsed = JSON.parse(text) as {
+    const parsed = (typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data) as {
       subjectSuggestions?: string[];
       bodyCopy?: string;
       preheader?: string;
     };
 
-    const promptTokens = data.usageMetadata?.promptTokenCount || 150;
-    const completionTokens = data.usageMetadata?.candidatesTokenCount || 200;
-
-    const costReport = calculateGeminiCost({
+    const costReport = aiRes.costReport || calculateGeminiCost({
       model,
-      promptTokens,
-      candidatesTokens: completionTokens,
+      promptTokens: 150,
+      candidatesTokens: 200,
     });
 
     return {
@@ -126,8 +78,8 @@ export class KosaiEmailAiService {
       bodyCopy: parsed.bodyCopy || 'תוכן שיווקי ממוקד שנכתב על ידי קוסאי בשפת המותג.',
       preheader: parsed.preheader || 'קושאן דואג למסר שלך',
       usageReport: {
-        promptTokens,
-        completionTokens,
+        promptTokens: costReport.promptTokens || 150,
+        completionTokens: costReport.candidatesTokens || 200,
         totalCostUsd: costReport.estimatedCostUSD,
         totalCostIls: costReport.estimatedCostILS,
       },

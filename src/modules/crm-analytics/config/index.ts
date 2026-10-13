@@ -40,6 +40,9 @@ export const CORE_COLUMNS: DynamicColumn[] = [
   { id: 'campaign_title', label: 'קמפיין', category: 'financial' },
   { id: 'last_form_name', label: 'טופס אחרון', category: 'form' },
   { id: 'last_form_submission_date', label: 'תאריך טופס', category: 'form', isDate: true },
+  { id: 'subdomain', label: 'סאב-דומיין', category: 'system' },
+  { id: 'adminUsername', label: 'משתמש מנהל', category: 'system' },
+  { id: 'tenantStatus', label: 'סטטוס טננט', category: 'system' },
   { id: 'createdAt', label: 'נוצר בתאריך', category: 'system', isDate: true },
 ];
 

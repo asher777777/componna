@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '../types';
 import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
@@ -255,7 +256,7 @@ export class TenantProvisionerService {
         ownerPhone: newRecord.ownerPhone || '050-0000000',
         activeModules: newRecord.activeModules,
         collectionPrefix: newRecord.collectionPrefix,
-        billingPlan: newRecord.billingPlan || 'monthly',
+        billingPlan: newRecord.billingPlan === 'annual' ? 'annual' : 'monthly',
         monthlyTotal: 0,
         paymentTransactionId: `PROV-${Date.now()}`,
       }).catch(console.warn);
@@ -297,6 +298,8 @@ export class TenantProvisionerService {
       }
     }
 
+    eventBus.emit('tenant:provisioned', newRecord);
+
     return newRecord;
   }
 
@@ -315,6 +318,7 @@ export class TenantProvisionerService {
       found.activeModules = activeModules;
       found.updatedAt = new Date().toISOString();
       this.saveLocalTenants(current);
+      eventBus.emit('tenant:updated', { ...found, activeModules });
     }
 
     if (db) {
@@ -346,6 +350,7 @@ export class TenantProvisionerService {
       found.adminPassword = credentials.password;
       found.updatedAt = new Date().toISOString();
       this.saveLocalTenants(current);
+      eventBus.emit('tenant:updated', { ...found, adminUsername: credentials.username, adminPassword: credentials.password });
     }
 
     if (db) {

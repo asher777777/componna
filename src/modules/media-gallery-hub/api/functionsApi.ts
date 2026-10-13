@@ -7,6 +7,7 @@
 import { OCR_AND_EXTRACTION_SYSTEM_PROMPT, buildDocToLandingPagePrompt } from '../prompts';
 import { BrandDna } from '../../../core/contracts';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { executeCloudAi, PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
 
 export interface DocumentOcrResult {
   title: string;
@@ -86,51 +87,32 @@ export class FunctionsApi {
       });
     }
 
-    const candidateModels = [
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
-      'gemini-3.8-flash-lite',
-      'gemini-3.5-flash-lite',
-    ];
+    try {
+      const aiRes = await executeCloudAi({
+        prompt: isBase64 ? 'Analyze this document image. Return only raw JSON.' : `Document Text Content:\n${imageBase64OrText}\n\nReturn only raw JSON.`,
+        systemInstruction: OCR_AND_EXTRACTION_SYSTEM_PROMPT,
+        model: 'gemini-3.8-flash',
+        imageParts: isBase64 ? [{ inlineData: { mimeType: mimeType || 'image/jpeg', data: cleanBase64 } }] : undefined,
+        responseMimeType: 'application/json',
+        apiKey: key,
+      });
 
-    let lastError = '';
-    for (const targetModel of candidateModels) {
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts }] }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-          const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-          try {
-            return JSON.parse(cleanedJson) as DocumentOcrResult;
-          } catch {
-            return {
-              title: 'מסמך סרוק',
-              summary: rawText.slice(0, 300),
-              keyPoints: [],
-              tablesOrItems: [],
-              extractedText: rawText,
-              tags: ['סריקה', 'מסמך'],
-            };
-          }
-        } else {
-          lastError = await response.text();
-        }
-      } catch (err: any) {
-        lastError = err?.message || String(err);
+      if (aiRes.success && aiRes.data) {
+        const parsed = typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data;
+        return parsed as DocumentOcrResult;
       }
+    } catch (err: any) {
+      console.warn('[analyzeDocumentWithGemini] AI error:', err);
     }
 
-    throw new Error(`שגיאה בסריקת מסמך: ${lastError}`);
+    return {
+      title: 'מסמך סרוק',
+      summary: 'עיבוד המסמך הסתיים',
+      keyPoints: [],
+      tablesOrItems: [],
+      extractedText: isBase64 ? '' : imageBase64OrText,
+      tags: ['סריקה', 'מסמך'],
+    };
   }
 
   /**
@@ -168,40 +150,25 @@ export class FunctionsApi {
       });
     }
 
-    const candidateModels = [
-      'gemini-3.8-flash',
-      'gemini-3.5-flash',
-      'gemini-3.8-flash-lite',
-      'gemini-3.5-flash-lite',
-    ];
+    try {
+      const aiRes = await executeCloudAi({
+        prompt: isBase64
+          ? `${prompt}\n\nTransform this uploaded visual document into a complete landing page JSON. Return valid JSON only.`
+          : `${prompt}\n\nDocument Content to transform into Landing Page:\n${contentOrBase64}\n\nReturn valid JSON only.`,
+        model: 'gemini-3.8-flash',
+        imageParts: isBase64 ? [{ inlineData: { mimeType: mimeType || 'image/jpeg', data: cleanBase64 } }] : undefined,
+        responseMimeType: 'application/json',
+        apiKey: key,
+      });
 
-    let lastError = '';
-    for (const targetModel of candidateModels) {
-      try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${key}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ contents: [{ parts }] }),
-          }
-        );
-
-        if (response.ok) {
-          const data = await response.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-          const cleanedJson = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
-
-          const parsed = JSON.parse(cleanedJson);
-          return parsed as GeneratedLandingPageData;
-        } else {
-          lastError = await response.text();
-        }
-      } catch (err: any) {
-        lastError = err?.message || String(err);
+      if (aiRes.success && aiRes.data) {
+        const parsed = typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data;
+        return parsed as GeneratedLandingPageData;
       }
+    } catch (err: any) {
+      console.warn('[generateLandingPageFromDocument] AI error:', err);
     }
 
-    throw new Error(`שגיאה ביצירת דף נחיתה מהמסמך: ${lastError}`);
+    throw new Error(PLEASANT_AI_ERROR_HEBREW);
   }
 }

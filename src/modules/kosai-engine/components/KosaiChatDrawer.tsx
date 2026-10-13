@@ -259,13 +259,18 @@ export const KosaiChatDrawer: React.FC = () => {
     const handleOpenSettingsEvent = (e: any) => {
       setShowSettings(true);
     };
+    const handleOpenChatEvent = () => {
+      setIsOpen(true);
+    };
     window.addEventListener('kosun_open_agents_backoffice', handleOpenSettingsEvent);
     window.addEventListener('kosun_open_kosai_settings', handleOpenSettingsEvent);
+    window.addEventListener('kosai_open_chat', handleOpenChatEvent);
     return () => {
       window.removeEventListener('kosun_open_agents_backoffice', handleOpenSettingsEvent);
       window.removeEventListener('kosun_open_kosai_settings', handleOpenSettingsEvent);
+      window.removeEventListener('kosai_open_chat', handleOpenChatEvent);
     };
-  }, []);
+  }, [setIsOpen]);
 
   const handleConfirmClear = async () => {
     if (window.confirm('האם אתה בטוח שברצונך לזרוק את השיחה הנוכחית לפח ולהתחיל מחדש?')) {

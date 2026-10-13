@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { WorkbenchApp } from '../../workbench/WorkbenchApp';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
@@ -12,9 +12,11 @@ import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost } 
 import { TenantScopeProvider } from './TenantScopeContext';
 import { TenantSubdomainView } from './TenantSubdomainView';
 import { RootPublicHomePageView } from '../../pages/RootPublicHomePageView';
+import { useLocation } from 'react-router-dom';
 import { Globe, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 
 export const TenantAppResolver: React.FC = () => {
+  const location = useLocation();
   const { db } = useSystemConnection();
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
@@ -54,6 +56,13 @@ export const TenantAppResolver: React.FC = () => {
   useEffect(() => {
     sessionStorage.setItem('kosun_is_dev_workbench', String(isDevWorkbench));
   }, [isDevWorkbench]);
+
+  useEffect(() => {
+    const cleanPath = location.pathname;
+    if (cleanPath !== '/' && cleanPath !== '' && cleanPath !== '/saas-storefront' && cleanPath !== '/store') {
+      setIsDevWorkbench(true);
+    }
+  }, [location.pathname]);
 
   // Load designated homepage for main domain root
   const loadRootHomePage = useCallback(async () => {

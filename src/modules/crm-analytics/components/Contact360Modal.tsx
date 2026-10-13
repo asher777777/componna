@@ -12,7 +12,8 @@ import {
   Save, 
   Target,
   FileText,
-  AlertTriangle
+  AlertTriangle,
+  Globe
 } from 'lucide-react';
 import { Contact, CustomField } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -24,6 +25,8 @@ import {
   EmailContract, 
   FormBuilderContract 
 } from '../../../core/contracts';
+import { ContactSubdomainTab } from './contact-modal/ContactSubdomainTab';
+import { tenantContactSyncService } from '../services/tenantContactSyncService';
 
 interface Props {
   isOpen: boolean;
@@ -31,6 +34,7 @@ interface Props {
   contact: Contact | null;
   onSave?: (updatedContact: Contact) => Promise<boolean>;
   customFields?: CustomField[];
+  firebaseApp?: any;
 }
 
 export type HakelAccordionSection = 
@@ -41,7 +45,8 @@ export type HakelAccordionSection =
   | 'recruitment' 
   | 'forms' 
   | 'whatsapp' 
-  | 'email';
+  | 'email'
+  | 'subdomain';
 
 export const Contact360Modal: React.FC<Props> = ({
   isOpen,
@@ -49,6 +54,7 @@ export const Contact360Modal: React.FC<Props> = ({
   contact,
   onSave,
   customFields = [],
+  firebaseApp,
 }) => {
   if (!isOpen || !contact) return null;
 
@@ -111,11 +117,34 @@ export const Contact360Modal: React.FC<Props> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
+      if (formData.subdomain && (formData.isSubdomainAdmin || formData.isUser)) {
+        try {
+          await tenantContactSyncService.updateTenantFromContact(
+            formData.subdomain,
+            {
+              subdomain: formData.subdomain,
+              fullDomain: formData.fullDomain || `${formData.subdomain}.kosun.co.il`,
+              clientName: formData.kosun_crm_name || formData.conta_name || formData.subdomain,
+              adminUsername: formData.adminUsername || `${formData.subdomain}_admin`,
+              adminPassword: formData.adminPassword,
+              activeModules: formData.activeModules,
+              status: formData.tenantStatus || 'active',
+              billingPlan: formData.billingPlan || 'monthly',
+              notes: formData.subdomainNotes,
+              ownerEmail: formData.kosun_crm_email || formData.email,
+              ownerPhone: formData.kosun_crm_phone || formData.conta_phone,
+            },
+            firebaseApp
+          );
+        } catch (syncErr) {
+          console.warn('[Contact360Modal] Tenant sync warning during save:', syncErr);
+        }
+      }
       if (onSave) {
         await onSave(formData);
       }
       setInitialContactData({ ...formData });
-      showNotification('השינויים נשמרו בהצלחה');
+      showNotification('השינויים נשמרו בהצלחה וסונכרנו עם הטננט');
       setTimeout(() => onClose(), 500);
     } catch (e: any) {
       showNotification(e?.message || 'שגיאה בשמירת פרטי איש הקשר');
@@ -883,6 +912,48 @@ export const Contact360Modal: React.FC<Props> = ({
                     </a>
                   )}
                 </div>
+              </div>
+            )}
+          </div>
+
+          {/* 9. סאב-דומיין ומשתמש מערכת (Subdomain & System User) */}
+          <div className={`w-full flex flex-col rounded-2xl border overflow-hidden transition-all ${
+            isDarkMode ? 'border-white/5 bg-[#141414]' : 'border-slate-200 bg-slate-50/70'
+          }`}>
+            <button
+              type="button"
+              onClick={() => toggleSection('subdomain')}
+              className={`w-full h-12 px-3.5 flex items-center justify-between font-bold text-xs cursor-pointer transition-all ${
+                isDarkMode ? 'text-white hover:bg-[#1a1a1a]' : 'text-slate-800 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2.5">
+                <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                  isDarkMode ? 'bg-amber-500/10 text-amber-400' : 'bg-amber-100 text-amber-800 shadow-sm'
+                }`}>
+                  <Globe className="w-3.5 h-3.5" />
+                </div>
+                <span className="font-bold">סאב-דומיין ומשתמש מערכת</span>
+                {formData.subdomain && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 font-mono font-bold mr-1">
+                    {formData.subdomain}
+                  </span>
+                )}
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${openSections['subdomain'] ? 'rotate-180' : ''}`} />
+            </button>
+            
+            {openSections['subdomain'] && (
+              <div className={`p-3.5 sm:p-4 border-t space-y-2.5 text-xs animate-fadeIn ${
+                isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
+              }`}>
+                <ContactSubdomainTab
+                  formData={formData}
+                  onChange={handleFieldChange}
+                  isDarkMode={isDarkMode}
+                  onNotify={showNotification}
+                  firebaseApp={firebaseApp}
+                />
               </div>
             )}
           </div>

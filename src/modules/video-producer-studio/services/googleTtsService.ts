@@ -422,14 +422,12 @@ export async function synthesizeGoogleSpeechAudio(
   // 1. First priority: Google Gemini Native Audio & Speech Generation
   if (geminiKey) {
     const geminiModels = [
-      'gemini-2.5-flash-preview-tts',
-      'gemini-3.1-flash-tts-preview',
-      'gemini-2.5-pro-preview-tts'
+      'gemini-3.1-flash-tts',
     ];
 
     for (const m of geminiModels) {
       try {
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+        const geminiEndpoint = '/api/ai/generate';
         const res = await fetch(geminiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -14,6 +14,152 @@ import {
 } from 'lucide-react';
 import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegistry';
 
+export interface CashwanDynamicMenuProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onOpenSettings?: () => void;
+  onEnterDevWorkbench?: () => void;
+}
+
+/**
+ * The official Cashwan Dynamic Menu component.
+ * Displays clean Hebrew module names without technical backend descriptions,
+ * with search and direct navigation.
+ */
+export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
+  isOpen,
+  onClose,
+  onOpenSettings,
+  onEnterDevWorkbench,
+}) => {
+  const [moduleSearchQuery, setModuleSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (!isOpen) {
+      setModuleSearchQuery('');
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const filteredModules = useMemo(() => {
+    if (!moduleSearchQuery.trim()) return REGISTERED_MODULES;
+    return REGISTERED_MODULES.filter((m: ModuleDefinition) =>
+      m.name.toLowerCase().includes(moduleSearchQuery.toLowerCase())
+    );
+  }, [moduleSearchQuery]);
+
+  const handleSelectModule = (route: string) => {
+    onClose();
+    if (onEnterDevWorkbench) onEnterDevWorkbench();
+    // Full URL transition guarantees loading the target module and switching out of root homepage
+    window.location.href = route;
+  };
+
+  return (
+    <div 
+      className="fixed inset-0 w-screen h-screen z-[100] bg-[#090a0f]/98 backdrop-blur-2xl p-6 sm:p-10 flex flex-col justify-start items-center overflow-y-auto animate-in fade-in duration-200" 
+      dir="rtl"
+      style={{ fontFamily: 'Heebo, sans-serif' }}
+    >
+      {/* Header Bar */}
+      <div className="max-w-xl w-full flex items-center justify-between pb-5 border-b border-slate-800">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+            <LayoutGrid className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-lg font-black text-white">רכיבי מערכת קושאן</h2>
+            <span className="text-xs text-slate-400">מעבר מהיר לרכיבים והגדרות</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="p-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
+          title="סגירה (Esc)"
+          aria-label="סגירה"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Search Bar */}
+      <div className="max-w-xl w-full mt-6">
+        <div className="relative">
+          <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            value={moduleSearchQuery}
+            onChange={(e) => setModuleSearchQuery(e.target.value)}
+            placeholder="חיפוש רכיב..."
+            className="w-full pl-4 pr-11 py-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-500 transition font-bold"
+            autoFocus
+          />
+        </div>
+      </div>
+
+      {/* Vertical Stack: Row under Row, Clean Names Only */}
+      <div className="max-w-xl w-full flex flex-col gap-2.5 py-6">
+        {/* SEO & Promotion Modal Action Item */}
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenSettings();
+            }}
+            className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-indigo-950/70 to-purple-950/50 hover:from-indigo-900/80 hover:to-purple-900/60 border border-indigo-500/40 text-right transition-all group cursor-pointer shadow-lg shadow-indigo-950/30"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-500/30">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+              </div>
+              <span className="font-bold text-sm text-white group-hover:text-indigo-200 transition-colors">
+                קידום ו-SEO (גוגל, בינה מלאכותית ואנליטיקס)
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 group-hover:translate-x-[-4px] transition-transform">
+              <span>פתח הגדרות</span>
+              <ArrowLeft className="w-4 h-4" />
+            </div>
+          </button>
+        )}
+
+        {/* Modules List - Single column row under row, clean name only without backend descriptions */}
+        {filteredModules.map((module: ModuleDefinition) => (
+          <button
+            key={module.id}
+            type="button"
+            onClick={() => handleSelectModule(module.route)}
+            className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-indigo-500/40 text-right transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-slate-800 text-slate-300 group-hover:text-indigo-400 group-hover:bg-indigo-600/10 flex items-center justify-center transition-colors">
+                <LayoutGrid className="w-4 h-4" />
+              </div>
+              <span className="font-bold text-sm text-white group-hover:text-indigo-300 transition-colors">
+                {module.name.split('-')[0].trim()}
+              </span>
+            </div>
+            <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-[-4px] transition-all" />
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 interface FloatingSystemDockProps {
   editPageUrl?: string;
   isEditing?: boolean;
@@ -34,10 +180,7 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
   className = '',
 }) => {
   const navigate = useNavigate();
-
   const [isModulesMenuOpen, setIsModulesMenuOpen] = useState(false);
-  const [moduleSearchQuery, setModuleSearchQuery] = useState('');
-  // By default per Cashwan branding standard, the dock is minimized to an elegant floating icon button
   const [isDockExpanded, setIsDockExpanded] = useState(false);
 
   // Day / Night Theme (Light is default per Cashwan standard)
@@ -67,13 +210,6 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
     }
     window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
   };
-
-  const filteredModules = useMemo(() => {
-    if (!moduleSearchQuery.trim()) return REGISTERED_MODULES;
-    return REGISTERED_MODULES.filter((m: ModuleDefinition) =>
-      m.name.toLowerCase().includes(moduleSearchQuery.toLowerCase())
-    );
-  }, [moduleSearchQuery]);
 
   return (
     <>
@@ -175,98 +311,13 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
         </nav>
       )}
 
-      {/* 100% Full-Screen Components & SEO Menu (Cashwan Branding Standard) */}
-      {isModulesMenuOpen && (
-        <div className="fixed inset-0 w-screen h-screen z-50 bg-[#090a0f]/98 backdrop-blur-2xl p-6 sm:p-10 flex flex-col justify-start items-center overflow-y-auto animate-in fade-in duration-200" dir="rtl">
-          {/* Header Bar */}
-          <div className="max-w-xl w-full flex items-center justify-between pb-5 border-b border-slate-800">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
-                <LayoutGrid className="w-5 h-5" />
-              </div>
-              <div>
-                <h2 className="text-lg font-black text-white">רכיבי מערכת קושאן</h2>
-                <span className="text-xs text-slate-400">מעבר מהיר לרכיבים והגדרות</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsModulesMenuOpen(false)}
-              className="p-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 hover:text-white transition cursor-pointer"
-              title="סגירה"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* Search Bar */}
-          <div className="max-w-xl w-full mt-6">
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={moduleSearchQuery}
-                onChange={(e) => setModuleSearchQuery(e.target.value)}
-                placeholder="חיפוש רכיב..."
-                className="w-full pl-4 pr-11 py-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-xs text-white placeholder:text-slate-500 outline-none focus:border-indigo-500 transition font-bold"
-                autoFocus
-              />
-            </div>
-          </div>
-
-          {/* Vertical Stack: Row under Row, Clean Names Only */}
-          <div className="max-w-xl w-full flex flex-col gap-2.5 py-6">
-            {/* SEO & Promotion Modal Action Item */}
-            {onOpenSettings && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsModulesMenuOpen(false);
-                  onOpenSettings();
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-indigo-950/70 to-purple-950/50 hover:from-indigo-900/80 hover:to-purple-900/60 border border-indigo-500/40 text-right transition-all group cursor-pointer shadow-lg shadow-indigo-950/30"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-500/30">
-                    <Sparkles className="w-4 h-4 text-indigo-400" />
-                  </div>
-                  <span className="font-bold text-sm text-white group-hover:text-indigo-200 transition-colors">
-                    קידום ו-SEO (גוגל, בינה מלאכותית ואנליטיקס)
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 group-hover:translate-x-[-4px] transition-transform">
-                  <span>פתח הגדרות</span>
-                  <ArrowLeft className="w-4 h-4" />
-                </div>
-              </button>
-            )}
-
-            {/* Modules List - Single column row under row, clean name only */}
-            {filteredModules.map((module: ModuleDefinition) => (
-              <button
-                key={module.id}
-                type="button"
-                onClick={() => {
-                  setIsModulesMenuOpen(false);
-                  if (onEnterDevWorkbench) onEnterDevWorkbench();
-                  navigate(module.route);
-                }}
-                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-indigo-500/40 text-right transition-all group cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-slate-800 text-slate-300 group-hover:text-indigo-400 group-hover:bg-indigo-600/10 flex items-center justify-center transition-colors">
-                    <LayoutGrid className="w-4 h-4" />
-                  </div>
-                  <span className="font-bold text-sm text-white group-hover:text-indigo-300 transition-colors">
-                    {module.name.split('-')[0].trim()}
-                  </span>
-                </div>
-                <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-[-4px] transition-all" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Official Cashwan Dynamic Menu */}
+      <CashwanDynamicMenu
+        isOpen={isModulesMenuOpen}
+        onClose={() => setIsModulesMenuOpen(false)}
+        onOpenSettings={onOpenSettings}
+        onEnterDevWorkbench={onEnterDevWorkbench}
+      />
     </>
   );
 };

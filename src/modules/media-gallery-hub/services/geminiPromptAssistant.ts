@@ -4,6 +4,7 @@
  * and automatically encodes descriptive Hebrew titles, rich descriptions, and semantic tags.
  */
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { executeCloudAi } from '../../../core/ai';
 
 export interface PromptStylePreset {
   id: string;
@@ -211,42 +212,29 @@ Rules:
     const userMessage = `User Input Prompt: "${cleanInput}"
 Selected Style Preset: ${preset ? preset.nameEn + ' (' + preset.promptSuffix + ')' : 'None (Choose best matching style)'}`;
 
-    for (const targetModel of candidateModels) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: userMessage }] }],
-              systemInstruction: { parts: [{ text: systemInstruction }] },
-              generationConfig: {
-                temperature: 0.4,
-                responseMimeType: 'application/json',
-              },
-            }),
-          }
-        );
+    try {
+      const aiRes = await executeCloudAi({
+        prompt: userMessage,
+        systemInstruction,
+        model: 'gemini-3.8-flash',
+        temperature: 0.4,
+        responseMimeType: 'application/json',
+        apiKey: effectiveKey,
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            if (parsed.enhancedPromptEn) {
-              return {
-                originalPrompt: cleanInput,
-                enhancedPromptEn: parsed.enhancedPromptEn,
-                explanationHe: parsed.explanationHe || 'הפרומפט שודרג לפרומפט קולנועי מפורט באנגלית.',
-                suggestedPresetId: selectedPresetId,
-              };
-            }
-          }
+      if (aiRes.success && aiRes.data) {
+        const parsed = typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data;
+        if (parsed.enhancedPromptEn) {
+          return {
+            originalPrompt: cleanInput,
+            enhancedPromptEn: parsed.enhancedPromptEn,
+            explanationHe: parsed.explanationHe || 'הפרומפט שודרג לפרומפט קולנועי מפורט באנגלית.',
+            suggestedPresetId: selectedPresetId,
+          };
         }
-      } catch (e) {
-        console.warn(`[Gemini Prompt Assistant ${targetModel} notice]:`, e);
       }
+    } catch (e) {
+      console.warn('[Gemini Prompt Assistant Cloud AI notice]:', e);
     }
   }
 
@@ -295,43 +283,30 @@ Return ONLY valid JSON in this exact structure:
   "tags": ["תגית1", "תגית2", "תגית3", "תגית4", "gemini_ai", "banana_pro"]
 }`;
 
-    for (const targetModel of candidateModels) {
-      try {
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: {
-                temperature: 0.3,
-                responseMimeType: 'application/json',
-              },
-            }),
-          }
-        );
+    try {
+      const aiRes = await executeCloudAi({
+        prompt,
+        model: 'gemini-3.8-flash',
+        temperature: 0.3,
+        responseMimeType: 'application/json',
+        apiKey: effectiveKey,
+      });
 
-        if (res.ok) {
-          const data = await res.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            let title = (parsed.title || '').trim();
-            if (title && !title.includes('.')) {
-              title = `${title}.png`;
-            }
-
-            return {
-              title: title || `${cleanTitleFallback(userPrompt)}.png`,
-              description: parsed.description || `תמונה שנוצרה ב-AI על פי הפרומפט: ${userPrompt}`,
-              tags: Array.isArray(parsed.tags) ? parsed.tags : ['gemini_ai', 'ai_generated', 'banana_pro'],
-            };
-          }
+      if (aiRes.success && aiRes.data) {
+        const parsed = typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data;
+        let title = (parsed.title || '').trim();
+        if (title && !title.includes('.')) {
+          title = `${title}.png`;
         }
-      } catch (err) {
-        console.warn(`[Gemini Metadata Encoder ${targetModel} notice]:`, err);
+
+        return {
+          title: title || `${cleanTitleFallback(userPrompt)}.png`,
+          description: parsed.description || `תמונה שנוצרה ב-AI על פי הפרומפט: ${userPrompt}`,
+          tags: Array.isArray(parsed.tags) ? parsed.tags : ['gemini_ai', 'ai_generated', 'banana_pro'],
+        };
       }
+    } catch (err) {
+      console.warn('[Gemini Metadata Encoder Cloud AI notice]:', err);
     }
   }
 

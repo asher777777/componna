@@ -20,8 +20,8 @@ export async function generateVeoSceneVideo(
   const durationSec = params.durationSeconds || 6;
   const prompt = params.prompt.trim();
 
-  // Call Google Veo / Generative Video endpoint
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/veo-2.0-generate-001:predict?key=${apiKey.trim()}`;
+  // Call Veo / Generative Video via Cloud AI proxy
+  const endpoint = '/api/ai/predict';
 
   try {
     const res = await fetch(endpoint, {

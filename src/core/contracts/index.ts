@@ -270,7 +270,50 @@ export interface CrmContactSummary {
   tg1?: string; // ת.ז. / ח.פ.
   total_spent?: number;
   order_count?: number;
+  // Subdomain / Multi-Tenant User fields
+  isUser?: boolean;
+  isSubdomainAdmin?: boolean;
+  subdomain?: string;
+  adminUsername?: string;
   [key: string]: any;
+}
+
+// ==========================================
+// Subdomain Tenant & User Contact Contract (חוזה איש קשר סאב-דומיין ומשתמש מערכת)
+// ==========================================
+
+export interface SubdomainTenantContactData {
+  subdomain: string;
+  fullDomain: string;
+  clientName: string;
+  adminUsername: string;
+  adminPassword?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  activeModules: string[];
+  status: 'active' | 'suspended' | 'draft';
+  billingPlan?: 'monthly' | 'annual' | 'custom';
+  monthlyTotal?: number;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SubdomainTenantContactContract {
+  /**
+   * Synchronize tenant record to CRM master contact
+   */
+  syncTenantToContact: (tenant: SubdomainTenantContactData) => Promise<string>;
+
+  /**
+   * Update tenant record from CRM contact edit in master
+   */
+  updateTenantFromContact: (subdomain: string, updates: Partial<SubdomainTenantContactData>) => Promise<boolean>;
+
+  /**
+   * Retrieve tenant record by subdomain
+   */
+  getTenantBySubdomain?: (subdomain: string) => Promise<SubdomainTenantContactData | null>;
 }
 
 // ========================
@@ -316,6 +359,9 @@ export interface CoreEventMap {
     submittedAt: string;
   };
   'crm:contact:updated': { id: string; conta_name?: string; email?: string; [key: string]: any };
+  'tenant:provisioned': SubdomainTenantContactData;
+  'tenant:updated': SubdomainTenantContactData;
+  'tenant:contact_synced': { subdomain: string; contactId: string };
   'payment:completed': {
     transactionId: string;
     amount: number;

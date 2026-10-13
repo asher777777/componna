@@ -554,6 +554,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
         contact={selectedContact}
         onSave={handleSaveContact}
         customFields={data?.customFields || []}
+        firebaseApp={firebaseApp}
       />
 
       {/* Database Connector Hub Modal */}

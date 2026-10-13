@@ -580,13 +580,35 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
                                       onClick={() => onSelectContact?.(contact)}
                                       className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5"
                                     >
-                                      {isLead ? (
+                                      {contact.subdomain || contact.isSubdomainAdmin ? (
+                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold" title={`סאב-דומיין: ${contact.subdomain}`}>
+                                          🌐 טננט
+                                        </span>
+                                      ) : isLead ? (
                                         <span className="w-2 h-2 rounded-full bg-amber-500" title="ליד חדש" />
                                       ) : (
                                         <span className="w-2 h-2 rounded-full bg-indigo-500" title="איש קשר" />
                                       )}
                                       <span>{val || 'ללא שם'}</span>
                                     </button>
+                                  ) : col.id === 'subdomain' ? (
+                                    val ? (
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                                        🌐 {val}
+                                      </span>
+                                    ) : (
+                                      <span className="text-gray-400">-</span>
+                                    )
+                                  ) : col.id === 'adminUsername' ? (
+                                    <span className="font-mono text-xs text-zinc-600 dark:text-zinc-300">{val || '-'}</span>
+                                  ) : col.id === 'tenantStatus' ? (
+                                    val === 'active' ? (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30">פעיל</span>
+                                    ) : val === 'suspended' ? (
+                                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">מושהה</span>
+                                    ) : (
+                                      <span className="text-gray-400">{val || '-'}</span>
+                                    )
                                   ) : col.id === 'conta_phone' ? (
                                     <div className="flex items-center gap-1.5">
                                       <span dir="ltr" className="font-mono">{val || '-'}</span>

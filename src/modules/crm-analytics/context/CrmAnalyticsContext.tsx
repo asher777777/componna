@@ -27,6 +27,7 @@ import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { LeadCaptureContract, LeadPayload, SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { useTenantScope } from '../../../core/tenant';
+import { tenantContactSyncService } from '../services/tenantContactSyncService';
 
 interface CrmAnalyticsContextValue {
   data: CRMAnalyticsData | null;
@@ -177,6 +178,25 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       refresh();
     });
 
+    const unsubTenantProvisioned = eventBus.subscribe('tenant:provisioned', async (tenant) => {
+      console.log('[CRM Analytics] Received tenant provisioned event:', tenant);
+      await tenantContactSyncService.syncTenantToContact(tenant, firebaseApp);
+      refresh();
+    });
+
+    const unsubTenantUpdated = eventBus.subscribe('tenant:updated', async (tenant) => {
+      console.log('[CRM Analytics] Received tenant updated event:', tenant);
+      await tenantContactSyncService.syncTenantToContact(tenant, firebaseApp);
+      refresh();
+    });
+
+    // In master scope, ensure all provisioned subdomains are synced to CRM
+    if (tenantId === '_master' || !tenantId) {
+      tenantContactSyncService.ensureAllTenantsSyncedToCrm(firebaseApp).then((count) => {
+        if (count > 0) refresh();
+      });
+    }
+
     return () => {
       unsubLead();
       unsubForm();
@@ -185,8 +205,10 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       unsubPayment();
       unsubContactUpdated();
       unsubAmbassador();
+      unsubTenantProvisioned();
+      unsubTenantUpdated();
     };
-  }, [refresh]);
+  }, [refresh, tenantId, firebaseApp]);
 
   // Merge core columns with custom fields from dataset
   const availableColumns: DynamicColumn[] = React.useMemo(() => {

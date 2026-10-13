@@ -123,12 +123,24 @@ export interface Contact {
   last_form_page?: string;
   last_form_submission_date?: string;
   
-  // Community Fields
+  // Community & System User Fields
   community?: string;
   mh_crm_community?: string;
   communityIds?: string[];
   isUser?: boolean;
   systemUserId?: string;
+
+  // Subdomain & Multi-Tenant User Fields (איש קשר סאב-דומיין ומשתמש מערכת)
+  isSubdomainAdmin?: boolean;
+  subdomain?: string;
+  fullDomain?: string;
+  adminUsername?: string;
+  adminPassword?: string;
+  activeModules?: string[];
+  tenantStatus?: 'active' | 'suspended' | 'draft';
+  billingPlan?: 'monthly' | 'annual' | 'custom';
+  monthlyTotal?: number;
+  subdomainNotes?: string;
 
   // WooCommerce Summary Fields
   total_spent?: number;

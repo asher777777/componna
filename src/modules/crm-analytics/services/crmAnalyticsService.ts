@@ -844,8 +844,8 @@ export async function updateContactField(
       updatedAt: new Date().toISOString(),
     });
 
-    // Dual compatibility: mirror to root contacts if scoped collection is different
-    if (collections.contacts !== 'contacts') {
+    // Dual compatibility: mirror to root contacts only if scoped collection is _master
+    if (collections.contacts !== 'contacts' && collections.contacts.includes('/_master/')) {
       try {
         const rootRef = doc(db, 'contacts', contactId);
         await updateDoc(rootRef, {
@@ -1066,8 +1066,8 @@ export async function mergeDuplicateContactsInDb(
       updatedAt: new Date().toISOString(),
     });
 
-    // If scoped path, mirror canonical update to root
-    if (collections.contacts !== 'contacts') {
+    // If scoped path is _master, mirror canonical update to root
+    if (collections.contacts !== 'contacts' && collections.contacts.includes('/_master/')) {
       try {
         await updateDoc(doc(db, 'contacts', canonical.id), {
           conta_name: bestName || canonical.data.conta_name,

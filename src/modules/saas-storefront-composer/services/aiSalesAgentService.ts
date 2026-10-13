@@ -1,5 +1,6 @@
-﻿import { AiSalesOptimizationInput, AiSalesOptimizationResult } from '../types';
+import { AiSalesOptimizationInput, AiSalesOptimizationResult } from '../types';
 import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
+import { executeCloudAi } from '../../../core/ai';
 
 export class AiSalesAgentService {
   /**
@@ -75,31 +76,22 @@ export class AiSalesAgentService {
 
     if (apiKey && apiKey.length > 10) {
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { responseMimeType: 'application/json' },
-            }),
-          }
-        );
+        const aiRes = await executeCloudAi({
+          prompt,
+          model: 'gemini-3.8-flash',
+          responseMimeType: 'application/json',
+          apiKey,
+        });
 
-        if (response.ok) {
-          const data = await response.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) {
-            const parsed = JSON.parse(rawText);
-            return {
-              ...parsed,
-              generatedAt: new Date().toISOString(),
-            };
-          }
+        if (aiRes.success && aiRes.data) {
+          const parsed = typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : aiRes.data;
+          return {
+            ...parsed,
+            generatedAt: new Date().toISOString(),
+          };
         }
       } catch (err) {
-        console.warn('[AiSalesAgentService] Gemini API call error, falling back to smart heuristic:', err);
+        console.warn('[AiSalesAgentService] Cloud AI proposal error, falling back to smart heuristic:', err);
       }
     }
 
@@ -228,21 +220,14 @@ export class AiSalesAgentService {
 
     if (apiKey && apiKey.length > 10) {
       try {
-        const response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-            }),
-          }
-        );
+        const aiRes = await executeCloudAi({
+          prompt,
+          model: 'gemini-3.8-flash',
+          apiKey,
+        });
 
-        if (response.ok) {
-          const data = await response.json();
-          const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-          if (rawText) return rawText.trim();
+        if (aiRes.success && aiRes.text) {
+          return aiRes.text.trim();
         }
       } catch (e) {
         console.warn('[AiSalesAgentService] Copilot chat error:', e);

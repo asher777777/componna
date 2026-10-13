@@ -26,23 +26,48 @@ import {
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../../../workbench/moduleRegistry';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 
 export const FloatingKosaiButton: React.FC = () => {
+  const { firebaseApp } = useSystemConnection();
+  const [authState, setAuthState] = useState<AuthState | null>(null);
   const { isOpen, setIsOpen, activeRoleMode, activeModule } = useKosai();
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, (state) => {
+      setAuthState(state);
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  const isAllowedEditor = Boolean(
+    authState &&
+    authState.isAuthenticated &&
+    !authState.isAnonymous &&
+    (authState.role === 'admin' || authState.role === 'editor')
+  );
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Detect whether we are on the frontend / website / page builder
+  // Detect whether we are on the frontend / website / page builder area
   const isFront =
     location.pathname === '/' ||
     location.pathname === '' ||
     location.pathname.startsWith('/p/') ||
     location.pathname.startsWith('/to/') ||
     location.pathname.startsWith('/page/') ||
-    location.pathname.startsWith('/preview/') ||
-    location.pathname.startsWith('/KosWebAi');
+    location.pathname.startsWith('/preview') ||
+    location.pathname.startsWith('/builder') ||
+    location.pathname.toLowerCase().startsWith('/koswebai') ||
+    location.hash.includes('/p/') ||
+    location.hash.includes('/page/') ||
+    location.hash.includes('/preview') ||
+    location.hash.includes('preview') ||
+    location.search.includes('pageId=');
 
   // Day / Night mode handling (Day is strict default per Cashwan constitution)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -340,6 +365,11 @@ export const FloatingKosaiButton: React.FC = () => {
 
   // If chat is already open, do not render dock
   if (isOpen) return null;
+
+  // The control center floating menu button must NEVER appear on the website or page builder area
+  if (isFront) {
+    return null;
+  }
 
   return (
     <div 

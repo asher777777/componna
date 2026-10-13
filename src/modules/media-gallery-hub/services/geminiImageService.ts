@@ -142,19 +142,14 @@ export async function generateGeminiImage(
   if (effectiveKey) {
     // A. Imagen 3 predict endpoint
     if (model === 'imagen-3.0-generate-002') {
-      const imagenEndpoints = [
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`,
-        `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${effectiveKey}`,
-      ];
+      const endpoint = '/api/ai/predict';
 
-      for (const endpoint of imagenEndpoints) {
-        try {
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'x-goog-api-key': effectiveKey,
-            },
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
             body: JSON.stringify({
               instances: [{ prompt: englishPrompt }],
               parameters: {
@@ -191,7 +186,6 @@ export async function generateGeminiImage(
         } catch (err) {
           console.warn('[Imagen 3 predict call notice]:', err);
         }
-      }
     }
 
     // B. Gemini generateContent endpoints with image modality (2026 models only)
@@ -216,19 +210,19 @@ export async function generateGeminiImage(
         }
         parts.push({ text: englishPrompt });
 
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: {
-                responseModalities: ['IMAGE', 'TEXT'],
-              },
-            }),
-          }
-        );
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts }],
+            model: targetModel,
+            generationConfig: {
+              responseModalities: ['IMAGE', 'TEXT'],
+            },
+          }),
+        }).catch(() => null);
+
+        if (!res) continue;
 
         if (res.ok) {
           const data = await res.json();

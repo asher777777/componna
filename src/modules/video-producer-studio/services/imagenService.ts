@@ -100,19 +100,19 @@ export async function generateImagen3Image(
         }
         parts.push({ text: cleanPrompt });
 
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${trimmedKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: {
-                responseModalities: ['IMAGE', 'TEXT']
-              }
-            })
-          }
-        );
+        const res = await fetch('/api/ai/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts }],
+            model: modelName,
+            generationConfig: {
+              responseModalities: ['IMAGE', 'TEXT']
+            }
+          })
+        }).catch(() => null);
+
+        if (!res) continue;
 
         if (res.ok) {
           const data = await res.json();
@@ -132,48 +132,42 @@ export async function generateImagen3Image(
       }
     }
 
-    // B. Try Google Imagen 3 predict endpoints
-    const imagenEndpoints = [
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${trimmedKey}`,
-      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-001:predict?key=${trimmedKey}`
-    ];
+    // B. Try Google Imagen predict via Cloud AI
+    const endpoint = '/api/ai/predict';
 
-    for (const endpoint of imagenEndpoints) {
-      try {
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-goog-api-key': trimmedKey
-          },
-          body: JSON.stringify({
-            instances: [
-              { prompt: cleanPrompt }
-            ],
-            parameters: {
-              sampleCount: 1,
-              aspectRatio: aspectRatio,
-              personGeneration: 'ALLOW_ADULT',
-              outputMimeType: 'image/jpeg'
-            }
-          })
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
-          const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
-          if (b64) {
-            return {
-              imageUrl: `data:${mime};base64,${b64}`,
-              base64Data: b64,
-              mimeType: mime
-            };
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          instances: [
+            { prompt: cleanPrompt }
+          ],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: aspectRatio,
+            personGeneration: 'ALLOW_ADULT',
+            outputMimeType: 'image/jpeg'
           }
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
+        const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
+        if (b64) {
+          return {
+            imageUrl: `data:${mime};base64,${b64}`,
+            base64Data: b64,
+            mimeType: mime
+          };
         }
-      } catch (err) {
-        console.warn(`[Google Imagen 3 direct call notice]`, err);
       }
+    } catch (err) {
+      console.warn('[Google Imagen predict call notice]', err);
     }
   }
 
