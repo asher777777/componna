@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HeaderSectionConfig } from '../../types/sectionConfigs';
 import { useBrandDna } from '../../../KosBranding/hooks/useBrandDna';
 import { useTenantScope } from '../../../../core/tenant';
@@ -427,7 +427,11 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
 
       {/* Auth Modal */}
       {isAuthModalOpen && (
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          firebaseApp={firebaseApp}
+        />
       )}
     </>
   );

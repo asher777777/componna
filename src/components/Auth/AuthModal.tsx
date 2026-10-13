@@ -34,6 +34,9 @@ import {
   formatAuthError,
   subscribeToAuth,
 } from '../../services/firebaseAuth';
+import { getFirestore } from 'firebase/firestore';
+import { extractSubdomainFromHost } from '../../core/tenant/tenantResolver';
+import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -103,7 +106,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email || !password) {
-      setErrorMsg('נא למלא אימייל וסיסמה');
+      setErrorMsg('נא למלא שם משתמש וסיסמה');
       return;
     }
 
@@ -111,6 +114,36 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    // 1. If on a custom tenant subdomain, verify against tenant credentials
+    const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+    const activeSub = extractSubdomainFromHost(currentHost);
+    if (activeSub && activeSub !== '_master') {
+      try {
+        const db = firebaseApp ? getFirestore(firebaseApp) : undefined;
+        const tenantRes = await TenantAuthService.verifyTenantLogin(
+          db,
+          activeSub,
+          email,
+          password
+        );
+        if (tenantRes.success) {
+          setSuccessMsg('התחברת בהצלחה כמנהל המערכת!');
+          setTimeout(() => {
+            onClose();
+            const url = new URL(window.location.href);
+            url.searchParams.set('admin', 'true');
+            window.location.href = url.toString();
+          }, 500);
+          return;
+        } else {
+          console.warn('[AuthModal] Tenant auth check:', tenantRes.error);
+        }
+      } catch (tErr) {
+        console.warn('[AuthModal] Tenant admin verification warning:', tErr);
+      }
+    }
+
+    // 2. Firebase Auth login fallback
     try {
       const loggedUser = await loginWithEmail(email, password, firebaseApp);
       setSuccessMsg('התחברת בהצלחה למערכת!');
@@ -119,7 +152,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }, 700);
     } catch (err: any) {
-      setErrorMsg(formatAuthError(err));
+      if (activeSub && activeSub !== '_master') {
+        setErrorMsg('שם משתמש או סיסמה שגויים עבור מנהל הסאב-דומיין');
+      } else {
+        setErrorMsg(formatAuthError(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -343,16 +380,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <form onSubmit={handleEmailLogin} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <Mail className="w-3.5 h-3.5 text-amber-400" />
-                  כתובת אימייל
+                  <UserIcon className="w-3.5 h-3.5 text-amber-400" />
+                  שם משתמש או אימייל
                 </label>
                 <input
-                  type="email"
+                  type="text"
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
+                  placeholder="שם משתמש או כתובת אימייל"
                   className="w-full bg-slate-950 border border-slate-700/80 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition"
+                  dir="ltr"
                 />
               </div>
 

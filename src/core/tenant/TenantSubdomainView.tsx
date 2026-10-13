@@ -487,46 +487,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   // 2. PUBLIC MODE (Visitor Landing Page - Default View for All Subdomains)
   return (
-    <div className="min-h-screen flex flex-col bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
-      {/* Discreet Subdomain Bar with Owner Login Button */}
-      <div className="bg-slate-950/90 backdrop-blur-md text-white px-4 py-2 text-xs flex items-center justify-between border-b border-slate-800/80 sticky top-0 z-50">
-        <div className="flex items-center gap-2">
-          <Globe className="w-4 h-4 text-indigo-400" />
-          <span className="font-bold text-slate-200">{tenantRecord.clientName}</span>
-          <span className="font-mono text-indigo-300 bg-slate-900 px-2 py-0.5 rounded text-[11px] border border-slate-800">
-            {tenantRecord.fullDomain}
-          </span>
-        </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              const kosaiBtn = document.querySelector('button[aria-label="סוכן AI לעריכה"]') as HTMLButtonElement;
-              if (kosaiBtn) {
-                kosaiBtn.click();
-              } else {
-                window.dispatchEvent(new CustomEvent('kosai:open_chat'));
-              }
-            }}
-            className="flex items-center gap-1.5 text-[11px] bg-gradient-to-r from-indigo-600/30 to-purple-600/30 hover:from-indigo-600/50 hover:to-purple-600/50 text-indigo-300 border border-indigo-500/40 px-3 py-1.5 rounded-lg font-bold transition shadow-sm cursor-pointer"
-            title="עריכת העמוד באמצעות סוכן ה-AI (KOSAI)"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span className="hidden sm:inline">עריכה באמצעות KOSAI AI</span>
-          </button>
-
-          <button
-            onClick={() => setMode('admin')}
-            className="flex items-center gap-1.5 text-[11px] bg-indigo-600/90 hover:bg-indigo-600 text-white font-bold px-3 py-1.5 rounded-lg transition shadow-md shadow-indigo-600/20 cursor-pointer"
-            title="כניסה לעריכת עמוד הבית וניהול הרכיבים"
-          >
-            <Lock className="w-3.5 h-3.5 text-indigo-200" />
-            <span>לוח בקרה / ניהול אתר</span>
-          </button>
-        </div>
-      </div>
-
+    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
       {/* Main Page Builder Stream for Visitors */}
       <div className="flex-1">
         {homePageConfig ? (

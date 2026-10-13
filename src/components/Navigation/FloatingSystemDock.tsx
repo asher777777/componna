@@ -50,14 +50,15 @@ export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  if (!isOpen) return null;
-
   const filteredModules = useMemo(() => {
+    if (!isOpen) return [];
     if (!moduleSearchQuery.trim()) return REGISTERED_MODULES;
     return REGISTERED_MODULES.filter((m: ModuleDefinition) =>
       m.name.toLowerCase().includes(moduleSearchQuery.toLowerCase())
     );
-  }, [moduleSearchQuery]);
+  }, [moduleSearchQuery, isOpen]);
+
+  if (!isOpen) return null;
 
   const handleSelectModule = (route: string) => {
     onClose();
