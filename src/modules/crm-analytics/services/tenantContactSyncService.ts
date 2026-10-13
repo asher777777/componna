@@ -1,5 +1,6 @@
-import { FirebaseApp } from 'firebase/app';
+import { FirebaseApp, getApps } from 'firebase/app';
 import {
+  Firestore,
   getFirestore,
   collection,
   query,
@@ -14,7 +15,31 @@ import { SubdomainTenantContactData, SubdomainTenantContactContract } from '../.
 import { Contact } from '../types';
 import { eventBus } from '../../../core/bridge/EventBus';
 
-const TENANTS_STORAGE_KEY = 'kosun_tenant_accounts';
+const TENANTS_STORAGE_KEYS = [
+  'kosun_provisioned_tenants_registry_v1',
+  'kosun_tenant_accounts',
+  'saas_provisioned_tenants_registry',
+];
+
+function resolveDb(firebaseAppOrDb?: FirebaseApp | Firestore): Firestore | undefined {
+  if (!firebaseAppOrDb) {
+    if (typeof window !== 'undefined') {
+      try {
+        const apps = getApps();
+        if (apps.length > 0) return getFirestore(apps[0]);
+      } catch {}
+    }
+    return undefined;
+  }
+  if ('type' in firebaseAppOrDb && (firebaseAppOrDb as any).type === 'firestore') {
+    return firebaseAppOrDb as Firestore;
+  }
+  try {
+    return getFirestore(firebaseAppOrDb as FirebaseApp);
+  } catch {
+    return undefined;
+  }
+}
 
 export class TenantContactSyncService implements SubdomainTenantContactContract {
   /**
@@ -22,11 +47,13 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
    */
   async syncTenantToContact(
     tenant: SubdomainTenantContactData,
-    firebaseApp?: FirebaseApp
+    firebaseAppOrDb?: FirebaseApp | Firestore
   ): Promise<string> {
-    const cleanSub = tenant.subdomain.trim().toLowerCase();
+    const cleanSub = (tenant.subdomain || '').trim().toLowerCase();
+    if (!cleanSub || cleanSub === '_master' || cleanSub === 'www') return '';
+
     const contactName = tenant.clientName || `טננט ${cleanSub}`;
-    const email = tenant.ownerEmail || `${cleanSub}@kosun.co.il`;
+    const email = tenant.ownerEmail || tenant.adminUsername || `${cleanSub}@kosun.pro`;
     const phone = tenant.ownerPhone || '';
 
     const contactPayload: Partial<Contact> = {
@@ -35,15 +62,15 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
       isUser: true,
       isSubdomainAdmin: true,
       subdomain: cleanSub,
-      fullDomain: tenant.fullDomain,
-      adminUsername: tenant.adminUsername,
+      fullDomain: tenant.fullDomain || `${cleanSub}.kosun.pro`,
+      adminUsername: tenant.adminUsername || email,
       adminPassword: tenant.adminPassword,
       activeModules: tenant.activeModules || [],
       tenantStatus: tenant.status || 'active',
       billingPlan: tenant.billingPlan || 'monthly',
       monthlyTotal: tenant.monthlyTotal || 0,
       subdomainNotes: tenant.notes || '',
-      company_name: tenant.clientName,
+      company_name: tenant.clientName || `עסק ${cleanSub}`,
       job_title: 'מנהל סאב-דומיין (טננט)',
       conta_name: contactName,
       kosun_crm_name: contactName,
@@ -55,43 +82,53 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
       tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', cleanSub],
     };
 
-    if (!firebaseApp) {
+    // Keep all local storage registries synced
+    if (typeof window !== 'undefined') {
+      TENANTS_STORAGE_KEYS.forEach((key) => {
+        try {
+          const raw = localStorage.getItem(key);
+          let list: any[] = raw ? JSON.parse(raw) : [];
+          const idx = list.findIndex((t) => (t.subdomain || '').toLowerCase() === cleanSub);
+          const tenantItem = {
+            ...tenant,
+            subdomain: cleanSub,
+            clientName: contactName,
+            adminUsername: tenant.adminUsername || email,
+            adminPassword: tenant.adminPassword,
+            updatedAt: new Date().toISOString(),
+          };
+          if (idx !== -1) {
+            list[idx] = { ...list[idx], ...tenantItem };
+          } else {
+            list.unshift(tenantItem);
+          }
+          localStorage.setItem(key, JSON.stringify(list));
+        } catch {}
+      });
+    }
+
+    const db = resolveDb(firebaseAppOrDb);
+    if (!db) {
       console.log(`[TenantContactSyncService] Local sync for tenant ${cleanSub}`);
       return `contact_local_${cleanSub}`;
     }
 
     try {
-      const db = getFirestore(firebaseApp);
       // Master scoped path: tenants/_master/contacts
       const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
+      const targetDocId = `tenant_admin_${cleanSub}`;
 
-      // 1. Check if contact exists by subdomain
-      const qSub = query(masterContactsCol, where('subdomain', '==', cleanSub));
-      const snapSub = await getDocs(qSub);
+      // 1. Direct write/merge to master contacts
+      await setDoc(doc(db, 'tenants', '_master', 'contacts', targetDocId), {
+        ...contactPayload,
+        id: targetDocId,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }, { merge: true });
 
-      let targetDocId = '';
-
-      if (!snapSub.empty) {
-        targetDocId = snapSub.docs[0].id;
-        await updateDoc(doc(db, 'tenants', '_master', 'contacts', targetDocId), {
-          ...contactPayload,
-          updatedAt: new Date().toISOString(),
-        });
-      } else {
-        // Deterministic or clean ID based on subdomain
-        targetDocId = `tenant_admin_${cleanSub}`;
-        await setDoc(doc(db, 'tenants', '_master', 'contacts', targetDocId), {
-          ...contactPayload,
-          id: targetDocId,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
-      }
-
-      // Also ensure root contacts has it for dual-read compatibility if master is using root
+      // 2. Also ensure root contacts has it for dual-read compatibility
       try {
-        const rootRef = doc(db, 'contacts', targetDocId);
-        await setDoc(rootRef, {
+        await setDoc(doc(db, 'contacts', targetDocId), {
           ...contactPayload,
           id: targetDocId,
           updatedAt: new Date().toISOString(),
@@ -114,31 +151,35 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
   async updateTenantFromContact(
     subdomain: string,
     updates: Partial<SubdomainTenantContactData>,
-    firebaseApp?: FirebaseApp
+    firebaseAppOrDb?: FirebaseApp | Firestore
   ): Promise<boolean> {
     const cleanSub = subdomain.trim().toLowerCase();
 
-    // 1. Update localStorage cache
-    try {
-      const raw = localStorage.getItem(TENANTS_STORAGE_KEY);
-      if (raw) {
-        const list: SubdomainTenantContactData[] = JSON.parse(raw);
-        const idx = list.findIndex((t) => t.subdomain === cleanSub);
-        if (idx !== -1) {
-          list[idx] = {
-            ...list[idx],
-            ...updates,
-            updatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem(TENANTS_STORAGE_KEY, JSON.stringify(list));
-        }
-      }
-    } catch {}
+    // 1. Update localStorage caches
+    if (typeof window !== 'undefined') {
+      TENANTS_STORAGE_KEYS.forEach((key) => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list: any[] = JSON.parse(raw);
+            const idx = list.findIndex((t) => (t.subdomain || '').toLowerCase() === cleanSub);
+            if (idx !== -1) {
+              list[idx] = {
+                ...list[idx],
+                ...updates,
+                updatedAt: new Date().toISOString(),
+              };
+              localStorage.setItem(key, JSON.stringify(list));
+            }
+          }
+        } catch {}
+      });
+    }
 
     // 2. Update Firestore if connected
-    if (firebaseApp) {
+    const db = resolveDb(firebaseAppOrDb);
+    if (db) {
       try {
-        const db = getFirestore(firebaseApp);
         const tenantRef = doc(db, 'tenants', cleanSub);
 
         const tenantUpdates: Record<string, any> = {
@@ -172,7 +213,7 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
         // Emit tenant updated event
         eventBus.emit('tenant:updated', {
           subdomain: cleanSub,
-          fullDomain: updates.fullDomain || `${cleanSub}.kosun.co.il`,
+          fullDomain: updates.fullDomain || `${cleanSub}.kosun.pro`,
           clientName: updates.clientName || cleanSub,
           adminUsername: updates.adminUsername || '',
           adminPassword: updates.adminPassword,
@@ -198,14 +239,14 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
    */
   async getTenantBySubdomain(
     subdomain: string,
-    firebaseApp?: FirebaseApp
+    firebaseAppOrDb?: FirebaseApp | Firestore
   ): Promise<SubdomainTenantContactData | null> {
     const cleanSub = subdomain.trim().toLowerCase();
+    const db = resolveDb(firebaseAppOrDb);
 
     // 1. Check Firestore
-    if (firebaseApp) {
+    if (db) {
       try {
-        const db = getFirestore(firebaseApp);
         const tenantSnap = await getDoc(doc(db, 'tenants', cleanSub));
         if (tenantSnap.exists()) {
           const data = tenantSnap.data() as SubdomainTenantContactData;
@@ -224,37 +265,98 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
     }
 
     // 2. Check localStorage
-    try {
-      const raw = localStorage.getItem(TENANTS_STORAGE_KEY);
-      if (raw) {
-        const list: SubdomainTenantContactData[] = JSON.parse(raw);
-        const found = list.find((t) => t.subdomain === cleanSub);
-        if (found) return found;
+    if (typeof window !== 'undefined') {
+      for (const key of TENANTS_STORAGE_KEYS) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list: SubdomainTenantContactData[] = JSON.parse(raw);
+            const found = list.find((t) => (t.subdomain || '').toLowerCase() === cleanSub);
+            if (found) return found;
+          }
+        } catch {}
       }
-    } catch {}
+    }
 
     return null;
   }
 
   /**
-   * Synchronize all existing tenants from localStorage / Firestore to CRM contacts
+   * Synchronize all existing tenants from localStorage and Firestore to CRM contacts
    */
-  async ensureAllTenantsSyncedToCrm(firebaseApp?: FirebaseApp): Promise<number> {
+  async ensureAllTenantsSyncedToCrm(firebaseAppOrDb?: FirebaseApp | Firestore): Promise<number> {
     let synced = 0;
-    try {
-      const raw = localStorage.getItem(TENANTS_STORAGE_KEY);
-      if (raw) {
-        const list: SubdomainTenantContactData[] = JSON.parse(raw);
-        for (const tenant of list) {
-          if (tenant.subdomain) {
-            await this.syncTenantToContact(tenant, firebaseApp);
-            synced++;
+    const db = resolveDb(firebaseAppOrDb);
+    const seenSubs = new Set<string>();
+
+    // 1. Query Firestore tenants collection directly
+    if (db) {
+      try {
+        const tenantsSnap = await getDocs(collection(db, 'tenants'));
+        for (const docSnap of tenantsSnap.docs) {
+          const sub = docSnap.id.toLowerCase();
+          if (sub === '_master' || sub === 'www' || sub === 'admin' || sub === 'system') continue;
+          seenSubs.add(sub);
+          const tData = docSnap.data();
+
+          let adminPassword = tData.adminPassword || '';
+          let adminUsername = tData.adminUsername || tData.ownerEmail || `${sub}@kosun.pro`;
+
+          // Try loading credentials document
+          try {
+            const credDoc = await getDoc(doc(db, 'tenants', sub, 'settings', 'auth_credentials'));
+            if (credDoc.exists()) {
+              const c = credDoc.data();
+              if (c.plainPassword) adminPassword = c.plainPassword;
+              if (c.username) adminUsername = c.username;
+            }
+          } catch {}
+
+          const tenantContact: SubdomainTenantContactData = {
+            subdomain: sub,
+            fullDomain: tData.fullDomain || `${sub}.kosun.pro`,
+            clientName: tData.clientName || `עסק ${sub}`,
+            ownerEmail: tData.ownerEmail || adminUsername,
+            ownerPhone: tData.ownerPhone || '',
+            adminUsername: adminUsername,
+            adminPassword: adminPassword || 'Ks@1234',
+            activeModules: Array.isArray(tData.activeModules) ? tData.activeModules : ['KosBranding', 'KosWebAi', 'KSF'],
+            status: tData.status || 'active',
+            billingPlan: tData.billingPlan || 'monthly',
+            notes: tData.notes || '',
+            monthlyTotal: tData.monthlyTotal || 0,
+          };
+
+          await this.syncTenantToContact(tenantContact, db);
+          synced++;
+        }
+      } catch (err) {
+        console.warn('[TenantContactSyncService] Firestore tenants collection scan notice:', err);
+      }
+    }
+
+    // 2. Query LocalStorage registries
+    if (typeof window !== 'undefined') {
+      for (const key of TENANTS_STORAGE_KEYS) {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list: SubdomainTenantContactData[] = JSON.parse(raw);
+            for (const tenant of list) {
+              const sub = (tenant.subdomain || '').toLowerCase().trim();
+              if (sub && !seenSubs.has(sub) && sub !== '_master' && sub !== 'www') {
+                seenSubs.add(sub);
+                await this.syncTenantToContact(tenant, db);
+                synced++;
+              }
+            }
           }
+        } catch (e) {
+          console.warn('[TenantContactSyncService] Sync local warning:', e);
         }
       }
-    } catch (e) {
-      console.warn('[TenantContactSyncService] Sync all warning:', e);
     }
+
     return synced;
   }
 }

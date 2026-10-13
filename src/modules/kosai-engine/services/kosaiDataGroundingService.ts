@@ -38,7 +38,7 @@ export const kosaiDataGroundingService = {
     const sections: string[] = [];
 
     // Helper: query tenant-scoped collection with fallback to root collection
-    const queryCollectionSafe = async (collectionName: string, maxDocs = 100) => {
+    const queryCollectionSafe = async (collectionName: string, maxDocs = 500) => {
       try {
         const tenantColRef = collection(db, `tenants/${tenantId}/${collectionName}`);
         const snap = await getDocs(query(tenantColRef, limit(maxDocs)));
@@ -68,8 +68,9 @@ export const kosaiDataGroundingService = {
     // 1. CONTACTS & LEADS GROUNDING
     if (options.allowedDataSources.includes(SYSTEM_COLLECTIONS.CONTACTS) || options.allowedDataSources.includes('contacts')) {
       try {
-        let contactsRaw = await queryCollectionSafe(SYSTEM_COLLECTIONS.CONTACTS, 150);
-        const leadsRaw = await queryCollectionSafe('mod_crm_leads', 100);
+        // Fetch up to 1000 contacts and 300 leads to ensure accurate dataset representation
+        let contactsRaw = await queryCollectionSafe(SYSTEM_COLLECTIONS.CONTACTS, 1000);
+        const leadsRaw = await queryCollectionSafe('mod_crm_leads', 300);
         
         // Merge leads that aren't already present
         leadsRaw.forEach((ld: any) => {

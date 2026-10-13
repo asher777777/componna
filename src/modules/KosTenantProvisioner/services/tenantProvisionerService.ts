@@ -11,6 +11,7 @@ import {
 import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '../types';
 import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { tenantContactSyncService } from '../../crm-analytics/services/tenantContactSyncService';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
@@ -302,11 +303,55 @@ export class TenantProvisionerService {
           updatedAt: new Date().toISOString(),
         }, { merge: true });
 
+        // 4. Directly synchronize and create the CRM contact in master contacts
+        try {
+          const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
+          const contactPayload = {
+            id: `tenant_admin_${cleanSub}`,
+            status: 'active',
+            contact_type: 'contact',
+            isUser: true,
+            isSubdomainAdmin: true,
+            subdomain: cleanSub,
+            fullDomain: newRecord.fullDomain,
+            adminUsername: newRecord.adminUsername,
+            adminPassword: newRecord.adminPassword,
+            activeModules: newRecord.activeModules,
+            tenantStatus: 'active',
+            billingPlan: newRecord.billingPlan || 'monthly',
+            monthlyTotal: 0,
+            subdomainNotes: newRecord.notes || '',
+            company_name: newRecord.clientName,
+            job_title: 'מנהל סאב-דומיין (טננט)',
+            conta_name: newRecord.clientName || `טננט ${cleanSub}`,
+            kosun_crm_name: newRecord.clientName || `טננט ${cleanSub}`,
+            email: newRecord.ownerEmail || newRecord.adminUsername,
+            kosun_crm_email: newRecord.ownerEmail || newRecord.adminUsername,
+            conta_phone: newRecord.ownerPhone || '',
+            kosun_crm_phone: newRecord.ownerPhone || '',
+            lead_source: 'סאב-דומיין KOSUN26',
+            tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', cleanSub],
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          await setDoc(contactDocRef, contactPayload, { merge: true });
+
+          try {
+            await setDoc(doc(db, 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
+          } catch {}
+        } catch (cErr) {
+          console.warn('[TenantProvisionerService] Direct CRM contact write warning:', cErr);
+        }
+
         console.info(`[TenantProvisionerService] Tenant ${cleanSub} successfully provisioned on Firestore.`);
       } catch (err) {
         console.warn('[TenantProvisionerService] Remote Firestore provisioning warning:', err);
       }
     }
+
+    try {
+      await tenantContactSyncService.syncTenantToContact(newRecord, db);
+    } catch {}
 
     eventBus.emit('tenant:provisioned', newRecord);
 
@@ -338,10 +383,21 @@ export class TenantProvisionerService {
           activeModules,
           updatedAt: new Date().toISOString(),
         }, { merge: true });
+
+        // Sync to master CRM contact
+        const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
+        await updateDoc(contactDocRef, {
+          activeModules,
+          updatedAt: new Date().toISOString(),
+        });
       } catch (err) {
         console.warn('[TenantProvisionerService] Firestore module update warning:', err);
       }
     }
+
+    try {
+      await tenantContactSyncService.updateTenantFromContact(cleanSub, { activeModules }, db);
+    } catch {}
   }
 
   /**
@@ -380,10 +436,28 @@ export class TenantProvisionerService {
           ownerEmail: credentials.username,
           updatedAt: new Date().toISOString(),
         }, { merge: true });
+
+        // Sync to master CRM contact
+        const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
+        await updateDoc(contactDocRef, {
+          adminUsername: credentials.username,
+          adminPassword: credentials.password,
+          email: credentials.username,
+          kosun_crm_email: credentials.username,
+          updatedAt: new Date().toISOString(),
+        });
       } catch (err) {
         console.warn('[TenantProvisionerService] Firestore credentials update warning:', err);
       }
     }
+
+    try {
+      await tenantContactSyncService.updateTenantFromContact(
+        cleanSub,
+        { adminUsername: credentials.username, adminPassword: credentials.password },
+        db
+      );
+    } catch {}
   }
 
   /**
@@ -398,6 +472,13 @@ export class TenantProvisionerService {
       try {
         const tenantDocRef = doc(db, 'tenants', cleanSub);
         await updateDoc(tenantDocRef, { status: 'suspended', updatedAt: new Date().toISOString() });
+
+        const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
+        await updateDoc(contactDocRef, {
+          status: 'suspended',
+          tenantStatus: 'suspended',
+          updatedAt: new Date().toISOString(),
+        });
       } catch (err) {
         console.warn('[TenantProvisionerService] Firestore delete warning:', err);
       }

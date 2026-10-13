@@ -609,6 +609,63 @@ export async function fetchLiveCrmAnalytics(
       } as Contact;
     });
 
+    // Merge any locally or remote provisioned tenants that might not be in master contacts yet
+    if (collections.contacts.includes('/_master/') && typeof window !== 'undefined') {
+      try {
+        const storageKeys = [
+          'kosun_provisioned_tenants_registry_v1',
+          'kosun_tenant_accounts',
+          'saas_provisioned_tenants_registry',
+        ];
+        for (const key of storageKeys) {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const list: any[] = JSON.parse(raw);
+            for (const item of list) {
+              const sub = (item.subdomain || '').toLowerCase().trim();
+              if (sub && sub !== '_master' && sub !== 'www') {
+                const alreadyInList = contacts.some((c) => (c.subdomain || '').toLowerCase() === sub);
+                if (!alreadyInList) {
+                  const targetId = `tenant_admin_${sub}`;
+                  const tContact: Contact = {
+                    id: targetId,
+                    status: 'active',
+                    contact_type: 'contact',
+                    isUser: true,
+                    isSubdomainAdmin: true,
+                    subdomain: sub,
+                    fullDomain: item.fullDomain || `${sub}.kosun.pro`,
+                    adminUsername: item.adminUsername || item.ownerEmail || `${sub}@kosun.pro`,
+                    adminPassword: item.adminPassword || 'Ks@1234',
+                    activeModules: item.activeModules || ['KosBranding', 'KosWebAi', 'KSF'],
+                    tenantStatus: item.status || 'active',
+                    billingPlan: item.billingPlan || 'monthly',
+                    monthlyTotal: item.monthlyTotal || 0,
+                    subdomainNotes: item.notes || '',
+                    company_name: item.clientName || `עסק ${sub}`,
+                    job_title: 'מנהל סאב-דומיין (טננט)',
+                    conta_name: item.clientName || `טננט ${sub}`,
+                    kosun_crm_name: item.clientName || `טננט ${sub}`,
+                    email: item.ownerEmail || item.adminUsername || `${sub}@kosun.pro`,
+                    kosun_crm_email: item.ownerEmail || item.adminUsername || `${sub}@kosun.pro`,
+                    conta_phone: item.ownerPhone || '',
+                    kosun_crm_phone: item.ownerPhone || '',
+                    lead_source: 'סאב-דומיין KOSUN26',
+                    tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', sub],
+                    createdAt: item.createdAt || new Date().toISOString(),
+                    updatedAt: item.updatedAt || new Date().toISOString(),
+                  };
+                  contacts.push(tContact);
+                }
+              }
+            }
+          }
+        }
+      } catch (tErr) {
+        console.warn('[CRM Analytics] Tenant merge notice:', tErr);
+      }
+    }
+
     // Also fetch leads from Firestore leads collection if available
     try {
       const leadsColName = (collections as any).leads || 'mod_crm_leads';

@@ -1,4 +1,4 @@
-﻿import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../KosWebAi/api/functionsApi';
+import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../KosWebAi/api/functionsApi';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
@@ -85,8 +85,8 @@ export const callGeminiApi = async ({
     };
   }
 
-  // Try direct fetch with primary model and automatic fallback to gemini-1.5-flash if needed
-  const modelsToTry = [model, 'gemini-1.5-flash'];
+  // Try direct fetch with primary model and automatic fallback to flash-lite if needed
+  const modelsToTry = [model, 'gemini-3.8-flash-lite'];
   for (const currentModel of Array.from(new Set(modelsToTry))) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${currentModel}:generateContent?key=${apiKey}`;

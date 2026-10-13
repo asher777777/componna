@@ -43,6 +43,9 @@ export function useContactFilters({
       (c.conta_name || '').toLowerCase().includes(term) ||
       (c.conta_phone || '').includes(term) ||
       (c.email || '').toLowerCase().includes(term) ||
+      (c.subdomain || '').toLowerCase().includes(term) ||
+      (c.adminUsername || '').toLowerCase().includes(term) ||
+      (c.fullDomain || '').toLowerCase().includes(term) ||
       (c.company_name || '').toLowerCase().includes(term) ||
       (c.mh_crm_city || '').toLowerCase().includes(term) ||
       (c.community || '').toLowerCase().includes(term) ||
