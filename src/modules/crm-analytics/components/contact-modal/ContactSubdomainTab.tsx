@@ -35,6 +35,7 @@ interface ModuleItem {
 }
 
 const AVAILABLE_MODULES: ModuleItem[] = [
+  { id: 'KosBranding', name: 'מרכז המיתוג (Brand DNA)', desc: 'זהות עסקית, צבעי מותג ושפה', category: 'ליבה', color: 'purple' },
   { id: 'KosWebAi', name: 'יוצר עמודים ואתרים', desc: 'עיצוב עמודי נחיתה מתקדמים', category: 'שיווק', color: 'indigo' },
   { id: 'KSF', name: 'מחולל טפסים ושאלונים', desc: 'טפסי הרשמה ולידים חכמים', category: 'שיווק', color: 'blue' },
   { id: 'KosWhatsUp', name: 'וואטסאפ בוטים ו-CRM', desc: 'שיגור אוטומטי ותקשורת לקוחות', category: 'מכירות', color: 'emerald' },

@@ -9,6 +9,7 @@ import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
 import { ControlCenterStandaloneView } from '../../modules/control-center-hub/StandaloneView';
+import { BrandDnaHubStandaloneView } from '../../modules/KosBranding';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from '../../workbench/components/ModuleLoadingFallback';
@@ -243,10 +244,10 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     );
   }
 
-  // Active provisioned modules for this tenant
-  const activeModuleIds = tenantRecord.activeModules || ['KosWebAi', 'KSF'];
+  // Active provisioned modules for this tenant (KosBranding is the core branding dashboard)
+  const activeModuleIds = tenantRecord.activeModules || ['KosBranding', 'KosWebAi', 'KSF'];
   const allowedModules = REGISTERED_MODULES.filter((m) => {
-    if (m.id === 'control-center-hub' || m.id === 'kosun-board-composer') return true;
+    if (m.id === 'KosBranding' || m.id === 'control-center-hub' || m.id === 'kosun-board-composer') return true;
     return activeModuleIds.includes(m.id);
   });
 
@@ -276,9 +277,13 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] font-medium" dir="ltr">
                 {tenantRecord.fullDomain}
               </span>
-              <span className="text-[10px] bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded font-bold border border-emerald-500/20 hidden md:inline">
-                {allowedModules.length} רכיבים מוטענים
-              </span>
+              <NavLink
+                to="/"
+                className="text-[10px] bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 px-2.5 py-0.5 rounded-full font-bold border border-purple-500/20 hover:bg-purple-100 transition hidden sm:inline-flex items-center gap-1"
+                title="לוח הבקרה המרכזי: רכיב המיתוג ושפת המותג"
+              >
+                ✨ לוח בקרה: מיתוג ושפת מותג
+              </NavLink>
             </div>
           </div>
 
@@ -352,6 +357,11 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           <Routes>
             <Route
               path="/"
+              element={<BrandDnaHubStandaloneView />}
+            />
+            <Route path="/branding/*" element={<BrandDnaHubStandaloneView />} />
+            <Route
+              path="/dashboard/*"
               element={
                 customDashboard && adminViewType === 'custom_board' ? (
                   <KosunBoardProvider>
@@ -360,7 +370,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                     </div>
                   </KosunBoardProvider>
                 ) : (
-                  <ControlCenterStandaloneView />
+                  <BrandDnaHubStandaloneView />
                 )
               }
             />

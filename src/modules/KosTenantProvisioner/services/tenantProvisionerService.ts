@@ -14,6 +14,16 @@ import { eventBus } from '../../../core/bridge/EventBus';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
+    id: 'KosBranding',
+    name: 'מרכז המיתוג ושפת המותג (Brand DNA)',
+    englishPrefix: 'Kos',
+    englishRest: 'Branding',
+    description: 'זהות עסקית, צבעי מותג, סלוגן, קהלי יעד וסנכרון שפת המותג',
+    category: 'core',
+    badgeColor: 'bg-purple-500/10 text-purple-400 border-purple-500/30',
+    defaultIncluded: true,
+  },
+  {
     id: 'KosWebAi',
     name: 'יוצר עמודים ואתרים',
     englishPrefix: 'Kos',
