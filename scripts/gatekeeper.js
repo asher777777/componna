@@ -212,9 +212,10 @@ function checkModuleMonopoly(filterMod = null) {
       const content = fs.readFileSync(filePath, 'utf-8');
 
       // Check for direct Gemini REST call in client module
+      const normalizedPath = filePath.replace(/\\/g, '/');
       if (
         content.includes('https://generativelanguage.googleapis.com') ||
-        (content.includes('GoogleGenerativeAI') && !filePath.includes('api/functionsApi'))
+        (content.includes('GoogleGenerativeAI') && !normalizedPath.includes('api/functionsApi'))
       ) {
         const relPath = path.relative(ROOT_DIR, filePath);
         directAiViolations.push(relPath);

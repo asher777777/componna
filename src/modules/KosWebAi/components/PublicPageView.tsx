@@ -10,6 +10,7 @@ import { KosWebAiFrontDock } from './KosWebAiFrontDock';
 import { useKosai } from '../../kosai-engine';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 export const PublicPageView: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
@@ -200,6 +201,64 @@ export const PublicPageView: React.FC = () => {
       return next;
     });
   };
+
+  // Sync active sections to KOSAI agent so it can focus on target sections
+  useEffect(() => {
+    if (page?.sectionOrder && page?.sections) {
+      const mapped = page.sectionOrder.map((id) => {
+        const sec = page.sections[id];
+        return {
+          id,
+          type: sec?.type || id,
+          title: sec?.title || sec?.adminTitle,
+        };
+      });
+      setPageSections(mapped);
+    }
+  }, [page, setPageSections]);
+
+  // Subscribe to KOSAI AI action events (when user instructs AI editor)
+  useEffect(() => {
+    const unsub = eventBus.subscribe('kosai:action', (data: any) => {
+      const { action, payload } = data;
+      if (action === 'ADD_SECTION' && payload) {
+        const newSectionId = `custom_${Date.now()}`;
+        setPage((prev) => {
+          if (!prev) return prev;
+          const next = {
+            ...prev,
+            sectionOrder: [...prev.sectionOrder, newSectionId],
+            sections: {
+              ...prev.sections,
+              [newSectionId]: { ...payload, id: newSectionId },
+            },
+          };
+          pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+          return next;
+        });
+      } else if (action === 'UPDATE_SECTION' && payload) {
+        const targetId = payload.sectionId;
+        if (targetId) {
+          setPage((prev) => {
+            if (!prev) return prev;
+            const current = prev.sections[targetId];
+            if (!current) return prev;
+            const next = {
+              ...prev,
+              sections: {
+                ...prev.sections,
+                [targetId]: { ...current, ...(payload.updates || payload) },
+              },
+            };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+            return next;
+          });
+        }
+      }
+    });
+
+    return () => unsub();
+  }, [db, tenantId]);
 
   useEffect(() => {
     let isMounted = true;

@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { KosaiRule, KosaiMessage, KosaiCapability, KosaiActionPayload, KosaiConversation } from '../types';
 import { kosaiRulesService, kosaiConversationsService } from '../services/kosaiFirestoreService';
@@ -81,18 +81,31 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   });
 
   const isLoggedIn = Boolean(authState?.isAuthenticated && (authState.role === 'admin' || authState.role === 'editor'));
+  const [forcedModuleId, setForcedModuleId] = useState<string | null>(null);
 
   // Active module synchronization based on URL pathname & auth
   const activeModule = useMemo(() => {
-    return resolveActiveModule(currentPath, isLoggedIn);
-  }, [currentPath, isLoggedIn]);
+    if (forcedModuleId && MODULE_AGENTS_MAP[forcedModuleId]) {
+      return MODULE_AGENTS_MAP[forcedModuleId];
+    }
+    return resolveActiveModule(currentPath, isLoggedIn, isEditMode);
+  }, [currentPath, isLoggedIn, isEditMode, forcedModuleId]);
 
-  // Active role mode: 'editor' in backoffice modules or when admin; 'support_sales' only for public visitors
+  // Active role mode: 'editor' when logged in / editing or backoffice; 'support_sales' for public guests
   const activeRoleMode: 'editor' | 'support_sales' = useMemo(() => {
+    if (!isLoggedIn && !isEditMode) return 'support_sales';
     if (activeModule.moduleId === 'public-site') return 'support_sales';
-    if (isLoggedIn) return 'editor';
-    return isEditMode ? 'editor' : 'support_sales';
+    return 'editor';
   }, [activeModule.moduleId, isLoggedIn, isEditMode]);
+
+  useEffect(() => {
+    const handleSetAgentMode = (e: any) => {
+      const targetModule = e?.detail?.moduleId || 'KosWebAi';
+      setForcedModuleId(targetModule);
+    };
+    window.addEventListener('kosai_set_agent_mode', handleSetAgentMode);
+    return () => window.removeEventListener('kosai_set_agent_mode', handleSetAgentMode);
+  }, []);
 
   useEffect(() => {
     const handleEditModeChange = (e: any) => {

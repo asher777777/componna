@@ -1,5 +1,6 @@
-﻿import { INTENT_ROUTER_SYSTEM_PROMPT, buildIntentPrompt } from '../prompts';
+import { INTENT_ROUTER_SYSTEM_PROMPT, buildIntentPrompt } from '../prompts';
 import { VoiceIntentPayload, VoiceIntentResponse } from '../types';
+import { executeCloudAi } from '../../../core/ai';
 
 export class GeminiApi {
   /**
@@ -23,45 +24,21 @@ export class GeminiApi {
     });
 
     try {
-      // Use gemini-flash-latest for lightning-fast intent recognition
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=${apiKey}`;
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: INTENT_ROUTER_SYSTEM_PROMPT }],
-          },
-          contents: [
-            {
-              role: 'user',
-              parts: [{ text: userPrompt }],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: 'application/json',
-          },
-        }),
+      const aiRes = await executeCloudAi<{ intent?: string; confidence?: number; explanation?: string }>({
+        prompt: userPrompt,
+        systemInstruction: INTENT_ROUTER_SYSTEM_PROMPT,
+        model: 'gemini-3.8-flash',
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+        apiKey,
       });
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.warn('[GeminiApi] Gemini HTTP warning, trying fallback:', response.status, errText);
+      if (!aiRes.success || !aiRes.data) {
+        console.warn('[GeminiApi] Cloud AI route warning, trying fallback:', aiRes.error);
         return this.localKeywordFallback(payload);
       }
 
-      const data = await response.json();
-      const rawOutputText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '{}';
-
-      let parsed: { intent?: string; confidence?: number; explanation?: string };
-      try {
-        parsed = JSON.parse(rawOutputText);
-      } catch (e) {
-        const cleaned = rawOutputText.replace(/```json/g, '').replace(/```/g, '').trim();
-        parsed = JSON.parse(cleaned);
-      }
+      const parsed = aiRes.data;
 
       const detectedIntent = parsed.intent || 'fallback';
       const targetNodeId = payload.allowedIntents[detectedIntent];

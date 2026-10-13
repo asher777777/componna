@@ -477,8 +477,8 @@ export const FloatingKosaiButton: React.FC = () => {
           boxShadow: `0 12px 36px -6px ${primaryColor}80`,
         }}
         className="relative w-14 h-14 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group border border-white/30 cursor-pointer overflow-visible animate-pulse"
-        title={isFront ? "KosAi - פתח צ'אט בינה מלאכותית" : "תפריט KOSAI - לחץ לפתיחת כל כפתורי ופעולות המערכת"}
-        aria-label="כפתור KosAi"
+        title={isFront ? "סוכן שירות לקוחות - מענה לפניות ושאלות" : "תפריט KOSAI - לחץ לפתיחת כל כפתורי ופעולות המערכת"}
+        aria-label={isFront ? "סוכן שירות לקוחות" : "כפתור KosAi"}
       >
         {/* Kosun Official Vector Symbol from Gallery */}
         <img

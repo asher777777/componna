@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CampaignAiService: Generates AI-powered campaign recommendations matching Brand DNA.
  *
  * Capabilities:
@@ -9,6 +9,7 @@
  */
 
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { executeCloudAi } from '../../../core/ai';
 import { DonationTier, CampaignBranding } from '../types';
 import { BrandProfileSummary, CrmGroupSummary, GalleryImageSummary } from './campaignBrandIntegrationService';
 
@@ -38,12 +39,7 @@ export interface GenerateAiCampaignParams {
   targetBudget?: number;
 }
 
-const GEMINI_MODELS = [
-  'gemini-3.8-flash',
-  'gemini-3.5-flash',
-  'gemini-3.8-flash-lite',
-  'gemini-2.5-flash',
-] as const;
+const PRIMARY_AI_MODEL = 'gemini-3.8-flash';
 
 /**
  * Generate 3 tailored campaign packages matching the brand's identity and groups
@@ -119,67 +115,53 @@ ${targetBudget ? `סכום יעד מבוקש לקמפיין: ₪${targetBudget.t
 ]
 `;
 
-  // Attempt live Gemini execution with cascading fallback
-  for (const model of GEMINI_MODELS) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: userPrompt }] }],
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          generationConfig: {
-            temperature: 0.7,
-            responseMimeType: 'application/json',
-          },
-        }),
-      });
+  // Execute securely through Cloud Functions proxy
+  try {
+    const aiRes = await executeCloudAi({
+      prompt: userPrompt,
+      systemInstruction,
+      model: PRIMARY_AI_MODEL,
+      responseMimeType: 'application/json',
+      temperature: 0.7,
+      apiKey,
+    });
 
-      if (!res.ok) {
-        console.warn(`[CampaignAI] Gemini model ${model} failed (${res.status})`);
-        continue;
+    if (aiRes.success && aiRes.data) {
+      const parsed = Array.isArray(aiRes.data) ? aiRes.data : (typeof aiRes.data === 'string' ? JSON.parse(aiRes.data) : null);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const recs: AiCampaignRecommendation[] = parsed.map((item, idx) => {
+          const chosenImage = media[idx]?.url || brand.vibeImages?.[idx] || brand.vibeImages?.[0] || '';
+          const matchedGroups = groups.filter((g) => (item.suggestedGroupIds || []).includes(g.id));
+
+          return {
+            id: item.id || `rec-${idx + 1}`,
+            conceptTitle: item.conceptTitle || `המלצה ${idx + 1}`,
+            conceptTag: item.conceptTag || 'מותאם מיתוג',
+            title: item.title,
+            subtitle: item.subtitle,
+            description: item.description,
+            targetGoal: Number(item.targetGoal || targetBudget || 250000),
+            donationType: item.donationType || 'both',
+            branding: {
+              primaryColor: brand.primaryColor,
+              accentColor: brand.secondaryColor,
+              theme: 'gradient',
+              svgTrendPreset: 'curve_up',
+            },
+            tiers: Array.isArray(item.tiers) && item.tiers.length > 0 ? item.tiers : buildDefaultTiersForBrand(brand),
+            suggestedGroupIds: item.suggestedGroupIds || groups.map((g) => g.id),
+            suggestedGroupNames: matchedGroups.length > 0 ? matchedGroups.map((g) => g.name) : groups.map((g) => g.name),
+            featuredImageUrl: chosenImage,
+            themeMode: 'brand_dna',
+            reasoning: item.reasoning || 'נבחר במדויק בהתאמה לטון המותג ולקהל היעד',
+          };
+        });
+
+        return { success: true, recommendations: recs, isLiveAi: true };
       }
-
-      const data = await res.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawText) {
-        const parsed = JSON.parse(rawText);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const recs: AiCampaignRecommendation[] = parsed.map((item, idx) => {
-            const chosenImage = media[idx]?.url || brand.vibeImages?.[idx] || brand.vibeImages?.[0] || '';
-            const matchedGroups = groups.filter((g) => (item.suggestedGroupIds || []).includes(g.id));
-
-            return {
-              id: item.id || `rec-${idx + 1}`,
-              conceptTitle: item.conceptTitle || `המלצה ${idx + 1}`,
-              conceptTag: item.conceptTag || 'מותאם מיתוג',
-              title: item.title,
-              subtitle: item.subtitle,
-              description: item.description,
-              targetGoal: Number(item.targetGoal || targetBudget || 250000),
-              donationType: item.donationType || 'both',
-              branding: {
-                primaryColor: brand.primaryColor,
-                accentColor: brand.secondaryColor,
-                theme: 'gradient',
-                svgTrendPreset: 'curve_up',
-              },
-              tiers: Array.isArray(item.tiers) && item.tiers.length > 0 ? item.tiers : buildDefaultTiersForBrand(brand),
-              suggestedGroupIds: item.suggestedGroupIds || groups.map((g) => g.id),
-              suggestedGroupNames: matchedGroups.length > 0 ? matchedGroups.map((g) => g.name) : groups.map((g) => g.name),
-              featuredImageUrl: chosenImage,
-              themeMode: 'brand_dna',
-              reasoning: item.reasoning || 'נבחר במדויק בהתאמה לטון המותג ולקהל היעד',
-            };
-          });
-
-          return { success: true, recommendations: recs, isLiveAi: true };
-        }
-      }
-    } catch (err) {
-      console.warn(`[CampaignAI] Error with model ${model}:`, err);
     }
+  } catch (err) {
+    console.warn('[CampaignAI] AI Cloud call failed, graceful degradation:', err);
   }
 
   // If live calls failed, return rich fallback

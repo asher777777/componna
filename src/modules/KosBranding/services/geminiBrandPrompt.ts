@@ -1,5 +1,6 @@
-﻿import { BrandDna } from '../types/brandDna';
+import { BrandDna } from '../types/brandDna';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { executeCloudAi, PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
 import {
   buildBrandSystemContext,
   buildBrandRephrasePrompt,
@@ -40,20 +41,13 @@ export function resolveGeminiApiKey(providedKey?: string): string {
 }
 
 /**
- * Official cascading model fallback array according to .gemini/skills/google-ai-studio-gemini/SKILL.md
+ * Authorized Brand AI Model (2026 flagship)
  */
-export const GEMINI_FALLBACK_MODELS = [
-  'gemini-3.8-flash',      // 1st choice: Frontier speed & intelligence (flagship default)
-  'gemini-3.5-flash',      // 2nd choice: Ultra-stable GA workhorse
-  'gemini-3.8-flash-lite', // 3rd choice: High-speed lite
-  'gemini-3.5-flash-lite', // 4th choice: Budget fallback
-  'gemini-2.5-flash',      // 5th choice: Legacy account compatibility
-] as const;
-
-export type GeminiModelId = typeof GEMINI_FALLBACK_MODELS[number];
+export const AUTHORIZED_BRAND_MODEL = 'gemini-3.8-flash';
+export type GeminiModelId = string;
 
 /**
- * Universal cascading execution helper following the google-ai-studio-gemini skill
+ * Universal Cloud Functions execution helper enforcing Module Monopoly and pleasant Hebrew messaging
  */
 export async function executeWithGeminiFallback(
   apiKey: string,
@@ -75,76 +69,38 @@ export async function executeWithGeminiFallback(
     };
   }
 
-  let lastError = '';
+  try {
+    const aiRes = await executeCloudAi({
+      prompt: options.userPrompt,
+      systemInstruction: options.systemInstruction,
+      model: AUTHORIZED_BRAND_MODEL,
+      responseMimeType: options.responseMimeType,
+      temperature: options.temperature ?? 0.7,
+      apiKey: activeKey,
+    });
 
-  for (const model of GEMINI_FALLBACK_MODELS) {
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`;
-
-      const payload: any = {
-        contents: [
-          {
-            role: 'user',
-            parts: [{ text: options.userPrompt }],
-          },
-        ],
-        generationConfig: {
-          temperature: options.temperature ?? 0.7,
-        },
-      };
-
-      if (options.systemInstruction && options.systemInstruction.trim()) {
-        payload.systemInstruction = {
-          parts: [{ text: options.systemInstruction.trim() }],
-        };
-      }
-
-      if (options.responseMimeType === 'application/json') {
-        payload.generationConfig.responseMimeType = 'application/json';
-        if (options.responseSchema) {
-          payload.generationConfig.responseSchema = options.responseSchema;
-        }
-      }
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const errJson = await response.json().catch(() => ({}));
-        lastError = errJson.error?.message || `HTTP ${response.status}: ${response.statusText}`;
-        console.warn(`[GeminiAPI] Model ${model} failed (${response.status}):`, lastError);
-        continue; // Try next model in chain
-      }
-
-      const data = await response.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-
-      if (!text) {
-        lastError = `Model ${model} returned empty content`;
-        console.warn(`[GeminiAPI] ${lastError}`);
-        continue;
-      }
-
+    if (aiRes.success && aiRes.text) {
       return {
         success: true,
-        text,
-        modelUsed: model,
+        text: aiRes.text,
+        modelUsed: AUTHORIZED_BRAND_MODEL,
       };
-    } catch (err: any) {
-      lastError = err.message || String(err);
-      console.warn(`[GeminiAPI] Network/fetch error with model ${model}:`, lastError);
     }
-  }
 
-  return {
-    success: false,
-    text: '',
-    modelUsed: '',
-    error: lastError || 'כל דגמי Gemini בסדרת ה-Fallback נכשלו',
-  };
+    return {
+      success: false,
+      text: '',
+      modelUsed: AUTHORIZED_BRAND_MODEL,
+      error: aiRes.error || PLEASANT_AI_ERROR_HEBREW,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      text: '',
+      modelUsed: AUTHORIZED_BRAND_MODEL,
+      error: PLEASANT_AI_ERROR_HEBREW,
+    };
+  }
 }
 
 /**

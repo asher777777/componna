@@ -322,8 +322,8 @@ export const KosaiChatDrawer: React.FC = () => {
             ? "border-slate-800 bg-indigo-500/5 text-white" 
             : "border-slate-200 bg-slate-50 text-slate-900"
         )}>
-          {/* Right side: Blinking K logo only */}
-          <div className="flex items-center gap-2 min-w-0">
+          {/* Right side: Blinking K logo & Agent Identity */}
+          <div className="flex items-center gap-2.5 min-w-0">
             <div className="relative w-8 h-8 flex items-center justify-center shrink-0">
               <img
                 src="/images/kosun-symbol.svg"
@@ -334,6 +334,17 @@ export const KosaiChatDrawer: React.FC = () => {
                 }}
               />
               <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping pointer-events-none" />
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className={clsx(
+                "text-xs font-black truncate leading-tight",
+                theme === 'dark' ? "text-white" : "text-slate-900"
+              )}>
+                {activeModule.moduleId === 'public-site' ? 'סוכן שירות לקוחות' : activeModule.name}
+              </span>
+              <span className="text-[10px] text-slate-400 truncate leading-tight">
+                {activeModule.moduleId === 'public-site' ? 'מענה לפניות, שאלות ומידע' : activeModule.roleBadge}
+              </span>
             </div>
           </div>
 
