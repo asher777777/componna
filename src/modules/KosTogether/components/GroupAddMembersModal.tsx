@@ -60,21 +60,28 @@ export const GroupAddMembersModal: React.FC<GroupAddMembersModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 text-right animate-in fade-in zoom-in-95 duration-200">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-          <div className="flex items-center gap-2">
-            <UserPlus className="w-4 h-4 text-indigo-600" />
-            <h3 className="text-sm font-black text-slate-900">
-              הוספת חברים ל{activeGroup.isCommunity ? 'קהילת' : 'קבוצת'} "{activeGroup.name}"
-            </h3>
+    <div className="fixed inset-0 z-50 w-screen h-screen bg-slate-900/80 backdrop-blur-md overflow-y-auto flex flex-col items-center justify-start p-2 sm:p-6" dir="rtl">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl sm:rounded-[2.5rem] max-w-lg w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 text-right animate-in fade-in zoom-in-95 duration-200 my-auto flex flex-col">
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
+          <div className="flex items-center gap-2.5">
+            <img
+              src="/images/kosun-symbol.svg"
+              onError={(e: any) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/images/kosun-official-logo.png';
+              }}
+              alt="KOSUN"
+              className="w-6 h-6 object-contain"
+            />
+            <span className="font-extrabold text-xs tracking-tight text-slate-900 dark:text-white">KosTogether</span>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg cursor-pointer"
+            title="סגור"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 

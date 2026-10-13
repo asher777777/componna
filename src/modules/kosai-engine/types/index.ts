@@ -40,7 +40,8 @@ export type KosaiCapability =
   | 'UPDATE_SECTION'
   | 'UPDATE_GLOBAL_SETTINGS'
   | 'UPDATE_SEO'
-  | 'CREATE_CRM_CHART';
+  | 'CREATE_CRM_CHART'
+  | 'REMOVE_CONTACT_TAGS';
 
 export interface KosaiMessage {
   id: string;

@@ -443,6 +443,10 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (!capabilities.includes('CREATE_CRM_CHART')) {
           capabilities.push('CREATE_CRM_CHART');
         }
+      } else if (activeModule.moduleId === 'KosTogether') {
+        if (!capabilities.includes('REMOVE_CONTACT_TAGS')) {
+          capabilities.push('REMOVE_CONTACT_TAGS');
+        }
       }
 
       // Pass conversation history and cachedContentId (Gemini Multi-turn)
@@ -506,6 +510,36 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       // Execute action via EventBus if action was specified and is not NONE
       if (parsed.action && parsed.action !== 'NONE') {
+        // Module-executed actions report back via 'kosai:action_result'
+        if (parsed.action === 'REMOVE_CONTACT_TAGS') {
+          let acknowledged = false;
+          let finished = false;
+          const unsubResult = eventBus.subscribe('kosai:action_result', (result) => {
+            if (result?.action !== parsed.action || finished) return;
+            acknowledged = true;
+            if (result.pending) return;
+            finished = true;
+            unsubResult();
+            setMessages(prev => [...prev, {
+              id: `result_${Date.now()}`,
+              role: 'assistant',
+              content: result.message,
+              timestamp: new Date()
+            }]);
+          });
+          setTimeout(() => {
+            if (acknowledged || finished) return;
+            finished = true;
+            unsubResult();
+            setMessages(prev => [...prev, {
+              id: `result_${Date.now()}`,
+              role: 'assistant',
+              content: 'כדי לבצע את הפעולה יש לפתוח את מסך KosTogether (קהילות וקבוצות) ולבקש שוב.',
+              timestamp: new Date()
+            }]);
+          }, 4000);
+        }
+
         eventBus.publish('kosai:action', {
           action: parsed.action,
           payload: parsed.payload

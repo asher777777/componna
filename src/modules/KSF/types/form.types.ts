@@ -10,7 +10,8 @@ export type FieldType =
   | 'scale'
   | 'date'
   | 'time'
-  | 'file_upload';
+  | 'file_upload'
+  | 'payment';
 
 export type ToneStyle =
   | 'executive_luxury'

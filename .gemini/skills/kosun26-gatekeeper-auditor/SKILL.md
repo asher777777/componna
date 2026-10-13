@@ -3,11 +3,11 @@ name: kosun26-gatekeeper-auditor
 description: "ביקורת איכות ואכיפת 6 השערים של שומר הסף ב-KOSUN26. בדיקת שלמות אנטומיה, בידוד סביבות, אבטחה, מונופול, היגיינה וקומפילציה."
 ---
 
-# 🛡️ KOSUN26 Gatekeeper Auditor
-
 <div dir="rtl" style="text-align: right;">
 
-סקיל זה מנחה את סוכן הביקורת (Gatekeeper) באכיפה קפדנית של 6 שערי האיכות על כל רכיב במערכת KOSUN26 לפני שחרורו, מסירתו למשתמש או שילובו בייצור.
+# 🛡️ KOSUN26 - שומר הסף וביקורת איכות (Gatekeeper Auditor)
+
+מדריך זה מנחה את סוכן הביקורת (Gatekeeper) באכיפה קפדנית של 6 שערי האיכות על כל רכיב במערכת KOSUN26 לפני שחרורו, מסירתו למשתמש או שילובו בייצור.
 
 ---
 
@@ -25,17 +25,17 @@ flowchart TD
 ### 1. שער היגיינת השורש (Root Hygiene Gate)
 * סריקת ספריית השורש (`C:\comona`).
 * **איסור מוחלט:** אין קבצי `.js`, `.ts`, `.sh`, `.py` זמניים או סקריפטי seed בשורש.
-* כל סקריפט חייב להימצא ב-`src/modules/[module]/scripts/`.
+* כל סקריפט חייב להימצא ב-`src/modules/[שם-הרכיב]/scripts/`.
 
 ### 2. שער אנטומיית 10 השכבות (10-Layer Anatomy Gate)
-* בדיקה שכל מודול ב-`src/modules/[module]` מכיל אך ורק את 10 השכבות:
+* בדיקה שכל מודול ב-`src/modules/[שם-הרכיב]` מכיל אך ורק את 10 השכבות:
   `types/`, `api/`, `services/`, `hooks/`, `context/`, `components/`, `views/`, `routes/`, `scripts/`, `index.ts`.
 * ביטול שכבת `prompts/` במודולים שאינם מנוע ה-AI (`kosai-engine`).
 
 ### 3. שער המונופול וקריאות ה-AI (Monopoly & Direct Gemini Guard)
 * **אפס קריאות ישירות:** אסור למודול לבצע `fetch` ל-`generativelanguage.googleapis.com`.
 * כל קריאת בינה מלאכותית מבוצעת דרך Cloud Functions או חוזה `kosai-engine`.
-* **אפס יבוא הדדי:** אסור למודול לייבא קבצים ממודול שכן (`../../[other-module]`).
+* **אפס יבוא הדדי:** אסור למודול לייבא קבצים ממודול שכן (`../../[שם-הרכיב-השכן]`).
 
 ### 4. שער הסקופ הרב-דיירי (Multi-Tenant Scope Guard)
 * אסור לבצע קריאות לאוספים שטוחים גלובליים:
@@ -60,7 +60,7 @@ flowchart TD
 
 לפני סיום כל משימה, חובה להריץ:
 ```bash
-npm run gatekeeper -- [module-name]
+npm run gatekeeper -- [שם-הרכיב]
 ```
 וכן על כלל המערכת:
 ```bash

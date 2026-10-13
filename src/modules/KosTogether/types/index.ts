@@ -3,6 +3,7 @@ import type { FirebaseApp } from 'firebase/app';
 export type GroupType = 'manual' | 'smart';
 export type GroupCategory = 'community' | 'group';
 export type GroupMatchType = 'all' | 'any';
+export type CommunitiesLayoutMode = 'cards' | 'table' | 'split' | 'kanban';
 
 export type GroupRuleField = 
   | 'total_spent' 

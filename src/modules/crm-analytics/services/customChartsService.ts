@@ -202,51 +202,7 @@ export async function generateChartWithGeminiAI(
 }
 `;
 
-  let lastError: any = null;
-
-  for (const model of OFFICIAL_GEMINI_MODELS) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${cleanKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            systemInstruction: { parts: [{ text: systemInstruction }] },
-            contents: [{ role: 'user', parts: [{ text: `הגדר גרף עבור הבקשה הבאה: "${prompt}"` }] }],
-            generationConfig: {
-              temperature: 0.3,
-              responseMimeType: 'application/json',
-            },
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-      }
-
-      const data = await res.json();
-      const rawText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error('תשובה ריקה מהמודל');
-
-      const parsed = JSON.parse(rawText.replace(/```json|```/g, '').trim());
-      return {
-        title: parsed.title || 'גרף אנליטי מותאם אישית',
-        type: ['bar', 'pie', 'line', 'area'].includes(parsed.type) ? parsed.type : 'bar',
-        groupByField: parsed.groupByField || 'tags',
-        metric: parsed.metric === 'sum' ? 'sum' : 'count',
-        metricField: parsed.metricField || (parsed.metric === 'sum' ? 'total_spent' : undefined),
-        description: parsed.description || prompt,
-        createdBy: 'ai',
-      };
-    } catch (err: any) {
-      lastError = err;
-      console.warn(`[CustomChartsService] Fallback: Model ${model} failed (${err?.message || err}), trying next model...`);
-    }
-  }
-
-  console.warn('[CustomChartsService] All Gemini models failed or quota exceeded. Falling back to local NLP heuristic parser:', lastError);
+  // Gatekeeper Rule 3: Client modules delegate AI parsing to local heuristic parser or server Cloud Functions
   return parseChartFromPromptHeuristically(prompt);
 }
 

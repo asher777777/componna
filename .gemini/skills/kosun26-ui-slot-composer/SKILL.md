@@ -3,11 +3,11 @@ name: kosun26-ui-slot-composer
 description: "בניית ממשקי משתמש מבודדים וחיבור פונקציונליות ו-UI בין רכיבים באמצעות Capability Slots, ללא ייבוא הדדי (Zero Cross-Import UI Composition)."
 ---
 
-# 🎨 KOSUN26 UI Slot Composer
-
 <div dir="rtl" style="text-align: right;">
 
-סקיל זה מנחה את פיתוח ממשקי המשתמש (UI) במערכת KOSUN26, תוך דגש על חיבור פונקציונליות בין רכיבים עצמאיים באמצעות **Capability Slots** בלבד וללא אף שורת ייבוא הדדית בין מודולים.
+# 🎨 KOSUN26 - בונה ממשק משתמש וחיבור יכולות (UI Slot Composer)
+
+מדריך זה מנחה את פיתוח ממשקי המשתמש (UI) במערכת KOSUN26, תוך דגש על חיבור פונקציונליות בין רכיבים עצמאיים באמצעות **Capability Slots** בלבד וללא אף שורת ייבוא הדדית בין מודולים.
 
 ---
 
@@ -15,14 +15,14 @@ description: "בניית ממשקי משתמש מבודדים וחיבור פו�
 
 כאשר מודול צריך להציג ממשק השייך לאחריותו של מודול אחר (לדוגמה: עמוד נחיתה שצריך להטמיע טופס, או מסך מוצרים שצריך לפתוח בוחר מדיה):
 1. **המודול הצרכן אינו מייבא את קומפוננטת המקור!**
-2. **המודול הצרכן מניח Slot ייעודי (`<CapabilitySlot />`)**.
+2. **המודול הצרכן מניח שקע ייעודי (`<CapabilitySlot />`)**.
 3. **המודול הספק רושם את הקומפוננטה שלו במרשם הגלובלי (`registerCapabilityUI`)**.
 
 ---
 
 ## 🛠️ מימוש מעשי בקוד
 
-### 1. צריכת UI (Consumer Component)
+### 1. צריכת UI (רכיב צרכן)
 ```tsx
 import React from 'react';
 import { CapabilitySlot } from '@/core/bridge/CapabilitySlot';
@@ -40,7 +40,7 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ type, formId }) =>
           name="form-renderer"
           props={{
             formId,
-            onSubmitted: (data: unknown) => console.log('Form submitted', data)
+            onSubmitted: (data: unknown) => console.log('טופס נשלח בהצלחה', data)
           }}
           fallback={
             <div className="p-6 border-2 border-dashed border-gray-300 rounded-xl text-center text-gray-500">
@@ -55,8 +55,8 @@ export const BlockRenderer: React.FC<BlockRendererProps> = ({ type, formId }) =>
 };
 ```
 
-### 2. אספקת UI (Provider Component)
-בתוך `src/modules/[provider-module]/index.ts`:
+### 2. אספקת UI (רכיב ספק)
+בתוך `src/modules/[ספק-היכולת]/index.ts`:
 ```typescript
 import { registerCapabilityUI } from '@/core/bridge/capabilityRegistry';
 import { SmartFormRenderer } from './components/SmartFormRenderer';

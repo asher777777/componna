@@ -42,7 +42,7 @@
       --brand-border: #cbd5e1;        /* מסגרות ברורות */
       --brand-text: #0f172a;          /* שחור פחם עמוק (WCAG AAA) */
       --brand-text-muted: #1e293b;    /* טקסט משנה כהה, חד ולא דהוי */
-      --brand-font: 'Assistant', sans-serif;
+      --brand-font: 'Heebo', sans-serif;
       --brand-radius: 1rem;
     }
 
@@ -58,7 +58,11 @@
       --brand-text-muted: #cbd5e1;
     }
 
-    /* איסור מוחלט על גלישה אופקית */
+    /* איסור מוחלט על גלישה אופקית ואכיפת פונט Heebo בלעדי */
+    *, html, body, input, button, select, textarea {
+      font-family: 'Heebo', sans-serif !important;
+    }
+
     html, body {
       overflow-x: hidden;
       width: 100%;
@@ -66,7 +70,6 @@
     }
 
     body {
-      font-family: var(--brand-font);
       background-color: var(--brand-bg);
       color: var(--brand-text);
       transition: background-color 0.25s ease, color 0.25s ease;
@@ -172,9 +175,7 @@
   <!-- ========================================================================= -->
   <div class="fixed top-4 right-4 z-50">
     <button onclick="toggleSideMenu(true)" class="h-10 px-3.5 rounded-full glass-card flex items-center gap-2 text-[var(--brand-text)] hover:scale-105 active:scale-95 transition-all shadow-md">
-      <div class="w-6 h-6 rounded-lg bg-[var(--brand-primary)] text-white flex items-center justify-center font-black text-xs">
-        K
-      </div>
+      <img src="/images/kosun-symbol.svg" onerror="this.onerror=null; this.src='/images/kosun-official-logo.png'" alt="KOSUN" class="w-6 h-6 object-contain" />
       <span class="font-extrabold text-xs tracking-tight">KOSUN Showcase</span>
       <i data-lucide="menu" class="w-4 h-4 text-[var(--brand-text-muted)] mr-1"></i>
     </button>
@@ -184,9 +185,7 @@
   <aside id="side-menu-drawer" class="fixed inset-y-0 right-0 z-50 w-72 max-w-[85vw] bg-[var(--brand-surface)] border-l border-[var(--brand-border)] shadow-2xl flex flex-col transition-transform duration-300 translate-x-full">
     <div class="p-4 border-b border-[var(--brand-border)] flex items-center justify-between">
       <div class="flex items-center gap-2.5">
-        <div class="w-7 h-7 rounded-lg bg-[var(--brand-primary)] text-white flex items-center justify-center font-black text-xs">
-          K
-        </div>
+        <img src="/images/kosun-symbol.svg" onerror="this.onerror=null; this.src='/images/kosun-official-logo.png'" alt="KOSUN" class="w-7 h-7 object-contain" />
         <span class="font-black text-sm text-[var(--brand-text)]">KOSUN Showcase</span>
       </div>
       <button onclick="toggleSideMenu(false)" class="p-1 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-[var(--brand-text-muted)] hover:text-[var(--brand-text)]">
@@ -950,9 +949,7 @@
     <div class="max-w-5xl w-full mx-auto flex flex-col min-h-full">
       <div class="flex items-center justify-between pb-4 border-b border-[var(--brand-border)] shrink-0">
         <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-[var(--brand-primary)] text-white flex items-center justify-center font-black text-sm shadow-md">
-            K
-          </div>
+          <img src="/images/kosun-symbol.svg" onerror="this.onerror=null; this.src='/images/kosun-official-logo.png'" alt="KOSUN" class="w-9 h-9 object-contain" />
           <div>
             <h3 class="text-base sm:text-lg font-black text-[var(--brand-text)] flex items-center gap-2">
               <span>KOSUN Framework Settings</span>

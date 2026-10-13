@@ -13,7 +13,7 @@ const SmartFormBuilderStandaloneView = React.lazy(() => import('../../smart-form
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { WhatsAppGreenApiStandaloneView } from '../../whatsapp-green-api-hub';
 import { KesherPaymentsStandaloneView } from '../../kesher-payments-hub';
-import { CrmGroupsHubStandaloneView } from '../../crm-groups-hub';
+import { CrmGroupsHubStandaloneView } from '../../KosTogether';
 import { BrandDnaHubStandaloneView } from '../../brand-dna-hub';
 const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
 

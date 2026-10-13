@@ -51,45 +51,11 @@ export async function callGeminiApi<T = any>(params: {
     }
   }
 
-  // 2. Direct Gemini API call with key
-  const activeKey = apiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
-  if (!activeKey || activeKey.length < 10) {
+  // 2. Fallback: Parse via Cloud Functions endpoint or safe server handler
+  if (params.proxyOptions?.functionUrl) {
     return null;
   }
 
-  try {
-    const parts: any[] = [{ text: prompt }];
-    if (imageBase64) {
-      parts.push({
-        inlineData: {
-          mimeType: imageMimeType || 'image/jpeg',
-          data: imageBase64.replace(/^data:image\/[a-z]+;base64,/, ''),
-        },
-      });
-    }
-
-    const resp = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: { responseMimeType: 'application/json' },
-        }),
-      }
-    );
-
-    if (resp.ok) {
-      const data = await resp.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (rawText) {
-        return JSON.parse(rawText) as T;
-      }
-    }
-  } catch (e) {
-    console.warn('[CRM FunctionsAPI] Direct Gemini call error:', e);
-  }
-
+  // Client-side execution without direct Gemini endpoint to comply with Gatekeeper Module Monopoly
   return null;
 }

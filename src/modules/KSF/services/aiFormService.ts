@@ -239,10 +239,10 @@ export async function generateSmartFormWithAI(
               isCrmSyncEnabled: true,
               crmDefaultTags: ['KSF', 'KOSAI Agent', input.goal],
             },
-            explanation: parsed.explanation || 'הטופס נבנה בהצלחה על ידי סוכן KOSAI עם סנכרון CRM מלא.',
+            explanation: parsed.explanation || 'השאלון מוכן ומותאם אישית לפי מטרות הפעילות שלך.',
             suggestedNextSteps: parsed.suggestedNextSteps || [
-              'בדוק את רצף השאלות בתצוגה המקדימה',
-              'ודא שמיפוי השדות (mappingKey) מסונכרן לקולקציית contacts',
+              'מעבר על השאלות בתצוגה המקדימה',
+              'התאמת ניסוחים במידת הצורך',
             ],
           };
         }
@@ -457,10 +457,10 @@ function generateHeuristicForm(
       isCrmSyncEnabled: true,
       crmDefaultTags: ['KSF', 'KOSAI Agent', input.goal],
     },
-    explanation: `סוכן KOSAI בנה את הטופס לפי מודל חכם של שאלה אחת בכל שלב (Step-by-Step), עם שדות מסונכרנים ישירות לקולקציית ה-CRM (${crmFields.join(', ')}). כל השדות מלווים באייקונים וקטוריים יוקרתיים בלבד וללא אימוג'ים.`,
+    explanation: 'השאלון מוכן ומותאם אישית לפי מטרות הפעילות שלך.',
     suggestedNextSteps: [
-      'בדוק את רצף השאלות בתצוגה המקדימה',
-      'שים לב שהשדות מסונכרנים אוטומטית לכרטיס הלקוח בקולקציית contacts',
+      'מעבר על השאלות בתצוגה המקדימה',
+      'התאמת ניסוחים במידת הצורך',
     ],
   };
 }

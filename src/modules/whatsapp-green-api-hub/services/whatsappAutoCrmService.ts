@@ -190,31 +190,41 @@ export const whatsappAutoCrmService = {
       }
 
       // If existing contact was missing name or had generic/placeholder name, update it!
-      const currentName = existingContactData.conta_name || '';
+      const currentName = existingContactData.kosun_crm_name || existingContactData.conta_name || '';
       const isPlaceholderName = !currentName || currentName === 'איש קשר' || currentName === 'ליד ללא שם' || currentName === senderPhone;
       if (extracted.name && (isPlaceholderName || extracted.name.length > currentName.length)) {
         updates.conta_name = extracted.name;
+        updates.kosun_crm_name = extracted.name;
+        updates.fullName = extracted.name;
       }
 
       // If email was missing and now provided
       if (extracted.email && !existingContactData.email) {
         updates.email = extracted.email;
+        updates.kosun_crm_email = extracted.email;
       }
 
       // If city was missing and now provided
       if (extracted.city && !existingContactData.mh_crm_city) {
         updates.mh_crm_city = extracted.city;
+        updates.kosun_crm_city = extracted.city;
       }
 
       // If company was missing and now provided
       if (extracted.company && !existingContactData.company_name) {
         updates.company_name = extracted.company;
+        updates.kosun_crm_company = extracted.company;
       }
 
       try {
         const contactDocRef = doc(db, contactsColPath, contactId);
         await updateDoc(contactDocRef, updates);
         
+        // Also mirror update to root collection
+        try {
+          await updateDoc(doc(db, 'contacts', contactId), updates);
+        } catch {}
+
         eventBus.publish('crm:contact:updated', {
           id: contactId,
           ...existingContactData,
@@ -228,16 +238,40 @@ export const whatsappAutoCrmService = {
       const newContactName = extracted.name || senderName || `לקוח ${senderPhone.slice(-4)}`;
       const newContactRecord = {
         id: contactId,
+        // Canonical & Legacy Fields for 100% CRM visibility
         conta_name: newContactName,
+        kosun_crm_name: newContactName,
+        fullName: newContactName,
+        name: newContactName,
+        
         conta_phone: senderPhone,
+        kosun_crm_phone: senderPhone,
+        phone: senderPhone,
+        normalizedPhone: normPhone,
+        
         email: extracted.email || '',
+        kosun_crm_email: extracted.email || '',
+        
         mh_crm_city: extracted.city || '',
+        kosun_crm_city: extracted.city || '',
+        city: extracted.city || '',
+        
         company_name: extracted.company || '',
+        kosun_crm_company: extracted.company || '',
+        company: extracted.company || '',
+        
         is_lead: true,
         contact_type: 'lead',
+        kosun_crm_type: 'lead',
         status: 'active',
+        kosun_crm_status: 'active',
+        
         lead_source: channel === 'whatsapp' ? 'בוט וואטסאפ (WhatsApp AI Bot)' : 'סוכן קושאן AI',
+        kosun_crm_source: channel === 'whatsapp' ? 'בוט וואטסאפ (WhatsApp AI Bot)' : 'סוכן קושאן AI',
+        
         tags: ['ליד חדש', channel === 'whatsapp' ? 'שיחת וואטסאפ AI' : 'שיחת קושאן AI', botName],
+        kosun_crm_tags: ['ליד חדש', channel === 'whatsapp' ? 'שיחת וואטסאפ AI' : 'שיחת קושאן AI', botName],
+        
         cachedContentId: cachedContentId || null,
         total_spent: 0,
         order_count: 0,
@@ -249,8 +283,15 @@ export const whatsappAutoCrmService = {
       };
 
       try {
+        // Save in tenant-scoped collection
         const contactDocRef = doc(db, contactsColPath, contactId);
         await setDoc(contactDocRef, newContactRecord);
+
+        // Also mirror to root contacts collection for systems configured to read root
+        try {
+          const rootContactRef = doc(db, 'contacts', contactId);
+          await setDoc(rootContactRef, newContactRecord, { merge: true });
+        } catch {}
 
         // Publish event for real-time CRM synchronization
         eventBus.publish('crm:lead:created', {

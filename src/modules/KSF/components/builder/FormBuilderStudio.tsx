@@ -64,38 +64,15 @@ export const FormBuilderStudio: React.FC = () => {
   // If no active form, let user pick or create one
   if (!activeForm && !isLoading) {
     return (
-      <div dir="rtl" className="w-full max-w-5xl mx-auto pt-16 pb-12 px-4 space-y-6 animate-fadeIn">
-        {/* Action Bar (Zero giant banner, pure action) */}
-        <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-sm">
-          <div className="flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
-            <h3 className="font-black text-slate-900 dark:text-white text-base">
-              טפסים פעילים ({forms.length})
-            </h3>
-          </div>
-
-          <button
-            onClick={() => setIsBrainstormOpen(true)}
-            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl shadow-md flex items-center gap-2 text-xs transition active:scale-95 cursor-pointer"
-          >
-            <Wand2 className="w-4 h-4" />
-            <span>טופס חדש ב-AI</span>
-          </button>
-        </div>
-
-        {/* Existing Forms Grid */}
-        <div className="space-y-4">
-          <h3 className="font-extrabold text-slate-800 dark:text-white text-lg flex items-center gap-2">
-            <FileText className="w-5 h-5 text-amber-500" />
-            <span>הטפסים הקיימים במערכת ({forms.length})</span>
-          </h3>
-
+      <div dir="rtl" className="w-full max-w-5xl mx-auto pt-6 pb-12 px-4 space-y-6 animate-fadeIn">
+        {/* Forms Grid - Zero Giant Headers & Zero Giant Buttons */}
+        <div>
           {forms.length === 0 ? (
             <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-slate-500 space-y-3">
-              <Sparkles className="w-10 h-10 text-amber-500 mx-auto" />
+              <Sparkles className="w-10 h-10 text-indigo-500 mx-auto" />
               <p className="font-bold text-base text-slate-800 dark:text-white">עדיין לא נוצרו טפסים</p>
               <p className="text-xs text-slate-400">
-                לחץ על "צור טופס חדש ב-AI" כדי להתחיל בסיעור מוחות והפקת הטופס הראשון שלך.
+                פתח את צ'אט ה-AI (כפתור KSFAI הצף) להפקת טופס ראשון בלחיצה אחת.
               </p>
             </div>
           ) : (
@@ -104,19 +81,19 @@ export const FormBuilderStudio: React.FC = () => {
                 <div
                   key={f.id}
                   onClick={() => setActiveForm(f)}
-                  className="group p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-amber-500/60 rounded-3xl shadow-sm hover:shadow-md cursor-pointer transition-all flex flex-col justify-between space-y-4"
+                  className="group p-5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/60 rounded-3xl shadow-sm hover:shadow-md cursor-pointer transition-all flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
                         {f.category || 'כללי'}
                       </span>
-                      <span className="text-[11px] text-slate-400 font-mono">
-                        {f.steps?.length || 0} שלבים
+                      <span className="text-[11px] text-slate-400">
+                        {f.steps?.length || 0} שאלות
                       </span>
                     </div>
 
-                    <h4 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-amber-600 transition-colors">
+                    <h4 className="font-bold text-slate-900 dark:text-white text-base group-hover:text-indigo-600 transition-colors">
                       {f.title}
                     </h4>
                     {f.description && (
@@ -128,8 +105,8 @@ export const FormBuilderStudio: React.FC = () => {
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-400">
                     <span>הגשות: {f.submissionsCount || 0}</span>
-                    <span className="font-medium text-amber-600 dark:text-amber-400 group-hover:underline">
-                      פתח לעריכה ←
+                    <span className="font-medium text-indigo-600 dark:text-indigo-400 group-hover:underline">
+                      עריכה ←
                     </span>
                   </div>
                 </div>
@@ -180,11 +157,8 @@ export const FormBuilderStudio: React.FC = () => {
               type="text"
               value={activeForm.title}
               onChange={(e) => setActiveForm({ ...activeForm, title: e.target.value })}
-              className="text-lg font-extrabold text-slate-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-amber-500 rounded px-1"
+              className="text-lg font-extrabold text-slate-900 dark:text-white bg-transparent border-none outline-none focus:ring-1 focus:ring-indigo-500 rounded px-1"
             />
-            <div className="text-[11px] text-slate-400 font-mono px-1">
-              קולקציה: `mod_forms/{activeForm.id}/submissions`
-            </div>
           </div>
         </div>
 

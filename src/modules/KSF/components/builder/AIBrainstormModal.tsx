@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ToneStyle, SmartFormDefinition } from '../../types';
 import { TONE_PRESETS } from '../../config/tonePresets';
 import {
@@ -6,6 +6,8 @@ import {
   CRM_COLLECTION_FIELDS,
 } from '../../services/aiFormService';
 import { KOSUN_CRM_FIELD_KEYS } from '../../../../core/contracts/collections';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract, BrandDna } from '../../../../core/contracts';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { KosunInputWithVoice } from '../../../../core/ui/KosunInputWithVoice';
 import {
@@ -17,6 +19,7 @@ import {
   CheckCircle2,
   Check,
   HelpCircle,
+  Wand2,
 } from 'lucide-react';
 
 export interface AIBrainstormModalProps {
@@ -36,6 +39,17 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
 
   // Active tooltip hover state
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
+
+  // Retrieve Brand DNA through host capabilities (Zero Cross-Module Import & AI Monopoly)
+  const { getCapability } = useHostCapabilities();
+  const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
+  const brandDna: BrandDna | null = useMemo(() => {
+    return brandDnaContract ? brandDnaContract.getBrandDna() : null;
+  }, [brandDnaContract]);
+
+  // Dynamic Brand Colors
+  const primaryColor = brandDna?.designTokens?.primaryColor || '#4f46e5';
+  const brandGradient = `linear-gradient(135deg, ${primaryColor}, #6366f1)`;
 
   // Form parameters
   const [goal, setGoal] = useState<string>('');
@@ -57,6 +71,54 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
     suggestedNextSteps: string[];
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Dynamic AI Suggestions derived from Brand DNA collection
+  const aiGoalSuggestions = useMemo(() => {
+    const list: string[] = [];
+    if (brandDna?.audience?.mainUvp) {
+      list.push(`שאלון התאמה: ${brandDna.audience.mainUvp}`);
+    }
+    if (brandDna?.identity?.organizationPurpose) {
+      list.push(`שאלון ${brandDna.identity.organizationPurpose}`);
+    }
+    if (brandDna?.identity?.companyName) {
+      list.push(`פנייה וקבלת שירות מ${brandDna.identity.companyName}`);
+    }
+    if (brandDna?.ecosystem?.services && brandDna.ecosystem.services.length > 0) {
+      const srv = brandDna.ecosystem.services[0];
+      list.push(`קליטת פניות והרשמה ל${srv}`);
+    }
+    // High-converting defaults
+    if (list.length < 3) {
+      list.push('שאלון אבחון והתאמה אישית לתוכנית ליווי');
+      list.push('קבלת הצעת מחיר ופרויקט מותאם אישית');
+      list.push('בדיקת זכאות והרשמה מהירה');
+    }
+    return list.slice(0, 4);
+  }, [brandDna]);
+
+  const aiAudienceSuggestions = useMemo(() => {
+    const list: string[] = [];
+    if (brandDna?.audience?.targetAudiences && brandDna.audience.targetAudiences.length > 0) {
+      list.push(...brandDna.audience.targetAudiences);
+    }
+    if (brandDna?.audience?.personas && brandDna.audience.personas.length > 0) {
+      list.push(...brandDna.audience.personas.map((p) => p.roleOrProfile || p.name));
+    }
+    if (list.length < 3) {
+      list.push('בעלי עסקים ומנהלים');
+      list.push('לקוחות פרימיום VIP');
+      list.push('מתעניינים חדשים וקהל יעד כללי');
+    }
+    return Array.from(new Set(list)).slice(0, 4);
+  }, [brandDna]);
+
+  const aiNotesSuggestions = [
+    'לכלול שאלת דירוג דחיפות בסיום',
+    'לשמור על ניסוח קצר ותמציתי',
+    'פנייה אישית וחמה בהתאם למותג',
+    'שפה עסקית ורשמית',
+  ];
 
   if (!isOpen) return null;
 
@@ -145,17 +207,24 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
   return (
     <div
       dir="rtl"
-      className="fixed inset-0 z-[100] w-screen h-screen m-0 p-0 bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden animate-fadeIn select-none"
+      style={{ fontFamily: "'Heebo', sans-serif" }}
+      className="fixed inset-0 z-[100] w-screen h-screen m-0 p-0 bg-slate-50 dark:bg-slate-950 flex flex-col overflow-hidden animate-fadeIn select-none font-heebo"
     >
-      {/* 100% Fullscreen Top Bar - MINIMALIST: ONLY [K] ComponentName in English, no long headers or badges! */}
+      {/* 100% Fullscreen Top Bar: Blinking [K] on right, close button on left */}
       <div className="h-16 px-6 border-b border-slate-200 dark:border-slate-800 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-black text-xs flex items-center justify-center shadow-sm">
-            K
+        {/* Right side: Blinking K logo only */}
+        <div className="flex items-center">
+          <div className="relative w-8 h-8 flex items-center justify-center">
+            <img
+              src="/images/kosun-symbol.svg"
+              alt="K"
+              className="w-7 h-7 object-contain drop-shadow animate-pulse"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+              }}
+            />
+            <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping pointer-events-none" />
           </div>
-          <span className="font-black text-sm text-slate-900 dark:text-white tracking-wider">
-            KSF
-          </span>
         </div>
 
         {/* Center: Step indicators if not in review screen */}
@@ -164,22 +233,23 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
             {[1, 2, 3, 4, 5].map((step) => (
               <div
                 key={step}
+                style={currentStep === step ? { background: brandGradient } : undefined}
                 className={`h-2 rounded-full transition-all duration-300 ${
                   currentStep === step
-                    ? 'w-8 bg-slate-900 dark:bg-white'
+                    ? 'w-8 shadow-sm'
                     : currentStep > step
                     ? 'w-3 bg-emerald-500'
                     : 'w-2 bg-slate-200 dark:bg-slate-800'
                 }`}
               />
             ))}
-            <span className="text-xs font-bold text-slate-400 mr-2">
+            <span className="text-xs font-bold text-slate-400 mr-2 font-mono">
               {currentStep}/{totalWizardSteps}
             </span>
           </div>
         )}
 
-        {/* Close Button */}
+        {/* Left side: Close Button */}
         <button
           type="button"
           onClick={onClose}
@@ -191,14 +261,14 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
       </div>
 
       {/* Main Body - ABSOLUTE CENTER ALIGNMENT: Content centered horizontally & vertically */}
-      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-4 py-8">
+      <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-4 py-6">
         <div className="w-full max-w-xl mx-auto flex flex-col items-center justify-center text-center">
           {!generatedResult ? (
             <div className="w-full space-y-6">
-              {/* STEP 1: Goal (Single Question, Centered) */}
+              {/* STEP 1: Goal */}
               {currentStep === 1 && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="space-y-2 text-center">
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="space-y-1.5 text-center">
                     <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400">
                       <span>שאלה 1 מתוך 5</span>
                       <div
@@ -218,11 +288,45 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       מהי מטרת השאלון?
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      רשום בקצרה או הקרא בקולך, והמערכת תתאים את השאלות.
+                      רשום בקצרה, הקרא בקולך, או בחר המלצה חכמה מהמיתוג שלך.
                     </p>
                   </div>
 
-                  <div className="w-full space-y-3">
+                  {/* AI Brand Suggestion Chips */}
+                  {aiGoalSuggestions.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                      {aiGoalSuggestions.map((suggestion, idx) => {
+                        const isMatch = goal === suggestion;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setGoal(suggestion)}
+                            style={
+                              isMatch
+                                ? {
+                                    borderColor: primaryColor,
+                                    backgroundColor: `${primaryColor}18`,
+                                    color: primaryColor,
+                                  }
+                                : undefined
+                            }
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isMatch
+                                ? 'border-indigo-500 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-indigo-400/60 hover:text-indigo-600'
+                            }`}
+                          >
+                            <Sparkles className="w-3 h-3 text-indigo-500 shrink-0" />
+                            <span className="truncate max-w-[280px]">{suggestion}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Input field with voice dictation */}
+                  <div className="w-full space-y-2">
                     <KosunInputWithVoice
                       value={goal}
                       onChange={(e) => setGoal(e.target.value)}
@@ -231,13 +335,36 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       autoFocus
                     />
                   </div>
+
+                  {/* ACTION BUTTONS: DIRECTLY UNDERNEATH THE INPUT FIELD */}
+                  <div className="pt-2 flex items-center justify-center gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      style={{
+                        background: brandGradient,
+                        boxShadow: `0 8px 20px -4px ${primaryColor}40`,
+                      }}
+                      className="px-8 py-3.5 text-white font-bold rounded-xl text-sm hover:opacity-95 active:scale-95 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <span>הבא</span>
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onClose}
+                      className="px-5 py-3.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition cursor-pointer"
+                    >
+                      ביטול
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* STEP 2: Target Audience (Single Question, Centered) */}
+              {/* STEP 2: Target Audience */}
               {currentStep === 2 && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="space-y-2 text-center">
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="space-y-1.5 text-center">
                     <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400">
                       <span>שאלה 2 מתוך 5</span>
                       <div
@@ -257,11 +384,45 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       למי מיועד השאלון?
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      הגדרת קהל הממלאים (לדוגמה: לקוחות קיימים, מתעניינים חדשים).
+                      בחר מקהלי היעד של המותג או הקלד קהל יעד משלך.
                     </p>
                   </div>
 
-                  <div className="w-full space-y-3">
+                  {/* AI Brand Audience Chips */}
+                  {aiAudienceSuggestions.length > 0 && (
+                    <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                      {aiAudienceSuggestions.map((aud, idx) => {
+                        const isMatch = targetAudience === aud;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setTargetAudience(aud)}
+                            style={
+                              isMatch
+                                ? {
+                                    borderColor: primaryColor,
+                                    backgroundColor: `${primaryColor}18`,
+                                    color: primaryColor,
+                                  }
+                                : undefined
+                            }
+                            className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
+                              isMatch
+                                ? 'border-indigo-500 shadow-sm'
+                                : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-indigo-400/60 hover:text-indigo-600'
+                            }`}
+                          >
+                            <Sparkles className="w-3 h-3 text-indigo-500 shrink-0" />
+                            <span>{aud}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Input field with voice dictation */}
+                  <div className="w-full space-y-2">
                     <KosunInputWithVoice
                       value={targetAudience}
                       onChange={(e) => setTargetAudience(e.target.value)}
@@ -270,13 +431,37 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       autoFocus
                     />
                   </div>
+
+                  {/* ACTION BUTTONS: DIRECTLY UNDERNEATH */}
+                  <div className="pt-2 flex items-center justify-center gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      style={{
+                        background: brandGradient,
+                        boxShadow: `0 8px 20px -4px ${primaryColor}40`,
+                      }}
+                      className="px-8 py-3.5 text-white font-bold rounded-xl text-sm hover:opacity-95 active:scale-95 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <span>הבא</span>
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      className="px-5 py-3.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      <span>הקודם</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
               {/* STEP 3: Tone Preset (Single Question, Row Under Row) */}
               {currentStep === 3 && (
                 <div className="space-y-5 animate-fadeIn">
-                  <div className="space-y-2 text-center">
+                  <div className="space-y-1.5 text-center">
                     <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400">
                       <span>שאלה 3 מתוך 5</span>
                     </div>
@@ -289,25 +474,45 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                   </div>
 
                   {/* Strictly stacked row-under-row */}
-                  <div className="flex flex-col space-y-2.5 max-h-[50vh] overflow-y-auto pr-1 text-right">
+                  <div className="flex flex-col space-y-2.5 max-h-[46vh] overflow-y-auto pr-1 text-right">
                     {TONE_PRESETS.map((preset) => {
                       const isSelected = selectedTone === preset.id;
+                      const isBrandRecommended =
+                        (preset.id === 'executive_luxury' &&
+                          ((brandDna?.voice?.personality?.luxury ?? 80) >= 50)) ||
+                        (preset.id === 'warm_consulting' &&
+                          ((brandDna?.voice?.personality?.warmth ?? 0) > 70));
+
                       return (
                         <button
                           key={preset.id}
                           type="button"
                           onClick={() => setSelectedTone(preset.id)}
+                          style={
+                            isSelected
+                              ? {
+                                  borderColor: primaryColor,
+                                  backgroundColor: `${primaryColor}10`,
+                                  boxShadow: `0 4px 15px -2px ${primaryColor}25`,
+                                }
+                              : undefined
+                          }
                           className={`w-full p-3.5 rounded-2xl border-2 text-right transition-all flex items-center justify-between gap-4 cursor-pointer ${
                             isSelected
-                              ? 'border-slate-900 dark:border-white bg-slate-900/5 dark:bg-white/10 shadow-sm'
-                              : 'border-slate-200 dark:border-slate-800 hover:border-slate-400 bg-white dark:bg-slate-900'
+                              ? 'border-indigo-600 shadow-sm ring-1 ring-indigo-500/20'
+                              : 'border-slate-200 dark:border-slate-800 hover:border-indigo-400/60 bg-white dark:bg-slate-900'
                           }`}
                         >
                           <div className="flex items-center gap-3.5 min-w-0">
                             <div
+                              style={
+                                isSelected
+                                  ? { background: brandGradient, color: '#ffffff' }
+                                  : undefined
+                              }
                               className={`p-2 rounded-xl shrink-0 ${
                                 isSelected
-                                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold'
+                                  ? 'text-white'
                                   : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
                               }`}
                             >
@@ -317,35 +522,76 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                               />
                             </div>
                             <div className="min-w-0">
-                              <span className="font-extrabold text-slate-900 dark:text-white text-sm block">
-                                {preset.label}
-                              </span>
-                              <span className="text-xs text-slate-500 dark:text-slate-400 truncate block">
+                              <div className="flex items-center gap-2">
+                                <span className="font-extrabold text-slate-900 dark:text-white text-sm">
+                                  {preset.label}
+                                </span>
+                                {isBrandRecommended && (
+                                  <span
+                                    style={{
+                                      backgroundColor: `${primaryColor}20`,
+                                      color: primaryColor,
+                                    }}
+                                    className="text-[10px] px-2 py-0.5 rounded-full font-bold flex items-center gap-1"
+                                  >
+                                    <Sparkles className="w-2.5 h-2.5" />
+                                    <span>מותאם למותג</span>
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-xs text-slate-500 dark:text-slate-400 truncate block mt-0.5">
                                 {preset.description}
                               </span>
                             </div>
                           </div>
 
                           <div
+                            style={
+                              isSelected ? { background: brandGradient, borderColor: primaryColor } : undefined
+                            }
                             className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
                               isSelected
-                                ? 'border-slate-900 dark:border-white bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                ? 'text-white'
                                 : 'border-slate-300 dark:border-slate-700'
                             }`}
                           >
-                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            {isSelected && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                           </div>
                         </button>
                       );
                     })}
                   </div>
+
+                  {/* ACTION BUTTONS: DIRECTLY UNDERNEATH */}
+                  <div className="pt-2 flex items-center justify-center gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      style={{
+                        background: brandGradient,
+                        boxShadow: `0 8px 20px -4px ${primaryColor}40`,
+                      }}
+                      className="px-8 py-3.5 text-white font-bold rounded-xl text-sm hover:opacity-95 active:scale-95 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <span>הבא</span>
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      className="px-5 py-3.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      <span>הקודם</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* STEP 4: Contact details to collect (Human Language, Tooltips only!) */}
+              {/* STEP 4: Contact Details (Single Question, Row Under Row) */}
               {currentStep === 4 && (
                 <div className="space-y-5 animate-fadeIn">
-                  <div className="space-y-2 text-center">
+                  <div className="space-y-1.5 text-center">
                     <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400">
                       <span>שאלה 4 מתוך 5</span>
                       <div
@@ -365,12 +611,12 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       אילו פרטים תרצה שהממלא ישאיר?
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      הפרטים שנבחרו יישמרו ישירות בתיק הלקוח.
+                      הפרטים שנבחרו יישמרו ישירות בתיק הלקוח במערכת.
                     </p>
                   </div>
 
-                  {/* Strictly stacked row-under-row - Pure Human Labels */}
-                  <div className="flex flex-col space-y-2 max-h-[50vh] overflow-y-auto pr-1 text-right">
+                  {/* Strictly stacked row-under-row - Human Labels with Brand Styling */}
+                  <div className="flex flex-col space-y-2 max-h-[46vh] overflow-y-auto pr-1 text-right">
                     {CRM_COLLECTION_FIELDS.map((field) => {
                       const isChecked = selectedCrmFields.includes(field.id);
                       return (
@@ -378,17 +624,35 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                           key={field.id}
                           type="button"
                           onClick={() => toggleCrmField(field.id)}
+                          style={
+                            isChecked
+                              ? {
+                                  borderColor: primaryColor,
+                                  backgroundColor: `${primaryColor}10`,
+                                }
+                              : undefined
+                          }
                           className={`w-full p-3.5 rounded-2xl border text-right transition-all flex items-center justify-between gap-3 cursor-pointer ${
                             isChecked
-                              ? 'border-slate-900 dark:border-white bg-slate-900/5 dark:bg-white/10'
-                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 opacity-60'
+                              ? 'border-indigo-600 shadow-sm'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 opacity-60 hover:opacity-100'
                           }`}
                         >
                           <div className="flex items-center gap-3 min-w-0">
-                            <div className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0">
+                            <div
+                              style={
+                                isChecked
+                                  ? {
+                                      backgroundColor: `${primaryColor}20`,
+                                      color: primaryColor,
+                                    }
+                                  : undefined
+                              }
+                              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 shrink-0"
+                            >
                               <LuxuryIconRenderer
                                 iconName={field.iconName}
-                                className="w-4 h-4 text-slate-700 dark:text-slate-200"
+                                className="w-4 h-4"
                               />
                             </div>
                             <div className="min-w-0">
@@ -399,25 +663,54 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                           </div>
 
                           <div
+                            style={
+                              isChecked
+                                ? { background: brandGradient, borderColor: primaryColor }
+                                : undefined
+                            }
                             className={`w-5 h-5 rounded-md border flex items-center justify-center shrink-0 ${
                               isChecked
-                                ? 'border-slate-900 dark:border-white bg-slate-900 dark:bg-white text-white dark:text-slate-900'
+                                ? 'text-white'
                                 : 'border-slate-300 dark:border-slate-700 bg-transparent'
                             }`}
                           >
-                            {isChecked && <Check className="w-3.5 h-3.5 stroke-[3]" />}
+                            {isChecked && <Check className="w-3.5 h-3.5 stroke-[3] text-white" />}
                           </div>
                         </button>
                       );
                     })}
                   </div>
+
+                  {/* ACTION BUTTONS: DIRECTLY UNDERNEATH */}
+                  <div className="pt-2 flex items-center justify-center gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={handleNext}
+                      style={{
+                        background: brandGradient,
+                        boxShadow: `0 8px 20px -4px ${primaryColor}40`,
+                      }}
+                      className="px-8 py-3.5 text-white font-bold rounded-xl text-sm hover:opacity-95 active:scale-95 flex items-center gap-2 transition cursor-pointer"
+                    >
+                      <span>הבא</span>
+                      <ArrowLeft className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      className="px-5 py-3.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      <span>הקודם</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* STEP 5: Special Notes (Single Question, Centered) */}
+              {/* STEP 5: Special Notes */}
               {currentStep === 5 && (
-                <div className="space-y-6 animate-fadeIn">
-                  <div className="space-y-2 text-center">
+                <div className="space-y-5 animate-fadeIn">
+                  <div className="space-y-1.5 text-center">
                     <div className="flex items-center justify-center gap-1.5 text-xs font-semibold text-slate-400">
                       <span>שאלה 5 מתוך 5</span>
                     </div>
@@ -425,11 +718,43 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       דגשים או בקשות מיוחדות לסיום?
                     </h2>
                     <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
-                      אופציונלי: שאלת דירוג, אורך שאלון או בקשה מיוחדת.
+                      אופציונלי: בחר דגש חכם מהרשימה או הזן הנחיות חופשיות.
                     </p>
                   </div>
 
-                  <div className="w-full space-y-3">
+                  {/* AI Brand Notes Chips */}
+                  <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                    {aiNotesSuggestions.map((note, idx) => {
+                      const isMatch = customToneInstructions === note;
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          onClick={() => setCustomToneInstructions(note)}
+                          style={
+                            isMatch
+                              ? {
+                                  borderColor: primaryColor,
+                                  backgroundColor: `${primaryColor}18`,
+                                  color: primaryColor,
+                                }
+                              : undefined
+                          }
+                          className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
+                            isMatch
+                              ? 'border-indigo-500 shadow-sm'
+                              : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:border-indigo-400/60 hover:text-indigo-600'
+                          }`}
+                        >
+                          <Sparkles className="w-3 h-3 text-indigo-500 shrink-0" />
+                          <span>{note}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Input field with voice dictation */}
+                  <div className="w-full space-y-2">
                     <KosunInputWithVoice
                       value={customToneInstructions}
                       onChange={(e) => setCustomToneInstructions(e.target.value)}
@@ -437,6 +762,40 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       className="text-base p-4 text-center"
                       autoFocus
                     />
+                  </div>
+
+                  {/* ACTION BUTTONS: DIRECTLY UNDERNEATH - FINAL STEP WITH GENERATE BUTTON */}
+                  <div className="pt-2 flex items-center justify-center gap-3 w-full">
+                    <button
+                      type="button"
+                      onClick={handleGenerate}
+                      disabled={isGenerating || !goal.trim()}
+                      style={{
+                        background: brandGradient,
+                        boxShadow: `0 10px 25px -4px ${primaryColor}50`,
+                      }}
+                      className="px-9 py-3.5 text-white font-black rounded-xl text-sm hover:opacity-95 active:scale-95 flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
+                    >
+                      {isGenerating ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>סוכן KOSAI מעבד ויוצר את השאלון...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>צור שאלון עם KOSAI</span>
+                          <Sparkles className="w-4 h-4" />
+                        </>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handlePrev}
+                      className="px-5 py-3.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <ArrowRight className="w-4 h-4" />
+                      <span>הקודם</span>
+                    </button>
                   </div>
                 </div>
               )}
@@ -448,41 +807,37 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
               )}
             </div>
           ) : (
-            /* Result Preview Screen - Centered & Clean */
-            <div className="w-full space-y-6 animate-fadeIn text-right">
-              <div className="p-5 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/50 rounded-2xl flex items-start gap-4">
-                <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-                  <CheckCircle2 className="w-5 h-5" />
+            /* Result Preview Screen - Centered with Buttons Immediately Beneath */
+            <div className="w-full space-y-5 animate-fadeIn text-right">
+              {/* Form Metadata - Clean & Minimalist Header without Technical Jargon */}
+              <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1.5 text-center">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-black mx-auto">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>השאלון מוכן בהצלחה</span>
                 </div>
-                <div className="space-y-1">
-                  <h4 className="font-extrabold text-emerald-900 dark:text-emerald-300 text-base">
-                    השאלון מוכן בהצלחה!
-                  </h4>
-                  <p className="text-xs text-emerald-800 dark:text-emerald-400 leading-relaxed">
-                    {generatedResult.explanation}
-                  </p>
-                </div>
-              </div>
-
-              {/* Form Metadata */}
-              <div className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-1 text-center">
-                <h4 className="font-black text-slate-900 dark:text-white text-lg">
+                <h4 className="font-black text-slate-900 dark:text-white text-xl">
                   {generatedResult.form.title}
                 </h4>
                 <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {generatedResult.form.steps?.length || 0} שלבים (שאלה אחת בכל שלב)
+                  {generatedResult.form.steps?.length || 0} שאלות ממוקדות • שאלה אחת בכל שלב
                 </p>
               </div>
 
-              {/* Steps List - Clean without technical jargon */}
-              <div className="flex flex-col space-y-2 max-h-60 overflow-y-auto pr-1">
+              {/* Steps List */}
+              <div className="flex flex-col space-y-2 max-h-52 overflow-y-auto pr-1">
                 {(generatedResult.form.steps || []).map((step, idx) => (
                   <div
                     key={step.id || idx}
                     className="p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl flex items-center justify-between gap-3 text-xs"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <span className="w-5 h-5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-extrabold flex items-center justify-center shrink-0 text-xs">
+                      <span
+                        style={{
+                          backgroundColor: `${primaryColor}20`,
+                          color: primaryColor,
+                        }}
+                        className="w-5 h-5 rounded-full font-black flex items-center justify-center shrink-0 text-xs"
+                      >
                         {idx + 1}
                       </span>
                       <LuxuryIconRenderer
@@ -494,93 +849,38 @@ export const AIBrainstormModal: React.FC<AIBrainstormModalProps> = ({
                       </span>
                     </div>
 
-                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] shrink-0 font-medium">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 text-[11px] shrink-0 font-medium font-mono">
                       שלב {idx + 1}
                     </span>
                   </div>
                 ))}
               </div>
+
+              {/* ACTION BUTTONS: DIRECTLY BENEATH PREVIEW */}
+              <div className="pt-3 flex items-center justify-center gap-3 w-full">
+                <button
+                  type="button"
+                  onClick={handleApplyForm}
+                  style={{
+                    background: brandGradient,
+                    boxShadow: `0 10px 25px -4px ${primaryColor}50`,
+                  }}
+                  className="px-9 py-3.5 text-white font-black rounded-xl text-sm hover:opacity-95 active:scale-95 flex items-center gap-2 transition cursor-pointer"
+                >
+                  <span>מעבר לעורך הטופס (KSF)</span>
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGeneratedResult(null)}
+                  className="px-5 py-3.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  חזרה לעריכה
+                </button>
+              </div>
             </div>
           )}
         </div>
-      </div>
-
-      {/* 100% Fullscreen Footer Controls - Generous spacing to avoid overlapping with floating elements */}
-      <div className="h-20 px-8 border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 flex items-center justify-between shrink-0">
-        {!generatedResult ? (
-          <>
-            <div>
-              {currentStep > 1 ? (
-                <button
-                  type="button"
-                  onClick={handlePrev}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition flex items-center gap-2 cursor-pointer"
-                >
-                  <ArrowRight className="w-4 h-4" />
-                  <span>הקודם</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition cursor-pointer"
-                >
-                  ביטול
-                </button>
-              )}
-            </div>
-
-            <div>
-              {currentStep < totalWizardSteps ? (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className="px-7 py-2.5 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-bold rounded-xl text-xs shadow-md hover:opacity-90 flex items-center gap-2 transition cursor-pointer"
-                >
-                  <span>הבא</span>
-                  <ArrowLeft className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleGenerate}
-                  disabled={isGenerating || !goal.trim()}
-                  className="px-7 py-2.5 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-black rounded-xl text-xs shadow-md hover:opacity-90 flex items-center gap-2 disabled:opacity-50 transition cursor-pointer"
-                >
-                  {isGenerating ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>יוצר את השאלון...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>צור שאלון</span>
-                      <Sparkles className="w-4 h-4" />
-                    </>
-                  )}
-                </button>
-              )}
-            </div>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              onClick={() => setGeneratedResult(null)}
-              className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
-            >
-              חזרה לעריכה
-            </button>
-            <button
-              type="button"
-              onClick={handleApplyForm}
-              className="px-8 py-2.5 bg-slate-950 dark:bg-white text-white dark:text-slate-950 font-extrabold rounded-xl text-xs shadow-md hover:opacity-90 flex items-center gap-2 transition cursor-pointer"
-            >
-              <span>מעבר לעורך הטופס</span>
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-          </>
-        )}
       </div>
     </div>
   );

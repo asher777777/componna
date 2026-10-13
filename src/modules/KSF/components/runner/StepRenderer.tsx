@@ -3,7 +3,8 @@ import { FormStep, FormThemeSettings } from '../../types';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import { useSpeechRecognition } from '../../hooks/useSpeechRecognition';
 import { transliterateHebrewToSlug, cleanEmailSpeech } from '../../utils/transliteration';
-import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock } from 'lucide-react';
+import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
+import { Star, Check, Upload, FileCheck, Mic, MicOff, Volume2, Globe, Lock, CreditCard } from 'lucide-react';
 
 export interface StepRendererProps {
   step: FormStep;
@@ -517,6 +518,34 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                 </div>
               )}
             </label>
+          </div>
+        );
+
+      case 'payment':
+        return (
+          <div className="w-full max-w-xl">
+            <CapabilitySlot
+              name="kesher-payment-slot"
+              props={{
+                amount: step.defaultValue || 100,
+                onSuccess: (res: any) => onChange(res.transactionId || 'approved'),
+              }}
+              fallback={
+                <div className="p-6 bg-white dark:bg-slate-900 border-2 border-indigo-500/30 rounded-2xl text-center space-y-3 shadow-md">
+                  <CreditCard className="w-8 h-8 text-indigo-500 mx-auto" />
+                  <h4 className="font-black text-slate-900 dark:text-white text-base">
+                    סליקה מאובטחת באמצעות מסוף קשר
+                  </h4>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    סליקת אשראי, ביט והעברה בנקאית מאובטחת. המסמך יישלח אוטומטית בסיום.
+                  </p>
+                  <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl text-indigo-700 dark:text-indigo-300 text-sm font-black flex items-center justify-center gap-2">
+                    <span>סכום לתשלום:</span>
+                    <span className="text-base font-mono">₪{step.defaultValue || 100}</span>
+                  </div>
+                </div>
+              }
+            />
           </div>
         );
 

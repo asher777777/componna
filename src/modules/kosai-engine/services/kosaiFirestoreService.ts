@@ -49,11 +49,12 @@ export const kosaiConversationsService = {
   async getConversations(db: Firestore, tenantId: string, moduleId?: string): Promise<KosaiConversation[]> {
     const colRef = collection(db, `tenants/${tenantId}/${KOSAI_CONFIG.COLLECTIONS.CONVERSATIONS}`);
     try {
+      // Query without requiring Firestore composite index, sorting locally in memory
       const q = moduleId
-        ? query(colRef, where('moduleId', '==', moduleId), orderBy('updatedAt', 'desc'), limit(50))
-        : query(colRef, orderBy('updatedAt', 'desc'), limit(50));
+        ? query(colRef, where('moduleId', '==', moduleId), limit(50))
+        : query(colRef, limit(50));
       const snap = await getDocs(q);
-      return snap.docs.map(d => {
+      const list = snap.docs.map(d => {
         const data = d.data();
         return {
           id: d.id,
@@ -70,9 +71,9 @@ export const kosaiConversationsService = {
           }))
         } as KosaiConversation;
       });
+      return list.sort((a, b) => b.updatedAt - a.updatedAt);
     } catch (err) {
       console.warn('[kosaiConversationsService] Error getting conversations, attempting fallback:', err);
-      // Fallback in case index is building for complex query
       const snap = await getDocs(colRef);
       const list = snap.docs.map(d => {
         const data = d.data();

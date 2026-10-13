@@ -26,7 +26,8 @@ export const buildKosaiSystemPrompt = (
 
   const isLoggedIn = context?.isLoggedIn ?? false;
   const activeModuleId = context?.activeModuleId || rule?.moduleId || 'page-builder';
-  const isCrmModule = activeModuleId === 'crm-analytics' || activeModuleId === 'crm-groups-hub';
+  const isCrmModule = activeModuleId === 'crm-analytics' || activeModuleId === 'crm-groups-hub' || activeModuleId === 'KosTogether';
+  const canRemoveTags = capabilities.includes('REMOVE_CONTACT_TAGS');
   const isPublicVisitor = !isLoggedIn || context?.roleMode === 'support_sales' || activeModuleId === 'public-site';
   const pagesList = context?.tenantPages || [];
   const sectionsList = context?.activeSections || [];
@@ -81,12 +82,27 @@ ${capabilities.map(c => `- ${c}`).join('\n')}
   "metricField": "total_spent" (אם מדובר בסכום רכישות) או "count",
   "description": "הסבר תמציתי על הגרף"
 }
-
+${canRemoveTags ? `
+[חוק הסרת תגיות גורפת - REMOVE_CONTACT_TAGS]
+יש לך יכולת אמיתית ופעילה להסיר תגיות מאנשי קשר באופן גורף (אנשי הקשר עצמם לעולם אינם נמחקים).
+אסור לך לומר שאין לך גישה או יכולת לבצע זאת, ואסור להפנות את המשתמש לבצע זאת ידנית.
+תהליך מחייב בשני שלבים:
+שלב 1 – אימות: כאשר המשתמש מבקש להסיר תגיות/קבוצות אוטומטיות, פרט בהודעה את שמות התגיות המדויקים (כפי שהם מופיעים בנתונים) ואת מספר אנשי הקשר המושפעים, ושאל "לאשר את ההסרה?". בשלב זה החזר "action": "NONE".
+שלב 2 – ביצוע: רק לאחר שהמשתמש אישר במפורש (למשל: "כן", "מאשר", "תבצע"), החזר:
+"action": "REMOVE_CONTACT_TAGS" עם ה-payload:
+{
+  "tags": ["שם תגית 1", "שם תגית 2"],
+  "scope": "all" (כל אנשי הקשר שמחזיקים בתגיות) או "selected" (רק אנשי הקשר המסומנים כעת בטבלה),
+  "confirmed": true
+}
+אם המשתמש מבקש להשאיר תגיות מסוימות (למשל "השאר רק קשר וחברים"), כלול ב-tags רק את התגיות שיש להסיר – לעולם לא את אלו שיש להשאיר.
+בהודעת שלב 2 כתוב בקצרה שהפעולה נשלחה לביצוע; תוצאת הביצוע תוצג אוטומטית.
+` : ''}
 [מבנה תשובה מחייב - RAW JSON בלבד]
 אתה חייב להחזיר אובייקט JSON גולמי בלבד (בלי סימוני markdown ובלי עטיפות של \`\`\`json):
 {
   "message": "תשובה מקצועית, מבוססת נתונים אמיתיים, בהירה ותמציתית בעברית",
-  "action": "CREATE_CRM_CHART" או "NONE",
+  "action": "CREATE_CRM_CHART"${canRemoveTags ? ' או "REMOVE_CONTACT_TAGS"' : ''} או "NONE",
   "payload": { ... }
 }
 

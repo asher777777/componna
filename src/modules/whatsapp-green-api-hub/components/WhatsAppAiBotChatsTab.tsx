@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { collection, query, orderBy, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
-import { Bot, User, Trash2, Clock, Phone, AlertCircle } from 'lucide-react';
+import { Bot, User, Trash2, Clock, Phone, AlertCircle, RotateCcw } from 'lucide-react';
 
 
 export const WhatsAppAiBotChatsTab: React.FC = () => {
@@ -107,13 +107,33 @@ export const WhatsAppAiBotChatsTab: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <button 
-                onClick={() => handleDelete(selectedChat.id)}
-                className="p-2 hover:bg-red-500/20 text-red-400 rounded-full transition"
-                title="מחק שיחה"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={async () => {
+                    if (!db || !selectedChat) return;
+                    if (!confirm('האם לאפס את המטמון וההקשר של שיחה זו כדי להתחיל טסט נקי?')) return;
+                    const chatDocRef = doc(db, chatsCollectionPath, selectedChat.id);
+                    await deleteDoc(chatDocRef);
+                    setSelectedChat(null);
+                  }}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 ${
+                    isDark
+                      ? 'bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 border border-amber-500/30'
+                      : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                  }`}
+                  title="נקה מטמון והתחל שיחה חדשה מההתחלה"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>איפוס מטמון לטסט חדש</span>
+                </button>
+                <button 
+                  onClick={() => handleDelete(selectedChat.id)}
+                  className="p-2 hover:bg-red-500/20 text-red-400 rounded-full transition"
+                  title="מחק שיחה"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-4">

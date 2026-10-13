@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useMemo, ReactNode } from 'react';
 import { kesherService } from '../services/kesherService';
+import { KesherPaymentSlot } from '../components/KesherPaymentSlot';
 import { crmContactSyncService } from '../services/crmContactSyncService';
 import { receiptGlossaryService } from '../services/receiptGlossaryService';
 import { 
@@ -11,7 +12,8 @@ import {
   BitPaymentRequest, 
   KesherApiResponse 
 } from '../types';
-import { CrmContactSummary } from '../../../core/contracts';
+import { CrmContactSummary, KesherPaymentContract } from '../../../core/contracts';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { eventBus } from '../../../core/bridge/EventBus';
@@ -236,6 +238,80 @@ export const KesherPaymentsProvider: React.FC<{ children: ReactNode }> = ({ chil
       failedCount: failedTxs.length
     };
   }, [transactions]);
+
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
+
+  useEffect(() => {
+    const paymentContract: KesherPaymentContract = {
+      isConfigured: () => isConfigured,
+      processPayment: async (req) => {
+        try {
+          if (req.paymentMethod === 'bit') {
+            const res = await processBitPayment({
+              clientName: req.clientName,
+              phoneNumber: req.phone || '',
+              amount: req.amount,
+              description: req.description || 'תשלום שאלון/טופס KSF',
+              documentType: (req.documentType as any) || 320,
+            });
+            return {
+              success: res.status === 'Approved' || res.status === 'Success',
+              transactionId: res.transactionId,
+              receiptUrl: res.receiptUrl,
+              error: res.errorMessage,
+            };
+          } else if (req.paymentMethod === 'cash') {
+            const res = await processCashPayment({
+              clientName: req.clientName,
+              amount: req.amount,
+              phone: req.phone,
+              email: req.email,
+              paymentType: 'Cash',
+              details: req.description || 'תשלום במזומן',
+              receiptType: (req.documentType as any) || 320,
+            });
+            return {
+              success: res.status === 'Approved' || res.status === 'Success',
+              transactionId: res.transactionId,
+              receiptUrl: res.receiptUrl,
+              error: res.errorMessage,
+            };
+          } else {
+            const res = await kesherService.sendTransaction({
+              cardNumber: '',
+              expiry: '',
+              cvv: '',
+              amount: req.amount,
+              clientName: req.clientName,
+              phone: req.phone,
+              email: req.email,
+              tz: req.tz,
+              documentType: (req.documentType as any) || 320,
+              comment: req.description || 'תשלום שאלון/טופס KSF',
+            });
+            return {
+              success: res.status === 'Approved' || res.status === 'Success',
+              transactionId: res.transactionId,
+              receiptUrl: res.receiptUrl,
+              error: res.errorMessage,
+            };
+          }
+        } catch (err: any) {
+          return {
+            success: false,
+            error: err?.message || 'שגיאה בעיבוד תשלום במסוף קשר',
+          };
+        }
+      },
+    };
+
+    registerCapability('kesher-payment', paymentContract);
+    registerCapability('kesher-payment-slot', KesherPaymentSlot);
+    return () => {
+      unregisterCapability('kesher-payment');
+      unregisterCapability('kesher-payment-slot');
+    };
+  }, [isConfigured, processBitPayment, processCashPayment, registerCapability, unregisterCapability]);
 
   return (
     <KesherPaymentsContext.Provider

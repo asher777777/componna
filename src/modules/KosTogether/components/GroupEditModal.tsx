@@ -202,26 +202,31 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 text-right animate-in fade-in zoom-in-95 duration-200">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+    <div className="fixed inset-0 z-50 w-screen h-screen bg-slate-900/80 backdrop-blur-md overflow-y-auto flex flex-col items-center justify-start p-2 sm:p-6" dir="rtl">
+      {/* 100% Fullscreen Container centered with max-w-2xl */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl sm:rounded-[2.5rem] max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 text-right animate-in fade-in zoom-in-95 duration-200 my-auto flex flex-col">
+        {/* Header: Minimalist Official Kosun Identification */}
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
           <div className="flex items-center gap-2.5">
-            <span className="w-3.5 h-3.5 rounded-full ring-2 ring-white" style={{ backgroundColor: color }} />
-            <div>
-              <h3 className="text-base font-black text-slate-900">
-                {editingGroup ? `עריכת ${createPage ? 'קהילה' : 'קבוצה'}` : `יצירת ${createPage ? 'קהילה חדשה' : 'קבוצה חדשה'}`}
-              </h3>
-              <p className="text-xs text-slate-400">הגדרת שם, חזון, יעדי גיוס, עמוד ציבורי וחוקים חכמים</p>
-            </div>
+            <img
+              src="/images/kosun-symbol.svg"
+              onError={(e: any) => {
+                e.currentTarget.onerror = null;
+                e.currentTarget.src = '/images/kosun-official-logo.png';
+              }}
+              alt="KOSUN"
+              className="w-6 h-6 object-contain"
+            />
+            <span className="font-extrabold text-xs tracking-tight text-slate-900 dark:text-white">KosTogether</span>
           </div>
 
           <button
             type="button"
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+            title="סגור"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
 

@@ -21,6 +21,7 @@ import {
   SavedAnalyticsView 
 } from '../types';
 import { DEFAULT_COLLECTIONS } from '../config';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 
 // Robust date parser for dates in diverse formats (dd/mm/yyyy, ISO, Timestamp)
 export function parseDateToTime(val: any): number | null {
@@ -499,10 +500,11 @@ export async function fetchLiveCrmAnalytics(
       snapshot = await getDocs(query(contactsRef));
     }
 
-    // Fallback: If scoped collection is empty and path is tenant-scoped, query root 'contacts'
-    if (snapshot.empty && collections.contacts !== 'contacts') {
+    // Fallback: If scoped collection is empty and tenant has migrated path, check fallback contacts collection
+    if (snapshot.empty && collections.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
       try {
-        const rootRef = collection(db, 'contacts');
+        const rootTargetCol = SYSTEM_COLLECTIONS.CONTACTS;
+        const rootRef = collection(db, rootTargetCol);
         const rootQ = ownerId ? query(rootRef, where('ownerId', '==', ownerId)) : query(rootRef);
         let rootSnap = await getDocs(rootQ);
         if (rootSnap.empty && ownerId) {
@@ -685,9 +687,10 @@ export async function fetchLiveCrmAnalytics(
         groupsSnap = await getDocs(query(groupsRef));
       }
       // Fallback to root crm_groups if scoped collection is empty
-      if (groupsSnap.empty && groupsColName !== 'crm_groups') {
+      if (groupsSnap.empty && groupsColName !== SYSTEM_COLLECTIONS.GROUPS) {
         try {
-          const rootGRef = collection(db, 'crm_groups');
+          const rootGroupsCol = SYSTEM_COLLECTIONS.GROUPS;
+          const rootGRef = collection(db, rootGroupsCol);
           let rootGSnap = await getDocs(query(rootGRef));
           if (!rootGSnap.empty) {
             groupsSnap = rootGSnap;

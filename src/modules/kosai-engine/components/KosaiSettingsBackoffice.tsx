@@ -31,6 +31,7 @@ const CAPABILITIES_META: {
   { id: 'UPDATE_GLOBAL_SETTINGS', label: 'הגדרות עיצוב ומיתוג', desc: 'שינוי צבעים ראשיים, פונטים וסגנון גלובלי', icon: Sparkles },
   { id: 'UPDATE_SEO', label: 'הגדרות קידום ו-SEO', desc: 'עדכון כותרות מטא, תיאורים ותגיות לעמוד', icon: Target },
   { id: 'CREATE_CRM_CHART', label: 'יצירת גרפים ב-CRM', desc: 'הפקת תרשימים וגרפים סטטיסטיים בזמן אמת', icon: LineChart },
+  { id: 'REMOVE_CONTACT_TAGS', label: 'הסרת תגיות גורפת', desc: 'הסרת תגיות מאנשי קשר באישור מפורש, ללא מחיקת אנשי הקשר', icon: Tag },
   { id: 'CODE_GENERATION', label: 'כתיבת קוד', desc: 'יצירה ועדכון קוד מערכת', icon: Code2 },
   { id: 'PDF_READING', label: 'קריאת מסמכים', desc: 'חילוץ ידע מקבצי PDF', icon: FileText },
   { id: 'WEB_SEARCH', label: 'חיפוש ברשת', desc: 'שליפת מידע אונליין', icon: Search },
@@ -217,7 +218,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
     const defaultModule = modId ? availableModules.find(m => m.id === modId) : null;
     const newRule: KosaiRule = {
       id: `rule_${Date.now()}_${Math.floor(Math.random()*1000)}`,
-      name: defaultModule ? `סוכן ${defaultModule.name}` : 'סוכן חדש',
+      name: defaultModule ? `KOSAI ${defaultModule.name}` : 'KOSAI Expert',
       slugPattern: defaultModule?.route || '',
       moduleId: defaultModule?.id || '',
       systemPromptAddon: '',
@@ -231,17 +232,6 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
     await kosaiRulesService.saveRule(db, tenantId, newRule);
     setRules(prev => [newRule, ...prev]);
     setSelectedRuleId(newRule.id);
-  };
-
-  const handleSeedDefaultAgents = async () => {
-    if (!db) return;
-    setLoading(true);
-    for (const mod of availableModules) {
-      if (!rules.find(r => r.moduleId === mod.id)) {
-        await handleCreateRule(mod.id);
-      }
-    }
-    loadData();
   };
 
   const handleUpdateRule = async (updated: KosaiRule) => {
@@ -411,16 +401,16 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
               </button>
               <div className="h-6 w-px bg-slate-200" />
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-600 to-indigo-600 text-white flex items-center justify-center shadow-sm shrink-0">
-                  <Bot className="w-4 h-4" />
-                </div>
-                <div>
-                  <h1 className="font-black text-sm sm:text-base text-slate-900 leading-tight">
-                    הגדרות סוכן: {activeRule.name}
-                  </h1>
-                  <span className="text-[10px] text-slate-400 block">
-                    {assignedModule ? assignedModule.name : 'שיוך מודול מותאם'}
-                  </span>
+                <div className="relative w-9 h-9 flex items-center justify-center shrink-0">
+                  <img
+                    src="/images/kosun-symbol.svg"
+                    alt="K"
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+                    }}
+                    className="w-7 h-7 object-contain drop-shadow animate-pulse"
+                  />
+                  <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 animate-ping pointer-events-none" />
                 </div>
               </div>
             </div>
@@ -883,35 +873,29 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
       {/* Top Navigation */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-indigo-500/20 shrink-0">
-              <Bot className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-lg sm:text-xl font-black text-slate-900">הסוכנים של קושאן</h1>
-                <InfoTooltip text="כאן מנהלים את צוות סוכני ה-AI הפועלים ברחבי המערכת שלך, קובעים לאילו מאגרי מידע יש להם גישה ומגדירים את יכולות הפעולה שלהם." />
-              </div>
-              <p className="text-xs text-slate-500 hidden sm:block">מרכז שליטה ובקרה לצוות הדיגיטלי בעסק שלך</p>
+          {/* Right side: Blinking K logo only */}
+          <div className="flex items-center">
+            <div className="relative w-9 h-9 flex items-center justify-center">
+              <img
+                src="/images/kosun-symbol.svg"
+                alt="K"
+                className="w-8 h-8 object-contain drop-shadow animate-pulse"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+                }}
+              />
+              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping pointer-events-none" />
             </div>
           </div>
 
+          {/* Left side: Actions & Close button on left */}
           <div className="flex items-center gap-2">
-            <button 
-              type="button"
-              onClick={handleSeedDefaultAgents} 
-              className="px-3 sm:px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer"
-              title="יצירת סוכני ברירת מחדל לכל המודולים"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-              <span className="hidden sm:inline">חולל סוכני מחדל</span>
-            </button>
             <button 
               type="button"
               onClick={() => handleCreateRule()} 
               className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-xl shadow-md shadow-indigo-600/20 flex items-center gap-1.5 text-xs font-bold transition cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-4 h-4 stroke-[2.5]" />
               <span>סוכן חדש</span>
             </button>
             {onClose && (
@@ -1042,17 +1026,29 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                     <div className="flex items-start justify-between gap-3 mb-3">
                       <div className="flex items-center gap-2.5">
                         <div className={clsx(
-                          "w-10 h-10 rounded-2xl flex items-center justify-center font-bold shrink-0 transition",
-                          rule.isActive ? "bg-indigo-50 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white" : "bg-slate-100 text-slate-400"
+                          "w-10 h-10 rounded-2xl flex items-center justify-center font-bold shrink-0 transition p-2",
+                          rule.isActive ? "bg-indigo-50 border border-indigo-200/60 text-indigo-600 group-hover:bg-indigo-600 group-hover:text-white" : "bg-slate-100 border border-slate-200 text-slate-400"
                         )}>
-                          <Bot className="w-5 h-5" />
+                          <img
+                            src="/images/kosun-symbol.svg"
+                            alt="KOSAI"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+                            }}
+                            className="w-5 h-5 object-contain"
+                          />
                         </div>
                         <div>
-                          <h3 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition truncate max-w-[170px]">
-                            {rule.name || 'סוכן ללא שם'}
-                          </h3>
-                          <span className="text-[10px] font-medium text-slate-400 block truncate">
-                            {assignedModule ? assignedModule.name : 'ללא שיוך מודול'}
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] font-black tracking-wider text-indigo-600 dark:text-indigo-400 font-mono">
+                              KOSAI
+                            </span>
+                            <h3 className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition truncate max-w-[150px]">
+                              {rule.name?.replace(/^סוכן עבור\s*/, '')?.replace(/^סוכן\s*/, '')?.replace(/^KOSAI\s*/, '') || (assignedModule?.name || 'Expert')}
+                            </h3>
+                          </div>
+                          <span className="text-[10px] font-bold text-slate-400 block truncate font-mono">
+                            {assignedModule ? assignedModule.name : (rule.moduleId || 'Global Expert')}
                           </span>
                         </div>
                       </div>
@@ -1064,7 +1060,7 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
                           handleUpdateRule({ ...rule, isActive: !rule.isActive });
                         }}
                         className="flex items-center shrink-0 cursor-pointer"
-                        title={rule.isActive ? 'סוכן פעיל - לחץ להשהיה' : 'סוכן מושהה - לחץ להפעלה'}
+                        title={rule.isActive ? 'KOSAI פעיל - לחץ להשהיה' : 'KOSAI מושהה - לחץ להפעלה'}
                       >
                         <div className={clsx("w-8 h-4 rounded-full transition-colors relative", rule.isActive ? "bg-emerald-500" : "bg-slate-300")}>
                           <div className={clsx("absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform", rule.isActive ? "right-0.5" : "left-0.5")} />

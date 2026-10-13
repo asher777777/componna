@@ -1,6 +1,11 @@
 import React, { Suspense, useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { Sparkles, Grid, X, Check, Lock, Edit3, User, LogOut, Sun, Moon } from 'lucide-react';
+import { 
+  Sparkles, Grid, X, Check, Lock, Edit3, User, LogOut, Sun, Moon,
+  Mail, Bot, ShoppingBag, CreditCard, MessageSquare, Layers, BookOpen,
+  Film, Layout, BarChart3, Image, Database, ShieldCheck, ChevronLeft,
+  ArrowUpRight
+} from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { CashwanTopNav } from './components/CashwanTopNav';
 import { REGISTERED_MODULES } from './moduleRegistry';
@@ -131,6 +136,14 @@ export const WorkbenchApp: React.FC = () => {
   };
 
   useEffect(() => {
+    const handleOpenModules = () => {
+      setIsMenuOpen(true);
+    };
+    window.addEventListener('kosun_open_modules_menu', handleOpenModules);
+    return () => window.removeEventListener('kosun_open_modules_menu', handleOpenModules);
+  }, []);
+
+  useEffect(() => {
     if (!firebaseApp) return;
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
       setAuthState(state);
@@ -159,15 +172,179 @@ export const WorkbenchApp: React.FC = () => {
     searchParams.get('standalone') === 'true' ||
     isPublicPage;
 
+  // Module metadata: Hebrew label, English label, and dedicated icon
+  const MODULE_META_CONFIG: Record<string, {
+    hebrewName: string;
+    englishPrefix: string;
+    englishRest: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }> = {
+    'kosun-board-composer': {
+      hebrewName: 'מחולל מערכות ולוחות בקרה',
+      englishPrefix: 'KOS',
+      englishRest: 'Board Composer',
+      icon: Layout,
+    },
+    'kosun-am': {
+      hebrewName: 'מערכת דיוור ואוטומציה',
+      englishPrefix: 'KOS',
+      englishRest: 'UN AM Mail',
+      icon: Mail,
+    },
+    'kosai-engine': {
+      hebrewName: 'מנוע בינה מלאכותית וסוכנים',
+      englishPrefix: 'KOS',
+      englishRest: 'AI Engine',
+      icon: Bot,
+    },
+    'control-center-hub': {
+      hebrewName: 'מרכז שליטה ובקרה ראשי',
+      englishPrefix: 'KOS',
+      englishRest: 'Control Center',
+      icon: Sparkles,
+    },
+    'saas-storefront-composer': {
+      hebrewName: 'חנות דיגיטלית ומרקטפלייס',
+      englishPrefix: 'KOS',
+      englishRest: 'Storefront',
+      icon: ShoppingBag,
+    },
+    'brand-dna-hub': {
+      hebrewName: 'מרכז זהות ומיתוג עסקי',
+      englishPrefix: 'KOS',
+      englishRest: 'Brand DNA',
+      icon: Sparkles,
+    },
+    'kesher-payments-hub': {
+      hebrewName: 'פתרונות סליקה ותשלומים',
+      englishPrefix: 'KOS',
+      englishRest: 'Pay Terminal',
+      icon: CreditCard,
+    },
+    'whatsapp-green-api-hub': {
+      hebrewName: 'אוטומציות ושירות WhatsApp',
+      englishPrefix: 'KOS',
+      englishRest: 'WhatsApp Hub',
+      icon: MessageSquare,
+    },
+    'KosTogether': {
+      hebrewName: 'ניהול קהילות וסגמנטים CRM',
+      englishPrefix: 'KOS',
+      englishRest: 'Together CRM',
+      icon: Layers,
+    },
+    'ksf': {
+      hebrewName: 'מחולל טפסים ושאלונים שלביים',
+      englishPrefix: 'KOS',
+      englishRest: 'Smart Forms (KSF)',
+      icon: BookOpen,
+    },
+    'smart-form-builder': {
+      hebrewName: 'טפסים חכמים',
+      englishPrefix: 'KOS',
+      englishRest: 'Forms Studio',
+      icon: BookOpen,
+    },
+    'video-producer-studio': {
+      hebrewName: 'סטודיו הפקות וידאו ואווטאר',
+      englishPrefix: 'KOS',
+      englishRest: 'Video Studio',
+      icon: Film,
+    },
+    'db-connector-hub': {
+      hebrewName: 'מחולל אינטגרציות וחיבורים',
+      englishPrefix: 'KOS',
+      englishRest: 'Connector Hub',
+      icon: Database,
+    },
+    'client-platform': {
+      hebrewName: 'קליטת לקוחות ואונבורדינג',
+      englishPrefix: 'KOS',
+      englishRest: 'Client Platform',
+      icon: User,
+    },
+    'crm-analytics': {
+      hebrewName: 'ניתוח נתונים ואנליטיקס CRM',
+      englishPrefix: 'KOS',
+      englishRest: 'Analytics CRM',
+      icon: BarChart3,
+    },
+    'page-builder': {
+      hebrewName: 'בונה עמודים ודפי נחיתה',
+      englishPrefix: 'KOS',
+      englishRest: 'Page Builder',
+      icon: Layout,
+    },
+    'auth-portal': {
+      hebrewName: 'שער כניסה ואבטחה',
+      englishPrefix: 'KOS',
+      englishRest: 'Auth Portal',
+      icon: ShieldCheck,
+    },
+    'flow-player-engine': {
+      hebrewName: 'נגן תהליכים אינטראקטיבי',
+      englishPrefix: 'KOS',
+      englishRest: 'Flow Player',
+      icon: Film,
+    },
+    'media-gallery-hub': {
+      hebrewName: 'ניהול ספריית מדיה',
+      englishPrefix: 'KOS',
+      englishRest: 'Media Gallery',
+      icon: Image,
+    },
+    'db-collections-hub': {
+      hebrewName: 'סייר מאגרי נתונים',
+      englishPrefix: 'KOS',
+      englishRest: 'Data Hub',
+      icon: Database,
+    },
+    'ambassador-campaigns-hub': {
+      hebrewName: 'גיוס וקמפיינים לשגרירים',
+      englishPrefix: 'KOS',
+      englishRest: 'Ambassadors Hub',
+      icon: Sparkles,
+    },
+  };
+
+  // Usage stats state for dynamic ranking
+  const [moduleUsageStats, setModuleUsageStats] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('kosun_module_usage_stats');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
   // Filter modules: Admin sees all, Regular users see purchased modules
   const availableModules = REGISTERED_MODULES.filter(m => isAdmin || purchasedModules.includes(m.id));
   
+  // Sort modules dynamically by frequency of use
+  const sortedModules = React.useMemo(() => {
+    return [...availableModules].sort((a, b) => {
+      const countA = moduleUsageStats[a.id] || 0;
+      const countB = moduleUsageStats[b.id] || 0;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name, 'he');
+    });
+  }, [availableModules, moduleUsageStats]);
+
   // Extract active module ID from pathname
   const activeModuleRoute = '/' + location.pathname.split('/')[1];
   const activeModule = REGISTERED_MODULES.find(m => m.route === activeModuleRoute);
   const activeModuleId = activeModule ? activeModule.id : null;
 
-  const handleNavigateToModule = (route: string) => {
+  const handleNavigateToModule = (moduleId: string, route: string) => {
+    // Record usage dynamically
+    setModuleUsageStats((prev) => {
+      const updated = { ...prev, [moduleId]: (prev[moduleId] || 0) + 1 };
+      try {
+        localStorage.setItem('kosun_module_usage_stats', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
     setIsMenuOpen(false);
     navigate(route);
   };
@@ -259,90 +436,113 @@ export const WorkbenchApp: React.FC = () => {
         </main>
       </div>
 
-      {!isPublicPage && !isHomePage && (
-        <div className="fixed bottom-6 right-6 z-40 flex items-center gap-2.5">
-          <button
-            onClick={toggleTheme}
-            type="button"
-            className="w-12 h-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:text-amber-500 rounded-full shadow-lg flex items-center justify-center transition-all hover:scale-105 active:scale-95 cursor-pointer"
-            title={theme === 'dark' ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
-          >
-            {theme === 'dark' ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-slate-600" />}
-          </button>
-          <button
-            onClick={() => setIsMenuOpen(true)}
-            type="button"
-            className="flex items-center justify-center w-12 h-12 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-105 active:scale-95 cursor-pointer"
-            title="תפריט מודולים (קושאן)"
-          >
-            <Grid className="w-5 h-5" />
-          </button>
-        </div>
-      )}
-
       {isMenuOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/60 backdrop-blur-md animate-fadeIn">
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-3xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
             
-            <div className="sticky top-0 bg-white/90 dark:bg-slate-900/90 backdrop-blur border-b border-slate-100 dark:border-slate-800 p-5 flex items-center justify-between z-10">
+            <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex items-center justify-between z-10">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                <div className="relative w-10 h-10 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
                   <Grid className="w-5 h-5" />
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping pointer-events-none" />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-slate-900 dark:text-white">כלי קושאן</h2>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                    {isAdmin ? 'כל הכלים והיכולות של קושאן פעילים לרשותך' : 'הכלים הפעילים בחשבונך'}
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
+                      KosNev
+                    </h2>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 font-sans">
+                      תפריט רכיבים
+                    </span>
+                  </div>
                 </div>
               </div>
               <button
+                type="button"
                 onClick={() => setIsMenuOpen(false)}
-                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition"
+                className="p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white rounded-xl transition cursor-pointer"
+                title="סגירת תפריט KosNev"
+                aria-label="סגירה"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6">
-              {availableModules.length === 0 ? (
+            <div className="p-4 sm:p-5">
+              {sortedModules.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 space-y-3">
                   <Lock className="w-8 h-8 mx-auto opacity-50" />
                   <p className="font-bold">אין מודולים פעילים</p>
-                  <button onClick={() => {setIsMenuOpen(false); setIsAuthModalOpen(true);}} className="px-4 py-2 bg-indigo-50 text-indigo-600 font-bold text-xs rounded-xl hover:bg-indigo-100">
+                  <button onClick={() => {setIsMenuOpen(false); setIsAuthModalOpen(true);}} className="px-4 py-2 bg-indigo-50 text-indigo-600 font-bold text-xs rounded-xl hover:bg-indigo-100 cursor-pointer">
                     התחבר מחדש
                   </button>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {availableModules.map((module) => {
+                <div className="flex flex-col gap-2">
+                  {sortedModules.map((module, index) => {
                     const isActive = activeModuleId === module.id;
-                    const Icon = (module as any).icon ? (module as any).icon : Grid;
+                    const meta = MODULE_META_CONFIG[module.id] || {
+                      hebrewName: module.name,
+                      englishPrefix: 'KOS',
+                      englishRest: module.id,
+                      icon: (module as any).icon || Grid,
+                    };
+                    const Icon = meta.icon;
+                    const usageCount = moduleUsageStats[module.id] || 0;
+
                     return (
                       <button
                         key={module.id}
-                        onClick={() => handleNavigateToModule(module.route)}
-                        className={`text-right p-4 rounded-2xl border transition-all duration-200 flex flex-col gap-3 group cursor-pointer ${
+                        type="button"
+                        onClick={() => handleNavigateToModule(module.id, module.route)}
+                        className={`text-right w-full p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-3 group cursor-pointer ${
                           isActive
-                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/20 shadow-sm'
-                            : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-md'
+                            ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/20 shadow-xs'
+                            : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-300 dark:hover:border-indigo-500 hover:shadow-xs'
                         }`}
                       >
-                        <div className="flex items-center justify-between">
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
-                            isActive ? 'bg-indigo-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-300 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-950/80 group-hover:text-indigo-600 dark:group-hover:text-indigo-300'
+                        {/* Right Section: Icon + Hebrew Name */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105 ${
+                            isActive 
+                              ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs' 
+                              : 'bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 group-hover:bg-indigo-50 dark:group-hover:bg-indigo-950/80 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 group-hover:border-indigo-200'
                           }`}>
                             <Icon className="w-5 h-5" />
                           </div>
-                          {isActive && <Check className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />}
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`font-bold text-sm truncate ${isActive ? 'text-indigo-950 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
+                                {meta.hebrewName}
+                              </span>
+                              {isActive && (
+                                <span className="px-1.5 py-0.2 rounded-full bg-indigo-500 text-[9px] text-white font-bold shrink-0">
+                                  נוכחי
+                                </span>
+                              )}
+                              {usageCount > 0 && index < 3 && (
+                                <span className="hidden sm:inline-block px-1.5 py-0.2 rounded-md bg-amber-50 dark:bg-amber-950/50 border border-amber-200 dark:border-amber-800 text-[9px] text-amber-700 dark:text-amber-400 font-bold shrink-0">
+                                  מוביל בשימוש ({usageCount})
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h3 className={`font-bold text-sm mb-1 ${isActive ? 'text-indigo-900 dark:text-indigo-200' : 'text-slate-900 dark:text-white'}`}>
-                            {module.name}
-                          </h3>
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-                            {module.description}
-                          </p>
+
+                        {/* Left Section: Back-to-Back English Name with Flashing KOS Badge */}
+                        <div className="flex items-center gap-2.5 shrink-0 pl-1" dir="ltr">
+                          <div className="flex items-center gap-1 font-mono text-xs font-bold px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 group-hover:border-indigo-300 dark:group-hover:border-indigo-700 transition-colors">
+                            {/* Blinking Brand KOS */}
+                            <span className="text-indigo-600 dark:text-indigo-400 font-black animate-pulse drop-shadow-xs">
+                              {meta.englishPrefix}
+                            </span>
+                            <span className="text-slate-700 dark:text-slate-300">
+                              {meta.englishRest}
+                            </span>
+                          </div>
+
+                          <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:-translate-x-0.5 transition-all" />
                         </div>
                       </button>
                     );

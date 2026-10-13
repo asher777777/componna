@@ -22,13 +22,14 @@ import {
   bulkDeleteContactsRecord,
   moveContactsBetweenGroups,
   toggleContactTag,
+  bulkRemoveTagsFromContacts,
   addCommunityInteractionRecord,
   MOCK_COMMUNITIES,
   MOCK_CONTACTS,
 } from '../services/firestoreService';
 import { GreenApiConfig } from '../services/whatsappService';
 import { eventBus } from '../../../core/bridge/EventBus';
-import type { LeadPayload } from '../../../core/contracts';
+import type { LeadPayload, RemoveContactTagsPayload } from '../../../core/contracts';
 
 export interface CrmGroupsContextValue {
   db: Firestore | null;
@@ -76,6 +77,7 @@ export interface CrmGroupsContextValue {
   bulkDeleteContacts: (contactIds: string[]) => Promise<void>;
   bulkMoveBetweenGroups: (contactIds: string[], sourceGroupName: string, targetGroupName: string) => Promise<void>;
   toggleContactTag: (contactId: string, groupName: string) => Promise<void>;
+  bulkRemoveTags: (tagNames: string[], contactIds?: string[]) => Promise<number>;
   recordInteraction: (interaction: {
     contactId: string;
     contactName?: string;
@@ -506,6 +508,100 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     if (db) await loadData();
   };
 
+  const bulkRemoveTags = useCallback(async (tagNames: string[], contactIds?: string[]): Promise<number> => {
+    const tagSet = new Set(tagNames.map((t) => (t || '').trim()).filter(Boolean));
+    if (tagSet.size === 0) return 0;
+
+    let affected = 0;
+    if (db) {
+      const res = await bulkRemoveTagsFromContacts(db, Array.from(tagSet), {
+        contactIds,
+        customCollections: resolvedCustomCollections,
+      });
+      affected = res.affectedCount;
+    }
+
+    setContacts((prev) =>
+      prev.map((c) => {
+        if (contactIds && contactIds.length > 0 && !contactIds.includes(c.id)) return c;
+        const currentTags: string[] = Array.isArray(c.tags) ? c.tags : [];
+        const nextTags = currentTags.filter((t) => !tagSet.has(t.trim()));
+        if (nextTags.length === currentTags.length) return c;
+        if (!db) affected++;
+        eventBus.publish('crm:contact:updated', { id: c.id, tags: nextTags, conta_name: c.conta_name, email: c.email });
+        return { ...c, tags: nextTags };
+      })
+    );
+
+    if (groups.some((g) => tagSet.has(g.name) && (activeGroupId === g.id || activeGroupId === g.name))) {
+      setActiveGroupId('__all__');
+    }
+    setSelectedContactIds([]);
+    if (db) await loadData();
+    return affected;
+  }, [db, resolvedCustomCollections, groups, activeGroupId, loadData]);
+
+  // KosAi toolbox: execute REMOVE_CONTACT_TAGS (this module owns the contacts/tags monopoly)
+  useEffect(() => {
+    const unsub = eventBus.subscribe('kosai:action', async (evt: any) => {
+      if (evt?.action !== 'REMOVE_CONTACT_TAGS') return;
+      eventBus.publish('kosai:action_result', { action: 'REMOVE_CONTACT_TAGS', success: true, message: '', pending: true });
+      const payload = (evt.payload || {}) as RemoveContactTagsPayload;
+      const tags = Array.isArray(payload.tags) ? payload.tags.filter((t) => typeof t === 'string' && t.trim()) : [];
+
+      if (!payload.confirmed) {
+        eventBus.publish('kosai:action_result', {
+          action: 'REMOVE_CONTACT_TAGS',
+          success: false,
+          message: 'הפעולה לא בוצעה – נדרש אישור מפורש שלך לפני הסרת התגיות.',
+        });
+        return;
+      }
+      if (tags.length === 0) {
+        eventBus.publish('kosai:action_result', {
+          action: 'REMOVE_CONTACT_TAGS',
+          success: false,
+          message: 'לא צוינו תגיות להסרה.',
+        });
+        return;
+      }
+
+      const targetIds =
+        payload.contactIds && payload.contactIds.length > 0
+          ? payload.contactIds
+          : payload.scope === 'selected'
+            ? selectedContactIds
+            : undefined;
+
+      if (payload.scope === 'selected' && (!targetIds || targetIds.length === 0)) {
+        eventBus.publish('kosai:action_result', {
+          action: 'REMOVE_CONTACT_TAGS',
+          success: false,
+          message: 'לא נבחרו אנשי קשר בטבלה. סמן אנשי קשר או בקש הסרה מכל אנשי הקשר.',
+        });
+        return;
+      }
+
+      try {
+        const affected = await bulkRemoveTags(tags, targetIds);
+        eventBus.publish('kosai:action_result', {
+          action: 'REMOVE_CONTACT_TAGS',
+          success: true,
+          affectedCount: affected,
+          message: `הוסרו התגיות ${tags.join(', ')} מ-${affected} אנשי קשר. אנשי הקשר עצמם נשמרו במלואם.`,
+        });
+      } catch (err) {
+        console.error('[KosTogether] REMOVE_CONTACT_TAGS failed:', err);
+        eventBus.publish('kosai:action_result', {
+          action: 'REMOVE_CONTACT_TAGS',
+          success: false,
+          message: 'הסרת התגיות לא הושלמה. ייתכן שחלק מאנשי הקשר כבר עודכנו – רענן את המסך ונסה שוב.',
+        });
+      }
+    });
+    return () => unsub();
+  }, [bulkRemoveTags, selectedContactIds]);
+
   const recordInteraction = async (interaction: {
     contactId: string;
     contactName?: string;
@@ -577,6 +673,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     bulkDeleteContacts,
     bulkMoveBetweenGroups,
     toggleContactTag: toggleSingleTag,
+    bulkRemoveTags,
     recordInteraction,
     onOpenContactDetail,
     onOpenCampaignPage,

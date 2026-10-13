@@ -20,17 +20,35 @@ import {
   PhoneCall,
   Send,
   Share2,
+  LayoutGrid,
+  Table as TableIcon,
+  Columns,
+  Kanban,
+  Globe,
+  Sparkles,
+  Download,
+  Zap,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
-import { ContactRecord, SmartGroup } from '../types';
+import { ContactRecord, SmartGroup, CommunitiesLayoutMode } from '../types';
 import { ALL_GROUP_COLUMNS } from '../config';
 import { ColumnPickerDropdown } from './ColumnPickerDropdown';
+import { Contact360Modal } from '../../crm-analytics/components/Contact360Modal';
+import { exportContactsToExcel } from '../services/groupsUtils';
 
 interface GroupContactsTableProps {
   onOpenTransferModal: (mode: 'add' | 'move') => void;
   onOpenAddMembersModal: () => void;
   onOpenWhatsAppBroadcast: (contactIds?: string[]) => void;
   onOpenContactDetail?: (contact: ContactRecord) => void;
+  onOpenCommunityPortal?: () => void;
+  onOpenCommunityChat?: () => void;
+  onOpenWhatsAppImport?: () => void;
+  isRadarOpen?: boolean;
+  onToggleRadar?: () => void;
+  interactionsCount?: number;
+  currentTab?: 'contacts' | 'interactions';
+  onTabChange?: (tab: 'contacts' | 'interactions') => void;
 }
 
 export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
@@ -38,6 +56,14 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
   onOpenAddMembersModal,
   onOpenWhatsAppBroadcast,
   onOpenContactDetail,
+  onOpenCommunityPortal,
+  onOpenCommunityChat,
+  onOpenWhatsAppImport,
+  isRadarOpen = false,
+  onToggleRadar,
+  interactionsCount = 0,
+  currentTab = 'contacts',
+  onTabChange,
 }) => {
   const {
     filteredContacts,
@@ -62,6 +88,17 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
   const [openTagDropdownId, setOpenTagDropdownId] = useState<string | null>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagNameInput, setTagNameInput] = useState('');
+  const [layoutMode, setLayoutMode] = useState<CommunitiesLayoutMode>('table');
+  const [active360Contact, setActive360Contact] = useState<ContactRecord | null>(null);
+  const [is360ModalOpen, setIs360ModalOpen] = useState(false);
+
+  const handleOpen360 = (contact: ContactRecord) => {
+    setActive360Contact(contact);
+    setIs360ModalOpen(true);
+    if (onOpenContactDetail) {
+      onOpenContactDetail(contact);
+    }
+  };
 
   const isAllSelected =
     selectedContactIds.length === filteredContacts.length && filteredContacts.length > 0;
@@ -70,30 +107,183 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
 
   return (
     <div className="bg-white border border-slate-200/90 rounded-3xl p-5 shadow-xs space-y-4">
-      {/* Table Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        {/* Search */}
-        <div className="relative flex-1 max-w-md">
-          <Search className="w-4 h-4 text-slate-400 absolute right-3.5 top-3" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="חיפוש איש קשר לפי שם, טלפון, אימייל, עיר, חברה..."
-            className="w-full h-10 pr-9.5 pl-3 rounded-2xl border border-slate-200 bg-slate-50/50 text-xs focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-          />
+      {/* Table Toolbar & Actions - Compact Icon Buttons with Hover Tooltips */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        {/* Right Section: Compact Icon Tabs & Metric Toggles with Data Only (Tooltips on Hover) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Sub-tabs: Contacts count (hover reveals 'אנשי קשר') */}
+          <button
+            type="button"
+            onClick={() => onTabChange && onTabChange('contacts')}
+            className={`h-9 px-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-mono font-bold ${
+              currentTab === 'contacts'
+                ? 'bg-indigo-600 text-white shadow-2xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+            title="אנשי קשר בקהילה"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>{filteredContacts.length}</span>
+          </button>
+
+          {/* Sub-tabs: Interactions count (hover reveals 'אינטראקציות') */}
+          <button
+            type="button"
+            onClick={() => onTabChange && onTabChange('interactions')}
+            className={`h-9 px-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-mono font-bold ${
+              currentTab === 'interactions'
+                ? 'bg-emerald-600 text-white shadow-2xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+            title="אינטראקציות"
+          >
+            <MessageSquare className="w-3.5 h-3.5" />
+            <span>{interactionsCount}</span>
+          </button>
+
+          <div className="h-4 w-px bg-slate-200 dark:bg-slate-700 hidden sm:block mx-0.5" />
+
+          {/* Engagement Heatmap Toggle: Icon + Score only (hover reveals 'מדד מעורבות קהילתית') */}
+          {onToggleRadar && (
+            <button
+              type="button"
+              onClick={onToggleRadar}
+              className={`h-9 px-2.5 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-mono font-bold border ${
+                isRadarOpen
+                  ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 shadow-2xs'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50'
+              }`}
+              title="מדד מעורבות קהילתית (Engagement Heatmap)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+              <span>{activeGroup.engagementScore || 41}</span>
+            </button>
+          )}
+
+          {/* WhatsApp Broadcast: Icon only (hover reveals 'וואטסאפ לקהילה') */}
+          <button
+            type="button"
+            onClick={() => onOpenWhatsAppBroadcast()}
+            className="w-9 h-9 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+            title="וואטסאפ לקהילה"
+          >
+            <MessageSquare className="w-4 h-4" />
+          </button>
+
+          {/* Community Portal: Icon only (hover reveals 'פורטל קהילה, יעדים ופיד') */}
+          {onOpenCommunityPortal && (
+            <button
+              type="button"
+              onClick={onOpenCommunityPortal}
+              className="w-9 h-9 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+              title="פורטל קהילה, יעדים ופיד"
+            >
+              <Globe className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Community Chat & Video: Icon only (hover reveals 'חדר צ'אט ווידאו קהילתי') */}
+          {onOpenCommunityChat && (
+            <button
+              type="button"
+              onClick={onOpenCommunityChat}
+              className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-900 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+              title="צ'אט ווידאו קהילתי"
+            >
+              <PhoneCall className="w-3.5 h-3.5 text-indigo-300" />
+            </button>
+          )}
+
+          {/* WhatsApp Import: Icon only (hover reveals 'ייבוא משתתפים מוואטסאפ') */}
+          {onOpenWhatsAppImport && (
+            <button
+              type="button"
+              onClick={onOpenWhatsAppImport}
+              className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-emerald-600 flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+              title="ייבוא משתתפים מקבוצות וואטסאפ"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+
+          {/* Excel Export: Icon only (hover reveals 'ייצוא רשימת אנשי קשר לקובץ Excel') */}
+          <button
+            type="button"
+            onClick={() => exportContactsToExcel(filteredContacts, activeGroup.name)}
+            className="w-9 h-9 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+            title="ייצוא רשימת אנשי קשר ל-EXCEL"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
         </div>
 
-        {/* Toolbar Actions */}
-        <div className="flex items-center gap-2">
+        {/* Left Section: Search, Layout Switcher & Column Picker */}
+        <div className="flex items-center gap-2 flex-wrap flex-1 max-w-xl justify-end">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="w-4 h-4 text-slate-400 absolute right-3 top-2.5" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="חיפוש איש קשר..."
+              className="w-full h-9 pr-9 pl-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800 text-xs focus:bg-white dark:focus:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          {/* Layout Mode Selector (Table, Cards, Split, Kanban) */}
+          <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-xl border border-slate-200/80 dark:border-slate-700">
+            <button
+              type="button"
+              onClick={() => setLayoutMode('table')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                layoutMode === 'table' ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+              }`}
+              title="תצוגת טבלה מלאה"
+            >
+              <TableIcon className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('cards')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                layoutMode === 'cards' ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+              }`}
+              title="תצוגת כרטיסים (Grid Cards)"
+            >
+              <LayoutGrid className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('split')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                layoutMode === 'split' ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+              }`}
+              title="תצוגה מפוצלת"
+            >
+              <Columns className="w-3.5 h-3.5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setLayoutMode('kanban')}
+              className={`p-1.5 rounded-lg transition-all cursor-pointer ${
+                layoutMode === 'kanban' ? 'bg-white dark:bg-slate-700 shadow-xs text-indigo-600 dark:text-indigo-400 font-bold' : 'text-slate-500 hover:text-slate-800 dark:hover:text-white'
+              }`}
+              title="תצוגת קנבן (Kanban)"
+            >
+              <Kanban className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           {!activeGroupId.startsWith('__') && (
             <button
               type="button"
               onClick={onOpenAddMembersModal}
-              className="h-9 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              className="h-9 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer"
+              title="הוספת חברים לקבוצה"
             >
               <UserPlus className="w-3.5 h-3.5" />
-              <span>הוסף חברים לקבוצה</span>
+              <span className="hidden sm:inline">הוסף חברים</span>
             </button>
           )}
 
@@ -176,7 +366,8 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
         </div>
       )}
 
-      {/* Main Responsive Table */}
+      {/* Layout Modes: 1. Table */}
+      {layoutMode === 'table' && (
       <div className="border border-slate-200/90 rounded-2xl overflow-x-auto bg-white">
         <table className="w-full text-right border-collapse text-xs">
           <thead>
@@ -256,7 +447,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                           <td
                             key={col.id}
                             className="p-3 font-bold text-slate-900"
-                            onClick={() => onOpenContactDetail && onOpenContactDetail(c)}
+                            onClick={() => handleOpen360(c)}
                           >
                             <div className="flex items-center gap-2">
                               <div className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[11px] shrink-0">
@@ -553,7 +744,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (onOpenContactDetail) onOpenContactDetail(c);
+                                  handleOpen360(c);
                                 }}
                                 className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors cursor-pointer"
                                 title="צפה בכרטיס איש קשר 360"
@@ -589,6 +780,257 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
           </tbody>
         </table>
       </div>
+      )}
+
+      {/* Layout Modes: 2. Cards (Grid) */}
+      {layoutMode === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5 animate-fadeIn">
+          {filteredContacts.length === 0 ? (
+            <div className="col-span-full py-12 text-center text-slate-400 bg-slate-50/50 rounded-3xl border border-dashed border-slate-200">
+              <Users className="w-8 h-8 mx-auto text-slate-300 mb-2" />
+              <p className="font-bold text-sm text-slate-600">לא נמצאו אנשי קשר ברשימה זו</p>
+            </div>
+          ) : (
+            filteredContacts.map((c) => {
+              const isSelected = selectedContactIds.includes(c.id);
+              const tags: string[] = Array.isArray(c.tags) ? c.tags : [];
+              const waPhone = (c.conta_phone || '').replace(/\D/g, '');
+
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => handleOpen360(c)}
+                  className={`p-4 rounded-3xl border transition-all cursor-pointer relative hover:shadow-md flex flex-col justify-between ${
+                    isSelected ? 'bg-indigo-50/40 border-indigo-300' : 'bg-white border-slate-200/80 hover:border-indigo-200'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center font-black text-sm border border-indigo-100">
+                          {(c.conta_name || 'א')[0]}
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-slate-900 text-sm">{c.conta_name || 'ללא שם'}</h4>
+                          <span className="text-[11px] text-slate-500 block">{c.job_title || c.company_name || 'חבר קהילה'}</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleSelectContact(c.id);
+                        }}
+                        className="p-1 text-slate-400 hover:text-indigo-600 cursor-pointer"
+                      >
+                        {isSelected ? <CheckSquare className="w-4 h-4 text-indigo-600" /> : <Square className="w-4 h-4 text-slate-300" />}
+                      </button>
+                    </div>
+
+                    {/* Tags */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {tags.slice(0, 3).map((tag) => (
+                        <span key={tag} className="text-[10px] px-2 py-0.5 rounded-md font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                          {tag}
+                        </span>
+                      ))}
+                      {tags.length > 3 && (
+                        <span className="text-[10px] text-slate-400">+{tags.length - 3}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 mt-3 flex items-center justify-between text-xs">
+                    <span className="font-mono text-slate-600 text-[11px]">{c.conta_phone || '-'}</span>
+
+                    <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      {c.conta_phone && (
+                        <a
+                          href={`tel:${c.conta_phone}`}
+                          className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
+                          title="חייג"
+                        >
+                          <PhoneCall className="w-3.5 h-3.5 text-emerald-600" />
+                        </a>
+                      )}
+                      {c.conta_phone && (
+                        <a
+                          href={`https://wa.me/${waPhone}?text=${encodeURIComponent(`שלום ${c.conta_name || ''}`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 text-slate-500 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl"
+                          title="WhatsApp"
+                        >
+                          <MessageSquare className="w-3.5 h-3.5 text-emerald-600" />
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleOpen360(c)}
+                        className="p-1.5 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl"
+                        title="כרטיס 360"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Layout Modes: 3. Split Layout */}
+      {layoutMode === 'split' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 animate-fadeIn">
+          <div className="lg:col-span-5 border border-slate-200/90 rounded-2xl overflow-y-auto max-h-[550px] divide-y divide-slate-100 bg-white">
+            {filteredContacts.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => setActive360Contact(c)}
+                className={`p-3 transition-colors cursor-pointer flex items-center justify-between ${
+                  active360Contact?.id === c.id ? 'bg-indigo-50/80 border-r-4 border-indigo-600' : 'hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center text-xs">
+                    {(c.conta_name || 'א')[0]}
+                  </div>
+                  <div>
+                    <h5 className="font-bold text-slate-900 text-xs">{c.conta_name || 'ללא שם'}</h5>
+                    <span className="text-[10px] text-slate-400 font-mono">{c.conta_phone || '-'}</span>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                  {c.mh_crm_city || 'ישראל'}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <div className="lg:col-span-7 bg-slate-50/80 border border-slate-200/90 rounded-2xl p-5 flex flex-col justify-between">
+            {active360Contact ? (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-black text-lg shadow-sm">
+                      {(active360Contact.conta_name || 'א')[0]}
+                    </div>
+                    <div>
+                      <h3 className="text-base font-black text-slate-900">{active360Contact.conta_name || 'איש קשר'}</h3>
+                      <p className="text-xs text-slate-500">{active360Contact.job_title || 'חבר קהילה רשום'}</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleOpen360(active360Contact)}
+                    className="h-8 px-3 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 hover:bg-indigo-700 cursor-pointer"
+                  >
+                    <span>פתח כרטיס מלא 360</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-white rounded-xl border border-slate-200/80">
+                    <span className="text-slate-400 block text-[10px]">טלפון:</span>
+                    <span className="font-bold text-slate-800 font-mono" dir="ltr">{active360Contact.conta_phone || '-'}</span>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-slate-200/80">
+                    <span className="text-slate-400 block text-[10px]">אימייל:</span>
+                    <span className="font-bold text-slate-800 truncate block">{active360Contact.email || '-'}</span>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-slate-200/80">
+                    <span className="text-slate-400 block text-[10px]">עיר מגורים:</span>
+                    <span className="font-bold text-slate-800">{active360Contact.mh_crm_city || '-'}</span>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-slate-200/80">
+                    <span className="text-slate-400 block text-[10px]">סך תשלומים:</span>
+                    <span className="font-bold text-slate-800 font-mono">₪{Number(active360Contact.total_spent || 0).toLocaleString()}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-white rounded-xl border border-slate-200/80 space-y-1.5">
+                  <span className="text-slate-400 block text-[10px]">קהילות ותוויות משויכות:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {Array.isArray(active360Contact.tags) && active360Contact.tags.map(t => (
+                      <span key={t} className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-100">
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="h-full flex items-center justify-center p-8 text-center text-slate-400">
+                בחר איש קשר מהרשימה לתצוגה מהירה
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Layout Modes: 4. Kanban Board */}
+      {layoutMode === 'kanban' && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 overflow-x-auto pb-2 animate-fadeIn">
+          {[
+            { id: 'active', title: 'חברים פעילים בקהילה', color: 'indigo' },
+            { id: 'advocates', title: 'מובילים ושגרירים', color: 'amber' },
+            { id: 'new', title: 'מצטרפים חדשים', color: 'emerald' },
+          ].map(col => {
+            const colContacts = filteredContacts.filter(c => {
+              if (col.id === 'advocates') return Number(c.total_spent || 0) >= 1000 || (c.tags || []).includes('שגריר מוביל');
+              if (col.id === 'new') return (c.tags || []).includes('חדש') || c.status === 'חדש';
+              return true;
+            });
+
+            return (
+              <div key={col.id} className="bg-slate-50/70 border border-slate-200 rounded-3xl p-3.5 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-200/80">
+                  <span className="text-xs font-black text-slate-800">{col.title}</span>
+                  <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 rounded-full border border-slate-200 text-slate-600">
+                    {colContacts.length}
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {colContacts.slice(0, 10).map(c => (
+                    <div
+                      key={c.id}
+                      onClick={() => handleOpen360(c)}
+                      className="p-3 bg-white rounded-2xl border border-slate-200/80 shadow-2xs hover:shadow-xs transition-all cursor-pointer space-y-2"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900 text-xs">{c.conta_name || 'ללא שם'}</span>
+                        <span className="text-[10px] text-slate-400 font-mono">{c.conta_phone || ''}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+                        <span>{c.mh_crm_city || 'כללי'}</span>
+                        <span className="font-mono font-bold text-slate-700">₪{Number(c.total_spent || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Contract-based Contact 360 Fullscreen Modal */}
+      {is360ModalOpen && (
+        <Contact360Modal
+          isOpen={is360ModalOpen}
+          onClose={() => setIs360ModalOpen(false)}
+          contact={active360Contact as any}
+          onSave={async (updated) => {
+            setIs360ModalOpen(false);
+            return true;
+          }}
+        />
+      )}
 
       {/* Modal: Bulk Add Tag */}
       {isTagModalOpen && (

@@ -54,24 +54,7 @@ export const KosunShell: React.FC<KosunShellProps> = ({
       className="min-h-screen w-full overflow-x-hidden bg-slate-50 dark:bg-[#090d16] text-slate-900 dark:text-slate-100 font-sans relative selection:bg-blue-600 selection:text-white"
       dir="rtl"
     >
-      {/* 1. כפתור עליון שמאלי צף להחלפת מצב יום / לילה (ברירת מחדל: יום) */}
-      <div className="fixed top-4 left-4 z-50">
-        <button
-          type="button"
-          onClick={toggleTheme}
-          className="w-10 h-10 rounded-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-800 dark:text-slate-100 shadow-md hover:scale-105 active:scale-95 transition-all"
-          title={isDarkMode ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
-          aria-label="Toggle theme"
-        >
-          {isDarkMode ? (
-            <Sun className="w-5 h-5 text-amber-400" />
-          ) : (
-            <Moon className="w-5 h-5 text-slate-700" />
-          )}
-        </button>
-      </div>
-
-      {/* 2. כפתור עליון ימני צף: אייקון קושאן + שם רכיב באנגלית בלבד + אייקון תפריט */}
+      {/* 1. כפתור עליון ימני צף: אייקון קושאן + שם רכיב באנגלית בלבד + אייקון תפריט */}
       <div className="fixed top-4 right-4 z-50">
         <button
           type="button"
@@ -79,9 +62,14 @@ export const KosunShell: React.FC<KosunShellProps> = ({
           className="h-10 px-3.5 rounded-full bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-slate-900 dark:text-slate-100 shadow-md hover:scale-105 active:scale-95 transition-all"
           aria-label="Open navigation menu"
         >
-          <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-            K
-          </div>
+          <img
+            src="/images/kosun-symbol.svg"
+            alt="KOSUN"
+            className="w-6 h-6 rounded-md object-contain shadow-sm"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+            }}
+          />
           <span className="font-extrabold text-xs tracking-wider font-mono">
             {componentName}
           </span>
@@ -99,9 +87,14 @@ export const KosunShell: React.FC<KosunShellProps> = ({
         {/* כותרת התפריט עם כפתור סגירה 'x' */}
         <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-xs shadow-sm">
-              K
-            </div>
+            <img
+              src="/images/kosun-symbol.svg"
+              alt="KOSUN"
+              className="w-7 h-7 rounded-lg object-contain shadow-sm"
+              onError={(e) => {
+                (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+              }}
+            />
             <span className="font-black text-sm text-slate-900 dark:text-white font-mono">
               {componentName}
             </span>
@@ -145,6 +138,25 @@ export const KosunShell: React.FC<KosunShellProps> = ({
             );
           })}
         </nav>
+
+        {/* כפתור החלפת יום/לילה מובנה בתוך התפריט */}
+        <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">
+          <button
+            type="button"
+            onClick={toggleTheme}
+            className="w-full flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-800 dark:text-slate-100 hover:border-indigo-400 transition cursor-pointer shadow-xs"
+          >
+            <div className="flex items-center gap-2.5">
+              {isDarkMode ? (
+                <Sun className="w-4 h-4 text-amber-400" />
+              ) : (
+                <Moon className="w-4 h-4 text-slate-600" />
+              )}
+              <span>{isDarkMode ? 'מצב תצוגה: לילה (החלף ליום)' : 'מצב תצוגה: יום (החלף ללילה)'}</span>
+            </div>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </button>
+        </div>
 
         {drawerFooter && (
           <div className="p-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50">

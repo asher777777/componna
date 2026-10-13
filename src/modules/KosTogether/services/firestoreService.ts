@@ -59,41 +59,9 @@ export async function fetchGroupsAndContactsData(
     contactsSnap = await getDocs(query(collection(db, colls.contacts)));
   }
 
-  // Fallback to legacy root 'contacts' collection
-  if (contactsSnap.empty && colls.contacts !== 'contacts') {
-    try {
-      const rootContactsQuery = ownerId
-        ? query(collection(db, 'contacts'), where('ownerId', '==', ownerId))
-        : query(collection(db, 'contacts'));
-      let rootContactsSnap = await getDocs(rootContactsQuery);
-      if (rootContactsSnap.empty && ownerId) {
-        rootContactsSnap = await getDocs(query(collection(db, 'contacts')));
-      }
-      if (!rootContactsSnap.empty) {
-        contactsSnap = rootContactsSnap;
-        // Background mirror to tenant-scoped collection
-        try {
-          let mirrorBatch = writeBatch(db);
-          let count = 0;
-          for (const d of rootContactsSnap.docs) {
-            mirrorBatch.set(doc(db, colls.contacts, d.id), d.data(), { merge: true });
-            count++;
-            if (count >= 400) {
-              await mirrorBatch.commit();
-              mirrorBatch = writeBatch(db);
-              count = 0;
-            }
-          }
-          if (count > 0) {
-            await mirrorBatch.commit();
-          }
-        } catch (mErr) {
-          console.warn('[CRM Groups] Contacts mirror notice:', mErr);
-        }
-      }
-    } catch (rootErr) {
-      console.warn('[CRM Groups] Root contacts fallback query notice:', rootErr);
-    }
+  // Fallback if scoped collection is empty
+  if (contactsSnap.empty && ownerId) {
+    contactsSnap = await getDocs(query(collection(db, colls.contacts)));
   }
 
   const contacts: ContactRecord[] = [];
@@ -158,30 +126,9 @@ export async function fetchGroupsAndContactsData(
     groupsSnap = await getDocs(query(collection(db, colls.groups)));
   }
 
-  // Fallback to legacy root 'crm_groups' collection
-  if (groupsSnap.empty && colls.groups !== 'crm_groups') {
-    try {
-      const rootGroupsQuery = ownerId
-        ? query(collection(db, 'crm_groups'), where('ownerId', '==', ownerId))
-        : query(collection(db, 'crm_groups'));
-      let rootGroupsSnap = await getDocs(rootGroupsQuery);
-      if (rootGroupsSnap.empty && ownerId) {
-        rootGroupsSnap = await getDocs(query(collection(db, 'crm_groups')));
-      }
-      if (!rootGroupsSnap.empty) {
-        groupsSnap = rootGroupsSnap;
-        // Background mirror to tenant-scoped collection
-        try {
-          let gBatch = writeBatch(db);
-          for (const gd of rootGroupsSnap.docs) {
-            gBatch.set(doc(db, colls.groups, gd.id), gd.data(), { merge: true });
-          }
-          await gBatch.commit();
-        } catch {}
-      }
-    } catch (gErr) {
-      console.warn('[CRM Groups] Root crm_groups fallback query notice:', gErr);
-    }
+  // Fallback if scoped collection is empty
+  if (groupsSnap.empty && ownerId) {
+    groupsSnap = await getDocs(query(collection(db, colls.groups)));
   }
 
   const savedGroups = new Map<string, SmartGroup>();
@@ -467,13 +414,6 @@ export async function saveGroupOrCommunityRecord(
   const groupRef = doc(db, colls.groups, docId);
   await setDoc(groupRef, dataToSave, { merge: true });
 
-  // Dual sync with root crm_groups for backwards compatibility
-  if (colls.groups !== 'crm_groups') {
-    try {
-      await setDoc(doc(db, 'crm_groups', docId), dataToSave, { merge: true });
-    } catch {}
-  }
-
   return { success: true, id: docId, pageUrl: shouldCreatePage ? pageUrl : undefined };
 }
 
@@ -520,9 +460,6 @@ export async function deleteGroupRecord(
   // Delete group doc
   if (group.id && !group.id.startsWith('tag_')) {
     await deleteDoc(doc(db, colls.groups, group.id)).catch(() => {});
-    if (colls.groups !== 'crm_groups') {
-      await deleteDoc(doc(db, 'crm_groups', group.id)).catch(() => {});
-    }
   }
 
   // Remove tag from contacts in batches
@@ -707,6 +644,83 @@ export async function moveContactsBetweenGroups(
   if (opCount > 0) {
     await batch.commit();
   }
+}
+
+/**
+ * Bulk-removes tags from contacts WITHOUT deleting the contacts.
+ * Handles both the `tags` array and legacy `tg1`/`tg2`/`tg3` fields.
+ * Tag-derived (automatic) groups disappear automatically once no contact holds the tag.
+ */
+export async function bulkRemoveTagsFromContacts(
+  db: Firestore,
+  tagNames: string[],
+  options: { contactIds?: string[]; customCollections?: CrmGroupsCollectionsConfig } = {}
+): Promise<{ affectedCount: number }> {
+  const colls = getCollNames(options.customCollections);
+  const tagSet = new Set(tagNames.map((t) => (t || '').trim()).filter(Boolean));
+  if (tagSet.size === 0) return { affectedCount: 0 };
+  const cleanTags = Array.from(tagSet);
+
+  // 1. Collect target contact documents
+  const targetDocs = new Map<string, { ref: any; data: any }>();
+  if (options.contactIds && options.contactIds.length > 0) {
+    for (const cid of options.contactIds) {
+      const snap = await getDoc(doc(db, colls.contacts, cid));
+      if (snap.exists()) targetDocs.set(snap.id, { ref: snap.ref, data: snap.data() });
+    }
+  } else {
+    // Firestore 'array-contains-any' / 'in' accept up to 30 values per query
+    for (let i = 0; i < cleanTags.length; i += 30) {
+      const chunk = cleanTags.slice(i, i + 30);
+      const queries = [
+        query(collection(db, colls.contacts), where('tags', 'array-contains-any', chunk)),
+        query(collection(db, colls.contacts), where('tg1', 'in', chunk)),
+        query(collection(db, colls.contacts), where('tg2', 'in', chunk)),
+        query(collection(db, colls.contacts), where('tg3', 'in', chunk)),
+      ];
+      const snaps = await Promise.all(queries.map((q) => getDocs(q).catch(() => null)));
+      snaps.forEach((snap) => {
+        snap?.forEach((d) => targetDocs.set(d.id, { ref: d.ref, data: d.data() }));
+      });
+    }
+  }
+
+  // 2. Build updates in chunked batches
+  let batch = writeBatch(db);
+  let opCount = 0;
+  let affectedCount = 0;
+  const now = new Date().toISOString();
+
+  for (const { ref, data } of targetDocs.values()) {
+    const updates: Record<string, any> = {};
+
+    if (Array.isArray(data.tags)) {
+      const nextTags = data.tags.filter((t: any) => !(typeof t === 'string' && tagSet.has(t.trim())));
+      if (nextTags.length !== data.tags.length) updates.tags = nextTags;
+    }
+    (['tg1', 'tg2', 'tg3'] as const).forEach((field) => {
+      const v = data[field];
+      if (typeof v === 'string' && tagSet.has(v.trim())) updates[field] = '';
+    });
+
+    if (Object.keys(updates).length === 0) continue;
+    updates.updatedAt = now;
+    batch.update(ref, updates);
+    opCount++;
+    affectedCount++;
+
+    if (opCount >= 450) {
+      await batch.commit();
+      batch = writeBatch(db);
+      opCount = 0;
+    }
+  }
+
+  if (opCount > 0) {
+    await batch.commit();
+  }
+
+  return { affectedCount };
 }
 
 export async function toggleContactTag(

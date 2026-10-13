@@ -49,17 +49,158 @@ export interface NotificationContract {
 export interface FormItemSummary {
   id: string;
   title: string;
+  category?: string;
   submissionsCount?: number;
+  hasPaymentStep?: boolean;
+  hasWhatsAppTrigger?: boolean;
+}
+
+export interface DefaultFormsStatus {
+  hasLeadForm: boolean;
+  hasPaymentForm: boolean;
+  hasWhatsAppForm: boolean;
+  missingTypes: ('leads' | 'payment' | 'whatsapp')[];
 }
 
 export interface FormBuilderContract {
   getForms?: () => Promise<FormItemSummary[]>;
+  getActiveFormsList?: () => FormItemSummary[];
+  checkDefaultFormsStatus?: () => Promise<DefaultFormsStatus>;
+  createDefaultForm?: (type: 'leads' | 'payment' | 'whatsapp') => Promise<{ id: string; title: string }>;
+  openBrainstormModal?: () => void;
+  openBuilderForForm?: (formId: string) => void;
   renderSubmissionsTable?: (formId: string, formTitle?: string) => React.ReactNode;
 }
 
+// ========================
+// Kesher Payment Clearing Contract
+// ========================
+
+export interface KesherPaymentRequest {
+  amount: number;
+  clientName: string;
+  phone?: string;
+  email?: string;
+  tz?: string;
+  paymentMethod?: 'credit_card' | 'bit' | 'cash' | 'bank_transfer';
+  description?: string;
+  documentType?: number | string; // 320 = חשבונית מס קבלה, 400 = קבלה, 405 = תרומה
+  formId?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface KesherPaymentResponse {
+  success: boolean;
+  transactionId?: string;
+  receiptUrl?: string;
+  error?: string;
+  statusCode?: string;
+}
+
+export interface KesherPaymentContract {
+  isConfigured: () => boolean;
+  processPayment: (req: KesherPaymentRequest) => Promise<KesherPaymentResponse>;
+  renderPaymentPad?: (props: {
+    amount: number;
+    clientName?: string;
+    phone?: string;
+    email?: string;
+    description?: string;
+    onSuccess?: (res: KesherPaymentResponse) => void;
+    onCancel?: () => void;
+  }) => React.ReactNode;
+}
+
+// ========================
+// WhatsApp Messaging Contract
+// ========================
+
+export interface WhatsAppSendResult {
+  success: boolean;
+  idMessage?: string;
+  error?: string;
+}
+
 export interface WhatsAppContract {
-  sendMessage: (phone: string, text: string) => Promise<{ idMessage?: string; error?: string }>;
+  isConfigured: () => boolean;
+  sendMessage: (phone: string, text: string) => Promise<{ idMessage?: string; error?: string } | WhatsAppSendResult>;
+  sendTemplateNotification?: (
+    phone: string,
+    templateText: string,
+    variables?: Record<string, string>
+  ) => Promise<WhatsAppSendResult>;
   buildWaMeUrl: (phone: string, text?: string) => string;
+}
+
+// ========================
+// Recruitment & Ambassador Campaigns Contract (גיוס ושגרירים)
+// ========================
+
+export interface AmbassadorSummary {
+  id: string;
+  name: string;
+  campaignId: string;
+  campaignTitle?: string;
+  targetGoal: number;
+  totalRaised: number;
+  donorsCount?: number;
+  slug?: string;
+  shareUrl?: string;
+}
+
+export interface RecruitmentContract {
+  getCampaigns?: () => Promise<Array<{ id: string; title: string; targetGoal: number; totalRaised: number }>>;
+  getAmbassadorDetails?: (ambassadorId: string) => Promise<AmbassadorSummary | null>;
+  renderAmbassadorBadge?: (props: { ambassadorId?: string; campaignTitle?: string; totalRaised?: number }) => React.ReactNode;
+  openAmbassadorDrawer?: (campaignId?: string, contactId?: string) => void;
+}
+
+// ========================
+// CRM Groups & Communities Contract (קבוצות וקהילות)
+// ========================
+
+export interface CrmGroupSummary {
+  id: string;
+  name: string;
+  type: 'manual' | 'smart';
+  category?: 'community' | 'group';
+  color?: string;
+  count?: number;
+  description?: string;
+}
+
+export interface CrmGroupsContract {
+  getGroups: () => Promise<CrmGroupSummary[]>;
+  assignContactToGroup?: (contactId: string, groupId: string) => Promise<boolean>;
+  removeContactFromGroup?: (contactId: string, groupId: string) => Promise<boolean>;
+  renderGroupSelector?: (props: {
+    selectedGroupId?: string;
+    onSelect: (group: CrmGroupSummary) => void;
+  }) => React.ReactNode;
+}
+
+// ========================
+// Email Marketing & Dispatch Contract (מייל ואוטומציות דיוור)
+// ========================
+
+export interface EmailDispatchOptions {
+  to: string;
+  subject: string;
+  htmlContent?: string;
+  templateId?: string;
+  campaignId?: string;
+  variables?: Record<string, string>;
+}
+
+export interface EmailContract {
+  isConfigured: () => boolean;
+  sendEmail: (options: EmailDispatchOptions) => Promise<{ success: boolean; messageId?: string; error?: string }>;
+  renderEmailComposerModal?: (props: {
+    recipientEmail: string;
+    recipientName?: string;
+    onSuccess?: () => void;
+    onClose?: () => void;
+  }) => React.ReactNode;
 }
 
 export interface AuthSessionContract {
@@ -86,8 +227,35 @@ export interface CrmContactSummary {
   [key: string]: any;
 }
 
+// ========================
+// KosAi Action Contracts (פעולות סוכן KosAi המבוצעות ע"י הרכיב בעל המונופול)
+// ========================
+
+/** Payload for REMOVE_CONTACT_TAGS – removes tags from contacts without deleting the contacts */
+export interface RemoveContactTagsPayload {
+  /** Exact tag names to remove (e.g. ["שייקה", "בראל"]) */
+  tags: string[];
+  /** 'all' = every contact holding the tags, 'selected' = only contacts currently selected in KosTogether */
+  scope?: 'all' | 'selected';
+  /** Optional explicit contact ids (overrides scope) */
+  contactIds?: string[];
+  /** Must be true – set only after the user explicitly confirmed the operation in chat */
+  confirmed?: boolean;
+}
+
+/** Result reported back to the KosAi chat by the module that executed an action */
+export interface KosaiActionResult {
+  action: string;
+  success: boolean;
+  message: string;
+  affectedCount?: number;
+  /** true = receipt acknowledgment only (execution in progress) */
+  pending?: boolean;
+}
+
 export interface CoreEventMap {
   'kosai:action': any;
+  'kosai:action_result': KosaiActionResult;
   'media:request_picker': any;
   'crm:lead:created': LeadPayload;
   'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };

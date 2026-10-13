@@ -53,30 +53,6 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
   const [isGeneratingAI, setIsGeneratingAI] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { registerCapability, unregisterCapability } = useHostCapabilities();
-
-  // Register form-builder capability for sibling modules
-  useEffect(() => {
-    const contract: FormBuilderContract = {
-      getForms: async () => {
-        return forms.map(f => ({
-          id: f.id,
-          title: f.title,
-          submissionsCount: f.submissionsCount,
-        }));
-      },
-      renderSubmissionsTable: (formId: string) => {
-        const targetForm = forms.find(f => f.id === formId);
-        if (!targetForm) return null;
-        return <FormSubmissionsTable form={targetForm} />;
-      },
-    };
-    registerCapability('form-builder', contract);
-    return () => {
-      unregisterCapability('form-builder');
-    };
-  }, [forms, registerCapability, unregisterCapability]);
-
   // Subscribe to forms
   useEffect(() => {
     setIsLoading(true);
@@ -202,6 +178,251 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
     },
     []
   );
+
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
+
+  // Register FormBuilderContract into HostCapabilities
+  useEffect(() => {
+    const contract: FormBuilderContract = {
+      getForms: async () => {
+        return forms.map((f) => ({
+          id: f.id,
+          title: f.title,
+          category: f.category,
+          submissionsCount: f.submissionsCount,
+          hasPaymentStep: Boolean(f.steps?.some((s) => (s as any).fieldType === 'payment')),
+          hasWhatsAppTrigger: Boolean(f.whatsappAutomationEnabled),
+        }));
+      },
+      getActiveFormsList: () => {
+        return forms.map((f) => ({
+          id: f.id,
+          title: f.title,
+          category: f.category,
+          submissionsCount: f.submissionsCount,
+          hasPaymentStep: Boolean(f.steps?.some((s) => (s as any).fieldType === 'payment')),
+          hasWhatsAppTrigger: Boolean(f.whatsappAutomationEnabled),
+        }));
+      },
+      checkDefaultFormsStatus: async () => {
+        const hasLeadForm = forms.some(
+          (f) =>
+            f.category === 'לידים' ||
+            f.title.includes('ליד') ||
+            f.title.includes('התאמה') ||
+            f.title.includes('יצירת קשר')
+        );
+        const hasPaymentForm = forms.some(
+          (f) =>
+            f.category === 'תשלום' ||
+            f.category === 'סליקה' ||
+            f.title.includes('תשלום') ||
+            f.title.includes('סליקה') ||
+            f.steps?.some((s) => (s as any).fieldType === 'payment')
+        );
+        const hasWhatsAppForm = forms.some(
+          (f) =>
+            Boolean(f.whatsappAutomationEnabled) ||
+            f.category === 'וואטסאפ' ||
+            f.title.includes('וואטסאפ')
+        );
+
+        const missingTypes: ('leads' | 'payment' | 'whatsapp')[] = [];
+        if (!hasLeadForm) missingTypes.push('leads');
+        if (!hasPaymentForm) missingTypes.push('payment');
+        if (!hasWhatsAppForm) missingTypes.push('whatsapp');
+
+        return {
+          hasLeadForm,
+          hasPaymentForm,
+          hasWhatsAppForm,
+          missingTypes,
+        };
+      },
+      createDefaultForm: async (type: 'leads' | 'payment' | 'whatsapp') => {
+        let newForm: Partial<SmartFormDefinition>;
+
+        if (type === 'payment') {
+          newForm = {
+            title: 'טופס תשלום וסליקה מהירה (קשר)',
+            slug: 'payment-checkout',
+            description: 'טופס סליקה מאובטח ומחובר ישירות למסוף קשר',
+            category: 'סליקה',
+            status: 'published',
+            isCrmSyncEnabled: true,
+            crmDefaultTags: ['תשלום קשר', 'לקוח משלם'],
+            steps: [
+              {
+                id: 'pay_step_1',
+                order: 1,
+                title: 'מה שמך המלא?',
+                fieldType: 'text',
+                iconName: 'User',
+                required: true,
+                mappingKey: 'kosun_crm_name',
+              },
+              {
+                id: 'pay_step_2',
+                order: 2,
+                title: 'מספר טלפון לקבלת אישור התשלום',
+                fieldType: 'phone',
+                iconName: 'Phone',
+                required: true,
+                mappingKey: 'kosun_crm_phone',
+              },
+              {
+                id: 'pay_step_3',
+                order: 3,
+                title: 'כתובת דוא״ל למשלוח מסמך מס',
+                fieldType: 'email',
+                iconName: 'Mail',
+                required: true,
+                mappingKey: 'kosun_crm_email',
+              },
+              {
+                id: 'pay_step_4',
+                order: 4,
+                title: 'ביצוע תשלום מאובטח במסוף קשר',
+                subtitle: 'סליקת אשראי מאובטחת, ביט או העברה בנקאית',
+                fieldType: 'payment' as any,
+                iconName: 'CreditCard',
+                required: true,
+              },
+            ],
+          };
+        } else if (type === 'whatsapp') {
+          newForm = {
+            title: 'טופס פנייה עם מענה וואטסאפ מיידי',
+            slug: 'whatsapp-lead-trigger',
+            description: 'איסוף פרטים ושליחת הודעת וואטסאפ אוטומטית ברגע ההרשמה',
+            category: 'וואטסאפ',
+            status: 'published',
+            isCrmSyncEnabled: true,
+            whatsappAutomationEnabled: true,
+            crmDefaultTags: ['ליד וואטסאפ', 'טריגר פעיל'],
+            steps: [
+              {
+                id: 'wa_step_1',
+                order: 1,
+                title: 'איך קוראים לך?',
+                fieldType: 'text',
+                iconName: 'User',
+                required: true,
+                mappingKey: 'kosun_crm_name',
+              },
+              {
+                id: 'wa_step_2',
+                order: 2,
+                title: 'מה מספר הוואטסאפ שלך?',
+                subtitle: 'נשלח לך הודעת וואטסאפ מיידית עם כל הפרטים',
+                fieldType: 'phone',
+                iconName: 'MessageSquare',
+                required: true,
+                mappingKey: 'kosun_crm_phone',
+              },
+              {
+                id: 'wa_step_3',
+                order: 3,
+                title: 'במה נוכל לסייע לך היום?',
+                fieldType: 'textarea',
+                iconName: 'FileText',
+                required: false,
+                mappingKey: 'kosun_crm_notes',
+              },
+            ],
+            whatsappRules: [
+              {
+                id: `rule_wa_${Date.now()}`,
+                name: 'הודעת ברוכים הבאים מיידית',
+                enabled: true,
+                conditionType: 'always',
+                recipientType: 'submitter',
+                messageTemplate: 'שלום {{kosun_crm_name}}! קיבלנו את פנייתך בהצלחה ונחזור אליך בהקדם.',
+              },
+            ],
+          };
+        } else {
+          // 'leads'
+          newForm = {
+            title: 'טופס רישום לידים והצטרפות',
+            slug: 'lead-registration',
+            description: 'טופס שלב-אחר-שלב לקליטת מתעניינים וסנכרון מלא לכרטיס הלקוח',
+            category: 'לידים',
+            status: 'published',
+            isCrmSyncEnabled: true,
+            crmDefaultTags: ['ליד חדש', 'הצטרפות'],
+            steps: [
+              {
+                id: 'lead_step_1',
+                order: 1,
+                title: 'מה שמך המלא?',
+                fieldType: 'text',
+                iconName: 'User',
+                required: true,
+                mappingKey: 'kosun_crm_name',
+              },
+              {
+                id: 'lead_step_2',
+                order: 2,
+                title: 'מה מספר הנייד שלך לחיוג ולוואטסאפ?',
+                fieldType: 'phone',
+                iconName: 'Phone',
+                required: true,
+                mappingKey: 'kosun_crm_phone',
+              },
+              {
+                id: 'lead_step_3',
+                order: 3,
+                title: 'לאיזה כתובת אימייל לעדכן אותך?',
+                fieldType: 'email',
+                iconName: 'Mail',
+                required: true,
+                mappingKey: 'kosun_crm_email',
+              },
+              {
+                id: 'lead_step_4',
+                order: 4,
+                title: 'שם העסק או החברה שלך (אופציונלי)',
+                fieldType: 'text',
+                iconName: 'Building',
+                required: false,
+                mappingKey: 'kosun_crm_company',
+              },
+            ],
+          };
+        }
+
+        const createdId = await saveForm(newForm);
+        const fullForm = await getSmartFormById(createdId, customFirestore, collectionName);
+        if (fullForm) {
+          setActiveForm(fullForm);
+        }
+        return { id: createdId, title: newForm.title || '' };
+      },
+      openBrainstormModal: () => {
+        window.dispatchEvent(new CustomEvent('ksf_open_ai_brainstorm'));
+      },
+      openBuilderForForm: (formId: string) => {
+        loadFormById(formId);
+      },
+      renderSubmissionsTable: (formId: string, formTitle?: string) => {
+        const targetForm = forms.find(f => f.id === formId) || ({
+          id: formId,
+          title: formTitle || 'טופס',
+          steps: [],
+          status: 'published',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as unknown as SmartFormDefinition);
+        return <FormSubmissionsTable form={targetForm} />;
+      },
+    };
+
+    registerCapability('form-builder', contract);
+    return () => {
+      unregisterCapability('form-builder');
+    };
+  }, [forms, saveForm, loadFormById, customFirestore, collectionName, registerCapability, unregisterCapability, setActiveForm]);
 
   return (
     <SmartFormContext.Provider

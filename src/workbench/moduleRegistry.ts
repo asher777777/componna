@@ -15,8 +15,8 @@ const KesherPaymentsStandaloneView = React.lazy(() =>
 const WhatsAppGreenApiStandaloneView = React.lazy(() =>
   import('../modules/whatsapp-green-api-hub').then((m) => ({ default: m.WhatsAppGreenApiStandaloneView }))
 );
-const CrmGroupsHubStandaloneView = React.lazy(() =>
-  import('../modules/crm-groups-hub').then((m) => ({ default: m.CrmGroupsHubStandaloneView }))
+const KosTogetherStandaloneView = React.lazy(() =>
+  import('../modules/KosTogether').then((m) => ({ default: m.CrmGroupsHubStandaloneView }))
 );
 const SmartFormBuilderStandaloneView = React.lazy(() =>
   import('../modules/KSF').then((m) => ({ default: m.KSFStandaloneView }))
@@ -145,10 +145,10 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'wa_',
   },
   {
-    id: 'crm-groups-hub',
-    name: 'קשואן קהילות - ניהול קבוצות ו-CRM',
-    description: 'מערכת מתקדמת לניהול קהילות המעניקה ליווי אישי. סגמנטציה חכמה, ניהול קבוצות וסנכרון מלא לפעילות הארגון שלכם.',
-    component: CrmGroupsHubStandaloneView,
+    id: 'KosTogether',
+    name: 'KosTogether',
+    description: 'KOSUN Communities Hub - מערכת ניהול קהילות, קבוצות חכמות, מעגן צף, מודאלים במסך מלא ואינטגרציית מודולרית מלאה.',
+    component: KosTogetherStandaloneView,
     route: '/crm-groups',
     collectionPrefix: 'crm_groups',
   },

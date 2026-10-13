@@ -5,7 +5,7 @@ export * from './services/groupsUtils';
 export * from './services/firestoreService';
 export * from './services/whatsappService';
 export * from './api/functionsApi';
-export * from './prompts';
+export * from './hooks';
 export * from './routes/CrmGroupsRoutes';
 export * from './components/CrmGroupsMainView';
 export * from './components/GroupListSidebar';
