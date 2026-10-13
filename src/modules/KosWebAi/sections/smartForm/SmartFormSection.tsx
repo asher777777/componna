@@ -91,54 +91,54 @@ export const SmartFormSection: React.FC<{ config: SmartFormSectionConfig }> = ({
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="p-6 sm:p-8 bg-slate-900/60 border border-slate-800 rounded-3xl space-y-4 backdrop-blur-sm"
+            className="p-6 sm:p-8 bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-3xl space-y-4 backdrop-blur-sm shadow-xl"
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">שם מלא *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">שם מלא *</label>
                 <input
                   type="text"
                   required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="ישראל ישראלי"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
                 />
               </div>
               <div>
-                <label className="block text-xs font-bold text-slate-300 mb-1">טלפון נייד *</label>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">טלפון נייד *</label>
                 <input
                   type="tel"
                   required
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="050-1234567"
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
+                  className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
                   dir="ltr"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">דוא״ל</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">דוא״ל</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 font-mono"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 font-mono"
                 dir="ltr"
               />
             </div>
 
             <div>
-              <label className="block text-xs font-bold text-slate-300 mb-1">הודעה / הערות</label>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">הודעה / הערות</label>
               <textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="במה נוכל לעזור לכם?"
                 rows={3}
-                className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 resize-none"
+                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-700 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none"
               />
             </div>
 

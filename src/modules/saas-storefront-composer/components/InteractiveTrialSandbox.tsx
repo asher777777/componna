@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { 
   Sparkles, ShoppingCart, ArrowRight, CheckCircle, Clock, 
   Flame, ShieldCheck, X, Zap
@@ -11,7 +11,7 @@ import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
 import { PageBuilderStandaloneView } from '../../KosWebAi';
 const SmartFormBuilderStandaloneView = React.lazy(() => import('../../smart-form-builder').then(m => ({ default: m.SmartFormBuilderStandaloneView })));
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
-import { WhatsAppGreenApiStandaloneView } from '../../whatsapp-green-api-hub';
+import { WhatsAppGreenApiStandaloneView } from '../../KosWhatsUp';
 import { KesherPaymentsStandaloneView } from '../../kesher-payments-hub';
 import { CrmGroupsHubStandaloneView } from '../../KosTogether';
 import { BrandDnaHubStandaloneView } from '../../KosBranding';

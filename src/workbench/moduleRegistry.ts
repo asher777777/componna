@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 const ControlCenterStandaloneView = React.lazy(() =>
   import('../modules/control-center-hub').then((m) => ({ default: m.ControlCenterStandaloneView }))
@@ -12,9 +12,10 @@ const BrandDnaHubStandaloneView = React.lazy(() =>
 const KesherPaymentsStandaloneView = React.lazy(() =>
   import('../modules/kesher-payments-hub').then((m) => ({ default: m.KesherPaymentsStandaloneView }))
 );
-const WhatsAppGreenApiStandaloneView = React.lazy(() =>
-  import('../modules/whatsapp-green-api-hub').then((m) => ({ default: m.WhatsAppGreenApiStandaloneView }))
+const KosWhatsUpStandaloneView = React.lazy(() =>
+  import('../modules/KosWhatsUp').then((m) => ({ default: m.KosWhatsUpStandaloneView }))
 );
+const WhatsAppGreenApiStandaloneView = KosWhatsUpStandaloneView;
 const KosTogetherStandaloneView = React.lazy(() =>
   import('../modules/KosTogether').then((m) => ({ default: m.CrmGroupsHubStandaloneView }))
 );
@@ -137,12 +138,20 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'kesher_',
   },
   {
-    id: 'whatsapp-green-api-hub',
-    name: 'קשואן אוטומציות - שירות לקוחות WhatsApp',
-    description: 'מרכז וואטסאפ מקיף עם תוצאות מוכחות: סנכרון אוטומטי, שליחת מדיה, סקרים וניהול קבוצות ברמה המקצועית ביותר.',
-    component: WhatsAppGreenApiStandaloneView,
+    id: 'KosWhatsUp',
+    name: 'KosWhatsUp',
+    description: 'KOSUN WhatsApp Hub - מרכז וואטסאפ מקיף: סנכרון אוטומטי, בוטים חכמים, סטטוסים, שיגור מתקדם וניהול קבוצות ברמה המקצועית ביותר.',
+    component: KosWhatsUpStandaloneView,
     route: '/whatsapp-hub',
-    collectionPrefix: 'wa_',
+    collectionPrefix: 'kos_whatsup_',
+  },
+  {
+    id: 'whatsapp-green-api-hub',
+    name: 'KosWhatsUp (Legacy Route)',
+    description: 'KOSUN WhatsApp Hub - תאימות לנתיב קודם',
+    component: KosWhatsUpStandaloneView,
+    route: '/whatsapp-hub',
+    collectionPrefix: 'kos_whatsup_',
   },
   {
     id: 'KosTogether',

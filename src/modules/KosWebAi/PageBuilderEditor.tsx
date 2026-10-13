@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab, SectionType } from './types/pageBuilder.types';
 import { eventBus } from '../../core/bridge/EventBus';
 import { KosaiChatDrawer, FloatingKosaiButton } from '../kosai-engine';
@@ -335,7 +335,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
             />
 
             {/* Right/Main: Section Form Editors */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8 bg-[#09090b]">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 lg:p-8 bg-slate-100/80 dark:bg-[#09090b] transition-colors duration-300">
               <div className="max-w-4xl mx-auto flex flex-col gap-6">
                 {config.sectionOrder.map((sectionId, index) => {
                   const sectionData = config.sections[sectionId];
@@ -378,9 +378,9 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
-                  className="w-full py-8 border-2 border-dashed border-slate-800 hover:border-indigo-500/60 rounded-3xl flex flex-col items-center justify-center gap-2 text-slate-400 hover:text-indigo-400 hover:bg-indigo-500/5 transition-all cursor-pointer group"
+                  className="w-full py-8 border-2 border-dashed border-slate-300 dark:border-slate-800 hover:border-indigo-500/60 rounded-3xl flex flex-col items-center justify-center gap-2 text-slate-500 dark:text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 hover:bg-indigo-500/5 transition-all cursor-pointer group"
                 >
-                  <div className="w-12 h-12 rounded-2xl bg-slate-900 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-colors">
+                  <div className="w-12 h-12 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 group-hover:bg-indigo-600 group-hover:text-white flex items-center justify-center transition-colors shadow-sm dark:shadow-none">
                     <Plus className="w-6 h-6" />
                   </div>
                   <span className="text-sm font-bold">הוסף אזור חדש לעמוד (Bento, Hero, Pricing, FAQ...)</span>
@@ -394,13 +394,13 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         {activeTab === 'split' && (
           <div className="flex-1 flex overflow-hidden">
             {/* Left: Quick Editors */}
-            <div className="w-full lg:w-[480px] border-l border-slate-800 bg-[#0c0c0e] overflow-y-auto p-4 flex flex-col gap-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="text-xs font-bold text-white">עריכה מהירה</span>
+            <div className="w-full lg:w-[480px] border-l border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0c0c0e] overflow-y-auto p-4 flex flex-col gap-4 transition-colors duration-300">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-800">
+                <span className="text-xs font-bold text-slate-900 dark:text-white">עריכה מהירה</span>
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(true)}
-                  className="text-xs text-indigo-400 hover:text-indigo-300 font-bold flex items-center gap-1"
+                  className="text-xs text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 font-bold flex items-center gap-1"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   <span>הוסף אזור</span>
@@ -445,22 +445,22 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
             </div>
 
             {/* Right: Live Preview Frame */}
-            <div className="flex-1 bg-slate-950 p-6 flex items-center justify-center overflow-auto">
-              <LivePreviewFrame config={config} viewportMode={viewportMode} />
+            <div className="flex-1 bg-slate-200/60 dark:bg-slate-950 p-6 flex items-center justify-center overflow-auto transition-colors duration-300">
+              <LivePreviewFrame config={config} viewportMode={viewportMode} isDarkMode={isDarkMode} />
             </div>
           </div>
         )}
 
         {/* TAB 3: Preview Mode */}
         {activeTab === 'preview' && (
-          <div className="flex-1 bg-slate-950 p-4 sm:p-8 flex items-center justify-center overflow-auto">
-            <LivePreviewFrame config={config} viewportMode={viewportMode} />
+          <div className="flex-1 bg-slate-200/60 dark:bg-slate-950 p-4 sm:p-8 flex items-center justify-center overflow-auto transition-colors duration-300">
+            <LivePreviewFrame config={config} viewportMode={viewportMode} isDarkMode={isDarkMode} />
           </div>
         )}
 
         {/* TAB 4: Reorder Layers */}
         {activeTab === 'reorder' && (
-          <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-[#09090b]" dir="rtl">
+          <div className="flex-1 overflow-y-auto p-6 sm:p-8 bg-slate-100/80 dark:bg-[#09090b] transition-colors duration-300" dir="rtl">
             <div className="max-w-2xl mx-auto flex flex-col gap-3">
               {config.sectionOrder.map((sectionId, idx) => {
                 const sec = config.sections[sectionId];
@@ -468,13 +468,13 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                 return (
                   <div
                     key={sectionId}
-                    className="p-4 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-between text-right"
+                    className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-between text-right shadow-sm dark:shadow-none transition-colors duration-300"
                   >
                     <div className="flex items-center gap-3">
-                      <span className="w-7 h-7 rounded-xl bg-slate-800 text-slate-300 font-mono text-xs flex items-center justify-center">
+                      <span className="w-7 h-7 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono text-xs flex items-center justify-center">
                         #{idx + 1}
                       </span>
-                      <span className="font-bold text-white text-sm">
+                      <span className="font-bold text-slate-900 dark:text-white text-sm">
                         {sec?.title || reg?.name || sectionId}
                       </span>
                     </div>

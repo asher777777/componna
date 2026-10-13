@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { CommunitySectionConfig } from '../../types/sectionConfigs';
 import { MessageCircle, Heart, Users, Sparkles, CheckCheck } from 'lucide-react';
 
@@ -30,28 +30,28 @@ export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({
       style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
       dir="rtl"
     >
-      <div className="max-w-6xl mx-auto bg-gradient-to-br from-slate-900 via-indigo-950/30 to-slate-900 border border-slate-800 rounded-3xl p-8 sm:p-14 shadow-2xl relative overflow-hidden">
+      <div className="max-w-6xl mx-auto bg-gradient-to-br from-slate-50 via-indigo-50/30 to-white dark:from-slate-900 dark:via-indigo-950/30 dark:to-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-14 shadow-2xl relative overflow-hidden">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
           <div className="lg:col-span-7 flex flex-col gap-6 text-right">
             {subtitle && (
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold w-fit">
+              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-bold w-fit">
                 <Users className="w-3.5 h-3.5" />
                 <span>{subtitle}</span>
               </div>
             )}
 
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
               {title}
             </h2>
 
             {description && (
-              <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
+              <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
                 {description}
               </p>
             )}
 
             {quote && (
-              <div className="border-r-4 border-indigo-500 pr-4 py-1 text-sm sm:text-base text-indigo-300 italic">
+              <div className="border-r-4 border-indigo-500 pr-4 py-1 text-sm sm:text-base text-indigo-700 dark:text-indigo-300 italic">
                 {quote}
               </div>
             )}
@@ -98,13 +98,13 @@ export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({
             </div>
 
             {badgeVisible && (
-              <div className="absolute -bottom-4 right-4 bg-slate-900 border border-slate-700 rounded-2xl p-4 shadow-2xl flex items-center gap-3 backdrop-blur-xl">
+              <div className="absolute -bottom-4 right-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xl flex items-center gap-3 backdrop-blur-xl">
                 <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
                   <Sparkles className="w-5 h-5" />
                 </div>
                 <div className="text-right">
-                  <span className="text-sm font-black text-white block">{badgeTitle}</span>
-                  <span className="text-[11px] text-slate-400">{badgeSubtitle}</span>
+                  <span className="text-sm font-black text-slate-900 dark:text-white block">{badgeTitle}</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">{badgeSubtitle}</span>
                 </div>
               </div>
             )}

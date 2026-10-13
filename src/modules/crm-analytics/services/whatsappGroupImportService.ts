@@ -177,7 +177,7 @@ export async function checkWhatsAppConnection(instanceId: string, token: string)
   return { authorized: false, message: lastError?.message || 'שגיאה בבדיקת חיבור' };
 }
 
-import { GreenApiService, validateWhatsAppPhone, ValidatedWhatsAppPhone } from '../../whatsapp-green-api-hub/services/greenApiService';
+import { GreenApiService, validateWhatsAppPhone, ValidatedWhatsAppPhone } from '../../KosWhatsUp/services/greenApiService';
 
 export async function fetchLiveWhatsAppGroups(instanceId: string, token: string): Promise<WhatsAppGroupItem[]> {
   if (!instanceId || !token) return [];

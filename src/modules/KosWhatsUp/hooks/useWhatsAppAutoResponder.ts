@@ -4,6 +4,8 @@ import { GreenApiService } from '../services/greenApiService';
 import { WhatsAppAiBotService, checkKeywordMatch, WhatsAppAiBotConfig } from '../services/whatsappAiBotService';
 import { whatsappAutoCrmService } from '../services/whatsappAutoCrmService';
 
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+
 interface AutoResponderOptions {
   greenApiService: GreenApiService;
   apiKey?: string;
@@ -32,8 +34,12 @@ export const useWhatsAppAutoResponder = ({
     let active = true;
     setIsListening(true);
 
-    const chatsColPath = tenantId ? `tenants/${tenantId}/wa_bot_chats` : 'wa_bot_chats';
-    const botsColPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+    const chatsColPath = tenantId
+      ? `tenants/${tenantId}/${SYSTEM_COLLECTIONS.KOS_WHATSUP_BOT_CHATS}`
+      : SYSTEM_COLLECTIONS.KOS_WHATSUP_BOT_CHATS;
+    const botsColPath = tenantId
+      ? `tenants/${tenantId}/${SYSTEM_COLLECTIONS.KOS_WHATSUP_AI_BOTS}`
+      : SYSTEM_COLLECTIONS.KOS_WHATSUP_AI_BOTS;
     const kosaiColPath = tenantId ? `tenants/${tenantId}/mod_kosai_rules` : 'mod_kosai_rules';
 
     const getActiveBots = async (): Promise<WhatsAppAiBotConfig[]> => {

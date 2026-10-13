@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../../../core/connection/aiJsonParser';
-import { GreenApiService, WhatsAppQrAuthModal, WhatsAppPhoneAuthModal } from '../../whatsapp-green-api-hub';
+import { GreenApiService, WhatsAppQrAuthModal, WhatsAppPhoneAuthModal } from '../../KosWhatsUp';
 import { kesherService } from '../../kesher-payments-hub/services/kesherService';
 
 export const DatabaseConnectorModal: React.FC = () => {

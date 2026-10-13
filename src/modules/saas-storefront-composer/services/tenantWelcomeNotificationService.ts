@@ -1,5 +1,5 @@
 import { TenantRecord } from '../types';
-import { GreenApiService } from '../../whatsapp-green-api-hub/services/greenApiService';
+import { GreenApiService } from '../../KosWhatsUp/services/greenApiService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 export interface TenantCredentials {

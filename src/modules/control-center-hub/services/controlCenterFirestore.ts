@@ -31,8 +31,8 @@ export async function getLiveCollectionCount(
   try {
     let count = await countFromPath(collectionName);
     
-    // If scoped path returned 0, check root collection name (e.g. 'tenants/_master/contacts' -> 'contacts')
-    if (count === 0 && collectionName.includes('/')) {
+    // If scoped path returned 0, check root collection name ONLY for _master tenant migration compatibility
+    if (count === 0 && collectionName.includes('/_master/')) {
       const parts = collectionName.split('/');
       const rootColName = parts[parts.length - 1];
       if (rootColName) {

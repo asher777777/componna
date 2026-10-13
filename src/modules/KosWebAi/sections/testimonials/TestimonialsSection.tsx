@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { TestimonialsSectionConfig } from '../../types/sectionConfigs';
 import { Star, CheckCircle2, Quote, Sparkles } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -37,11 +37,11 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
               <span>{subtitle}</span>
             </div>
           )}
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {title}
           </h2>
           {description && (
-            <p className="text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
+            <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 font-normal leading-relaxed">
               {description}
             </p>
           )}
@@ -53,12 +53,12 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
                   <Star key={i} className="w-5 h-5 fill-amber-400 text-amber-400" />
                 ))}
               </div>
-              <span className="text-sm font-bold text-white">
+              <span className="text-sm font-bold text-slate-900 dark:text-white">
                 {overallRating} מתוך 5.0
               </span>
-              <span className="text-xs text-slate-400">({totalReviewsCount})</span>
+              <span className="text-xs text-slate-500 dark:text-slate-400">({totalReviewsCount})</span>
               {trustBadgeText && (
-                <div className="inline-flex items-center gap-1.5 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
+                <div className="inline-flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>{trustBadgeText}</span>
                 </div>
@@ -72,7 +72,7 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
           {items.map((item) => (
             <div
               key={item.id}
-              className="relative bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-xl hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-300 group"
+              className="relative bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-xl hover:border-indigo-500/40 hover:-translate-y-1.5 transition-all duration-300 group"
             >
               <div className="flex flex-col gap-4 text-right">
                 <div className="flex items-center justify-between">
@@ -84,18 +84,18 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
                   <Quote className="w-6 h-6 text-indigo-500/30 group-hover:text-indigo-400 transition-colors" />
                 </div>
 
-                <p className="text-sm sm:text-base text-slate-200 leading-relaxed font-normal">
+                <p className="text-sm sm:text-base text-slate-700 dark:text-slate-200 leading-relaxed font-normal">
                   {item.content}
                 </p>
               </div>
 
-              <div className="pt-6 mt-6 border-t border-slate-800/80 flex items-center justify-between">
+              <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
                 <div className="flex items-center gap-3 text-right">
                   {item.avatarUrl ? (
                     <img
                       src={item.avatarUrl}
                       alt={item.name}
-                      className="w-11 h-11 rounded-full object-cover border border-slate-700 shadow-md"
+                      className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-700 shadow-md"
                     />
                   ) : (
                     <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center font-bold text-white text-sm">
@@ -104,15 +104,15 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
                   )}
                   <div>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-bold text-white">{item.name}</span>
+                      <span className="text-sm font-bold text-slate-900 dark:text-white">{item.name}</span>
                       {item.isVerified !== false && (
                         <span title="לקוח מאומת">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
                         </span>
                       )}
                     </div>
                     {(item.role || item.company) && (
-                      <span className="text-xs text-slate-400 block">
+                      <span className="text-xs text-slate-500 dark:text-slate-400 block">
                         {[item.role, item.company].filter(Boolean).join(' • ')}
                       </span>
                     )}

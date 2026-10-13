@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { PageBuilderConfig } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { 
@@ -64,11 +64,14 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   // Fallback cascade: page siteLogoUrl -> Brand DNA identity.logoUrl
   const effectiveLogoUrl = !logoLoadFailed ? (globalSettings.siteLogoUrl || brandLogoUrl || '') : '';
 
+  const isDefaultDarkBg = !globalSettings.backgroundColor || ['#0a0a0c', '#090a0f', '#09090b', '#041017', '#0c0714', '#0f0728'].includes(globalSettings.backgroundColor.toLowerCase());
+  const customBgColor = !isDefaultDarkBg ? globalSettings.backgroundColor : undefined;
+
   const customStyle: React.CSSProperties = {
     ['--primary' as any]: globalSettings.primaryColor || '#6366f1',
     ['--secondary' as any]: globalSettings.secondaryColor || '#0ea5e9',
-    ['--background' as any]: globalSettings.backgroundColor || '#0a0a0c',
-    ['--foreground' as any]: globalSettings.textColor || '#f8fafc',
+    ['--background' as any]: globalSettings.backgroundColor || 'transparent',
+    ['--foreground' as any]: globalSettings.textColor || 'currentColor',
     fontFamily: globalSettings.fontFamily || 'Heebo, sans-serif',
   };
 
@@ -118,10 +121,13 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   return (
     <div
       className={clsx(
-        'flex flex-col min-h-screen bg-[#0a0a0c] text-white selection:bg-indigo-500 selection:text-white',
+        'flex flex-col min-h-screen bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-white selection:bg-indigo-500 selection:text-white transition-colors duration-300',
         globalSettings.theme ? `theme-${globalSettings.theme}` : 'theme-modern'
       )}
-      style={customStyle}
+      style={{
+        ...customStyle,
+        backgroundColor: customBgColor,
+      }}
       dir="rtl"
     >
       {/* Schema.org GEO & AIO Entity and FAQ Script Tags */}
@@ -442,24 +448,24 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
 
       {/* Global Rich Footer */}
       {globalSettings.isFooterVisible !== false && (
-        <footer className="w-full border-t border-white/10 bg-[#060608] py-14 px-6 text-center text-xs text-slate-400">
+        <footer className="w-full border-t border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-[#060608] py-14 px-6 text-center text-xs text-slate-600 dark:text-slate-400 transition-colors duration-300">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
             <div className="text-right">
-              <span className="font-black text-white text-lg block">
+              <span className="font-black text-slate-900 dark:text-white text-lg block">
                 {globalSettings.companyName || globalSettings.siteTitle || 'אתר הקהילה'}
               </span>
-              {globalSettings.slogan && <p className="text-slate-400 mt-1">{globalSettings.slogan}</p>}
+              {globalSettings.slogan && <p className="text-slate-600 dark:text-slate-400 mt-1">{globalSettings.slogan}</p>}
               {globalSettings.address && (
                 <p className="text-slate-500 text-[11px] mt-1 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-rose-400" />
+                  <MapPin className="w-3 h-3 text-rose-500" />
                   <span>{globalSettings.address}</span>
                 </p>
               )}
             </div>
 
             <div className="flex flex-col items-center sm:items-end gap-2">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
+              <div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 <span>מאובטח ומוגן בתקן SSL 256-bit</span>
               </div>
               <p className="text-slate-500 text-[11px]">

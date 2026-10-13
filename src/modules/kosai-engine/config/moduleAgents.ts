@@ -1,4 +1,4 @@
-﻿import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { KosaiRule, KosaiCapability } from '../types';
 
 export interface ModuleAgentMeta {
@@ -149,25 +149,42 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
   'public-site': {
     moduleId: 'public-site',
     routes: ['/p/', '/page/', '/preview/'],
-    name: 'נציג שירות ומכירות',
-    roleBadge: 'שירות, שיווק ומכירות',
-    roleDescription: 'מצב צפייה: שירות לקוחות והכוונה דיגיטלית',
-    welcomeMessage: 'שלום וברוכים הבאים לקושאן! אני כאן לענות על כל שאלה בנוגע לשירותים, המוצרים ופתרונות הפלטפורמה שלנו. איך אוכל לסייע לך היום?',
+    name: 'סוכן שירות לקוחות',
+    roleBadge: 'שירות לקוחות',
+    roleDescription: 'מענה שירותי ומכירתי לאורחים ומבקרים',
+    welcomeMessage: 'שלום וברוכים הבאים! אני סוכן שירות הלקוחות הדיגיטלי שלנו. נשמח לסייע לך בכל שאלה בנוגע לשירותים, מוצרים, הצעות מחיר או יצירת קשר.',
     inputPlaceholder: 'במה נוכל לסייע לך היום?',
     enabledCapabilities: [],
     allowedDataSources: [SYSTEM_COLLECTIONS.PAGES, SYSTEM_COLLECTIONS.BRAND_DNA_DOC],
-    systemPrompt: `אתה נציג שירות הלקוחות והמכירות הדיגיטלי של קושאן עבור מבקרים באתר.`
+    systemPrompt: `אתה סוכן שירות הלקוחות והמכירות הדיגיטלי של האתר עבור אורחים ומבקרים.
+תפקידך להעניק מענה אדיב, שירותי, מקצועי ומהיר לכל שאלות הגולשים, להציג את השירותים והמוצרים, לספק מענה על שאלות נפוצות, ולסייע בהשארת פרטים או יצירת קשר.
+שמור על טון שירותי, אדיב, ברור ומזמין, והסתמך על נתוני המותג (Brand DNA) והעמודים המפורסמים באתר.`
   }
 };
 
 /**
  * Resolves the active module based on current pathname, hash, and auth status
  */
-export function resolveActiveModule(pathname?: string, isLoggedIn: boolean = false): ModuleAgentMeta {
+export function resolveActiveModule(pathname?: string, isLoggedIn: boolean = false, isEditMode: boolean = false): ModuleAgentMeta {
   const windowUrl = typeof window !== 'undefined' ? (window.location.pathname + window.location.hash) : '';
   const cleanPath = ((pathname || windowUrl) || '').toLowerCase();
 
-  // If visiting public landing pages
+  // If user is logged in or in active edit mode on pages or root, route them to KosWebAi (Site Editor Agent)
+  if (isLoggedIn || isEditMode) {
+    if (
+      cleanPath.startsWith('/p/') || 
+      cleanPath.startsWith('/page/') || 
+      cleanPath.startsWith('/preview/') || 
+      cleanPath === '/' || 
+      cleanPath === '' || 
+      cleanPath.includes('koswebai') || 
+      cleanPath.includes('builder')
+    ) {
+      return MODULE_AGENTS_MAP['KosWebAi'];
+    }
+  }
+
+  // If visiting public landing pages as an unauthenticated guest
   if (cleanPath.startsWith('/p/') || cleanPath.startsWith('/page/') || cleanPath.startsWith('/preview/')) {
     return MODULE_AGENTS_MAP['public-site'];
   }

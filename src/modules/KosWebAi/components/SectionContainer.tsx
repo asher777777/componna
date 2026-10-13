@@ -77,10 +77,10 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
   return (
     <div
       className={clsx(
-        'rounded-3xl border transition-all duration-200 overflow-hidden shadow-xl text-right',
+        'rounded-3xl border transition-all duration-200 overflow-hidden shadow-sm dark:shadow-xl text-right',
         isOpen
-          ? 'bg-slate-900 border-indigo-500/50 shadow-indigo-500/10'
-          : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 backdrop-blur-md',
+          ? 'bg-white dark:bg-slate-900 border-indigo-500/50 shadow-indigo-500/10'
+          : 'bg-white/90 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 backdrop-blur-md',
         !visible && 'opacity-60'
       )}
       dir="rtl"
@@ -92,15 +92,15 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
           onClick={onToggleOpen}
           className="flex items-center gap-3 cursor-pointer flex-1 min-w-0"
         >
-          <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 dark:text-indigo-400 flex items-center justify-center shrink-0">
             <Icon className="w-4 h-4" />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-bold text-white truncate">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
                 {displayTitle}
               </h3>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 hidden sm:inline">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hidden sm:inline">
                 {effectiveType}
               </span>
               {regDef?.description && (
@@ -110,12 +110,12 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
                 >
                   <button
                     type="button"
-                    className="p-0.5 text-slate-500 hover:text-indigo-400 transition"
+                    className="p-0.5 text-slate-400 hover:text-indigo-500 dark:hover:text-indigo-400 transition"
                     title={regDef.description}
                   >
                     <Info className="w-3.5 h-3.5" />
                   </button>
-                  <div className="hidden group-hover/info:block absolute z-30 right-0 top-full mt-1.5 w-60 p-2.5 rounded-xl bg-slate-950 border border-slate-700 text-[11px] text-slate-300 shadow-2xl pointer-events-none">
+                  <div className="hidden group-hover/info:block absolute z-30 right-0 top-full mt-1.5 w-60 p-2.5 rounded-xl bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-700 text-[11px] text-slate-700 dark:text-slate-300 shadow-2xl pointer-events-none">
                     {regDef.description}
                   </div>
                 </div>
@@ -133,8 +133,8 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               className={clsx(
                 'p-2 rounded-xl border transition-colors',
                 visible
-                  ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
-                  : 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                  ? 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  : 'bg-amber-500/10 border-amber-500/20 text-amber-500 dark:text-amber-400'
               )}
               title={visible ? 'הסתר אזור' : 'הצג אזור'}
             >
@@ -149,8 +149,8 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               className={clsx(
                 'p-2 rounded-xl border transition-colors hidden sm:block',
                 mobileHidden
-                  ? 'bg-rose-500/10 border-rose-500/20 text-rose-400'
-                  : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-white'
+                  ? 'bg-rose-500/10 border-rose-500/20 text-rose-500 dark:text-rose-400'
+                  : 'bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               )}
               title={mobileHidden ? 'מוסתר במובייל' : 'מוצג במובייל'}
             >
@@ -163,7 +163,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               type="button"
               disabled={isFirst}
               onClick={onMoveUp}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
               title="העבר למעלה"
             >
               <ArrowUp className="w-4 h-4" />
@@ -175,7 +175,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               type="button"
               disabled={isLast}
               onClick={onMoveDown}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 disabled:opacity-30 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
               title="העבר למטה"
             >
               <ArrowDown className="w-4 h-4" />
@@ -186,7 +186,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
             <button
               type="button"
               onClick={onDuplicate}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 hover:text-white transition-colors hidden sm:block"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors hidden sm:block"
               title="שכפל אזור"
             >
               <Copy className="w-4 h-4" />
@@ -197,7 +197,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onAiDesign(); }}
-              className="p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-400 hover:text-indigo-300 transition-colors hidden sm:block"
+              className="p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors hidden sm:block"
               title="עצב מחדש בעזרת AI"
             >
               <Sparkles className="w-4 h-4" />
@@ -208,7 +208,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
             <button
               type="button"
               onClick={onDelete}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-rose-900/40 border border-slate-700 hover:border-rose-700/60 text-slate-400 hover:text-rose-300 transition-colors"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-rose-100 dark:hover:bg-rose-900/40 border border-slate-200 dark:border-slate-700 hover:border-rose-300 dark:hover:border-rose-700/60 text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 transition-colors"
               title="מחק אזור"
             >
               <Trash2 className="w-4 h-4" />
@@ -218,7 +218,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
           <button
             type="button"
             onClick={onToggleOpen}
-            className="p-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-400 transition-colors mr-1"
+            className="p-2 rounded-xl bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-600 dark:text-indigo-400 transition-colors mr-1"
           >
             <ChevronDown className={clsx('w-4 h-4 transition-transform duration-300', isOpen && 'rotate-180')} />
           </button>
@@ -227,7 +227,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
 
       {/* Collapsible Content */}
       {isOpen && (
-        <div className="p-6 border-t border-slate-800/80 bg-slate-950/60">
+        <div className="p-6 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/60">
           {children || contentEditorNode}
         </div>
       )}

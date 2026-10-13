@@ -1,12 +1,12 @@
-﻿# whatsapp-green-api-hub: חוקי שכבת רכיב הוואטסאפ (Green API Rules & Standards)
+# KosWhatsUp: חוקי שכבת רכיב הוואטסאפ (Green API Rules & Standards)
 
-מסמך זה מהווה את **שכבת החוקים המחייבת (Rules Layer)** עבור רכיב הוואטסאפ (`whatsapp-green-api-hub`) במערכת Comona / Cashwan. החוקים גובשו על בסיס התיעוד הרשמי של [Green API Documentation](https://green-api.com/en/docs/) ותקני הארכיטקטורה המודולרית של המערכת.
+מסמך זה מהווה את **שכבת החוקים המחייבת (Rules Layer)** עבור רכיב הוואטסאפ (`KosWhatsUp`) במערכת Comona / Cashwan. החוקים גובשו על בסיס התיעוד הרשמי של [Green API Documentation](https://green-api.com/en/docs/) ותקני הארכיטקטורה המודולרית של המערכת.
 
 ---
 
 ## 1. עקרונות יסוד ובידוד ארכיטקטוני (Module Architecture & Isolation)
 1. **Zero Direct Cross-Module Imports**:
-   - חל איסור מוחלט על ייבוא ישיר מרכיבים שכנים (כגון `crm-groups-hub`, `KosBranding`, `kesher-payments-hub`).
+   - חל איסור מוחלט על ייבוא ישיר מרכיבים שכנים (כגון `KosTogether`, `KosBranding`, `kesher-payments-hub`).
    - כל שיתוף טיפוסים וחוזים מתבצע אך ורק דרך `src/core/contracts/index.ts`.
    - שיתוף מידע רוחבי מתבצע אסינכרונית בלבד באמצעות ה-`EventBus` (`src/core/bridge/EventBus`).
 2. **AI Capabilities via Host Bridge Only**:
@@ -16,12 +16,12 @@
 3. **Multi-Tenant Data Isolation (בידוד טננטים קשיח)**:
    - כל שאילתה ושמירה ב-Firestore חייבת להיות תחומה תחת נתיב הטננט: `tenants/{tenantId}/...`
      - הגדרות מופע וקרדנציאלים: `tenants/{tenantId}/settings/whatsapp`
-     - בוטים: `tenants/{tenantId}/whatsapp_ai_bots`
-     - שיחות והיסטוריה: `tenants/{tenantId}/wa_bot_chats`
-     - סטטוסים: `tenants/{tenantId}/whatsapp_statuses`
-     - אוטומציות: `tenants/{tenantId}/whatsapp_status_automations`
+     - בוטים: `tenants/{tenantId}/kos_whatsup_ai_bots`
+     - שיחות והיסטוריה: `tenants/{tenantId}/kos_whatsup_bot_chats`
+     - סטטוסים: `tenants/{tenantId}/kos_whatsup_statuses`
+     - אוטומציות: `tenants/{tenantId}/kos_whatsup_automations`
      - סנכרון אנשי קשר: `tenants/{tenantId}/contacts`
-   - מפתחות LocalStorage חייבים לשאת את קידומת הטננט: `kosun_{tenantId}_whatsapp_*`.
+   - מפתחות LocalStorage חייבים לשאת את קידומת הטננט: `kosun_{tenantId}_whatsup_*`.
 
 ---
 

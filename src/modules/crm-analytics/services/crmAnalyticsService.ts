@@ -500,8 +500,8 @@ export async function fetchLiveCrmAnalytics(
       snapshot = await getDocs(query(contactsRef));
     }
 
-    // Fallback: If scoped collection is empty and tenant has migrated path, check fallback contacts collection
-    if (snapshot.empty && collections.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
+    // Fallback: ONLY for _master root tenant migration, if scoped collection is empty
+    if (snapshot.empty && collections.contacts.includes('/_master/')) {
       try {
         const rootTargetCol = SYSTEM_COLLECTIONS.CONTACTS;
         const rootRef = collection(db, rootTargetCol);
@@ -686,8 +686,8 @@ export async function fetchLiveCrmAnalytics(
       if (groupsSnap.empty && ownerId) {
         groupsSnap = await getDocs(query(groupsRef));
       }
-      // Fallback to root crm_groups if scoped collection is empty
-      if (groupsSnap.empty && groupsColName !== SYSTEM_COLLECTIONS.GROUPS) {
+      // Fallback: ONLY for _master root tenant migration, if scoped collection is empty
+      if (groupsSnap.empty && groupsColName.includes('/_master/')) {
         try {
           const rootGroupsCol = SYSTEM_COLLECTIONS.GROUPS;
           const rootGRef = collection(db, rootGroupsCol);

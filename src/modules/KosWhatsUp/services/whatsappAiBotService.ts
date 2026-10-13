@@ -1,5 +1,5 @@
-﻿import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
-import { BrandDna } from '../../../core/contracts';
+import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
+import { BrandDna, SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { functionsApi } from '../api/functionsApi';
@@ -132,53 +132,53 @@ export interface StatusVariation {
 }
 
 export const STATUS_TONE_LABELS: Record<StatusTone, { label: string; icon: string; desc: string }> = {
-  chasidic: { label: 'תורני / חסידי', icon: '✡️', desc: 'חיזוק, פתגמים חסידיים, מוסר ופסוקים' },
-  marketing: { label: 'שיווקי ומשכנע', icon: '🚀', desc: 'הנעה חזקה לפעולה, הטבות ומבצעים' },
-  official: { label: 'רשמי ומכובד', icon: '👔', desc: 'ניסוח עסקי, קהילתי ומנומס' },
-  warm: { label: 'חם וידידותי', icon: '😊', desc: 'נימה אישית, נעימה ומחברת' },
-  viral: { label: 'קצר וקולע', icon: '⚡', desc: 'סטורי פאנצ׳י עד 120 תווים עם אימוג׳י' },
+  chasidic: { label: 'תורני / חסידי', icon: 'BookOpen', desc: 'חיזוק, פתגמים חסידיים, מוסר ופסוקים' },
+  marketing: { label: 'שיווקי ומשכנע', icon: 'Megaphone', desc: 'הנעה חזקה לפעולה, הטבות ומבצעים' },
+  official: { label: 'רשמי ומכובד', icon: 'ShieldCheck', desc: 'ניסוח עסקי, קהילתי ומנומס' },
+  warm: { label: 'חם וידידותי', icon: 'Sparkles', desc: 'נימה אישית, נעימה ומחברת' },
+  viral: { label: 'קצר וקולע', icon: 'Zap', desc: 'סטורי תמציתי עד 120 תווים ללא אימוג׳י' },
 };
 
 export const STATUS_PRESETS = [
   {
     id: 'chasidic_sukkot',
     label: 'דבר תורה חסידי לסוכות',
-    icon: '🌿',
+    icon: 'Layers',
     defaultTopic: 'דבר תורה חסידי לחג הסוכות על קדושת האושפיזין ואחדות ישראל תחת צלא דמהימנותא',
     tone: 'chasidic' as StatusTone,
   },
   {
     id: 'chasidic_parasha',
     label: 'פתגם חסידי ופרשת שבוע',
-    icon: '📜',
+    icon: 'BookOpen',
     defaultTopic: 'ווארט חסידי קצר ומאיר לפרשת השבוע עם מסר מעשי לעבודת השם ושמחה',
     tone: 'chasidic' as StatusTone,
   },
   {
     id: 'flash_sale',
     label: 'מבצע בזק והנחה מיוחדת',
-    icon: '🛍️',
+    icon: 'ShoppingBag',
     defaultTopic: 'מבצע מיוחד ל-24 שעות הקרובות עם הנחה בלעדית לצופי הסטטוס בוואטסאפ',
     tone: 'marketing' as StatusTone,
   },
   {
     id: 'community_news',
     label: 'עדכון חשוב לקהילה',
-    icon: '📢',
+    icon: 'Megaphone',
     defaultTopic: 'הודעה ועדכון חשוב לקהילה על פעילות חדשה, זמני פתיחה או אירוע קרוב',
     tone: 'official' as StatusTone,
   },
   {
     id: 'value_tip',
     label: 'טיפ מקצועי וערך מוסף',
-    icon: '💡',
+    icon: 'Lightbulb',
     defaultTopic: 'טיפ מקצועי יומי קצר ומנצח שחוסך זמן וכסף בתחום שלנו',
     tone: 'warm' as StatusTone,
   },
   {
     id: 'event_invite',
     label: 'הזמנה לאירוע / שיעור',
-    icon: '🎟️',
+    icon: 'Ticket',
     defaultTopic: 'הזמנה אישית להשתתף באירוע / שיעור / כנס מרתק שיתקיים השבוע',
     tone: 'warm' as StatusTone,
   },
@@ -195,7 +195,7 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     triggerKeywords: ['היי', 'שלום', 'עזרה', 'מחיר', 'מידע'],
     systemPrompt: `אתה נציג שירות לקוחות ודיגיטל בכיר ומקצועי של מערכת Kosun.
 תפקידך להעניק מענה אדיב, מהיר, מדויק ותמציתי בעברית בוואטסאפ.
-שמור על נימה שירותית, עניינית, עם אימוג'י במידה.
+שמור על נימה שירותית, עניינית, ללא שימוש באימוג'י כלל.
 אם הלקוח שואל על מחיר או מוצרים - ענה בקצרה והצע לו לבחור באחד הכפתורים מטה.`,
     model: 'gemini-3.8-flash',
     temperature: 0.7,
@@ -215,12 +215,12 @@ export const DEFAULT_AI_BOTS: WhatsAppAiBotConfig[] = [
     isActive: false,
     triggerType: 'keyword',
     triggerKeywords: ['תקלה', 'לא עובד', 'שגיאה', 'עזרה טכנית', 'סנכרון'],
-    systemPrompt: `אתה מומחה תמיכה טכנית של Kosun. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל.`,
+    systemPrompt: `אתה מומחה תמיכה טכנית של Kosun. עזור ללקוח לפתור בעיות חיבור, סנכרון והגדרות באופן ברור ויעיל ללא שימוש באימוג'י.`,
     model: 'gemini-3.8-flash',
     temperature: 0.4,
     interactiveButtons: [
       { buttonId: 'btn_reboot', buttonText: 'בדיקת סטטוס מופע', actionType: 'prompt', actionValue: 'כיצד מאתחלים את המופע?' },
-      { buttonId: 'btn_support_agent', buttonText: '🛠 פתיחת קריאת שירות', actionType: 'message', actionValue: 'קריאת שירות נפתחה בהצלחה.' },
+      { buttonId: 'btn_support_agent', buttonText: 'פתיחת קריאת שירות', actionType: 'message', actionValue: 'קריאת שירות נפתחה בהצלחה.' },
     ],
     autoGenerateButtons: false,
     createdAt: Date.now(),
@@ -284,7 +284,7 @@ function buildBrandDnaPromptBlock(brandDna?: BrandDna | null): string {
 }
 
 export class WhatsAppAiBotService {
-  private static STORAGE_KEY = 'kosun_whatsapp_ai_bots';
+  private static STORAGE_KEY = 'kosun_whatsup_ai_bots';
 
   public static getStoredBots(): WhatsAppAiBotConfig[] {
     try {
@@ -310,16 +310,14 @@ export class WhatsAppAiBotService {
     if (!db) return;
     try {
       const batch = writeBatch(db);
-      const collectionPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+      const colName = SYSTEM_COLLECTIONS.KOS_WHATSUP_AI_BOTS;
+      const collectionPath = tenantId ? `tenants/${tenantId}/${colName}` : colName;
       
       // Update each bot
       for (const bot of bots) {
         const docRef = doc(db, collectionPath, bot.id);
         batch.set(docRef, bot, { merge: true });
       }
-      
-      // Optional: Delete bots that were removed
-      // (Skipping for now to avoid accidental deletions of old bots)
       
       await batch.commit();
     } catch (err) {
@@ -330,7 +328,8 @@ export class WhatsAppAiBotService {
   public static async loadBotsFromFirestore(db: any, tenantId?: string): Promise<WhatsAppAiBotConfig[]> {
     if (!db) return [];
     try {
-      const collectionPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+      const colName = SYSTEM_COLLECTIONS.KOS_WHATSUP_AI_BOTS;
+      const collectionPath = tenantId ? `tenants/${tenantId}/${colName}` : colName;
       const coll = collection(db, collectionPath);
       const snap = await getDocs(coll);
       if (snap.empty) return [];
@@ -349,7 +348,8 @@ export class WhatsAppAiBotService {
   public static async deleteBotFromFirestore(db: any, botId: string, tenantId?: string): Promise<void> {
     if (!db) return;
     try {
-      const collectionPath = tenantId ? `tenants/${tenantId}/whatsapp_ai_bots` : 'whatsapp_ai_bots';
+      const colName = SYSTEM_COLLECTIONS.KOS_WHATSUP_AI_BOTS;
+      const collectionPath = tenantId ? `tenants/${tenantId}/${colName}` : colName;
       const docRef = doc(db, collectionPath, botId);
       await deleteDoc(docRef);
     } catch (err) {

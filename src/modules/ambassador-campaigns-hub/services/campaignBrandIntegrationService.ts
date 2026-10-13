@@ -105,22 +105,14 @@ export async function fetchBrandProfile(
         return mapBrandDnaToSummary(data);
       }
 
-      // If specific tenant not found, query root tenant in DB
-      if (tenantId !== '_master') {
-        const rootDocRef = doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.SETTINGS || 'settings', 'brand_dna');
-        const rootSnap = await getDoc(rootDocRef);
-        if (rootSnap.exists()) {
-          const rootData = rootSnap.data() as BrandDna;
-          return mapBrandDnaToSummary(rootData);
+      // For root _master tenant, also check settings/brand_dna top-level in DB for backward compatibility
+      if (tenantId === '_master') {
+        const topLevelRef = doc(db, 'settings', 'brand_dna');
+        const topLevelSnap = await getDoc(topLevelRef);
+        if (topLevelSnap.exists()) {
+          const topData = topLevelSnap.data() as BrandDna;
+          return mapBrandDnaToSummary(topData);
         }
-      }
-
-      // Also check settings/brand_dna top-level in DB
-      const topLevelRef = doc(db, 'settings', 'brand_dna');
-      const topLevelSnap = await getDoc(topLevelRef);
-      if (topLevelSnap.exists()) {
-        const topData = topLevelSnap.data() as BrandDna;
-        return mapBrandDnaToSummary(topData);
       }
     } catch (err) {
       console.warn('[CampaignBrand] Firestore brand_dna read warning:', err);

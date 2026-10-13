@@ -3,7 +3,7 @@ import {
   MessageSquare, Send, QrCode, Smartphone, Globe, RefreshCw, CheckCircle,
   AlertCircle, Server, Users, Image, BarChart2,
   ListFilter, ShieldCheck, Power, KeyRound, ExternalLink, Sun, Moon,
-  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen, UserCheck, Database, Search, Crown, X, Info
+  Trash2, ArrowUpRight, Bot, Sparkles, Sliders, FolderOpen, UserCheck, Database, Search, Crown, X, Info, Menu
 } from 'lucide-react';
 import { collection, getDocs, query } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -37,21 +37,32 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   const groupsCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS);
   const statusesCollectionPath = getScopedCollectionPath(SYSTEM_COLLECTIONS.WHATSAPP_STATUSES);
 
-  // Day / Night Theme State
+  // Day / Night Theme State (Default Light per KOSUN Constitution)
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    return (localStorage.getItem('kosun_whatsapp_theme') as 'dark' | 'light') || 'light';
+    if (typeof document !== 'undefined' && document.documentElement.classList.contains('dark')) {
+      return 'dark';
+    }
+    return (localStorage.getItem('kosun_whatsup_theme') as 'dark' | 'light') || 'light';
   });
 
   const toggleTheme = () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(nextTheme);
+    if (nextTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
     try {
-      localStorage.setItem('kosun_whatsapp_theme', nextTheme);
+      localStorage.setItem('kosun_whatsup_theme', nextTheme);
     } catch {}
   };
 
   const isDark = theme === 'dark';
   
+  // Floating Drawer & Info Bar states (Hidden by default according to KOSUN Constitution)
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
 
@@ -347,187 +358,432 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
   };
 
   return (
-    <div className={`min-h-screen ${themeClasses.container} p-3 sm:p-6 font-sans transition-colors duration-200`} dir="rtl">
-      <div className="max-w-7xl mx-auto space-y-5">
-        
-        {/* Unconfigured Alert Banner */}
-        {!greenApiService.isConfigured() && (
-          <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-500">
-            <div className="flex items-center gap-3">
-              <AlertCircle className="w-5 h-5 shrink-0" />
-              <div>
-                <p className="font-bold text-sm">מופע WhatsApp (GREEN-API) עדיין אינו מוגדר במערכת</p>
-                <p className="text-xs opacity-90">ההגדרות והמפתחות מנוהלים בצורה מרכזית ברכיב הסנכרון וההגדרות של המערכת.</p>
+    <div className={`relative min-h-screen w-full ${themeClasses.container} overflow-x-hidden text-right font-sans transition-colors duration-200`} dir="rtl">
+      {/* 1. Day / Night mode floating button (fixed top-4 left-4, light default) */}
+      <div className="fixed top-4 left-4 z-40">
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+          title="החלף מצב יום / לילה"
+        >
+          {isDark ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-indigo-600" />}
+        </button>
+      </div>
+
+      {/* 2. Floating Menu Trigger Button (fixed top-4 right-4, Official Kosun Symbol + English name) */}
+      <div className="fixed top-4 right-4 z-40">
+        <button
+          type="button"
+          onClick={() => setIsDrawerOpen(true)}
+          className="h-10 px-3.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-slate-900 dark:text-white shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <img
+            src="/images/kosun-symbol.svg"
+            onError={(e: any) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = '/images/kosun-official-logo.png';
+            }}
+            alt="KOSUN"
+            className="w-5 h-5 object-contain"
+          />
+          <span className="font-extrabold text-xs tracking-tight">KosWhatsUp</span>
+          <Menu className="w-4 h-4 text-slate-400 mr-1" />
+        </button>
+      </div>
+
+      {/* 3. Floating Side Drawer (Hidden by default, opened on floating icon click, with 'x' to close) */}
+      {isDrawerOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
+          onClick={() => setIsDrawerOpen(false)}
+        >
+          <aside
+            className="fixed inset-y-0 right-0 z-50 w-80 max-w-[85vw] bg-white dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 shadow-2xl flex flex-col p-4 animate-in slide-in-from-right duration-300"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Drawer Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <img
+                  src="/images/kosun-symbol.svg"
+                  onError={(e: any) => {
+                    e.currentTarget.onerror = null;
+                    e.currentTarget.src = '/images/kosun-official-logo.png';
+                  }}
+                  alt="KOSUN"
+                  className="w-6 h-6 object-contain"
+                />
+                <span className="font-black text-sm text-slate-900 dark:text-white">KosWhatsUp</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsDrawerOpen(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 cursor-pointer"
+                title="סגור תפריט"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Vertical Drawer Links */}
+            <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto text-xs font-bold text-slate-600 dark:text-slate-300">
+              <button
+                type="button"
+                onClick={() => { setActiveTab('webchat'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'webchat'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4 text-emerald-600" />
+                <span>צ'אט חי והודעות (Web Chat)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('aibots'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'aibots'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Bot className="w-4 h-4 text-indigo-600" />
+                <span>סוכני AI, בוטים וכפתורים</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('aibotchats'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'aibotchats'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                <span>היסטוריית שיחות בוט</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('statuses'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'statuses'
+                    ? 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Smartphone className="w-4 h-4 text-teal-600" />
+                <span>סטטוסים ומבזקים</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('sender'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'sender'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Send className="w-4 h-4 text-indigo-600" />
+                <span>שיגור מתקדם וסקרים</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('groups'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'groups'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <Users className="w-4 h-4 text-indigo-600" />
+                <span>ניהול וייבוא קבוצות</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveTab('service'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  activeTab === 'service'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                <span>כלי שירות ואבחון</span>
+              </button>
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => { setIsBulkModalOpen(true); setIsDrawerOpen(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right text-indigo-600 dark:text-indigo-400"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>שליחה מרובה לרשימות</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setIsQrModalOpen(true); setIsDrawerOpen(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right text-emerald-600 dark:text-emerald-400"
+                >
+                  <QrCode className="w-4 h-4" />
+                  <span>חיבור באמצעות QR</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setIsPhoneModalOpen(true); setIsDrawerOpen(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right"
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>קוד אימות לטלפון</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setIsWebhookModalOpen(true); setIsDrawerOpen(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right"
+                >
+                  <Globe className="w-4 h-4" />
+                  <span>הגדרת Webhook</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { openConnectorModal(); setIsDrawerOpen(false); }}
+                  className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right text-amber-600 dark:text-amber-400"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>הגדרת מפתחות חיבור (Connectors)</span>
+                </button>
+              </div>
+            </nav>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+              <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 text-[11px] text-slate-500 flex items-center justify-between">
+                <span>{connectedAccountDisplayName}</span>
+                <span className={`w-2 h-2 rounded-full ${stateInstance === 'authorized' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
               </div>
             </div>
-            <button
-              onClick={() => openConnectorModal()}
-              className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 shrink-0 transition cursor-pointer shadow-md"
-            >
-              <KeyRound className="w-4 h-4" />
-              <span>הגדר מפתחות מופע ו-Webhook</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
+          </aside>
+        </div>
+      )}
+
+      {/* Main Content Area - 0px Top with padding */}
+      <div className="pt-16 px-3 sm:px-6 md:px-8 pb-8 space-y-5 max-w-7xl mx-auto">
+        
+        {/* Collapsible Info / Setup Bar (Clean light card, toggled or shown if not configured) */}
+        {(isInfoOpen || !greenApiService.isConfigured()) && (
+          <div className="p-4 rounded-3xl bg-white dark:bg-slate-900 border border-indigo-100 dark:border-slate-800 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs animate-in fade-in duration-200">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center shrink-0">
+                <Info className="w-4 h-4" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="font-bold text-slate-800 dark:text-slate-100 text-sm">KosWhatsUp - מרכז הוואטסאפ והאוטומציה המודולרי</p>
+                <p className="text-slate-500 dark:text-slate-400 text-xs">
+                  {greenApiService.isConfigured()
+                    ? 'ניהול צ\'אט חי, בוטים חכמים, סטטוסים ושידורים מרוכזים תחת מונופול מבודד.'
+                    : 'מופע GREEN-API עדיין אינו מוגדר. ההגדרות והמפתחות מנוהלים בצורה מרכזית ברכיב הסנכרון.'}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              {!greenApiService.isConfigured() && (
+                <button
+                  type="button"
+                  onClick={() => openConnectorModal()}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 cursor-pointer shadow-xs"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  <span>הגדר מפתחות מופע</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setIsInfoOpen(false)}
+                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold rounded-xl text-xs cursor-pointer"
+              >
+                סגור
+              </button>
+            </div>
           </div>
         )}
 
-        {/* Top Hub Header */}
-        <div className="flex items-center justify-between gap-4 mb-2">
-          <div className="flex items-center space-x-3 rtl:space-x-reverse">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-              <MessageSquare className="w-5 h-5" />
-            </div>
-            <div className="flex items-center gap-2">
-              <h1 className={`text-lg font-black ${themeClasses.textTitle}`}>הוואטסאפ של קושאן</h1>
-              
-              {/* Info Tooltip Button */}
-              <div className="relative" onClick={(e) => e.stopPropagation()}>
-                <button
-                  onClick={() => setShowInfoTooltip(!showInfoTooltip)}
-                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold border transition ${isDark ? 'border-slate-700 bg-slate-800 hover:bg-slate-700 text-slate-300' : 'border-slate-300 bg-slate-100 hover:bg-slate-200 text-slate-500'}`}
-                >
-                  i
-                </button>
-                
-                {showInfoTooltip && (
-                  <div className={`absolute top-full right-0 mt-2 p-3 rounded-2xl w-64 shadow-2xl z-50 text-[11px] leading-relaxed border flex flex-col gap-2 ${isDark ? 'bg-slate-900 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}>
-                    <div className="flex justify-between items-start">
-                      <span className="font-bold text-indigo-500">מידע על הרכיב</span>
-                      <button onClick={() => setShowInfoTooltip(false)} className="opacity-50 hover:opacity-100">
-                        <X className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                    <p>כאן מנהלים את הצ'אט החי, שליחה מרובה לרשימות תפוצה, יצירת בוטים חכמים מבוססי AI ומענה אוטומטי מלא דרך Green-API.</p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Instance Modal Opener Badge */}
-              <button
-                onClick={() => setIsInstanceModalOpen(true)}
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition cursor-pointer ${
-                  stateInstance === 'authorized'
-                    ? 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                    : 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                }`}
-                title="ניהול וסטטוס מופע"
-              >
-                <span className={`w-1.5 h-1.5 rounded-full ${stateInstance === 'authorized' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
-                <span>{stateInstance === 'authorized' ? 'מחובר' : 'לא מחובר'}</span>
-              </button>
-
-              {/* Auto-Responder Live Indicator Badge */}
-              <div
-                className={`text-[10px] font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition ${
-                  isAutoResponderActive
-                    ? isDark
-                      ? 'bg-indigo-950/60 text-indigo-400 border-indigo-800'
-                      : 'bg-indigo-50 text-indigo-600 border-indigo-200'
-                    : isDark
-                      ? 'bg-slate-800 text-slate-500 border-slate-700'
-                      : 'bg-slate-100 text-slate-500 border-slate-200'
-                }`}
-                title={isAutoResponderActive ? 'מנוע האזנה ומענה אוטומטי של סוכן ה-AI פעיל' : 'מנוע המענה בהמתנה'}
-              >
-                <Bot className="w-3 h-3 text-indigo-500" />
-                <span>{isAutoResponderActive ? 'סוכן AI מאזין' : 'סוכן בהמתנה'}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Header Buttons inside a dropdown */}
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+        {/* Sleek CRM-Style Actions & Tabs Bar (Icons with tooltips and data badges) */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-2.5 sm:px-4 shadow-xs">
+          
+          {/* Navigation Pills */}
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
             <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition cursor-pointer"
+              type="button"
+              onClick={() => setActiveTab('webchat')}
+              className={`h-9 px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'webchat'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="צ'אט חי ושיחות"
             >
-              <Sliders className="w-5 h-5" />
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>צ'אט</span>
             </button>
-            
-            {isSettingsOpen && (
-              <div className="absolute left-0 top-full mt-2 w-48 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 overflow-hidden flex flex-col text-xs font-bold text-slate-700">
-                <button onClick={() => { setIsBulkModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
-                  <Users className="w-4 h-4 text-indigo-500" /> שליחה מרובה
-                </button>
-                <button onClick={() => { setIsQrModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
-                  <QrCode className="w-4 h-4 text-emerald-500" /> חיבור QR
-                </button>
-                <button onClick={() => { setIsPhoneModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
-                  <Smartphone className="w-4 h-4 text-slate-500" /> קוד לטלפון
-                </button>
-                <button onClick={() => { setIsWebhookModalOpen(true); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 border-b border-slate-100 cursor-pointer">
-                  <Globe className="w-4 h-4 text-purple-500" /> Webhook
-                </button>
-                <button onClick={() => { toggleTheme(); setIsSettingsOpen(false); }} className="flex items-center gap-2 px-4 py-3 hover:bg-slate-50 cursor-pointer">
-                  {isDark ? <Sun className="w-4 h-4 text-amber-500" /> : <Moon className="w-4 h-4 text-indigo-500" />} 
-                  {isDark ? 'מצב יום' : 'מצב לילה'}
-                </button>
-              </div>
-            )}
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('aibots')}
+              className={`h-9 px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'aibots'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="סוכני AI, בוטים וכפתורים"
+            >
+              <Bot className="w-3.5 h-3.5" />
+              <span>בוטים</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('statuses')}
+              className={`h-9 px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'statuses'
+                  ? 'bg-teal-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="סטטוסים ומבזקים"
+            >
+              <Smartphone className="w-3.5 h-3.5" />
+              <span>סטטוסים</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('sender')}
+              className={`h-9 px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'sender'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="שיגור מתקדם וסקרים"
+            >
+              <Send className="w-3.5 h-3.5" />
+              <span>שיגור</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('groups')}
+              className={`h-9 px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'groups'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="ניהול קבוצות"
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>קבוצות</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab('service')}
+              className={`h-9 px-3.5 rounded-xl flex items-center gap-1.5 text-xs font-bold transition cursor-pointer shrink-0 ${
+                activeTab === 'service'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+              title="כלי שירות ואבחון"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>שירות</span>
+            </button>
           </div>
-        </div>
 
-        {/* Navigation Tabs */}
-        <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          <button
-            onClick={() => setActiveTab('aibots')}
-            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
-              activeTab === 'aibots' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Bot className="w-3.5 h-3.5" />
-            <span>בוטים וכפתורים</span>
-          </button>
+          {/* Indicators & Action Icon Buttons (Hover reveals tooltip) */}
+          <div className="flex items-center gap-2">
+            {/* Instance Status Pill */}
+            <button
+              type="button"
+              onClick={() => setIsInstanceModalOpen(true)}
+              className={`h-9 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                stateInstance === 'authorized'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800/60'
+                  : 'bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800/60'
+              }`}
+              title="סטטוס חיבור וניהול מופע"
+            >
+              <span className={`w-2 h-2 rounded-full ${stateInstance === 'authorized' ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`} />
+              <span className="hidden sm:inline">{stateInstance === 'authorized' ? 'מחובר' : 'לא מחובר'}</span>
+            </button>
 
-          <button
-            onClick={() => setActiveTab('webchat')}
-            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
-              activeTab === 'webchat' ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <MessageSquare className="w-3.5 h-3.5" />
-            <span>צ'אט (Web)</span>
-          </button>
+            {/* Auto-Responder Live Indicator */}
+            <div
+              className={`h-9 px-3 rounded-xl border text-xs font-bold flex items-center gap-1.5 transition ${
+                isAutoResponderActive
+                  ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/60'
+                  : 'bg-slate-50 dark:bg-slate-800/40 text-slate-500 border-slate-200 dark:border-slate-700'
+              }`}
+              title={isAutoResponderActive ? 'מנוע האזנה ומענה אוטומטי של סוכן ה-AI פעיל 24/7' : 'מנוע המענה בהמתנה'}
+            >
+              <Bot className="w-3.5 h-3.5 text-indigo-500" />
+              <span className="hidden md:inline">{isAutoResponderActive ? 'סוכן מאזין' : 'סוכן בהמתנה'}</span>
+            </div>
 
-          <button
-            onClick={() => setActiveTab('statuses')}
-            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
-              activeTab === 'statuses' ? 'bg-teal-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Smartphone className="w-3.5 h-3.5" />
-            <span>סטטוסים</span>
-          </button>
+            {/* Quick Action Icons with Tooltips */}
+            <button
+              type="button"
+              onClick={() => setIsBulkModalOpen(true)}
+              className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
+              title="שליחה מרובה לרשימות תפוצה"
+            >
+              <Users className="w-4 h-4 text-indigo-500" />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('sender')}
-            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
-              activeTab === 'sender' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Send className="w-3.5 h-3.5" />
-            <span>שיגור מתקדם</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsQrModalOpen(true)}
+              className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
+              title="חיבור מהיר באמצעות קוד QR"
+            >
+              <QrCode className="w-4 h-4 text-emerald-500" />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('groups')}
-            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
-              activeTab === 'groups' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <Users className="w-3.5 h-3.5" />
-            <span>ניהול קבוצות</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsPhoneModalOpen(true)}
+              className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
+              title="חיבור באמצעות קוד לטלפון"
+            >
+              <Smartphone className="w-4 h-4 text-slate-500" />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('service')}
-            className={`py-1.5 px-3 font-semibold rounded-lg flex items-center gap-1.5 transition cursor-pointer shrink-0 text-xs ${
-              activeTab === 'service' ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            <ShieldCheck className="w-3.5 h-3.5" />
-            <span>כלי שירות</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setIsWebhookModalOpen(true)}
+              className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
+              title="הגדרת Webhook"
+            >
+              <Globe className="w-4 h-4 text-purple-500" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsInfoOpen((prev) => !prev)}
+              className="w-9 h-9 rounded-xl border border-slate-200/80 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center justify-center shadow-2xs hover:scale-105 active:scale-95 transition cursor-pointer"
+              title="מידע והגדרות מופע"
+            >
+              <Info className="w-4 h-4 text-indigo-500" />
+            </button>
+          </div>
         </div>
 
         {/* TAB 1: WHATSAPP WEB CHAT VIEW (PRIMARY LANDING TAB) */}
@@ -577,7 +833,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
         {/* TAB 3: SENDER */}
         {activeTab === 'sender' && (
-          <div className={`space-y-4 text-xs`}>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-5 text-xs">
             
 
             {/* Type selector */}
@@ -935,7 +1191,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
         {/* TAB 4: GROUPS */}
         {activeTab === 'groups' && (
-          <div className={`space-y-4 text-xs`}>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-5 text-xs">
             <h3 className={`font-bold ${themeClasses.textTitle} text-sm flex items-center gap-2`}>
               <Users className="w-4 h-4 text-indigo-500" />
               <span>יצירה וניהול קבוצות WhatsApp</span>
@@ -1044,7 +1300,7 @@ export const WhatsAppGreenApiMainView: React.FC = () => {
 
         {/* TAB 5: SERVICE TOOLS & QUEUES */}
         {activeTab === 'service' && (
-          <div className={`space-y-4 text-xs`}>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-5 text-xs">
             <h3 className={`font-bold ${themeClasses.textTitle} text-sm flex items-center gap-2`}>
               <ShieldCheck className="w-4 h-4 text-indigo-500" />
               <span>כלי שירות, בדיקת מספרי וואטסאפ וניהול תורים</span>

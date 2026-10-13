@@ -1,0 +1,20 @@
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+
+export const KOS_WHATSUP_CONFIG = {
+  id: 'KosWhatsUp',
+  name: 'KosWhatsUp',
+  version: '2.0.0',
+  storagePrefix: 'kosun_whatsup_',
+  collections: {
+    chats: SYSTEM_COLLECTIONS.KOS_WHATSUP_CHATS,
+    messages: SYSTEM_COLLECTIONS.KOS_WHATSUP_MESSAGES,
+    botRules: SYSTEM_COLLECTIONS.KOS_WHATSUP_BOT_RULES,
+    aiBots: SYSTEM_COLLECTIONS.KOS_WHATSUP_AI_BOTS,
+    botChats: SYSTEM_COLLECTIONS.KOS_WHATSUP_BOT_CHATS,
+    statuses: SYSTEM_COLLECTIONS.KOS_WHATSUP_STATUSES,
+    templates: SYSTEM_COLLECTIONS.KOS_WHATSUP_TEMPLATES,
+    automations: SYSTEM_COLLECTIONS.KOS_WHATSUP_AUTOMATIONS,
+  }
+};
+
+export const WHATSAPP_MODULE_CONFIG = KOS_WHATSUP_CONFIG;

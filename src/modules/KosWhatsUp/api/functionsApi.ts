@@ -1,4 +1,4 @@
-﻿/**
+/**
  * WhatsApp Cloud Functions API Proxy & AI Assistant Client
  * Follows Kosun Modular Standards: Resilient AI caller with direct REST fallback and model cascade.
  */
@@ -19,7 +19,7 @@ export function resolveAiApiKey(explicitKey?: string): string {
   if (explicitKey && explicitKey.trim().length > 5) {
     return explicitKey.trim();
   }
-  const moduleKey = getModuleGeminiKey('whatsapp-green-api-hub') || getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('KosWebAi');
+  const moduleKey = getModuleGeminiKey('KosWhatsUp') || getModuleGeminiKey('whatsapp-green-api-hub') || getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('KosWebAi');
   if (moduleKey && moduleKey.trim().length > 5) {
     return moduleKey.trim();
   }

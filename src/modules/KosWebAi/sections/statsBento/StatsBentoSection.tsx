@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { StatsBentoSectionConfig } from '../../types/sectionConfigs';
 import { DynamicIcon } from '../../ui/PageBuilderIconPicker';
 import { TrendingUp, Sparkles } from 'lucide-react';
@@ -38,7 +38,7 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
               </div>
             )}
             {title && (
-              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 {title}
               </h2>
             )}
@@ -53,7 +53,7 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
               <div
                 key={item.id || idx}
                 className={clsx(
-                  'group relative bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-xl transition-all duration-300 hover:-translate-y-1.5',
+                  'group relative bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-xl transition-all duration-300 hover:-translate-y-1.5',
                   colorTheme.glow
                 )}
               >
@@ -84,7 +84,7 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
 
                 <div className="flex flex-col gap-1 text-right">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-4xl sm:text-5xl font-black text-white font-mono tracking-tight">
+                    <span className="text-4xl sm:text-5xl font-black text-slate-900 dark:text-white font-mono tracking-tight">
                       {item.number}
                     </span>
                     {item.suffix && (
@@ -93,9 +93,9 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
                       </span>
                     )}
                   </div>
-                  <h3 className="text-base font-bold text-slate-200 mt-1">{item.label}</h3>
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-200 mt-1">{item.label}</h3>
                   {item.description && (
-                    <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 leading-relaxed">{item.description}</p>
                   )}
                 </div>
               </div>

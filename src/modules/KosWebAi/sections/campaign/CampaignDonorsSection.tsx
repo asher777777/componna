@@ -39,10 +39,10 @@ export const CampaignDonorsSection: React.FC<{ config: CampaignDonorsSectionConf
       dir="rtl"
     >
       <div className="max-w-6xl mx-auto flex flex-col gap-8">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-800 pb-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-white">{title}</h2>
-            <p className="text-xs text-slate-400 mt-1">רשימת השותפים והתורמים היקרים שתמכו בפעילות</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white">{title}</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">רשימת השותפים והתורמים היקרים שתמכו בפעילות</p>
           </div>
 
           <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -54,7 +54,7 @@ export const CampaignDonorsSection: React.FC<{ config: CampaignDonorsSectionConf
                   placeholder="חיפוש תורם..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-800 text-white rounded-xl pr-9 pl-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl pr-9 pl-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
                 />
               </div>
             )}
@@ -63,7 +63,7 @@ export const CampaignDonorsSection: React.FC<{ config: CampaignDonorsSectionConf
               <select
                 value={filterSort}
                 onChange={(e) => setFilterSort(e.target.value as any)}
-                className="bg-slate-900 border border-slate-800 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
+                className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-indigo-500"
               >
                 <option value="recent">לפי תאריך</option>
                 <option value="highest">הסכומים הגבוהים</option>
@@ -82,28 +82,28 @@ export const CampaignDonorsSection: React.FC<{ config: CampaignDonorsSectionConf
           {filteredDonors.map((donor) => (
             <div
               key={donor.id}
-              className="bg-slate-900/80 border border-slate-800 hover:border-slate-700 rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3 transition-all"
+              className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3 transition-all shadow-sm"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-400 flex items-center justify-center font-bold text-sm">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500/20 to-purple-500/20 border border-indigo-500/30 text-indigo-500 dark:text-indigo-400 flex items-center justify-center font-bold text-sm">
                     {donor.isAnonymous ? '?' : donor.name.charAt(0)}
                   </div>
                   <div className="text-right">
-                    <span className="text-sm font-bold text-white block">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white block">
                       {donor.isAnonymous ? 'תורם אנונימי' : donor.name}
                     </span>
                     {donor.date && <span className="text-[11px] text-slate-500">{donor.date}</span>}
                   </div>
                 </div>
 
-                <span className="text-base font-black text-emerald-400 shrink-0">
+                <span className="text-base font-black text-emerald-600 dark:text-emerald-400 shrink-0">
                   ₪{donor.amount.toLocaleString()}
                 </span>
               </div>
 
               {donor.message && (
-                <p className="text-xs text-slate-300 bg-slate-950/50 p-2.5 rounded-xl border border-slate-800/60 italic leading-relaxed">
+                <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-950/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800/60 italic leading-relaxed">
                   "{donor.message}"
                 </p>
               )}

@@ -14,7 +14,7 @@ import { KOSAI_SUPPORTED_MODULES } from '../config/kosaiModules';
 import { KOSAI_TEMPLATES } from '../config/kosaiTemplates';
 import { generateAgentPromptWithAi } from '../api/kosaiApi';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
-import { checkKeywordMatch, WhatsAppAiBotService, WhatsAppAiBotConfig } from '../../whatsapp-green-api-hub/services/whatsappAiBotService';
+import { checkKeywordMatch, WhatsAppAiBotService, WhatsAppAiBotConfig } from '../../KosWhatsUp/services/whatsappAiBotService';
 import { doc, setDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
 import { MODULE_AGENTS_MAP, createDefaultRuleForModule } from '../config/moduleAgents';

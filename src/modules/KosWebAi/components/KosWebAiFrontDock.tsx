@@ -2,19 +2,17 @@ import React, { useState, useEffect } from 'react';
 import { 
   Edit3, 
   Settings2, 
-  Globe, 
   Sparkles, 
   Sun, 
   Moon, 
-  Eye, 
-  Check, 
   ChevronUp, 
   X, 
-  Layers, 
-  Palette,
-  ExternalLink,
+  LayoutTemplate,
   Plus
 } from 'lucide-react';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
+import { useKosai } from '../../kosai-engine';
 
 export interface KosWebAiFrontDockProps {
   pageId?: string;
@@ -35,7 +33,21 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
   onOpenAddSection,
   className = '',
 }) => {
+  const { firebaseApp } = useSystemConnection();
+  const { setIsOpen } = useKosai();
+  const [authState, setAuthState] = useState<AuthState | null>(null);
+  const [authInitialized, setAuthInitialized] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Authenticate user under tenant rules: Only authenticated registered editors/admins see this dock
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, (state) => {
+      setAuthState(state);
+      setAuthInitialized(true);
+    });
+    return () => unsub();
+  }, [firebaseApp]);
 
   // Day / Night mode
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -52,7 +64,8 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
     return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
   }, []);
 
-  const toggleTheme = () => {
+  const toggleTheme = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     localStorage.setItem('kosun_theme', next);
@@ -65,10 +78,29 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
     window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
   };
 
-  const handleGoToStudio = () => {
+  const handleGoToStudio = (e: React.MouseEvent) => {
+    e.stopPropagation();
     const target = pageId ? `/KosWebAi?pageId=${pageId}` : '/KosWebAi';
     window.location.href = target;
   };
+
+  const handleOpenEditorAi = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    window.dispatchEvent(new CustomEvent('kosai_set_agent_mode', { detail: { mode: 'editor', moduleId: 'KosWebAi' } }));
+    setIsOpen(true);
+  };
+
+  // Check tenant authorization: Only registered authenticated tenant users with admin/editor role
+  const isAllowedUser = Boolean(
+    authState &&
+    authState.isAuthenticated &&
+    !authState.isAnonymous &&
+    (authState.role === 'admin' || authState.role === 'editor')
+  );
+
+  if (!authInitialized || !isAllowedUser) {
+    return null;
+  }
 
   return (
     <div
@@ -76,24 +108,24 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
       dir="rtl"
       style={{ fontFamily: 'Heebo, sans-serif' }}
     >
-      {/* Minimized Dock Trigger (Default Discreet State) */}
+      {/* Minimized Dock Trigger (Compact, sleek pill) */}
       {!isExpanded ? (
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className={`flex items-center gap-2.5 px-4 py-2.5 rounded-full backdrop-blur-xl border shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer ${
+          className={`flex items-center gap-2 px-3 py-2 rounded-full backdrop-blur-xl border shadow-2xl transition-all duration-300 hover:scale-105 cursor-pointer ${
             isEditing
               ? 'bg-amber-600 hover:bg-amber-500 text-white border-amber-400 ring-4 ring-amber-500/20 shadow-amber-600/30'
               : 'bg-slate-900/95 hover:bg-slate-800 text-slate-100 border-slate-700/80 shadow-black/40'
           }`}
-          title="פתח פקדי בונה האתרים (KosWebAi)"
+          title="פתח סרגל פקדים KosNev"
         >
-          <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-xs font-black shadow-sm">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 flex items-center justify-center text-white text-[10px] font-black shadow-sm">
+            <Sparkles className="w-3 h-3" />
           </div>
 
-          <span className="text-xs font-extrabold tracking-tight">
-            {isEditing ? 'מצב עריכה פעיל' : 'KosWebAi'}
+          <span className="text-xs font-black tracking-tight font-mono">
+            KosNev
           </span>
 
           {isEditing && (
@@ -103,74 +135,86 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
           <ChevronUp className="w-3.5 h-3.5 text-slate-400 group-hover:text-white transition-transform" />
         </button>
       ) : (
-        /* Full Expanded Dock Belonging Exclusively to KosWebAi */
-        <nav className="flex items-center gap-2 bg-slate-900/95 dark:bg-[#0c0c0e]/95 backdrop-blur-2xl border border-slate-700/80 p-2 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95">
-          {/* Module Monopoly Badge */}
-          <div className="flex items-center gap-1.5 pl-2 pr-1 border-l border-slate-700/80 text-xs font-black text-indigo-400 font-mono">
+        /* Full Expanded Dock (KosNev) */
+        <nav className="flex items-center gap-1.5 bg-slate-900/95 dark:bg-[#0c0c0e]/95 backdrop-blur-2xl border border-slate-700/80 p-1.5 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95">
+          {/* Module Monopoly Badge: KosNev */}
+          <div className="flex items-center gap-1.5 pl-2 pr-1.5 border-l border-slate-700/80 text-xs font-black text-indigo-400 font-mono">
             <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-            <span>KosWebAi</span>
+            <span>KosNev</span>
           </div>
 
-          {/* 1. Toggle In-Place Visual Edit Mode */}
+          {/* 1. KosAI Editor Agent Button */}
+          <button
+            type="button"
+            onClick={handleOpenEditorAi}
+            className="flex items-center justify-center p-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 hover:text-white border border-indigo-500/30 transition cursor-pointer group"
+            title="סוכן עריכה AI (KosAI)"
+            aria-label="פתח סוכן עריכה KosAI"
+          >
+            <Sparkles className="w-4 h-4 text-amber-400 group-hover:rotate-12 transition-transform" />
+          </button>
+
+          {/* 2. Toggle Live Edit Mode - Pencil Icon Only (Edit3) */}
           {onToggleEditMode && (
             <button
               type="button"
               onClick={onToggleEditMode}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
+              className={`p-2 rounded-xl transition cursor-pointer ${
                 isEditing
-                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400'
-                  : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                  ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 shadow-md ring-2 ring-amber-400/50'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white'
               }`}
-              title={isEditing ? 'יציאה ממצב עריכה' : 'הפעל עריכה חיה בעמוד'}
+              title={isEditing ? 'סיום עריכה' : 'עריכה חיה'}
+              aria-label="עריכה חיה"
             >
-              <Edit3 className="w-3.5 h-3.5" />
-              <span>{isEditing ? 'סיים עריכה' : 'עריכה חיה'}</span>
+              <Edit3 className="w-4 h-4" />
             </button>
           )}
 
-          {/* 2. Add Section (when editing) */}
+          {/* 3. Add Section (when editing) - Icon Only */}
           {isEditing && onOpenAddSection && (
             <button
               type="button"
               onClick={onOpenAddSection}
-              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
-              title="הוסף אזור חדש לעמוד"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-white transition cursor-pointer"
+              title="הוסף אזור חדש"
+              aria-label="הוסף אזור חדש"
             >
-              <Plus className="w-3.5 h-3.5 text-indigo-400" />
-              <span>הוסף אזור</span>
+              <Plus className="w-4 h-4" />
             </button>
           )}
 
-          {/* 3. Open Studio Editor */}
+          {/* 4. Open Website Builder Studio - Website Editor Icon */}
           <button
             type="button"
             onClick={handleGoToStudio}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition cursor-pointer"
-            title="מעבר לסטודיו בונה האתרים המלא"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-purple-400 hover:text-purple-300 transition cursor-pointer"
+            title="סטודיו עורך אתרים"
+            aria-label="סטודיו עורך אתרים"
           >
-            <Palette className="w-3.5 h-3.5 text-purple-400" />
-            <span>סטודיו מלא</span>
-            <ExternalLink className="w-3 h-3 text-slate-400" />
+            <LayoutTemplate className="w-4 h-4" />
           </button>
 
-          {/* 4. Settings Drawer */}
+          {/* 5. Settings Drawer */}
           {onOpenSettings && (
             <button
               type="button"
               onClick={onOpenSettings}
-              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition cursor-pointer"
               title="הגדרות עמוד ו-SEO"
+              aria-label="הגדרות עמוד"
             >
-              <Settings2 className="w-4 h-4 text-slate-400" />
+              <Settings2 className="w-4 h-4" />
             </button>
           )}
 
-          {/* 5. Day / Night Toggle */}
+          {/* 6. Day / Night Toggle */}
           <button
             type="button"
             onClick={toggleTheme}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-amber-400 transition cursor-pointer"
+            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-amber-400 transition cursor-pointer"
             title={theme === 'dark' ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
+            aria-label="מצב יום/לילה"
           >
             {theme === 'dark' ? (
               <Sun className="w-4 h-4 text-amber-400" />
@@ -179,9 +223,9 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
             )}
           </button>
 
-          {/* 6. Saving Status or Collapse Button */}
+          {/* 7. Saving Status or Collapse Button */}
           {isSaving ? (
-            <span className="text-[11px] font-bold text-amber-400 px-1 animate-pulse">
+            <span className="text-[10px] font-black text-amber-400 px-1 animate-pulse">
               שומר...
             </span>
           ) : (
@@ -189,7 +233,8 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
               type="button"
               onClick={() => setIsExpanded(false)}
               className="p-1.5 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition cursor-pointer"
-              title="מזער תפריט"
+              title="מזער סרגל"
+              aria-label="מזער סרגל"
             >
               <X className="w-4 h-4" />
             </button>

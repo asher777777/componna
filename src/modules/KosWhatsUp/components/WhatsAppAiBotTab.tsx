@@ -13,7 +13,12 @@ import {
 } from '../services/whatsappAiBotService';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
-const PREDEFINED_COLLECTIONS = [{ id: 'products', label: '������', collectionName: 'products' }, { id: 'articles', label: '������', collectionName: 'articles' }, { id: 'leads', label: '�����', collectionName: 'leads' }, { id: 'services', label: '�������', collectionName: 'services' }];
+const PREDEFINED_COLLECTIONS = [
+  { id: 'products', label: 'מוצרים', collectionName: 'products' },
+  { id: 'articles', label: 'מאמרים', collectionName: 'articles' },
+  { id: 'leads', label: 'לידים', collectionName: 'leads' },
+  { id: 'services', label: 'שירותים', collectionName: 'services' },
+];
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 
@@ -905,8 +910,8 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
               isDark ? 'bg-slate-950 border-slate-800' : 'bg-slate-100 border-slate-200'
             }`}>
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-sm shadow">
-                  
+                <div className="w-9 h-9 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-600 dark:text-emerald-400 flex items-center justify-center font-bold text-xs shadow-xs shrink-0">
+                  <Bot className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="font-bold text-xs flex items-center gap-1.5">

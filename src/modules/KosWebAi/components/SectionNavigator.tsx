@@ -51,11 +51,11 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
   const currentActiveId = openSectionId !== undefined ? openSectionId : activeSectionId;
   const handleAddClick = onAddSectionClick || onOpenAddModal || (() => {});
   return (
-    <div className="bg-[#0f172a] border border-slate-800 rounded-3xl p-4 sm:p-5 flex flex-col gap-4 text-right shadow-2xl" dir="rtl">
-      <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+    <div className="bg-white dark:bg-[#0f172a] border border-slate-200 dark:border-slate-800 rounded-3xl p-4 sm:p-5 flex flex-col gap-4 text-right shadow-lg dark:shadow-2xl transition-colors duration-300" dir="rtl">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
         <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-amber-400" />
-          <span className="text-xs font-bold text-white">{sectionOrder.length} שכבות</span>
+          <Layers className="w-4 h-4 text-amber-500" />
+          <span className="text-xs font-bold text-slate-900 dark:text-white">{sectionOrder.length} שכבות</span>
         </div>
         <button
           type="button"
@@ -86,8 +86,8 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
               className={clsx(
                 'group flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer select-none',
                 isSelected
-                  ? 'bg-indigo-600/20 border-indigo-500 shadow-md text-white'
-                  : 'bg-slate-900/70 border-slate-800 hover:border-slate-700 text-slate-300'
+                  ? 'bg-indigo-50 dark:bg-indigo-600/20 border-indigo-500 shadow-sm text-indigo-950 dark:text-white'
+                  : 'bg-slate-50 dark:bg-slate-900/70 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 text-slate-700 dark:text-slate-300'
               )}
             >
               {/* Right: Icon + Label */}
@@ -97,16 +97,16 @@ export const SectionNavigator: React.FC<SectionNavigatorProps> = ({
                     'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors',
                     isSelected
                       ? 'bg-indigo-600 text-white border-indigo-400'
-                      : 'bg-slate-800 text-slate-400 border-slate-700 group-hover:text-white'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-200 dark:border-slate-700 group-hover:text-slate-900 dark:group-hover:text-white'
                   )}
                 >
                   <Icon className="w-4 h-4" />
                 </div>
                 <div className="truncate text-right">
-                  <span className="text-xs font-bold block truncate">
+                  <span className="text-xs font-bold block truncate text-slate-900 dark:text-white">
                     {regDef?.name || sectionId}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-500 block truncate" dir="ltr">
+                  <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 block truncate" dir="ltr">
                     #{sectionData.anchorId || sectionId}
                   </span>
                 </div>

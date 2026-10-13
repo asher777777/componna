@@ -33,7 +33,7 @@ export const ImageListingSection: React.FC<{ config: ImageListingSectionConfig }
       <div className="max-w-7xl mx-auto flex flex-col gap-8">
         {title && (
           <div className="text-center max-w-2xl mx-auto">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{title}</h2>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{title}</h2>
           </div>
         )}
 
@@ -41,7 +41,7 @@ export const ImageListingSection: React.FC<{ config: ImageListingSectionConfig }
           {images.map((item) => (
             <div
               key={item.id}
-              className="group relative rounded-3xl overflow-hidden border border-slate-800 bg-slate-900 shadow-xl aspect-square flex flex-col justify-end"
+              className="group relative rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-900 shadow-xl aspect-square flex flex-col justify-end"
             >
               <img
                 src={item.imageUrl}

@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import {
@@ -458,31 +458,36 @@ export const MediaGalleryProvider: React.FC<{
         }
       };
 
-      // 1. Initial confirmed server media
-      INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
+      // 1. Initial confirmed server media (only for _master root tenant showcase)
+      if (tenantId === '_master') {
+        INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
+      }
 
-      // 2. Instant LocalStorage items (sanitized: purge expired blob: URLs across browser reloads)
+      // 2. Instant LocalStorage items (scoped by tenant)
       try {
         const sanitizeLsItems = (items: any[]): MediaItem[] => {
           return items.filter((it) => it && it.url && !it.url.startsWith('blob:'));
         };
 
-        const rawStudioItems = localStorage.getItem('kosun_media_gallery_items');
+        const storageKeyStudio = tenantId === '_master' ? 'kosun_media_gallery_items' : `kosun_${tenantId}_media_gallery_items`;
+        const rawStudioItems = localStorage.getItem(storageKeyStudio);
         if (rawStudioItems) {
           const parsed = JSON.parse(rawStudioItems);
           if (Array.isArray(parsed)) {
             const clean = sanitizeLsItems(parsed);
             clean.forEach(addDeduplicated);
-            localStorage.setItem('kosun_media_gallery_items', JSON.stringify(clean));
+            localStorage.setItem(storageKeyStudio, JSON.stringify(clean));
           }
         }
-        const rawVaultItems = localStorage.getItem('sdo_media_vault_items');
-        if (rawVaultItems) {
-          const parsed = JSON.parse(rawVaultItems);
-          if (Array.isArray(parsed)) {
-            const clean = sanitizeLsItems(parsed);
-            clean.forEach(addDeduplicated);
-            localStorage.setItem('sdo_media_vault_items', JSON.stringify(clean));
+        if (tenantId === '_master') {
+          const rawVaultItems = localStorage.getItem('sdo_media_vault_items');
+          if (rawVaultItems) {
+            const parsed = JSON.parse(rawVaultItems);
+            if (Array.isArray(parsed)) {
+              const clean = sanitizeLsItems(parsed);
+              clean.forEach(addDeduplicated);
+              localStorage.setItem('sdo_media_vault_items', JSON.stringify(clean));
+            }
           }
         }
       } catch {}

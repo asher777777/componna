@@ -120,7 +120,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
   service,
   db,
   firebaseApp,
-  collectionName = 'whatsapp_statuses',
+  collectionName = SYSTEM_COLLECTIONS.KOS_WHATSUP_STATUSES,
   isDark,
   connectedAccountName = 'חשבון WhatsApp',
   googleAiApiKey,
@@ -866,7 +866,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
               {/* AI Quick Preset Topics */}
               {dynamicCategories.length > 0 && (
                 <div>
-                  <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">������ AI ��������� ��-DNA �� ����:</span>
+                  <span className="text-[10px] font-bold text-slate-400 mb-1.5 block">נושאי AI מותאמים אישית ל-DNA של המותג:</span>
                   <div className="flex flex-wrap gap-2">
                     {dynamicCategories.map((cat) => (
                       <button
@@ -879,7 +879,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
                         className={`px-3 py-2 rounded-xl text-[12px] font-bold flex items-center gap-2 transition cursor-pointer shadow-sm ${isDark ? "bg-indigo-900/40 hover:bg-indigo-600 border border-indigo-500/30 text-indigo-100 hover:text-white" : "bg-indigo-50 hover:bg-indigo-600 border border-indigo-200 text-indigo-900 hover:text-white shadow-xs"}`}
                         title={cat.preset.defaultTopic}
                       >
-                        <span className="text-[16px]">{cat.preset.icon}</span>
+                        {getPresetIcon(cat.preset.id)}
                         <span>{cat.preset.label}</span>
                       </button>
                     ))}

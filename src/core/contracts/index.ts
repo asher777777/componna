@@ -112,7 +112,7 @@ export interface KesherPaymentContract {
 }
 
 // ========================
-// WhatsApp Messaging Contract
+// WhatsApp Messaging Contract (KosWhatsUp Monopoly)
 // ========================
 
 export interface WhatsAppSendResult {
@@ -121,9 +121,53 @@ export interface WhatsAppSendResult {
   error?: string;
 }
 
+export interface WhatsAppSendMessageParams {
+  phone?: string;
+  chatId?: string;
+  message?: string;
+  text?: string;
+  quotedMessageId?: string;
+  linkPreview?: boolean;
+}
+
+export interface WhatsAppSendFileParams {
+  phone?: string;
+  chatId?: string;
+  urlFile: string;
+  fileName?: string;
+  caption?: string;
+}
+
+export interface WhatsAppSendPollParams {
+  phone?: string;
+  chatId?: string;
+  message: string;
+  options: Array<{ optionName: string }> | string[];
+  multipleAnswers?: boolean;
+}
+
+export interface WhatsAppGroupSummary {
+  id: string;
+  name: string;
+}
+
+export interface WhatsAppGroupParticipantSummary {
+  phone: string;
+  name: string;
+  isAdmin?: boolean;
+  chatId?: string;
+}
+
 export interface WhatsAppContract {
   isConfigured: () => boolean;
-  sendMessage: (phone: string, text: string) => Promise<{ idMessage?: string; error?: string } | WhatsAppSendResult>;
+  sendMessage: (
+    phoneOrParams: string | WhatsAppSendMessageParams,
+    optionalText?: string
+  ) => Promise<WhatsAppSendResult>;
+  sendFile?: (params: WhatsAppSendFileParams) => Promise<WhatsAppSendResult>;
+  sendPoll?: (params: WhatsAppSendPollParams) => Promise<WhatsAppSendResult>;
+  fetchGroups?: () => Promise<WhatsAppGroupSummary[]>;
+  fetchGroupParticipants?: (groupId: string) => Promise<WhatsAppGroupParticipantSummary[]>;
   sendTemplateNotification?: (
     phone: string,
     templateText: string,
@@ -131,6 +175,8 @@ export interface WhatsAppContract {
   ) => Promise<WhatsAppSendResult>;
   buildWaMeUrl: (phone: string, text?: string) => string;
 }
+
+export type KosWhatsUpContract = WhatsAppContract;
 
 // ========================
 // Recruitment & Ambassador Campaigns Contract (גיוס ושגרירים)

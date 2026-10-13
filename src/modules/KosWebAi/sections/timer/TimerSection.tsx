@@ -49,8 +49,8 @@ export const TimerSection: React.FC<{ config: TimerSectionConfig }> = ({ config 
           <div className="w-10 h-10 rounded-2xl bg-amber-500/10 text-amber-400 border border-amber-500/20 flex items-center justify-center mb-1">
             <Clock className="w-5 h-5" />
           </div>
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{title}</h2>
-          {subtitle && <p className="text-sm text-slate-400">{subtitle}</p>}
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{title}</h2>
+          {subtitle && <p className="text-sm text-slate-600 dark:text-slate-400">{subtitle}</p>}
         </div>
 
         {/* Timer Box Units */}
@@ -63,16 +63,19 @@ export const TimerSection: React.FC<{ config: TimerSectionConfig }> = ({ config 
           ].map((unit, idx) => (
             <div
               key={idx}
-              className="rounded-3xl border border-slate-800 p-4 sm:p-6 flex flex-col items-center justify-center shadow-2xl backdrop-blur-md"
-              style={{ backgroundColor: boxBackgroundColor }}
+              className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-6 flex flex-col items-center justify-center shadow-2xl backdrop-blur-md"
+              style={{ backgroundColor: boxBackgroundColor !== '#0f172a' ? boxBackgroundColor : undefined }}
             >
               <span
-                className="text-3xl sm:text-5xl lg:text-6xl font-black font-mono tracking-tight"
-                style={{ color: numberColor }}
+                className="text-3xl sm:text-5xl lg:text-6xl font-black font-mono tracking-tight text-slate-900 dark:text-white"
+                style={{ color: numberColor !== '#ffffff' ? numberColor : undefined }}
               >
                 {String(unit.value).padStart(2, '0')}
               </span>
-              <span className="text-xs sm:text-sm font-bold mt-2" style={{ color: labelColor }}>
+              <span
+                className="text-xs sm:text-sm font-bold mt-2 text-slate-500 dark:text-slate-400"
+                style={{ color: labelColor !== '#94a3b8' ? labelColor : undefined }}
+              >
                 {unit.label}
               </span>
             </div>

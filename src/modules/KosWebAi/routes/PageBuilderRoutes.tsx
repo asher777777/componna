@@ -80,7 +80,7 @@ const PagePreviewRouteWrapper: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white transition-colors duration-300" dir="rtl">
       <PageBuilderRenderer config={config} />
     </div>
   );

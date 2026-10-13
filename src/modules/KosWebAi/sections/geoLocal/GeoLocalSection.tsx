@@ -58,20 +58,20 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
               <span>{subtitle}</span>
             </div>
           )}
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {title}
           </h2>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
           {/* Info Card Column */}
-          <div className="lg:col-span-5 bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-2xl text-right">
+          <div className="lg:col-span-5 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-xl shadow-2xl text-right">
             <div className="flex flex-col gap-6">
               <div>
-                <span className="text-xs font-bold text-indigo-400 block mb-1">סניף מרכזי</span>
-                <h3 className="text-2xl font-black text-white">{resolvedBusinessName}</h3>
-                <p className="text-sm text-slate-300 flex items-center gap-2 mt-1">
-                  <MapPin className="w-4 h-4 text-rose-400 shrink-0" />
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400 block mb-1">סניף מרכזי</span>
+                <h3 className="text-2xl font-black text-slate-900 dark:text-white">{resolvedBusinessName}</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-300 flex items-center gap-2 mt-1">
+                  <MapPin className="w-4 h-4 text-rose-500 shrink-0" />
                   <span>{resolvedAddress}</span>
                 </p>
               </div>
@@ -79,12 +79,12 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
               {/* Service Areas Pills */}
               {serviceAreas && serviceAreas.length > 0 && (
                 <div>
-                  <span className="text-xs font-bold text-slate-400 block mb-2">אזורי שירות מורשים:</span>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400 block mb-2">אזורי שירות מורשים:</span>
                   <div className="flex flex-wrap gap-2">
                     {serviceAreas.map((area, idx) => (
                       <span
                         key={idx}
-                        className="px-3 py-1 rounded-xl bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-300"
+                        className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300"
                       >
                         📍 {area}
                       </span>
@@ -95,12 +95,12 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
 
               {/* Opening Hours */}
               {openingHours && openingHours.length > 0 && (
-                <div className="p-4 rounded-2xl bg-slate-950/60 border border-slate-800/80">
-                  <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5 mb-2">
-                    <Clock className="w-3.5 h-3.5 text-amber-400" />
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800/80">
+                  <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5 mb-2">
+                    <Clock className="w-3.5 h-3.5 text-amber-500" />
                     <span>שעות פעילות וקבלת קהל:</span>
                   </span>
-                  <div className="flex flex-col gap-1 text-xs text-slate-400">
+                  <div className="flex flex-col gap-1 text-xs text-slate-600 dark:text-slate-400">
                     {openingHours.map((hours, idx) => (
                       <div key={idx} className="flex items-center justify-between">
                         <span>{hours}</span>
@@ -112,7 +112,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
             </div>
 
             {/* Actions */}
-            <div className="flex flex-wrap gap-3 pt-6 mt-6 border-t border-slate-800">
+            <div className="flex flex-wrap gap-3 pt-6 mt-6 border-t border-slate-200 dark:border-slate-800">
               {resolvedWhatsapp && (
                 <a
                   href={`https://wa.me/${resolvedWhatsapp.replace(/[^0-9]/g, '')}`}
@@ -127,7 +127,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
               {resolvedPhone && (
                 <a
                   href={`tel:${resolvedPhone.replace(/[^0-9]/g, '')}`}
-                  className="flex-1 min-w-[130px] py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all border border-slate-700"
+                  className="flex-1 min-w-[130px] py-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-900 dark:text-white font-bold text-xs flex items-center justify-center gap-2 transition-all border border-slate-200 dark:border-slate-700"
                 >
                   <Phone className="w-4 h-4" />
                   <span>חיוג לסניף</span>
@@ -137,7 +137,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
           </div>
 
           {/* Interactive Map Column */}
-          <div className="lg:col-span-7 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl min-h-[380px] relative bg-slate-950">
+          <div className="lg:col-span-7 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl min-h-[380px] relative bg-slate-100 dark:bg-slate-950">
             <iframe
               src={mapEmbedUrl}
               width="100%"
@@ -147,7 +147,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
               loading="lazy"
               referrerPolicy="no-referrer-when-downgrade"
               title="Google Maps"
-              className="w-full h-full filter invert-[0.88] hue-rotate-180 contrast-125"
+              className="w-full h-full dark:filter dark:invert-[0.88] dark:hue-rotate-180 dark:contrast-125"
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Tenant-Scoped API Keys Registry (מאגר מפתחות API לפי טננט)
  *
  * Single Source of Truth for all secret integration keys (AI / Gemini, Kesher clearing,
@@ -85,10 +85,13 @@ export function purgeLegacyLocalApiKeys(): void {
 const MODULE_ID_ALIASES: Record<string, string> = {
   'video-producer': 'video-producer-studio',
   'flow-player': 'flow-player-engine',
-  'whatsapp-hub': 'whatsapp-green-api-hub',
+  'whatsapp-hub': 'KosWhatsUp',
+  'whatsapp-green-api-hub': 'KosWhatsUp',
+  'koswhatsup': 'KosWhatsUp',
   'kesher-payments': 'kesher-payments-hub',
   'smart-forms': 'smart-form-builder',
-  'crm-groups': 'crm-groups-hub',
+  'crm-groups': 'KosTogether',
+  'crm-groups-hub': 'KosTogether',
   'brand-dna': 'KosBranding',
   'campaigns-hub': 'ambassador-campaigns-hub',
   'ambassador-campaigns': 'ambassador-campaigns-hub',
@@ -105,7 +108,7 @@ const ROUTE_TO_MODULE: Array<[string, string]> = [
   ['/saas-storefront', 'saas-storefront-composer'],
   ['/brand-dna', 'KosBranding'],
   ['/kesher-payments', 'kesher-payments-hub'],
-  ['/whatsapp-hub', 'whatsapp-green-api-hub'],
+  ['/whatsapp-hub', 'KosWhatsUp'],
   ['/crm-groups', 'crm-groups-hub'],
   ['/campaigns-hub', 'ambassador-campaigns-hub'],
   ['/ambassador-campaigns', 'ambassador-campaigns-hub'],

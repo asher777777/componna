@@ -1,4 +1,4 @@
-import { GreenApiService } from '../../whatsapp-green-api-hub/services/greenApiService';
+import { GreenApiService } from '../../KosWhatsUp/services/greenApiService';
 import { SmartFormDefinition, FormWhatsAppRule, FormWhatsAppDeliveryLog } from '../types';
 import { renderWhatsAppMessage, evaluateRuleCondition } from './whatsappTemplateService';
 import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';

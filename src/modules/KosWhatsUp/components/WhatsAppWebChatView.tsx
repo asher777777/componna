@@ -508,8 +508,8 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
   return (
     <div
-      className={`h-[680px] rounded-3xl border shadow-2xl flex overflow-hidden ${
-        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+      className={`h-[720px] rounded-3xl border shadow-xs flex overflow-hidden ${
+        isDark ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200/80'
       }`}
       dir="rtl"
     >
@@ -722,7 +722,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
                           : 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-white'
                       }`}
                     >
-                      {c.isGroup ? <Users className="w-4 h-4" /> : (c.name?.slice(0, 2).toUpperCase() || '💬')}
+                      {c.isGroup ? <Users className="w-4 h-4" /> : (c.name?.slice(0, 2).toUpperCase() || 'WA')}
                     </div>
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-slate-950 absolute -bottom-0.5 -left-0.5" />
                   </div>
@@ -994,7 +994,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
                         {/* Smart Reply Chips */}
             <div className="flex gap-2 overflow-x-auto pb-2 px-3 pt-2 scrollbar-hide">
-              {['����, ����� ������ ����', '����� ��� ��� �� �����?', '����� �� ����� ������'].map(chip => (
+              {['שלום, אשמח לקבל מידע', 'תוכלו לחזור אליי בהקדם?', 'תודה על המענה המהיר'].map(chip => (
                 <button
                   key={chip}
                   onClick={() => setInputMessage(chip)}

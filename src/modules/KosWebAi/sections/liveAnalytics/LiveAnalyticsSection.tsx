@@ -96,7 +96,7 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
   const totalSources = Math.max(1, googleCount + directCount + socialCount + aiSearchCount);
 
   return (
-    <section className="w-full py-12 px-4 relative overflow-hidden bg-[#0c0d12] text-white" dir="rtl">
+    <section className="w-full py-12 px-4 relative overflow-hidden bg-slate-50 dark:bg-[#0c0d12] text-slate-900 dark:text-white transition-colors duration-300" dir="rtl">
       {/* Background ambient lighting */}
       <div className="absolute top-0 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-cyan-600/10 rounded-full blur-3xl pointer-events-none" />
@@ -104,7 +104,7 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
       <div className="max-w-6xl mx-auto relative z-10">
         {/* Admin Only Notice Badge in Edit Mode */}
         {adminOnly && isEditing && (
-          <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs font-bold">
+          <div className="mb-4 inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-300 text-xs font-bold">
             <Lock className="w-3.5 h-3.5" />
             <span>אזור זה מוגדר לצפיית מנהל בלבד (נסתר מגולשים רגילים)</span>
           </div>
@@ -118,15 +118,15 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
               </span>
-              <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">
+              <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                 {customBadgeText}
               </span>
             </div>
-            <h2 className="text-2xl md:text-3xl font-black text-white tracking-tight">
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
               {title}
             </h2>
             {subtitle && (
-              <p className="text-sm text-slate-400 mt-1">
+              <p className="text-sm text-slate-600 dark:text-slate-400 mt-1">
                 {subtitle}
               </p>
             )}
@@ -135,15 +135,15 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
           {/* Badges: GA4 & AI Engine Integration */}
           <div className="flex flex-wrap items-center gap-2.5">
             {showGa4StatusBadge && (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-slate-900/90 border border-slate-700/80 text-xs font-bold text-slate-200 shadow-sm">
-                <BarChart3 className="w-4 h-4 text-amber-400" />
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-700/80 text-xs font-bold text-slate-700 dark:text-slate-200 shadow-sm">
+                <BarChart3 className="w-4 h-4 text-amber-500" />
                 <span>Google Analytics 4 מחובר</span>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 dark:text-emerald-400" />
               </div>
             )}
             {showAiTrafficBadge && (
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-indigo-950/60 border border-indigo-700/60 text-xs font-bold text-indigo-200 shadow-sm">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-700/60 text-xs font-bold text-indigo-700 dark:text-indigo-200 shadow-sm">
+                <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                 <span>ניטור מנועי AI (ChatGPT / Perplexity)</span>
               </div>
             )}
@@ -155,15 +155,15 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Views Metric */}
             {showViews && (
-              <div className="p-5 rounded-3xl bg-slate-900/70 border border-slate-800 backdrop-blur-md flex flex-col justify-between hover:border-slate-700 transition shadow-xl">
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 backdrop-blur-md flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">סך צפיות בעמוד</span>
-                  <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 text-indigo-400 flex items-center justify-center border border-indigo-500/20">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">סך צפיות בעמוד</span>
+                  <div className="w-9 h-9 rounded-2xl bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20">
                     <Eye className="w-4 h-4" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-3xl font-black text-white">
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
                     {(telemetry?.views ?? 1).toLocaleString()}
                   </div>
                   <div className="text-[11px] text-slate-500 mt-1">נמדד ב-Firestore תחת הטננט</div>
@@ -173,18 +173,18 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
 
             {/* Unique Visitors Metric */}
             {showUniqueVisitors && (
-              <div className="p-5 rounded-3xl bg-slate-900/70 border border-slate-800 backdrop-blur-md flex flex-col justify-between hover:border-slate-700 transition shadow-xl">
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 backdrop-blur-md flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">מבקרים ייחודיים</span>
-                  <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">מבקרים ייחודיים</span>
+                  <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 text-cyan-500 dark:text-cyan-400 flex items-center justify-center border border-cyan-500/20">
                     <Users className="w-4 h-4" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-3xl font-black text-white">
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
                     {(telemetry?.uniqueVisitors ?? 1).toLocaleString()}
                   </div>
-                  <div className="text-[11px] text-emerald-400 mt-1 flex items-center gap-1">
+                  <div className="text-[11px] text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
                     <TrendingUp className="w-3 h-3" />
                     <span>משתמשים פעילים במערכת</span>
                   </div>
@@ -194,18 +194,18 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
 
             {/* CTA Clicks & Leads */}
             {showCtaClicks && (
-              <div className="p-5 rounded-3xl bg-slate-900/70 border border-slate-800 backdrop-blur-md flex flex-col justify-between hover:border-slate-700 transition shadow-xl">
+              <div className="p-5 rounded-3xl bg-white dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 backdrop-blur-md flex flex-col justify-between hover:border-slate-300 dark:hover:border-slate-700 transition shadow-xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-400">אינטראקציות והמרות</span>
-                  <div className="w-9 h-9 rounded-2xl bg-rose-500/10 text-rose-400 flex items-center justify-center border border-rose-500/20">
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">אינטראקציות והמרות</span>
+                  <div className="w-9 h-9 rounded-2xl bg-rose-500/10 text-rose-500 dark:text-rose-400 flex items-center justify-center border border-rose-500/20">
                     <MousePointerClick className="w-4 h-4" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-3xl font-black text-white">
+                  <div className="text-3xl font-black text-slate-900 dark:text-white">
                     {totalInteractions.toLocaleString()}
                   </div>
-                  <div className="text-[11px] text-slate-400 mt-1">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
                     {telemetry?.leadsCount || 0} לידים • {telemetry?.whatsappClicks || 0} וואטסאפ
                   </div>
                 </div>
@@ -214,18 +214,18 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
 
             {/* Conversion Rate */}
             {showConversionRate && (
-              <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-950/80 to-slate-900 border border-indigo-700/50 backdrop-blur-md flex flex-col justify-between shadow-xl">
+              <div className="p-5 rounded-3xl bg-gradient-to-br from-indigo-50 via-white to-indigo-100/50 dark:from-indigo-950/80 dark:to-slate-900 border border-indigo-200 dark:border-indigo-700/50 backdrop-blur-md flex flex-col justify-between shadow-xl">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-300">יחס המרה חי (CR)</span>
-                  <div className="w-9 h-9 rounded-2xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-500/30">
+                  <span className="text-xs font-bold text-indigo-600 dark:text-indigo-300">יחס המרה חי (CR)</span>
+                  <div className="w-9 h-9 rounded-2xl bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 flex items-center justify-center border border-indigo-500/30">
                     <TrendingUp className="w-4 h-4" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <div className="text-3xl font-black text-white">
+                  <div className="text-3xl font-black text-indigo-950 dark:text-white">
                     {conversionRate}%
                   </div>
-                  <div className="text-[11px] text-indigo-300/80 mt-1">חישוב בזמן אמת מתוך סך התנועה</div>
+                  <div className="text-[11px] text-indigo-600/80 dark:text-indigo-300/80 mt-1">חישוב בזמן אמת מתוך סך התנועה</div>
                 </div>
               </div>
             )}
@@ -234,25 +234,25 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
 
         {/* Traffic Sources Breakdown Card */}
         {showTrafficSources && (
-          <div className="mt-4 p-5 rounded-3xl bg-slate-900/60 border border-slate-800 backdrop-blur-md shadow-xl">
+          <div className="mt-4 p-5 rounded-3xl bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 backdrop-blur-md shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-slate-400" />
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Globe className="w-4 h-4 text-slate-500 dark:text-slate-400" />
                 <span>פילוח מקורות תנועה וציטוטי AI</span>
               </span>
-              <span className="text-[11px] text-slate-400">מתוזמן בזמן אמת מול העמוד</span>
+              <span className="text-[11px] text-slate-500 dark:text-slate-400">מתוזמן בזמן אמת מול העמוד</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {/* Google Search */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/50 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-300 mb-1.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 mb-1.5">
                   <span className="flex items-center gap-1.5 font-bold">
-                    <Search className="w-3.5 h-3.5 text-blue-400" /> Google Search
+                    <Search className="w-3.5 h-3.5 text-blue-500" /> Google Search
                   </span>
-                  <span className="font-mono">{googleCount}</span>
+                  <span className="font-mono text-slate-900 dark:text-white">{googleCount}</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-blue-500 rounded-full"
                     style={{ width: `${Math.round((googleCount / totalSources) * 100)}%` }}
@@ -261,14 +261,14 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
               </div>
 
               {/* AI Referrals (ChatGPT / Gemini / Perplexity) */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/50 border border-indigo-800/40">
-                <div className="flex items-center justify-between text-xs text-indigo-200 mb-1.5">
+              <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-slate-950/50 border border-indigo-200/60 dark:border-indigo-800/40">
+                <div className="flex items-center justify-between text-xs text-indigo-900 dark:text-indigo-200 mb-1.5">
                   <span className="flex items-center gap-1.5 font-bold">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-400" /> מנועי AI (ChatGPT/Perplexity)
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" /> מנועי AI (ChatGPT/Perplexity)
                   </span>
-                  <span className="font-mono">{aiSearchCount}</span>
+                  <span className="font-mono text-indigo-950 dark:text-white">{aiSearchCount}</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-indigo-500 rounded-full"
                     style={{ width: `${Math.round((aiSearchCount / totalSources) * 100)}%` }}
@@ -277,14 +277,14 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
               </div>
 
               {/* Social Channels */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/50 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-300 mb-1.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 mb-1.5">
                   <span className="flex items-center gap-1.5 font-bold">
-                    <Radio className="w-3.5 h-3.5 text-pink-400" /> רשתות חברתיות
+                    <Radio className="w-3.5 h-3.5 text-pink-500" /> רשתות חברתיות
                   </span>
-                  <span className="font-mono">{socialCount}</span>
+                  <span className="font-mono text-slate-900 dark:text-white">{socialCount}</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-pink-500 rounded-full"
                     style={{ width: `${Math.round((socialCount / totalSources) * 100)}%` }}
@@ -293,14 +293,14 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
               </div>
 
               {/* Direct Traffic */}
-              <div className="p-3.5 rounded-2xl bg-slate-950/50 border border-slate-800">
-                <div className="flex items-center justify-between text-xs text-slate-300 mb-1.5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between text-xs text-slate-700 dark:text-slate-300 mb-1.5">
                   <span className="flex items-center gap-1.5 font-bold">
-                    <Activity className="w-3.5 h-3.5 text-emerald-400" /> כניסות ישירות (Direct)
+                    <Activity className="w-3.5 h-3.5 text-emerald-500" /> כניסות ישירות (Direct)
                   </span>
-                  <span className="font-mono">{directCount}</span>
+                  <span className="font-mono text-slate-900 dark:text-white">{directCount}</span>
                 </div>
-                <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-emerald-500 rounded-full"
                     style={{ width: `${Math.round((directCount / totalSources) * 100)}%` }}

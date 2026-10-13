@@ -11,7 +11,9 @@ import {
 } from 'firebase/firestore';
 import { SavedWhatsAppStatus, GreenApiStatusStatisticItem } from '../types';
 
-const LOCAL_STORAGE_KEY = 'kosun_whatsapp_statuses_archive_v1';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+
+const LOCAL_STORAGE_KEY = 'kosun_whatsup_statuses_archive_v1';
 
 /**
  * Reads local fallback statuses from localStorage
@@ -42,7 +44,7 @@ export function setLocalCachedStatuses(items: SavedWhatsAppStatus[]): void {
  */
 export async function saveStatusToArchive(
   db: Firestore | undefined,
-  collectionName: string = 'whatsapp_statuses',
+  collectionName: string = SYSTEM_COLLECTIONS.KOS_WHATSUP_STATUSES,
   statusItem: SavedWhatsAppStatus
 ): Promise<void> {
   // 1. Update localStorage cache first
@@ -76,7 +78,7 @@ export async function saveStatusToArchive(
  */
 export async function loadStatusesFromArchive(
   db?: Firestore,
-  collectionName: string = 'whatsapp_statuses'
+  collectionName: string = SYSTEM_COLLECTIONS.KOS_WHATSUP_STATUSES
 ): Promise<SavedWhatsAppStatus[]> {
   const localList = getLocalCachedStatuses();
 
@@ -116,7 +118,7 @@ export async function loadStatusesFromArchive(
  */
 export async function updateStatusStatisticsInArchive(
   db: Firestore | undefined,
-  collectionName: string = 'whatsapp_statuses',
+  collectionName: string = SYSTEM_COLLECTIONS.KOS_WHATSUP_STATUSES,
   statusId: string,
   statistics: GreenApiStatusStatisticItem[]
 ): Promise<void> {
@@ -161,7 +163,7 @@ export async function updateStatusStatisticsInArchive(
  */
 export async function deleteStatusFromArchive(
   db: Firestore | undefined,
-  collectionName: string = 'whatsapp_statuses',
+  collectionName: string = SYSTEM_COLLECTIONS.KOS_WHATSUP_STATUSES,
   statusId: string
 ): Promise<void> {
   // 1. LocalStorage

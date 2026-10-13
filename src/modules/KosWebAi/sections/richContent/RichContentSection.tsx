@@ -21,18 +21,18 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
       <div
         className={clsx(
           'max-w-4xl mx-auto text-right flex flex-col gap-6',
-          layout === 'highlight-box' && 'bg-slate-900/80 border border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-xl'
+          layout === 'highlight-box' && 'bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-xl'
         )}
       >
         {heading && (
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight leading-tight">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
             {heading}
           </h2>
         )}
 
         <div
           className={clsx(
-            'text-base sm:text-lg text-slate-300 leading-relaxed space-y-4 font-normal',
+            'text-base sm:text-lg text-slate-700 dark:text-slate-300 leading-relaxed space-y-4 font-normal',
             layout === 'two-columns' && 'sm:columns-2 sm:gap-8'
           )}
           dangerouslySetInnerHTML={{ __html: body }}

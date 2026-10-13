@@ -220,22 +220,45 @@ export class GreenApiService {
 
   // --- SENDING METHODS ---
 
-  public async sendMessage(params: {
-    chatId: string;
-    message: string;
-    quotedMessageId?: string;
-    linkPreview?: boolean;
-  }): Promise<{ idMessage?: string; error?: string }> {
+  public async sendMessage(
+    paramsOrChatId:
+      | {
+          chatId?: string;
+          phone?: string;
+          message?: string;
+          text?: string;
+          quotedMessageId?: string;
+          linkPreview?: boolean;
+        }
+      | string,
+    optionalMessage?: string
+  ): Promise<{ idMessage?: string; error?: string }> {
     if (!this.isConfigured()) return { error: 'לא הוגדרו מפתחות Green-API' };
+
+    let rawChatId = '';
+    let messageText = '';
+    let quotedMessageId: string | undefined;
+    let linkPreview: boolean | undefined;
+
+    if (typeof paramsOrChatId === 'object' && paramsOrChatId !== null) {
+      rawChatId = paramsOrChatId.chatId || paramsOrChatId.phone || '';
+      messageText = paramsOrChatId.message || paramsOrChatId.text || '';
+      quotedMessageId = paramsOrChatId.quotedMessageId;
+      linkPreview = paramsOrChatId.linkPreview;
+    } else {
+      rawChatId = String(paramsOrChatId || '');
+      messageText = optionalMessage || '';
+    }
+
     const hosts = this.getCandidateHosts();
-    const cleanChatId = GreenApiService.sanitizeChatId(params.chatId);
+    const cleanChatId = GreenApiService.sanitizeChatId(rawChatId);
 
     const body: any = {
       chatId: cleanChatId,
-      message: params.message,
+      message: messageText,
     };
-    if (params.quotedMessageId) body.quotedMessageId = params.quotedMessageId;
-    if (params.linkPreview !== undefined) body.linkPreview = params.linkPreview;
+    if (quotedMessageId) body.quotedMessageId = quotedMessageId;
+    if (linkPreview !== undefined) body.linkPreview = linkPreview;
 
     let lastError: any = null;
     for (const h of hosts) {

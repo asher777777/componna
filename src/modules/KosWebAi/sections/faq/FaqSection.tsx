@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { FaqSectionConfig } from '../../types/sectionConfigs';
 import { ChevronDown, Search, Sparkles, MessageCircle } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -43,7 +43,7 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
               <span>{subtitle}</span>
             </div>
           )}
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {title}
           </h2>
         </div>
@@ -51,13 +51,13 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
         {/* Quick Search Filter */}
         {showSearchBar && (
           <div className="relative max-w-xl mx-auto w-full">
-            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="חפש שאלה או מילת מפתח..."
-              className="w-full bg-slate-900/90 border border-slate-800 rounded-2xl pr-11 pl-4 py-3 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-xl backdrop-blur-md"
+              className="w-full bg-white dark:bg-slate-900/90 border border-slate-200 dark:border-slate-800 rounded-2xl pr-11 pl-4 py-3 text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500 shadow-xl backdrop-blur-md"
             />
           </div>
         )}
@@ -72,20 +72,20 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
                 className={clsx(
                   'rounded-2xl border transition-all duration-300 overflow-hidden backdrop-blur-md',
                   isOpen
-                    ? 'bg-slate-900/90 border-indigo-500/40 shadow-xl'
-                    : 'bg-slate-900/50 border-slate-800/80 hover:border-slate-700'
+                    ? 'bg-white dark:bg-slate-900/90 border-indigo-500/40 shadow-xl'
+                    : 'bg-white/80 dark:bg-slate-900/50 border-slate-200 dark:border-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
                 )}
               >
                 <button
                   type="button"
                   onClick={() => toggleAccordion(index)}
-                  className="w-full p-5 sm:p-6 text-right flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-white"
+                  className="w-full p-5 sm:p-6 text-right flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-slate-900 dark:text-white"
                 >
                   <span>{item.question}</span>
                   <div
                     className={clsx(
                       'w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300',
-                      isOpen ? 'bg-indigo-600 text-white rotate-180' : 'bg-slate-800 text-slate-400'
+                      isOpen ? 'bg-indigo-600 text-white rotate-180' : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     )}
                   >
                     <ChevronDown className="w-4 h-4" />
@@ -93,7 +93,7 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
                 </button>
 
                 {isOpen && (
-                  <div className="px-5 pb-6 sm:px-6 text-slate-300 text-sm sm:text-base leading-relaxed border-t border-slate-800/60 pt-4 animate-in slide-in-from-top-2">
+                  <div className="px-5 pb-6 sm:px-6 text-slate-600 dark:text-slate-300 text-sm sm:text-base leading-relaxed border-t border-slate-100 dark:border-slate-800/60 pt-4 animate-in slide-in-from-top-2">
                     {item.answer}
                   </div>
                 )}
@@ -104,10 +104,10 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
 
         {/* Support Direct Contact Card */}
         {showContactCard && (
-          <div className="mt-6 p-6 rounded-3xl bg-gradient-to-r from-slate-900 via-indigo-950/40 to-slate-900 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
+          <div className="mt-6 p-6 rounded-3xl bg-gradient-to-r from-slate-100 via-indigo-50/50 to-slate-100 dark:from-slate-900 dark:via-indigo-950/40 dark:to-slate-900 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-right">
             <div>
-              <h4 className="text-base font-bold text-white">יש לכם שאלה שלא מופיעה כאן?</h4>
-              <p className="text-xs text-slate-400 mt-0.5">הצוות המקצועי שלנו זמין עבורכם לכל מענה ישיר.</p>
+              <h4 className="text-base font-bold text-slate-900 dark:text-white">יש לכם שאלה שלא מופיעה כאן?</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">הצוות המקצועי שלנו זמין עבורכם לכל מענה ישיר.</p>
             </div>
             {whatsappContact && (
               <a

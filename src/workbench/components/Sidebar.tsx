@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Layers,
@@ -35,6 +35,7 @@ const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: str
   'control-center-hub': { icon: Sparkles, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'KosBranding': { icon: Sparkles, color: 'text-purple-400 group-hover:text-purple-300' },
   'kesher-payments-hub': { icon: CreditCard, color: 'text-indigo-400 group-hover:text-indigo-300' },
+  'KosWhatsUp': { icon: MessageSquare, color: 'text-emerald-400 group-hover:text-emerald-300' },
   'whatsapp-green-api-hub': { icon: MessageSquare, color: 'text-emerald-400 group-hover:text-emerald-300' },
   'crm-groups-hub': { icon: Layers, color: 'text-teal-400 group-hover:text-teal-300' },
   'smart-form-builder': { icon: BookOpen, color: 'text-amber-400 group-hover:text-amber-300' },

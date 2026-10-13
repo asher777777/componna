@@ -40,14 +40,14 @@ export const CampaignTiersSection: React.FC<{
     >
       <div className="max-w-5xl mx-auto flex flex-col items-center gap-8">
         <div className="text-center max-w-2xl mx-auto flex flex-col items-center gap-2">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {title}
           </h2>
-          {subtitle && <p className="text-sm text-slate-400">{subtitle}</p>}
+          {subtitle && <p className="text-sm text-slate-600 dark:text-slate-400">{subtitle}</p>}
         </div>
 
         {donationType === 'both' && (
-          <div className="inline-flex p-1 rounded-2xl bg-slate-900 border border-slate-800">
+          <div className="inline-flex p-1 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
             <button
               type="button"
               onClick={() => setActiveType('one_time')}
@@ -55,7 +55,7 @@ export const CampaignTiersSection: React.FC<{
                 'px-6 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer',
                 activeType === 'one_time'
                   ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               )}
             >
               תרומה חד-פעמית
@@ -67,7 +67,7 @@ export const CampaignTiersSection: React.FC<{
                 'px-6 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer',
                 activeType === 'recurring'
                   ? 'bg-indigo-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               )}
             >
               הוראת קבע חודשית
@@ -81,10 +81,10 @@ export const CampaignTiersSection: React.FC<{
             <div
               key={tier.id}
               className={clsx(
-                'relative bg-slate-900/80 border rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 backdrop-blur-md',
+                'relative bg-white dark:bg-slate-900/80 border rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 backdrop-blur-md shadow-lg',
                 tier.isPopular
                   ? 'border-indigo-500 shadow-2xl shadow-indigo-500/20 scale-105 z-10'
-                  : 'border-slate-800 hover:border-slate-700'
+                  : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
               )}
             >
               {tier.badgeText && (
@@ -94,12 +94,12 @@ export const CampaignTiersSection: React.FC<{
               )}
 
               <div className="flex flex-col gap-3 text-right">
-                <h3 className="text-lg font-bold text-white">{tier.title}</h3>
-                <div className="flex items-baseline gap-1 text-3xl font-black text-white">
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">{tier.title}</h3>
+                <div className="flex items-baseline gap-1 text-3xl font-black text-slate-900 dark:text-white">
                   <span>₪{tier.amount.toLocaleString()}</span>
-                  {activeType === 'recurring' && <span className="text-xs text-slate-400 font-normal">/ חודש</span>}
+                  {activeType === 'recurring' && <span className="text-xs text-slate-500 dark:text-slate-400 font-normal">/ חודש</span>}
                 </div>
-                {tier.description && <p className="text-xs text-slate-400 leading-relaxed">{tier.description}</p>}
+                {tier.description && <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{tier.description}</p>}
               </div>
 
               <button
@@ -109,7 +109,7 @@ export const CampaignTiersSection: React.FC<{
                   'mt-6 w-full py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 cursor-pointer',
                   tier.isPopular
                     ? 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/30'
-                    : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
                 )}
               >
                 <Heart className="w-4 h-4 text-pink-400 fill-pink-400/20" />
@@ -120,13 +120,13 @@ export const CampaignTiersSection: React.FC<{
         </div>
 
         {/* Custom Amount Box */}
-        <div className="w-full max-w-lg bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex items-center gap-3">
+        <div className="w-full max-w-lg bg-white dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center gap-3 shadow-md">
           <input
             type="number"
             placeholder="הזן סכום אחר לתרומה (₪)..."
             value={customAmount}
             onChange={(e) => setCustomAmount(e.target.value)}
-            className="flex-1 bg-slate-950 border border-slate-800 text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
+            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500"
           />
           <button
             type="button"

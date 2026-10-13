@@ -23,7 +23,16 @@ export function isRootPlatformHost(hostname: string): boolean {
   const h = hostname.toLowerCase().trim();
 
   // 1. Localhost and development domains
-  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local') || h.includes('localhost:')) {
+  if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) {
+    return true;
+  }
+
+  // Support local subdomains (e.g. client1.localhost)
+  if (h.endsWith('.localhost')) {
+    const parts = h.split('.');
+    if (parts.length >= 2 && !RESERVED_TENANT_SUBDOMAINS.includes(parts[0])) {
+      return false;
+    }
     return true;
   }
 
@@ -76,6 +85,15 @@ export function extractSubdomainFromHost(hostname: string): string | null {
 
   const parts = h.split('.');
 
+  // On local development: e.g. client1.localhost
+  if (h.endsWith('.localhost') && parts.length >= 2) {
+    const sub = parts[0];
+    if (!RESERVED_TENANT_SUBDOMAINS.includes(sub)) {
+      return sub;
+    }
+    return null;
+  }
+
   // On Firebase Hosting, subdomains require 4 parts: e.g. client1.compona.web.app
   if (h.endsWith('.web.app') || h.endsWith('.firebaseapp.com')) {
     if (parts.length > 3) {
@@ -118,21 +136,20 @@ export function resolveCurrentTenantId(): string {
     }
   } catch {}
 
-  // 2. Allow stored manual override (Workbench mode)
+  // 2. Resolve from actual Hostname (Production or Local Subdomain)
+  const hostname = window.location.hostname.toLowerCase().trim();
+  const extracted = extractSubdomainFromHost(hostname);
+  if (extracted) {
+    return extracted;
+  }
+
+  // 3. Allow stored manual override ONLY on root platform / Workbench mode
   try {
     const storedTenant = localStorage.getItem('kosun_active_tenant_id');
     if (storedTenant && storedTenant.trim()) {
       return storedTenant.trim().toLowerCase();
     }
   } catch {}
-
-  // 3. Resolve from actual Hostname (Production Subdomain)
-  const hostname = window.location.hostname.toLowerCase().trim();
-
-  const extracted = extractSubdomainFromHost(hostname);
-  if (extracted) {
-    return extracted;
-  }
 
   // Root / Apex Domain
   return ROOT_TENANT_ID;

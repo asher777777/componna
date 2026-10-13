@@ -30,14 +30,24 @@ export const SYSTEM_COLLECTIONS = {
   KESHER_GLOSSARY: 'kesher_receipt_glossary',
   KESHER_STANDING_ORDERS: 'kesher_standing_orders',
   
-  // 6. WhatsApp Green API
-  WHATSAPP_CHATS: 'wa_chats',
-  WHATSAPP_MESSAGES: 'wa_messages',
-  WHATSAPP_BOT_RULES: 'wa_bot_rules',
-  WHATSAPP_AI_BOTS: 'whatsapp_ai_bots',
-  WHATSAPP_BOT_CHATS: 'wa_bot_chats',
-  WHATSAPP_STATUSES: 'wa_statuses',
-  WHATSAPP_TEMPLATES: 'wa_templates',
+  // 6. WhatsApp (KosWhatsUp Monopoly)
+  KOS_WHATSUP_CHATS: 'kos_whatsup_chats',
+  KOS_WHATSUP_MESSAGES: 'kos_whatsup_messages',
+  KOS_WHATSUP_BOT_RULES: 'kos_whatsup_bot_rules',
+  KOS_WHATSUP_AI_BOTS: 'kos_whatsup_ai_bots',
+  KOS_WHATSUP_BOT_CHATS: 'kos_whatsup_bot_chats',
+  KOS_WHATSUP_STATUSES: 'kos_whatsup_statuses',
+  KOS_WHATSUP_TEMPLATES: 'kos_whatsup_templates',
+  KOS_WHATSUP_AUTOMATIONS: 'kos_whatsup_automations',
+  // Backward compatibility aliases
+  WHATSAPP_CHATS: 'kos_whatsup_chats',
+  WHATSAPP_MESSAGES: 'kos_whatsup_messages',
+  WHATSAPP_BOT_RULES: 'kos_whatsup_bot_rules',
+  WHATSAPP_AI_BOTS: 'kos_whatsup_ai_bots',
+  WHATSAPP_BOT_CHATS: 'kos_whatsup_bot_chats',
+  WHATSAPP_STATUSES: 'kos_whatsup_statuses',
+  WHATSAPP_TEMPLATES: 'kos_whatsup_templates',
+  WHATSAPP_AUTOMATIONS: 'kos_whatsup_automations',
   
   // 7. Video Producer Studio & Flow Player
   VIDEO_PROJECTS: 'sdo_video_projects',

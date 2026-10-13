@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { LogoMarqueeSectionConfig } from '../../types/sectionConfigs';
 import { clsx } from 'clsx';
 
@@ -19,21 +19,21 @@ export const LogoMarqueeSection: React.FC<{ config: LogoMarqueeSectionConfig }> 
   return (
     <section
       id={anchorId || 'partners'}
-      className="w-full py-10 px-4 sm:px-6 lg:px-8 border-y border-slate-800/60 overflow-hidden relative"
-      style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : '#08080a' }}
+      className="w-full py-10 px-4 sm:px-6 lg:px-8 border-y border-slate-200/80 dark:border-slate-800/60 overflow-hidden relative bg-slate-50/60 dark:bg-[#08080a]"
+      style={{ backgroundColor: backgroundColor !== 'transparent' && backgroundColor !== '#08080a' ? backgroundColor : undefined }}
       dir="rtl"
     >
       <div className="max-w-7xl mx-auto flex flex-col items-center gap-6 text-center">
         {title && (
-          <span className="text-xs sm:text-sm font-semibold text-slate-400 uppercase tracking-wider">
+          <span className="text-xs sm:text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
             {title}
           </span>
         )}
 
         {/* Gradient edge masks */}
         <div className="relative w-full overflow-hidden">
-          <div className="absolute top-0 right-0 bottom-0 w-20 bg-gradient-to-l from-[#08080a] to-transparent z-10 pointer-events-none" />
-          <div className="absolute top-0 left-0 bottom-0 w-20 bg-gradient-to-r from-[#08080a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute top-0 right-0 bottom-0 w-20 bg-gradient-to-l from-slate-50 dark:from-[#08080a] to-transparent z-10 pointer-events-none" />
+          <div className="absolute top-0 left-0 bottom-0 w-20 bg-gradient-to-r from-slate-50 dark:from-[#08080a] to-transparent z-10 pointer-events-none" />
 
           {/* Marquee Row */}
           <div className="flex items-center gap-12 sm:gap-16 w-max animate-marquee">
@@ -48,7 +48,7 @@ export const LogoMarqueeSection: React.FC<{ config: LogoMarqueeSectionConfig }> 
                 {item.logoUrl ? (
                   <img src={item.logoUrl} alt={item.name} className="max-h-9 max-w-[140px] object-contain" />
                 ) : (
-                  <span className="text-sm font-bold text-slate-300">{item.name}</span>
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{item.name}</span>
                 )}
               </div>
             ))}

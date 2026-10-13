@@ -220,10 +220,12 @@ export const whatsappAutoCrmService = {
         const contactDocRef = doc(db, contactsColPath, contactId);
         await updateDoc(contactDocRef, updates);
         
-        // Also mirror update to root collection
-        try {
-          await updateDoc(doc(db, 'contacts', contactId), updates);
-        } catch {}
+        // Also mirror update to root collection ONLY if running in _master tenant
+        if (tenantId === '_master') {
+          try {
+            await updateDoc(doc(db, 'contacts', contactId), updates);
+          } catch {}
+        }
 
         eventBus.publish('crm:contact:updated', {
           id: contactId,
@@ -287,11 +289,13 @@ export const whatsappAutoCrmService = {
         const contactDocRef = doc(db, contactsColPath, contactId);
         await setDoc(contactDocRef, newContactRecord);
 
-        // Also mirror to root contacts collection for systems configured to read root
-        try {
-          const rootContactRef = doc(db, 'contacts', contactId);
-          await setDoc(rootContactRef, newContactRecord, { merge: true });
-        } catch {}
+        // Also mirror to root contacts collection ONLY if running in _master tenant
+        if (tenantId === '_master') {
+          try {
+            const rootContactRef = doc(db, 'contacts', contactId);
+            await setDoc(rootContactRef, newContactRecord, { merge: true });
+          } catch {}
+        }
 
         // Publish event for real-time CRM synchronization
         eventBus.publish('crm:lead:created', {

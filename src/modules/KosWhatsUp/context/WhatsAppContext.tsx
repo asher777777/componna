@@ -3,7 +3,14 @@ import { GreenApiState, GreenApiChat, GreenApiChatMessage } from '../types';
 import { GreenApiService } from '../services/greenApiService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { WhatsAppContract, WhatsAppSendResult } from '../../../core/contracts';
+import {
+  WhatsAppContract,
+  WhatsAppSendResult,
+  WhatsAppSendMessageParams,
+  WhatsAppSendFileParams,
+  WhatsAppSendPollParams,
+  KosWhatsUpContract
+} from '../../../core/contracts';
 
 export interface WhatsAppContextValue {
   state: GreenApiState;
@@ -58,20 +65,44 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
     await greenApi.sendMessage({ chatId, message: text });
   }, [greenApi]);
 
-  // Register WhatsAppContract with HostCapabilities for zero cross-import usage
+  // Register WhatsAppContract / KosWhatsUpContract with HostCapabilities for zero cross-import usage
   useEffect(() => {
     const contract: WhatsAppContract = {
       isConfigured: () => Boolean(greenApi),
-      sendMessage: async (phone: string, text: string): Promise<WhatsAppSendResult> => {
-        const cleanPhone = phone.replace(/\D/g, '');
+      sendMessage: async (
+        phoneOrParams: string | WhatsAppSendMessageParams,
+        optionalText?: string
+      ): Promise<WhatsAppSendResult> => {
+        let phone = '';
+        let text = '';
+        let quotedMessageId: string | undefined;
+        let linkPreview: boolean | undefined;
+
+        if (typeof phoneOrParams === 'object' && phoneOrParams !== null) {
+          phone = phoneOrParams.phone || phoneOrParams.chatId || '';
+          text = phoneOrParams.message || phoneOrParams.text || '';
+          quotedMessageId = phoneOrParams.quotedMessageId;
+          linkPreview = phoneOrParams.linkPreview;
+        } else {
+          phone = String(phoneOrParams || '');
+          text = optionalText || '';
+        }
+
+        const cleanPhone = phone.replace(/[^\d@a-z._-]/gi, '');
         const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
 
         if (greenApi) {
           try {
-            const res = await greenApi.sendMessage({ chatId, message: text });
+            const res = await greenApi.sendMessage({
+              chatId,
+              message: text,
+              quotedMessageId,
+              linkPreview
+            });
             return {
               success: Boolean(res?.idMessage),
               idMessage: res?.idMessage,
+              error: res?.error,
             };
           } catch (err: any) {
             return {
@@ -86,6 +117,71 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
           error: 'מסוף וואטסאפ אינו מחובר',
         };
       },
+      sendFile: async (params: WhatsAppSendFileParams): Promise<WhatsAppSendResult> => {
+        if (!greenApi) return { success: false, error: 'מסוף וואטסאפ אינו מחובר' };
+        try {
+          const rawTarget = params.chatId || params.phone || '';
+          const clean = rawTarget.replace(/[^\d@a-z._-]/gi, '');
+          const chatId = clean.includes('@') ? clean : `${clean}@c.us`;
+          const res = await greenApi.sendFileByUrl({
+            chatId,
+            urlFile: params.urlFile,
+            fileName: params.fileName || 'document',
+            caption: params.caption,
+          });
+          return { success: Boolean(res?.idMessage), idMessage: res?.idMessage, error: res?.error };
+        } catch (err: any) {
+          return { success: false, error: err?.message || 'שגיאה בשליחת קובץ' };
+        }
+      },
+      sendPoll: async (params: WhatsAppSendPollParams): Promise<WhatsAppSendResult> => {
+        if (!greenApi) return { success: false, error: 'מסוף וואטסאפ אינו מחובר' };
+        try {
+          const rawTarget = params.chatId || params.phone || '';
+          const clean = rawTarget.replace(/[^\d@a-z._-]/gi, '');
+          const chatId = clean.includes('@') ? clean : `${clean}@c.us`;
+          const options = Array.isArray(params.options)
+            ? params.options.map((opt: any) => typeof opt === 'string' ? { optionName: opt } : opt)
+            : [];
+          const res = await greenApi.sendPoll({
+            chatId,
+            message: params.message,
+            options,
+            multipleAnswers: params.multipleAnswers,
+          });
+          return { success: Boolean(res?.idMessage), idMessage: res?.idMessage, error: res?.error };
+        } catch (err: any) {
+          return { success: false, error: err?.message || 'שגיאה בשליחת סקר' };
+        }
+      },
+      fetchGroups: async () => {
+        if (!greenApi) return [];
+        try {
+          const chats = await greenApi.getChats();
+          return (chats || [])
+            .filter((c) => c.isGroup || (typeof c.id === 'string' && c.id.endsWith('@g.us')))
+            .map((c) => ({
+              id: c.id,
+              name: c.name || c.contactName || c.id.replace('@g.us', ''),
+            }));
+        } catch {
+          return [];
+        }
+      },
+      fetchGroupParticipants: async (groupId: string) => {
+        if (!greenApi || !groupId) return [];
+        try {
+          const groupData = await greenApi.getGroupData(groupId);
+          return (groupData?.participants || []).map((p: any) => ({
+            phone: (p.id || '').replace('@c.us', ''),
+            name: p.name || (p.id || '').replace('@c.us', ''),
+            isAdmin: Boolean(p.admin),
+            chatId: p.id,
+          }));
+        } catch {
+          return [];
+        }
+      },
       sendTemplateNotification: async (phone: string, templateText: string, variables?: Record<string, string>) => {
         let text = templateText;
         if (variables) {
@@ -93,12 +189,12 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
             text = text.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val);
           });
         }
-        const cleanPhone = phone.replace(/\D/g, '');
+        const cleanPhone = phone.replace(/[^\d@a-z._-]/gi, '');
         const chatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
         if (greenApi) {
           try {
             const res = await greenApi.sendMessage({ chatId, message: text });
-            return { success: Boolean(res?.idMessage), idMessage: res?.idMessage };
+            return { success: Boolean(res?.idMessage), idMessage: res?.idMessage, error: res?.error };
           } catch (e: any) {
             return { success: false, error: e?.message };
           }
@@ -117,10 +213,14 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
 
     registerCapability('whatsapp-service', contract);
     registerCapability('whatsapp', contract);
+    registerCapability('KosWhatsUp', contract);
+    registerCapability('koswhatsup', contract);
 
     return () => {
       unregisterCapability('whatsapp-service');
       unregisterCapability('whatsapp');
+      unregisterCapability('KosWhatsUp');
+      unregisterCapability('koswhatsup');
     };
   }, [greenApi, registerCapability, unregisterCapability]);
 
@@ -140,3 +240,6 @@ export const useWhatsAppState = () => {
   }
   return context;
 };
+
+export const KosWhatsUpProvider = WhatsAppProvider;
+export const useKosWhatsUpState = useWhatsAppState;

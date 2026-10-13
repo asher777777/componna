@@ -49,14 +49,17 @@ export const kosaiDataGroundingService = {
         // Continue to fallback
       }
 
-      try {
-        const rootColRef = collection(db, collectionName);
-        const rootSnap = await getDocs(query(rootColRef, limit(maxDocs)));
-        if (!rootSnap.empty) {
-          return rootSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Fallback to root collection ONLY for _master tenant migration compatibility
+      if (tenantId === '_master') {
+        try {
+          const rootColRef = collection(db, collectionName);
+          const rootSnap = await getDocs(query(rootColRef, limit(maxDocs)));
+          if (!rootSnap.empty) {
+            return rootSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+          }
+        } catch (err) {
+          // Ignore fallback errors
         }
-      } catch (err) {
-        // Ignore fallback errors
       }
 
       return [];

@@ -48,7 +48,7 @@ export const VideoGallerySection: React.FC<{ config: VideoGallerySectionConfig }
               </span>
             )}
             {title && (
-              <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
                 {title}
               </h2>
             )}
@@ -57,7 +57,7 @@ export const VideoGallerySection: React.FC<{ config: VideoGallerySectionConfig }
 
         {/* Video Player Box */}
         <div
-          className="w-full bg-slate-900 rounded-3xl overflow-hidden border border-slate-800 shadow-2xl relative"
+          className="w-full bg-slate-100 dark:bg-slate-900 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl relative"
           style={{ height: desktopHeight }}
         >
           {embedUrl ? (
@@ -69,8 +69,8 @@ export const VideoGallerySection: React.FC<{ config: VideoGallerySectionConfig }
               allowFullScreen
             />
           ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-slate-500">
-              <div className="w-16 h-16 rounded-full bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
+            <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-slate-400 dark:text-slate-500">
+              <div className="w-16 h-16 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
                 <Play className="w-8 h-8 ml-1" />
               </div>
               <span className="text-sm font-medium">לא הוגדר קישור וידאו</span>

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { BeforeAfterSectionConfig } from '../../types/sectionConfigs';
 import { Sparkles, SlidersHorizontal } from 'lucide-react';
 
@@ -28,23 +28,23 @@ export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> 
       <div className="max-w-5xl mx-auto flex flex-col items-center gap-10">
         <div className="text-center max-w-2xl mx-auto flex flex-col items-center gap-3">
           {subtitle && (
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold">
               <Sparkles className="w-3.5 h-3.5" />
               <span>{subtitle}</span>
             </div>
           )}
-          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+          <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight">
             {title}
           </h2>
           {description && (
-            <p className="text-sm sm:text-base text-slate-300 leading-relaxed font-normal">
+            <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
               {description}
             </p>
           )}
         </div>
 
         {/* Interactive Slider Box */}
-        <div className="relative w-full max-w-4xl aspect-[16/10] sm:aspect-[16/9] rounded-3xl overflow-hidden border border-slate-800 shadow-2xl select-none group">
+        <div className="relative w-full max-w-4xl aspect-[16/10] sm:aspect-[16/9] rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl select-none group">
           {/* After Image (Full background) */}
           <img
             src={afterImage}
@@ -92,7 +92,7 @@ export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> 
           />
         </div>
 
-        <span className="text-xs text-slate-400 flex items-center gap-1.5">
+        <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
           <span>💡 גררו את הסליידר ימינה ושמאלה לצפייה בשינוי</span>
         </span>
       </div>

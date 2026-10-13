@@ -50,36 +50,16 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
         return merged;
       }
 
-      // If specific tenant has no doc, try master tenant in DB
-      if (tenantId !== '_master') {
-        const masterRef = doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
-        const masterSnap = await getDoc(masterRef);
-        if (masterSnap.exists()) {
-          const masterData = masterSnap.data() as BrandDna;
-          return {
-            ...DEFAULT_BRAND_DNA,
-            ...masterData,
-            identity: { ...DEFAULT_BRAND_DNA.identity, ...masterData.identity },
-            voice: { ...DEFAULT_BRAND_DNA.voice, ...masterData.voice },
-            audience: { ...DEFAULT_BRAND_DNA.audience, ...masterData.audience },
-            designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...masterData.designTokens },
-            trust: { ...DEFAULT_BRAND_DNA.trust, ...masterData.trust },
-          };
-        }
-      }
     } catch (err) {
       console.warn(`[KosBranding] Could not fetch branding for tenant "${tenantId}" from Firestore:`, err);
     }
   }
 
-  // 2. Fallback to LocalStorage (both tenant-scoped and base keys)
+  // 2. Fallback to LocalStorage (scoped key only for custom tenants, legacy fallback only for _master)
   try {
     const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
     let raw = localStorage.getItem(localStorageKey);
-    if (!raw && tenantId !== '_master') {
-      raw = localStorage.getItem(getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, '_master'));
-    }
-    if (!raw) {
+    if (!raw && tenantId === '_master') {
       raw = localStorage.getItem(BASE_LOCAL_STORAGE_KEY);
     }
     if (raw) {

@@ -65,7 +65,7 @@ const WorkbenchRootHome: React.FC = () => {
   const activePage = homePage || pageBuilderFirestore.getHomePageSync(ROOT_TENANT_ID) || pageBuilderFirestore.createDefaultRootHomePage();
 
   return (
-    <div className="min-h-screen bg-slate-950 text-white relative font-sans" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white relative font-sans transition-colors duration-300" dir="rtl">
       <PageBuilderRenderer config={activePage} />
       <KosWebAiFrontDock pageId={activePage.pageId} />
     </div>
@@ -203,10 +203,16 @@ export const WorkbenchApp: React.FC = () => {
       englishRest: 'Pay Terminal',
       icon: CreditCard,
     },
+    'KosWhatsUp': {
+      hebrewName: 'אוטומציות ושירות WhatsApp',
+      englishPrefix: 'KOS',
+      englishRest: 'WhatsUp',
+      icon: MessageSquare,
+    },
     'whatsapp-green-api-hub': {
       hebrewName: 'אוטומציות ושירות WhatsApp',
       englishPrefix: 'KOS',
-      englishRest: 'WhatsApp Hub',
+      englishRest: 'WhatsUp',
       icon: MessageSquare,
     },
     'KosTogether': {

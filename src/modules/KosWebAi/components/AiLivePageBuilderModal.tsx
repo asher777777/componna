@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { aiPageGenerator, GenerationStep } from '../services/aiPageGenerator';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -26,7 +26,7 @@ import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { PAGE_BLUEPRINTS, hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
-import { GreenApiService } from '../../whatsapp-green-api-hub/services/greenApiService';
+import { GreenApiService } from '../../KosWhatsUp/services/greenApiService';
 
 interface AiLivePageBuilderModalProps {
   isOpen: boolean;

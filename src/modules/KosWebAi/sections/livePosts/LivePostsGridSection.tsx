@@ -50,8 +50,8 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
       <div className="max-w-7xl mx-auto flex flex-col gap-12">
         {(title || description) && (
           <div className="text-center max-w-2xl mx-auto flex flex-col items-center gap-2">
-            {title && <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">{title}</h2>}
-            {description && <p className="text-sm text-slate-400">{description}</p>}
+            {title && <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">{title}</h2>}
+            {description && <p className="text-sm text-slate-600 dark:text-slate-400">{description}</p>}
           </div>
         )}
 
@@ -59,7 +59,7 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
           {customPages.map((post) => (
             <div
               key={post.id}
-              className="bg-slate-900/80 border border-slate-800 hover:border-indigo-500/50 rounded-3xl overflow-hidden shadow-xl flex flex-col justify-between transition-all duration-300 group"
+              className="bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 rounded-3xl overflow-hidden shadow-xl flex flex-col justify-between transition-all duration-300 group"
             >
               <div>
                 {post.imageUrl && (
@@ -84,10 +84,10 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
                       <span>{post.date}</span>
                     </div>
                   )}
-                  <h3 className="text-lg font-bold text-white group-hover:text-indigo-300 transition-colors leading-snug">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors leading-snug">
                     {post.title}
                   </h3>
-                  {post.excerpt && <p className="text-xs text-slate-400 leading-relaxed">{post.excerpt}</p>}
+                  {post.excerpt && <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{post.excerpt}</p>}
                 </div>
               </div>
 
@@ -95,7 +95,7 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
                 <div className="px-6 pb-6 pt-2">
                   <a
                     href={post.linkUrl}
-                    className="inline-flex items-center gap-2 text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors"
+                    className="inline-flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:text-indigo-700 dark:group-hover:text-indigo-300 transition-colors"
                   >
                     <span>קרא את הכתבה המלאה</span>
                     <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-1 transition-transform" />

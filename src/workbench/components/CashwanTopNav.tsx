@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -54,6 +54,7 @@ const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   'saas-storefront-composer': ShoppingBag,
   'KosBranding': Sparkles,
   'kesher-payments-hub': CreditCard,
+  'KosWhatsUp': MessageSquare,
   'whatsapp-green-api-hub': MessageSquare,
   'crm-groups-hub': Layers,
   'smart-form-builder': BookOpen,
