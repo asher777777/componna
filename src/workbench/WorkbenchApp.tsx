@@ -15,18 +15,18 @@ import { useSystemConnection } from '../core/connection/SystemConnectionContext'
 import { AuthModal } from '../components/Auth/AuthModal';
 import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole, logoutUser } from '../services/firebaseAuth';
 
-// PublicPageView loaded lazily to isolate page-builder from shell
+// PublicPageView loaded lazily to isolate KosWebAi from shell
 const PublicPageView = React.lazy(() =>
-  import('../modules/page-builder').then((m) => ({ default: m.PublicPageView }))
+  import('../modules/KosWebAi').then((m) => ({ default: m.PublicPageView }))
 );
 
 const HomePage = React.lazy(() =>
   import('../pages/HomePage').then((m) => ({ default: m.HomePage }))
 );
 
-import { PageBuilderRenderer } from '../modules/page-builder/PageBuilderRenderer';
-import { pageBuilderFirestore } from '../modules/page-builder/services/pageBuilderFirestore';
-import { PageBuilderConfig } from '../modules/page-builder/types/pageBuilder.types';
+import { PageBuilderRenderer } from '../modules/KosWebAi/PageBuilderRenderer';
+import { pageBuilderFirestore } from '../modules/KosWebAi/services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../modules/KosWebAi/types/pageBuilder.types';
 import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
 
 const WorkbenchRootHome: React.FC = () => {
@@ -73,7 +73,7 @@ const WorkbenchRootHome: React.FC = () => {
         </div>
         <div className="flex items-center gap-2">
           <a
-            href="/page-builder"
+            href="/KosWebAi"
             className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold transition flex items-center gap-1.5 shadow-sm"
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -159,9 +159,11 @@ export const WorkbenchApp: React.FC = () => {
 
   const isPublicPage =
     location.pathname.startsWith('/p/') ||
+    location.pathname.startsWith('/to/') ||
     location.pathname.startsWith('/page/') ||
     location.pathname.startsWith('/preview/') ||
     location.hash.startsWith('#/p/') ||
+    location.hash.startsWith('#/to/') ||
     location.hash.startsWith('#/page/');
 
   const isHomePage = location.pathname === '/';
@@ -209,7 +211,7 @@ export const WorkbenchApp: React.FC = () => {
       englishRest: 'Storefront',
       icon: ShoppingBag,
     },
-    'brand-dna-hub': {
+    'KosBranding': {
       hebrewName: 'מרכז זהות ומיתוג עסקי',
       englishPrefix: 'KOS',
       englishRest: 'Brand DNA',
@@ -269,7 +271,7 @@ export const WorkbenchApp: React.FC = () => {
       englishRest: 'Analytics CRM',
       icon: BarChart3,
     },
-    'page-builder': {
+    'KosWebAi': {
       hebrewName: 'בונה עמודים ודפי נחיתה',
       englishPrefix: 'KOS',
       englishRest: 'Page Builder',
@@ -356,6 +358,8 @@ export const WorkbenchApp: React.FC = () => {
           <Routes>
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/to/*" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/preview/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -411,6 +415,8 @@ export const WorkbenchApp: React.FC = () => {
             
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/to/*" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/preview/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

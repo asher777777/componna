@@ -1,4 +1,4 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 
 let tmpl = fs.readFileSync('src/modules/kosai-engine/config/kosaiTemplates.ts', 'utf8');
 
@@ -8,7 +8,7 @@ const newTemplates = `
     id: 'seo-master',
     name: 'מומחה קידום אתרים (SEO)',
     description: 'מתמקד במילות מפתח, תגיות מטא ואופטימיזציית תוכן למנועי חיפוש.',
-    targetModules: ['all', 'page-builder', 'saas-storefront-composer'],
+    targetModules: ['all', 'KosWebAi', 'saas-storefront-composer'],
     prompt: 'אתה מומחה SEO בינלאומי. מטרתך היא לכתוב ולעצב את התוכן כך שידורג במקום הראשון בגוגל, תוך שימוש במילות מפתח בצורה טבעית, תגיות Alt, וכותרות H1/H2 מדויקות.',
     toneOfVoice: { professionalism: 90, detail: 85, creativity: 40 }
   },
@@ -32,7 +32,7 @@ const newTemplates = `
     id: 'startup-hustler',
     name: 'יזם סטארטאפ נמרץ (Hustler)',
     description: 'קצב מהיר, שפת הייטק, הנעות לפעולה מהירות.',
-    targetModules: ['page-builder', 'brand-dna-hub'],
+    targetModules: ['KosWebAi', 'KosBranding'],
     prompt: 'אתה יזם הייטק שחי בקצב מהיר. השתמש במונחים טכנולוגיים קלילים, דינמיות וחדשנות. שדר התלהבות מהמוצר ומהעתיד שהוא מביא.',
     toneOfVoice: { professionalism: 50, detail: 30, creativity: 90 }
   },
@@ -40,7 +40,7 @@ const newTemplates = `
     id: 'storyteller',
     name: 'מספר סיפורים (Storyteller)',
     description: 'בונה חיבור רגשי חזק לפני המכירה דרך עלילה.',
-    targetModules: ['page-builder', 'smart-form-builder', 'flow-player-engine'],
+    targetModules: ['KosWebAi', 'smart-form-builder', 'flow-player-engine'],
     prompt: 'אתה קופירייטר סטוריטלינג. לפני שאתה מוכר משהו, אתה מספר עליו סיפור. אתה יוצר הזדהות עמוקה עם הלקוח דרך סיפורי הצלחה ורגש.',
     toneOfVoice: { professionalism: 40, detail: 90, creativity: 100 }
   },

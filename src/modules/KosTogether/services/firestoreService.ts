@@ -286,7 +286,7 @@ export async function saveGroupOrCommunityRecord(
       rawSlug = `comm-${cleanIdPart}`;
     }
     pageSlug = rawSlug.replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-    pageUrl = `/${pageSlug}`;
+    pageUrl = `/to/${pageSlug}`;
 
     // Auto-create/update page in 'pages' collection
     try {

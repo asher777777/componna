@@ -1,6 +1,6 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 
-let file = fs.readFileSync('src/modules/page-builder/PageBuilderEditor.tsx', 'utf8');
+let file = fs.readFileSync('src/modules/KosWebAi/PageBuilderEditor.tsx', 'utf8');
 
 const imports = `import { BuilderCopilotProvider } from './context/BuilderCopilotContext';
 import { CopilotChatDrawer } from './components/CopilotChatDrawer';
@@ -19,4 +19,4 @@ file = file.replace(/return \(\s*<div className="flex flex-col min-h-screen bg-s
 file = file.replace(/<\/div>\s*\);\s*\};\s*$/, `    </div>\n    </BuilderCopilotProvider>\n  );\n};\n`);
 
 // But wait, the bottom might have more lines. Let's look for the final `);\n};`
-fs.writeFileSync('src/modules/page-builder/PageBuilderEditor.tsx', file);
+fs.writeFileSync('src/modules/KosWebAi/PageBuilderEditor.tsx', file);

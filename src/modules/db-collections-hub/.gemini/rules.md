@@ -1,4 +1,4 @@
-# db-collections-hub Isolation & Architecture Rules
+﻿# db-collections-hub Isolation & Architecture Rules
 
 ## 1. Overview
 The `db-collections-hub` module is the platform's multi-database explorer, document editor, and real-time Firestore collection inspector.
@@ -14,7 +14,7 @@ All local persistence keys must be scoped with tenantId:
 - `kosun_{tenantId}_db_active_collection`
 
 ## 4. Zero Cross-Module Imports
-- `db-collections-hub` must NEVER import directly from other modules (e.g. `db-connector-hub`, `brand-dna-hub`).
+- `db-collections-hub` must NEVER import directly from other modules (e.g. `db-connector-hub`, `KosBranding`).
 - Communication occurs exclusively through:
   - Contracts (`SYSTEM_COLLECTIONS`)
   - Host capabilities (`useHostCapabilities()`)

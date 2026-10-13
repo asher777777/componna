@@ -1,4 +1,4 @@
-# video-producer-studio Isolation & Architecture Rules
+﻿# video-producer-studio Isolation & Architecture Rules
 
 ## 1. Overview
 The `video-producer-studio` module manages AI storyboard creation, HeyGen video avatar generation, Veo scene creation, TTS narration, and bridges scenes into interactive Flow Player campaigns.
@@ -18,7 +18,7 @@ Direct root collection access without tenant scoping is strictly prohibited. `us
   - `kosun_{tenantId}_video_studio_projects`
 
 ## 4. Zero Cross-Module Imports
-- `video-producer-studio` must NEVER import directly from other modules (e.g. `media-gallery-hub`, `page-builder`, `flow-player-engine`).
+- `video-producer-studio` must NEVER import directly from other modules (e.g. `media-gallery-hub`, `KosWebAi`, `flow-player-engine`).
 - Communication occurs exclusively through:
   - EventBus (e.g. `sdo_media_updated`)
   - Contracts (`BrandDnaContract`, `MediaPickerContract`, `SYSTEM_COLLECTIONS`)

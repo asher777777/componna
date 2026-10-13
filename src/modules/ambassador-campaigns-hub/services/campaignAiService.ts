@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CampaignAiService: Generates AI-powered campaign recommendations matching Brand DNA.
  *
  * Capabilities:
@@ -54,7 +54,7 @@ export async function generateAiCampaignRecommendations(
   const { brand, groups, media, userGoalFocus, targetBudget } = params;
 
   // Resolve API Key
-  const apiKey = getModuleGeminiKey('ambassador-campaigns-hub') || getModuleGeminiKey('brand-dna-hub');
+  const apiKey = getModuleGeminiKey('ambassador-campaigns-hub') || getModuleGeminiKey('KosBranding');
 
   // If no API key or offline, use smart context-aware generator
   if (!apiKey) {

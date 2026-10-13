@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sparkles, Wand2, Film, Clock, Users, Target, Volume2, 
   Image as ImageIcon, CheckCircle2, Globe, Palette, FileText, 
@@ -18,7 +18,7 @@ import {
 } from '../config/catalogs';
 import { OutputDeliverablePreference, ClarificationQuestionItem, VideoProject } from '../types';
 import { extractPageContentForVideo, ExtractedPageSummary } from '../services/pageContentExtractor';
-import { PageBuilderConfig } from '../../page-builder/types/pageBuilder.types';
+import { PageBuilderConfig } from '../../KosWebAi/types/pageBuilder.types';
 
 const WIZARD_DRAFT_KEY = 'sdo_studio_wizard_draft_v1';
 

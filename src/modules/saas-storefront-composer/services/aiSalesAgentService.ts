@@ -1,4 +1,4 @@
-import { AiSalesOptimizationInput, AiSalesOptimizationResult } from '../types';
+﻿import { AiSalesOptimizationInput, AiSalesOptimizationResult } from '../types';
 import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
 
 export class AiSalesAgentService {
@@ -12,7 +12,7 @@ export class AiSalesAgentService {
   ): Promise<AiSalesOptimizationResult> {
     const apiKey = customApiKey || (import.meta.env.VITE_GEMINI_API_KEY as string);
 
-    const hasPageBuilder = input.cartModules.some(m => m.includes('דפי נחיתה') || m.includes('אתרים') || m.toLowerCase().includes('page-builder'));
+    const hasPageBuilder = input.cartModules.some(m => m.includes('דפי נחיתה') || m.includes('אתרים') || m.toLowerCase().includes('KosWebAi'));
     const hasCrm = input.cartModules.some(m => m.includes('CRM') || m.includes('אנליטיקה') || m.toLowerCase().includes('crm'));
     const hasVideo = input.cartModules.some(m => m.includes('וידאו') || m.includes('אווטאר') || m.toLowerCase().includes('video'));
     const hasForms = input.cartModules.some(m => m.includes('טפסים') || m.toLowerCase().includes('form'));

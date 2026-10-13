@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { Firestore } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import {
@@ -61,8 +61,8 @@ export const KNOWN_MODULE_SOURCES: Record<string, ModuleSourceInfo> = {
     icon: 'PlayCircle',
     color: '#3b82f6',
   },
-  'page-builder': {
-    id: 'page-builder',
+  'KosWebAi': {
+    id: 'KosWebAi',
     name: 'יוצר העמודים והאתרים',
     shortLabel: 'בונה עמודים',
     icon: 'Layout',
@@ -340,7 +340,7 @@ export const MediaGalleryProvider: React.FC<{
 
     if (tags.includes('page_builder') || tags.includes('pagebuilder')) {
       return {
-        sourceModule: 'page-builder',
+        sourceModule: 'KosWebAi',
         sourceModuleLabel: 'יוצר העמודים והאתרים',
       };
     }

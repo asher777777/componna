@@ -520,6 +520,73 @@ export interface BrandDnaContract {
 }
 
 // ========================
+// KosBrandingTo - מיתוג קהילות ייעודי (תחת מונופול KosBranding)
+// ========================
+
+export interface CommunityBrandProfile {
+  communityId: string;
+  name: string;
+  purpose: string;
+  vision?: string;
+  logoUrl?: string;
+  services: string[];
+  colors: {
+    primaryColor: string;
+    secondaryColor: string;
+    backgroundColor?: string;
+    textColor?: string;
+  };
+  leaderName?: string;
+  contactPhone?: string;
+  contactEmail?: string;
+  websiteUrl?: string;
+  updatedAt?: string;
+}
+
+export interface CommunityBrandContract {
+  getCommunityBrand: (communityId: string) => Promise<CommunityBrandProfile | null>;
+  saveCommunityBrand: (profile: CommunityBrandProfile) => Promise<boolean>;
+}
+
+// ========================
+// KosWebAi - עמודי קהילה תחת סלאג /to/ (תחת מונופול KosWebAi)
+// ========================
+
+export interface CommunityWebPageOptions {
+  communityId: string;
+  slug: string;
+  pageTitle: string;
+  description?: string;
+  brandProfile?: CommunityBrandProfile;
+  sections?: Record<string, any>;
+  sectionOrder?: string[];
+  isPublished?: boolean;
+}
+
+export interface CommunityWebPageContract {
+  createOrUpdateCommunityPage: (options: CommunityWebPageOptions) => Promise<{ success: boolean; pageId: string; publicUrl: string }>;
+  getCommunityPageUrl: (slug: string) => string;
+  openPageBuilderForCommunity: (pageId: string) => void;
+}
+
+// ========================
+// Recruitment / Campaigns Contract for Communities (גיוס כספים לקהילה)
+// ========================
+
+export interface CommunityCampaignOptions {
+  communityId: string;
+  campaignTitle: string;
+  targetGoal: number;
+  leaderName?: string;
+  description?: string;
+}
+
+export interface CommunityCampaignContract {
+  createCommunityCampaign: (options: CommunityCampaignOptions) => Promise<{ success: boolean; campaignId: string; campaignUrl: string }>;
+  getCommunityCampaignStats: (campaignId: string) => Promise<{ targetGoal: number; totalRaised: number; donorCount: number } | null>;
+}
+
+// ========================
 // KOSAI AI Engine Contracts
 // ========================
 

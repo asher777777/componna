@@ -12,10 +12,10 @@ export const SYSTEM_COLLECTIONS = {
   INTERACTIONS: 'crm_interactions',
   CHAT_MESSAGES: 'crm_chat_messages',
   
-  // 2. Marketing & Landing Pages
-  PAGES: 'mod_pages_documents',
-  PAGE_TEMPLATES: 'mod_pages_templates',
-  PAGE_ANALYTICS: 'mod_pages_analytics',
+  // 2. Marketing & Landing Pages (KosWebAi Monopoly)
+  PAGES: 'kos_web_ai_documents',
+  PAGE_TEMPLATES: 'kos_web_ai_templates',
+  PAGE_ANALYTICS: 'kos_web_ai_analytics',
   
   // 3. Smart Forms
   SMART_FORMS: 'mod_forms',
@@ -45,9 +45,11 @@ export const SYSTEM_COLLECTIONS = {
   PLAYER_CAMPAIGNS: 'sdo_player_campaign_configs',
   PLAYER_EVENTS: 'sdo_player_session_events',
   
-  // 8. Settings & Brand DNA
+  // 8. Settings & Brand DNA (KosBranding Monopoly)
   SETTINGS: 'settings',
-  BRAND_DNA_DOC: 'brand_dna',
+  BRAND_DNA_DOC: 'kos_branding_dna',
+  KOS_BRANDING: 'kos_branding_dna',
+  KOS_BRANDING_TO: 'kos_branding_to', // קולקציית מיתוג ייעודית לקהילות (KosBrandingTo)
   
   // 9. Ambassador Campaigns & Crowdfunding
   CAMPAIGNS: 'mod_campaigns',

@@ -1,4 +1,4 @@
-import React, { useState, Suspense } from 'react';
+﻿import React, { useState, Suspense } from 'react';
 import { 
   Sliders, TrendingUp, Layout, Image, PlayCircle, 
   Database, LogOut, User, Menu, X, Shield, ChevronLeft,
@@ -13,7 +13,7 @@ import { MASTER_AVAILABLE_MODULES } from '../config';
 const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
 const DbConnectorHubStandaloneView = React.lazy(() => import('../../db-connector-hub').then(m => ({ default: m.DbConnectorHubStandaloneView })));
 const CrmAnalyticsStandaloneView = React.lazy(() => import('../../crm-analytics').then(m => ({ default: m.CrmAnalyticsStandaloneView })));
-const PageBuilderStandaloneView = React.lazy(() => import('../../page-builder').then(m => ({ default: m.PageBuilderStandaloneView })));
+const PageBuilderStandaloneView = React.lazy(() => import('../../KosWebAi').then(m => ({ default: m.PageBuilderStandaloneView })));
 const AuthPortalStandaloneView = React.lazy(() => import('../../auth-portal').then(m => ({ default: m.AuthPortalStandaloneView })));
 const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
 const MediaGalleryHubStandaloneView = React.lazy(() => import('../../media-gallery-hub').then(m => ({ default: m.MediaGalleryHubStandaloneView })));
@@ -61,7 +61,7 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
         return <DbConnectorHubStandaloneView />;
       case 'crm-analytics':
         return <CrmAnalyticsStandaloneView />;
-      case 'page-builder':
+      case 'KosWebAi':
         return <PageBuilderStandaloneView />;
       case 'auth-portal':
         return <AuthPortalStandaloneView />;
@@ -74,13 +74,13 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
       case 'template':
         return <TemplateStandaloneView />;
       default:
-        // Default to first active module or page-builder
+        // Default to first active module or KosWebAi
         if (enabledModules.length > 0) {
           const firstMod = enabledModules[0].id;
           if (firstMod === 'video-producer-studio') return <VideoProducerStudioView />;
           if (firstMod === 'db-connector-hub') return <DbConnectorHubStandaloneView />;
           if (firstMod === 'crm-analytics') return <CrmAnalyticsStandaloneView />;
-          if (firstMod === 'page-builder') return <PageBuilderStandaloneView />;
+          if (firstMod === 'KosWebAi') return <PageBuilderStandaloneView />;
           if (firstMod === 'auth-portal') return <AuthPortalStandaloneView />;
           if (firstMod === 'flow-player-engine') return <FlowPlayerEngineStandaloneView />;
           if (firstMod === 'media-gallery-hub') return <MediaGalleryHubStandaloneView />;

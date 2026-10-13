@@ -1,4 +1,4 @@
-# whatsapp-green-api-hub: חוקי שכבת רכיב הוואטסאפ (Green API Rules & Standards)
+﻿# whatsapp-green-api-hub: חוקי שכבת רכיב הוואטסאפ (Green API Rules & Standards)
 
 מסמך זה מהווה את **שכבת החוקים המחייבת (Rules Layer)** עבור רכיב הוואטסאפ (`whatsapp-green-api-hub`) במערכת Comona / Cashwan. החוקים גובשו על בסיס התיעוד הרשמי של [Green API Documentation](https://green-api.com/en/docs/) ותקני הארכיטקטורה המודולרית של המערכת.
 
@@ -6,7 +6,7 @@
 
 ## 1. עקרונות יסוד ובידוד ארכיטקטוני (Module Architecture & Isolation)
 1. **Zero Direct Cross-Module Imports**:
-   - חל איסור מוחלט על ייבוא ישיר מרכיבים שכנים (כגון `crm-groups-hub`, `brand-dna-hub`, `kesher-payments-hub`).
+   - חל איסור מוחלט על ייבוא ישיר מרכיבים שכנים (כגון `crm-groups-hub`, `KosBranding`, `kesher-payments-hub`).
    - כל שיתוף טיפוסים וחוזים מתבצע אך ורק דרך `src/core/contracts/index.ts`.
    - שיתוף מידע רוחבי מתבצע אסינכרונית בלבד באמצעות ה-`EventBus` (`src/core/bridge/EventBus`).
 2. **AI Capabilities via Host Bridge Only**:

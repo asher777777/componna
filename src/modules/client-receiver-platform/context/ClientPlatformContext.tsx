@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   ClientPlatformSettings, 
   ClientUserSession, 
@@ -67,8 +67,8 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
       const modSettings: Record<string, ClientModuleSetting> = {};
       
       MASTER_AVAILABLE_MODULES.forEach((m) => {
-        // Module is enabled ONLY if specifically purchased in activeModules (or fallback to page-builder if empty)
-        const isPurchased = activeMods.includes(m.id) || (activeMods.length === 0 && m.id === 'page-builder');
+        // Module is enabled ONLY if specifically purchased in activeModules (or fallback to KosWebAi if empty)
+        const isPurchased = activeMods.includes(m.id) || (activeMods.length === 0 && m.id === 'KosWebAi');
         modSettings[m.id] = {
           moduleId: m.id,
           isEnabled: isPurchased,
@@ -87,7 +87,7 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
           const parsed = JSON.parse(saved);
           const mergedModules: Record<string, ClientModuleSetting> = {};
           MASTER_AVAILABLE_MODULES.forEach((m) => {
-            const isPurchased = activeMods.includes(m.id) || (activeMods.length === 0 && m.id === 'page-builder');
+            const isPurchased = activeMods.includes(m.id) || (activeMods.length === 0 && m.id === 'KosWebAi');
             mergedModules[m.id] = {
               ...modSettings[m.id],
               ...(parsed.modules?.[m.id] || {}),
@@ -138,7 +138,7 @@ export const ClientPlatformProvider: React.FC<ClientPlatformProviderProps> = ({
     if (tenantRecord && tenantRecord.activeModules && tenantRecord.activeModules.length > 0) {
       return tenantRecord.activeModules[0];
     }
-    return 'page-builder';
+    return 'KosWebAi';
   });
 
   // Real-time Firestore sync for client platform settings

@@ -1,4 +1,4 @@
-export interface SeedDataMap {
+﻿export interface SeedDataMap {
   [collectionName: string]: {
     id: string;
     name: string;
@@ -403,7 +403,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
         clientName: 'הדגמת מערכת Kosun',
         ownerEmail: 'demo@kosun.pro',
         ownerPhone: '050-0000000',
-        activeModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics', 'brand-dna-hub'],
+        activeModules: ['KosWebAi', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics', 'KosBranding'],
         collectionPrefix: 'tenant_demo_mod_',
         billingPlan: 'annual',
         monthlyTotal: 346,
@@ -423,7 +423,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
         clientName: 'טק סולושנס בע״מ',
         ownerEmail: 'yossi@techsolutions.demo',
         ownerPhone: '050-1234567',
-        activeModules: ['page-builder', 'flow-player', 'brand-dna-hub', 'crm-analytics'],
+        activeModules: ['KosWebAi', 'flow-player', 'KosBranding', 'crm-analytics'],
         collectionPrefix: 'tenant_techsolutions_mod_',
         billingPlan: 'monthly',
         monthlyTotal: 489,
@@ -447,7 +447,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
         clientName: 'הדגמת מערכת Kosun',
         ownerEmail: 'demo@kosun.pro',
         ownerPhone: '050-0000000',
-        purchasedModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics', 'brand-dna-hub'],
+        purchasedModules: ['KosWebAi', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics', 'KosBranding'],
         billingPlan: 'annual',
         monthlyTotal: 346,
         paymentStatus: 'paid',
@@ -466,7 +466,7 @@ export const PROJECT_SEED_DATA: SeedDataMap = {
         clientName: 'טק סולושנס בע״מ',
         ownerEmail: 'yossi@techsolutions.demo',
         ownerPhone: '050-1234567',
-        purchasedModules: ['page-builder', 'flow-player', 'brand-dna-hub', 'crm-analytics'],
+        purchasedModules: ['KosWebAi', 'flow-player', 'KosBranding', 'crm-analytics'],
         billingPlan: 'monthly',
         monthlyTotal: 489,
         paymentStatus: 'paid',

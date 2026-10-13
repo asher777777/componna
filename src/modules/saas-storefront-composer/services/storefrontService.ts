@@ -1,4 +1,4 @@
-import { ensureDefaultFirebaseApp } from '../../../services/firebaseAuth';
+﻿import { ensureDefaultFirebaseApp } from '../../../services/firebaseAuth';
 import { ModulePricingConfig, StorefrontGeneralSettings, TenantRecord } from '../types';
 import { DEFAULT_GENERAL_SETTINGS, INITIAL_MODULE_PRICING_CATALOG } from '../config';
 
@@ -101,7 +101,7 @@ export class StorefrontService {
         clientName: 'הדגמת מערכת Kosun',
         ownerEmail: 'demo@kosun.pro',
         ownerPhone: '050-0000000',
-        activeModules: ['page-builder', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics'],
+        activeModules: ['KosWebAi', 'smart-form-builder', 'media-gallery-hub', 'crm-analytics'],
         collectionPrefix: 'tenant_demo_mod_',
         billingPlan: 'annual',
         monthlyTotal: 346,

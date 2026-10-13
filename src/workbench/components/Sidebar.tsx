@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Layers,
@@ -33,7 +33,7 @@ const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: str
   'kosun-am': { icon: Mail, color: 'text-pink-400 group-hover:text-pink-300' },
   'kosai-engine': { icon: Bot, color: 'text-purple-400 group-hover:text-purple-300' },
   'control-center-hub': { icon: Sparkles, color: 'text-indigo-400 group-hover:text-indigo-300' },
-  'brand-dna-hub': { icon: Sparkles, color: 'text-purple-400 group-hover:text-purple-300' },
+  'KosBranding': { icon: Sparkles, color: 'text-purple-400 group-hover:text-purple-300' },
   'kesher-payments-hub': { icon: CreditCard, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'whatsapp-green-api-hub': { icon: MessageSquare, color: 'text-emerald-400 group-hover:text-emerald-300' },
   'crm-groups-hub': { icon: Layers, color: 'text-teal-400 group-hover:text-teal-300' },
@@ -42,7 +42,7 @@ const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: str
   'db-connector-hub': { icon: Database, color: 'text-amber-400 group-hover:text-amber-300' },
   'client-platform': { icon: Smartphone, color: 'text-cyan-400 group-hover:text-cyan-300' },
   'crm-analytics': { icon: BarChart3, color: 'text-emerald-400 group-hover:text-emerald-300' },
-  'page-builder': { icon: Layout, color: 'text-blue-400 group-hover:text-blue-300' },
+  'KosWebAi': { icon: Layout, color: 'text-blue-400 group-hover:text-blue-300' },
   'auth-portal': { icon: ShieldCheck, color: 'text-teal-400 group-hover:text-teal-300' },
   'flow-player-engine': { icon: PlayCircle, color: 'text-amber-400 group-hover:text-amber-300' },
   'media-gallery-hub': { icon: Image, color: 'text-indigo-400 group-hover:text-indigo-300' },

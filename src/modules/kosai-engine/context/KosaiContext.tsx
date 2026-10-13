@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+﻿import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { KosaiRule, KosaiMessage, KosaiCapability, KosaiActionPayload, KosaiConversation } from '../types';
 import { kosaiRulesService, kosaiConversationsService } from '../services/kosaiFirestoreService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
-import { useBrandDna } from '../../brand-dna-hub/context/BrandDnaContext';
+import { useBrandDna } from '../../KosBranding/context/BrandDnaContext';
 import { callGeminiApi } from '../api/kosaiApi';
 import { buildKosaiSystemPrompt, KosaiPromptContext } from '../prompts';
 import { eventBus } from '../../../core/bridge/EventBus';
@@ -14,7 +14,7 @@ import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
 import { kosaiDataGroundingService } from '../services/kosaiDataGroundingService';
 import { kosaiContactAutoSyncService } from '../services/kosaiContactAutoSyncService';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
-import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
+import { pageBuilderFirestore } from '../../KosWebAi/services/pageBuilderFirestore';
 import { 
   MODULE_AGENTS_MAP, 
   resolveActiveModule, 
@@ -432,7 +432,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         ? [...currentRule.enabledCapabilities]
         : [...activeModule.enabledCapabilities];
 
-      if (activeModule.moduleId === 'page-builder') {
+      if (activeModule.moduleId === 'KosWebAi') {
         const pageBuilderCaps = ['ADD_SECTION', 'UPDATE_SECTION', 'UPDATE_GLOBAL_SETTINGS', 'UPDATE_SEO'];
         for (const cap of pageBuilderCaps) {
           if (!capabilities.includes(cap)) {
@@ -650,7 +650,7 @@ export const useKosai = () => {
       clearChat: async () => {},
       currentRule: null,
       setCurrentRule: () => {},
-      activeModule: MODULE_AGENTS_MAP['page-builder'],
+      activeModule: MODULE_AGENTS_MAP['KosWebAi'],
       triggerMediaGallery: () => {},
       openMediaPicker: async () => null,
       saveCurrentConversation: async () => false,

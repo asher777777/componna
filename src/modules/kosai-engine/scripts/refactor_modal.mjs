@@ -1,6 +1,6 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 
-let content = fs.readFileSync('src/modules/page-builder/components/AiLivePageBuilderModal.tsx', 'utf8');
+let content = fs.readFileSync('src/modules/KosWebAi/components/AiLivePageBuilderModal.tsx', 'utf8');
 
 // 1. Add new state variables
 content = content.replace(
@@ -238,6 +238,6 @@ content = content.replace(
 );
 
 
-fs.writeFileSync('src/modules/page-builder/components/AiLivePageBuilderModal.tsx', content, 'utf8');
+fs.writeFileSync('src/modules/KosWebAi/components/AiLivePageBuilderModal.tsx', content, 'utf8');
 
 console.log("Refactored modal");

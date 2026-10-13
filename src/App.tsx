@@ -5,7 +5,8 @@ import { TenantScopeProvider } from './core/tenant';
 import { HostCapabilitiesProvider } from './core/bridge/HostCapabilitiesContext';
 import { SystemConnectionProvider } from './core/connection/SystemConnectionContext';
 import { MediaPickerHostBridge } from './modules/media-gallery-hub';
-import { BrandDnaProvider } from './modules/brand-dna-hub/context/BrandDnaContext';
+import { BrandDnaProvider } from './modules/KosBranding/context/BrandDnaContext';
+import { KosWebAiHostBridge } from './modules/KosWebAi';
 import { KosaiProvider, FloatingKosaiButton, KosaiChatDrawer } from './modules/kosai-engine';
 
 export const App: React.FC = () => {
@@ -13,16 +14,17 @@ export const App: React.FC = () => {
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <TenantScopeProvider>
         <SystemConnectionProvider>
-          <BrandDnaProvider>
-            <HostCapabilitiesProvider>
+          <HostCapabilitiesProvider>
+            <BrandDnaProvider>
               <KosaiProvider>
                 <TenantAppResolver />
                 <MediaPickerHostBridge />
+                <KosWebAiHostBridge />
                 <FloatingKosaiButton />
                 <KosaiChatDrawer />
               </KosaiProvider>
-            </HostCapabilitiesProvider>
-          </BrandDnaProvider>
+            </BrandDnaProvider>
+          </HostCapabilitiesProvider>
         </SystemConnectionProvider>
       </TenantScopeProvider>
     </BrowserRouter>

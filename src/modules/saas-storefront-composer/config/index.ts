@@ -1,4 +1,4 @@
-import { ModulePricingConfig, StorefrontGeneralSettings } from '../types';
+﻿import { ModulePricingConfig, StorefrontGeneralSettings } from '../types';
 
 export const STOREFRONT_COLLECTIONS = {
   CATALOG: 'sys_storefront_catalog',
@@ -36,7 +36,7 @@ export const INITIAL_MODULE_PRICING_CATALOG: ModulePricingConfig[] = [
     mockStats: { usersCount: '1,450+', satisfaction: '99%' }
   },
   {
-    id: 'page-builder',
+    id: 'KosWebAi',
     name: 'יוצר דפי נחיתה ואתרים',
     category: 'marketing',
     description: 'עורך ויזואלי מהיר (Drag & Drop) לבניית דפי נחיתה ממירים עם תמיכת RTL מלאה',
@@ -142,7 +142,7 @@ export const INITIAL_MODULE_PRICING_CATALOG: ModulePricingConfig[] = [
     mockStats: { usersCount: '750+', satisfaction: '97%' }
   },
   {
-    id: 'brand-dna-hub',
+    id: 'KosBranding',
     name: 'מרכז מיתוג ו-Brand DNA',
     category: 'core',
     description: 'ניהול שפת מותג, טון דיבור, פלטת צבעים, לוגואים וסנכרון הנחיות לכל מודולי ה-AI',

@@ -1,4 +1,4 @@
-/**
+﻿/**
  * KOSUN Board Composer (קושאן מחולל מערכות ולוחות בקרה AI)
  * Layer 2: Configuration, Audience Catalog & Dynamic Module Introspection Engine
  */
@@ -36,7 +36,7 @@ export const TARGET_AUDIENCES: TargetAudience[] = [
     category: 'נדל"ן ונכסים',
     description: 'מתווכים, יזמים ומשווקי נדל"ן הדורשים דפי נחיתה לפרויקטים, סרטוני וידאו, וקליטת לידים מסיבית.',
     iconName: 'Building2',
-    recommendedModuleIds: ['page-builder', 'video-producer-studio', 'crm-analytics', 'whatsapp-green-api-hub'],
+    recommendedModuleIds: ['KosWebAi', 'video-producer-studio', 'crm-analytics', 'whatsapp-green-api-hub'],
     businessGoals: ['הצגת נכסים יוקרתית', 'סינון לידים איכותיים', 'מעקב מכירות שקוף'],
     defaultTone: 'יוקרתי, סמכותי, בטוח ומעורר אמון',
   },
@@ -56,7 +56,7 @@ export const TARGET_AUDIENCES: TargetAudience[] = [
     category: 'קהילה וחסד',
     description: 'ארגונים ללא כוונת רווח, שגרירי גיוס, עמודי תרומות ממותגים והוקרת תורמים במייל ובוואטסאפ.',
     iconName: 'HeartHandshake',
-    recommendedModuleIds: ['ambassador-campaigns-hub', 'kesher-payments-hub', 'kosun-am', 'page-builder'],
+    recommendedModuleIds: ['ambassador-campaigns-hub', 'kesher-payments-hub', 'kosun-am', 'KosWebAi'],
     businessGoals: ['עמידה ביעדי קמפיין גיוס', 'רתימת שגרירים פעילים', 'הכרת תודה אישית לתורמים'],
     defaultTone: 'ערכי, מחבר, מעורר השראה ומלא הערכה',
   },
@@ -66,7 +66,7 @@ export const TARGET_AUDIENCES: TargetAudience[] = [
     category: 'חינוך והדרכה',
     description: 'מרצים, מורים ויוצרי ידע המנהלים הרשמות לקורסים, נגני שיעורים אינטראקטיביים ותקשורת שוטפת.',
     iconName: 'GraduationCap',
-    recommendedModuleIds: ['flow-player-engine', 'page-builder', 'smart-form-builder', 'kosun-am'],
+    recommendedModuleIds: ['flow-player-engine', 'KosWebAi', 'smart-form-builder', 'kosun-am'],
     businessGoals: ['אחוזי סיום קורס גבוהים', 'הרשמות מהירות לסילבוס', 'חוויית למידה חלקה'],
     defaultTone: 'מלמד, מעצים, בהיר ומסקרן',
   },
@@ -76,7 +76,7 @@ export const TARGET_AUDIENCES: TargetAudience[] = [
     category: 'שירותים פיננסיים וייעוץ',
     description: 'עורכי דין, רואי חשבון ויועצים עסקיים הזקוקים לכרטיס ביקור יוקרתי, חתימות על טפסים וסליקה מהירה.',
     iconName: 'Briefcase',
-    recommendedModuleIds: ['page-builder', 'smart-form-builder', 'kesher-payments-hub', 'crm-analytics'],
+    recommendedModuleIds: ['KosWebAi', 'smart-form-builder', 'kesher-payments-hub', 'crm-analytics'],
     businessGoals: ['תדמית מקצועית יוקרתית', 'אוטומציה של איסוף מסמכים', 'גבייה מהירה ללא עיכובים'],
     defaultTone: 'מדויק, עסקי, אמין ואלגנטי',
   },
@@ -138,13 +138,13 @@ const MODULE_KNOWLEDGE_BASE: Record<string, Partial<DynamicModuleCapability>> = 
       { id: 'kpi_form_leads', label: 'לידים מטפסים', collectionName: 'mod_forms_submissions', calculationType: 'count', iconName: 'Inbox', suffix: ' פניות', description: 'פניות חדשות שנאספו' },
     ],
   },
-  'page-builder': {
+  'KosWebAi': {
     category: 'content',
     iconName: 'Layout',
     primaryCollections: ['pages', 'mod_pagebuilder_pages'],
     actions: [
-      { id: 'page_edit_home', label: 'עריכת דף הבית', description: 'עריכה ויזואלית ב-Bento Grid', iconName: 'Edit3', targetRoute: '/page-builder', actionType: 'navigate', badge: 'אתר' },
-      { id: 'page_new_landing', label: 'דף נחיתה חדש', description: 'יצירת עמוד קמפיין ממוקד', iconName: 'FilePlus', targetRoute: '/page-builder', actionType: 'navigate' },
+      { id: 'page_edit_home', label: 'עריכת דף הבית', description: 'עריכה ויזואלית ב-Bento Grid', iconName: 'Edit3', targetRoute: '/KosWebAi', actionType: 'navigate', badge: 'אתר' },
+      { id: 'page_new_landing', label: 'דף נחיתה חדש', description: 'יצירת עמוד קמפיין ממוקד', iconName: 'FilePlus', targetRoute: '/KosWebAi', actionType: 'navigate' },
     ],
     kpis: [
       { id: 'kpi_pages_count', label: 'עמודים מפורסמים', collectionName: 'pages', calculationType: 'count', iconName: 'Globe', suffix: ' דפים', description: 'דפי נחיתה פעילים ברשת' },

@@ -1,4 +1,4 @@
-import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+﻿import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { KosaiRule, KosaiCapability } from '../types';
 
 export interface ModuleAgentMeta {
@@ -52,9 +52,9 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
 תפקידך לסייע בניהול קשרי לקוחות, פילוח קהילות וקבוצות, מעקב עסקאות, והפקת גרפים אנליטיים בזמן אמת.
 כאשר המשתמש מבקש לנתח, להציג תרשים, או לייצר גרף חדש ב-CRM, הפעל את הפעולה CREATE_CRM_CHART עם שדות מתאימים.`
   },
-  'page-builder': {
-    moduleId: 'page-builder',
-    routes: ['/page-builder', '/builder'],
+  'KosWebAi': {
+    moduleId: 'KosWebAi',
+    routes: ['/KosWebAi', '/builder'],
     name: 'מעצב ועורך האתר (KosPage)',
     roleBadge: 'מעצב ועורך האתר (KosPage)',
     roleDescription: 'עיצוב, עריכת תוכן, הוספת סקשנים והתאמת מיתוג',
@@ -110,8 +110,8 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
     allowedDataSources: [SYSTEM_COLLECTIONS.MEDIA_ITEMS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC],
     systemPrompt: `אתה סוכן המדיה והוויז'ואל של קושאן (KosMedia).`
   },
-  'brand-dna-hub': {
-    moduleId: 'brand-dna-hub',
+  'KosBranding': {
+    moduleId: 'KosBranding',
     routes: ['/brand-dna', '/brand'],
     name: 'סוכן מיתוג וזהות עסקית (KosDna)',
     roleBadge: 'סוכן KosDna',
@@ -193,8 +193,8 @@ export function resolveActiveModule(pathname?: string, isLoggedIn: boolean = fal
     return MODULE_AGENTS_MAP['public-site'];
   }
 
-  // Default fallback for backoffice is page-builder
-  return MODULE_AGENTS_MAP['page-builder'];
+  // Default fallback for backoffice is KosWebAi
+  return MODULE_AGENTS_MAP['KosWebAi'];
 }
 
 /**

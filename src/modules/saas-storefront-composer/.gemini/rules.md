@@ -1,4 +1,4 @@
-# saas-storefront-composer Isolation & Architecture Rules
+﻿# saas-storefront-composer Isolation & Architecture Rules
 
 ## 1. Overview
 The `saas-storefront-composer` module is the platform's multi-tenant SaaS marketplace and billing engine. It manages module bundle catalogs, tenant onboarding, GoDaddy DNS automation, and client checkout.
@@ -16,7 +16,7 @@ The Storefront operates primarily at the platform root level to provision new te
 - `kosun_saas_tenants_v1`
 
 ## 4. Zero Cross-Module Imports
-- `saas-storefront-composer` must NEVER import directly from other modules (e.g. `kesher-payments-hub`, `brand-dna-hub`).
+- `saas-storefront-composer` must NEVER import directly from other modules (e.g. `kesher-payments-hub`, `KosBranding`).
 - Communication occurs exclusively through:
   - EventBus (e.g. `payment:completed`, `tenant:provisioned`)
   - Contracts (`SYSTEM_COLLECTIONS`, `GLOBAL_PLATFORM_COLLECTIONS`)

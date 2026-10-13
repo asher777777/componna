@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -35,7 +35,7 @@ import { useSystemConnection } from '../../core/connection/SystemConnectionConte
 import { DatabaseConnectorModal } from '../../modules/db-connector-hub';
 import { subscribeToAuth, AuthState, logoutUser } from '../../services/firebaseAuth';
 import { SmartTooltip } from '../../components/Ui/SmartTooltip';
-import { useBrandDna } from '../../modules/brand-dna-hub/hooks/useBrandDna';
+import { useBrandDna } from '../../modules/KosBranding/hooks/useBrandDna';
 
 const BRAND_DNA_TABS = [
   { id: 'identity', label: '1. זהות עסקית', icon: Building2 },
@@ -52,13 +52,13 @@ const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
   'kosai-engine': Bot,
   'control-center-hub': Sparkles,
   'saas-storefront-composer': ShoppingBag,
-  'brand-dna-hub': Sparkles,
+  'KosBranding': Sparkles,
   'kesher-payments-hub': CreditCard,
   'whatsapp-green-api-hub': MessageSquare,
   'crm-groups-hub': Layers,
   'smart-form-builder': BookOpen,
   'video-producer-studio': Film,
-  'page-builder': Layout,
+  'KosWebAi': Layout,
   'crm-analytics': BarChart3,
   'media-gallery-hub': Image,
   'db-connector-hub': Database,

@@ -1,6 +1,6 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 
-let file = fs.readFileSync('src/modules/page-builder/registry/sectionRegistry.tsx', 'utf8');
+let file = fs.readFileSync('src/modules/KosWebAi/registry/sectionRegistry.tsx', 'utf8');
 
 // Insert imports
 const imports = `import { CustomHtmlView } from '../sections/customHtml/CustomHtmlView';
@@ -28,4 +28,4 @@ const newCustomHtml = `  customHtml: {
 
 file = file.replace(/customHtml: \{[\s\S]*?rawHtmlTemplate: '',\n    \},\n  \},/m, newCustomHtml);
 
-fs.writeFileSync('src/modules/page-builder/registry/sectionRegistry.tsx', file);
+fs.writeFileSync('src/modules/KosWebAi/registry/sectionRegistry.tsx', file);

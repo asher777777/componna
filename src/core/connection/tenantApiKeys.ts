@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tenant-Scoped API Keys Registry (מאגר מפתחות API לפי טננט)
  *
  * Single Source of Truth for all secret integration keys (AI / Gemini, Kesher clearing,
@@ -89,7 +89,7 @@ const MODULE_ID_ALIASES: Record<string, string> = {
   'kesher-payments': 'kesher-payments-hub',
   'smart-forms': 'smart-form-builder',
   'crm-groups': 'crm-groups-hub',
-  'brand-dna': 'brand-dna-hub',
+  'brand-dna': 'KosBranding',
   'campaigns-hub': 'ambassador-campaigns-hub',
   'ambassador-campaigns': 'ambassador-campaigns-hub',
 };
@@ -103,7 +103,7 @@ export function normalizeModuleId(id: string): string {
 const ROUTE_TO_MODULE: Array<[string, string]> = [
   ['/control-center', 'control-center-hub'],
   ['/saas-storefront', 'saas-storefront-composer'],
-  ['/brand-dna', 'brand-dna-hub'],
+  ['/brand-dna', 'KosBranding'],
   ['/kesher-payments', 'kesher-payments-hub'],
   ['/whatsapp-hub', 'whatsapp-green-api-hub'],
   ['/crm-groups', 'crm-groups-hub'],
@@ -114,7 +114,7 @@ const ROUTE_TO_MODULE: Array<[string, string]> = [
   ['/db-connector', 'db-connector-hub'],
   ['/client-platform', 'client-platform'],
   ['/crm-analytics', 'crm-analytics'],
-  ['/page-builder', 'page-builder'],
+  ['/KosWebAi', 'KosWebAi'],
   ['/auth-portal', 'auth-portal'],
   ['/flow-player-engine', 'flow-player-engine'],
   ['/media-gallery-hub', 'media-gallery-hub'],

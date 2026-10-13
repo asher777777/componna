@@ -1,4 +1,4 @@
-# smart-form-builder Isolation & Architecture Rules
+﻿# smart-form-builder Isolation & Architecture Rules
 
 ## 1. Overview
 The `smart-form-builder` module enables creation, conversational step customization, AI generation, and multi-step execution of high-converting smart forms with automatic CRM sync and WhatsApp auto-responder sequences.
@@ -18,7 +18,7 @@ All local persistence keys must be scoped with tenantId:
 - `kosun_{tenantId}_draft_form_{formId}`
 
 ## 4. Zero Cross-Module Imports
-- `smart-form-builder` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `brand-dna-hub`, `crm-analytics`).
+- `smart-form-builder` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `KosBranding`, `crm-analytics`).
 - Cross-module interoperability is achieved through:
   - EventBus (e.g., publishing `smart_form:submitted`, `crm:lead:created`)
   - Contracts (`FormBuilderContract`, `LeadPayload`, `SYSTEM_COLLECTIONS`)

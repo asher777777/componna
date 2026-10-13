@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+﻿import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useKosai } from '../context/KosaiContext';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
@@ -145,7 +145,7 @@ export const FloatingKosaiButton: React.FC = () => {
           },
         ];
 
-      case 'page-builder':
+      case 'KosWebAi':
         return [
           {
             id: 'pb-add-section',

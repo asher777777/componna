@@ -1,4 +1,4 @@
-# kesher-payments-hub Isolation & Architecture Rules
+﻿# kesher-payments-hub Isolation & Architecture Rules
 
 ## 1. Overview
 The `kesher-payments-hub` module provides terminal payment integration, transaction recording, receipt glossary management, and contact transaction history syncing for the Kosun platform.
@@ -20,7 +20,7 @@ All local persistence keys must be scoped with the tenant ID:
 - `kosun_{tenantId}_kesher_glossary`
 
 ## 4. Zero Cross-Module Imports
-- `kesher-payments-hub` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `brand-dna-hub`, `crm-groups-hub`).
+- `kesher-payments-hub` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `KosBranding`, `crm-groups-hub`).
 - Communication with other modules must occur exclusively via:
   - EventBus (e.g., emitting `payment:completed` or `receipt:issued`)
   - Contracts (`src/core/contracts/index.ts`)

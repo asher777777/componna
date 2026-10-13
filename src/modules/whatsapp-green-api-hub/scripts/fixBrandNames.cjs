@@ -1,4 +1,4 @@
-const fs = require('fs');
+﻿const fs = require('fs');
 
 const filesToUpdate = [
   'src/modules/whatsapp-green-api-hub/components/WhatsAppAiBotTab.tsx',
@@ -8,7 +8,7 @@ const filesToUpdate = [
   'src/modules/saas-storefront-composer/services/aiSalesAgentService.ts',
   'src/modules/whatsapp-green-api-hub/components/WhatsAppGreenApiMainView.tsx',
   'src/pages/HomePage.tsx',
-  'src/modules/page-builder/registry/sectionRegistry.tsx'
+  'src/modules/KosWebAi/registry/sectionRegistry.tsx'
 ];
 
 filesToUpdate.forEach(file => {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -52,7 +52,7 @@ import {
   MapPin,
   Lock
 } from 'lucide-react';
-import { useBrandDna } from '../modules/brand-dna-hub/context/BrandDnaContext';
+import { useBrandDna } from '../modules/KosBranding/context/BrandDnaContext';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { AuthModal } from '../components/Auth/AuthModal';
 import { AuthState, subscribeToAuth, logoutUser, fetchUserRole, isPlatformAdminEmail, getCachedUserRole, updateUserRole } from '../services/firebaseAuth';
@@ -308,7 +308,7 @@ export const HomePage: React.FC = () => {
               וואטסאפ ובוטים
             </button>
             <button
-              onClick={() => scrollToSection('page-builder')}
+              onClick={() => scrollToSection('KosWebAi')}
               className={`px-3.5 py-1.5 rounded-xl transition cursor-pointer ${
                 isLight ? 'text-slate-700 hover:text-indigo-600 hover:bg-white' : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
@@ -470,7 +470,7 @@ export const HomePage: React.FC = () => {
             </div>
 
             <div
-              onClick={() => scrollToSection('page-builder')}
+              onClick={() => scrollToSection('KosWebAi')}
               className={`p-4 rounded-2xl border transition text-center cursor-pointer hover:border-blue-500/50 ${
                 isLight ? 'bg-white/80 border-slate-200 shadow-sm' : 'bg-slate-900/60 border-slate-800'
               }`}
@@ -707,7 +707,7 @@ export const HomePage: React.FC = () => {
       {/* ========================================================= */}
       {/* SECTION 3: PAGE BUILDER & LANDING SITES                   */}
       {/* ========================================================= */}
-      <section id="page-builder" className="py-20 border-b border-slate-200/80 dark:border-slate-800/80 scroll-mt-20">
+      <section id="KosWebAi" className="py-20 border-b border-slate-200/80 dark:border-slate-800/80 scroll-mt-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
           
           {/* Header & Image Grid */}
@@ -747,7 +747,7 @@ export const HomePage: React.FC = () => {
               </p>
               <div className="flex flex-wrap items-center gap-3 pt-2">
                 <button
-                  onClick={() => navigate('/page-builder')}
+                  onClick={() => navigate('/KosWebAi')}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition cursor-pointer"
                 >
                   <span>כניסה לבונה העמודים</span>

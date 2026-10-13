@@ -1,4 +1,4 @@
-import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
+﻿import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
 import { BrandDna } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
@@ -599,7 +599,7 @@ export class WhatsAppAiBotService {
     const effectiveApiKey = (apiKey && apiKey.trim()) ||
       getModuleGeminiKey('whatsapp-green-api-hub') ||
       getModuleGeminiKey('kosai-engine') ||
-      getModuleGeminiKey('page-builder') ||
+      getModuleGeminiKey('KosWebAi') ||
       (import.meta as any).env?.VITE_GEMINI_API_KEY ||
       '';
 

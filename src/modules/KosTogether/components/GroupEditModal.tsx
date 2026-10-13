@@ -13,13 +13,33 @@ import {
   Link2,
   AlertCircle,
   FolderOpen,
+  Building2,
+  Layers,
+  Palette,
+  Sliders,
+  ExternalLink,
+  Edit3,
+  Phone,
+  Mail,
+  User,
+  Heart,
+  Eye,
+  CheckCircle2,
+  Info,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { SmartGroup, GroupRule, GroupRuleField, GroupRuleOperator } from '../types';
 import { PRESET_COLORS, RULE_FIELD_OPTIONS, RULE_OPERATOR_OPTIONS } from '../config';
 import { isContactInGroup } from '../services/groupsUtils';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { MediaPickerContract } from '../../../core/contracts';
+import {
+  MediaPickerContract,
+  CommunityBrandContract,
+  CommunityBrandProfile,
+  CommunityWebPageContract,
+} from '../../../core/contracts';
+
+export type CommunityTab = 'identity' | 'services' | 'design' | 'page' | 'campaign' | 'rules';
 
 interface GroupEditModalProps {
   isOpen: boolean;
@@ -36,87 +56,151 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
 }) => {
   const { contacts, campaigns, saveGroup, deleteCommunityPage } = useCrmGroups();
   const { getCapability } = useHostCapabilities();
+
+  // Contracts through HostCapabilities (Zero cross-module imports)
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+  const communityBrandContract = getCapability<CommunityBrandContract>('community-brand');
+  const communityWebPageContract = getCapability<CommunityWebPageContract>('community-webpage');
 
-  const [activeTab, setActiveTab] = useState<'details' | 'page' | 'rules'>('details');
+  const [activeTab, setActiveTab] = useState<CommunityTab>('identity');
   const [submitting, setSubmitting] = useState(false);
+  const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
 
-  const handlePickFromGallery = async () => {
-    if (mediaPicker) {
-      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: true });
-      if (selected) {
-        const urls = Array.isArray(selected) ? selected : [selected];
-        setGallery((prev) => [...prev, ...urls.filter(Boolean) as string[]]);
-      }
-    }
-  };
-
-  // Form Fields
+  // Form State - Identity
   const [name, setName] = useState('');
   const [leaderName, setLeaderName] = useState('');
-  const [color, setColor] = useState(PRESET_COLORS[0]);
-  const [description, setDescription] = useState('');
-  const [vision, setVision] = useState('');
   const [purpose, setPurpose] = useState('');
+  const [vision, setVision] = useState('');
+  const [description, setDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useState('');
+  const [contactPhone, setContactPhone] = useState('');
+  const [contactEmail, setContactEmail] = useState('');
+
+  // Form State - Services & Ecosystem
+  const [services, setServices] = useState<string[]>([]);
+  const [newServiceText, setNewServiceText] = useState('');
   const [gallery, setGallery] = useState<string[]>([]);
   const [newImageUrl, setNewImageUrl] = useState('');
+
+  // Form State - Visual Tokens & Colors
+  const [color, setColor] = useState(PRESET_COLORS[0]);
+  const [secondaryColor, setSecondaryColor] = useState('#818cf8');
+
+  // Form State - Web Page (/to/slug)
+  const [createPage, setCreatePage] = useState(false);
+  const [pageSlug, setPageSlug] = useState('');
+
+  // Form State - Campaign
   const [targetGoal, setTargetGoal] = useState<number | ''>(5000);
   const [mainCampaignId, setMainCampaignId] = useState('');
-  const [pageSlug, setPageSlug] = useState('');
-  const [createPage, setCreatePage] = useState(false);
 
-  // Smart Rules
+  // Form State - Smart Segmentation Rules
   const [type, setType] = useState<'manual' | 'smart'>('manual');
   const [matchType, setMatchType] = useState<'all' | 'any'>('all');
   const [rules, setRules] = useState<GroupRule[]>([]);
 
+  // Load Initial Data + Remote Community Brand Contract Data
   useEffect(() => {
-    if (editingGroup) {
-      setName(editingGroup.name || '');
-      setLeaderName(editingGroup.leaderName || '');
-      setColor(editingGroup.color || PRESET_COLORS[0]);
-      setDescription(editingGroup.description || '');
-      setVision(editingGroup.vision || '');
-      setPurpose(editingGroup.purpose || '');
-      setGallery(editingGroup.gallery || []);
-      setTargetGoal(editingGroup.targetGoal !== undefined ? editingGroup.targetGoal : 5000);
-      setMainCampaignId(editingGroup.mainCampaignId || '');
-      setPageSlug(editingGroup.pageSlug || editingGroup.pageId || '');
-      const isComm = Boolean(editingGroup.isCommunity || editingGroup.pageSlug || editingGroup.pageUrl);
-      setCreatePage(isComm);
-      setType(editingGroup.type || 'manual');
-      setMatchType(editingGroup.matchType || 'all');
-      setRules(editingGroup.rules || []);
-      setActiveTab(editingGroup.type === 'smart' ? 'rules' : isComm ? 'page' : 'details');
-    } else {
-      setName('');
-      setLeaderName('');
-      setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
-      setDescription('');
-      setVision('');
-      setPurpose('');
-      setGallery([]);
-      setTargetGoal(5000);
-      setMainCampaignId('');
-      setPageSlug('');
-      if (initialMode === 'community') {
-        setCreatePage(true);
-        setType('manual');
-        setRules([]);
-        setActiveTab('page');
-      } else if (initialMode === 'smart') {
-        setCreatePage(false);
-        setType('smart');
-        setRules([{ field: 'total_spent', operator: 'gte', value: 500 }]);
-        setActiveTab('rules');
+    let mounted = true;
+
+    async function loadData() {
+      if (editingGroup) {
+        setName(editingGroup.name || '');
+        setLeaderName(editingGroup.leaderName || '');
+        setColor(editingGroup.color || PRESET_COLORS[0]);
+        setSecondaryColor(editingGroup.secondaryColor || '#818cf8');
+        setDescription(editingGroup.description || '');
+        setVision(editingGroup.vision || '');
+        setPurpose(editingGroup.purpose || '');
+        setLogoUrl(editingGroup.logoUrl || '');
+        setContactPhone(editingGroup.contactPhone || '');
+        setContactEmail(editingGroup.contactEmail || '');
+        setServices(editingGroup.services || ['מפגשים ואירועים', 'שיתוף ידע ותמיכה']);
+        setGallery(editingGroup.gallery || []);
+        setTargetGoal(editingGroup.targetGoal !== undefined ? editingGroup.targetGoal : 5000);
+        setMainCampaignId(editingGroup.mainCampaignId || '');
+        setPageSlug(editingGroup.pageSlug || editingGroup.pageId || '');
+        const isComm = Boolean(editingGroup.isCommunity || editingGroup.pageSlug || editingGroup.pageUrl);
+        setCreatePage(isComm);
+        setType(editingGroup.type || 'manual');
+        setMatchType(editingGroup.matchType || 'all');
+        setRules(editingGroup.rules || []);
+        setActiveTab(editingGroup.type === 'smart' ? 'rules' : 'identity');
+
+        // Check if there is an isolated brand profile in KosBrandingTo
+        if (communityBrandContract && editingGroup.id) {
+          try {
+            const brandProfile = await communityBrandContract.getCommunityBrand(editingGroup.id);
+            if (brandProfile && mounted) {
+              if (brandProfile.purpose) setPurpose(brandProfile.purpose);
+              if (brandProfile.vision) setVision(brandProfile.vision);
+              if (brandProfile.logoUrl) setLogoUrl(brandProfile.logoUrl);
+              if (brandProfile.services && brandProfile.services.length > 0) setServices(brandProfile.services);
+              if (brandProfile.colors?.primaryColor) setColor(brandProfile.colors.primaryColor);
+              if (brandProfile.colors?.secondaryColor) setSecondaryColor(brandProfile.colors.secondaryColor);
+              if (brandProfile.leaderName) setLeaderName(brandProfile.leaderName);
+              if (brandProfile.contactPhone) setContactPhone(brandProfile.contactPhone);
+              if (brandProfile.contactEmail) setContactEmail(brandProfile.contactEmail);
+            }
+          } catch (e) {
+            console.warn('[KosTogether] Load community brand profile error:', e);
+          }
+        }
       } else {
-        setCreatePage(false);
-        setType('manual');
-        setRules([]);
-        setActiveTab('details');
+        setName('');
+        setLeaderName('');
+        setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
+        setSecondaryColor('#818cf8');
+        setDescription('');
+        setVision('');
+        setPurpose('');
+        setLogoUrl('');
+        setContactPhone('');
+        setContactEmail('');
+        setServices(['מפגשים ואירועים', 'שיתוף ידע']);
+        setGallery([]);
+        setTargetGoal(5000);
+        setMainCampaignId('');
+        setPageSlug('');
+        if (initialMode === 'community') {
+          setCreatePage(true);
+          setType('manual');
+          setRules([]);
+          setActiveTab('identity');
+        } else if (initialMode === 'smart') {
+          setCreatePage(false);
+          setType('smart');
+          setRules([{ field: 'total_spent', operator: 'gte', value: 500 }]);
+          setActiveTab('rules');
+        } else {
+          setCreatePage(false);
+          setType('manual');
+          setRules([]);
+          setActiveTab('identity');
+        }
       }
     }
-  }, [editingGroup, initialMode, isOpen]);
+
+    if (isOpen) {
+      loadData();
+    }
+
+    return () => {
+      mounted = false;
+    };
+  }, [editingGroup, initialMode, isOpen, communityBrandContract]);
+
+  // Completeness Score Calculation (Style of KosBranding)
+  const completenessScore = useMemo(() => {
+    let score = 0;
+    if (name.trim()) score += 20;
+    if (purpose.trim() || vision.trim()) score += 20;
+    if (logoUrl) score += 15;
+    if (services.length > 0) score += 15;
+    if (createPage && pageSlug.trim()) score += 15;
+    if (leaderName.trim() || contactPhone.trim()) score += 15;
+    return Math.min(100, score);
+  }, [name, purpose, vision, logoUrl, services, createPage, pageSlug, leaderName, contactPhone]);
 
   // Live match counter for Smart Rules
   const liveSmartMatchingCount = useMemo(() => {
@@ -134,6 +218,39 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
 
   if (!isOpen) return null;
 
+  // Media Picker Trigger
+  const handlePickLogo = async () => {
+    if (mediaPicker) {
+      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: false });
+      if (selected && typeof selected === 'string') {
+        setLogoUrl(selected);
+      } else if (Array.isArray(selected) && selected.length > 0) {
+        setLogoUrl(selected[0]);
+      }
+    }
+  };
+
+  const handlePickGallery = async () => {
+    if (mediaPicker) {
+      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: true });
+      if (selected) {
+        const urls = Array.isArray(selected) ? selected : [selected];
+        setGallery((prev) => [...prev, ...(urls.filter(Boolean) as string[])]);
+      }
+    }
+  };
+
+  const handleAddService = () => {
+    if (newServiceText.trim()) {
+      setServices((prev) => [...prev, newServiceText.trim()]);
+      setNewServiceText('');
+    }
+  };
+
+  const handleRemoveService = (idx: number) => {
+    setServices((prev) => prev.filter((_, i) => i !== idx));
+  };
+
   const handleAddRule = () => {
     setRules((prev) => [...prev, { field: 'mh_crm_city', operator: 'eq', value: '' }]);
   };
@@ -150,16 +267,17 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
     });
   };
 
-  const handleAddGalleryImage = () => {
-    if (newImageUrl.trim()) {
-      setGallery((prev) => [...prev, newImageUrl.trim()]);
-      setNewImageUrl('');
-    }
-  };
-
-  const handleRemoveGalleryImage = (idx: number) => {
-    setGallery((prev) => prev.filter((_, i) => i !== idx));
-  };
+  // Generate clean slug from name or input
+  const cleanCalculatedSlug = useMemo(() => {
+    const raw = pageSlug || name;
+    return raw
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_]+/g, '-')
+      .replace(/[^a-z0-9-]/g, '')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || 'community';
+  }, [pageSlug, name]);
 
   const handleSave = async () => {
     if (!name.trim()) {
@@ -170,13 +288,21 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
     try {
       setSubmitting(true);
       const chosenCamp = campaigns.find((c) => c.id === mainCampaignId);
+      const effectiveSlug = createPage ? cleanCalculatedSlug : '';
+      const communityId = editingGroup?.id || `comm_${Date.now()}`;
 
-      await saveGroup({
-        id: editingGroup?.id,
+      // 1. Save to KosTogether CRM Groups
+      const res = await saveGroup({
+        id: editingGroup?.id || communityId,
         previousName: editingGroup?.name,
         name: name.trim(),
         leaderName: leaderName.trim(),
         color,
+        secondaryColor,
+        logoUrl,
+        contactPhone: contactPhone.trim(),
+        contactEmail: contactEmail.trim(),
+        services,
         description: description.trim(),
         vision: vision.trim(),
         purpose: purpose.trim(),
@@ -184,7 +310,8 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
         targetGoal: targetGoal === '' ? 5000 : Number(targetGoal),
         mainCampaignId: createPage ? mainCampaignId : '',
         campaignTitle: createPage ? chosenCamp?.title : '',
-        pageSlug: createPage ? pageSlug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '') : '',
+        pageSlug: effectiveSlug,
+        pageUrl: effectiveSlug ? `/to/${effectiveSlug}` : '',
         createPage,
         isCommunity: createPage,
         category: createPage ? 'community' : 'group',
@@ -193,394 +320,666 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
         rules: type === 'smart' ? rules : [],
       });
 
-      onClose();
+      const finalId = res?.id || communityId;
+
+      // 2. Save Community Brand Contract to KosBrandingTo (Monopoly Rule)
+      if (communityBrandContract) {
+        const brandProfile: CommunityBrandProfile = {
+          communityId: finalId,
+          name: name.trim(),
+          purpose: purpose.trim() || description.trim(),
+          vision: vision.trim(),
+          logoUrl,
+          services,
+          colors: {
+            primaryColor: color,
+            secondaryColor,
+            backgroundColor: '#ffffff',
+            textColor: '#0f172a',
+          },
+          leaderName: leaderName.trim(),
+          contactPhone: contactPhone.trim(),
+          contactEmail: contactEmail.trim(),
+          websiteUrl: effectiveSlug ? `/to/${effectiveSlug}` : '',
+        };
+        await communityBrandContract.saveCommunityBrand(brandProfile);
+      }
+
+      // 3. Create or Update Web Page in KosWebAi via Contract (Slug /to/:slug)
+      if (createPage && communityWebPageContract && effectiveSlug) {
+        await communityWebPageContract.createOrUpdateCommunityPage({
+          communityId: finalId,
+          slug: effectiveSlug,
+          pageTitle: name.trim(),
+          description: purpose.trim() || vision.trim() || description.trim(),
+          brandProfile: {
+            communityId: finalId,
+            name: name.trim(),
+            purpose: purpose.trim(),
+            vision: vision.trim(),
+            logoUrl,
+            services,
+            colors: {
+              primaryColor: color,
+              secondaryColor,
+            },
+            leaderName: leaderName.trim(),
+            contactPhone: contactPhone.trim(),
+            contactEmail: contactEmail.trim(),
+          },
+          isPublished: true,
+        });
+      }
+
+      setSaveSuccessNotice(true);
+      setTimeout(() => {
+        setSaveSuccessNotice(false);
+        onClose();
+      }, 700);
     } catch (err: any) {
-      alert('שגיאה בשמירת הקבוצה: ' + err.message);
+      alert('שגיאה בשמירת כרטיס הקהילה: ' + err.message);
     } finally {
       setSubmitting(false);
     }
   };
 
+  const handleOpenPageBuilder = () => {
+    if (communityWebPageContract) {
+      const pId = `to_${editingGroup?.id || 'new'}`;
+      communityWebPageContract.openPageBuilderForCommunity(pId);
+    } else {
+      window.location.href = `/KosWebAi`;
+    }
+  };
+
+  const TAB_ITEMS: Array<{ id: CommunityTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
+    { id: 'identity', label: '1. זהות עסקית ומטרה', icon: Building2 },
+    { id: 'services', label: '2. שירותים ופעילויות', icon: Layers },
+    { id: 'design', label: '3. שפה חזותית וצבעים', icon: Palette },
+    { id: 'page', label: '4. עמוד אינטרנט (/to/)', icon: Globe },
+    { id: 'campaign', label: '5. קמפיין גיוס', icon: Target },
+    { id: 'rules', label: '6. סגמנטציה חכמה', icon: Sliders },
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 w-screen h-screen bg-slate-900/80 backdrop-blur-md overflow-y-auto flex flex-col items-center justify-start p-2 sm:p-6" dir="rtl">
-      {/* 100% Fullscreen Container centered with max-w-2xl */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl sm:rounded-[2.5rem] max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 text-right animate-in fade-in zoom-in-95 duration-200 my-auto flex flex-col">
-        {/* Header: Minimalist Official Kosun Identification */}
-        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/50">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/images/kosun-symbol.svg"
-              onError={(e: any) => {
-                e.currentTarget.onerror = null;
-                e.currentTarget.src = '/images/kosun-official-logo.png';
-              }}
-              alt="KOSUN"
-              className="w-6 h-6 object-contain"
-            />
-            <span className="font-extrabold text-xs tracking-tight text-slate-900 dark:text-white">KosTogether</span>
+    <div className="fixed inset-0 z-50 w-screen h-screen bg-slate-950/80 backdrop-blur-md overflow-y-auto flex flex-col items-center justify-start p-2 sm:p-6" dir="rtl">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-4xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-800 text-right animate-in fade-in zoom-in-95 duration-200 my-auto flex flex-col max-h-[92vh]">
+        
+        {/* Pinned Top Bar: Luxury Header (Style of KosBranding) */}
+        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-white/95 dark:bg-slate-900/95 sticky top-0 z-20 backdrop-blur-md">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center font-extrabold shadow-md shadow-indigo-600/30">
+              <Building2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm text-slate-900 dark:text-white">
+                  {editingGroup ? `כרטיס נתונים: ${editingGroup.name}` : 'פתיחת קהילה חדשה (KosBrandingTo)'}
+                </span>
+                <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-[10px] text-indigo-700 dark:text-indigo-300 font-bold font-mono">
+                  KosBrandingTo
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                ניהול זהות, מיתוג עצמאי, שירותים, עמוד אינטרנט תחת /to/ וקמפיין גיוס
+              </p>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
-            title="סגור"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Completeness Badge */}
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold font-mono transition-colors border ${
+                completenessScore >= 80
+                  ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800'
+                  : completenessScore >= 50
+                  ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800'
+                  : 'bg-rose-50 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800'
+              }`}
+              title="ציון שלמות כרטיס הקהילה"
+            >
+              <span>{completenessScore}%</span>
+              <span className="text-[10px] font-normal hidden sm:inline">שלמות</span>
+            </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors cursor-pointer"
+              title="סגור"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Modal Sub-tabs */}
-        <div className="flex items-center px-6 pt-3 border-b border-slate-100 bg-white gap-2">
-          <button
-            type="button"
-            onClick={() => setActiveTab('details')}
-            className={`pb-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'details'
-                ? 'border-indigo-600 text-indigo-700 font-extrabold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Tag className="w-3.5 h-3.5" />
-            <span>פרטים בסיסיים</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('page')}
-            className={`pb-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'page'
-                ? 'border-indigo-600 text-indigo-700 font-extrabold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Globe className="w-3.5 h-3.5" />
-            <span>עמוד קהילה ויעד גיוס</span>
-            {createPage && (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            )}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('rules')}
-            className={`pb-3 text-xs font-bold transition-all border-b-2 cursor-pointer flex items-center gap-1.5 ${
-              activeTab === 'rules'
-                ? 'border-indigo-600 text-indigo-700 font-extrabold'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
-            }`}
-          >
-            <Zap className="w-3.5 h-3.5" />
-            <span>חוקי קבוצה חכמה</span>
-            {type === 'smart' && (
-              <span className="text-[10px] font-mono px-1.5 rounded-full bg-amber-100 text-amber-800 font-bold">
-                {rules.length}
-              </span>
-            )}
-          </button>
+        {/* Tab Navigation (Style of KosBranding) */}
+        <div className="px-6 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-800/40 flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+          {TAB_ITEMS.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 whitespace-nowrap transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                    : 'bg-white hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-slate-500 dark:text-slate-400'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Tab Content */}
-        <div className="p-6 space-y-4 max-h-[65vh] overflow-y-auto">
-          {/* TAB 1: Basic Details */}
-          {activeTab === 'details' && (
-            <div className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  שם הקבוצה או הקהילה <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="לדוגמה: קהילת ירושלים, תורמי זהב, לקוחות VIP"
-                  className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                />
+        {/* Success Notice */}
+        {saveSuccessNotice && (
+          <div className="mx-6 mt-4 p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-2xl flex items-center gap-2.5 text-emerald-700 dark:text-emerald-300 text-xs font-bold animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>כרטיס נתוני הקהילה נשמר וסונכרן בהצלחה בכל החוזים!</span>
+          </div>
+        )}
+
+        {/* Body Content */}
+        <div className="p-6 space-y-6 overflow-y-auto flex-1 max-h-[64vh]">
+
+          {/* TAB 1: זהות עסקית ומטרה */}
+          {activeTab === 'identity' && (
+            <div className="space-y-5 animate-in fade-in">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    שם הקהילה <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="לדוגמה: קהילת יזמי ירושלים, בוגרי מחזור כ״ד"
+                    className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    מוביל הקהילה / מנהל ראשי
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={leaderName}
+                      onChange={(e) => setLeaderName(e.target.value)}
+                      placeholder="שם מלא של מנהל הקהילה"
+                      className="w-full h-10 pr-9 pl-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                    />
+                    <User className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  שם מוביל / שגריר הקהילה (אופציונלי)
-                </label>
-                <input
-                  type="text"
-                  value={leaderName}
-                  onChange={(e) => setLeaderName(e.target.value)}
-                  placeholder="לדוגמה: אברהם כהן"
-                  className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                />
+              {/* Logo / Brand Symbol */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">לוגו או סמל הקהילה</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">יוצג בעמודי הקהילה, בהודעות ובלוח הבקרה</span>
+                  </div>
+                  {mediaPicker && (
+                    <button
+                      type="button"
+                      onClick={handlePickLogo}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>בחר מגלריית המדיה</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4">
+                  {logoUrl ? (
+                    <div className="relative group w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-1 flex items-center justify-center shrink-0 shadow-sm">
+                      <img src={logoUrl} alt="Logo" className="w-full h-full object-contain rounded-xl" />
+                      <button
+                        type="button"
+                        onClick={() => setLogoUrl('')}
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="הסר לוגו"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0">
+                      <ImageIcon className="w-6 h-6 opacity-40" />
+                    </div>
+                  )}
+                  <input
+                    type="text"
+                    value={logoUrl}
+                    onChange={(e) => setLogoUrl(e.target.value)}
+                    placeholder="הדבק קישור ישיר ללוגו (URL) או בחר מהגלריה..."
+                    className="flex-1 h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                  />
+                </div>
               </div>
 
-              {/* Color Presets */}
+              {/* Purpose & Vision */}
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    מטרת הקהילה (Purpose) <span className="text-rose-500">*</span>
+                  </label>
+                  <textarea
+                    value={purpose}
+                    onChange={(e) => setPurpose(e.target.value)}
+                    rows={2}
+                    placeholder="מה המטרה המרכזית לשמה הוקמה הקהילה ומה הערך לחבריה..."
+                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none resize-none dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    חזון הקהילה ותיאור מורחב (Vision)
+                  </label>
+                  <textarea
+                    value={vision}
+                    onChange={(e) => setVision(e.target.value)}
+                    rows={3}
+                    placeholder="החזון ארוך הטווח, ערכי היסוד של הקהילה ומה אנחנו שואפים להשיג יחד..."
+                    className="w-full p-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none resize-none dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Contact Info */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    טלפון ליצירת קשר עם הקהילה
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={contactPhone}
+                      onChange={(e) => setContactPhone(e.target.value)}
+                      placeholder="050-1234567"
+                      className="w-full h-10 pr-9 pl-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white font-mono"
+                    />
+                    <Phone className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                    דוא״ל ליצירת קשר
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={contactEmail}
+                      onChange={(e) => setContactEmail(e.target.value)}
+                      placeholder="community@org.co.il"
+                      className="w-full h-10 pr-9 pl-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white font-mono"
+                    />
+                    <Mail className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: שירותים ופעילויות */}
+          {activeTab === 'services' && (
+            <div className="space-y-6 animate-in fade-in">
+              {/* Services List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      שירותי ופעילויות הקהילה (Services Ecosystem)
+                    </label>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      אילו פעילויות, תכנים או שירותים הקהילה מעניקה לחבריה
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={newServiceText}
+                    onChange={(e) => setNewServiceText(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddService())}
+                    placeholder="הוסף שירות או פעילות (לדוגמה: סדנאות חודשיות, מנטורינג, קבוצת ריצה)..."
+                    className="flex-1 h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddService}
+                    className="h-10 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>הוסף</span>
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-2">
+                  {services.map((srv, idx) => (
+                    <div
+                      key={idx}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-indigo-900 dark:text-indigo-200 text-xs font-bold flex items-center gap-2"
+                    >
+                      <span>{srv}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveService(idx)}
+                        className="text-indigo-400 hover:text-rose-500 transition-colors"
+                        title="הסר שירות"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                  {services.length === 0 && (
+                    <span className="text-xs text-slate-400 italic">לא הוגדרו עדיין שירותים ספציפיים</span>
+                  )}
+                </div>
+              </div>
+
+              {/* Community Media Gallery */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">גלריית תמונות מהפעילות</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">תמונות שיופיעו בעמוד הקהילה ובכרטיסי התצוגה</span>
+                  </div>
+                  {mediaPicker && (
+                    <button
+                      type="button"
+                      onClick={handlePickGallery}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <FolderOpen className="w-3.5 h-3.5" />
+                      <span>בחר מגלריה</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {gallery.map((imgUrl, idx) => (
+                    <div key={idx} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                      <img src={imgUrl} alt="Gallery" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => setGallery((prev) => prev.filter((_, i) => i !== idx))}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="הסר תמונה"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: שפה חזותית וצבעים */}
+          {activeTab === 'design' && (
+            <div className="space-y-6 animate-in fade-in">
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                  צבע מזהה לתגית ולוח הבקרה
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                  צבע ראשי של הקהילה (Primary Color)
                 </label>
-                <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap mb-3">
                   {PRESET_COLORS.map((c) => (
                     <button
                       key={c}
                       type="button"
                       onClick={() => setColor(c)}
-                      className={`w-7 h-7 rounded-full transition-transform cursor-pointer flex items-center justify-center ${
-                        color === c ? 'scale-125 ring-3 ring-indigo-500/30' : 'hover:scale-110'
+                      className={`w-8 h-8 rounded-full transition-transform cursor-pointer flex items-center justify-center ${
+                        color === c ? 'scale-125 ring-4 ring-indigo-500/30' : 'hover:scale-110'
                       }`}
                       style={{ backgroundColor: c }}
                     >
-                      {color === c && <Check className="w-3.5 h-3.5 text-white" />}
+                      {color === c && <Check className="w-4 h-4 text-white" />}
                     </button>
                   ))}
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700"
+                  />
+                  <input
+                    type="text"
+                    value={color}
+                    onChange={(e) => setColor(e.target.value)}
+                    className="w-28 h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono dark:text-white"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1">
-                  תיאור קצר או הערות פנימיות
+                <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-2">
+                  צבע משני להדגשות (Secondary Color)
                 </label>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
-                  placeholder="תיאור מטרת הקבוצה או שיוך החברים..."
-                  className="w-full p-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none resize-none"
-                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={secondaryColor}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    className="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 dark:border-slate-700"
+                  />
+                  <input
+                    type="text"
+                    value={secondaryColor}
+                    onChange={(e) => setSecondaryColor(e.target.value)}
+                    className="w-28 h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Live Preview Card */}
+              <div className="p-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 shadow-sm space-y-3">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">תצוגה מקדימה של כרטיס המיתוג</span>
+                <div className="p-4 rounded-2xl flex items-center justify-between" style={{ backgroundColor: `${color}15`, borderRight: `4px solid ${color}` }}>
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl flex items-center justify-center font-bold text-white shadow-sm" style={{ backgroundColor: color }}>
+                      {logoUrl ? <img src={logoUrl} alt="Logo" className="w-full h-full object-contain p-1" /> : (name[0] || 'K')}
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-sm text-slate-900 dark:text-white">{name || 'שם הקהילה'}</h4>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{purpose || 'מטרת הקהילה תופיע כאן...'}</p>
+                    </div>
+                  </div>
+                  <span className="px-3 py-1 rounded-xl text-xs font-bold text-white shadow-xs" style={{ backgroundColor: secondaryColor }}>
+                    קהילה פעילה
+                  </span>
+                </div>
               </div>
             </div>
           )}
 
-          {/* TAB 2: Community Page & Goals */}
+          {/* TAB 4: עמוד אינטרנט /to/ */}
           {activeTab === 'page' && (
-            <div className="space-y-4">
-              {/* Toggle Public Page */}
-              <div className="bg-indigo-50/60 border border-indigo-200/80 rounded-2xl p-4 flex items-center justify-between">
+            <div className="space-y-5 animate-in fade-in">
+              <div className="p-4 rounded-2xl bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200/80 dark:border-indigo-800/60 flex items-center justify-between">
                 <div>
-                  <h4 className="text-xs font-black text-indigo-950 flex items-center gap-1.5">
-                    <Globe className="w-4 h-4 text-indigo-600" />
-                    <span>הפעל עמוד קהילה ציבורי וקישור שגריר</span>
-                  </h4>
-                  <p className="text-[11px] text-indigo-800/80 mt-0.5">
-                    מייצר עמוד אינטרנט ציבורי מעוצב עם אפשרות גיוס כספים, גלריה וחיבור לקמפיין ראשי.
-                  </p>
+                  <span className="text-xs font-bold text-indigo-950 dark:text-indigo-100 block">עמוד אינטרנט רשמי לקהילה</span>
+                  <span className="text-[11px] text-indigo-700 dark:text-indigo-300">
+                    מוקם ומנוהל עצמאית תחת בונה העמודים KosWebAi בסלאג /to/
+                  </span>
                 </div>
-                <input
-                  type="checkbox"
-                  checked={createPage}
-                  onChange={(e) => setCreatePage(e.target.checked)}
-                  className="w-5 h-5 rounded-lg text-indigo-600 focus:ring-indigo-500 cursor-pointer"
-                />
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={createPage}
+                    onChange={(e) => setCreatePage(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
               </div>
 
               {createPage && (
-                <div className="space-y-4 animate-in fade-in duration-200">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        יעד גיוס כספי לקהילה (₪)
-                      </label>
-                      <input
-                        type="number"
-                        value={targetGoal}
-                        onChange={(e) => setTargetGoal(e.target.value === '' ? '' : Number(e.target.value))}
-                        placeholder="5000"
-                        className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 block mb-1">
-                        כתובת עמוד מותאמת (Slug באנגלית)
-                      </label>
+                <div className="space-y-4 pt-2">
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                      כתובת אינטרנט ציבורית (Slug) <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <div className="h-10 px-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-xs font-mono font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5" dir="ltr">
+                        <Globe className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>https://domain.com/to/</span>
+                      </div>
                       <input
                         type="text"
                         value={pageSlug}
-                        onChange={(e) => setPageSlug(e.target.value)}
-                        placeholder="comm-jerusalem"
-                        className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 text-xs font-mono focus:ring-2 focus:ring-indigo-500/20 focus:outline-none"
+                        onChange={(e) => setPageSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                        placeholder={cleanCalculatedSlug}
+                        className="flex-1 h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
                         dir="ltr"
                       />
                     </div>
+                    <span className="text-[11px] text-slate-400 block mt-1">
+                      הכתובת המלאה לעמוד הקהילה תהיה: <strong className="font-mono text-indigo-600 dark:text-indigo-400">/to/{cleanCalculatedSlug}</strong>
+                    </span>
                   </div>
 
-                  {/* Link to Campaign */}
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      שיוך לקמפיין גיוס ראשי
-                    </label>
-                    <select
-                      value={mainCampaignId}
-                      onChange={(e) => setMainCampaignId(e.target.value)}
-                      className="w-full h-10 px-3 rounded-2xl border border-slate-200 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                  {/* Actions Bar for Web Page */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <a
+                      href={`/to/${cleanCalculatedSlug}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition"
                     >
-                      <option value="">-- בחר קמפיין ראשי --</option>
-                      {campaigns.map((camp) => (
-                        <option key={camp.id} value={camp.id}>
-                          {camp.title}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                      <Eye className="w-3.5 h-3.5 text-indigo-500" />
+                      <span>צפייה בעמוד הציבורי</span>
+                      <ExternalLink className="w-3 h-3 text-slate-400" />
+                    </a>
 
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      חזון הקהילה
-                    </label>
-                    <textarea
-                      value={vision}
-                      onChange={(e) => setVision(e.target.value)}
-                      rows={2}
-                      placeholder="חזון הקהילה המוצג בעמוד הציבורי..."
-                      className="w-full p-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none resize-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 block mb-1">
-                      מטרות ויעדים
-                    </label>
-                    <textarea
-                      value={purpose}
-                      onChange={(e) => setPurpose(e.target.value)}
-                      rows={2}
-                      placeholder="מטרות הקהילה והפעילות..."
-                      className="w-full p-3 rounded-2xl border border-slate-200 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none resize-none"
-                    />
-                  </div>
-
-                  {/* Gallery List */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="text-xs font-bold text-slate-700 block">
-                        גלריית תמונות לעמוד
-                      </label>
-                      <button
-                        type="button"
-                        onClick={handlePickFromGallery}
-                        className="text-xs font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 cursor-pointer"
-                      >
-                        <FolderOpen className="w-3.5 h-3.5" />
-                        <span>בחר מגלריית המדיה</span>
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <input
-                        type="url"
-                        value={newImageUrl}
-                        onChange={(e) => setNewImageUrl(e.target.value)}
-                        placeholder="הדבק כתובת תמונה URL או בחר מהגלריה..."
-                        className="flex-1 h-9 px-3 rounded-xl border border-slate-200 text-xs focus:outline-none"
-                        dir="ltr"
-                      />
-                      <button
-                        type="button"
-                        onClick={handlePickFromGallery}
-                        className="h-9 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 border border-amber-500/30 text-xs font-bold flex items-center gap-1 cursor-pointer"
-                        title="פתח גלריית מדיה"
-                      >
-                        <FolderOpen className="w-3.5 h-3.5" />
-                        <span>גלריה</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleAddGalleryImage}
-                        className="h-9 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
-                      >
-                        הוסף כתובת
-                      </button>
-                    </div>
-
-                    {gallery.length > 0 && (
-                      <div className="flex items-center gap-2 overflow-x-auto py-1">
-                        {gallery.map((img, idx) => (
-                          <div key={idx} className="relative w-14 h-14 rounded-xl overflow-hidden border border-slate-200 shrink-0">
-                            <img src={img} alt="gallery" className="w-full h-full object-cover" />
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveGalleryImage(idx)}
-                              className="absolute top-1 left-1 p-0.5 bg-rose-600 text-white rounded-md cursor-pointer"
-                            >
-                              <X className="w-2.5 h-2.5" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    <button
+                      type="button"
+                      onClick={handleOpenPageBuilder}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span>עריכה מלאה בבונה העמודים (KosWebAi)</span>
+                    </button>
                   </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* TAB 3: Smart Rules Builder */}
-          {activeTab === 'rules' && (
-            <div className="space-y-4">
-              <div className="bg-amber-50/60 border border-amber-200/80 rounded-2xl p-4 flex items-center justify-between">
-                <div>
-                  <h4 className="text-xs font-black text-amber-950 flex items-center gap-1.5">
-                    <Zap className="w-4 h-4 text-amber-600" />
-                    <span>סגמנטציה דינמית (Smart Group)</span>
-                  </h4>
-                  <p className="text-[11px] text-amber-800/80 mt-0.5">
-                    קבוצה שמסננת אנשי קשר בזמן אמת לפי כללים וחוקים, ללא צורך בתיוג ידני.
-                  </p>
-                </div>
+          {/* TAB 5: קמפיין גיוס */}
+          {activeTab === 'campaign' && (
+            <div className="space-y-4 animate-in fade-in">
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  יעד גיוס כספי של הקהילה (₪)
+                </label>
+                <input
+                  type="number"
+                  value={targetGoal}
+                  onChange={(e) => setTargetGoal(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="5000"
+                  className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                />
+              </div>
 
+              <div>
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                  שיוך לקמפיין גיוס מרכזי
+                </label>
+                <select
+                  value={mainCampaignId}
+                  onChange={(e) => setMainCampaignId(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                >
+                  <option value="">ללא שיוך לקמפיין חיצוני</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.title}
+                    </option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-slate-400 block mt-1">
+                  חיבור הקהילה לקמפיין מאפשר הצגת סרגל התקדמות תרומות ומטרות משותפות
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 6: סגמנטציה חכמה */}
+          {activeTab === 'rules' && (
+            <div className="space-y-4 animate-in fade-in">
+              <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">
+                <div>
+                  <span className="text-xs font-bold text-amber-950 dark:text-amber-100 block">הפעלת סגמנטציה חכמה</span>
+                  <span className="text-[11px] text-amber-700 dark:text-amber-300">
+                    אנשי קשר יצטרפו ויוסרו אוטומטית לפי חוקים מוגדרים מראש
+                  </span>
+                </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-700">סוג:</span>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as any)}
-                    className="h-8 rounded-xl border border-amber-300 bg-white text-xs font-bold px-2 focus:outline-none"
+                  <button
+                    type="button"
+                    onClick={() => setType('manual')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      type === 'manual' ? 'bg-amber-600 text-white' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
                   >
-                    <option value="manual">קבוצה רגילה</option>
-                    <option value="smart">קבוצה חכמה</option>
-                  </select>
+                    ידנית
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setType('smart')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                      type === 'smart' ? 'bg-amber-600 text-white shadow-xs' : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300'
+                    }`}
+                  >
+                    חכמה
+                  </button>
                 </div>
               </div>
 
               {type === 'smart' && (
-                <div className="space-y-3 animate-in fade-in duration-200">
+                <div className="space-y-3 pt-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-slate-700">תנאי התאמה:</span>
-                      <div className="flex items-center bg-slate-100 p-0.5 rounded-xl text-xs font-bold">
-                        <button
-                          type="button"
-                          onClick={() => setMatchType('all')}
-                          className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                            matchType === 'all' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'text-slate-600'
-                          }`}
-                        >
-                          וגם (ALL)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setMatchType('any')}
-                          className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
-                            matchType === 'any' ? 'bg-white text-indigo-700 shadow-2xs font-extrabold' : 'text-slate-600'
-                          }`}
-                        >
-                          או (ANY)
-                        </button>
-                      </div>
+                      <span className="text-xs text-slate-600 dark:text-slate-400 font-bold">התאמה לתנאים:</span>
+                      <select
+                        value={matchType}
+                        onChange={(e) => setMatchType(e.target.value as any)}
+                        className="h-8 px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
+                      >
+                        <option value="all">כל התנאים (AND)</option>
+                        <option value="any">אחד התנאים (OR)</option>
+                      </select>
                     </div>
 
-                    <div className="text-xs font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-3 py-1 rounded-xl">
-                      מתאימים כעת: <span className="font-mono">{liveSmartMatchingCount}</span> אנשי קשר
-                    </div>
+                    <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                      התאמות בזמן אמת: {liveSmartMatchingCount} אנשי קשר
+                    </span>
                   </div>
 
-                  {/* Rules List */}
                   <div className="space-y-2">
                     {rules.map((rule, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-slate-50 border border-slate-200/80 p-3 rounded-2xl flex flex-col sm:flex-row items-stretch sm:items-center gap-2"
-                      >
-                        {/* Field */}
+                      <div key={idx} className="flex items-center gap-2 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                         <select
                           value={rule.field}
-                          onChange={(e) => handleUpdateRule(idx, 'field', e.target.value as GroupRuleField)}
-                          className="flex-1 h-9 rounded-xl border border-slate-200 bg-white text-xs px-2 focus:outline-none"
+                          onChange={(e) => handleUpdateRule(idx, 'field', e.target.value)}
+                          className="h-9 px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold"
                         >
                           {RULE_FIELD_OPTIONS.map((f) => (
                             <option key={f.value} value={f.value}>
@@ -589,11 +988,10 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                           ))}
                         </select>
 
-                        {/* Operator */}
                         <select
                           value={rule.operator}
-                          onChange={(e) => handleUpdateRule(idx, 'operator', e.target.value as GroupRuleOperator)}
-                          className="w-36 h-9 rounded-xl border border-slate-200 bg-white text-xs px-2 focus:outline-none"
+                          onChange={(e) => handleUpdateRule(idx, 'operator', e.target.value)}
+                          className="h-9 px-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
                         >
                           {RULE_OPERATOR_OPTIONS.map((op) => (
                             <option key={op.value} value={op.value}>
@@ -602,49 +1000,47 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                           ))}
                         </select>
 
-                        {/* Value */}
-                        {!['exists', 'not_exists'].includes(rule.operator) && (
-                          <input
-                            type="text"
-                            value={rule.value}
-                            onChange={(e) => handleUpdateRule(idx, 'value', e.target.value)}
-                            placeholder="ערך..."
-                            className="flex-1 h-9 px-3 rounded-xl border border-slate-200 bg-white text-xs focus:outline-none"
-                          />
-                        )}
+                        <input
+                          type="text"
+                          value={rule.value}
+                          onChange={(e) => handleUpdateRule(idx, 'value', e.target.value)}
+                          placeholder="ערך..."
+                          className="flex-1 h-9 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs"
+                        />
 
-                        {/* Delete Rule */}
                         <button
                           type="button"
                           onClick={() => handleRemoveRule(idx)}
-                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                          className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition cursor-pointer"
+                          title="מחק חוק"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     ))}
-
-                    <button
-                      type="button"
-                      onClick={handleAddRule}
-                      className="w-full py-2.5 rounded-2xl border-2 border-dashed border-slate-200 hover:border-indigo-400 text-slate-600 hover:text-indigo-600 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>הוסף תנאי חוק נוסף</span>
-                    </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={handleAddRule}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף תנאי חכם</span>
+                  </button>
                 </div>
               )}
             </div>
           )}
+
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
+        {/* Footer Actions */}
+        <div className="px-6 py-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 flex items-center justify-between">
           <button
             type="button"
             onClick={onClose}
-            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
+            className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-800 transition cursor-pointer"
           >
             ביטול
           </button>
@@ -653,11 +1049,19 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
             type="button"
             onClick={handleSave}
             disabled={submitting}
-            className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-md shadow-indigo-200 transition-all cursor-pointer flex items-center gap-1.5"
+            className="px-6 py-2.5 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center gap-2 shadow-lg shadow-indigo-600/30 transition-all disabled:opacity-50 cursor-pointer"
           >
-            {submitting ? 'שומר...' : 'שמור שינויים'}
+            {submitting ? (
+              <span>שומר ומסנכרן...</span>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                <span>שמור וסנכרן כרטיס נתונים</span>
+              </>
+            )}
           </button>
         </div>
+
       </div>
     </div>
   );

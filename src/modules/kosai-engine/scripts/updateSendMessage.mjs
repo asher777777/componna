@@ -1,6 +1,6 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 
-let file = fs.readFileSync('src/modules/page-builder/context/BuilderCopilotContext.tsx', 'utf8');
+let file = fs.readFileSync('src/modules/KosWebAi/context/BuilderCopilotContext.tsx', 'utf8');
 
 const newTryBlock = `    try {
       const imageParts = imageBase64 
@@ -62,4 +62,4 @@ const newTryBlock = `    try {
     }`;
 
 file = file.replace(/try\s*\{\s*\/\/\s*TODO[\s\S]*?catch\s*\(err\)\s*\{[\s\S]*?\}\s*\)\);\s*\}/, newTryBlock);
-fs.writeFileSync('src/modules/page-builder/context/BuilderCopilotContext.tsx', file);
+fs.writeFileSync('src/modules/KosWebAi/context/BuilderCopilotContext.tsx', file);

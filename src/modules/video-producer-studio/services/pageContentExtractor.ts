@@ -1,4 +1,4 @@
-import { PageBuilderConfig } from '../../page-builder/types/pageBuilder.types';
+﻿import { PageBuilderConfig } from '../../KosWebAi/types/pageBuilder.types';
 
 export interface ExtractedPageSummary {
   pageId: string;

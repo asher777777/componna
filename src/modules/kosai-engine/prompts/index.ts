@@ -1,4 +1,4 @@
-import { KosaiRule } from '../types';
+﻿import { KosaiRule } from '../types';
 
 export interface KosaiPromptContext {
   isLoggedIn?: boolean;
@@ -25,7 +25,7 @@ export const buildKosaiSystemPrompt = (
   const whatsappNumber = brandDna?.trust?.whatsappSupportNumber || '0526968008';
 
   const isLoggedIn = context?.isLoggedIn ?? false;
-  const activeModuleId = context?.activeModuleId || rule?.moduleId || 'page-builder';
+  const activeModuleId = context?.activeModuleId || rule?.moduleId || 'KosWebAi';
   const isCrmModule = activeModuleId === 'crm-analytics' || activeModuleId === 'crm-groups-hub' || activeModuleId === 'KosTogether';
   const canRemoveTags = capabilities.includes('REMOVE_CONTACT_TAGS');
   const isPublicVisitor = !isLoggedIn || context?.roleMode === 'support_sales' || activeModuleId === 'public-site';

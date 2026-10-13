@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { 
   Sparkles, ShoppingCart, ArrowRight, CheckCircle, Clock, 
   Flame, ShieldCheck, X, Zap
@@ -8,13 +8,13 @@ import { useStorefront } from '../context/StorefrontContext';
 // Import standalone previews
 const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
 import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
-import { PageBuilderStandaloneView } from '../../page-builder';
+import { PageBuilderStandaloneView } from '../../KosWebAi';
 const SmartFormBuilderStandaloneView = React.lazy(() => import('../../smart-form-builder').then(m => ({ default: m.SmartFormBuilderStandaloneView })));
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { WhatsAppGreenApiStandaloneView } from '../../whatsapp-green-api-hub';
 import { KesherPaymentsStandaloneView } from '../../kesher-payments-hub';
 import { CrmGroupsHubStandaloneView } from '../../KosTogether';
-import { BrandDnaHubStandaloneView } from '../../brand-dna-hub';
+import { BrandDnaHubStandaloneView } from '../../KosBranding';
 const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
 
 export const InteractiveTrialSandbox: React.FC = () => {
@@ -76,7 +76,7 @@ export const InteractiveTrialSandbox: React.FC = () => {
     switch (trialActiveModule.id) {
       case 'crm-analytics':
         return <CrmAnalyticsStandaloneView ownerId={currentOwnerId} />;
-      case 'page-builder':
+      case 'KosWebAi':
         return <PageBuilderStandaloneView />;
       case 'smart-form-builder':
         return <SmartFormBuilderStandaloneView />;
@@ -90,7 +90,7 @@ export const InteractiveTrialSandbox: React.FC = () => {
         return <KesherPaymentsStandaloneView />;
       case 'crm-groups-hub':
         return <CrmGroupsHubStandaloneView ownerId={currentOwnerId} />;
-      case 'brand-dna-hub':
+      case 'KosBranding':
         return <BrandDnaHubStandaloneView />;
       case 'flow-player-engine':
         return <FlowPlayerEngineStandaloneView />;

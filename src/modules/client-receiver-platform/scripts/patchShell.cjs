@@ -7,7 +7,7 @@ const oldImports = // Import standalone views of our modules
 import { VideoProducerStudioView } from '../../video-producer-studio';
 import { DbConnectorHubStandaloneView } from '../../db-connector-hub';
 import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
-import { PageBuilderStandaloneView } from '../../page-builder';
+import { PageBuilderStandaloneView } from '../../KosWebAi';
 import { AuthPortalStandaloneView } from '../../auth-portal';
 import { FlowPlayerEngineStandaloneView } from '../../flow-player-engine';
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
@@ -19,7 +19,7 @@ const newImports = // Import standalone views of our modules Dynamically
 const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
 const DbConnectorHubStandaloneView = React.lazy(() => import('../../db-connector-hub').then(m => ({ default: m.DbConnectorHubStandaloneView })));
 const CrmAnalyticsStandaloneView = React.lazy(() => import('../../crm-analytics').then(m => ({ default: m.CrmAnalyticsStandaloneView })));
-const PageBuilderStandaloneView = React.lazy(() => import('../../page-builder').then(m => ({ default: m.PageBuilderStandaloneView })));
+const PageBuilderStandaloneView = React.lazy(() => import('../../KosWebAi').then(m => ({ default: m.PageBuilderStandaloneView })));
 const AuthPortalStandaloneView = React.lazy(() => import('../../auth-portal').then(m => ({ default: m.AuthPortalStandaloneView })));
 const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
 const MediaGalleryHubStandaloneView = React.lazy(() => import('../../media-gallery-hub').then(m => ({ default: m.MediaGalleryHubStandaloneView })));

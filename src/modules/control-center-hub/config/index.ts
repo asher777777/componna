@@ -1,4 +1,4 @@
-import { SYSTEM_COLLECTIONS, GLOBAL_PLATFORM_COLLECTIONS } from '../../../core/contracts/collections';
+﻿import { SYSTEM_COLLECTIONS, GLOBAL_PLATFORM_COLLECTIONS } from '../../../core/contracts/collections';
 import { ControlCenterModuleItem } from '../types';
 
 export const MODULE_CATALOG: ControlCenterModuleItem[] = [
@@ -55,11 +55,11 @@ export const MODULE_CATALOG: ControlCenterModuleItem[] = [
 
   // 1. Marketing & Growth
   {
-    id: 'page-builder',
+    id: 'KosWebAi',
     name: 'Kosun Web (קושאן וואב)',
     shortTitle: 'Kosun Web',
     description: 'מערכת ויזואלית מתקדמת לבנייה, עריכה ופרסום של עמודי נחיתה אינטראקטיביים עם אזורי עריכה חיים',
-    route: '/page-builder',
+    route: '/KosWebAi',
     category: 'marketing',
     categoryTitle: 'שיווק וצמיחה',
     pipelineStage: 'attract',
@@ -327,7 +327,7 @@ export const MODULE_CATALOG: ControlCenterModuleItem[] = [
 
   // 5. Core & Foundations
   {
-    id: 'brand-dna-hub',
+    id: 'KosBranding',
     name: 'מרכז מיתוג גלובלי (Brand DNA & AI)',
     shortTitle: 'זהות מותג ו-DNA',
     description: 'ה-DNA של המערכת: זהות עסקית, אישיות וטון דיבור, פרופילי פרסונות, Design Tokens וסנכרון לכל כלי ה-AI',

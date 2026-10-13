@@ -1,10 +1,10 @@
-import React, { useState, useEffect, Suspense } from 'react';
+﻿import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useLocation, NavLink } from 'react-router-dom';
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
-import { PageBuilderConfig } from '../../modules/page-builder/types/pageBuilder.types';
-import { SECTION_REGISTRY } from '../../modules/page-builder/registry/sectionRegistry';
-import { PageBuilderRenderer } from '../../modules/page-builder/PageBuilderRenderer';
-import { pageBuilderFirestore } from '../../modules/page-builder/services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
+import { SECTION_REGISTRY } from '../../modules/KosWebAi/registry/sectionRegistry';
+import { PageBuilderRenderer } from '../../modules/KosWebAi/PageBuilderRenderer';
+import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';

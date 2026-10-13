@@ -1,4 +1,4 @@
-/**
+﻿/**
  * KOSAI AI Image Agent Service
  * Orchestrates professional logo generation, brand atmosphere (vibe) images,
  * and intelligent image editing synchronized with Brand DNA.
@@ -12,7 +12,7 @@ import {
 } from '../../../core/contracts';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
-import { callGeminiApi } from '../../page-builder/api/functionsApi';
+import { callGeminiApi } from '../../KosWebAi/api/functionsApi';
 
 export interface LogoStylePreset {
   id: string;

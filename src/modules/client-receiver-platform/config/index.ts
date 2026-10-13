@@ -1,4 +1,4 @@
-export interface MasterModuleMetadata {
+п»їexport interface MasterModuleMetadata {
   id: string;
   defaultTitle: string;
   defaultSlug: string;
@@ -15,14 +15,14 @@ export interface MasterModuleMetadata {
 export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
   {
     id: 'whatsapp-green-api-hub',
-    defaultTitle: 'ошлж ееаисаф ебеи AI',
+    defaultTitle: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ AI',
     defaultSlug: '/whatsapp-hub',
-    description: 'зйбеш WhatsApp Web ома, беи отрд аеиеоий злн (Gemini AI), щмйзъ дегтеъ бъфецд едтмаъ сииесйн',
+    description: 'пїЅпїЅпїЅпїЅпїЅ WhatsApp Web пїЅпїЅпїЅ, пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ (Gemini AI), пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ',
     iconName: 'MessageSquare',
     requiredKeys: [
-      { key: 'greenApiIdInstance', label: 'Green API ID Instance', description: 'ождд оефт Green API', isSecret: false },
-      { key: 'greenApiApiToken', label: 'Green API Token Instance', description: 'иечп вйщд моефт', isSecret: true },
-      { key: 'geminiApiKey', label: 'офъз Google Gemini AI', description: 'тбеш отрд аеиеоий щм беи дщйзеъ', isSecret: true }
+      { key: 'greenApiIdInstance', label: 'Green API ID Instance', description: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ Green API', isSecret: false },
+      { key: 'greenApiApiToken', label: 'Green API Token Instance', description: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ', isSecret: true },
+      { key: 'geminiApiKey', label: 'пїЅпїЅпїЅпїЅ Google Gemini AI', description: 'пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ', isSecret: true }
     ]
   },
   {
@@ -59,9 +59,9 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     ]
   },
   {
-    id: 'page-builder',
+    id: 'KosWebAi',
     defaultTitle: 'Ч™Ч•Ч¦ЧЁ ЧўЧћЧ•Ч“Ч™Чќ Ч•ЧђЧЄЧЁЧ™Чќ',
-    defaultSlug: '/page-builder',
+    defaultSlug: '/KosWebAi',
     description: 'ЧћЧўЧЁЧ›ЧЄ Ч•Ч™Ч–Ч•ЧђЧњЧ™ЧЄ ЧњЧ‘Ч Ч™Ч™Ч”, ЧўЧЁЧ™Ч›Ч”, ЧўЧ™Ч¦Ч•Ч‘ Ч•ЧЎЧ™Ч“Ч•ЧЁ Ч“Ч¤Ч™ Ч Ч—Ч™ЧЄЧ” Ч•ЧђЧЄЧЁЧ™Чќ',
     iconName: 'Layout',
     requiredKeys: [
@@ -107,7 +107,7 @@ export const MASTER_AVAILABLE_MODULES: MasterModuleMetadata[] = [
     requiredKeys: []
   },
   {
-    id: 'brand-dna-hub',
+    id: 'KosBranding',
     defaultTitle: 'ЧћЧЁЧ›Ч– ЧћЧ™ЧЄЧ•Ч’ Ч’ЧњЧ•Ч‘ЧњЧ™ (Brand DNA & AI)',
     defaultSlug: '/brand-dna',
     description: 'Ч”Ч’Ч“ЧЁЧЄ Ч–Ч”Ч•ЧЄ ЧўЧЎЧ§Ч™ЧЄ, Ч©Ч¤ЧЄ ЧћЧ•ЧЄЧ’, Ч¤ЧЁЧ•Ч¤Ч™ЧњЧ™ Ч¤ЧЁЧЎЧ•Ч Ч•ЧЄ, Design Tokens Ч•ЧЎЧ Ч›ЧЁЧ•Чџ Ч”Ч Ч—Ч™Ч•ЧЄ Ч©Ч¤ЧЄ ЧћЧ•ЧЄЧ’ ЧњЧ›ЧњЧњ ЧћЧ•Ч“Ч•ЧњЧ™ Ч”-AI',
@@ -165,8 +165,8 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
       thirdPartyKeys: {},
       collectionPrefix: 'crm_groups'
     },
-    'page-builder': {
-      moduleId: 'page-builder',
+    'KosWebAi': {
+      moduleId: 'KosWebAi',
       isEnabled: true,
       customSlug: '/pages',
       customTitle: 'Ч™Ч•Ч¦ЧЁ ЧўЧћЧ•Ч“Ч™Чќ Ч•ЧђЧЄЧЁЧ™Чќ',
@@ -246,8 +246,8 @@ export const DEFAULT_CLIENT_PLATFORM_SETTINGS = {
       thirdPartyKeys: {},
       collectionPrefix: 'mod_template_'
     },
-    'brand-dna-hub': {
-      moduleId: 'brand-dna-hub',
+    'KosBranding': {
+      moduleId: 'KosBranding',
       isEnabled: true,
       customSlug: '/brand-dna',
       customTitle: 'ЧћЧЁЧ›Ч– ЧћЧ™ЧЄЧ•Ч’ Ч’ЧњЧ•Ч‘ЧњЧ™',

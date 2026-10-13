@@ -1,9 +1,9 @@
-export interface KosaiTemplate {
+﻿export interface KosaiTemplate {
   id: string;
   name: string;
   description: string;
   prompt: string;
-  targetModules: string[]; // 'all' or specific module IDs like 'page-builder'
+  targetModules: string[]; // 'all' or specific module IDs like 'KosWebAi'
   toneOfVoice: { professionalism: number, detail: number, creativity: number };
 }
 
@@ -31,7 +31,7 @@ export const KOSAI_TEMPLATES: KosaiTemplate[] = [
     id: 'sales-copywriter',
     name: 'קופירייטר מכירות אגרסיבי',
     description: 'מתמקד ביחסי המרה, הנעות לפעולה ברורות וטקסט שיווקי.',
-    targetModules: ['page-builder', 'saas-storefront-composer'],
+    targetModules: ['KosWebAi', 'saas-storefront-composer'],
     prompt: 'אתה קופירייטר מכירות מומחה. המטרה שלך היא לייצר טקסטים קצרים, פאנצ׳ים חזקים והנעה לפעולה ברורה. דחוף את הלקוח לרכישה או השארת פרטים.',
     toneOfVoice: { professionalism: 60, detail: 30, creativity: 90 }
   },
@@ -39,7 +39,7 @@ export const KOSAI_TEMPLATES: KosaiTemplate[] = [
     id: 'minimalist-designer',
     name: 'מעצב מינימליסטי ונקי',
     description: 'מייצר ממשקים רגועים, עם המון רווח לבן, ופונטים עדינים.',
-    targetModules: ['page-builder', 'brand-dna-hub'],
+    targetModules: ['KosWebAi', 'KosBranding'],
     prompt: 'אתה מעצב מוצר מינימליסטי. אתה מאמין ש"פחות זה יותר". השתמש בהרבה רווח לבן, צבעים סולידיים, והימנע מעומס חזותי.',
     toneOfVoice: { professionalism: 90, detail: 50, creativity: 70 }
   },
@@ -47,7 +47,7 @@ export const KOSAI_TEMPLATES: KosaiTemplate[] = [
     id: 'ux-accessibility-expert',
     name: 'מומחה UX ונגישות',
     description: 'מוודא שהעמוד קריא, נגיש (ADA) וברור לכל משתמש.',
-    targetModules: ['page-builder', 'brand-dna-hub'],
+    targetModules: ['KosWebAi', 'KosBranding'],
     prompt: 'אתה מומחה נגישות וחוויית משתמש (UX). ודא שהקונטרסט נכון, הכפתורים גדולים וברורים, ויש התאמה מלאה לכללי הנגישות הבינלאומיים.',
     toneOfVoice: { professionalism: 90, detail: 80, creativity: 30 }
   },

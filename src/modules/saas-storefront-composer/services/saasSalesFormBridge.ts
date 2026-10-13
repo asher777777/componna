@@ -1,4 +1,4 @@
-import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
+﻿import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
 import { CartItem, BillingInterval, TenantCustomerInfo, TenantRecord } from '../types';
 import { StorefrontService } from './storefrontService';
 
@@ -10,7 +10,7 @@ export const SAAS_PROPOSAL_FORM_STORAGE_PREFIX = 'saas_proposal_form_';
  */
 const MODULE_SPECIFIC_DISCOVERY_STEPS: Record<string, FormStep[]> = {
   // 1. Page Builder / Landing Pages
-  'page-builder': [
+  'KosWebAi': [
     {
       id: 'step_page_builder_style',
       order: 10,
@@ -340,7 +340,7 @@ const MODULE_SPECIFIC_DISCOVERY_STEPS: Record<string, FormStep[]> = {
   ],
 
   // 7. Brand DNA & Identity Hub
-  'brand-dna-hub': [
+  'KosBranding': [
     {
       id: 'step_brand_dna_tone',
       order: 18,

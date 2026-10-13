@@ -52,6 +52,11 @@ export interface SmartGroup {
 
   // Enhanced Community Parameters
   leaderName?: string;
+  logoUrl?: string;
+  services?: string[];
+  secondaryColor?: string;
+  contactPhone?: string;
+  contactEmail?: string;
   targetGoal?: number;
   currentRaised?: number;
   gallery?: string[];

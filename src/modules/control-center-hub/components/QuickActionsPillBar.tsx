@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import {
   Layers,
   Megaphone,
@@ -143,7 +143,7 @@ export const QuickActionsPillBar: React.FC = () => {
 
         {/* New Landing Page */}
         <button
-          onClick={() => navigate('/page-builder')}
+          onClick={() => navigate('/KosWebAi')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer shrink-0 border ${
             isLight
               ? 'bg-white hover:bg-blue-50 text-blue-700 border-blue-200 shadow-sm'

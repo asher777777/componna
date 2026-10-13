@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const ControlCenterStandaloneView = React.lazy(() =>
   import('../modules/control-center-hub').then((m) => ({ default: m.ControlCenterStandaloneView }))
@@ -7,7 +7,7 @@ const SaasStorefrontComposerStandaloneView = React.lazy(() =>
   import('../modules/saas-storefront-composer').then((m) => ({ default: m.SaasStorefrontComposerStandaloneView }))
 );
 const BrandDnaHubStandaloneView = React.lazy(() =>
-  import('../modules/brand-dna-hub').then((m) => ({ default: m.BrandDnaHubStandaloneView }))
+  import('../modules/KosBranding').then((m) => ({ default: m.BrandDnaHubStandaloneView }))
 );
 const KesherPaymentsStandaloneView = React.lazy(() =>
   import('../modules/kesher-payments-hub').then((m) => ({ default: m.KesherPaymentsStandaloneView }))
@@ -37,7 +37,7 @@ const CrmAnalyticsStandaloneView = React.lazy(() =>
   import('../modules/crm-analytics').then((m) => ({ default: m.CrmAnalyticsStandaloneView }))
 );
 const PageBuilderStandaloneView = React.lazy(() =>
-  import('../modules/page-builder').then((m) => ({ default: m.PageBuilderStandaloneView }))
+  import('../modules/KosWebAi').then((m) => ({ default: m.PageBuilderStandaloneView }))
 );
 const AuthPortalStandaloneView = React.lazy(() =>
   import('../modules/auth-portal').then((m) => ({ default: m.AuthPortalStandaloneView }))
@@ -121,7 +121,7 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'sys_storefront_',
   },
   {
-    id: 'brand-dna-hub',
+    id: 'KosBranding',
     name: 'קשואן DNA - מרכז הזהות והמיתוג',
     description: 'הלב והזהות העסקית שלכם: אפיון טון דיבור, קהלי יעד וסנכרון מלא של שפת המותג לכל הרכיבים, להבטחת ליווי אישי ועקביות.',
     component: BrandDnaHubStandaloneView,
@@ -201,11 +201,11 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'mod_crm_',
   },
   {
-    id: 'page-builder',
+    id: 'KosWebAi',
     name: 'קשואן Builder - בונה עמודים ודפי נחיתה',
     description: 'מערכת ויזואלית חכמה לבניית דפים יוקרתיים, להצגת המומחיות והאיכות הבלתי מתפשרת שלכם מול קהל הלקוחות.',
     component: PageBuilderStandaloneView,
-    route: '/page-builder',
+    route: '/KosWebAi',
     collectionPrefix: 'mod_pagebuilder_',
   },
   {

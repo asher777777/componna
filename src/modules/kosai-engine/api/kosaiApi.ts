@@ -1,4 +1,4 @@
-import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../page-builder/api/functionsApi';
+﻿import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../KosWebAi/api/functionsApi';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 
@@ -70,7 +70,7 @@ export const callGeminiApi = async ({
 }: KosaiApiOptions): Promise<KosaiApiResponse> => {
   const apiKey = (customApiKey && customApiKey.trim().length > 5)
     ? customApiKey.trim()
-    : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('page-builder') || defaultResolveApiKey();
+    : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('KosWebAi') || defaultResolveApiKey();
   
   const model = 'gemini-3.8-flash';
 

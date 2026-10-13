@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -39,7 +39,7 @@ export const ExecutiveKpiLayout: React.FC = () => {
       icon: Layout,
       color: 'from-blue-500 to-indigo-500',
       textColor: isLight ? 'text-blue-700' : 'text-blue-400',
-      actionRoute: '/page-builder',
+      actionRoute: '/KosWebAi',
     },
     {
       title: 'טפסים ושאלונים מקוונים',

@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { PageBuilderConfig, SectionType } from '../modules/page-builder/types/pageBuilder.types';
-import { PageBuilderRenderer } from '../modules/page-builder/PageBuilderRenderer';
+﻿import React, { useEffect, useState, useCallback } from 'react';
+import { PageBuilderConfig, SectionType } from '../modules/KosWebAi/types/pageBuilder.types';
+import { PageBuilderRenderer } from '../modules/KosWebAi/PageBuilderRenderer';
 import { FloatingSystemDock } from '../components/Navigation/FloatingSystemDock';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
-import { pageBuilderFirestore, ensureHeaderSection } from '../modules/page-builder/services/pageBuilderFirestore';
-import { SECTION_REGISTRY } from '../modules/page-builder/registry/sectionRegistry';
+import { pageBuilderFirestore, ensureHeaderSection } from '../modules/KosWebAi/services/pageBuilderFirestore';
+import { SECTION_REGISTRY } from '../modules/KosWebAi/registry/sectionRegistry';
 import { eventBus } from '../core/bridge/EventBus';
 
 import { useKosai } from '../modules/kosai-engine';
@@ -334,7 +334,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
 
       {/* Floating System Dock (Cashwan Standard - Headerless Floating Dock at bottom) */}
       <FloatingSystemDock
-        editPageUrl="/page-builder"
+        editPageUrl="/KosWebAi"
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}

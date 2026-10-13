@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { VideoProject, VideoScene, HeyGenAvatar, HeyGenVoice, ClarificationResult } from '../types';
 import { 
   fetchAllProjects, 
@@ -30,8 +30,8 @@ import { TokenUsageReport } from '../../../core/ai';
 import { BrandDna, BrandDnaContract } from '../../../core/contracts';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 
-import { PageBuilderConfig } from '../../page-builder/types/pageBuilder.types';
-import { pageBuilderFirestore } from '../../page-builder/services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../../KosWebAi/types/pageBuilder.types';
+import { pageBuilderFirestore } from '../../KosWebAi/services/pageBuilderFirestore';
 import { extractPageContentForVideo, ExtractedPageSummary } from '../services/pageContentExtractor';
 import { cleanSubtitleText } from '../services/subtitleService';
 

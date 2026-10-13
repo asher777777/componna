@@ -1,4 +1,4 @@
-# 🗄️ Media Gallery Hub & AI Drive Vault (Universal Cloud Drive & AI Studio)
+﻿# 🗄️ Media Gallery Hub & AI Drive Vault (Universal Cloud Drive & AI Studio)
 
 רכיב **`media-gallery-hub`** הינו כספת קבצים חכמה מודולרית (Universal Cloud Drive & AI Studio) המאפשרת ניהול, אחסון, עריכה, המרה ויצירה של כל סוגי הקבצים והמדיה בענן.
 
@@ -52,7 +52,7 @@
 1. **`media:uploaded`**:
    משודר בעת השלמת העלאת קובץ ל-Firebase Storage.
 2. **`landing_page:generated_from_doc`**:
-   משודר בעת יצירת דף נחיתה ממסמך עבור מודול יוצר העמודים (`page-builder`):
+   משודר בעת יצירת דף נחיתה ממסמך עבור מודול יוצר העמודים (`KosWebAi`):
    ```typescript
    eventBus.publish('landing_page:generated_from_doc', {
      sourceFileId: string,

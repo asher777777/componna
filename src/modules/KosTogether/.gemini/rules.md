@@ -1,4 +1,4 @@
-# crm-groups-hub Isolation & Architecture Rules
+﻿# crm-groups-hub Isolation & Architecture Rules
 
 ## 1. Overview
 The `crm-groups-hub` module provides contact segmentation, dynamic Smart Groups, Community Micro-Portals, internal chat rooms, interaction tracking, and WhatsApp broadcasting for the Kosun platform.
@@ -19,7 +19,7 @@ All local persistence keys must be scoped with the tenant ID:
 - `kosun_{tenantId}_crm_groups_columns`
 
 ## 4. Zero Cross-Module Imports
-- `crm-groups-hub` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `brand-dna-hub`, `page-builder`).
+- `crm-groups-hub` must NEVER import directly from other modules (e.g., `whatsapp-green-api-hub`, `KosBranding`, `KosWebAi`).
 - Inter-module communication must strictly occur via:
   - EventBus (e.g. emitting `crm:contact:updated`, `crm:lead:created`)
   - Contracts (`src/core/contracts/index.ts`)

@@ -1,4 +1,4 @@
-import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, addDoc, query, orderBy, limit, where } from 'firebase/firestore';
+﻿import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, addDoc, query, orderBy, limit, where } from 'firebase/firestore';
 import { KosaiRule, KosaiConversation, KosaiMessage } from '../types';
 import { KOSAI_CONFIG } from '../config';
 import { TokenUsageReport } from '../../../core/ai/geminiCostTracker';
@@ -59,7 +59,7 @@ export const kosaiConversationsService = {
         return {
           id: d.id,
           tenantId,
-          moduleId: data.moduleId || 'page-builder',
+          moduleId: data.moduleId || 'KosWebAi',
           title: data.title || 'שיחה ללא כותרת',
           createdAt: data.createdAt || Date.now(),
           updatedAt: data.updatedAt || Date.now(),
@@ -80,7 +80,7 @@ export const kosaiConversationsService = {
         return {
           id: d.id,
           tenantId,
-          moduleId: data.moduleId || 'page-builder',
+          moduleId: data.moduleId || 'KosWebAi',
           title: data.title || 'שיחה ללא כותרת',
           createdAt: data.createdAt || Date.now(),
           updatedAt: data.updatedAt || Date.now(),
@@ -104,7 +104,7 @@ export const kosaiConversationsService = {
     return {
       id: snap.id,
       tenantId,
-      moduleId: data.moduleId || 'page-builder',
+      moduleId: data.moduleId || 'KosWebAi',
       title: data.title || 'שיחה ללא כותרת',
       createdAt: data.createdAt || Date.now(),
       updatedAt: data.updatedAt || Date.now(),

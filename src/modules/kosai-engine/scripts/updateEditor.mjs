@@ -1,6 +1,6 @@
-import fs from 'fs';
+﻿import fs from 'fs';
 
-let file = fs.readFileSync('src/modules/page-builder/PageBuilderEditor.tsx', 'utf8');
+let file = fs.readFileSync('src/modules/KosWebAi/PageBuilderEditor.tsx', 'utf8');
 
 // Replace imports
 file = file.replace(/import \{ BuilderCopilotProvider \} from '\.\/context\/BuilderCopilotContext';\n/, '');
@@ -66,4 +66,4 @@ file = file.replace(/<\/BuilderCopilotProvider>/, '');
 file = file.replace(/<CopilotChatDrawer \/>/, '<KosaiChatDrawer />');
 file = file.replace(/<FloatingCopilotButton \/>/, '<FloatingKosaiButton />');
 
-fs.writeFileSync('src/modules/page-builder/PageBuilderEditor.tsx', file);
+fs.writeFileSync('src/modules/KosWebAi/PageBuilderEditor.tsx', file);

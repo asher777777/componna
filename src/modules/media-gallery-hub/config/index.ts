@@ -1,4 +1,4 @@
-import { MediaGalleryCollectionsConfig, MediaItem, MediaType } from '../types';
+﻿import { MediaGalleryCollectionsConfig, MediaItem, MediaType } from '../types';
 
 export const DEFAULT_COLLECTION_PREFIX = 'sdo_media_';
 
@@ -104,7 +104,7 @@ export const INITIAL_SERVER_MEDIA: MediaItem[] = [
     url: '/images/page_builder_mockup.jpg',
     sizeBytes: 719288,
     createdAt: Date.now() - 2000,
-    tags: ['page-builder', 'אתרים', 'גלריה', 'תמונה'],
+    tags: ['KosWebAi', 'אתרים', 'גלריה', 'תמונה'],
   },
   {
     id: 'media_campaign_fundraising',

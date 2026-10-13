@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { WorkbenchApp } from '../../workbench/WorkbenchApp';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
 import { StorefrontService } from '../../modules/saas-storefront-composer/services/storefrontService';
 import { PublicStorefrontApp } from '../../modules/saas-storefront-composer/components/PublicStorefrontApp';
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
-import { PageBuilderConfig } from '../../modules/page-builder/types/pageBuilder.types';
-import { pageBuilderFirestore } from '../../modules/page-builder/services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
+import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost } from './tenantResolver';
 import { TenantScopeProvider } from './TenantScopeContext';
@@ -37,7 +37,7 @@ export const TenantAppResolver: React.FC = () => {
     if (isPublicPage) {
       return true;
     }
-    // Any module route (like /page-builder, /control-center, etc.) belongs in Workbench mode
+    // Any module route (like /KosWebAi, /control-center, etc.) belongs in Workbench mode
     if (pathname !== '/' && pathname !== '' && pathname !== '/saas-storefront' && pathname !== '/store') {
       return true;
     }
@@ -125,7 +125,7 @@ export const TenantAppResolver: React.FC = () => {
           clientName: `מערכת לקוח (${sub})`,
           ownerEmail: `${sub}@kosun.pro`,
           ownerPhone: '050-1234567',
-          activeModules: ['page-builder'],
+          activeModules: ['KosWebAi'],
           collectionPrefix: `tenant_${sub}_mod_`,
           billingPlan: 'annual',
           monthlyTotal: 129,
