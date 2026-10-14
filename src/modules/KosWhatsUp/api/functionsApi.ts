@@ -67,10 +67,7 @@ export const functionsApi = {
 
     for (const model of candidateModels) {
       try {
-        // Route through authorized Cloud Functions endpoint with fallback to dynamic AI gateway
-        const gatewayHost = window.location.hostname === 'localhost' 
-          ? `https://${['generativelanguage', 'googleapis', 'com'].join('.')}/v1beta/models/${model}:generateContent?key=${apiKey}`
-          : `${CLOUD_FUNCTION_ENDPOINT}?model=${model}&key=${apiKey}`;
+        const gatewayHost = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
         const contents: any[] = [
           {

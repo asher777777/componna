@@ -55,7 +55,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
   if (!apiKey) {
     return {
       success: false,
-      error: 'NO_API_KEY_FOUND',
+      error: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
       isFallback: true,
     };
   }

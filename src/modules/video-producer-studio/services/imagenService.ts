@@ -100,7 +100,8 @@ export async function generateImagen3Image(
         }
         parts.push({ text: cleanPrompt });
 
-        const res = await fetch('/api/ai/generate', {
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${trimmedKey}`;
+        const res = await fetch(geminiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -132,8 +133,8 @@ export async function generateImagen3Image(
       }
     }
 
-    // B. Try Google Imagen predict via Cloud AI
-    const endpoint = '/api/ai/predict';
+    // B. Try Google Imagen predict via direct endpoint
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${trimmedKey}`;
 
     try {
       const res = await fetch(endpoint, {

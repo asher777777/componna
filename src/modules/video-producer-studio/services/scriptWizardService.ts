@@ -216,7 +216,11 @@ Return ONLY a valid JSON object matching this exact schema:
     });
   }
 
-  const res = await fetch('/api/ai/generate', {
+  const geminiEndpoint = apiKey
+    ? `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey}`
+    : '/api/ai/generate';
+
+  const res = await fetch(geminiEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -388,7 +392,11 @@ Return ONLY a valid JSON object matching this exact schema:
     });
   }
 
-  const res = await fetch('/api/ai/generate', {
+  const geminiEndpoint = apiKey
+    ? `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey}`
+    : '/api/ai/generate';
+
+  const res = await fetch(geminiEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -561,7 +569,11 @@ Return ONLY a JSON object with this exact schema:
   ]
 }`;
 
-  const res = await fetch('/api/ai/generate', {
+  const geminiEndpoint = apiKey
+    ? `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey}`
+    : '/api/ai/generate';
+
+  const res = await fetch(geminiEndpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

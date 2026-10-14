@@ -157,7 +157,7 @@ export async function generateGeminiImage(
   if (effectiveKey) {
     // A. Imagen 3 predict endpoint
     if (model === 'imagen-3.0-generate-002') {
-      const endpoint = '/api/ai/predict';
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`;
 
       try {
         const res = await fetch(endpoint, {
@@ -226,7 +226,8 @@ export async function generateGeminiImage(
         }
         parts.push({ text: englishPrompt });
 
-        const res = await fetch('/api/ai/generate', {
+        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`;
+        const res = await fetch(geminiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
