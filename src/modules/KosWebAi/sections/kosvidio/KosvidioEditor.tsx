@@ -172,6 +172,28 @@ export const KosvidioEditor: React.FC<{
             </div>
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">כמות צפיות (Views Count)</label>
+              <input
+                type="text"
+                value={config.viewsCount || config.viewsCountText || ''}
+                onChange={(e) => update({ viewsCount: e.target.value, viewsCountText: e.target.value })}
+                placeholder="למשל: 18,450 או 18.5K"
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">סימוני לייק (Likes Count)</label>
+              <input
+                type="number"
+                value={config.likesCount ?? 1240}
+                onChange={(e) => update({ likesCount: parseInt(e.target.value, 10) || 0 })}
+                className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-lg text-sm text-white focus:outline-none focus:border-red-500"
+              />
+            </div>
+          </div>
+
           <div className="pt-2 flex flex-col gap-2">
             <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
               <input

@@ -34,7 +34,9 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
     channelSubscribers,
     verifiedBadge = true,
     title = 'סרטון וידאו מעמיק',
+    viewsCount,
     viewsCountText,
+    likesCount,
     publishedDateText,
     tags = ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
     shareTitle,
@@ -61,6 +63,21 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
     }
     return youtubeVideoId || 'dQw4w9WgXcQ';
   }, [youtubeVideoId, videoUrl]);
+
+  // Video likes state
+  const [videoLikes, setVideoLikes] = useState<number>(() => {
+    if (typeof likesCount === 'number') return likesCount;
+    return 1240;
+  });
+  const [isVideoLiked, setIsVideoLiked] = useState<boolean>(false);
+
+  const formatStatNumber = (num?: number | string) => {
+    if (!num) return '0';
+    if (typeof num === 'string') return num;
+    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+    return num.toLocaleString('he-IL');
+  };
 
   // Theater mode state
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
@@ -385,7 +402,7 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
         {/* ============================================================== */}
         {/* LAYER 4: תחתיו אזור לתגובות מעוצב כמו ביוטיוב (YouTube Comments)*/}
         {/* ============================================================== */}
-        <div className="mb-10 p-5 sm:p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80 shadow-lg">
+        <div id="kosvidio-comments" className="mb-10 p-5 sm:p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80 shadow-lg">
           {/* Comments Header */}
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-3">

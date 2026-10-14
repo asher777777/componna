@@ -1,6 +1,6 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { TenantRecord } from '../contracts';
-import { ROOT_TENANT_ID } from './tenantResolver';
+import { ROOT_TENANT_ID, DEFAULT_SUBDOMAIN_MODULES } from './tenantResolver';
 
 export const TENANT_REGISTRY_STORAGE_KEY = 'kosun_provisioned_tenants_registry_v1';
 
@@ -51,7 +51,7 @@ export class TenantCoreService {
             clientName: d.clientName || `עסק ${sub}`,
             ownerEmail: d.ownerEmail || d.adminUsername || `${sub}@kosun.pro`,
             ownerPhone: d.ownerPhone || '050-0000000',
-            activeModules: Array.isArray(d.activeModules) ? d.activeModules : ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
+            activeModules: Array.isArray(d.activeModules) && d.activeModules.length > 0 ? d.activeModules : DEFAULT_SUBDOMAIN_MODULES,
             collectionPrefix: d.collectionPrefix || `tenant_${sub}_mod_`,
             billingPlan: d.billingPlan || 'monthly',
             monthlyTotal: d.monthlyTotal || 0,
@@ -83,7 +83,7 @@ export class TenantCoreService {
               clientName: cd.company_name || cd.kosun_crm_name || cd.conta_name || existing?.clientName || `עסק ${sub}`,
               ownerEmail: cd.kosun_crm_email || cd.email || existing?.ownerEmail || `${sub}@kosun.pro`,
               ownerPhone: cd.kosun_crm_phone || cd.conta_phone || existing?.ownerPhone || '050-0000000',
-              activeModules: Array.isArray(cd.activeModules) ? cd.activeModules : (existing?.activeModules || ['KosBranding', 'KosWebAi', 'KSF']),
+              activeModules: Array.isArray(cd.activeModules) && cd.activeModules.length > 0 ? cd.activeModules : (existing?.activeModules || DEFAULT_SUBDOMAIN_MODULES),
               collectionPrefix: `tenant_${sub}_mod_`,
               billingPlan: cd.billingPlan || existing?.billingPlan || 'monthly',
               monthlyTotal: cd.monthlyTotal || existing?.monthlyTotal || 0,

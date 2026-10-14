@@ -276,16 +276,7 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
     if (onSelectModule) {
       onSelectModule(moduleId, route);
     } else {
-      const isLocal = typeof window !== 'undefined' && (
-        window.location.hostname === 'localhost' ||
-        window.location.hostname === '127.0.0.1' ||
-        window.location.hostname.endsWith('.local')
-      );
-      if (isSubdomain && tenantId && isLocal) {
-        window.location.href = `${route}?tenant=${tenantId}&mode=admin`;
-      } else {
-        window.location.href = route;
-      }
+      window.location.href = route;
     }
   };
 

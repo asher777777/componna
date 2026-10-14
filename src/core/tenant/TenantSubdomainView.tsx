@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Routes, Route, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { TenantRecord } from '../contracts';
+import { DEFAULT_SUBDOMAIN_MODULES } from './tenantResolver';
 import { PageBuilderConfig, SectionType } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../../modules/KosWebAi/registry/sectionRegistry';
 import { PageBuilderRenderer } from '../../modules/KosWebAi/PageBuilderRenderer';
@@ -513,9 +514,9 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     .filter((m) => !SYSTEM_MODULES.has(m.id))
     .map((m) => m.id);
 
-  // Active provisioned modules for this tenant - fallback to all standard modules if not explicitly limited
+  // Active provisioned modules for this tenant - ensures all standard non-system modules are available
   const activeModuleIds = Array.isArray(tenantRecord.activeModules) && tenantRecord.activeModules.length > 0
-    ? tenantRecord.activeModules
+    ? Array.from(new Set([...tenantRecord.activeModules, ...DEFAULT_SUBDOMAIN_MODULES]))
     : ALL_NON_SYSTEM_MODULES;
 
   const allowedModules = REGISTERED_MODULES.filter((m) => {
