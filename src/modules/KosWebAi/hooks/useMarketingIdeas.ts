@@ -9,6 +9,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 export interface UseMarketingIdeasResult {
   ideas: MarketingIdea[];
   loading: boolean;
+  error: string | null;
   refreshIdeas: (apiKey?: string) => Promise<void>;
 }
 
@@ -17,16 +18,19 @@ export const useMarketingIdeas = (): UseMarketingIdeasResult => {
   const { db } = useSystemConnection();
   const [ideas, setIdeas] = useState<MarketingIdea[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchIdeas = useCallback(
     async (apiKey?: string) => {
       setLoading(true);
+      setError(null);
       try {
         const pages = await pageBuilderFirestore.getAllPages(db);
         const result = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, pages);
         setIdeas(result);
-      } catch (err) {
+      } catch (err: any) {
         console.warn('[useMarketingIdeas] Failed to fetch marketing ideas:', err);
+        setError(err?.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
       } finally {
         setLoading(false);
       }
@@ -48,6 +52,7 @@ export const useMarketingIdeas = (): UseMarketingIdeasResult => {
   return {
     ideas,
     loading,
+    error,
     refreshIdeas,
   };
 };

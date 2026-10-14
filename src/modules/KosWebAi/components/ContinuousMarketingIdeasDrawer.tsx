@@ -30,7 +30,7 @@ export const ContinuousMarketingIdeasDrawer: React.FC<ContinuousMarketingIdeasDr
   onSelectIdea,
 }) => {
   const { brandDna } = usePageBuilderContext();
-  const { ideas, loading, refreshIdeas } = useMarketingIdeas();
+  const { ideas, loading, error, refreshIdeas } = useMarketingIdeas();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!isOpen) return null;
@@ -124,6 +124,15 @@ export const ContinuousMarketingIdeasDrawer: React.FC<ContinuousMarketingIdeasDr
             לחיצה על כרטיס תייצר עמוד שלם בלחיצה אחת ⚡
           </div>
         </div>
+
+        {error && (
+          <div className="mx-6 sm:mx-8 mt-4 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center gap-3 text-right">
+            <Sparkles className="w-5 h-5 text-amber-400 shrink-0" />
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {error}
+            </p>
+          </div>
+        )}
 
         {/* Ideas Grid */}
         <div className="flex-1 overflow-y-auto p-6 sm:p-8">

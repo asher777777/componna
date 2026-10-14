@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Sparkles,
   Loader2,
@@ -525,7 +525,7 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
               <FileText className="w-4 h-4 text-indigo-400" />
               <span className="text-xs font-black text-white">תצוגה מקדימה ובדיקת שינויים</span>
             </div>
-            {previewResult && (
+            {previewResult && previewResult.success && (
               <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold border border-emerald-500/20">
                 מוכן להחלה
               </span>
@@ -534,13 +534,24 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
 
           <div className="flex-1 overflow-y-auto py-4 flex flex-col gap-4">
             {previewResult ? (
-              <div className="flex flex-col gap-4">
-                {/* Changes List */}
-                <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex flex-col gap-2">
-                  <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>עיקרי השדרוג שבוצע:</span>
+              !previewResult.success ? (
+                <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-2 text-right">
+                  <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>הודעת מערכת:</span>
                   </span>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {previewResult.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.'}
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-4">
+                  {/* Changes List */}
+                  <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 flex flex-col gap-2">
+                    <span className="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>עיקרי השדרוג שבוצע:</span>
+                    </span>
                   <ul className="text-xs text-slate-300 flex flex-col gap-1.5 pr-2">
                     {previewResult.summaryOfChanges.map((change, idx) => (
                       <li key={idx} className="flex items-center gap-2">
@@ -586,6 +597,7 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
                   )}
                 </div>
               </div>
+              )
             ) : (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-6 text-slate-500">
                 <Wand2 className="w-10 h-10 mb-3 opacity-30 text-indigo-400" />
@@ -609,7 +621,7 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
 
             <button
               type="button"
-              disabled={!previewResult?.updatedConfig}
+              disabled={!previewResult?.success || !previewResult?.updatedConfig}
               onClick={handleApply}
               className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-bold transition flex items-center gap-2 cursor-pointer shadow-lg shadow-emerald-600/20"
             >
