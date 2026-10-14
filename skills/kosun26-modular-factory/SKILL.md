@@ -22,7 +22,7 @@ description: "פס ייצור סדרתי ועבודת צוות לפיתוח רכ
    * מממש שירותים מבוססי `useTenantScope` ב-Firestore.
    * מבטיח אפס קריאות ישירות ל-Gemini או אוספים שטוחים.
 3. **בונה ממשק המשתמש וה-Slots (UI & Slot Composer):**
-   * מקים קומפוננטות UI העומדות בתקן Cashwan Branding (Floating Dock, Fullscreen Modal, ללא Header עליון).
+   * מקים קומפוננטות UI העומדות בתקן Cashwan Branding (שימוש בלעדי ב-`KosunUniversalDock` לשני המצבים: באק-אופיס ופרונט, מודאל `KosNevModal`, ללא Header עליון, אפס תפריטים צפים עצמאיים).
    * משלב יכולות חיצוניות אך ורק דרך `<CapabilitySlot />`.
    * מייצא רק את ה-Root View ורושם ספקי יכולות ב-`index.ts`.
 4. **שומר הסף (The Gatekeeper Auditor):**

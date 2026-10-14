@@ -616,22 +616,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           </main>
         </div>
 
-        {/* Cashwan Dynamic Menu (KosNev) */}
-        <CashwanDynamicMenu
-          isOpen={isKosNevOpen}
-          onClose={() => setIsKosNevOpen(false)}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
-          onGoToHome={() => {
-            setIsKosNevOpen(false);
-            setMode('public');
-            sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
-            const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
-            const targetUrl = isLocal ? `/?tenant=${tenantRecord.subdomain}&mode=public` : '/?mode=public';
-            window.location.href = targetUrl;
-          }}
-          activeModules={tenantRecord.activeModules}
-          isSubdomain={true}
-        />
+
 
         {/* Tenant Sync & Settings Modal */}
         <TenantSyncSettingsModal
