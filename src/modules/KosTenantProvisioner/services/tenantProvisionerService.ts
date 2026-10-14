@@ -9,7 +9,6 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '../types';
-import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { tenantContactSyncService } from '../../crm-analytics/services/tenantContactSyncService';
 import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
@@ -188,6 +187,38 @@ export class TenantProvisionerService {
       } catch (err) {
         console.warn('[TenantProvisionerService] Remote fetch warning:', err);
       }
+
+      try {
+        const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
+        const cSnap = await getDocs(masterContactsCol);
+        for (const cDoc of cSnap.docs) {
+          const cd = cDoc.data();
+          if (cd.subdomain && (cd.isSubdomainAdmin || cd.isUser)) {
+            const sub = cd.subdomain.toLowerCase().trim();
+            if (sub === '_master' || sub === 'www' || sub === 'admin') continue;
+            const existing = map.get(sub);
+            map.set(sub, {
+              subdomain: sub,
+              fullDomain: cd.fullDomain || existing?.fullDomain || `${sub}.kosun.pro`,
+              clientName: cd.company_name || cd.kosun_crm_name || cd.conta_name || existing?.clientName || `עסק ${sub}`,
+              adminUsername: cd.adminUsername || cd.email || existing?.adminUsername || `${sub}@kosun.pro`,
+              adminPassword: cd.adminPassword || existing?.adminPassword || 'Ks@1234',
+              ownerEmail: cd.kosun_crm_email || cd.email || existing?.ownerEmail || `${sub}@kosun.pro`,
+              ownerPhone: cd.kosun_crm_phone || cd.conta_phone || existing?.ownerPhone || '050-0000000',
+              activeModules: Array.isArray(cd.activeModules) ? cd.activeModules : (existing?.activeModules || ['KosWebAi', 'KSF']),
+              collectionPrefix: existing?.collectionPrefix || `tenant_${sub}_mod_`,
+              status: cd.tenantStatus || cd.status || existing?.status || 'active',
+              createdAt: cd.createdAt || existing?.createdAt || new Date().toISOString(),
+              updatedAt: cd.updatedAt || existing?.updatedAt || new Date().toISOString(),
+              billingPlan: cd.billingPlan || existing?.billingPlan || 'monthly',
+              monthlyTotal: cd.monthlyTotal || existing?.monthlyTotal || 0,
+              notes: cd.subdomainNotes || existing?.notes || '',
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[TenantProvisionerService] Master contacts fetch warning:', err);
+      }
     }
 
     // Include demo tenant if empty
@@ -258,23 +289,7 @@ export class TenantProvisionerService {
     const updatedList = [newRecord, ...current.filter((t) => t.subdomain !== cleanSub)];
     this.saveLocalTenants(updatedList);
 
-    // 2. Synchronize with StorefrontService
-    try {
-      StorefrontService.provisionNewTenant({
-        subdomain: newRecord.subdomain,
-        fullDomain: newRecord.fullDomain,
-        clientName: newRecord.clientName,
-        ownerEmail: newRecord.ownerEmail || newRecord.adminUsername,
-        ownerPhone: newRecord.ownerPhone || '050-0000000',
-        activeModules: newRecord.activeModules,
-        collectionPrefix: newRecord.collectionPrefix,
-        billingPlan: newRecord.billingPlan === 'annual' ? 'annual' : 'monthly',
-        monthlyTotal: 0,
-        paymentTransactionId: `PROV-${Date.now()}`,
-      }).catch(console.warn);
-    } catch {}
-
-    // 3. Save to Firestore (tenants/{subdomain} & credentials)
+    // 2. Save to Firestore (tenants/{subdomain} & credentials)
     if (db) {
       try {
         const tenantDocRef = doc(db, 'tenants', cleanSub);
@@ -334,10 +349,6 @@ export class TenantProvisionerService {
             updatedAt: new Date().toISOString(),
           };
           await setDoc(contactDocRef, contactPayload, { merge: true });
-
-          try {
-            await setDoc(doc(db, 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
-          } catch {}
         } catch (cErr) {
           console.warn('[TenantProvisionerService] Direct CRM contact write warning:', cErr);
         }

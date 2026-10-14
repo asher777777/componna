@@ -1,11 +1,5 @@
 import React from 'react';
 
-const ControlCenterStandaloneView = React.lazy(() =>
-  import('../modules/control-center-hub').then((m) => ({ default: m.ControlCenterStandaloneView }))
-);
-const SaasStorefrontComposerStandaloneView = React.lazy(() =>
-  import('../modules/saas-storefront-composer').then((m) => ({ default: m.SaasStorefrontComposerStandaloneView }))
-);
 const BrandDnaHubStandaloneView = React.lazy(() =>
   import('../modules/KosBranding').then((m) => ({ default: m.BrandDnaHubStandaloneView }))
 );
@@ -82,6 +76,7 @@ export interface ModuleDefinition {
   component: React.ComponentType;
   route: string;
   collectionPrefix: string;
+  isSystemModule?: boolean;
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
@@ -92,6 +87,7 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: KosTenantProvisionerStandaloneView,
     route: '/tenant-provisioner',
     collectionPrefix: 'sys_tenants_',
+    isSystemModule: true,
   },
   {
     id: 'kosun-board-composer',
@@ -116,22 +112,6 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: KosaiEngineStandaloneView,
     route: '/kosai-engine',
     collectionPrefix: 'mod_kosai_',
-  },
-  {
-    id: 'control-center-hub',
-    name: 'קשואן Control - מרכז השליטה והבקרה',
-    description: 'לוח בקרה מרכזי בסטנדרט יוקרתי, המעניק לכם שקט נפשי ושליטה מלאה בכל רכיבי המערכת בממשק אחיד ומקצועי.',
-    component: ControlCenterStandaloneView,
-    route: '/control-center',
-    collectionPrefix: 'mod_ctrlcenter_',
-  },
-  {
-    id: 'saas-storefront-composer',
-    name: 'קשואן Storefront - החנות הדיגיטלית',
-    description: 'מרקטפלייס מתקדם המציע ללקוחות שלכם התנסות חיה, סליקה מהירה ובחירת סאב-דומיין. שירות ברמת איכות ומומחיות הגבוהה ביותר.',
-    component: SaasStorefrontComposerStandaloneView,
-    route: '/saas-storefront',
-    collectionPrefix: 'sys_storefront_',
   },
   {
     id: 'KosBranding',

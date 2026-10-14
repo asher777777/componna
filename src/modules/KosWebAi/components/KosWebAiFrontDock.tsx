@@ -8,7 +8,8 @@ import {
   ChevronUp, 
   X, 
   LayoutTemplate,
-  Plus
+  Plus,
+  Globe
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
@@ -161,7 +162,21 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
               <span className="group-hover:underline">KosNev</span>
             </button>
 
-            {/* 1. KosAI Editor Agent Button */}
+            {/* 1. Home Page Navigation */}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                window.location.href = '/';
+              }}
+              className="flex items-center justify-center p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-white transition cursor-pointer"
+              title="מעבר לעמוד הבית הראשי של המשתמש"
+              aria-label="עמוד הבית"
+            >
+              <Globe className="w-4 h-4" />
+            </button>
+
+            {/* 2. KosAI Editor Agent Button */}
             <button
               type="button"
               onClick={handleOpenEditorAi}

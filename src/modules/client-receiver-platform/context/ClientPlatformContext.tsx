@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { 
   ClientPlatformSettings, 
   ClientUserSession, 
@@ -11,7 +11,7 @@ import {
 } from '../config';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
-import { TenantRecord } from '../../saas-storefront-composer/types';
+import { TenantRecord } from '../../../core/contracts';
 
 interface ClientPlatformContextValue {
   session: ClientUserSession;

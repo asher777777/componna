@@ -2,9 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { WorkbenchApp } from '../../workbench/WorkbenchApp';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
-import { StorefrontService } from '../../modules/saas-storefront-composer/services/storefrontService';
-import { PublicStorefrontApp } from '../../modules/saas-storefront-composer/components/PublicStorefrontApp';
-import { TenantRecord } from '../../modules/saas-storefront-composer/types';
+import { TenantRecord } from '../contracts';
+import { TenantCoreService } from './tenantService';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
@@ -39,8 +38,8 @@ export const TenantAppResolver: React.FC = () => {
     if (isPublicPage) {
       return true;
     }
-    // Any module route (like /KosWebAi, /control-center, etc.) belongs in Workbench mode
-    if (pathname !== '/' && pathname !== '' && pathname !== '/saas-storefront' && pathname !== '/store') {
+    // Any module route belongs in Workbench mode
+    if (pathname !== '/' && pathname !== '') {
       return true;
     }
     // For root path '/', NEVER default to Workbench mode based on stale sessionStorage!
@@ -59,7 +58,7 @@ export const TenantAppResolver: React.FC = () => {
 
   useEffect(() => {
     const cleanPath = location.pathname;
-    if (cleanPath !== '/' && cleanPath !== '' && cleanPath !== '/saas-storefront' && cleanPath !== '/store') {
+    if (cleanPath !== '/' && cleanPath !== '') {
       setIsDevWorkbench(true);
     }
   }, [location.pathname]);
@@ -122,34 +121,35 @@ export const TenantAppResolver: React.FC = () => {
 
     if (sub) {
       setTenantSubdomain(sub);
-      const all = StorefrontService.getAllTenants();
-      const found = all.find(t => t.subdomain.toLowerCase() === sub?.toLowerCase());
-      if (found) {
-        setTenantRecord(found);
-      } else {
-        // Fallback demo tenant for the requested subdomain
-        const demoTenant: TenantRecord = {
-          subdomain: sub,
-          fullDomain: `${sub}.kosun.pro`,
-          clientName: `מערכת לקוח (${sub})`,
-          ownerEmail: `${sub}@kosun.pro`,
-          ownerPhone: '050-1234567',
-          activeModules: ['KosWebAi'],
-          collectionPrefix: `tenant_${sub}_mod_`,
-          billingPlan: 'annual',
-          monthlyTotal: 129,
-          paymentTransactionId: 'TXN-INIT-001',
-          status: 'active',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        setTenantRecord(demoTenant);
-      }
+      TenantCoreService.getAllTenants(db).then((all) => {
+        const found = all.find(t => t.subdomain.toLowerCase() === sub?.toLowerCase());
+        if (found) {
+          setTenantRecord(found);
+        } else {
+          // Fallback demo tenant for the requested subdomain
+          const demoTenant: TenantRecord = {
+            subdomain: sub,
+            fullDomain: `${sub}.kosun.pro`,
+            clientName: `מערכת לקוח (${sub})`,
+            ownerEmail: `${sub}@kosun.pro`,
+            ownerPhone: '050-1234567',
+            activeModules: ['KosWebAi'],
+            collectionPrefix: `tenant_${sub}_mod_`,
+            billingPlan: 'annual',
+            monthlyTotal: 129,
+            paymentTransactionId: 'TXN-INIT-001',
+            status: 'active',
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+          setTenantRecord(demoTenant);
+        }
+      });
     } else {
       setTenantSubdomain(null);
       setTenantRecord(null);
     }
-  }, []);
+  }, [db]);
 
   // 1. Subdomain View (Public Landing Page by default + Owner Admin Control Panel)
   if (tenantSubdomain && tenantRecord) {
@@ -163,16 +163,6 @@ export const TenantAppResolver: React.FC = () => {
   // 2. Developer / Super-Admin Workbench Mode (If explicitly requested or navigating modules)
   if (isDevWorkbench) {
     return <WorkbenchApp />;
-  }
-
-  // 3. Dedicated SaaS Storefront Route (/saas-storefront or /store)
-  const pathname = window.location.pathname;
-  if (pathname === '/saas-storefront' || pathname === '/store') {
-    return (
-      <PublicStorefrontApp
-        onEnterDevWorkbench={() => setIsDevWorkbench(true)}
-      />
-    );
   }
 
   // 4. Root Domain Homepage View (/):

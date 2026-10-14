@@ -223,8 +223,14 @@ export async function saveBrandDna(
     if (jsonPayload.length > 1024 * 1024 * 4) { // > 4MB, strip logo to avoid crash
       payload.identity.logoUrl = '';
       localStorage.setItem(localStorageKey, JSON.stringify(payload));
+      if (tenantId === '_master') {
+        localStorage.setItem(BASE_LOCAL_STORAGE_KEY, JSON.stringify(payload));
+      }
     } else {
       localStorage.setItem(localStorageKey, jsonPayload);
+      if (tenantId === '_master') {
+        localStorage.setItem(BASE_LOCAL_STORAGE_KEY, jsonPayload);
+      }
     }
   } catch (err: any) {
     if (err.name !== 'QuotaExceededError') {

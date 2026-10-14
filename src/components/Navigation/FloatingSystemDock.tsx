@@ -10,7 +10,10 @@ import {
   Edit3,
   Settings2,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Globe,
+  Sliders,
+  TrendingUp,
 } from 'lucide-react';
 import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegistry';
 
@@ -19,20 +22,52 @@ export interface CashwanDynamicMenuProps {
   onClose: () => void;
   onOpenSettings?: () => void;
   onEnterDevWorkbench?: () => void;
+  onGoToHome?: () => void;
+  activeModules?: string[];
+  isSubdomain?: boolean;
 }
 
 /**
  * The official Cashwan Dynamic Menu component.
- * Displays clean Hebrew module names without technical backend descriptions,
- * with search and direct navigation.
+ * Displays clean Hebrew module names dynamically sorted by usage frequency,
+ * strictly filtered by tenant collection, and hides system modules on subdomains.
  */
 export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
   isOpen,
   onClose,
   onOpenSettings,
   onEnterDevWorkbench,
+  onGoToHome,
+  activeModules,
+  isSubdomain = false,
 }) => {
   const [moduleSearchQuery, setModuleSearchQuery] = useState('');
+
+  // System modules that should NEVER appear on a subdomain
+  const SYSTEM_MODULES = useMemo(
+    () =>
+      new Set([
+        'auth-portal',
+        'db-collections-hub',
+        'db-connector-hub',
+        'KosTenantProvisioner',
+        'template',
+        '_template',
+        'control-center-hub',
+        'saas-storefront-composer',
+      ]),
+    []
+  );
+
+  // Usage stats state for dynamic ranking
+  const [moduleUsageStats, setModuleUsageStats] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('kosun_module_usage_stats');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -52,26 +87,58 @@ export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
 
   const filteredModules = useMemo(() => {
     if (!isOpen) return [];
-    if (!moduleSearchQuery.trim()) return REGISTERED_MODULES;
-    return REGISTERED_MODULES.filter((m: ModuleDefinition) =>
-      m.name.toLowerCase().includes(moduleSearchQuery.toLowerCase())
-    );
-  }, [moduleSearchQuery, isOpen]);
+
+    const list = REGISTERED_MODULES.filter((m: ModuleDefinition) => {
+      // 1. If on subdomain, hide all system modules
+      if (isSubdomain && SYSTEM_MODULES.has(m.id)) {
+        return false;
+      }
+
+      // 2. If activeModules collection is specified, only show components in that collection
+      if (activeModules && activeModules.length > 0) {
+        const lowerList = activeModules.map((x) => x.toLowerCase());
+        const match = lowerList.includes(m.id.toLowerCase());
+        if (!match) return false;
+      }
+
+      // 3. Search query filter
+      if (moduleSearchQuery.trim()) {
+        return m.name.toLowerCase().includes(moduleSearchQuery.toLowerCase());
+      }
+
+      return true;
+    });
+
+    // Sort dynamically by usage count (highest first), then alphabetically
+    return list.sort((a, b) => {
+      const countA = moduleUsageStats[a.id] || 0;
+      const countB = moduleUsageStats[b.id] || 0;
+      if (countB !== countA) return countB - countA;
+      return a.name.localeCompare(b.name, 'he');
+    });
+  }, [isOpen, moduleSearchQuery, isSubdomain, activeModules, SYSTEM_MODULES, moduleUsageStats]);
 
   if (!isOpen) return null;
 
-  const handleSelectModule = (route: string) => {
+  const handleSelectModule = (moduleId: string, route: string) => {
+    // Record usage dynamically
+    setModuleUsageStats((prev) => {
+      const updated = { ...prev, [moduleId]: (prev[moduleId] || 0) + 1 };
+      try {
+        localStorage.setItem('kosun_module_usage_stats', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
     onClose();
     if (onEnterDevWorkbench) onEnterDevWorkbench();
-    // Full URL transition guarantees loading the target module and switching out of root homepage
     window.location.href = route;
   };
 
   return (
     <div 
-      className="fixed inset-0 w-screen h-screen z-[100] bg-[#090a0f]/98 backdrop-blur-2xl p-6 sm:p-10 flex flex-col justify-start items-center overflow-y-auto animate-in fade-in duration-200" 
+      className="fixed inset-0 w-screen h-screen z-[100] bg-[#090a0f]/98 backdrop-blur-2xl p-6 sm:p-10 flex flex-col justify-start items-center overflow-y-auto animate-in fade-in duration-200 font-sans" 
       dir="rtl"
-      style={{ fontFamily: 'Heebo, sans-serif' }}
     >
       {/* Header Bar */}
       <div className="max-w-xl w-full flex items-center justify-between pb-5 border-b border-slate-800">
@@ -81,7 +148,9 @@ export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
           </div>
           <div>
             <h2 className="text-lg font-black text-white">רכיבי מערכת קושאן</h2>
-            <span className="text-xs text-slate-400">מעבר מהיר לרכיבים והגדרות</span>
+            <span className="text-xs text-slate-400">
+              {isSubdomain ? 'רכיבים מופעלים לפי חבילת הסאב-דומיין' : 'מעבר מהיר לרכיבים והגדרות'}
+            </span>
           </div>
         </div>
         <button
@@ -95,8 +164,53 @@ export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
         </button>
       </div>
 
+      {/* Action Shortcut Buttons: Homepage & Settings */}
+      <div className="max-w-xl w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-5">
+        {onGoToHome && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onGoToHome();
+            }}
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/40 text-right transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-indigo-600/20 text-indigo-400 flex items-center justify-center border border-indigo-500/30">
+                <Globe className="w-4 h-4" />
+              </div>
+              <span className="font-bold text-xs text-white group-hover:text-indigo-200">
+                עמוד הבית של המשתמש
+              </span>
+            </div>
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-indigo-400" />
+          </button>
+        )}
+
+        {onOpenSettings && (
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              onOpenSettings();
+            }}
+            className="flex items-center justify-between p-3.5 rounded-2xl bg-slate-900/90 hover:bg-slate-800 border border-slate-800 hover:border-indigo-500/40 text-right transition-all group cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-purple-600/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                <Settings2 className="w-4 h-4" />
+              </div>
+              <span className="font-bold text-xs text-white group-hover:text-purple-200">
+                הגדרות וסנכרון מפתחות
+              </span>
+            </div>
+            <ArrowLeft className="w-3.5 h-3.5 text-slate-500 group-hover:text-purple-400" />
+          </button>
+        )}
+      </div>
+
       {/* Search Bar */}
-      <div className="max-w-xl w-full mt-6">
+      <div className="max-w-xl w-full mt-4">
         <div className="relative">
           <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
           <input
@@ -110,64 +224,63 @@ export const CashwanDynamicMenu: React.FC<CashwanDynamicMenuProps> = ({
         </div>
       </div>
 
-      {/* Vertical Stack: Row under Row, Clean Names Only */}
+      {/* Vertical Stack: Row under Row, Sorted by Usage Frequency */}
       <div className="max-w-xl w-full flex flex-col gap-2.5 py-6">
-        {/* SEO & Promotion Modal Action Item */}
-        {onOpenSettings && (
-          <button
-            type="button"
-            onClick={() => {
-              onClose();
-              onOpenSettings();
-            }}
-            className="w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-indigo-950/70 to-purple-950/50 hover:from-indigo-900/80 hover:to-purple-900/60 border border-indigo-500/40 text-right transition-all group cursor-pointer shadow-lg shadow-indigo-950/30"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-indigo-500/20 text-indigo-300 flex items-center justify-center border border-indigo-500/30">
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-              </div>
-              <span className="font-bold text-sm text-white group-hover:text-indigo-200 transition-colors">
-                קידום ו-SEO (גוגל, בינה מלאכותית ואנליטיקס)
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5 text-xs font-bold text-indigo-400 group-hover:translate-x-[-4px] transition-transform">
-              <span>פתח הגדרות</span>
-              <ArrowLeft className="w-4 h-4" />
-            </div>
-          </button>
+        {filteredModules.length === 0 ? (
+          <div className="text-center py-10 text-slate-500 text-xs font-bold">
+            לא נמצאו רכיבים מתאימים בקולקציה
+          </div>
+        ) : (
+          filteredModules.map((module: ModuleDefinition, idx: number) => {
+            const usageCount = moduleUsageStats[module.id] || 0;
+            return (
+              <button
+                key={module.id}
+                type="button"
+                onClick={() => handleSelectModule(module.id, module.route)}
+                className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-indigo-500/40 text-right transition-all group cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-slate-800 text-slate-300 group-hover:text-indigo-400 group-hover:bg-indigo-600/10 flex items-center justify-center transition-colors">
+                    <LayoutGrid className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-sm text-white group-hover:text-indigo-300 transition-colors">
+                        {module.name.split('-')[0].trim()}
+                      </span>
+                      {usageCount > 0 && idx < 3 && (
+                        <span className="px-2 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400 font-bold">
+                          בשימוש תדיר
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[11px] text-slate-400 block truncate max-w-xs mt-0.5">
+                      {module.description}
+                    </span>
+                  </div>
+                </div>
+                <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-[-4px] transition-all shrink-0" />
+              </button>
+            );
+          })
         )}
-
-        {/* Modules List - Single column row under row, clean name only without backend descriptions */}
-        {filteredModules.map((module: ModuleDefinition) => (
-          <button
-            key={module.id}
-            type="button"
-            onClick={() => handleSelectModule(module.route)}
-            className="w-full flex items-center justify-between p-4 rounded-2xl bg-slate-900/80 hover:bg-slate-800/90 border border-slate-800 hover:border-indigo-500/40 text-right transition-all group cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-slate-800 text-slate-300 group-hover:text-indigo-400 group-hover:bg-indigo-600/10 flex items-center justify-center transition-colors">
-                <LayoutGrid className="w-4 h-4" />
-              </div>
-              <span className="font-bold text-sm text-white group-hover:text-indigo-300 transition-colors">
-                {module.name.split('-')[0].trim()}
-              </span>
-            </div>
-            <ArrowLeft className="w-4 h-4 text-slate-500 group-hover:text-indigo-400 group-hover:translate-x-[-4px] transition-all" />
-          </button>
-        ))}
       </div>
     </div>
   );
 };
 
-interface FloatingSystemDockProps {
+export interface FloatingSystemDockProps {
   editPageUrl?: string;
   isEditing?: boolean;
   onToggleEditMode?: () => void;
   isSaving?: boolean;
   onEnterDevWorkbench?: () => void;
   onOpenSettings?: () => void;
+  onGoToHome?: () => void;
+  homeUrl?: string;
+  activeModules?: string[];
+  isSubdomain?: boolean;
   className?: string;
 }
 
@@ -178,6 +291,10 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
   isSaving = false,
   onEnterDevWorkbench,
   onOpenSettings,
+  onGoToHome,
+  homeUrl,
+  activeModules,
+  isSubdomain = false,
   className = '',
 }) => {
   const navigate = useNavigate();
@@ -186,8 +303,10 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
 
   // Day / Night Theme (Light is default per Cashwan standard)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem('kosun_theme') as 'light' | 'dark') || 
-      (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+    return (
+      (localStorage.getItem('kosun_theme') as 'light' | 'dark') ||
+      (document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+    );
   });
 
   useEffect(() => {
@@ -210,6 +329,16 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
       document.documentElement.classList.remove('dark');
     }
     window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
+  };
+
+  const handleNavigateHome = () => {
+    if (onGoToHome) {
+      onGoToHome();
+    } else if (homeUrl) {
+      window.location.href = homeUrl;
+    } else {
+      window.location.href = isSubdomain ? '/?mode=public' : '/';
+    }
   };
 
   return (
@@ -247,6 +376,18 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
             <X className="w-3.5 h-3.5" />
           </button>
 
+          {/* User Homepage Button - Requirement ו */}
+          <button
+            type="button"
+            onClick={handleNavigateHome}
+            className="flex items-center gap-1.5 text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-3 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
+            title="מעבר לעמוד הבית הראשי של המשתמש"
+            aria-label="עמוד הבית"
+          >
+            <Globe className="w-3.5 h-3.5 text-indigo-400" />
+            <span className="hidden sm:inline">עמוד הבית</span>
+          </button>
+
           {/* Quick Edit Page button */}
           {(onToggleEditMode || editPageUrl) && (
             <button
@@ -274,16 +415,16 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
             </button>
           )}
 
-          {/* Quick Page Settings & SEO Button */}
-          {isEditing && onOpenSettings && (
+          {/* Settings & Sync Button */}
+          {onOpenSettings && (
             <button
               type="button"
               onClick={onOpenSettings}
               className="flex items-center gap-1.5 text-xs bg-indigo-600/30 hover:bg-indigo-600/50 text-indigo-200 border border-indigo-500/40 px-3 py-1.5 rounded-xl font-bold transition shadow-sm cursor-pointer"
-              title="הגדרות עמוד, SEO ואנליטיקס"
+              title="הגדרות, מפתחות וסנכרון טננט"
             >
               <Settings2 className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="hidden sm:inline">הגדרות ו-SEO</span>
+              <span className="hidden sm:inline">הגדרות וסנכרון</span>
             </button>
           )}
 
@@ -318,6 +459,9 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
         onClose={() => setIsModulesMenuOpen(false)}
         onOpenSettings={onOpenSettings}
         onEnterDevWorkbench={onEnterDevWorkbench}
+        onGoToHome={handleNavigateHome}
+        activeModules={activeModules}
+        isSubdomain={isSubdomain}
       />
     </>
   );

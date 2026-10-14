@@ -7,8 +7,8 @@ import {
   ArrowRight,
   ExternalLink,
 } from 'lucide-react';
-import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
-import { TenantRecord } from '../../saas-storefront-composer/types';
+import { TenantRecord } from '../../../core/contracts';
+import { TenantCoreService } from '../../../core/tenant/tenantService';
 import { GeneratedCustomDashboard } from '../types';
 
 export interface SubdomainPairingModalProps {
@@ -32,7 +32,7 @@ export const SubdomainPairingModal: React.FC<SubdomainPairingModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const all = StorefrontService.getAllTenants();
+      const all = TenantCoreService.getLocalTenants();
       setTenants(all);
       if (dashboard.pairedSubdomain) {
         setSelectedSubdomain(dashboard.pairedSubdomain);

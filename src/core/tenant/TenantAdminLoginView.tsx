@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, Globe, KeyRound, ArrowRight, ShieldCheck, AlertCircle, RefreshCw } from 'lucide-react';
-import { TenantRecord } from '../../modules/saas-storefront-composer/types';
+import { TenantRecord } from '../contracts';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 

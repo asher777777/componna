@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { KosaiRule, KosaiMessage, KosaiCapability, KosaiActionPayload, KosaiConversation } from '../types';
 import { kosaiRulesService, kosaiConversationsService } from '../services/kosaiFirestoreService';
@@ -66,6 +66,10 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const { db, firebaseApp } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { brandDna } = useBrandDna();
+  const brandDnaRef = useRef(brandDna);
+  useEffect(() => {
+    brandDnaRef.current = brandDna;
+  }, [brandDna]);
   const { registerCapability, unregisterCapability, getCapability } = useHostCapabilities();
 
   // Location listening for dynamic module synchronization
@@ -162,20 +166,20 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     });
   }, [activeModule]);
 
-  // Register kosai-agent AI capability for cross-module orchestration
+  // Register kosai-agent AI capability for cross-module orchestration (uses stable brandDnaRef)
   useEffect(() => {
     const contract: KosaiAgentContract = {
-      generateImage: (opts) => kosaiImageAgentService.generateImage({ ...opts, brandDna: opts.brandDna || brandDna }),
-      generateBrandLogo: (opts) => kosaiImageAgentService.generateBrandLogo({ ...opts, brandDna: opts.brandDna || brandDna }),
-      generateBrandVibeImage: (opts) => kosaiImageAgentService.generateBrandVibeImage({ ...opts, brandDna: opts.brandDna || brandDna }),
-      editImageWithAi: (opts) => kosaiImageAgentService.editImageWithAi({ ...opts, brandDna: opts.brandDna || brandDna }),
-      enhancePromptWithBrandContext: (prompt, type, bDna) => kosaiImageAgentService.enhancePromptWithBrandContext(prompt, type, bDna || brandDna),
+      generateImage: (opts) => kosaiImageAgentService.generateImage({ ...opts, brandDna: opts.brandDna || brandDnaRef.current }),
+      generateBrandLogo: (opts) => kosaiImageAgentService.generateBrandLogo({ ...opts, brandDna: opts.brandDna || brandDnaRef.current }),
+      generateBrandVibeImage: (opts) => kosaiImageAgentService.generateBrandVibeImage({ ...opts, brandDna: opts.brandDna || brandDnaRef.current }),
+      editImageWithAi: (opts) => kosaiImageAgentService.editImageWithAi({ ...opts, brandDna: opts.brandDna || brandDnaRef.current }),
+      enhancePromptWithBrandContext: (prompt, type, bDna) => kosaiImageAgentService.enhancePromptWithBrandContext(prompt, type, bDna || brandDnaRef.current),
     };
     registerCapability('kosai-agent', contract);
     return () => {
       unregisterCapability('kosai-agent');
     };
-  }, [brandDna, registerCapability, unregisterCapability]);
+  }, [registerCapability, unregisterCapability]);
 
   // Route & Module listening - Rule detection synchronized with active component
   const refreshRules = useCallback(async () => {
@@ -493,7 +497,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         groundingData,
       };
 
-      const systemInstruction = buildKosaiSystemPrompt(currentRule, brandDna, capabilities, promptContext);
+      const systemInstruction = buildKosaiSystemPrompt(currentRule, brandDnaRef.current, capabilities, promptContext);
 
       const response = await callGeminiApi({
         prompt: content,

@@ -104,8 +104,6 @@ export function normalizeModuleId(id: string): string {
 
 /** Route prefix → module ID (used to detect the currently active module) */
 const ROUTE_TO_MODULE: Array<[string, string]> = [
-  ['/control-center', 'control-center-hub'],
-  ['/saas-storefront', 'saas-storefront-composer'],
   ['/brand-dna', 'KosBranding'],
   ['/kesher-payments', 'kesher-payments-hub'],
   ['/whatsapp-hub', 'KosWhatsUp'],

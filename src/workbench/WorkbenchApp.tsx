@@ -179,18 +179,6 @@ export const WorkbenchApp: React.FC = () => {
       englishRest: 'AI Engine',
       icon: Bot,
     },
-    'control-center-hub': {
-      hebrewName: 'מרכז שליטה ובקרה ראשי',
-      englishPrefix: 'KOS',
-      englishRest: 'Control Center',
-      icon: Sparkles,
-    },
-    'saas-storefront-composer': {
-      hebrewName: 'חנות דיגיטלית ומרקטפלייס',
-      englishPrefix: 'KOS',
-      englishRest: 'Storefront',
-      icon: ShoppingBag,
-    },
     'KosBranding': {
       hebrewName: 'מרכז זהות ומיתוג עסקי',
       englishPrefix: 'KOS',
@@ -305,8 +293,11 @@ export const WorkbenchApp: React.FC = () => {
     }
   });
 
-  // Filter modules: Admin sees all, Regular users see purchased modules
-  const availableModules = REGISTERED_MODULES.filter(m => isAdmin || purchasedModules.includes(m.id));
+  // Filter modules: Admin sees all, Regular users see purchased modules (System modules strictly admin only)
+  const availableModules = REGISTERED_MODULES.filter(m => {
+    if (m.isSystemModule) return isAdmin;
+    return isAdmin || purchasedModules.includes(m.id);
+  });
   
   // Sort modules dynamically by frequency of use
   const sortedModules = React.useMemo(() => {
@@ -396,7 +387,6 @@ export const WorkbenchApp: React.FC = () => {
                 </Suspense>
               }
             />
-            <Route path="/store" element={<Navigate to="/saas-storefront" replace />} />
             <Route path="/home" element={<Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-500 font-bold">טוען...</div>}><HomePage /></Suspense>} />
             
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

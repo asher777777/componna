@@ -1,6 +1,6 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { Routes, Route, useLocation, NavLink, Navigate } from 'react-router-dom';
-import { TenantRecord } from '../../modules/saas-storefront-composer/types';
+import { TenantRecord } from '../contracts';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../../modules/KosWebAi/registry/sectionRegistry';
 import { PageBuilderRenderer } from '../../modules/KosWebAi/PageBuilderRenderer';
@@ -8,8 +8,9 @@ import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilde
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
-import { ControlCenterStandaloneView } from '../../modules/control-center-hub/StandaloneView';
 import { BrandDnaHubStandaloneView } from '../../modules/KosBranding';
+import { FloatingSystemDock } from '../../components/Navigation/FloatingSystemDock';
+import { TenantSyncSettingsModal } from '../../components/Navigation/TenantSyncSettingsModal';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from '../../workbench/components/ModuleLoadingFallback';
@@ -250,10 +251,24 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     );
   }
 
-  // Active provisioned modules for this tenant (KosBranding is the core branding dashboard)
-  const activeModuleIds = tenantRecord.activeModules || ['KosBranding', 'KosWebAi', 'KSF'];
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+
+  // System modules that should NEVER appear on a subdomain
+  const SYSTEM_MODULES = new Set([
+    'auth-portal',
+    'db-collections-hub',
+    'db-connector-hub',
+    'KosTenantProvisioner',
+    'template',
+    '_template',
+    'control-center-hub',
+    'saas-storefront-composer',
+  ]);
+
+  // Active provisioned modules for this tenant (strictly limited to tenant's active collection)
+  const activeModuleIds = tenantRecord.activeModules || [];
   const allowedModules = REGISTERED_MODULES.filter((m) => {
-    if (m.id === 'KosBranding' || m.id === 'control-center-hub' || m.id === 'kosun-board-composer') return true;
+    if (SYSTEM_MODULES.has(m.id)) return false;
     return activeModuleIds.includes(m.id);
   });
 
@@ -264,7 +279,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         {/* 2026 Kosun Standard: 100% Headerless - Zero Top Header (Exact UI Mirror of Manager Workbench) */}
 
         <div className="flex-1 flex flex-col h-full overflow-hidden">
-          <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative transition-colors duration-300">
+          <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative transition-colors duration-300 pb-20">
             <Routes>
               {/* Default redirects to Brand DNA or custom board */}
               <Route
@@ -272,15 +287,18 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                 element={
                   customDashboard && adminViewType === 'custom_board' ? (
                     <Navigate to="/dashboard" replace />
-                  ) : (
+                  ) : activeModuleIds.includes('KosBranding') ? (
                     <Navigate to="/brand-dna" replace />
+                  ) : allowedModules.length > 0 ? (
+                    <Navigate to={allowedModules[0].route} replace />
+                  ) : (
+                    <Navigate to="/dashboard" replace />
                   )
                 }
               />
               <Route path="/brand-dna/*" element={<BrandDnaHubStandaloneView />} />
               <Route path="/KosBranding/*" element={<BrandDnaHubStandaloneView />} />
               <Route path="/branding/*" element={<BrandDnaHubStandaloneView />} />
-              <Route path="/control-center/*" element={<ControlCenterStandaloneView />} />
               <Route
                 path="/dashboard/*"
                 element={
@@ -393,6 +411,20 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
             </div>
           </div>
         )}
+        {/* Floating System Dock with User Homepage Link & Settings Modal */}
+        <FloatingSystemDock
+          onGoToHome={() => setMode('public')}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          activeModules={tenantRecord.activeModules}
+          isSubdomain={true}
+        />
+
+        {/* Tenant Sync & Settings Modal */}
+        <TenantSyncSettingsModal
+          isOpen={isSettingsModalOpen}
+          onClose={() => setIsSettingsModalOpen(false)}
+          tenantRecord={tenantRecord}
+        />
       </div>
     );
   }

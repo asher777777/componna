@@ -21,8 +21,8 @@ import { ModuleCapabilityPicker } from './ModuleCapabilityPicker';
 import { DynamicCustomDashboardView } from './DynamicCustomDashboardView';
 import { SubdomainPairingModal } from './SubdomainPairingModal';
 import { Tooltip } from './Tooltip';
-import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
-import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
+import { TenantCoreService } from '../../../core/tenant/tenantService';
+import { useTenantScope } from '../../../core/tenant';
 import { GeneratedCustomDashboard } from '../types';
 
 export const KosunBoardForgeView: React.FC = () => {
@@ -63,7 +63,7 @@ export const KosunBoardForgeView: React.FC = () => {
     }
   };
 
-  const allTenants = StorefrontService.getAllTenants();
+  const allTenants = TenantCoreService.getLocalTenants();
   const selectedModulesList = discoveredModules.filter((m) =>
     selectedModuleIds.includes(m.moduleId)
   );

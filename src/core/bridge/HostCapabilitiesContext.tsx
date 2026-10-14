@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useRef, useMemo, useCallback } from 'react';
 
 type CapabilityName = 'media-picker' | 'lead-capture' | 'notification' | 'auth-session' | string;
 
@@ -12,41 +12,36 @@ interface HostCapabilitiesContextValue {
 const HostCapabilitiesContext = createContext<HostCapabilitiesContextValue | null>(null);
 
 export const HostCapabilitiesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [capabilities, setCapabilities] = useState<Map<CapabilityName, any>>(() => new Map());
+  const capabilitiesRef = useRef<Map<CapabilityName, any>>(new Map());
 
   const registerCapability = useCallback((name: CapabilityName, implementation: any) => {
-    setCapabilities(prev => {
-      const next = new Map(prev);
-      next.set(name, implementation);
-      return next;
-    });
+    capabilitiesRef.current.set(name, implementation);
   }, []);
 
   const unregisterCapability = useCallback((name: CapabilityName) => {
-    setCapabilities(prev => {
-      const next = new Map(prev);
-      next.delete(name);
-      return next;
-    });
+    capabilitiesRef.current.delete(name);
   }, []);
 
   const getCapability = useCallback(<T = any>(name: CapabilityName): T | null => {
-    return capabilities.get(name) || null;
-  }, [capabilities]);
+    return capabilitiesRef.current.get(name) || null;
+  }, []);
 
   const hasCapability = useCallback((name: CapabilityName): boolean => {
-    return capabilities.has(name);
-  }, [capabilities]);
+    return capabilitiesRef.current.has(name);
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      registerCapability,
+      unregisterCapability,
+      getCapability,
+      hasCapability,
+    }),
+    [registerCapability, unregisterCapability, getCapability, hasCapability]
+  );
 
   return (
-    <HostCapabilitiesContext.Provider
-      value={{
-        registerCapability,
-        unregisterCapability,
-        getCapability,
-        hasCapability,
-      }}
-    >
+    <HostCapabilitiesContext.Provider value={value}>
       {children}
     </HostCapabilitiesContext.Provider>
   );

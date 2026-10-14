@@ -50,8 +50,6 @@ const BRAND_DNA_TABS = [
 const MODULE_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   'kosun-am': Mail,
   'kosai-engine': Bot,
-  'control-center-hub': Sparkles,
-  'saas-storefront-composer': ShoppingBag,
   'KosBranding': Sparkles,
   'kesher-payments-hub': CreditCard,
   'KosWhatsUp': MessageSquare,

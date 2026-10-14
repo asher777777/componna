@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, BrandDesignTokens, BrandTrustAndCheckout } from '../types/brandDna';
 import { loadBrandDna, saveBrandDna, getCommunityBrand, saveCommunityBrand, createTenantInitialBrandDna } from '../services/brandDnaFirestore';
@@ -40,6 +40,31 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Stable ref to always have latest state without triggering re-registration loops
+  const brandDnaRef = useRef<BrandDna>(brandDna);
+  useEffect(() => {
+    brandDnaRef.current = brandDna;
+  }, [brandDna]);
+
+  // Editing lock to prevent onSnapshot from overwriting active user edits
+  const isEditingRef = useRef(false);
+  const editTimeoutRef = useRef<any>(null);
+
+  const markLocalEdit = useCallback(() => {
+    isEditingRef.current = true;
+    if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
+    editTimeoutRef.current = setTimeout(() => {
+      isEditingRef.current = false;
+    }, 4000);
+  }, []);
+
+  // Cleanup edit timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (editTimeoutRef.current) clearTimeout(editTimeoutRef.current);
+    };
+  }, []);
+
   // Load initially or when tenant changes, and attach real-time onSnapshot listener
   useEffect(() => {
     let mounted = true;
@@ -61,8 +86,8 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         unsubscribeSnapshot = onSnapshot(
           docRef,
           (snap) => {
-            // Ignore local pending writes to avoid race conditions while typing in form inputs
-            if (snap.metadata.hasPendingWrites) return;
+            // Ignore local pending writes and active user typing to prevent cursor jump back
+            if (snap.metadata.hasPendingWrites || isEditingRef.current) return;
 
             if (snap.exists() && mounted) {
               const remoteData = snap.data() as BrandDna;
@@ -124,6 +149,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   useEffect(() => {
     const unsub = eventBus.subscribe('brand:logo_updated', (data) => {
       if (data?.logoUrl !== undefined) {
+        markLocalEdit();
         setBrandDna((prev) => {
           if (prev.identity.logoUrl === data.logoUrl) return prev;
           const updated = {
@@ -138,7 +164,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       }
     });
     return () => unsub();
-  }, [db, tenantId]);
+  }, [db, tenantId, markLocalEdit]);
 
   // Auto-Save whenever brandDna changes (debounced by 1.5 seconds)
   useEffect(() => {
@@ -157,6 +183,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   }, [brandDna, db, tenantId, isLoading]);
 
   const updateIdentity = useCallback((partial: Partial<BrandIdentity>) => {
+    markLocalEdit();
     setBrandDna((prev) => {
       const updated = {
         ...prev,
@@ -175,41 +202,47 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updatedAt: new Date().toISOString(),
       });
     }
-  }, [db, tenantId]);
+  }, [db, tenantId, markLocalEdit]);
 
   const updateVoice = useCallback((partial: Partial<BrandVoice>) => {
+    markLocalEdit();
     setBrandDna((prev) => ({
       ...prev,
       voice: { ...prev.voice, ...partial },
     }));
-  }, []);
+  }, [markLocalEdit]);
 
   const updateAudience = useCallback((partial: Partial<BrandAudience>) => {
+    markLocalEdit();
     setBrandDna((prev) => ({
       ...prev,
       audience: { ...prev.audience, ...partial },
     }));
-  }, []);
+  }, [markLocalEdit]);
 
   const updateDesignTokens = useCallback((partial: Partial<BrandDesignTokens>) => {
+    markLocalEdit();
     setBrandDna((prev) => ({
       ...prev,
       designTokens: { ...prev.designTokens, ...partial },
     }));
-  }, []);
+  }, [markLocalEdit]);
 
   const updateTrust = useCallback((partial: Partial<BrandTrustAndCheckout>) => {
+    markLocalEdit();
     setBrandDna((prev) => ({
       ...prev,
       trust: { ...prev.trust, ...partial },
     }));
-  }, []);
+  }, [markLocalEdit]);
 
   const setFullBrandDna = useCallback((newDna: BrandDna) => {
+    markLocalEdit();
     setBrandDna(newDna);
-  }, []);
+  }, [markLocalEdit]);
 
   const setLogoUrl = useCallback(async (url: string): Promise<boolean> => {
+    markLocalEdit();
     setBrandDna((prev) => {
       const updated = {
         ...prev,
@@ -226,15 +259,16 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
     eventBus.publish('brand:updated', {
       brandDna: {
-        ...brandDna,
-        identity: { ...brandDna.identity, logoUrl: url },
+        ...brandDnaRef.current,
+        identity: { ...brandDnaRef.current.identity, logoUrl: url },
       },
       updatedAt: new Date().toISOString(),
     });
     return true;
-  }, [db, tenantId, brandDna]);
+  }, [db, tenantId, markLocalEdit]);
 
   const addVibeImage = useCallback(async (url: string): Promise<boolean> => {
+    markLocalEdit();
     setBrandDna((prev) => {
       const existing = prev.identity.vibeImages || [];
       if (existing.includes(url)) return prev;
@@ -251,9 +285,10 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       updatedAt: new Date().toISOString(),
     });
     return true;
-  }, []);
+  }, [markLocalEdit]);
 
   const removeVibeImage = useCallback(async (url: string): Promise<boolean> => {
+    markLocalEdit();
     setBrandDna((prev) => ({
       ...prev,
       identity: {
@@ -262,39 +297,41 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       },
     }));
     return true;
-  }, []);
+  }, [markLocalEdit]);
 
   const saveNow = useCallback(async (): Promise<boolean> => {
     setIsSaving(true);
-    const res = await saveBrandDna(brandDna, db, tenantId);
+    const res = await saveBrandDna(brandDnaRef.current, db, tenantId);
     setIsSaving(false);
     if (res.success) {
       eventBus.publish('brand:updated', {
-        brandDna,
+        brandDna: brandDnaRef.current,
         updatedAt: new Date().toISOString(),
       });
     }
     return res.success;
-  }, [brandDna, db]);
+  }, [db, tenantId]);
 
   const resetToDefaults = useCallback(async () => {
     if (window.confirm('האם לאפס את נתוני ה-DNA להגדרות ברירת המחדל?')) {
+      markLocalEdit();
       setBrandDna(DEFAULT_BRAND_DNA);
-      await saveBrandDna(DEFAULT_BRAND_DNA, db);
+      await saveBrandDna(DEFAULT_BRAND_DNA, db, tenantId);
       eventBus.publish('brand:updated', {
         brandDna: DEFAULT_BRAND_DNA,
         updatedAt: new Date().toISOString(),
       });
     }
-  }, [db]);
+  }, [db, tenantId, markLocalEdit]);
 
-  // Register brand-dna and community-brand capabilities to host context
+  // Register brand-dna and community-brand capabilities to host context (uses stable brandDnaRef to avoid keystroke re-registration)
   useEffect(() => {
     const contract: BrandDnaContract = {
-      getBrandDna: () => brandDna,
-      getSystemPrompt: (moduleRole?: string) => buildBrandSystemContext(brandDna, moduleRole),
-      getDesignTokens: () => brandDna.designTokens,
+      getBrandDna: () => brandDnaRef.current,
+      getSystemPrompt: (moduleRole?: string) => buildBrandSystemContext(brandDnaRef.current, moduleRole),
+      getDesignTokens: () => brandDnaRef.current.designTokens,
       updateBrandDna: async (partial: Partial<BrandDna>) => {
+        markLocalEdit();
         setBrandDna((prev) => ({ ...prev, ...partial }));
         return true;
       },
@@ -314,7 +351,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       unregisterCapability('brand-dna');
       unregisterCapability('community-brand');
     };
-  }, [brandDna, db, tenantId, registerCapability, unregisterCapability, setLogoUrl, addVibeImage, removeVibeImage]);
+  }, [db, tenantId, registerCapability, unregisterCapability, setLogoUrl, addVibeImage, removeVibeImage, markLocalEdit]);
   const { completenessScore, missingRecommendations } = useMemo(() => {
     let score = 0;
     const recommendations: string[] = [];

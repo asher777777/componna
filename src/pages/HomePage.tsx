@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -55,8 +55,15 @@ import {
 import { useBrandDna } from '../modules/KosBranding/context/BrandDnaContext';
 import { useSystemConnection } from '../core/connection/SystemConnectionContext';
 import { AuthModal } from '../components/Auth/AuthModal';
-import { AuthState, subscribeToAuth, logoutUser, fetchUserRole, isPlatformAdminEmail, getCachedUserRole, updateUserRole } from '../services/firebaseAuth';
-import { StorefrontService } from '../modules/saas-storefront-composer/services/storefrontService';
+import { TenantCoreService } from '../core/tenant/tenantService';
+import {
+  AuthState,
+  subscribeToAuth,
+  fetchUserRole,
+  getCachedUserRole,
+  isPlatformAdminEmail,
+  updateUserRole
+} from '../services/firebaseAuth';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -146,14 +153,14 @@ export const HomePage: React.FC = () => {
     if (isAdmin) {
       // מנהל מערכת ראשי -> הבטחת שמירת הרשאת אדמין וניווט מידי ללוח הבקרה הראשי (לעולם לא לסאב-דומיין!)
       await updateUserRole(uid, 'admin', firebaseApp);
-      navigate('/control-center');
+      navigate('/dashboard');
       return;
     }
 
     // ב. אם המשתמש אינו מנהל מערכת - בדיקה אם הוא לקוח בעל סאב-דומיין קיים
     const RESERVED_SUBDOMAINS = ['www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop'];
-    const tenantByEmail = email ? StorefrontService.findTenantForUser(email) : null;
-    const tenantByPhone = phone ? StorefrontService.findTenantForUser(phone) : null;
+    const tenantByEmail = email ? TenantCoreService.findTenantForUser(email) : null;
+    const tenantByPhone = phone ? TenantCoreService.findTenantForUser(phone) : null;
     const matchedTenant = tenantByEmail || tenantByPhone;
 
     if (matchedTenant && matchedTenant.subdomain && !RESERVED_SUBDOMAINS.includes(matchedTenant.subdomain.toLowerCase())) {

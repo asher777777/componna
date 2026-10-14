@@ -32,7 +32,6 @@ import { useSystemConnection } from '../../core/connection/SystemConnectionConte
 const MODULE_ICONS: Record<string, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
   'kosun-am': { icon: Mail, color: 'text-pink-400 group-hover:text-pink-300' },
   'kosai-engine': { icon: Bot, color: 'text-purple-400 group-hover:text-purple-300' },
-  'control-center-hub': { icon: Sparkles, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'KosBranding': { icon: Sparkles, color: 'text-purple-400 group-hover:text-purple-300' },
   'kesher-payments-hub': { icon: CreditCard, color: 'text-indigo-400 group-hover:text-indigo-300' },
   'KosWhatsUp': { icon: MessageSquare, color: 'text-emerald-400 group-hover:text-emerald-300' },

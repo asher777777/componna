@@ -16,8 +16,8 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { GeneratedCustomDashboard, SubdomainPairingRecord } from '../types';
+import { TenantCoreService } from '../../../core/tenant/tenantService';
 import { CUSTOM_DASHBOARDS_COLLECTION } from '../config';
-import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
 
 const LOCAL_STORAGE_KEY_PREFIX = 'kosun_custom_dashboards_';
 
@@ -147,7 +147,7 @@ export class DashboardFirestoreService {
 
     // 2. Set active dashboard in tenant record
     try {
-      const allTenants = StorefrontService.getAllTenants();
+      const allTenants = TenantCoreService.getLocalTenants();
       const targetTenant = allTenants.find((t) => t.subdomain.toLowerCase() === cleanSub);
       if (targetTenant) {
         const updatedTenant = {
@@ -157,7 +157,7 @@ export class DashboardFirestoreService {
           updatedAt: new Date().toISOString(),
         };
         const updatedList = [updatedTenant, ...allTenants.filter((t) => t.subdomain.toLowerCase() !== cleanSub)];
-        localStorage.setItem('kosun_saas_tenants_v1', JSON.stringify(updatedList));
+        TenantCoreService.saveLocalTenants(updatedList as any);
       }
 
       // Also persist to Firestore 'tenants/{subdomain}'

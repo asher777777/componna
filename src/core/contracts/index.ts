@@ -299,6 +299,25 @@ export interface SubdomainTenantContactData {
   updatedAt?: string;
 }
 
+export interface TenantRecord {
+  subdomain: string;
+  fullDomain: string;
+  clientName: string;
+  ownerEmail: string;
+  ownerPhone: string;
+  activeModules: string[];
+  collectionPrefix: string;
+  billingPlan: 'monthly' | 'annual' | string;
+  monthlyTotal: number;
+  paymentTransactionId?: string;
+  status: 'active' | 'pending' | 'suspended' | string;
+  createdAt: string;
+  updatedAt: string;
+  adminUsername?: string;
+  adminPassword?: string;
+  notes?: string;
+}
+
 export interface SubdomainTenantContactContract {
   /**
    * Synchronize tenant record to CRM master contact
