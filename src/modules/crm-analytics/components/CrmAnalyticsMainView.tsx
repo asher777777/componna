@@ -27,6 +27,13 @@ import { MobileBottomNavigation } from './MobileBottomNavigation';
 import { BusinessCardScannerModal } from './BusinessCardScannerModal';
 import { CrmWhatsAppBulkSenderModal } from './CrmWhatsAppBulkSenderModal';
 import { useTenantScope } from '../../../core/tenant';
+import { 
+  batchUpdateContactsInDb, 
+  sanitizeContactNamesInDb 
+} from '../services/crmAnalyticsService';
+import { downloadVCard } from '../services/vcardService';
+import { CrmWhatsAppSenderService } from '../services/crmWhatsAppService';
+import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 
 export const CrmAnalyticsMainView: React.FC = () => {
   const {
@@ -168,11 +175,331 @@ export const CrmAnalyticsMainView: React.FC = () => {
       refresh();
     });
 
+    // ========================================================
+    // KosAi CRM Protocol: Execution Engine for the 7 actions
+    // ========================================================
+    const unsubKosaiAction = eventBus.subscribe('kosai:action', async (evt: any) => {
+      if (!evt || !evt.action) return;
+      const { action, payload } = evt;
+
+      // 1. CRM_FILTER_VIEW
+      if (action === 'CRM_FILTER_VIEW') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        if (payload?.reset) {
+          setFilter({ status: 'active' });
+          setActiveMetric(null);
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            message: 'כל הסינונים אופסו. כעת מוצגים כל אנשי הקשר הפעילים.'
+          });
+          return;
+        }
+
+        setFilter(prev => ({
+          ...prev,
+          searchTerm: payload.search !== undefined ? payload.search : prev.searchTerm,
+          status: payload.status || prev.status,
+          typeFilter: payload.typeFilter || prev.typeFilter,
+          metricFilter: payload.metricFilter || prev.metricFilter,
+          tag: payload.tag || prev.tag,
+          community: payload.community || prev.community,
+        }));
+        if (payload.metricFilter) {
+          setActiveMetric(payload.metricFilter);
+        }
+        eventBus.publish('kosai:action_result', {
+          action,
+          success: true,
+          message: 'תצוגת הטבלה עודכנה וסוננה בהתאם לבקשתך.'
+        });
+        return;
+      }
+
+      // 2. CRM_BATCH_UPDATE
+      if (action === 'CRM_BATCH_UPDATE') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        if (!payload?.confirmed) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'העדכון הגורף לא בוצע – נדרש אישור מפורש שלך בצ\'אט.'
+          });
+          return;
+        }
+        try {
+          const count = await batchUpdateContactsInDb(firebaseApp, payload, resolvedCollections);
+          await refresh();
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            affectedCount: count,
+            message: `בוצע בהצלחה! עודכנו ${count} רשומות ב-CRM ללא עלות טוקנים.`
+          });
+        } catch (err) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'חלה שגיאה במהלך ביצוע העדכון הגורף.'
+          });
+        }
+        return;
+      }
+
+      // 3. CRM_CONVERT_LEAD
+      if (action === 'CRM_CONVERT_LEAD') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        const nameToFind = payload?.contactName?.trim().toLowerCase();
+        const contactToConvert = data?.contacts.find(c => 
+          (payload?.contactId && c.id === payload.contactId) ||
+          (nameToFind && (c.conta_name || '').toLowerCase().includes(nameToFind))
+        );
+
+        if (!contactToConvert || !contactToConvert.id) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: `לא נמצא ליד תואם לשם "${payload?.contactName}".`
+          });
+          return;
+        }
+
+        const cid: string = contactToConvert.id;
+        try {
+          await updateField(cid, 'is_lead', false);
+          await updateField(cid, 'contact_type', 'contact');
+          await updateField(cid, 'status', payload?.newStatus || 'active');
+          if (payload?.addTags && Array.isArray(payload.addTags)) {
+            const current = contactToConvert.tags || [];
+            const merged = Array.from(new Set([...current, ...payload.addTags]));
+            await updateField(cid, 'tags', merged);
+          }
+          await refresh();
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            affectedCount: 1,
+            message: `הליד "${contactToConvert.conta_name}" הומר בהצלחה ללקוח פעיל!`
+          });
+        } catch (err) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: `שגיאה בהמרת הליד "${contactToConvert.conta_name}".`
+          });
+        }
+        return;
+      }
+
+      // 4. CRM_SANITIZE_NAMES
+      if (action === 'CRM_SANITIZE_NAMES') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        if (!payload?.confirmed) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'ניקוי השמות לא בוצע – נדרש אישור שלך בצ\'אט.'
+          });
+          return;
+        }
+        try {
+          const res = await sanitizeContactNamesInDb(firebaseApp, payload.scope || 'all', resolvedCollections);
+          await refresh();
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            affectedCount: res.sanitizedCount,
+            message: `ניקוי השמות הושלם! תוקנו ונוקו ${res.sanitizedCount} שמות, וחולצו ${res.extractedTagsCount} תגיות חדשות מסוגריים.`
+          });
+        } catch (err) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'שגיאה במהלך ניקוי השמות.'
+          });
+        }
+        return;
+      }
+
+      // 5. CRM_MERGE_DUPLICATES
+      if (action === 'CRM_MERGE_DUPLICATES') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        if (!payload?.confirmed) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'מיזוג הכפילויות לא בוצע – נדרש אישור מפורש שלך.'
+          });
+          return;
+        }
+        try {
+          const res = await mergeDuplicateContacts();
+          await refresh();
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            affectedCount: res.mergedCount,
+            message: `מיזוג הכפילויות הושלם בהצלחה: מוזגו ${res.mergedCount} קבוצות כפילות, ונוקו ${res.removedCount} רשומות כפולות.`
+          });
+        } catch (err) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'שגיאה במהלך מיזוג הכפילויות.'
+          });
+        }
+        return;
+      }
+
+      // 6. CRM_EXPORT_VCARD
+      if (action === 'CRM_EXPORT_VCARD') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        const nameQuery = (payload?.contactName || '').trim().toLowerCase();
+        const target = data?.contacts.find(c => 
+          (payload?.contactId && c.id === payload.contactId) ||
+          (nameQuery && (c.conta_name || '').toLowerCase().includes(nameQuery))
+        );
+
+        if (!target) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: `לא נמצא איש קשר מתאים בשם "${payload?.contactName}".`
+          });
+          return;
+        }
+
+        downloadVCard(target);
+        eventBus.publish('kosai:action_result', {
+          action,
+          success: true,
+          affectedCount: 1,
+          message: `כרטיס איש הקשר (.vcf) של "${target.conta_name}" הופק והורד בהצלחה למכשירך!`
+        });
+        return;
+      }
+
+      // 7. CRM_EXPORT_DATA
+      if (action === 'CRM_EXPORT_DATA') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        try {
+          const contactsToExport = data?.contacts || [];
+          if (contactsToExport.length === 0) {
+            eventBus.publish('kosai:action_result', {
+              action,
+              success: false,
+              message: 'אין נתונים לייצוא במאגר כרגע.'
+            });
+            return;
+          }
+
+          const headers = ['שם', 'סוג', 'טלפון', 'אימייל', 'עיר', 'סכום רכישות', 'מקור הגעה', 'תגיות'];
+          const rows = contactsToExport.map(c => [
+            `"${(c.conta_name || '').replace(/"/g, '""')}"`,
+            `"${c.is_lead ? 'ליד' : 'לקוח'}"`,
+            `"${c.conta_phone || ''}"`,
+            `"${c.email || ''}"`,
+            `"${c.mh_crm_city || ''}"`,
+            `"${c.total_spent || 0}"`,
+            `"${(c.lead_source || '').replace(/"/g, '""')}"`,
+            `"${(Array.isArray(c.tags) ? c.tags.join(', ') : '').replace(/"/g, '""')}"`
+          ]);
+
+          const csvContent = '\uFEFF' + [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+          const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.setAttribute('href', url);
+          link.setAttribute('download', `kosun_crm_export_${new Date().toISOString().slice(0, 10)}.csv`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            affectedCount: contactsToExport.length,
+            message: `קובץ ה-CSV המכיל ${contactsToExport.length} רשומות הורד בהצלחה למחשבך!`
+          });
+        } catch (err) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'שגיאה במהלך ייצוא הנתונים.'
+          });
+        }
+        return;
+      }
+
+      // 8. CRM_WHATSAPP_DISPATCH
+      if (action === 'CRM_WHATSAPP_DISPATCH') {
+        eventBus.publish('kosai:action_result', { action, success: true, message: '', pending: true });
+        if (!payload?.confirmed) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'שליחת הוואטסאפ לא בוצעה – נדרש אישור מפורש שלך.'
+          });
+          return;
+        }
+
+        const creds = getModuleGreenApiCredentials('crm-analytics');
+        if (!creds?.instanceId || !creds?.token) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'חיבור הוואטסאפ (Green API) אינו מוגדר עבור טננט זה. אנא הגדר פרטי חיבור בהגדרות.'
+          });
+          return;
+        }
+
+        const phone = (payload.recipientPhone || '').replace(/\D/g, '');
+        if (!phone || phone.length < 9) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: 'מספר הטלפון של הנמען אינו תקין לשליחה בוואטסאפ.'
+          });
+          return;
+        }
+
+        const formattedPhone = phone.startsWith('0') ? `972${phone.slice(1)}` : phone;
+        const chatId = `${formattedPhone}@c.us`;
+
+        const waService = new CrmWhatsAppSenderService({
+          idInstance: creds.instanceId,
+          apiTokenInstance: creds.token
+        });
+        const sendRes = await waService.sendMessage({
+          chatId,
+          message: payload.messageText
+        });
+
+        if (sendRes.error) {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: false,
+            message: `שגיאה בשליחת הודעת הוואטסאפ: ${sendRes.error}`
+          });
+        } else {
+          eventBus.publish('kosai:action_result', {
+            action,
+            success: true,
+            affectedCount: 1,
+            message: `הודעת הוואטסאפ נשלחה בהצלחה ל-${payload.recipientName || phone}!`
+          });
+        }
+        return;
+      }
+    });
+
     return () => {
       unsubKesher();
       unsubGroups();
+      unsubKosaiAction();
     };
-  }, [refresh]);
+  }, [refresh, firebaseApp, resolvedCollections, data?.contacts, updateField, mergeDuplicateContacts, tenantId]);
 
   const toggleColumn = (colId: string) => {
     setSelectedColumns(prev => 

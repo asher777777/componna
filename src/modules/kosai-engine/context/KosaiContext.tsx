@@ -524,7 +524,19 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       // Execute action via EventBus if action was specified and is not NONE
       if (parsed.action && parsed.action !== 'NONE') {
         // Module-executed actions report back via 'kosai:action_result'
-        if (parsed.action === 'REMOVE_CONTACT_TAGS') {
+        const crmAsyncActions = [
+          'REMOVE_CONTACT_TAGS',
+          'CRM_FILTER_VIEW',
+          'CRM_BATCH_UPDATE',
+          'CRM_CONVERT_LEAD',
+          'CRM_SANITIZE_NAMES',
+          'CRM_MERGE_DUPLICATES',
+          'CRM_EXPORT_VCARD',
+          'CRM_EXPORT_DATA',
+          'CRM_WHATSAPP_DISPATCH'
+        ];
+
+        if (crmAsyncActions.includes(parsed.action)) {
           let acknowledged = false;
           let finished = false;
           const unsubResult = eventBus.subscribe('kosai:action_result', (result) => {
@@ -533,24 +545,20 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (result.pending) return;
             finished = true;
             unsubResult();
-            setMessages(prev => [...prev, {
-              id: `result_${Date.now()}`,
-              role: 'assistant',
-              content: result.message,
-              timestamp: new Date()
-            }]);
+            if (result.message) {
+              setMessages(prev => [...prev, {
+                id: `result_${Date.now()}`,
+                role: 'assistant',
+                content: result.message,
+                timestamp: new Date()
+              }]);
+            }
           });
           setTimeout(() => {
             if (acknowledged || finished) return;
             finished = true;
             unsubResult();
-            setMessages(prev => [...prev, {
-              id: `result_${Date.now()}`,
-              role: 'assistant',
-              content: 'כדי לבצע את הפעולה יש לפתוח את מסך KosTogether (קהילות וקבוצות) ולבקש שוב.',
-              timestamp: new Date()
-            }]);
-          }, 4000);
+          }, 6000);
         }
 
         eventBus.publish('kosai:action', {

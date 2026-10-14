@@ -332,6 +332,87 @@ export interface RemoveContactTagsPayload {
   confirmed?: boolean;
 }
 
+/** 1. Payload for CRM_FILTER_VIEW – dynamically filters the CRM analytics view from chat */
+export interface CrmFilterViewPayload {
+  search?: string;
+  status?: 'all' | 'active' | 'archived' | 'lead';
+  typeFilter?: 'all' | 'contacts' | 'leads';
+  metricFilter?: 'contacts' | 'revenue' | 'campaigns' | 'communities' | 'forms';
+  tag?: string;
+  community?: string;
+  minSpent?: number;
+  maxSpent?: number;
+  reset?: boolean;
+}
+
+/** 2. Payload for CRM_BATCH_UPDATE – update fields or tags across filtered contacts */
+export interface CrmBatchUpdatePayload {
+  filterCriteria: {
+    city?: string;
+    source?: string;
+    tag?: string;
+    status?: string;
+    isLead?: boolean;
+    contactIds?: string[];
+  };
+  updates: {
+    addTags?: string[];
+    removeTags?: string[];
+    status?: string;
+    city?: string;
+    notes?: string;
+    leadSource?: string;
+  };
+  confirmed?: boolean;
+}
+
+/** 3. Payload for CRM_CONVERT_LEAD – converts a lead into an active paying or verified customer */
+export interface CrmConvertLeadPayload {
+  contactId?: string;
+  contactName?: string;
+  newStatus?: string;
+  addTags?: string[];
+  confirmed?: boolean;
+}
+
+/** 4. Payload for CRM_SANITIZE_NAMES – cleans names and extracts tags from brackets/numbers */
+export interface CrmSanitizeNamesPayload {
+  scope?: 'all' | 'leads' | 'whatsapp' | 'selected';
+  confirmed?: boolean;
+}
+
+/** 5. Payload for CRM_MERGE_DUPLICATES – discovers duplicates and merges them cleanly */
+export interface CrmMergeDuplicatesPayload {
+  field?: 'phone' | 'email';
+  confirmed?: boolean;
+}
+
+/** 6. Payload for CRM_EXPORT_VCARD – generates and downloads vCard for a contact */
+export interface CrmExportVcardPayload {
+  contactId?: string;
+  contactName?: string;
+}
+
+/** 7. Payload for CRM_EXPORT_DATA – exports filtered dataset to Excel/CSV */
+export interface CrmExportDataPayload {
+  format?: 'csv' | 'xlsx';
+  filterCriteria?: {
+    city?: string;
+    tag?: string;
+    isLead?: boolean;
+    minSpent?: number;
+  };
+}
+
+/** 8. Payload for CRM_WHATSAPP_DISPATCH – dispatches WhatsApp message via tenant Green-API */
+export interface CrmWhatsappDispatchPayload {
+  recipientPhone?: string;
+  recipientName?: string;
+  targetGroup?: 'leads' | 'vip' | 'selected' | 'all';
+  messageText: string;
+  confirmed?: boolean;
+}
+
 /** Result reported back to the KosAi chat by the module that executed an action */
 export interface KosaiActionResult {
   action: string;

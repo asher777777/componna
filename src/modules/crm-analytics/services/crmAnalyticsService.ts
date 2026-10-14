@@ -1161,3 +1161,191 @@ export async function mergeDuplicateContactsInDb(
 
   return { mergedCount, removedCount };
 }
+
+/**
+ * Bulk updates contacts in Firestore based on filter criteria
+ */
+export async function batchUpdateContactsInDb(
+  firebaseApp: FirebaseApp | undefined,
+  params: {
+    filterCriteria: {
+      city?: string;
+      source?: string;
+      tag?: string;
+      status?: string;
+      isLead?: boolean;
+      contactIds?: string[];
+    };
+    updates: {
+      addTags?: string[];
+      removeTags?: string[];
+      status?: string;
+      city?: string;
+      notes?: string;
+      leadSource?: string;
+    };
+  },
+  collections = DEFAULT_COLLECTIONS
+): Promise<number> {
+  if (!firebaseApp) return 0;
+  try {
+    const db = getFirestore(firebaseApp);
+    const colRef = collection(db, collections.contacts);
+    const snap = await getDocs(colRef);
+    if (snap.empty) return 0;
+
+    const { filterCriteria, updates } = params;
+    let batch = writeBatch(db);
+    let updatedCount = 0;
+    let opCount = 0;
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      
+      // Match filter criteria
+      if (filterCriteria.contactIds && filterCriteria.contactIds.length > 0) {
+        if (!filterCriteria.contactIds.includes(d.id)) continue;
+      }
+      if (filterCriteria.city && (data.mh_crm_city || data.city) !== filterCriteria.city) continue;
+      if (filterCriteria.source && (data.lead_source || data.source) !== filterCriteria.source) continue;
+      if (filterCriteria.status && (data.status || 'active') !== filterCriteria.status) continue;
+      if (filterCriteria.isLead !== undefined && Boolean(data.is_lead) !== filterCriteria.isLead) continue;
+      if (filterCriteria.tag) {
+        const currentTags: string[] = Array.isArray(data.tags) ? data.tags : [];
+        if (!currentTags.includes(filterCriteria.tag)) continue;
+      }
+
+      // Build update payload
+      const docUpdates: Record<string, any> = {
+        updatedAt: new Date().toISOString()
+      };
+
+      if (updates.status) docUpdates.status = updates.status;
+      if (updates.city) {
+        docUpdates.mh_crm_city = updates.city;
+        docUpdates.city = updates.city;
+      }
+      if (updates.notes) docUpdates.notes = updates.notes;
+      if (updates.leadSource) {
+        docUpdates.lead_source = updates.leadSource;
+        docUpdates.source = updates.leadSource;
+      }
+
+      // Tag updates
+      if (updates.addTags || updates.removeTags) {
+        let currentTags: string[] = Array.isArray(data.tags) ? [...data.tags] : [];
+        if (updates.addTags) {
+          updates.addTags.forEach(t => {
+            if (t && !currentTags.includes(t)) currentTags.push(t);
+          });
+        }
+        if (updates.removeTags) {
+          currentTags = currentTags.filter(t => !updates.removeTags!.includes(t));
+        }
+        docUpdates.tags = currentTags;
+      }
+
+      batch.update(d.ref, docUpdates);
+      opCount++;
+      updatedCount++;
+
+      if (opCount >= 400) {
+        await batch.commit();
+        batch = writeBatch(db);
+        opCount = 0;
+      }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
+    }
+
+    return updatedCount;
+  } catch (err) {
+    console.error('batchUpdateContactsInDb error:', err);
+    return 0;
+  }
+}
+
+/**
+ * Sanitizes contact names and extracts memory tags from brackets/numbers
+ */
+export async function sanitizeContactNamesInDb(
+  firebaseApp: FirebaseApp | undefined,
+  scope: 'all' | 'leads' | 'whatsapp' | 'selected' = 'all',
+  collections = DEFAULT_COLLECTIONS
+): Promise<{ sanitizedCount: number; extractedTagsCount: number }> {
+  if (!firebaseApp) return { sanitizedCount: 0, extractedTagsCount: 0 };
+  try {
+    const db = getFirestore(firebaseApp);
+    const colRef = collection(db, collections.contacts);
+    const snap = await getDocs(colRef);
+    if (snap.empty) return { sanitizedCount: 0, extractedTagsCount: 0 };
+
+    let batch = writeBatch(db);
+    let sanitizedCount = 0;
+    let extractedTagsCount = 0;
+    let opCount = 0;
+
+    for (const d of snap.docs) {
+      const data = d.data();
+      const rawName = data.conta_name || data.fullName || data.name || '';
+      if (!rawName || typeof rawName !== 'string') continue;
+
+      let name = rawName.trim();
+      const extractedTags: string[] = [];
+
+      // 1. Emojis
+      const cleanNameNoEmoji = name.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, ' ').trim();
+
+      // 2. Bracketed notes into tags
+      let finalName = cleanNameNoEmoji;
+      const bracketMatches = finalName.match(/[\(\[\{]([^\)\]\}]+)[\)\]\}]/g);
+      if (bracketMatches) {
+        bracketMatches.forEach((m) => {
+          const tagContent = m.slice(1, -1).trim();
+          if (tagContent && !/^\+?[\d\-\.\s]+$/.test(tagContent)) {
+            extractedTags.push(tagContent);
+          }
+          finalName = finalName.replace(m, ' ').trim();
+        });
+      }
+
+      // 3. Trailing phone numbers in name
+      finalName = finalName.replace(/\s*[\(\[]?05\d[\d\-\.\s]{6,}[\)\]]?$/g, '').trim();
+
+      if (finalName !== rawName || extractedTags.length > 0) {
+        const currentTags: string[] = Array.isArray(data.tags) ? [...data.tags] : [];
+        const mergedTags = Array.from(new Set([...currentTags, ...extractedTags]));
+
+        batch.update(d.ref, {
+          conta_name: finalName || rawName,
+          fullName: finalName || rawName,
+          name: finalName || rawName,
+          tags: mergedTags,
+          updatedAt: new Date().toISOString()
+        });
+
+        sanitizedCount++;
+        extractedTagsCount += extractedTags.length;
+        opCount++;
+
+        if (opCount >= 400) {
+          await batch.commit();
+          batch = writeBatch(db);
+          opCount = 0;
+        }
+      }
+    }
+
+    if (opCount > 0) {
+      await batch.commit();
+    }
+
+    return { sanitizedCount, extractedTagsCount };
+  } catch (err) {
+    console.error('sanitizeContactNamesInDb error:', err);
+    return { sanitizedCount: 0, extractedTagsCount: 0 };
+  }
+}
+

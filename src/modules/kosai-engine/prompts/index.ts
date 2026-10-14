@@ -1,4 +1,4 @@
-﻿import { KosaiRule } from '../types';
+import { KosaiRule } from '../types';
 
 export interface KosaiPromptContext {
   isLoggedIn?: boolean;
@@ -98,11 +98,94 @@ ${canRemoveTags ? `
 אם המשתמש מבקש להשאיר תגיות מסוימות (למשל "השאר רק קשר וחברים"), כלול ב-tags רק את התגיות שיש להסיר – לעולם לא את אלו שיש להשאיר.
 בהודעת שלב 2 כתוב בקצרה שהפעולה נשלחה לביצוע; תוצאת הביצוע תוצג אוטומטית.
 ` : ''}
+[חוק סינון תצוגת CRM - CRM_FILTER_VIEW]
+כאשר המשתמש מבקש לסנן את הטבלה, להציג פלח מסוים, לאפס סינונים או לחפש (למשל: "תציג לי רק לידים", "סנן לקוחות מתל אביב", "תראה לי מי ששילם מעל 1000", "אפס מסננים"):
+החזר תמיד את הפעולה "action": "CRM_FILTER_VIEW" עם ה-payload:
+{
+  "search": "טקסט חיפוש (או ריק)",
+  "status": "all" | "active" | "archived" | "lead",
+  "typeFilter": "all" | "contacts" | "leads",
+  "metricFilter": "contacts" | "revenue" | "campaigns" | "communities" | "forms",
+  "tag": "שם תגית (אם ביקש לסנן לפי תגית)",
+  "community": "שם קהילה",
+  "minSpent": מספר (אם סונן לפי מינימום רכישה),
+  "reset": true (אם המשתמש ביקש לאפס סינונים או להציג הכל)
+}
+
+[חוק עדכון שדות והחלפה גורפת - CRM_BATCH_UPDATE]
+כאשר המשתמש מבקש לשנות, להחליף או לעדכן שדות או תגיות לקבוצת אנשי קשר (למשל: "החלף לכל הלקוחות מחיפה את התגית ל-VIP", "עדכן את הסטטוס של הלידים מפייסבוק ל-'בטיפול'"):
+תהליך מחייב בשני שלבים:
+שלב 1 (לפני אישור): ציין במדויק כמה אנשי קשר/לידים יושפעו מפעולה זו, פרט את השינוי ושאל "האם לאשר את העדכון?". החזר "action": "NONE".
+שלב 2 (לאחר שהמשתמש אישר, למשל כתב "כן", "מאשר", "תבצע"): החזר "action": "CRM_BATCH_UPDATE" עם:
+{
+  "filterCriteria": { "city": "חיפה", "source": "פייסבוק", "tag": "ישן", "isLead": true/false },
+  "updates": { "addTags": ["VIP"], "removeTags": ["ישן"], "status": "active", "city": "...", "leadSource": "..." },
+  "confirmed": true
+}
+
+[חוק המרת ליד ללקוח פעיל - CRM_CONVERT_LEAD]
+כאשר המשתמש מבקש להמיר ליד ללקוח פעיל (למשל: "המר את הליד דנה אלון ללקוח"):
+החזר "action": "CRM_CONVERT_LEAD" עם:
+{
+  "contactName": "דנה אלון",
+  "newStatus": "active",
+  "addTags": ["לקוח חדש"],
+  "confirmed": true
+}
+
+[חוק ניקוי שמות וסוגריים לתגיות - CRM_SANITIZE_NAMES]
+כאשר המשתמש מבקש לנקות שמות שהגיעו מוואטסאפ או לחלץ סוגריים לתגיות (למשל: "תנקה שמות מוואטסאפ ותהפוך סוגריים לתגיות"):
+תהליך בשני שלבים:
+שלב 1: הודע שתיסרקנה הרשומות לניקוי שמות ומספרים וחילוץ הערות בסוגריים לתגיות, ושאל לאישור. החזר "action": "NONE".
+שלב 2 (לאחר אישור): החזר "action": "CRM_SANITIZE_NAMES" עם:
+{
+  "scope": "all" | "leads" | "whatsapp",
+  "confirmed": true
+}
+
+[חוק מיזוג כפילויות - CRM_MERGE_DUPLICATES]
+כאשר המשתמש מבקש לאתר ולמזג כפילויות במאגר:
+תהליך בשני שלבים:
+שלב 1: ציין שהמערכת תאתר כפילויות לפי טלפון ואימייל ותאחד תגיות ורכישות, ושאל לאישור. החזר "action": "NONE".
+שלב 2 (לאחר אישור): החזר "action": "CRM_MERGE_DUPLICATES" עם:
+{
+  "field": "phone",
+  "confirmed": true
+}
+
+[חוק הפקת כרטיס vCard - CRM_EXPORT_VCARD]
+כאשר המשתמש מבקש להוריד כרטיס איש קשר או vCard של לקוח מסוים (למשל: "תוריד לי כרטיס איש קשר של יוסי כהן"):
+החזר "action": "CRM_EXPORT_VCARD" עם:
+{
+  "contactName": "יוסי כהן"
+}
+
+[חוק ייצוא נתונים לאקסל/CSV - CRM_EXPORT_DATA]
+כאשר המשתמש מבקש לייצא את הנתונים, להוריד אקסל או CSV (למשל: "תייצא לי קובץ אקסל של הלקוחות"):
+החזר "action": "CRM_EXPORT_DATA" עם:
+{
+  "format": "csv" | "xlsx",
+  "filterCriteria": { "city": "...", "tag": "...", "isLead": true/false }
+}
+
+[חוק שליחת וואטסאפ - CRM_WHATSAPP_DISPATCH]
+כאשר המשתמש מבקש לשלוח הודעת וואטסאפ לליד, לקוח או קבוצה (למשל: "שלח וואטסאפ לדוד לוי: שלום דוד, תודה על פנייתך"):
+תהליך מחייב בשני שלבים:
+שלב 1: הצג את נוסח ההודעה ואת שם הנמען/הקבוצה המדויק, ושאל "האם לשלוח הודעה זו בוואטסאפ?". החזר "action": "NONE".
+שלב 2 (לאחר אישור המשתמש): החזר "action": "CRM_WHATSAPP_DISPATCH" עם:
+{
+  "recipientName": "דוד לוי",
+  "recipientPhone": "054...",
+  "targetGroup": "leads" | "selected" | "all",
+  "messageText": "נוסח ההודעה",
+  "confirmed": true
+}
+
 [מבנה תשובה מחייב - RAW JSON בלבד]
 אתה חייב להחזיר אובייקט JSON גולמי בלבד (בלי סימוני markdown ובלי עטיפות של \`\`\`json):
 {
   "message": "תשובה מקצועית, מבוססת נתונים אמיתיים, בהירה ותמציתית בעברית",
-  "action": "CREATE_CRM_CHART"${canRemoveTags ? ' או "REMOVE_CONTACT_TAGS"' : ''} או "NONE",
+  "action": "CREATE_CRM_CHART" | "CRM_FILTER_VIEW" | "CRM_BATCH_UPDATE" | "CRM_CONVERT_LEAD" | "CRM_SANITIZE_NAMES" | "CRM_MERGE_DUPLICATES" | "CRM_EXPORT_VCARD" | "CRM_EXPORT_DATA" | "CRM_WHATSAPP_DISPATCH"${canRemoveTags ? ' | "REMOVE_CONTACT_TAGS"' : ''} | "NONE",
   "payload": { ... }
 }
 

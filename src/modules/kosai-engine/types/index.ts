@@ -41,7 +41,15 @@ export type KosaiCapability =
   | 'UPDATE_GLOBAL_SETTINGS'
   | 'UPDATE_SEO'
   | 'CREATE_CRM_CHART'
-  | 'REMOVE_CONTACT_TAGS';
+  | 'REMOVE_CONTACT_TAGS'
+  | 'CRM_FILTER_VIEW'
+  | 'CRM_BATCH_UPDATE'
+  | 'CRM_CONVERT_LEAD'
+  | 'CRM_SANITIZE_NAMES'
+  | 'CRM_MERGE_DUPLICATES'
+  | 'CRM_EXPORT_VCARD'
+  | 'CRM_EXPORT_DATA'
+  | 'CRM_WHATSAPP_DISPATCH';
 
 export interface KosaiMessage {
   id: string;
