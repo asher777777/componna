@@ -20,12 +20,16 @@ import {
   Send,
   Maximize2,
   Minimize2,
-  ExternalLink
+  ExternalLink,
+  Shield,
+  Play
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { CapabilitySlot } from '../../../core/bridge/CapabilitySlot';
 import { KosunUniversalDock } from '../../../components/Navigation/KosunUniversalDock';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { doc, getDoc } from 'firebase/firestore';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { KosTubeSeoPage } from '../types';
 
@@ -35,12 +39,18 @@ export const PublicVideoSeoPageView: React.FC = () => {
   const { tenantId } = useTenantScope();
 
   const [page, setPage] = useState<KosTubeSeoPage | null>(null);
+  const [brandDna, setBrandDna] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  // Local comments state for visitor interaction
+  // Truthful metrics state
+  const [pageViewsCount, setPageViewsCount] = useState<number>(0);
+  const [pageLikesCount, setPageLikesCount] = useState<number>(0);
+  const [isPageLiked, setIsPageLiked] = useState<boolean>(false);
+
+  // Local comments state for visitor interaction (NO MOCK DATA)
   const [commentsList, setCommentsList] = useState<Array<{
     id: string;
     authorName: string;
@@ -55,40 +65,45 @@ export const PublicVideoSeoPageView: React.FC = () => {
 
   useEffect(() => {
     let isMounted = true;
-    async function loadPage() {
+    async function loadPageAndBrand() {
       if (!slug) return;
       setLoading(true);
       try {
+        // 1. Load tenant brand DNA
+        if (db) {
+          try {
+            const bRef = doc(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
+            const bSnap = await getDoc(bRef);
+            if (isMounted && bSnap.exists()) {
+              setBrandDna(bSnap.data());
+            }
+          } catch (bErr) {
+            console.warn('[PublicVideoSeoPageView] load brand DNA error:', bErr);
+          }
+        }
+
+        // 2. Load SEO page by slug
         const found = await kosTubeFirestore.getSeoPageBySlug(db, tenantId, slug);
         if (isMounted && found) {
           setPage(found);
+          setPageLikesCount(Number(found.likeCount || 0));
+
+          // Real comments only (no fabricated names)
           if (found.youtubeComments && found.youtubeComments.length > 0) {
             setCommentsList(found.youtubeComments);
           } else {
-            setCommentsList([
-              {
-                id: 'c1',
-                authorName: 'איתי לוי',
-                publishedAt: 'לפני יומיים',
-                content: 'סרטון מדהים ומדויק! התובנות לגבי יישום מעשי עשו לי סדר מוחלט. תודה רבה.',
-                likesCount: 16,
-              },
-              {
-                id: 'c2',
-                authorName: 'שירה אלון',
-                publishedAt: 'לפני 4 ימים',
-                content: 'פירוט מעולה וברור, מומלץ מאוד לכל מי שרוצה להבין את התחום לעומק.',
-                likesCount: 11,
-              },
-              {
-                id: 'c3',
-                authorName: 'דניאל כהן',
-                publishedAt: 'לפני שבוע',
-                content: 'אחד הסרטונים הטובים ביותר שראיתי בנושא. שמח שנתקלתי בזה.',
-                likesCount: 24,
-              },
-            ]);
+            setCommentsList([]);
           }
+
+          // Track authentic page views (increment once per visitor session)
+          const sessionKey = `kosvidio_viewed_${found.id}`;
+          let currentViews = Number(found.pageViewsCount || 0);
+          if (typeof window !== 'undefined' && !sessionStorage.getItem(sessionKey)) {
+            sessionStorage.setItem(sessionKey, '1');
+            currentViews += 1;
+            kosTubeFirestore.incrementPageViews(db, tenantId, found.id, found.pageBuilderPageId);
+          }
+          setPageViewsCount(currentViews);
         }
       } catch (err) {
         console.error('[PublicVideoSeoPageView] Error loading page:', err);
@@ -98,7 +113,7 @@ export const PublicVideoSeoPageView: React.FC = () => {
         }
       }
     }
-    loadPage();
+    loadPageAndBrand();
     return () => {
       isMounted = false;
     };
@@ -212,22 +227,44 @@ export const PublicVideoSeoPageView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-100 font-sans selection:bg-red-600 selection:text-white" dir="rtl">
-      {/* Top Banner Navigation */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090b14]/80 border-b border-slate-800/80">
+      {/* Top Banner Navigation with Tenant Branding */}
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090b14]/85 border-b border-slate-800/80 shadow-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-red-600/20">
-              <Youtube className="w-5 h-5" />
-            </div>
+            {brandDna?.identity?.logoUrl ? (
+              <img
+                src={brandDna.identity.logoUrl}
+                alt={brandDna?.identity?.companyName || 'לוגו העסק'}
+                className="h-9 w-auto max-w-[150px] object-contain rounded-lg"
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-600 text-white flex items-center justify-center font-black text-base shadow-md shadow-indigo-600/20">
+                {(brandDna?.identity?.companyName || 'קושאן').slice(0, 2)}
+              </div>
+            )}
             <div>
-              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">
-                {page.channelTitle || 'קושאן Kosvidio'}
+              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white block">
+                {brandDna?.identity?.companyName || 'קושאן'}
               </span>
-              <span className="block text-[11px] text-slate-400">עמוד וידאו ומאמר AI SEO מקודם</span>
+              <span className="block text-[11px] text-slate-400 -mt-0.5 font-medium">
+                {brandDna?.identity?.slogan || 'וידאו חכם ומאמרי AI SEO'}
+              </span>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
+            {brandDna?.trust?.whatsappSupportNumber && (
+              <a
+                href={`https://wa.me/${brandDna.trust.whatsappSupportNumber.replace(/\D/g, '')}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">וואטסאפ ישיר</span>
+              </a>
+            )}
+
             <button
               type="button"
               onClick={handleCopyLink}
@@ -244,7 +281,7 @@ export const PublicVideoSeoPageView: React.FC = () => {
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition hover:scale-105"
             >
               <Share2 className="w-3.5 h-3.5" />
-              <span>שיתוף בוואטסאפ</span>
+              <span>שיתוף</span>
             </a>
           </div>
         </div>
@@ -265,7 +302,7 @@ export const PublicVideoSeoPageView: React.FC = () => {
             <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
               <div className="flex items-center gap-2">
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
-                <span className="font-bold text-slate-200">נגן וידאו Kosvidio Ultra HD</span>
+                <span className="font-bold text-slate-200">נגן וידאו Kosvidio</span>
               </div>
 
               <button
@@ -288,50 +325,129 @@ export const PublicVideoSeoPageView: React.FC = () => {
               </button>
             </div>
 
-            {/* 16:9 Responsive Video Frame */}
-            <div className="relative w-full aspect-video bg-black flex items-center justify-center">
+            {/* 16:9 Responsive Video Frame with Anti-leak protection */}
+            <div className="relative w-full aspect-video bg-black flex items-center justify-center group/video">
               <iframe
-                src={embedUrl}
+                src={`https://www.youtube-nocookie.com/embed/${page.youtubeVideoId}?rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&playsinline=1`}
                 title={page.h1 || page.metaTitle}
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
+              />
+
+              {/* Anti-leak YouTube Redirect Shield (intercepts accidental click away to youtube.com) */}
+              <div 
+                className="absolute bottom-0 right-0 w-32 h-14 z-20 pointer-events-auto cursor-default bg-transparent"
+                title="נגן וידאו ישיר באתר"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
               />
             </div>
           </div>
         </div>
 
         {/* ============================================================== */}
-        {/* 2. תחתיו הכותרת (Title & Metadata)                             */}
+        {/* 2. תחתיו הכותרת (Title & Metadata & Truthful Stats)            */}
         {/* ============================================================== */}
         <div className="mb-5 pb-5 border-b border-slate-800/60">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-sm mb-3">
             {page.h1 || page.metaTitle}
           </h1>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+            {/* Creator / Channel Info */}
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white/10">
-                {(page.channelTitle || 'קושאן').slice(0, 2)}
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white/10 overflow-hidden">
+                {(page.channelTitle || 'יוטיוב').slice(0, 2)}
               </div>
               <div>
                 <div className="flex items-center gap-1.5 font-bold text-slate-200">
-                  <span>{page.channelTitle || 'קושאן'}</span>
+                  <span>{page.channelTitle || 'ערוץ וידאו'}</span>
                   <CheckCircle2 className="w-4 h-4 text-sky-400 fill-sky-400/20" />
                 </div>
-                <div className="text-[11px] text-slate-400">ערוץ יוטיוב מקושר</div>
+                <div className="text-[11px] text-slate-400">יוצר התוכן והערוץ המקורי</div>
               </div>
             </div>
 
-            <div className="flex items-center gap-4 text-slate-400 text-xs">
-              <span className="flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                פורסם ב-{new Date(page.publishedAt || page.createdAt).toLocaleDateString('he-IL')}
+            {/* Engagement Stats Bar (Truthful metrics only) */}
+            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+              {/* Real Page Views Counter */}
+              <div 
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-emerald-400 font-semibold shadow-sm"
+                title="כמות כניסות וצפיות אמיתיות בעמוד האתר"
+              >
+                <Eye className="w-4 h-4 text-emerald-400" />
+                <span>{pageViewsCount.toLocaleString('he-IL')} צפיות בעמוד</span>
+              </div>
+
+              {/* YouTube Video Views (Truthful from API, only shown if present) */}
+              {page.viewCount !== undefined && page.viewCount > 0 && (
+                <div 
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 font-medium shadow-sm"
+                  title="נתוני צפיות רשמיים מיוטיוב"
+                >
+                  <Youtube className="w-4 h-4 text-red-500" />
+                  <span>{page.viewCount.toLocaleString('he-IL')} ביוטיוב</span>
+                </div>
+              )}
+
+              {/* Interactive Like Action Pill */}
+              <div className="flex items-center rounded-full bg-slate-900 border border-slate-800 overflow-hidden shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsPageLiked(!isPageLiked);
+                    setPageLikesCount((prev) => (isPageLiked ? Math.max(0, prev - 1) : prev + 1));
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors ${
+                    isPageLiked
+                      ? 'text-red-400 bg-red-500/10'
+                      : 'text-slate-200 hover:bg-slate-800'
+                  }`}
+                  title="סימון לייק"
+                >
+                  <ThumbsUp className={`w-3.5 h-3.5 ${isPageLiked ? 'fill-red-400 text-red-400' : 'text-slate-400'}`} />
+                  <span>{pageLikesCount.toLocaleString('he-IL')}</span>
+                </button>
+                <div className="w-[1px] h-4 bg-slate-800" />
+                <button
+                  type="button"
+                  className="px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  title="לא אהבתי"
+                >
+                  <ThumbsDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Comments Jump Pill */}
+              <a
+                href="#kosvidio-comments"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium transition-colors shadow-sm"
+              >
+                <MessageSquare className="w-4 h-4 text-red-500" />
+                <span>{commentsList.length} תגובות</span>
+              </a>
+
+              {/* SEO Score Badge */}
+              <div className="hidden sm:flex items-center gap-1 px-2 text-slate-400 text-xs">
+                <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                <span>ציון SEO: {page.seoScore}/100</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Tenant Ownership & Creator Credit Badge */}
+          <div className="mt-3.5 p-2.5 px-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-indigo-400" />
+              <span>
+                העמוד והתוכן מנוהלים על ידי <strong>{brandDna?.identity?.companyName || 'קושאן'}</strong>
               </span>
-              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                <Sparkles className="w-3.5 h-3.5" />
-                ציון SEO: {page.seoScore}/100
-              </span>
+            </div>
+            <div className="text-slate-500 text-[11px]">
+              קרדיט וזכויות תוכן וידאו: <strong>{page.channelTitle || 'יוטיוב'}</strong>
             </div>
           </div>
         </div>
@@ -476,56 +592,64 @@ export const PublicVideoSeoPageView: React.FC = () => {
           </form>
 
           {/* Comments List */}
-          <div className="space-y-4">
-            {commentsList.map((comment) => (
-              <div key={comment.id} className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm">
-                  {comment.authorName.slice(0, 1)}
-                </div>
-
-                <div className="flex-1 text-sm">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-slate-200 text-xs">
-                      {comment.authorName}
-                    </span>
-                    <span className="text-[11px] text-slate-400">{comment.publishedAt}</span>
+          {commentsList.length === 0 ? (
+            <div className="p-6 text-center rounded-xl bg-slate-800/30 border border-dashed border-slate-800 text-slate-400 text-xs sm:text-sm">
+              <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-50" />
+              <p className="font-semibold text-slate-300">עדיין אין תגובות בעמוד זה.</p>
+              <p className="text-slate-500 text-xs mt-1">היו הראשונים להגיב ולשתף את דעתכם על הסרטון!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {commentsList.map((comment) => (
+                <div key={comment.id} className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm">
+                    {comment.authorName.slice(0, 1)}
                   </div>
 
-                  <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-1.5">
-                    {comment.content}
-                  </p>
+                  <div className="flex-1 text-sm">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-slate-200 text-xs">
+                        {comment.authorName}
+                      </span>
+                      <span className="text-[11px] text-slate-400">{comment.publishedAt}</span>
+                    </div>
 
-                  <div className="flex items-center gap-3 text-xs text-slate-400">
-                    <button
-                      type="button"
-                      onClick={() => handleToggleLike(comment.id)}
-                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors ${
-                        comment.userLiked ? 'text-red-400 font-bold' : 'hover:text-slate-200'
-                      }`}
-                    >
-                      <ThumbsUp className={`w-3.5 h-3.5 ${comment.userLiked ? 'fill-red-400' : ''}`} />
-                      <span>{comment.likesCount}</span>
-                    </button>
+                    <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-1.5">
+                      {comment.content}
+                    </p>
 
-                    <button
-                      type="button"
-                      className="p-1 rounded hover:bg-slate-800 hover:text-slate-200 transition-colors"
-                      title="לא אהבתי"
-                    >
-                      <ThumbsDown className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-3 text-xs text-slate-400">
+                      <button
+                        type="button"
+                        onClick={() => handleToggleLike(comment.id)}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors ${
+                          comment.userLiked ? 'text-red-400 font-bold' : 'hover:text-slate-200'
+                        }`}
+                      >
+                        <ThumbsUp className={`w-3.5 h-3.5 ${comment.userLiked ? 'fill-red-400' : ''}`} />
+                        <span>{comment.likesCount}</span>
+                      </button>
 
-                    <button
-                      type="button"
-                      className="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 font-semibold text-[11px] transition-colors"
-                    >
-                      השב
-                    </button>
+                      <button
+                        type="button"
+                        className="p-1 rounded hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                        title="לא אהבתי"
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        type="button"
+                        className="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 font-semibold text-[11px] transition-colors"
+                      >
+                        השב
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* ============================================================== */}

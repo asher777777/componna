@@ -2,8 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { PageBuilderContract, SYSTEM_COLLECTIONS } from '../../../core/contracts';
-import { doc, setDoc } from 'firebase/firestore';
+import { PageBuilderContract, BrandDnaContract, SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
@@ -154,9 +154,28 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setGeneratingVideoId(video.id);
       setError(null);
       try {
+        let brandDna: any = null;
+        try {
+          const brandCap = getCapability<BrandDnaContract>('brand-dna');
+          if (brandCap?.getBrandDna) {
+            brandDna = brandCap.getBrandDna();
+          }
+          if (!brandDna && db) {
+            const bSnap = await getDoc(
+              doc(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC)
+            );
+            if (bSnap.exists()) {
+              brandDna = bSnap.data();
+            }
+          }
+        } catch (e) {
+          console.warn('[KosTube] Could not load brand DNA:', e);
+        }
+
         const res = await generateAiSeoContent({
           video,
           channelTitle: channel?.title || 'ערוץ יוטיוב',
+          brandDna,
         });
 
         if (!res.success || !res.data) {
@@ -165,9 +184,19 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
 
         const pageId = `page_${video.youtubeVideoId}`;
-        const slug = res.data.slug || `kosvidio-${video.youtubeVideoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        const rawSlug = res.data.slug?.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'kosvidio';
+        const slug = rawSlug.startsWith('kosvidio') ? rawSlug : 'kosvidio';
         let publicUrl = `/tube/${slug}`;
         let pbPageId = `page_kosvidio_${video.youtubeVideoId}`;
+
+        const brandCompanyName = brandDna?.identity?.companyName || 'קושאן';
+        const brandLogo = brandDna?.identity?.logoUrl || '';
+        const brandSlogan = brandDna?.identity?.slogan || 'וידאו חכם ומאמרי SEO מעמיקים';
+        const primaryColor = brandDna?.designTokens?.primaryColor || '#ef4444';
+        const secondaryColor = brandDna?.designTokens?.secondaryColor || '#8b5cf6';
+        const whatsapp = brandDna?.trust?.whatsappSupportNumber || '';
+        const phone = brandDna?.trust?.contactPhone || '';
+        const email = brandDna?.trust?.contactEmail || '';
 
         // 1. Connect to PageBuilder capability if available
         if (pageBuilder?.createPageFromVideo) {
@@ -175,6 +204,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const pbRes = await pageBuilder.createPageFromVideo({
               video,
               channelTitle: channel?.title || 'ערוץ יוטיוב',
+              brandDna,
               aiData: res.data,
             });
             if (pbRes.success) {
@@ -201,24 +231,24 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
               viewsCount: 0,
               leadsCount: 0,
               globalSettings: {
-                siteTitle: `${res.data.h1 || video.title} | Kosvidio`,
-                companyName: channel?.title || 'קושאן',
-                slogan: 'וידאו חכם ומאמרי SEO מעמיקים',
+                siteTitle: `${res.data.h1 || video.title} | ${brandCompanyName}`,
+                companyName: brandCompanyName,
+                slogan: brandSlogan,
                 theme: 'dark',
                 headerLayout: 'floating-glass',
                 headerSticky: true,
                 isHeaderVisible: true,
                 isFooterVisible: true,
-                primaryColor: '#ef4444',
-                secondaryColor: '#8b5cf6',
+                primaryColor,
+                secondaryColor,
                 backgroundColor: '#090a0f',
                 textColor: '#f8fafc',
                 fontFamily: 'Heebo, sans-serif',
                 borderRadius: 'lg',
                 buttonStyle: 'gradient',
-                contactWhatsApp: '0526968008',
-                contactPhone: '052-6968008',
-                contactEmail: 'ovt5771@gmail.com',
+                contactWhatsApp: whatsapp,
+                contactPhone: phone,
+                contactEmail: email,
               },
               seoSettings: {
                 title: res.data.metaTitle || video.title,
@@ -232,9 +262,11 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   id: 'header-1',
                   visible: true,
                   layout: 'floating-glass',
-                  title: 'Kosvidio',
+                  title: brandCompanyName,
                   showLogoText: true,
-                  logoText: 'Kosvidio',
+                  logoText: brandCompanyName,
+                  useBrandLogo: true,
+                  customLogoUrl: brandLogo,
                 },
                 'kosvidio-1': {
                   type: 'kosvidio',
@@ -244,8 +276,12 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   title: res.data.h1 || video.title,
                   channelName: channel?.title || 'ערוץ יוטיוב',
                   channelAvatarUrl: video.thumbnailUrl,
+                  viewsCount: Number(video.viewCount || 0),
+                  likesCount: Number(video.likeCount || 0),
+                  commentsCount: 0,
+                  pageViewsCount: 0,
                   tags: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
-                  comments: res.data.youtubeComments || [],
+                  comments: [],
                   shortDescription: res.data.executiveSummary || video.description.slice(0, 160),
                   longDescriptionMarkdown: res.data.articleContent || '',
                   keyTakeaways: res.data.keyTakeaways || [],
@@ -259,8 +295,11 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   type: 'contact',
                   id: 'contact-1',
                   visible: true,
-                  title: 'יש לכם שאלות או רוצים לשתף פעולה?',
-                  subtitle: 'צרו קשר ישיר עם יוצר התוכן והצוות',
+                  title: `צרו קשר עם ${brandCompanyName}`,
+                  subtitle: 'יש לכם שאלות או מעוניינים בפרטים נוספים? נשמח לסייע',
+                  phone,
+                  email,
+                  whatsApp: whatsapp,
                 },
               },
               createdAt: new Date().toISOString(),
@@ -285,7 +324,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           metaDescription: res.data.metaDescription || video.description.slice(0, 150),
           focusKeywords: res.data.focusKeywords || [],
           tags: res.data.tags || [],
-          youtubeComments: res.data.youtubeComments || [],
+          youtubeComments: [],
           pageBuilderPageId: pbPageId,
           h1: res.data.h1 || video.title,
           articleContent: res.data.articleContent || '',
@@ -293,11 +332,12 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           keyTakeaways: res.data.keyTakeaways || [],
           faqs: res.data.faqs || [],
           callToAction: {
-            title: res.data.callToAction?.title || 'רוצים תוצאות דומות בעסק שלכם?',
+            title: res.data.callToAction?.title || `רוצים תוצאות דומות עם ${brandCompanyName}?`,
             subtitle: res.data.callToAction?.subtitle || 'השאירו פרטים ונשמח לסייע',
-            buttonText: res.data.callToAction?.buttonText || 'לפרטים נוספים',
+            buttonText: res.data.callToAction?.buttonText || 'צרו קשר עכשיו',
             buttonLink: '#contact',
             showLeadForm: true,
+            whatsappNumber: whatsapp,
           },
           schemaJsonLd: res.data.schemaJsonLd || {},
           seoScore: res.data.seoScore || 85,
@@ -309,6 +349,10 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             schemaScore: 15,
             readabilityScore: 14,
           },
+          viewCount: Number(video.viewCount || 0),
+          likeCount: Number(video.likeCount || 0),
+          commentsCount: 0,
+          pageViewsCount: 0,
           isPublished: true,
           publishedAt: new Date().toISOString(),
           publicUrl,

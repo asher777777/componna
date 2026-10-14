@@ -12,6 +12,7 @@ import {
   limit,
   where,
   serverTimestamp,
+  increment,
 } from 'firebase/firestore';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
@@ -147,21 +148,65 @@ export const kosTubeFirestore = {
   },
 
   /**
-   * Retrieves an SEO page by slug
+   * Retrieves an SEO page by slug (supports case-insensitive check and clean slugs)
    */
   async getSeoPageBySlug(db: Firestore | null | undefined, tenantId: string, slug: string): Promise<KosTubeSeoPage | null> {
     if (!db || !slug) return null;
     try {
       const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+      // 1. Direct match
       const q = query(colRef, where('slug', '==', slug), limit(1));
-      const snapshot = await getDocs(q);
+      let snapshot = await getDocs(q);
       if (!snapshot.empty) {
         return snapshot.docs[0].data() as KosTubeSeoPage;
+      }
+
+      // 2. Lowercase / Uppercase fallback
+      const lowerQ = query(colRef, where('slug', '==', slug.toLowerCase()), limit(1));
+      snapshot = await getDocs(lowerQ);
+      if (!snapshot.empty) {
+        return snapshot.docs[0].data() as KosTubeSeoPage;
+      }
+
+      // 3. If slug is kosvidio, check for Kosvidio
+      if (slug.toLowerCase() === 'kosvidio') {
+        const titleQ = query(colRef, where('slug', '==', 'Kosvidio'), limit(1));
+        snapshot = await getDocs(titleQ);
+        if (!snapshot.empty) {
+          return snapshot.docs[0].data() as KosTubeSeoPage;
+        }
       }
     } catch (err) {
       console.warn('[KosTube] getSeoPageBySlug failed:', err);
     }
     return null;
+  },
+
+  /**
+   * Increments real page views counter in Firestore
+   */
+  async incrementPageViews(db: Firestore | null | undefined, tenantId: string, pageId: string, pageBuilderPageId?: string): Promise<void> {
+    if (!db || !pageId) return;
+    try {
+      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+      const docRef = doc(colRef, pageId);
+      await updateDoc(docRef, {
+        pageViewsCount: increment(1),
+        updatedAt: new Date().toISOString(),
+      });
+
+      // Also sync to PAGES collection if linked
+      if (pageBuilderPageId) {
+        try {
+          const pbCol = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.PAGES);
+          await updateDoc(doc(pbCol, pageBuilderPageId), {
+            viewsCount: increment(1),
+          });
+        } catch (_) {}
+      }
+    } catch (err) {
+      console.warn('[KosTube] incrementPageViews failed:', err);
+    }
   },
 
   /**

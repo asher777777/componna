@@ -234,9 +234,19 @@ export const KosWebAiHostBridge: React.FC = () => {
         try {
           const video = options.video;
           const aiData = options.aiData;
-          const cleanSlug = aiData?.slug || `kosvidio-${video.youtubeVideoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+          const rawSlug = aiData?.slug?.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'kosvidio';
+          const cleanSlug = rawSlug.startsWith('kosvidio') ? rawSlug : 'kosvidio';
           const pageId = `page_kosvidio_${video.youtubeVideoId}`;
           const title = aiData?.h1 || video.title || 'וידאו ומאמר AI SEO';
+
+          const brandCompanyName = options.brandDna?.identity?.companyName || 'קושאן';
+          const brandLogo = options.brandDna?.identity?.logoUrl || '';
+          const brandSlogan = options.brandDna?.identity?.slogan || 'וידאו חכם ומאמרי SEO מעמיקים';
+          const primaryColor = options.brandDna?.designTokens?.primaryColor || '#ef4444';
+          const secondaryColor = options.brandDna?.designTokens?.secondaryColor || '#8b5cf6';
+          const whatsapp = options.brandDna?.trust?.whatsappSupportNumber || '';
+          const phone = options.brandDna?.trust?.contactPhone || '';
+          const email = options.brandDna?.trust?.contactEmail || '';
 
           const pageConfig: PageBuilderConfig = {
             pageId,
@@ -247,24 +257,24 @@ export const KosWebAiHostBridge: React.FC = () => {
             viewsCount: 0,
             leadsCount: 0,
             globalSettings: {
-              siteTitle: `${title} | Kosvidio`,
-              companyName: options.channelTitle || 'קושאן',
-              slogan: 'וידאו חכם ומאמרי SEO מעמיקים',
+              siteTitle: `${title} | ${brandCompanyName}`,
+              companyName: brandCompanyName,
+              slogan: brandSlogan,
               theme: 'dark',
               headerLayout: 'floating-glass',
               headerSticky: true,
               isHeaderVisible: true,
               isFooterVisible: true,
-              primaryColor: '#ef4444',
-              secondaryColor: '#8b5cf6',
+              primaryColor,
+              secondaryColor,
               backgroundColor: '#090a0f',
               textColor: '#f8fafc',
               fontFamily: 'Heebo, sans-serif',
               borderRadius: 'lg',
               buttonStyle: 'gradient',
-              contactWhatsApp: options.brandDna?.trust?.whatsappSupportNumber || '0526968008',
-              contactPhone: options.brandDna?.trust?.contactPhone || '052-6968008',
-              contactEmail: options.brandDna?.trust?.contactEmail || 'ovt5771@gmail.com',
+              contactWhatsApp: whatsapp,
+              contactPhone: phone,
+              contactEmail: email,
             },
             seoSettings: {
               title: aiData?.metaTitle || title,
@@ -276,33 +286,44 @@ export const KosWebAiHostBridge: React.FC = () => {
               'header-1': {
                 ...SECTION_REGISTRY.header.defaultConfig,
                 id: 'header-1',
-                title: 'Kosvidio',
+                title: brandCompanyName,
                 showLogoText: true,
-                logoText: 'Kosvidio',
+                logoText: brandCompanyName,
+                useBrandLogo: true,
+                customLogoUrl: brandLogo,
               },
               'kosvidio-1': {
                 ...SECTION_REGISTRY.kosvidio.defaultConfig,
                 id: 'kosvidio-1',
                 youtubeVideoId: video.youtubeVideoId,
                 title,
-                viewsCount: video.viewCount || aiData?.viewCount || 18450,
-                likesCount: video.likeCount || aiData?.likeCount || 1240,
-                commentsCount: (aiData?.youtubeComments as any)?.length || 3,
+                viewsCount: Number(video.viewCount || 0),
+                likesCount: Number(video.likeCount || 0),
+                commentsCount: 0,
+                pageViewsCount: 0,
                 channelName: options.channelTitle || 'ערוץ יוטיוב',
                 channelAvatarUrl: video.thumbnailUrl,
                 tags: aiData?.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
-                comments: (aiData?.youtubeComments as any) || SECTION_REGISTRY.kosvidio.defaultConfig.comments,
+                comments: [],
                 shortDescription: aiData?.executiveSummary || video.description.slice(0, 160),
                 longDescriptionMarkdown: aiData?.articleContent || '',
                 keyTakeaways: aiData?.keyTakeaways || [],
                 faqs: (aiData?.faqs as any) || [],
-                callToAction: aiData?.callToAction || SECTION_REGISTRY.kosvidio.defaultConfig.callToAction,
+                callToAction: aiData?.callToAction || {
+                  title: `רוצים לקחת את התוצאות צעד קדימה עם ${brandCompanyName}?`,
+                  subtitle: 'פנו אלינו ונשמח לסייע לכם להגיע ליעדים העסקיים שלכם',
+                  buttonText: 'צרו קשר עכשיו',
+                  buttonLink: '#contact',
+                },
               },
               'contact-1': {
                 ...SECTION_REGISTRY.contact.defaultConfig,
                 id: 'contact-1',
-                title: 'יש לכם שאלות או רוצים לשתף פעולה?',
-                subtitle: 'צרו קשר ישיר עם יוצר התוכן והצוות',
+                title: `צרו קשר עם ${brandCompanyName}`,
+                subtitle: 'יש לכם שאלות או מעוניינים בפרטים נוספים? נשמח לסייע',
+                phone,
+                email,
+                whatsApp: whatsapp,
               },
             },
           };

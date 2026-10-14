@@ -962,6 +962,7 @@ export interface KosTubeSeoPage {
   viewCount?: number;
   likeCount?: number;
   commentsCount?: number;
+  pageViewsCount?: number;
   tags?: string[];
   youtubeComments?: Array<{
     id: string;

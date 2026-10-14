@@ -830,11 +830,12 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       channelName: 'קושאן דיגיטל',
       channelSubscribers: '24.5K',
       verifiedBadge: true,
-      viewsCountText: '18,420 צפיות',
-      publishedDateText: 'פורסם לפני שבוע',
+      viewsCount: 0,
+      likesCount: 0,
+      commentsCount: 0,
       ambientGlow: true,
       showTheaterMode: true,
-      tags: ['וידאו', 'יוטיוב', 'SEO', 'AISEO', 'שיווקדיגיטלי'],
+      tags: ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
       enableSocialShare: true,
       shortDescriptionBadge: 'תקציר מנהלים • AI',
       shortDescription: 'הסבר תכליתי ומעשי על הפיכת תוכן וידאו למקור תנועה אורגנית עצום בגוגל ויוטיוב.',
@@ -843,36 +844,14 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
 
 ### 3 עקרונות הברזל לקידום וידאו אורגני:
 - **סכמה מובנית (Schema.org VideoObject):** עוזרת לזחלנים להבין את זמן ההעלאה, מילות המפתח ותמצית הסרטון.
-- **תוכן עומק טקסטואלי:** מנועי AI כמו Perplexity ו-Google SGE קוראים את תמלול והסבר הוידאו לצורך הצגת תשובות ישירות.
-- **מעורבות קהילה אותנטית:** תגובות, לייקים ושיתופים מגבירים את אותות האמון וה-EEAT של המותג שלכם.`,
+- **תוכן עומק טקסטואלי:** מנועי AI קוראים את תמלול והסבר הוידאו לצורך הצגת תשובות ישירות.
+- **מעורבות קהילה אותנטית:** תגובות, לייקים ושיתופים מגבירים את אותות האמון וה-EEAT.`,
       keyTakeaways: [
         'שילוב נגן וידאו עם מאמר עומק מכפיל את זמן השהייה הממוצע בעמוד פי 3.',
         'סימון Schema מלא של VideoObject ו-FAQPage מקפיץ את שיעור ההקלקה (CTR) בתוצאות החיפוש.',
         'תוויות עדינות ושיתוף מהיר בוואטסאפ מניעים תנועה ויראלית מיידית.',
       ],
-      comments: [
-        {
-          id: 'c1',
-          authorName: 'איתי לוי',
-          publishedAt: 'לפני יומיים',
-          content: 'סרטון מדהים ומדויק! ההסבר על ה-Schema עשה לי סדר מוחלט. תודה רבה.',
-          likesCount: 14,
-        },
-        {
-          id: 'c2',
-          authorName: 'שירה אלון',
-          publishedAt: 'לפני 4 ימים',
-          content: 'איזה יופי של פירוט, האם השיטה הזו עובדת גם לעסקים מקומיים עם שירותי שטח?',
-          likesCount: 8,
-        },
-        {
-          id: 'c3',
-          authorName: 'דניאל כהן',
-          publishedAt: 'לפני שבוע',
-          content: 'אחד הסרטונים הטובים שעלו בתחום השנה. מומלץ לכל מי שרוצה תנועה אמיתית.',
-          likesCount: 21,
-        },
-      ],
+      comments: [],
       faqs: [
         {
           question: 'איך עמוד כזה עוזר לקידום האורגני בגוגל?',

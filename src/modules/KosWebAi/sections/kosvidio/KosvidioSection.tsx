@@ -64,10 +64,10 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
     return youtubeVideoId || 'dQw4w9WgXcQ';
   }, [youtubeVideoId, videoUrl]);
 
-  // Video likes state
+  // Video likes state (authentic: defaults to 0 if not provided)
   const [videoLikes, setVideoLikes] = useState<number>(() => {
     if (typeof likesCount === 'number') return likesCount;
-    return 1240;
+    return 0;
   });
   const [isVideoLiked, setIsVideoLiked] = useState<boolean>(false);
 
@@ -220,14 +220,24 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
               )}
             </div>
 
-            {/* 16:9 Responsive Video Frame */}
+            {/* 16:9 Responsive Video Frame with Anti-leak protection */}
             <div className="relative w-full aspect-video bg-black flex items-center justify-center">
               <iframe
-                src={`https://www.youtube-nocookie.com/embed/${effectiveVideoId}?rel=0&modestbranding=1&enablejsapi=1`}
+                src={`https://www.youtube-nocookie.com/embed/${effectiveVideoId}?rel=0&modestbranding=1&enablejsapi=1&iv_load_policy=3&playsinline=1`}
                 title={title}
                 className="w-full h-full border-0"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
+              />
+
+              {/* Anti-leak YouTube Redirect Shield */}
+              <div 
+                className="absolute bottom-0 right-0 w-32 h-14 z-20 pointer-events-auto cursor-default bg-transparent"
+                title="נגן וידאו ישיר באתר"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
               />
             </div>
           </div>
@@ -264,10 +274,10 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
 
             {/* Video Engagement Bar (Views Count, Likes Count, Comments Count) */}
             <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
-              {/* Views Counter */}
+              {/* Views Counter (Truthful only) */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 font-semibold shadow-sm">
-                <Eye className="w-4 h-4 text-slate-400" />
-                <span>{viewsCount ? formatStatNumber(viewsCount) : (viewsCountText || '18,420')} צפיות</span>
+                <Eye className="w-4 h-4 text-emerald-400" />
+                <span>{viewsCount ? formatStatNumber(viewsCount) : '0'} צפיות</span>
               </div>
 
               {/* Like / Dislike Combined Action Pill */}
@@ -470,8 +480,15 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
           )}
 
           {/* Comments List */}
-          <div className="space-y-4">
-            {localComments.map((comment) => {
+          {localComments.length === 0 ? (
+            <div className="p-6 text-center rounded-xl bg-slate-800/20 border border-dashed border-slate-800 text-slate-400 text-xs sm:text-sm">
+              <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-50" />
+              <p className="font-semibold text-slate-300">עדיין אין תגובות בסרטון זה.</p>
+              <p className="text-slate-500 text-xs mt-1">היו הראשונים להגיב ולשתף את דעתכם!</p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {localComments.map((comment) => {
               const isLiked = !!likedCommentIds[comment.id];
               return (
                 <div key={comment.id} className="flex items-start gap-3 group">
@@ -527,6 +544,7 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
               );
             })}
           </div>
+          )}
         </div>
 
         {/* ============================================================== */}

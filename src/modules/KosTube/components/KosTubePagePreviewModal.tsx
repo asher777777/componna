@@ -210,34 +210,37 @@ export const KosTubePagePreviewModal: React.FC = () => {
                 <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
                   <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
                     <Youtube className="w-4 h-4 text-red-500" />
-                    <span>{(selectedPage.youtubeComments || []).length || 3} תגובות (בסגנון יוטיוב)</span>
+                    <span>{(selectedPage.youtubeComments || []).length} תגובות</span>
                   </h3>
                   <span className="text-xs text-slate-400">מסודר לפי: מובילות</span>
                 </div>
 
                 <div className="space-y-3">
-                  {(selectedPage.youtubeComments && selectedPage.youtubeComments.length > 0 ? selectedPage.youtubeComments : [
-                    { id: 'c1', authorName: 'איתי לוי', publishedAt: 'לפני יומיים', content: 'סרטון מדהים ומדויק! למדתי המון.', likesCount: 16 },
-                    { id: 'c2', authorName: 'שירה אלון', publishedAt: 'לפני 4 ימים', content: 'הסבר ברור ומקיף, מומלץ מאוד!', likesCount: 9 },
-                  ]).map((comm: any) => (
-                    <div key={comm.id} className="flex items-start gap-3 text-xs">
-                      <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold shrink-0">
-                        {comm.authorName.slice(0, 1)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-0.5">
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{comm.authorName}</span>
-                          <span className="text-slate-400 text-[10px]">{comm.publishedAt}</span>
-                        </div>
-                        <p className="text-slate-600 dark:text-slate-300">{comm.content}</p>
-                        <div className="flex items-center gap-2 mt-1 text-slate-400 text-[11px]">
-                          <span>👍 {comm.likesCount}</span>
-                          <span>•</span>
-                          <span>השב</span>
-                        </div>
-                      </div>
+                  {(!selectedPage.youtubeComments || selectedPage.youtubeComments.length === 0) ? (
+                    <div className="p-4 text-center text-xs text-slate-500 rounded-xl bg-slate-50 dark:bg-slate-800/40 border border-dashed border-slate-200 dark:border-slate-800">
+                      עדיין אין תגובות. תגובות מגולשים בעמוד החי יוצגו כאן בזמן אמת.
                     </div>
-                  ))}
+                  ) : (
+                    selectedPage.youtubeComments.map((comm: any) => (
+                      <div key={comm.id} className="flex items-start gap-3 text-xs">
+                        <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold shrink-0">
+                          {comm.authorName.slice(0, 1)}
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            <span className="font-bold text-slate-800 dark:text-slate-200">{comm.authorName}</span>
+                            <span className="text-slate-400 text-[10px]">{comm.publishedAt}</span>
+                          </div>
+                          <p className="text-slate-600 dark:text-slate-300">{comm.content}</p>
+                          <div className="flex items-center gap-2 mt-1 text-slate-400 text-[11px]">
+                            <span>👍 {comm.likesCount}</span>
+                            <span>•</span>
+                            <span>השב</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
 

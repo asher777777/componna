@@ -19,3 +19,11 @@
    - Exclusive navigation via `KosunUniversalDock`.
    - 100% fullscreen modals (`KosNevModal`).
    - Cross-module integration strictly via `<CapabilitySlot />`.
+
+5. **Tenant Ownership & Branding Monopoly Rule (חוק בעלות הטננט וקולקציית המיתוג):**
+   - The generated SEO page belongs 100% exclusively to the system tenant (user).
+   - Attribution/credit to the original video/channel creator is permitted inside the content description/footer ("זכויות יוצרים / מקור: [שם הערוץ]").
+   - Everything else (Header, Logo, Colors, Typography, Footer, CTA, Contact details, WhatsApp/Phone/Email, Brand Voice, Navigation, and Theme) MUST strictly adhere to the tenant's branding collection (`tenants/{tenantId}/settings/kos_branding_dna`).
+   - Unless the page producer explicitly configured otherwise, the absolute default is always the tenant's branding collection.
+   - Absolutely no fake/fabricated metrics (zero mock data): only genuine page views and truthful YouTube statistics (or 0 if unavailable) are shown.
+   - The slug for video pages defaults to `kosvidio` (or `kosvidio-[videoId]`).
