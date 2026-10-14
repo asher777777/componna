@@ -530,7 +530,10 @@ export interface KosvidioSectionConfig extends BaseSectionConfig {
 
   // 2. Title & Stats
   title: string;
+  viewsCount?: number | string;
   viewsCountText?: string;
+  likesCount?: number;
+  userLiked?: boolean;
   publishedDateText?: string;
 
   // 3. Delicate tags & Social share icons

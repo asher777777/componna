@@ -80,6 +80,13 @@ export const SYSTEM_COLLECTIONS = {
   KOS_TUBE_CHANNELS: 'mod_kos_tube_channels',
   KOS_TUBE_VIDEOS: 'mod_kos_tube_videos',
   KOS_TUBE_PAGES: 'mod_kos_tube_pages',
+
+  // 12. KosTikTok ("קושאן טיקטוק" - TikTok Integration, Publishing & Marketing)
+  KOS_TIKTOK_ACCOUNTS: 'mod_kos_tiktok_accounts',
+  KOS_TIKTOK_POSTS: 'mod_kos_tiktok_posts',
+  KOS_TIKTOK_VIDEOS: 'mod_kos_tiktok_videos',
+  KOS_TIKTOK_LEADS: 'mod_kos_tiktok_leads',
+  KOS_TIKTOK_EVENTS: 'mod_kos_tiktok_events',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;

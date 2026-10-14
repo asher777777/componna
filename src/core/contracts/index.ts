@@ -959,6 +959,9 @@ export interface KosTubeSeoPage {
   schemaJsonLd: Record<string, any>;
   seoScore: number;
   seoScoreBreakdown: KosTubeSeoScoreBreakdown;
+  viewCount?: number;
+  likeCount?: number;
+  commentsCount?: number;
   tags?: string[];
   youtubeComments?: Array<{
     id: string;
@@ -983,7 +986,119 @@ export interface KosTubeContract {
   getSeoPageBySlug: (slug: string) => Promise<KosTubeSeoPage | null>;
 }
 
+// ========================
+// KosTikTok Contract & DTOs ("קושאן טיקטוק")
+// ========================
+
+export interface KosTikTokAccount {
+  id: string;
+  openId: string;
+  unionId?: string;
+  displayName: string;
+  username?: string;
+  avatarUrl?: string;
+  followerCount: number;
+  followingCount: number;
+  likesCount: number;
+  videoCount: number;
+  isVerified: boolean;
+  scopes: string[];
+  accessTokenExpiresAt: number;
+  refreshTokenExpiresAt: number;
+  isDefault?: boolean;
+  status: 'connected' | 'expired' | 'error';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KosTikTokVideo {
+  id: string;
+  openId: string;
+  title: string;
+  coverImageUrl: string;
+  shareUrl: string;
+  duration: number;
+  viewCount?: number;
+  likeCount?: number;
+  commentCount?: number;
+  shareCount?: number;
+  createTime: number;
+  privacyLevel?: string;
+}
+
+export interface KosTikTokPublishParams {
+  videoUrl: string;
+  title: string;
+  privacyLevel?: 'PUBLIC_TO_EVERYONE' | 'MUTUAL_FOLLOW_FRIENDS' | 'SELF_ONLY';
+  disableDuet?: boolean;
+  disableComment?: boolean;
+  disableStitch?: boolean;
+  brandContent?: boolean;
+  brandOrganic?: boolean;
+}
+
+export interface KosTikTokPublishResult {
+  success: boolean;
+  publishId?: string;
+  status?: string;
+  error?: string;
+}
+
+export interface KosTikTokLead {
+  id: string;
+  formId: string;
+  adId?: string;
+  campaignId?: string;
+  openId?: string;
+  leadData: {
+    fullName?: string;
+    email?: string;
+    phone?: string;
+    city?: string;
+    customAnswers?: Record<string, string>;
+  };
+  submittedAt: string;
+  syncedToCrm: boolean;
+}
+
+export interface KosTikTokEventPayload {
+  event: string;
+  eventId?: string;
+  eventTime?: number;
+  user?: {
+    email?: string;
+    phone?: string;
+    externalId?: string;
+    ip?: string;
+    userAgent?: string;
+  };
+  properties?: {
+    currency?: string;
+    value?: number;
+    contents?: Array<{
+      contentId: string;
+      contentType?: string;
+      quantity?: number;
+      price?: number;
+    }>;
+  };
+  page?: {
+    url?: string;
+    referrer?: string;
+  };
+}
+
+export interface KosTikTokContract {
+  getAccounts: () => Promise<KosTikTokAccount[]>;
+  getDefaultAccount: () => Promise<KosTikTokAccount | null>;
+  publishVideo: (params: KosTikTokPublishParams) => Promise<KosTikTokPublishResult>;
+  getVideos: () => Promise<KosTikTokVideo[]>;
+  sendConversionEvent: (event: KosTikTokEventPayload) => Promise<{ success: boolean; error?: string }>;
+  syncLeads: () => Promise<{ success: boolean; count: number; error?: string }>;
+}
+
 export * from './collections';
+
 
 
 
