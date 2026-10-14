@@ -2,9 +2,10 @@ import React from 'react';
 import { Globe, Plus, Sparkles, RefreshCw } from 'lucide-react';
 import { useTenantProvisioner } from '../hooks/useTenantProvisioner';
 import { TenantStatsOverview } from '../components/TenantStatsOverview';
+import { MasterDomainCard } from '../components/MasterDomainCard';
 import { TenantTableCardView } from '../components/TenantTableCardView';
 import { TenantCreateModal } from '../components/TenantCreateModal';
-import { TenantEditModulesModal } from '../components/TenantEditModulesModal';
+import { TenantComprehensiveEditModal } from '../components/TenantComprehensiveEditModal';
 import { TenantCredentialsModal } from '../components/TenantCredentialsModal';
 
 export const TenantProvisionerView: React.FC = () => {
@@ -58,12 +59,15 @@ export const TenantProvisionerView: React.FC = () => {
       {/* KPI Stats */}
       <TenantStatsOverview />
 
+      {/* Main Master Domain Featured Card (Clause ו) */}
+      <MasterDomainCard />
+
       {/* Tenants Management Table & Cards */}
       <TenantTableCardView />
 
       {/* Modals */}
       <TenantCreateModal />
-      <TenantEditModulesModal />
+      <TenantComprehensiveEditModal />
       <TenantCredentialsModal />
     </div>
   );
