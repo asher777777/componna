@@ -69,6 +69,10 @@ const KosTenantProvisionerStandaloneView = React.lazy(() =>
   import('../modules/KosTenantProvisioner').then((m) => ({ default: m.KosTenantProvisionerStandaloneView }))
 );
 
+const KosTubeStandaloneView = React.lazy(() =>
+  import('../modules/KosTube').then((m) => ({ default: m.KosTubeStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -80,6 +84,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosTube',
+    name: 'קושאן Tube - חיבור יוטיוב וקידום SEO מבוסס AI',
+    description: 'סנכרון ערוץ יוטיוב, המרת סרטונים למאמרי עומק ב-AI ויצירת עמודי SEO מקודמים בגוגל עם סכמת נתונים עשירה.',
+    component: KosTubeStandaloneView,
+    route: '/KosTube',
+    collectionPrefix: 'mod_kos_tube_',
+  },
   {
     id: 'KosTenantProvisioner',
     name: 'ניהול סאב-דומיינים והטענת רכיבים',

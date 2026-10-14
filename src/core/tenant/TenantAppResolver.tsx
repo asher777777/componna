@@ -7,7 +7,7 @@ import { TenantCoreService } from './tenantService';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
-import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost } from './tenantResolver';
+import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost, isRootPlatformHost } from './tenantResolver';
 import { TenantScopeProvider, useTenantScope } from './TenantScopeContext';
 import { TenantSubdomainView } from './TenantSubdomainView';
 import { RootPublicHomePageView } from '../../pages/RootPublicHomePageView';
@@ -18,8 +18,43 @@ export const TenantAppResolver: React.FC = () => {
   const location = useLocation();
   const { db } = useSystemConnection();
   const { setTenantId } = useTenantScope();
-  const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
-  const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
+
+  // Determine hostname and local environment synchronously
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase().trim() : '';
+  const isLocalEnv = currentHostname === 'localhost' || currentHostname === '127.0.0.1' || currentHostname.endsWith('.local');
+
+  // Synchronous initial subdomain detection
+  const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    if (isLocalEnv) {
+      const p = new URLSearchParams(window.location.search);
+      const q = p.get('tenant');
+      if (q && !RESERVED_TENANT_SUBDOMAINS.includes(q.trim().toLowerCase())) {
+        return q.trim().toLowerCase();
+      }
+    }
+    return extractSubdomainFromHost(currentHostname);
+  });
+
+  const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(() => {
+    if (!tenantSubdomain) return null;
+    return {
+      subdomain: tenantSubdomain,
+      fullDomain: `${tenantSubdomain}.kosun.pro`,
+      clientName: `מערכת לקוח (${tenantSubdomain})`,
+      ownerEmail: `${tenantSubdomain}@kosun.pro`,
+      ownerPhone: '050-1234567',
+      activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
+      collectionPrefix: `tenant_${tenantSubdomain}_mod_`,
+      billingPlan: 'annual',
+      monthlyTotal: 129,
+      paymentTransactionId: 'TXN-INIT-001',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
   const [rootHomePage, setRootHomePage] = useState<PageBuilderConfig | null>(() => {
     return pageBuilderFirestore.getHomePageSync(ROOT_TENANT_ID);
   });
@@ -32,18 +67,14 @@ export const TenantAppResolver: React.FC = () => {
     if (params.get('public') === 'true' || params.get('mode') === 'public') {
       return false;
     }
-    // Also consider it "Workbench" mode if they are directly visiting a public page URL on root domain,
-    // because WorkbenchApp has the public viewer routing inside it!
     const pathname = window.location.pathname;
-    const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/page/') || pathname.startsWith('/preview/');
+    const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/page/') || pathname.startsWith('/preview/') || pathname.startsWith('/tube/') || pathname.startsWith('/to/');
     if (isPublicPage) {
       return true;
     }
-    // Any module route belongs in Workbench mode
     if (pathname !== '/' && pathname !== '') {
       return true;
     }
-    // For root path '/', NEVER default to Workbench mode based on stale sessionStorage!
     if (pathname === '/' || pathname === '') {
       try {
         sessionStorage.removeItem('kosun_is_dev_workbench');
@@ -52,6 +83,26 @@ export const TenantAppResolver: React.FC = () => {
     }
     return sessionStorage.getItem('kosun_is_dev_workbench') === 'true';
   });
+
+  // Strict Domain Isolation: In production, any ?tenant= query on the root platform host MUST redirect to the subdomain
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const hostname = window.location.hostname.toLowerCase().trim();
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
+    const p = new URLSearchParams(window.location.search);
+    const tenantParam = p.get('tenant');
+
+    if (!isLocal && tenantParam && isRootPlatformHost(hostname)) {
+      const cleanParam = tenantParam.trim().toLowerCase();
+      if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam) && cleanParam !== ROOT_TENANT_ID) {
+        p.delete('tenant');
+        const remainingQuery = p.toString() ? `?${p.toString()}` : '';
+        const targetUrl = `https://${cleanParam}.kosun.pro${window.location.pathname}${remainingQuery}${window.location.hash}`;
+        window.location.replace(targetUrl);
+        return;
+      }
+    }
+  }, []);
 
   useEffect(() => {
     sessionStorage.setItem('kosun_is_dev_workbench', String(isDevWorkbench));
@@ -103,15 +154,15 @@ export const TenantAppResolver: React.FC = () => {
     } catch {}
   }, []);
 
+  // Sync tenant record from Firestore when in subdomain mode
   useEffect(() => {
-    // 1. Detect from URL query param (e.g. ?tenant=landing) or hostname (e.g. landing.kosun.pro)
+    const hostname = window.location.hostname.toLowerCase().trim();
+    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
     const params = new URLSearchParams(window.location.search);
     const tenantParam = params.get('tenant');
-    const hostname = window.location.hostname;
-    
-    // Check if subdomain exists in hostname (using accurate production resolver)
+
     let sub: string | null = null;
-    if (tenantParam) {
+    if (isLocal && tenantParam) {
       const cleanParam = tenantParam.trim().toLowerCase();
       if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam)) {
         sub = cleanParam;
@@ -124,27 +175,9 @@ export const TenantAppResolver: React.FC = () => {
       setTenantSubdomain(sub);
       setTenantId(sub);
       TenantCoreService.getAllTenants(db).then((all) => {
-        const found = all.find(t => t.subdomain.toLowerCase() === sub?.toLowerCase());
+        const found = all.find((t) => t.subdomain.toLowerCase() === sub?.toLowerCase());
         if (found) {
           setTenantRecord(found);
-        } else {
-          // Fallback demo tenant for the requested subdomain
-          const demoTenant: TenantRecord = {
-            subdomain: sub,
-            fullDomain: `${sub}.kosun.pro`,
-            clientName: `מערכת לקוח (${sub})`,
-            ownerEmail: `${sub}@kosun.pro`,
-            ownerPhone: '050-1234567',
-            activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
-            collectionPrefix: `tenant_${sub}_mod_`,
-            billingPlan: 'annual',
-            monthlyTotal: 129,
-            paymentTransactionId: 'TXN-INIT-001',
-            status: 'active',
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-          setTenantRecord(demoTenant);
         }
       });
     } else {
@@ -155,15 +188,32 @@ export const TenantAppResolver: React.FC = () => {
   }, [db, setTenantId]);
 
   // 1. Subdomain View (Public Landing Page by default + Owner Admin Control Panel)
-  if (tenantSubdomain && tenantRecord) {
+  // Subdomains NEVER enter WorkbenchApp!
+  if (tenantSubdomain) {
+    const effectiveRecord: TenantRecord = tenantRecord || {
+      subdomain: tenantSubdomain,
+      fullDomain: `${tenantSubdomain}.kosun.pro`,
+      clientName: `מערכת לקוח (${tenantSubdomain})`,
+      ownerEmail: `${tenantSubdomain}@kosun.pro`,
+      ownerPhone: '050-1234567',
+      activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
+      collectionPrefix: `tenant_${tenantSubdomain}_mod_`,
+      billingPlan: 'annual',
+      monthlyTotal: 129,
+      paymentTransactionId: 'TXN-INIT-001',
+      status: 'active',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
     return (
-      <TenantScopeProvider initialTenantId={tenantRecord.subdomain}>
-        <TenantSubdomainView tenantRecord={tenantRecord} />
+      <TenantScopeProvider initialTenantId={tenantSubdomain}>
+        <TenantSubdomainView tenantRecord={effectiveRecord} />
       </TenantScopeProvider>
     );
   }
 
-  // 2. Developer / Super-Admin Workbench Mode (If explicitly requested or navigating modules)
+  // 2. Developer / Master Workbench Mode (Backoffice on Root Domain - Protected by Master Guard)
   if (isDevWorkbench) {
     return <WorkbenchApp />;
   }

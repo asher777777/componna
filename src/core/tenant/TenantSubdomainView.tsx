@@ -517,7 +517,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
-    const subQuery = `?tenant=${tenantRecord.subdomain}&mode=admin`;
+    const isLocal = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.endsWith('.local')
+    );
+    const subQuery = isLocal ? `?tenant=${tenantRecord.subdomain}&mode=admin` : `?mode=admin`;
     const defaultRoute = customDashboard && adminViewType === 'custom_board'
       ? `/dashboard${subQuery}`
       : activeModuleIds.includes('KosBranding')

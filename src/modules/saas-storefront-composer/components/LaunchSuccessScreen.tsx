@@ -4,6 +4,7 @@ import {
   Layers, ArrowLeft, Copy, Check, MessageSquare, Mail, Lock, User, KeyRound 
 } from 'lucide-react';
 import { useStorefront } from '../context/StorefrontContext';
+import { buildTenantAdminUrl } from '../../../core/tenant';
 
 export const LaunchSuccessScreen: React.FC = () => {
   const { provisionedTenant, resetStorefront, settings, lastDispatchResult } = useStorefront();
@@ -13,7 +14,7 @@ export const LaunchSuccessScreen: React.FC = () => {
   if (!provisionedTenant) return null;
 
   const subdomainUrl = `https://${provisionedTenant.fullDomain}`;
-  const adminUrl = `${window.location.origin}/?tenant=${provisionedTenant.subdomain}&mode=admin`;
+  const adminUrl = buildTenantAdminUrl(provisionedTenant.subdomain, provisionedTenant.fullDomain);
   const tempPassword = lastDispatchResult?.credentials.temporaryPassword || `Ks@${(provisionedTenant.ownerPhone || '1234').slice(-4)}`;
   const username = lastDispatchResult?.credentials.username || provisionedTenant.ownerEmail || provisionedTenant.ownerPhone;
 

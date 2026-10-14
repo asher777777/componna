@@ -138,6 +138,47 @@ export const GroupListSidebar: React.FC<GroupListSidebarProps> = ({
         </button>
       </div>
 
+      {/* System Views: All Contacts & Untagged */}
+      <div className="space-y-1.5 pb-2 border-b border-slate-100 dark:border-slate-800">
+        <div
+          onClick={() => setActiveGroupId('__all__')}
+          className={`p-2.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+            activeGroupId === '__all__'
+              ? 'bg-indigo-50/90 dark:bg-indigo-950/40 border-indigo-200 dark:border-indigo-800 text-indigo-950 dark:text-indigo-200 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-slate-800/60 border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-300 flex items-center justify-center">
+              <Users className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs">כל אנשי הקשר</span>
+          </div>
+          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            {totalContacts}
+          </span>
+        </div>
+
+        <div
+          onClick={() => setActiveGroupId('__untagged__')}
+          className={`p-2.5 rounded-2xl border transition-all flex items-center justify-between cursor-pointer ${
+            activeGroupId === '__untagged__'
+              ? 'bg-rose-50/90 dark:bg-rose-950/40 border-rose-200 dark:border-rose-800 text-rose-950 dark:text-rose-200 shadow-2xs font-extrabold'
+              : 'bg-white dark:bg-slate-800/60 border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-bold'
+          }`}
+        >
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-900 text-rose-600 dark:text-rose-300 flex items-center justify-center">
+              <Tag className="w-3.5 h-3.5" />
+            </div>
+            <span className="text-xs">ללא שיוך לקבוצה</span>
+          </div>
+          <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300">
+            {untaggedCount}
+          </span>
+        </div>
+      </div>
+
       {/* Search Groups */}
       <div className="relative">
         <Search className="w-3.5 h-3.5 text-slate-400 absolute right-3 top-2.5" />

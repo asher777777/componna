@@ -6,6 +6,7 @@ import {
 import { useTenantProvisioner } from '../hooks/useTenantProvisioner';
 import { AVAILABLE_MODULES_CATALOG } from '../services/tenantProvisionerService';
 import { TenantProvisionFormState } from '../types';
+import { buildTenantAdminUrl } from '../../../core/tenant';
 
 export const TenantCreateModal: React.FC = () => {
   const { isCreateModalOpen, setIsCreateModalOpen, createTenant } = useTenantProvisioner();
@@ -228,7 +229,7 @@ export const TenantCreateModal: React.FC = () => {
 
             <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-lg mx-auto pt-2">
               <a
-                href={`/?tenant=${createdTenantSuccess.subdomain}&mode=admin`}
+                href={buildTenantAdminUrl(createdTenantSuccess.subdomain, createdTenantSuccess.fullDomain)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer"

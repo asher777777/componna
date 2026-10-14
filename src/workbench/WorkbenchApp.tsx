@@ -21,6 +21,10 @@ const PublicPageView = React.lazy(() =>
   import('../modules/KosWebAi').then((m) => ({ default: m.PublicPageView }))
 );
 
+const PublicVideoSeoPageView = React.lazy(() =>
+  import('../modules/KosTube').then((m) => ({ default: m.PublicVideoSeoPageView }))
+);
+
 const HomePage = React.lazy(() =>
   import('../pages/HomePage').then((m) => ({ default: m.HomePage }))
 );
@@ -29,7 +33,8 @@ import { PageBuilderRenderer } from '../modules/KosWebAi/PageBuilderRenderer';
 import { pageBuilderFirestore } from '../modules/KosWebAi/services/pageBuilderFirestore';
 import { PageBuilderConfig } from '../modules/KosWebAi/types/pageBuilder.types';
 import { KosWebAiFrontDock } from '../modules/KosWebAi';
-import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
+import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, buildTenantAdminUrl } from '../core/tenant/tenantResolver';
+import { TenantCoreService } from '../core/tenant/tenantService';
 
 const WorkbenchRootHome: React.FC = () => {
   const { db } = useSystemConnection();
@@ -141,10 +146,12 @@ export const WorkbenchApp: React.FC = () => {
   const isPublicPage =
     location.pathname.startsWith('/p/') ||
     location.pathname.startsWith('/to/') ||
+    location.pathname.startsWith('/tube/') ||
     location.pathname.startsWith('/page/') ||
     location.pathname.startsWith('/preview/') ||
     location.hash.startsWith('#/p/') ||
     location.hash.startsWith('#/to/') ||
+    location.hash.startsWith('#/tube/') ||
     location.hash.startsWith('#/page/');
 
   const isHomePage = location.pathname === '/';
@@ -373,6 +380,84 @@ export const WorkbenchApp: React.FC = () => {
     );
   }
 
+  // Master Control Panel Guard: Strictly verify Master Admin for backoffice routes
+  const isBackofficeRoute = !isStandalone && !isHomePage && !isPublicPage;
+
+  if (isBackofficeRoute && authState.loading) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center p-4 text-center font-sans text-white" dir="rtl">
+        <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 animate-spin mb-4">
+          <Sparkles className="w-6 h-6" />
+        </div>
+        <p className="text-sm font-bold text-slate-300">מאמת הרשאות כניסה ללוח הבקרה...</p>
+      </div>
+    );
+  }
+
+  if (isBackofficeRoute && !isAdmin) {
+    const email = (authState.user?.email || '').trim().toLowerCase();
+    const phone = authState.user?.phoneNumber || '';
+    const tenantByEmail = email ? TenantCoreService.findTenantForUser(email) : null;
+    const tenantByPhone = phone ? TenantCoreService.findTenantForUser(phone) : null;
+    const matchedTenant = tenantByEmail || tenantByPhone;
+
+    if (matchedTenant && matchedTenant.subdomain && !RESERVED_TENANT_SUBDOMAINS.includes(matchedTenant.subdomain.toLowerCase())) {
+      const targetUrl = buildTenantAdminUrl(matchedTenant.subdomain, matchedTenant.fullDomain);
+      window.location.replace(targetUrl);
+      return null;
+    }
+
+    return (
+      <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center p-4 text-center font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
+        <div className="w-full max-w-md bg-slate-900/90 border border-slate-800/80 backdrop-blur-xl rounded-3xl p-8 shadow-2xl space-y-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto shadow-lg shadow-amber-500/10">
+            <Lock className="w-8 h-8" />
+          </div>
+
+          <div className="space-y-2">
+            <h1 className="text-xl font-black text-white">
+              לוח הבקרה של המסטר מוגן
+            </h1>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              הכניסה ללוח הבקרה בנתיב הראשי של המערכת שמורה אך ורק למנהל המערכת הראשי (Master Admin).
+              משתמשים ולקוחות רשאים להיכנס אך ורק דרך הסאב-דומיין שלהם.
+            </p>
+          </div>
+
+          <div className="space-y-3 pt-2">
+            <button
+              type="button"
+              onClick={() => setIsAuthModalOpen(true)}
+              className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md transition cursor-pointer flex items-center justify-center gap-2"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>התחברות כמנהל מערכת (Master)</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/';
+              }}
+              className="w-full py-2.5 px-4 rounded-xl border border-slate-700 hover:bg-slate-800 text-slate-300 font-bold text-xs transition cursor-pointer"
+            >
+              חזרה לעמוד הבית הציבורי
+            </button>
+          </div>
+        </div>
+
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          firebaseApp={firebaseApp}
+          title="התחברות מנהל מערכת"
+          subtitle="אימות זהות מסטר עבור לוח הבקרה הראשי"
+          onSuccess={() => setIsAuthModalOpen(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-slate-100 relative font-sans transition-colors duration-300" dir="rtl">
       {/* 2026 Kosun Standard: 100% Headerless - Zero Top Header */}
@@ -394,6 +479,8 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/*" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/tube/:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו מקודם"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו מקודם" />}><PublicVideoSeoPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/tube/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו מקודם"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו מקודם" />}><PublicVideoSeoPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/page/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/preview/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

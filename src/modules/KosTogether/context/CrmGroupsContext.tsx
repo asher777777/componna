@@ -12,6 +12,8 @@ import { DEFAULT_VISIBLE_COLUMNS } from '../config';
 import { isContactInGroup } from '../services/groupsUtils';
 import { useTenantScope } from '../../../core/tenant';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import type { LeadPayload, RemoveContactTagsPayload, CrmGroupsContract } from '../../../core/contracts';
 import {
   fetchGroupsAndContactsData,
   fetchSelectableCampaignsList,
@@ -29,7 +31,6 @@ import {
 } from '../services/firestoreService';
 import { GreenApiConfig } from '../services/whatsappService';
 import { eventBus } from '../../../core/bridge/EventBus';
-import type { LeadPayload, RemoveContactTagsPayload } from '../../../core/contracts';
 
 export interface CrmGroupsContextValue {
   db: Firestore | null;
@@ -114,7 +115,7 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     groups: customCollections?.groups || getScopedCollectionPath(SYSTEM_COLLECTIONS.GROUPS),
     contacts: customCollections?.contacts || getScopedCollectionPath(SYSTEM_COLLECTIONS.CONTACTS),
     pages: customCollections?.pages || getScopedCollectionPath(SYSTEM_COLLECTIONS.PAGES),
-    campaigns: customCollections?.campaigns || getScopedCollectionPath('campaigns'),
+    campaigns: customCollections?.campaigns || getScopedCollectionPath(SYSTEM_COLLECTIONS.CAMPAIGNS),
     interactions: customCollections?.interactions || getScopedCollectionPath(SYSTEM_COLLECTIONS.INTERACTIONS),
     chatMessages: customCollections?.chatMessages || getScopedCollectionPath(SYSTEM_COLLECTIONS.CHAT_MESSAGES),
     videoRooms: customCollections?.videoRooms || getScopedCollectionPath('crm_community_video_rooms'),
@@ -198,12 +199,13 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
       setAvailableCities(res.availableCities);
       setCampaigns(campList);
 
-      // Default selection: select the first community or group instead of __all__
+      // Default selection: keep selected group if still exists, otherwise default to '__all__'
       setActiveGroupId((prev) => {
-        if (prev === '__all__' || prev === '__untagged__' || !prev) {
-          return res.groups.length > 0 ? (res.groups[0].id || res.groups[0].name) : '';
+        if (prev && prev !== '__all__' && prev !== '__untagged__') {
+          const stillExists = res.groups.some((g) => g.id === prev || g.name === prev);
+          if (stillExists) return prev;
         }
-        return prev;
+        return '__all__';
       });
     } catch (err: any) {
       console.error('Failed to load groups data:', err);
@@ -609,6 +611,54 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
     });
     return () => unsub();
   }, [bulkRemoveTags, selectedContactIds]);
+
+  // Register CrmGroupsContract to HostCapabilities for inter-module integration
+  const { registerCapability, unregisterCapability } = useHostCapabilities();
+  useEffect(() => {
+    const contract: CrmGroupsContract = {
+      getGroups: async () => {
+        return groups.map((g) => ({
+          id: g.id,
+          name: g.name,
+          type: g.type,
+          category: g.category,
+          color: g.color,
+          count: g.count,
+          description: g.description,
+        }));
+      },
+      assignContactToGroup: async (contactId: string, groupNameOrId: string) => {
+        if (!db) return false;
+        try {
+          await bulkAssignGroupToContacts(db, [contactId], groupNameOrId, resolvedCustomCollections);
+          await loadData();
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      removeContactFromGroup: async (contactId: string, groupNameOrId: string) => {
+        if (!db) return false;
+        try {
+          await bulkRemoveTagsFromContacts(db, [groupNameOrId], {
+            contactIds: [contactId],
+            customCollections: resolvedCustomCollections,
+          });
+          await loadData();
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    };
+
+    registerCapability('crm-groups', contract);
+    registerCapability('KosTogether', contract);
+    return () => {
+      unregisterCapability('crm-groups');
+      unregisterCapability('KosTogether');
+    };
+  }, [groups, db, resolvedCustomCollections, loadData, registerCapability, unregisterCapability]);
 
   const recordInteraction = async (interaction: {
     contactId: string;

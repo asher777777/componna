@@ -1,0 +1,302 @@
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
+import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
+import { kosTubeFirestore } from '../services/kosTubeFirestore';
+import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
+import { PLEASANT_KOS_TUBE_ERROR_HE } from '../config';
+
+export type KosTubeTab = 'overview' | 'videos' | 'pages' | 'settings';
+
+export interface KosTubeContextValue {
+  channel: KosTubeChannel | null;
+  videos: KosTubeVideo[];
+  seoPages: KosTubeSeoPage[];
+  activeTab: KosTubeTab;
+  setActiveTab: (tab: KosTubeTab) => void;
+  isLoading: boolean;
+  isSyncing: boolean;
+  isGenerating: boolean;
+  generatingVideoId: string | null;
+  error: string | null;
+  clearError: () => void;
+  syncChannel: (query: string, apiKey?: string) => Promise<boolean>;
+  addVideoByUrl: (url: string) => Promise<KosTubeVideo | null>;
+  generateSeoPage: (video: KosTubeVideo) => Promise<KosTubeSeoPage | null>;
+  batchGenerateSeoPages: () => Promise<number>;
+  deleteSeoPage: (pageId: string, videoId?: string) => Promise<void>;
+  refreshData: () => Promise<void>;
+  selectedVideo: KosTubeVideo | null;
+  setSelectedVideo: (v: KosTubeVideo | null) => void;
+  selectedPage: KosTubeSeoPage | null;
+  setSelectedPage: (p: KosTubeSeoPage | null) => void;
+  isModalOpen: boolean;
+  setIsModalOpen: (open: boolean) => void;
+  modalMode: 'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view';
+  setModalMode: (mode: 'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view') => void;
+}
+
+const KosTubeContext = createContext<KosTubeContextValue | null>(null);
+
+export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
+
+  const [channel, setChannel] = useState<KosTubeChannel | null>(null);
+  const [videos, setVideos] = useState<KosTubeVideo[]>([]);
+  const [seoPages, setSeoPages] = useState<KosTubeSeoPage[]>([]);
+  const [activeTab, setActiveTab] = useState<KosTubeTab>('overview');
+
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSyncing, setIsSyncing] = useState<boolean>(false);
+  const [isGenerating, setIsGenerating] = useState<boolean>(false);
+  const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const [selectedVideo, setSelectedVideo] = useState<KosTubeVideo | null>(null);
+  const [selectedPage, setSelectedPage] = useState<KosTubeSeoPage | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [modalMode, setModalMode] = useState<'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view'>('channel_connect');
+
+  const clearError = useCallback(() => setError(null), []);
+
+  const refreshData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [fetchedChannel, fetchedVideos, fetchedPages] = await Promise.all([
+        kosTubeFirestore.getChannel(db, tenantId),
+        kosTubeFirestore.getVideos(db, tenantId),
+        kosTubeFirestore.getSeoPages(db, tenantId),
+      ]);
+
+      if (fetchedChannel) {
+        setChannel(fetchedChannel);
+      }
+      if (fetchedVideos && fetchedVideos.length > 0) {
+        setVideos(fetchedVideos);
+      }
+      if (fetchedPages) {
+        setSeoPages(fetchedPages);
+      }
+    } catch (err: any) {
+      console.warn('[KosTube] Error refreshing data:', err);
+      setError(PLEASANT_KOS_TUBE_ERROR_HE);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [db, tenantId]);
+
+  useEffect(() => {
+    refreshData();
+  }, [refreshData]);
+
+  const syncChannel = useCallback(
+    async (query: string, apiKey?: string): Promise<boolean> => {
+      if (!query || query.trim().length === 0) {
+        setError('אנא הזן כתובת ערוץ או Handle תקין');
+        return false;
+      }
+      setIsSyncing(true);
+      setError(null);
+      try {
+        const { channel: syncedChannel, videos: syncedVideos } = await fetchYoutubeChannelData({
+          query,
+          apiKey: apiKey || channel?.apiKey,
+        });
+
+        await kosTubeFirestore.saveChannel(db, tenantId, syncedChannel);
+        await kosTubeFirestore.saveVideos(db, tenantId, syncedVideos);
+
+        setChannel(syncedChannel);
+        setVideos(syncedVideos);
+        setIsModalOpen(false);
+        return true;
+      } catch (err: any) {
+        console.error('[KosTube] syncChannel failed:', err);
+        setError(err?.message || PLEASANT_KOS_TUBE_ERROR_HE);
+        return false;
+      } finally {
+        setIsSyncing(false);
+      }
+    },
+    [db, tenantId, channel?.apiKey]
+  );
+
+  const addVideoByUrl = useCallback(
+    async (url: string): Promise<KosTubeVideo | null> => {
+      setError(null);
+      try {
+        const video = await fetchSingleYoutubeVideo(url, channel?.channelId || 'custom_channel');
+        await kosTubeFirestore.saveVideos(db, tenantId, [video]);
+        setVideos((prev) => {
+          const filtered = prev.filter((v) => v.id !== video.id);
+          return [video, ...filtered];
+        });
+        setIsModalOpen(false);
+        return video;
+      } catch (err: any) {
+        console.error('[KosTube] addVideoByUrl failed:', err);
+        setError(err?.message || 'שגיאה בהוספת הסרטון. אנא ודא שהקישור תקין.');
+        return null;
+      }
+    },
+    [db, tenantId, channel?.channelId]
+  );
+
+  const generateSeoPage = useCallback(
+    async (video: KosTubeVideo): Promise<KosTubeSeoPage | null> => {
+      setIsGenerating(true);
+      setGeneratingVideoId(video.id);
+      setError(null);
+      try {
+        const res = await generateAiSeoContent({
+          video,
+          channelTitle: channel?.title || 'ערוץ יוטיוב',
+        });
+
+        if (!res.success || !res.data) {
+          setError(res.error || PLEASANT_KOS_TUBE_ERROR_HE);
+          return null;
+        }
+
+        const pageId = `page_${video.youtubeVideoId}`;
+        const slug = res.data.slug || `video-${video.youtubeVideoId.toLowerCase()}`;
+        const publicUrl = `/tube/${slug}`;
+
+        const newPage: KosTubeSeoPage = {
+          id: pageId,
+          videoId: video.id,
+          youtubeVideoId: video.youtubeVideoId,
+          channelId: video.channelId,
+          channelTitle: channel?.title,
+          slug,
+          metaTitle: res.data.metaTitle || video.title,
+          metaDescription: res.data.metaDescription || video.description.slice(0, 150),
+          focusKeywords: res.data.focusKeywords || [],
+          h1: res.data.h1 || video.title,
+          articleContent: res.data.articleContent || '',
+          executiveSummary: res.data.executiveSummary || '',
+          keyTakeaways: res.data.keyTakeaways || [],
+          faqs: res.data.faqs || [],
+          callToAction: {
+            title: res.data.callToAction?.title || 'רוצים תוצאות דומות בעסק שלכם?',
+            subtitle: res.data.callToAction?.subtitle || 'השאירו פרטים ונשמח לסייע',
+            buttonText: res.data.callToAction?.buttonText || 'לפרטים נוספים',
+            buttonLink: '#contact',
+            showLeadForm: true,
+          },
+          schemaJsonLd: res.data.schemaJsonLd || {},
+          seoScore: res.data.seoScore || 85,
+          seoScoreBreakdown: res.data.seoScoreBreakdown || {
+            titleLengthScore: 18,
+            descriptionLengthScore: 18,
+            keywordsDensityScore: 14,
+            headingsStructureScore: 14,
+            schemaScore: 15,
+            readabilityScore: 14,
+          },
+          isPublished: true,
+          publishedAt: new Date().toISOString(),
+          publicUrl,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await kosTubeFirestore.saveSeoPage(db, tenantId, newPage);
+
+        setSeoPages((prev) => {
+          const filtered = prev.filter((p) => p.id !== newPage.id);
+          return [newPage, ...filtered];
+        });
+
+        setVideos((prev) =>
+          prev.map((v) =>
+            v.id === video.id
+              ? { ...v, status: 'processed', seoPageId: newPage.id, seoPageSlug: newPage.slug }
+              : v
+          )
+        );
+
+        setSelectedPage(newPage);
+        return newPage;
+      } catch (err: any) {
+        console.error('[KosTube] generateSeoPage failed:', err);
+        setError(err?.message || PLEASANT_KOS_TUBE_ERROR_HE);
+        return null;
+      } finally {
+        setIsGenerating(false);
+        setGeneratingVideoId(null);
+      }
+    },
+    [db, tenantId, channel?.title]
+  );
+
+  const batchGenerateSeoPages = useCallback(async (): Promise<number> => {
+    const ungeneratedVideos = videos.filter((v) => v.status !== 'processed');
+    if (ungeneratedVideos.length === 0) return 0;
+
+    let count = 0;
+    for (const v of ungeneratedVideos) {
+      const res = await generateSeoPage(v);
+      if (res) count++;
+    }
+    return count;
+  }, [videos, generateSeoPage]);
+
+  const deleteSeoPage = useCallback(
+    async (pageId: string, videoId?: string) => {
+      try {
+        await kosTubeFirestore.deleteSeoPage(db, tenantId, pageId, videoId);
+        setSeoPages((prev) => prev.filter((p) => p.id !== pageId));
+        if (videoId) {
+          setVideos((prev) =>
+            prev.map((v) =>
+              v.id === videoId ? { ...v, status: 'pending', seoPageId: undefined, seoPageSlug: undefined } : v
+            )
+          );
+        }
+      } catch (err: any) {
+        setError(err?.message || 'שגיאה במחיקת עמוד ה-SEO.');
+      }
+    },
+    [db, tenantId]
+  );
+
+  const value: KosTubeContextValue = {
+    channel,
+    videos,
+    seoPages,
+    activeTab,
+    setActiveTab,
+    isLoading,
+    isSyncing,
+    isGenerating,
+    generatingVideoId,
+    error,
+    clearError,
+    syncChannel,
+    addVideoByUrl,
+    generateSeoPage,
+    batchGenerateSeoPages,
+    deleteSeoPage,
+    refreshData,
+    selectedVideo,
+    setSelectedVideo,
+    selectedPage,
+    setSelectedPage,
+    isModalOpen,
+    setIsModalOpen,
+    modalMode,
+    setModalMode,
+  };
+
+  return <KosTubeContext.Provider value={value}>{children}</KosTubeContext.Provider>;
+};
+
+export function useKosTube(): KosTubeContextValue {
+  const context = useContext(KosTubeContext);
+  if (!context) {
+    throw new Error('useKosTube must be used within a KosTubeProvider');
+  }
+  return context;
+}

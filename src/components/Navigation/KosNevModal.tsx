@@ -17,7 +17,8 @@ import {
   CreditCard,
   MessageSquare,
   Layout,
-  LayoutGrid
+  LayoutGrid,
+  Youtube
 } from 'lucide-react';
 import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegistry';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
@@ -31,6 +32,12 @@ export const MODULE_META_CONFIG: Record<string, {
   englishRest: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = {
+  'KosTube': {
+    hebrewName: 'יוטיוב וקידום SEO מבוסס AI',
+    englishPrefix: 'KOS',
+    englishRest: 'Tube SEO',
+    icon: Youtube,
+  },
   'kosun-board-composer': {
     hebrewName: 'מחולל מערכות ולוחות בקרה',
     englishPrefix: 'KOS',
@@ -269,7 +276,16 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
     if (onSelectModule) {
       onSelectModule(moduleId, route);
     } else {
-      window.location.href = route;
+      const isLocal = typeof window !== 'undefined' && (
+        window.location.hostname === 'localhost' ||
+        window.location.hostname === '127.0.0.1' ||
+        window.location.hostname.endsWith('.local')
+      );
+      if (isSubdomain && tenantId && isLocal) {
+        window.location.href = `${route}?tenant=${tenantId}&mode=admin`;
+      } else {
+        window.location.href = route;
+      }
     }
   };
 

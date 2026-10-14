@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, KeyRound, Copy, Check, Eye, EyeOff, Save, Lock, ExternalLink, RefreshCw } from 'lucide-react';
 import { useTenantProvisioner } from '../hooks/useTenantProvisioner';
+import { buildTenantAdminUrl } from '../../../core/tenant';
 
 export const TenantCredentialsModal: React.FC = () => {
   const { viewingCredentialsTenant, setViewingCredentialsTenant, updateCredentials } = useTenantProvisioner();
@@ -22,7 +23,7 @@ export const TenantCredentialsModal: React.FC = () => {
 
   if (!viewingCredentialsTenant) return null;
 
-  const adminUrl = `${window.location.origin}/?tenant=${viewingCredentialsTenant.subdomain}&mode=admin`;
+  const adminUrl = buildTenantAdminUrl(viewingCredentialsTenant.subdomain, viewingCredentialsTenant.fullDomain);
 
   const handleSaveCredentials = async () => {
     setSaving(true);

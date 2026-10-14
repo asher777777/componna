@@ -22,6 +22,7 @@ import {
   CommunityVideoCallRoom,
 } from '../types';
 import { DEFAULT_COLLECTIONS, PRESET_COLORS } from '../config';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { isContactInGroup } from './groupsUtils';
 
 function getCollNames(custom?: CrmGroupsCollectionsConfig) {
@@ -66,23 +67,35 @@ export async function fetchGroupsAndContactsData(
       const currentSub = subMatch && subMatch[1] !== '_master' ? subMatch[1].toLowerCase() : null;
 
       if (currentSub) {
-        // Query root contacts tagged with this subdomain
-        let subSnap = await getDocs(query(collection(db, 'contacts'), where('subdomain', '==', currentSub)));
+        // Query master contacts tagged with this subdomain
+        let subSnap = await getDocs(query(collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS), where('subdomain', '==', currentSub)));
         if (subSnap.empty) {
-          subSnap = await getDocs(query(collection(db, 'tenants', '_master', 'contacts'), where('subdomain', '==', currentSub)));
+          subSnap = await getDocs(query(collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS), where('tenantId', '==', currentSub)));
         }
         if (subSnap.empty) {
-          const adminDoc = await getDoc(doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${currentSub}`));
+          subSnap = await getDocs(query(collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS), where('tags', 'array-contains', currentSub)));
+        }
+        if (subSnap.empty) {
+          const adminDoc = await getDoc(doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS, `tenant_admin_${currentSub}`));
           if (adminDoc.exists()) {
             subSnap = { docs: [adminDoc], empty: false, forEach: (cb: any) => [adminDoc].forEach(cb) } as any;
           }
+        }
+        // Also check root contacts using SYSTEM_COLLECTIONS.CONTACTS
+        if (subSnap.empty) {
+          try {
+            const rootSubSnap = await getDocs(query(collection(db, SYSTEM_COLLECTIONS.CONTACTS), where('subdomain', '==', currentSub)));
+            if (!rootSubSnap.empty) {
+              subSnap = rootSubSnap;
+            }
+          } catch {}
         }
         if (!subSnap.empty) {
           contactsSnap = subSnap;
         }
       } else {
         // Master / root fallback
-        const rootSnap = await getDocs(query(collection(db, 'contacts')));
+        const rootSnap = await getDocs(query(collection(db, SYSTEM_COLLECTIONS.CONTACTS)));
         if (!rootSnap.empty) {
           contactsSnap = rootSnap;
         }
@@ -99,17 +112,21 @@ export async function fetchGroupsAndContactsData(
 
   contactsSnap.forEach((d) => {
     const data = d.data();
-    if (data.status === 'trashed') return;
+    if (data.status === 'trashed' || data.kosun_crm_status === 'trashed') return;
 
-    const tags: string[] = Array.isArray(data.tags)
+    const tags: string[] = Array.isArray(data.kosun_crm_tags)
+      ? data.kosun_crm_tags.filter((t: any) => typeof t === 'string' && t.trim() !== '' && !isNumericTag(t))
+      : Array.isArray(data.tags)
       ? data.tags.filter((t: any) => typeof t === 'string' && t.trim() !== '' && !isNumericTag(t))
       : [data.tg1, data.tg2, data.tg3].filter((t: any) => typeof t === 'string' && t.trim() !== '' && !isNumericTag(t));
 
-    if (data.mh_crm_city && typeof data.mh_crm_city === 'string' && data.mh_crm_city.trim()) {
-      citiesSet.add(data.mh_crm_city.trim());
+    const city = data.kosun_crm_city || data.mh_crm_city || data.city || '';
+    if (city && typeof city === 'string' && city.trim()) {
+      citiesSet.add(city.trim());
     }
 
     const contactName = (
+      data.kosun_crm_name ||
       data.conta_name || 
       data.fullName || 
       data.name || 
@@ -118,18 +135,44 @@ export async function fetchGroupsAndContactsData(
       'איש קשר'
     );
     const contactPhone = (
+      data.kosun_crm_phone ||
       data.conta_phone || 
       data.phone || 
       data.normalizedPhone || 
       data.mobile || 
       ''
     );
+    const email = data.kosun_crm_email || data.email || '';
+    const company = data.kosun_crm_company || data.company_name || data.company || '';
+    const role = data.kosun_crm_role || data.job_title || '';
+    const govId = data.kosun_crm_gov_id || data.tg1 || data.tz || '';
+    const notes = data.kosun_crm_notes || data.notes || '';
+    const source = data.kosun_crm_source || data.lead_source || data.source || '';
+
+    const rawEvents = Array.isArray(data.events) ? data.events : [];
+    const eventsSpent = rawEvents.reduce((acc: number, ev: any) => acc + (Number(ev.amount) || 0), 0);
+    const totalSpent = data.total_spent !== undefined && data.total_spent !== null
+      ? Number(data.total_spent)
+      : Number(data.kosun_crm_total_spent || eventsSpent || 0);
 
     const contactItem: ContactRecord = {
       id: d.id,
       conta_name: contactName,
+      kosun_crm_name: contactName,
       conta_phone: contactPhone,
-      email: data.email || '',
+      kosun_crm_phone: contactPhone,
+      email,
+      kosun_crm_email: email,
+      mh_crm_city: city,
+      kosun_crm_city: city,
+      company_name: company,
+      kosun_crm_company: company,
+      job_title: role,
+      tg1: govId,
+      notes,
+      lead_source: source,
+      total_spent: totalSpent,
+      status: data.kosun_crm_status || data.status || 'פעיל',
       ...data,
       tags,
     };
@@ -486,9 +529,9 @@ export async function deleteGroupRecord(
         const currentTags: string[] = contactDoc.data().tags || [];
         const newTags = currentTags.filter((t) => t !== group.name);
         batch.update(contactDoc.ref, { tags: newTags, updatedAt: new Date().toISOString() });
-        if (colls.contacts !== 'contacts') {
+        if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
           try {
-            batch.update(doc(db, 'contacts', contactDoc.id), { tags: newTags, updatedAt: new Date().toISOString() });
+            batch.update(doc(db, SYSTEM_COLLECTIONS.CONTACTS, contactDoc.id), { tags: newTags, updatedAt: new Date().toISOString() });
           } catch {}
         }
         opCount++;
@@ -524,9 +567,9 @@ export async function bulkDeleteContactsRecord(
       status: 'trashed',
       updatedAt: new Date().toISOString(),
     });
-    if (colls.contacts !== 'contacts') {
+    if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
       try {
-        batch.update(doc(db, 'contacts', cid), {
+        batch.update(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid), {
           status: 'trashed',
           updatedAt: new Date().toISOString(),
         });
@@ -559,8 +602,8 @@ export async function bulkAssignGroupToContacts(
   for (const cid of contactIds) {
     const contactRef = doc(db, colls.contacts, cid);
     let snap = await getDoc(contactRef);
-    if (!snap.exists() && colls.contacts !== 'contacts') {
-      const rootDoc = await getDoc(doc(db, 'contacts', cid));
+    if (!snap.exists() && colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
+      const rootDoc = await getDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid));
       if (rootDoc.exists()) {
         snap = rootDoc;
         await setDoc(contactRef, rootDoc.data(), { merge: true });
@@ -575,9 +618,9 @@ export async function bulkAssignGroupToContacts(
           tags: nextTags,
           updatedAt: new Date().toISOString(),
         });
-        if (colls.contacts !== 'contacts') {
+        if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
           try {
-            batch.update(doc(db, 'contacts', cid), {
+            batch.update(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid), {
               tags: nextTags,
               updatedAt: new Date().toISOString(),
             });
@@ -613,8 +656,8 @@ export async function moveContactsBetweenGroups(
   for (const cid of contactIds) {
     const contactRef = doc(db, colls.contacts, cid);
     let snap = await getDoc(contactRef);
-    if (!snap.exists() && colls.contacts !== 'contacts') {
-      const rootDoc = await getDoc(doc(db, 'contacts', cid));
+    if (!snap.exists() && colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
+      const rootDoc = await getDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid));
       if (rootDoc.exists()) {
         snap = rootDoc;
         await setDoc(contactRef, rootDoc.data(), { merge: true });
@@ -633,9 +676,9 @@ export async function moveContactsBetweenGroups(
         tags: currentTags,
         updatedAt: new Date().toISOString(),
       });
-      if (colls.contacts !== 'contacts') {
+      if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
         try {
-          batch.update(doc(db, 'contacts', cid), {
+          batch.update(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid), {
             tags: currentTags,
             updatedAt: new Date().toISOString(),
           });
@@ -742,8 +785,8 @@ export async function toggleContactTag(
   const colls = getCollNames(customCollections);
   const contactRef = doc(db, colls.contacts, contactId);
   let snap = await getDoc(contactRef);
-  if (!snap.exists() && colls.contacts !== 'contacts') {
-    const rootDoc = await getDoc(doc(db, 'contacts', contactId));
+  if (!snap.exists() && colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
+    const rootDoc = await getDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, contactId));
     if (rootDoc.exists()) {
       snap = rootDoc;
       await setDoc(contactRef, rootDoc.data(), { merge: true });
@@ -761,9 +804,9 @@ export async function toggleContactTag(
     updatedAt: new Date().toISOString(),
   });
 
-  if (colls.contacts !== 'contacts') {
+  if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
     try {
-      await updateDoc(doc(db, 'contacts', contactId), {
+      await updateDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, contactId), {
         tags: newTags,
         updatedAt: new Date().toISOString(),
       });

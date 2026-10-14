@@ -6,6 +6,7 @@ import {
 import { useTenantProvisioner } from '../hooks/useTenantProvisioner';
 import { AVAILABLE_MODULES_CATALOG } from '../services/tenantProvisionerService';
 import { TenantAccount } from '../types';
+import { buildTenantAdminUrl, buildTenantPublicUrl } from '../../../core/tenant';
 
 export const TenantTableCardView: React.FC = () => {
   const {
@@ -97,8 +98,8 @@ export const TenantTableCardView: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTenants.map((tenant) => {
-            const adminUrl = `/?tenant=${tenant.subdomain}&mode=admin`;
-            const publicUrl = `https://${tenant.fullDomain}`;
+            const adminUrl = buildTenantAdminUrl(tenant.subdomain, tenant.fullDomain);
+            const publicUrl = buildTenantPublicUrl(tenant.subdomain, tenant.fullDomain);
 
             return (
               <div

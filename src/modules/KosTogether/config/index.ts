@@ -1,12 +1,13 @@
 import { GroupColumnDefinition, GroupRuleField, GroupRuleOperator } from '../types';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 
 export const DEFAULT_COLLECTIONS = {
-  groups: 'crm_groups',
-  contacts: 'contacts',
-  pages: 'pages',
-  campaigns: 'campaigns',
-  interactions: 'interactions',
-  chatMessages: 'crm_community_chats',
+  groups: SYSTEM_COLLECTIONS.GROUPS,
+  contacts: SYSTEM_COLLECTIONS.CONTACTS,
+  pages: SYSTEM_COLLECTIONS.PAGES,
+  campaigns: SYSTEM_COLLECTIONS.CAMPAIGNS,
+  interactions: SYSTEM_COLLECTIONS.INTERACTIONS,
+  chatMessages: SYSTEM_COLLECTIONS.CHAT_MESSAGES,
   videoRooms: 'crm_community_video_rooms',
 };
 

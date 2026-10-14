@@ -21,8 +21,9 @@ import { ModuleCapabilityPicker } from './ModuleCapabilityPicker';
 import { DynamicCustomDashboardView } from './DynamicCustomDashboardView';
 import { SubdomainPairingModal } from './SubdomainPairingModal';
 import { Tooltip } from './Tooltip';
+import { TenantRecord } from '../../../core/contracts';
 import { TenantCoreService } from '../../../core/tenant/tenantService';
-import { useTenantScope } from '../../../core/tenant';
+import { useTenantScope, buildTenantAdminUrl } from '../../../core/tenant';
 import { GeneratedCustomDashboard } from '../types';
 
 export const KosunBoardForgeView: React.FC = () => {
@@ -549,7 +550,7 @@ export const KosunBoardForgeView: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {allTenants.map((t) => {
+              {allTenants.map((t: TenantRecord) => {
                 const pairedDash = savedDashboards.find(
                   (d) => d.pairedSubdomain?.toLowerCase() === t.subdomain.toLowerCase()
                 );
@@ -580,7 +581,7 @@ export const KosunBoardForgeView: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                       <a
-                        href={`/?tenant=${t.subdomain}&mode=admin`}
+                        href={buildTenantAdminUrl(t.subdomain, t.fullDomain)}
                         target="_blank"
                         rel="noreferrer"
                         className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl transition cursor-pointer"

@@ -20,7 +20,7 @@ try {
   console.warn('Could not initialize standalone Firebase App in CrmGroupsHub:', e);
 }
 
-export const CrmGroupsHubStandaloneView: React.FC<{ ownerId?: string }> = ({ ownerId }) => {
+export const CrmGroupsHubStandaloneView: React.FC<{ ownerId?: string; customCollections?: any }> = ({ ownerId, customCollections }) => {
   let systemFirebaseApp = standaloneApp;
   let greenApiConfig = undefined;
 
@@ -42,6 +42,7 @@ export const CrmGroupsHubStandaloneView: React.FC<{ ownerId?: string }> = ({ own
     <CrmGroupsProvider
       firebaseApp={systemFirebaseApp}
       greenApiCredentials={greenApiConfig}
+      customCollections={customCollections}
       ownerId={ownerId || ''}
     >
       <div className="min-h-screen bg-slate-50 text-slate-900 font-sans">

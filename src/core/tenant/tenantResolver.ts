@@ -117,39 +117,96 @@ export function extractSubdomainFromHost(hostname: string): string | null {
 }
 
 /**
+ * Builds canonical URL to a tenant's admin dashboard:
+ * - On local development (localhost / 127.0.0.1): `/?tenant=xyz&mode=admin`
+ * - In production: `https://xyz.kosun.pro/?mode=admin` (or custom fullDomain)
+ */
+export function buildTenantAdminUrl(subdomain: string, fullDomain?: string): string {
+  if (!subdomain) return '/';
+  const cleanSub = subdomain.trim().toLowerCase();
+  if (cleanSub === ROOT_TENANT_ID) return '/dashboard';
+
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.local')
+  );
+
+  if (isLocal) {
+    return `/?tenant=${encodeURIComponent(cleanSub)}&mode=admin`;
+  }
+
+  const domain = fullDomain ? fullDomain.trim().toLowerCase() : `${cleanSub}.kosun.pro`;
+  return `https://${domain}/?mode=admin`;
+}
+
+/**
+ * Builds canonical URL to a tenant's public landing page:
+ * - On local development (localhost / 127.0.0.1): `/?tenant=xyz&mode=public`
+ * - In production: `https://xyz.kosun.pro/` (or custom fullDomain)
+ */
+export function buildTenantPublicUrl(subdomain: string, fullDomain?: string): string {
+  if (!subdomain) return '/';
+  const cleanSub = subdomain.trim().toLowerCase();
+  if (cleanSub === ROOT_TENANT_ID) return '/';
+
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.local')
+  );
+
+  if (isLocal) {
+    return `/?tenant=${encodeURIComponent(cleanSub)}&mode=public`;
+  }
+
+  const domain = fullDomain ? fullDomain.trim().toLowerCase() : `${cleanSub}.kosun.pro`;
+  return `https://${domain}/`;
+}
+
+/**
  * Extracts tenant identifier based on production hostname:
  * - `subdomain.domain.com` -> `subdomain`
- * - `domain.com` / `www.domain.com` / `compona.web.app` -> `_master`
- * - `localhost` / `127.0.0.1` -> checks URL query `?tenant=X` or localStorage override, default `_master`
+ * - `kosun.pro` / `www.kosun.pro` / `compona.web.app` -> `_master`
+ * - `localhost` / `127.0.0.1` -> checks URL query `?tenant=X` during dev, default `_master`
  */
 export function resolveCurrentTenantId(): string {
   if (typeof window === 'undefined') {
     return ROOT_TENANT_ID;
   }
 
-  // 1. Allow URL query parameter override for easy testing (?tenant=abc)
-  try {
-    const searchParams = new URLSearchParams(window.location.search);
-    const queryTenant = searchParams.get('tenant');
-    if (queryTenant && queryTenant.trim()) {
-      return queryTenant.trim().toLowerCase();
-    }
-  } catch {}
+  const hostname = window.location.hostname.toLowerCase().trim();
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
+
+  // 1. On localhost only: allow URL query parameter override for local development
+  if (isLocal) {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryTenant = searchParams.get('tenant');
+      if (queryTenant && queryTenant.trim() && !RESERVED_TENANT_SUBDOMAINS.includes(queryTenant.trim().toLowerCase())) {
+        return queryTenant.trim().toLowerCase();
+      }
+    } catch {}
+  }
 
   // 2. Resolve from actual Hostname (Production or Local Subdomain)
-  const hostname = window.location.hostname.toLowerCase().trim();
   const extracted = extractSubdomainFromHost(hostname);
   if (extracted) {
     return extracted;
   }
 
-  // 3. Allow stored manual override ONLY on root platform / Workbench mode
-  try {
-    const storedTenant = localStorage.getItem('kosun_active_tenant_id');
-    if (storedTenant && storedTenant.trim()) {
-      return storedTenant.trim().toLowerCase();
-    }
-  } catch {}
+  // 3. For Root Platform host (kosun.pro, compona.web.app, etc.):
+  // The root platform ALWAYS belongs to ROOT_TENANT_ID (_master).
+  // Purge any contaminated non-master localStorage to prevent master corruption.
+  if (isRootPlatformHost(hostname)) {
+    try {
+      const storedTenant = localStorage.getItem('kosun_active_tenant_id');
+      if (storedTenant && storedTenant !== ROOT_TENANT_ID && !isLocal) {
+        localStorage.removeItem('kosun_active_tenant_id');
+      }
+    } catch {}
+    return ROOT_TENANT_ID;
+  }
 
   // Root / Apex Domain
   return ROOT_TENANT_ID;

@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { TenantRecord } from '../../../core/contracts';
 import { TenantCoreService } from '../../../core/tenant/tenantService';
+import { buildTenantAdminUrl } from '../../../core/tenant';
 import { GeneratedCustomDashboard } from '../types';
 
 export interface SubdomainPairingModalProps {
@@ -183,7 +184,7 @@ export const SubdomainPairingModal: React.FC<SubdomainPairingModalProps> = ({
           <div className="flex items-center gap-2">
             {targetSubdomain && (
               <a
-                href={`/?tenant=${targetSubdomain}&mode=admin`}
+                href={buildTenantAdminUrl(targetSubdomain)}
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1 px-3 py-1.5 rounded-xl text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition cursor-pointer font-medium"

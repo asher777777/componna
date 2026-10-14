@@ -2,6 +2,7 @@ import { TenantRecord } from '../types';
 import { GreenApiService } from '../../KosWhatsUp/services/greenApiService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
+import { buildTenantAdminUrl, buildTenantPublicUrl } from '../../../core/tenant';
 export interface TenantCredentials {
   username: string;
   temporaryPassword: string;
@@ -37,8 +38,8 @@ export class TenantWelcomeNotificationService {
     const username = tenant.ownerEmail || tenant.ownerPhone || tenant.subdomain;
     
     // In production this is the real subdomain URL; in dev it supports query param
-    const publicUrl = `https://${tenant.fullDomain}`;
-    const loginUrl = `${window.location.origin}/?tenant=${tenant.subdomain}&mode=admin`;
+    const publicUrl = buildTenantPublicUrl(tenant.subdomain, tenant.fullDomain);
+    const loginUrl = buildTenantAdminUrl(tenant.subdomain, tenant.fullDomain);
 
     return {
       username,

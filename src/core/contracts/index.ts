@@ -869,6 +869,95 @@ export interface AiTextAssistantContract {
   }) => Promise<{ text: string; error?: string }>;
 }
 
+// ========================
+// KosTube - YouTube AI Channel SEO & Pages Contract (KosTube Monopoly)
+// ========================
+
+export interface KosTubeChannel {
+  id: string;
+  channelId: string;
+  customUrl?: string;
+  title: string;
+  description: string;
+  thumbnailUrl: string;
+  bannerUrl?: string;
+  subscriberCount?: number;
+  videoCount?: number;
+  connectedAt: string;
+  lastSyncedAt: string;
+  apiKey?: string;
+  autoGeneratePages?: boolean;
+}
+
+export interface KosTubeVideo {
+  id: string;
+  channelId: string;
+  youtubeVideoId: string;
+  youtubeUrl: string;
+  title: string;
+  description: string;
+  publishedAt: string;
+  thumbnailUrl: string;
+  duration?: string;
+  viewCount?: number;
+  likeCount?: number;
+  status: 'pending' | 'processing' | 'processed' | 'error';
+  seoPageId?: string;
+  seoPageSlug?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KosTubeSeoScoreBreakdown {
+  titleLengthScore: number;
+  descriptionLengthScore: number;
+  keywordsDensityScore: number;
+  headingsStructureScore: number;
+  schemaScore: number;
+  readabilityScore: number;
+}
+
+export interface KosTubeSeoPage {
+  id: string;
+  videoId: string;
+  youtubeVideoId: string;
+  channelId: string;
+  channelTitle?: string;
+  slug: string;
+  metaTitle: string;
+  metaDescription: string;
+  focusKeywords: string[];
+  h1: string;
+  articleContent: string;
+  executiveSummary: string;
+  keyTakeaways: string[];
+  faqs: Array<{ question: string; answer: string }>;
+  callToAction: {
+    title: string;
+    subtitle?: string;
+    buttonText: string;
+    buttonLink?: string;
+    formId?: string;
+    showLeadForm?: boolean;
+    whatsappNumber?: string;
+  };
+  schemaJsonLd: Record<string, any>;
+  seoScore: number;
+  seoScoreBreakdown: KosTubeSeoScoreBreakdown;
+  isPublished: boolean;
+  publishedAt?: string;
+  publicUrl: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface KosTubeContract {
+  getChannel: () => Promise<KosTubeChannel | null>;
+  syncChannel: (channelQuery: string, apiKey?: string) => Promise<{ success: boolean; channel?: KosTubeChannel; error?: string }>;
+  generateSeoPageForVideo: (videoId: string) => Promise<{ success: boolean; page?: KosTubeSeoPage; error?: string }>;
+  getSeoPageBySlug: (slug: string) => Promise<KosTubeSeoPage | null>;
+}
+
 export * from './collections';
 
 

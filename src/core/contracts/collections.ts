@@ -75,6 +75,11 @@ export const SYSTEM_COLLECTIONS = {
   KOSUN_AM_TEMPLATES: 'mod_kosun_am_templates',
   KOSUN_AM_AUTOMATIONS: 'mod_kosun_am_automations',
   KOSUN_AM_LOGS: 'mod_kosun_am_logs',
+
+  // 11. KosTube ("קושאן טיוב" - YouTube AI Channel SEO & Pages)
+  KOS_TUBE_CHANNELS: 'mod_kos_tube_channels',
+  KOS_TUBE_VIDEOS: 'mod_kos_tube_videos',
+  KOS_TUBE_PAGES: 'mod_kos_tube_pages',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;
