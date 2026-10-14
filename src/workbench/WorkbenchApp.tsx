@@ -93,7 +93,21 @@ export const WorkbenchApp: React.FC = () => {
     role: 'viewer', isAuthenticated: false, isAnonymous: false, loading: true, error: null
   });
   
-  const [isAdmin, setIsAdmin] = useState(false);
+  const isLocalEnv = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.local')
+  );
+
+  const [isAdmin, setIsAdmin] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname;
+      if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) {
+        return true;
+      }
+    }
+    return false;
+  });
 
   // Day / Night Theme (Light Mode is Default)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -130,6 +144,10 @@ export const WorkbenchApp: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (isLocalEnv) {
+      setIsAdmin(true);
+      return;
+    }
     if (!firebaseApp) return;
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
       setAuthState(state);
@@ -141,7 +159,7 @@ export const WorkbenchApp: React.FC = () => {
       }
     });
     return () => unsub();
-  }, [firebaseApp]);
+  }, [firebaseApp, isLocalEnv]);
 
   const isPublicPage =
     location.pathname.startsWith('/p/') ||
@@ -383,7 +401,7 @@ export const WorkbenchApp: React.FC = () => {
   // Master Control Panel Guard: Strictly verify Master Admin for backoffice routes
   const isBackofficeRoute = !isStandalone && !isHomePage && !isPublicPage;
 
-  if (isBackofficeRoute && authState.loading) {
+  if (isBackofficeRoute && authState.loading && !isLocalEnv) {
     return (
       <div className="min-h-screen bg-[#0a0a0c] flex flex-col items-center justify-center p-4 text-center font-sans text-white" dir="rtl">
         <div className="w-12 h-12 rounded-2xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 animate-spin mb-4">
@@ -394,7 +412,7 @@ export const WorkbenchApp: React.FC = () => {
     );
   }
 
-  if (isBackofficeRoute && !isAdmin) {
+  if (isBackofficeRoute && !isAdmin && !isLocalEnv) {
     const email = (authState.user?.email || '').trim().toLowerCase();
     const phone = authState.user?.phoneNumber || '';
     const tenantByEmail = email ? TenantCoreService.findTenantForUser(email) : null;

@@ -92,12 +92,41 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         setIsSaving(false);
       }
       setIsEditing(false);
+      if (typeof window !== 'undefined') {
+        const p = new URLSearchParams(window.location.search);
+        p.delete('edit');
+        const q = p.toString() ? `?${p.toString()}` : window.location.pathname;
+        window.history.replaceState(null, '', q);
+      }
       window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: false } }));
     } else {
       setIsEditing(true);
+      if (typeof window !== 'undefined') {
+        const p = new URLSearchParams(window.location.search);
+        p.set('edit', 'true');
+        window.history.replaceState(null, '', `?${p.toString()}`);
+      }
       window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
     }
   }, [isEditing, currentPageConfig, db]);
+
+  // Synchronize edit mode from external events (dock or shortcuts)
+  useEffect(() => {
+    const handleEditChange = (e: any) => {
+      if (e?.detail?.isEditMode !== undefined) {
+        setIsEditing(Boolean(e.detail.isEditMode));
+      }
+    };
+    const handleToggleEdit = () => {
+      toggleEditMode();
+    };
+    window.addEventListener('kosun_edit_mode_changed', handleEditChange);
+    window.addEventListener('kosun_toggle_edit_mode', handleToggleEdit);
+    return () => {
+      window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
+      window.removeEventListener('kosun_toggle_edit_mode', handleToggleEdit);
+    };
+  }, [toggleEditMode]);
 
   // Section CRUD Handlers
   const handleUpdateSection = useCallback((sectionId: string, updatedData: any) => {
@@ -338,6 +367,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}
+        isAuthorized={true}
       />
     </div>
   );

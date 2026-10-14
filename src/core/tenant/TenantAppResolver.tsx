@@ -188,10 +188,10 @@ export const TenantAppResolver: React.FC = () => {
         } catch {}
       }
     } else if (isLocal) {
-      const sessionTenant = sessionStorage.getItem('kosun_active_tenant_id');
-      if (sessionTenant && sessionTenant !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(sessionTenant.trim().toLowerCase())) {
-        sub = sessionTenant.trim().toLowerCase();
-      }
+      try {
+        sessionStorage.removeItem('kosun_active_tenant_id');
+      } catch {}
+      sub = null;
     } else {
       sub = extractSubdomainFromHost(hostname);
     }

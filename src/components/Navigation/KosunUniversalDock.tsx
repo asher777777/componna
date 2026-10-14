@@ -17,6 +17,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../../services/firebaseAuth';
 import { useTenantScope } from '../../core/tenant';
+import { ROOT_TENANT_ID } from '../../core/tenant/tenantResolver';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { useKosai } from '../../modules/kosai-engine';
 import { KosNevModal } from './KosNevModal';
@@ -93,13 +94,26 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
     }
   }, [isGlobalFallback]);
 
-  const effectiveTenantId = propTenantId || (!isRootTenant ? scopeTenantId : undefined);
-  const isSubdomain = propIsSubdomain ?? Boolean(effectiveTenantId && !isRootTenant);
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.local')
+  );
+
+  const effectiveTenantId = propTenantId || (!isRootTenant ? scopeTenantId : (isLocal ? ROOT_TENANT_ID : undefined));
+  const isSubdomain = propIsSubdomain ?? Boolean(effectiveTenantId && !isRootTenant && !isLocal);
 
   // Authentication State
   const [authState, setAuthState] = useState<AuthState | null>(null);
-  const [isAdminOrEditor, setIsAdminOrEditor] = useState<boolean>(false);
+  const [isAdminOrEditor, setIsAdminOrEditor] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const h = window.location.hostname;
+      if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return true;
+    }
+    return false;
+  });
   const [isTenantAuthed, setIsTenantAuthed] = useState<boolean>(() => {
+    if (isLocal) return true;
     if (effectiveTenantId) {
       return TenantAuthService.isTenantAuthenticated(effectiveTenantId);
     }
@@ -139,6 +153,10 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
 
   // Auth Subscription
   useEffect(() => {
+    if (isLocal) {
+      setIsAdminOrEditor(true);
+      return;
+    }
     if (!firebaseApp) return;
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
       setAuthState(state);
@@ -151,14 +169,16 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
       }
     });
     return () => unsub();
-  }, [firebaseApp]);
+  }, [firebaseApp, isLocal]);
 
   // Tenant Auth Session check
   useEffect(() => {
-    if (effectiveTenantId) {
+    if (isLocal) {
+      setIsTenantAuthed(true);
+    } else if (effectiveTenantId) {
       setIsTenantAuthed(TenantAuthService.isTenantAuthenticated(effectiveTenantId));
     }
-  }, [effectiveTenantId, location.search]);
+  }, [effectiveTenantId, isLocal, location.search]);
 
   // Listen to external theme changes
   useEffect(() => {
@@ -292,7 +312,8 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
           isTenantAuthed ||
           isSuperAdminBypass ||
           (hasAdminQuery && (isAdminOrEditor || isTenantAuthed)) ||
-          isEditing
+          isEditing ||
+          isLocal
         )
   );
 

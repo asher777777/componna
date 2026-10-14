@@ -1,7 +1,7 @@
 import { Firestore, doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { TenantProvisionerService } from './tenantProvisionerService';
 import { TenantAccount } from '../types';
-import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
+import { DEFAULT_SUBDOMAIN_MODULES, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 
 export interface TenantLoginResult {
   success: boolean;
@@ -20,6 +20,14 @@ export class TenantAuthService {
     // Master bypass: If super-admin mode is explicitly unlocked
     const masterBypass = sessionStorage.getItem('kosun_super_admin_bypass') === 'true';
     if (masterBypass) return true;
+
+    // In local development, localhost is associated with the master tenant (_master)
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.hostname.endsWith('.local');
+    if (isLocal && (cleanSub === ROOT_TENANT_ID || cleanSub === 'master' || cleanSub === '_master')) {
+      return true;
+    }
 
     return (
       sessionStorage.getItem(`tenant_admin_auth_${cleanSub}`) === 'true' ||

@@ -212,27 +212,8 @@ export function resolveCurrentTenantId(): string {
         return sub;
       }
 
-      // Check session or local storage for active subdomain in local development
-      const sessionTenant = sessionStorage.getItem('kosun_active_tenant_id');
-      if (sessionTenant && sessionTenant.trim() && sessionTenant !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(sessionTenant.trim().toLowerCase())) {
-        return sessionTenant.trim().toLowerCase();
-      }
-
-      const localTenant = localStorage.getItem('kosun_active_tenant_id');
-      if (localTenant && localTenant.trim() && localTenant !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(localTenant.trim().toLowerCase())) {
-        return localTenant.trim().toLowerCase();
-      }
-
-      // Check for authenticated tenant session keys (e.g. tenant_admin_auth_mlea)
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && key.startsWith('tenant_admin_auth_') && sessionStorage.getItem(key) === 'true') {
-          const authSub = key.replace('tenant_admin_auth_', '').trim().toLowerCase();
-          if (authSub && authSub !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(authSub)) {
-            return authSub;
-          }
-        }
-      }
+      // If no explicit tenant query param on localhost, it is strictly ROOT_TENANT_ID (_master)
+      return ROOT_TENANT_ID;
     } catch {}
   }
 
