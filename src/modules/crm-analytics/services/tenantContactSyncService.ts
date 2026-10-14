@@ -14,6 +14,7 @@ import {
 import { SubdomainTenantContactData, SubdomainTenantContactContract } from '../../../core/contracts';
 import { Contact } from '../types';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
 
 const TENANTS_STORAGE_KEYS = [
   'kosun_provisioned_tenants_registry_v1',
@@ -330,7 +331,7 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
             ownerPhone: tData.ownerPhone || '',
             adminUsername: adminUsername,
             adminPassword: adminPassword || 'Ks@1234',
-            activeModules: Array.isArray(tData.activeModules) ? tData.activeModules : ['KosBranding', 'KosWebAi', 'KSF'],
+            activeModules: Array.isArray(tData.activeModules) && tData.activeModules.length > 0 ? tData.activeModules : DEFAULT_SUBDOMAIN_MODULES,
             status: tData.status || 'active',
             billingPlan: tData.billingPlan || 'monthly',
             notes: tData.notes || '',

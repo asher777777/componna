@@ -22,6 +22,7 @@ import {
 } from '../types';
 import { DEFAULT_COLLECTIONS } from '../config';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
 
 // Robust date parser for dates in diverse formats (dd/mm/yyyy, ISO, Timestamp)
 export function parseDateToTime(val: any): number | null {
@@ -680,7 +681,7 @@ export async function fetchLiveCrmAnalytics(
                     fullDomain: item.fullDomain || `${sub}.kosun.pro`,
                     adminUsername: item.adminUsername || item.ownerEmail || `${sub}@kosun.pro`,
                     adminPassword: item.adminPassword || 'Ks@1234',
-                    activeModules: item.activeModules || ['KosBranding', 'KosWebAi', 'KSF'],
+                    activeModules: Array.isArray(item.activeModules) && item.activeModules.length > 0 ? item.activeModules : DEFAULT_SUBDOMAIN_MODULES,
                     tenantStatus: item.status || 'active',
                     billingPlan: item.billingPlan || 'monthly',
                     monthlyTotal: item.monthlyTotal || 0,

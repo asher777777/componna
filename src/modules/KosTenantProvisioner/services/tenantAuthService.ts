@@ -1,6 +1,7 @@
 import { Firestore, doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
 import { TenantProvisionerService } from './tenantProvisionerService';
 import { TenantAccount } from '../types';
+import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
 
 export interface TenantLoginResult {
   success: boolean;
@@ -196,7 +197,7 @@ export class TenantAuthService {
         clientName: cleanSub,
         fullDomain: `${cleanSub}.kosun.pro`,
         adminUsername: cleanUser,
-        activeModules: ['KosBranding', 'KosWebAi', 'KSF'],
+        activeModules: DEFAULT_SUBDOMAIN_MODULES,
         status: 'active',
       },
     };

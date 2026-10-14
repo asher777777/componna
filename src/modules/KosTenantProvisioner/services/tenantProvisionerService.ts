@@ -11,8 +11,9 @@ import {
 import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '../types';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { tenantContactSyncService } from '../../crm-analytics/services/tenantContactSyncService';
-import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
+import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
+import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
@@ -135,6 +136,36 @@ export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
     badgeColor: 'bg-pink-500/10 text-pink-400 border-pink-500/30',
     defaultIncluded: false,
   },
+  {
+    id: 'kosai-engine',
+    name: 'מנוע בינה מלאכותית וסוכנים',
+    englishPrefix: 'Kos',
+    englishRest: 'Ai',
+    description: 'סוכני בינה מלאכותית, סיוע אוטומטי ואינטגרציות AI מתקדמות',
+    category: 'core',
+    badgeColor: 'bg-indigo-500/10 text-indigo-400 border-indigo-500/30',
+    defaultIncluded: true,
+  },
+  {
+    id: 'KosTube',
+    name: 'קושאן Tube - חיבור יוטיוב וקידום SEO מבוסס AI',
+    englishPrefix: 'Kos',
+    englishRest: 'Tube',
+    description: 'סנכרון ערוץ יוטיוב, המרת סרטונים למאמרים ויצירת עמודי SEO',
+    category: 'marketing',
+    badgeColor: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
+    defaultIncluded: true,
+  },
+  {
+    id: 'ambassador-campaigns-hub',
+    name: 'ניהול שגרירים וקמפיינים',
+    englishPrefix: 'Kos',
+    englishRest: 'Campaigns',
+    description: 'ניהול קמפיינים שיווקיים, שגרירים, מעקב הפניות ולידים',
+    category: 'marketing',
+    badgeColor: 'bg-teal-500/10 text-teal-400 border-teal-500/30',
+    defaultIncluded: false,
+  },
 ];
 
 const LOCAL_STORAGE_KEY = 'kosun_provisioned_tenants_registry_v1';
@@ -174,7 +205,7 @@ export class TenantProvisionerService {
             adminPassword: adminPassword || (map.get(sub)?.adminPassword ?? 'Ks@1234'),
             ownerEmail: data.ownerEmail,
             ownerPhone: data.ownerPhone,
-            activeModules: Array.isArray(data.activeModules) ? data.activeModules : ['KosWebAi', 'KSF'],
+            activeModules: Array.isArray(data.activeModules) && data.activeModules.length > 0 ? data.activeModules : DEFAULT_SUBDOMAIN_MODULES,
             collectionPrefix: data.collectionPrefix || `tenant_${sub}_mod_`,
             status: data.status || 'active',
             createdAt: data.createdAt || new Date().toISOString(),
@@ -206,7 +237,7 @@ export class TenantProvisionerService {
               adminPassword: cd.adminPassword || existing?.adminPassword || 'Ks@1234',
               ownerEmail: cd.kosun_crm_email || cd.email || existing?.ownerEmail || `${sub}@kosun.pro`,
               ownerPhone: cd.kosun_crm_phone || cd.conta_phone || existing?.ownerPhone || '050-0000000',
-              activeModules: Array.isArray(cd.activeModules) ? cd.activeModules : (existing?.activeModules || ['KosWebAi', 'KSF']),
+              activeModules: Array.isArray(cd.activeModules) && cd.activeModules.length > 0 ? cd.activeModules : (existing?.activeModules || DEFAULT_SUBDOMAIN_MODULES),
               collectionPrefix: existing?.collectionPrefix || `tenant_${sub}_mod_`,
               status: cd.tenantStatus || cd.status || existing?.status || 'active',
               createdAt: cd.createdAt || existing?.createdAt || new Date().toISOString(),
@@ -232,7 +263,7 @@ export class TenantProvisionerService {
         adminPassword: 'DemoPassword2026!',
         ownerEmail: 'demo@kosun.pro',
         ownerPhone: '050-0000000',
-        activeModules: ['KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics'],
+        activeModules: DEFAULT_SUBDOMAIN_MODULES,
         collectionPrefix: 'tenant_demo_mod_',
         status: 'active',
         createdAt: new Date().toISOString(),
@@ -276,7 +307,7 @@ export class TenantProvisionerService {
       adminPassword: form.adminPassword.trim() || 'Ks@1234',
       ownerEmail: form.ownerEmail?.trim() || form.adminUsername.trim(),
       ownerPhone: form.ownerPhone?.trim() || '050-0000000',
-      activeModules: form.selectedModules.length > 0 ? form.selectedModules : ['KosWebAi', 'KSF'],
+      activeModules: form.selectedModules.length > 0 ? form.selectedModules : DEFAULT_SUBDOMAIN_MODULES,
       collectionPrefix: `tenant_${cleanSub}_mod_`,
       status: 'active',
       createdAt: new Date().toISOString(),

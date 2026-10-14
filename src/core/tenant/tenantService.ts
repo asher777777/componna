@@ -120,7 +120,7 @@ export class TenantCoreService {
         clientName: 'עסק הדגמה (Demo)',
         ownerEmail: 'demo@kosun.pro',
         ownerPhone: '050-0000000',
-        activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
+        activeModules: DEFAULT_SUBDOMAIN_MODULES,
         collectionPrefix: 'tenant_demo_mod_',
         billingPlan: 'annual',
         monthlyTotal: 299,

@@ -85,36 +85,40 @@ export const TenantAppResolver: React.FC = () => {
   });
 
   // Strict Domain Isolation: In production, any ?tenant= query on the root platform host MUST redirect to the subdomain
+  // Strict Domain Isolation: In production, any ?tenant= query on the root platform host MUST redirect to the subdomain
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const hostname = window.location.hostname.toLowerCase().trim();
-    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
-    const p = new URLSearchParams(window.location.search);
-    const tenantParam = p.get('tenant');
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname.toLowerCase().trim();
+      const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
+      const p = new URLSearchParams(window.location.search);
+      const tenantParam = p.get('tenant');
 
-    if (!isLocal && tenantParam && isRootPlatformHost(hostname)) {
-      const cleanParam = tenantParam.trim().toLowerCase();
-      if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam) && cleanParam !== ROOT_TENANT_ID) {
-        p.delete('tenant');
-        p.delete('mode');
-        const remainingQuery = p.toString() ? `?${p.toString()}` : '';
-        const targetUrl = `https://${cleanParam}.kosun.pro${window.location.pathname}${remainingQuery}${window.location.hash}`;
-        window.location.replace(targetUrl);
-        return;
+      if (!isLocal && tenantParam && isRootPlatformHost(hostname)) {
+        const cleanParam = tenantParam.trim().toLowerCase();
+        if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam) && cleanParam !== ROOT_TENANT_ID) {
+          p.delete('tenant');
+          p.delete('mode');
+          const remainingQuery = p.toString() ? `?${p.toString()}` : '';
+          const targetUrl = `https://${cleanParam}.kosun.pro${window.location.pathname}${remainingQuery}${window.location.hash}`;
+          window.location.replace(targetUrl);
+          return;
+        }
+      }
+
+      // On subdomain in production or local session: hostname or session already defines tenant! Clean up ?tenant= and ?mode= noise
+      const isSubdomainHost = Boolean(extractSubdomainFromHost(hostname));
+      const hasLocalSessionTenant = isLocal && Boolean(sessionStorage.getItem('kosun_active_tenant_id') && sessionStorage.getItem('kosun_active_tenant_id') !== ROOT_TENANT_ID);
+      if (isSubdomainHost || hasLocalSessionTenant) {
+        if (p.has('tenant') || p.has('mode')) {
+          p.delete('tenant');
+          p.delete('mode');
+          const remainingQuery = p.toString() ? `?${p.toString()}` : '';
+          const cleanUrl = `${window.location.pathname}${remainingQuery}${window.location.hash}`;
+          window.history.replaceState(null, '', cleanUrl);
+        }
       }
     }
-
-    // On subdomain in production: hostname already defines tenant! Clean up ?tenant= and ?mode= noise
-    if (!isLocal && extractSubdomainFromHost(hostname)) {
-      if (p.has('tenant') || p.has('mode')) {
-        p.delete('tenant');
-        p.delete('mode');
-        const remainingQuery = p.toString() ? `?${p.toString()}` : '';
-        const cleanUrl = `${window.location.pathname}${remainingQuery}${window.location.hash}`;
-        window.history.replaceState(null, '', cleanUrl);
-      }
-    }
-  }, []);
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     sessionStorage.setItem('kosun_is_dev_workbench', String(isDevWorkbench));
@@ -176,8 +180,16 @@ export const TenantAppResolver: React.FC = () => {
     let sub: string | null = null;
     if (isLocal && tenantParam) {
       const cleanParam = tenantParam.trim().toLowerCase();
-      if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam)) {
+      if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam) && cleanParam !== ROOT_TENANT_ID) {
         sub = cleanParam;
+        try {
+          sessionStorage.setItem('kosun_active_tenant_id', cleanParam);
+        } catch {}
+      }
+    } else if (isLocal) {
+      const sessionTenant = sessionStorage.getItem('kosun_active_tenant_id');
+      if (sessionTenant && sessionTenant !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(sessionTenant.trim().toLowerCase())) {
+        sub = sessionTenant.trim().toLowerCase();
       }
     } else {
       sub = extractSubdomainFromHost(hostname);
