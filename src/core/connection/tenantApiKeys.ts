@@ -81,20 +81,42 @@ export function purgeLegacyLocalApiKeys(): void {
   } catch {}
 }
 
-/** Legacy purchase IDs → canonical module IDs */
+/** Legacy purchase IDs → canonical module IDs (all lowercase) */
 const MODULE_ID_ALIASES: Record<string, string> = {
   'video-producer': 'video-producer-studio',
+  'video-producer-studio': 'video-producer-studio',
   'flow-player': 'flow-player-engine',
-  'whatsapp-hub': 'KosWhatsUp',
-  'whatsapp-green-api-hub': 'KosWhatsUp',
-  'koswhatsup': 'KosWhatsUp',
+  'flow-player-engine': 'flow-player-engine',
+  'whatsapp-hub': 'koswhatsup',
+  'whatsapp-green-api-hub': 'koswhatsup',
+  'koswhatsup': 'koswhatsup',
   'kesher-payments': 'kesher-payments-hub',
+  'kesher-payments-hub': 'kesher-payments-hub',
   'smart-forms': 'smart-form-builder',
-  'crm-groups': 'KosTogether',
-  'crm-groups-hub': 'KosTogether',
-  'brand-dna': 'KosBranding',
+  'smart-form-builder': 'smart-form-builder',
+  'ksf': 'ksf',
+  'crm-groups': 'kostogether',
+  'crm-groups-hub': 'kostogether',
+  'kostogether': 'kostogether',
+  'brand-dna': 'kosbranding',
+  'branding': 'kosbranding',
+  'kosbranding': 'kosbranding',
   'campaigns-hub': 'ambassador-campaigns-hub',
   'ambassador-campaigns': 'ambassador-campaigns-hub',
+  'ambassador-campaigns-hub': 'ambassador-campaigns-hub',
+  'koswebai': 'koswebai',
+  'page-builder': 'koswebai',
+  'crm-analytics': 'crm-analytics',
+  'media-gallery-hub': 'media-gallery-hub',
+  'kosun-am': 'kosun-am',
+  'kosai-engine': 'kosai-engine',
+  'kosun-board-composer': 'kosun-board-composer',
+  'db-connector': 'db-connector-hub',
+  'db-connector-hub': 'db-connector-hub',
+  'client-platform': 'client-platform',
+  'auth-portal': 'auth-portal',
+  'all': 'all',
+  '*': '*',
 };
 
 export function normalizeModuleId(id: string): string {
@@ -104,23 +126,28 @@ export function normalizeModuleId(id: string): string {
 
 /** Route prefix → module ID (used to detect the currently active module) */
 const ROUTE_TO_MODULE: Array<[string, string]> = [
-  ['/brand-dna', 'KosBranding'],
+  ['/brand-dna', 'kosbranding'],
+  ['/branding', 'kosbranding'],
+  ['/kosbranding', 'kosbranding'],
   ['/kesher-payments', 'kesher-payments-hub'],
-  ['/whatsapp-hub', 'KosWhatsUp'],
-  ['/crm-groups', 'crm-groups-hub'],
+  ['/whatsapp-hub', 'koswhatsup'],
+  ['/crm-groups', 'kostogether'],
   ['/campaigns-hub', 'ambassador-campaigns-hub'],
   ['/ambassador-campaigns', 'ambassador-campaigns-hub'],
   ['/smart-forms', 'smart-form-builder'],
+  ['/ksf', 'ksf'],
   ['/video-producer', 'video-producer-studio'],
   ['/db-connector', 'db-connector-hub'],
   ['/client-platform', 'client-platform'],
   ['/crm-analytics', 'crm-analytics'],
-  ['/KosWebAi', 'KosWebAi'],
+  ['/koswebai', 'koswebai'],
+  ['/page-builder', 'koswebai'],
   ['/auth-portal', 'auth-portal'],
   ['/flow-player-engine', 'flow-player-engine'],
   ['/media-gallery-hub', 'media-gallery-hub'],
   ['/db-collections', 'db-collections-hub'],
   ['/kosun-am', 'kosun-am'],
+  ['/board-composer', 'kosun-board-composer'],
   ['/template', 'template'],
 ];
 
@@ -195,9 +222,12 @@ export interface ApiKeysResolutionInput {
 /** Pure entitlement check (shared by React context + plain services) */
 export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: string): boolean {
   if (input.isRootTenant) return true;
-  const target = moduleId ? normalizeModuleId(moduleId) : input.activeModuleId;
-  if (!target) return false;
-  return input.purchasedModules.includes(target);
+  const rawTarget = moduleId || input.activeModuleId;
+  if (!rawTarget) return false;
+  const target = normalizeModuleId(rawTarget);
+  const purchased = (input.purchasedModules || []).map(normalizeModuleId);
+  if (purchased.includes('*') || purchased.includes('all')) return true;
+  return purchased.includes(target);
 }
 
 /**
@@ -206,7 +236,12 @@ export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: st
  * Rule (Clause ד): Subdomain transactional APIs (Kesher, Green-API WhatsApp, HeyGen, Webhook) use tenant-scoped keys.
  */
 export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: string): SystemApiKeysConfig {
-  const masterAiKey = (input.masterKeys?.googleAiApiKey || (input.isRootTenant ? input.tenantKeys.googleAiApiKey : '') || '').trim();
+  const masterAiKey = (
+    input.masterKeys?.googleAiApiKey ||
+    (input.isRootTenant ? input.tenantKeys.googleAiApiKey : '') ||
+    input.tenantKeys.googleAiApiKey ||
+    ''
+  ).trim();
 
   if (!isModuleEntitledFor(input, moduleId)) {
     // Not entitled → secrets stripped, only non-secret model defaults kept

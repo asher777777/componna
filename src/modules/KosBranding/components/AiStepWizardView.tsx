@@ -1463,23 +1463,37 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
 
           {/* AI Result Cards Display */}
           {aiResult && !isAiLoading && (
-            <div className="space-y-3 animate-in fade-in">
-              {/* AI Source Status Banner (Live Gemini API vs Offline Fallback) */}
-              <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl text-xs border transition-all bg-slate-900/50 border-slate-800">
-                <div className="flex items-center gap-2">
-                  <div className={`w-2.5 h-2.5 rounded-full ${aiResult.isLiveAi ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                  <span className="font-bold text-slate-300">
-                    {aiResult.isLiveAi
-                      ? `✨ מענה חי מ-Google Gemini (${aiResult.liveModel || 'gemini-3.8-flash'})`
-                      : '⚡ הצעות חכמות מובנות (מצב Fallback מקומי)'}
-                  </span>
+            <div className="space-y-3 animate-in fade-in" dir="rtl">
+              {aiResult.suggestions.length === 0 ? (
+                <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 via-purple-500/10 to-indigo-500/10 border border-amber-500/30 flex items-start gap-3.5 text-xs">
+                  <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-sm text-amber-300">
+                      אין לכם את האפשרות הזו בסל
+                    </h4>
+                    <p className="text-slate-300 leading-relaxed text-xs">
+                      {aiResult.error || 'יכולות הבינה המלאכותית (AI) אינן כלולות בחבילה הנוכחית שלכם. לשדרוג החבילה והפעלת יכולות AI מתקדמות, אנא פנו למנהל המערכת.'}
+                    </p>
+                  </div>
                 </div>
-                {aiResult.error && (
-                  <span className="text-[11px] text-amber-400/90 font-medium">
-                    {aiResult.error}
-                  </span>
-                )}
-              </div>
+              ) : (
+                <>
+                  {/* AI Source Status Banner (Live Gemini API) */}
+                  <div className="flex items-center justify-between px-3.5 py-2 rounded-2xl text-xs border transition-all bg-slate-900/50 border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="font-bold text-slate-300">
+                        ✨ מענה חי מ-Google Gemini ({aiResult.liveModel || 'gemini-3.8-flash'})
+                      </span>
+                    </div>
+                    {aiResult.error && (
+                      <span className="text-[11px] text-amber-400/90 font-medium">
+                        {aiResult.error}
+                      </span>
+                    )}
+                  </div>
 
               {/* Recommendation Reason Banner */}
               {aiResult.recommendationReason && (
@@ -1586,6 +1600,8 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
                   <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                   <span>{aiResult.smartInsight}</span>
                 </div>
+              )}
+                </>
               )}
             </div>
           )}

@@ -5,7 +5,7 @@ import {
   ExternalLink, Image, FileText, ArrowRight, UserPlus, Filter,
   CheckSquare, Square, Database, UserCheck, Tag, DownloadCloud, X, FolderOpen, Crown, Wand2, Bot
 } from 'lucide-react';
-import { Firestore, collection, getDocs, query } from 'firebase/firestore';
+import { Firestore, collection, getDocs, query, where } from 'firebase/firestore';
 import { FirebaseApp } from 'firebase/app';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { GreenApiService } from '../services/greenApiService';
@@ -285,12 +285,34 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
     setIsLoadingCrmContacts(true);
     try {
       const coll = collection(db, contactsCollectionName);
-      const snap = await getDocs(query(coll));
+      let snap = await getDocs(query(coll));
+
+      // Fallback if empty in subdomain context
+      if (snap.empty) {
+        const subMatch = contactsCollectionName.match(/^tenants\/([^\/]+)\/contacts$/);
+        const currentSub = subMatch && subMatch[1] !== '_master' ? subMatch[1].toLowerCase() : null;
+        if (currentSub) {
+          try {
+            const rootSubSnap = await getDocs(query(collection(db, 'contacts'), where('subdomain', '==', currentSub)));
+            if (!rootSubSnap.empty) {
+              snap = rootSubSnap;
+            } else {
+              const masterSubSnap = await getDocs(query(collection(db, 'tenants', '_master', 'contacts'), where('subdomain', '==', currentSub)));
+              if (!masterSubSnap.empty) {
+                snap = masterSubSnap;
+              }
+            }
+          } catch {}
+        }
+      }
+
       const items: Array<{ id: string; name: string; phone: string; company?: string }> = [];
       snap.forEach((d) => {
         const data = d.data();
-        const phone = data.phone || data.phoneNumber || data.mobile || '';
+        const phone = data.conta_phone || data.kosun_crm_phone || data.phone || data.phoneNumber || data.mobile || '';
         const name =
+          data.conta_name ||
+          data.kosun_crm_name ||
           data.name ||
           data.fullName ||
           data.contactName ||
@@ -301,7 +323,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
             id: d.id,
             name,
             phone,
-            company: data.company || data.businessName || data.organization || '',
+            company: data.company_name || data.company || data.businessName || data.organization || '',
           });
         }
       });

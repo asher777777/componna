@@ -59,9 +59,37 @@ export async function fetchGroupsAndContactsData(
     contactsSnap = await getDocs(query(collection(db, colls.contacts)));
   }
 
-  // Fallback if scoped collection is empty
-  if (contactsSnap.empty && ownerId) {
-    contactsSnap = await getDocs(query(collection(db, colls.contacts)));
+  // Fallback if scoped collection is empty: check root contacts or master contacts
+  if (contactsSnap.empty) {
+    try {
+      const subMatch = colls.contacts.match(/^tenants\/([^/]+)\/contacts$/);
+      const currentSub = subMatch && subMatch[1] !== '_master' ? subMatch[1].toLowerCase() : null;
+
+      if (currentSub) {
+        // Query root contacts tagged with this subdomain
+        let subSnap = await getDocs(query(collection(db, 'contacts'), where('subdomain', '==', currentSub)));
+        if (subSnap.empty) {
+          subSnap = await getDocs(query(collection(db, 'tenants', '_master', 'contacts'), where('subdomain', '==', currentSub)));
+        }
+        if (subSnap.empty) {
+          const adminDoc = await getDoc(doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${currentSub}`));
+          if (adminDoc.exists()) {
+            subSnap = { docs: [adminDoc], empty: false, forEach: (cb: any) => [adminDoc].forEach(cb) } as any;
+          }
+        }
+        if (!subSnap.empty) {
+          contactsSnap = subSnap;
+        }
+      } else {
+        // Master / root fallback
+        const rootSnap = await getDocs(query(collection(db, 'contacts')));
+        if (!rootSnap.empty) {
+          contactsSnap = rootSnap;
+        }
+      }
+    } catch (fbErr) {
+      console.warn('[KosTogether] Contacts fallback notice:', fbErr);
+    }
   }
 
   const contacts: ContactRecord[] = [];

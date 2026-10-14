@@ -46,6 +46,9 @@ export function resolveGeminiApiKey(providedKey?: string): string {
 export const AUTHORIZED_BRAND_MODEL = 'gemini-3.8-flash';
 export type GeminiModelId = string;
 
+/** Friendly message when AI is not in the tenant's purchased basket or key is absent */
+export const NOT_IN_BASKET_MESSAGE = 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.';
+
 /**
  * Universal Cloud Functions execution helper enforcing Module Monopoly and pleasant Hebrew messaging
  */
@@ -65,7 +68,7 @@ export async function executeWithGeminiFallback(
       success: false,
       text: '',
       modelUsed: '',
-      error: 'לא הוגדר מפתח Google Gemini API בהגדרות המערכת',
+      error: NOT_IN_BASKET_MESSAGE,
     };
   }
 
@@ -114,7 +117,7 @@ export async function rephraseTextWithBrandAi(
 ): Promise<{ success: boolean; text?: string; modelUsed?: string; error?: string }> {
   const activeKey = resolveGeminiApiKey(apiKey);
   if (!activeKey) {
-    return { success: false, error: 'לא הוגדר מפתח Google Gemini API במערכת' };
+    return { success: false, error: NOT_IN_BASKET_MESSAGE };
   }
   if (!originalText || !originalText.trim()) {
     return { success: false, error: 'לא סופק טקסט לעריכה' };
@@ -147,7 +150,7 @@ ${customInstructions ? `דגשים מיוחדים של המשתמש: ${customIns
     return { success: true, text: result.text, modelUsed: result.modelUsed };
   }
 
-  return { success: false, error: result.error || 'שגיאה בעריכת הטקסט' };
+  return { success: false, error: result.error || NOT_IN_BASKET_MESSAGE };
 }
 
 /**
@@ -159,7 +162,7 @@ export async function generateBrandDnaFromInterview(
 ): Promise<{ success: boolean; brandDna?: Partial<BrandDna>; error?: string }> {
   const activeKey = resolveGeminiApiKey(apiKey);
   if (!activeKey) {
-    return { success: false, error: 'לא הוגדר מפתח Google Gemini API במערכת' };
+    return { success: false, error: NOT_IN_BASKET_MESSAGE };
   }
 
   try {
@@ -774,13 +777,15 @@ export async function generateStepAiAssistance(
   userDraft?: string
 ): Promise<StepAiAssistanceResult> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  // If no API key provided, immediately return intelligent smart fallback
+  // If no API key provided or not entitled, return friendly notice without fake fallback suggestions
   if (!activeKey) {
-    const fallback = generateSmartFallbackSuggestions(stepId, brand, userDraft);
     return {
-      ...fallback,
+      success: false,
+      suggestions: [],
+      recommendedIndex: -1,
+      recommendationReason: '',
       isLiveAi: false,
-      error: 'לא מוגדר מפתח Gemini API במערכת (פועל במצב AI Fallback אוטומטי). ניתן להזין מפתח בהגדרות החיבור.',
+      error: NOT_IN_BASKET_MESSAGE,
     };
   }
 
@@ -816,12 +821,14 @@ export async function generateStepAiAssistance(
     }
   }
 
-  // If live calls failed or couldn't parse, return fallback with clear notice of why
-  const fallback = generateSmartFallbackSuggestions(stepId, brand, userDraft);
+  // Live call failed - no mock fallbacks, return polite notification
   return {
-    ...fallback,
+    success: false,
+    suggestions: [],
+    recommendedIndex: -1,
+    recommendationReason: '',
     isLiveAi: false,
-    error: result.error ? `פנייה ל-Gemini נכשלה (${result.error}). הופעלו הצעות חכמות אוטומטיות.` : undefined,
+    error: result.error || NOT_IN_BASKET_MESSAGE,
   };
 }
 
@@ -839,47 +846,10 @@ export async function generateBrandContentStrategies(
   const uvp = brand.audience.mainUvp || 'שירות אישי, מהיר ומותאם לצרכים שלך';
 
   if (!activeKey) {
-    // High-quality smart fallbacks when AI key is completely offline
     return {
-      success: true,
-      strategies: [
-        {
-          id: `strat-service-${Date.now()}`,
-          type: 'service_page',
-          title: `עמוד שירות מוביל: ${company}`,
-          targetAudience: brand.audience.targetAudiences[0] || 'לקוחות פרטיים ועסקיים המחפשים פתרון איכותי',
-          heroHeadline: `הדרך הבטוחה והמדויקת להשיג תוצאות עם ${company}`,
-          heroSubheadline: `${slogan} - מעטפת שירות מלאה המשלבת מומחיות, שקיפות ויחס אישי.`,
-          coreValuePoints: [
-            'אבחון וייעוץ מקיף המותאם אישית לצרכים שלך',
-            'ליווי צמוד מקצה לקצה ללא אותיות קטנות',
-            'חיסכון משמעותי בזמן ובמשאבים מיותרים',
-            'תוצאות מוכחות עם אחריות ומענה מהיר',
-          ],
-          callToAction: 'קבעו שיחת ייעוץ אישית ללא עלות עכשיו',
-          objectionKiller: 'אין התחייבות מראש - בשיחה הראשונה נמפה את המצב ונציג תוכנית עבודה מדויקת.',
-          persuasiveClosing: 'אל תתפשרו על פחות מהטוב ביותר. הצטרפו למאות לקוחות מרוצים שכבר נהנים מתוצאות.',
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: `strat-sales-${Date.now() + 1}`,
-          type: 'sales_page',
-          title: `עמוד מכירה והמרה: חבילת הפרימיום של ${company}`,
-          targetAudience: 'לקוחות בעלי כוונת רכישה גבוהה המעוניינים בשקט נפשי וערך מיידי',
-          heroHeadline: `קבלו עכשיו את הפתרון המלא שיקפיץ אתכם קדימה`,
-          heroSubheadline: `${uvp} - חבילה בלעדית הכוללת את כל הכלים והליווי להצלחה מובטחת.`,
-          coreValuePoints: [
-            'יישום מיידי ותוצאות נראות לעין כבר מהשבוע הראשון',
-            'מערך תמיכה ייעודי וזמין בוואטסאפ לכל שאלה',
-            'גישה לכל המשאבים, החומרים והתבניות המובילות',
-          ],
-          callToAction: 'הבטיחו את מקומכם בהנחה מיוחדת לנרשמים היום',
-          pricingHook: 'השקעה חד-פעמית שמחזירה את עצמה פי כמה',
-          objectionKiller: brand.trust.refundPolicySummary || '100% שביעות רצון מובטחת עם אפשרות ביטול והחזר כספי מלא.',
-          persuasiveClosing: 'המבצע לזמן מוגבל בלבד. לחצו על הכפתור והצטרפו מיד.',
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      success: false,
+      strategies: [],
+      error: NOT_IN_BASKET_MESSAGE,
     };
   }
 
@@ -950,27 +920,11 @@ export async function generateBrandContentStrategies(
     const parsed = JSON.parse(jsonStr);
     return { success: true, strategies: Array.isArray(parsed) ? parsed : [parsed] };
   } catch (err: any) {
-    console.warn('generateBrandContentStrategies fallback:', err);
+    console.warn('generateBrandContentStrategies notice:', err);
     return {
-      success: true,
-      strategies: [
-        {
-          id: `strat-service-${Date.now()}`,
-          type: 'service_page',
-          title: `עמוד שירות: ${company}`,
-          targetAudience: brand.audience.targetAudiences[0] || 'לקוחות עסקיים ופרטיים',
-          heroHeadline: `פתרונות מקצועיים ומותאמים אישית מבית ${company}`,
-          heroSubheadline: `${slogan} - הניסיון והמומחיות שלנו לשירותכם.`,
-          coreValuePoints: [
-            'שירות אישי ומסור לכל לקוח',
-            'זמינות גבוהה ומענה מהיר',
-            'פתרונות מתקדמים המותאמים בדיוק לצרכים שלך',
-          ],
-          callToAction: 'צרו איתנו קשר לשיחת ייעוץ ראשונית',
-          persuasiveClosing: 'הצטרפו למעגל הלקוחות המרוצים שלנו ותיהנו מתוצאות מוכחות.',
-          createdAt: new Date().toISOString(),
-        },
-      ],
+      success: false,
+      strategies: [],
+      error: err?.message || NOT_IN_BASKET_MESSAGE,
     };
   }
 }
@@ -997,43 +951,9 @@ export async function scrapeBrandFromUrlOrSocial(
   const domainGuess = cleanUrl.replace(/^https?:\/\//, '').replace(/^www\./, '').split(/[\/?#]/)[0];
 
   if (!activeKey) {
-    // Intelligent smart mock extraction when no key is set
     return {
-      success: true,
-      summary: `נותח בהצלחה הקישור עבור: ${domainGuess}`,
-      extractedBrand: {
-        identity: {
-          companyName: domainGuess.split('.')[0].toUpperCase(),
-          organizationPurpose: `שירותים מובילים ופתרונות מקיפים מתוך האתר ${cleanUrl}`,
-          slogan: 'איכות, מקצועיות ושירות ללא פשרות',
-          companyVision: `להיות הכתובת המובילה בתחום תוך מתן ערך מרבי לכל לקוח.`,
-          shortVision: 'שירות מתקדם המותאם אישית לצרכים שלך.',
-          organizationType: 'חברה',
-          memberCount: 'עד 10',
-          logoUrl: '',
-        },
-        voice: {
-          personality: { formality: 3, warmth: 4, luxury: 3, energy: 4 },
-          genderAddressing: 'plural',
-          sectorCompliance: 'general',
-          shabbatObservant: false,
-          powerWords: ['איכות', 'מובילות', 'ביטחון', 'מקצועיות', 'תוצאות'],
-          forbiddenWords: ['חובבני', 'זול', 'אולי'],
-        },
-        audience: {
-          mainUvp: 'מענה מקיף ומקצועי המשלב ידע מעמיק ושירות אישי.',
-          targetAudiences: ['לקוחות פרטיים', 'עסקים וחברות', 'מקבלי החלטות'],
-          personas: [],
-          commonObjections: [
-            { id: 'o-1', objection: 'האם השירות מתאים בדיוק עבורי?', rebuttal: 'אנו מתאימים את המעטפת באופן אישי ומדויק לכל צורך.' }
-          ],
-        },
-      },
-      positioningQuestions: [
-        'מה היתרון המרכזי ביותר שמבדיל אתכם ממתחרים אחרים ברשת?',
-        'האם האתר פונה לקהל עסקי (B2B) או לצרכנים פרטיים (B2C)?',
-        'מהו המוצר או השירות הרווחי ביותר שתרצו להציב בפרונט של המותג?',
-      ],
+      success: false,
+      error: NOT_IN_BASKET_MESSAGE,
     };
   }
 
@@ -1105,39 +1025,10 @@ export async function scrapeBrandFromUrlOrSocial(
       positioningQuestions: parsed.positioningQuestions || [],
     };
   } catch (err: any) {
-    console.warn('scrapeBrandFromUrlOrSocial fallback:', err);
+    console.warn('scrapeBrandFromUrlOrSocial notice:', err);
     return {
-      success: true,
-      summary: `נותח על בסיס הכתובת: ${domainGuess}`,
-      extractedBrand: {
-        identity: {
-          companyName: domainGuess.split('.')[0].toUpperCase(),
-          organizationType: 'חברה',
-          organizationPurpose: `פעילות עסקית מתוך ${cleanUrl}`,
-          memberCount: 'עד 10',
-          slogan: 'איכות ומצוינות בשירות',
-          companyVision: 'הובלה והענקת ערך מרבי לקהל היעד.',
-          shortVision: 'שירות מקצועי ואמין.',
-        },
-        voice: {
-          personality: { formality: 3, warmth: 4, luxury: 3, energy: 4 },
-          genderAddressing: 'plural',
-          sectorCompliance: 'general',
-          shabbatObservant: false,
-          powerWords: ['מובילות', 'אמון', 'איכות', 'מקצוענות'],
-          forbiddenWords: ['חובבני'],
-        },
-        audience: {
-          mainUvp: 'פתרון מקיף ומקצועי המותאם אישית ללקוח.',
-          targetAudiences: ['לקוחות מתעניינים'],
-          personas: [],
-          commonObjections: [],
-        },
-      },
-      positioningQuestions: [
-        'מה היתרון המרכזי שמבדיל אתכם ממתחרים נוספים בתחום?',
-        'איזה מסר הכי חשוב לכם שיישאר בזיכרון של לקוח הנכנס לאתר?',
-      ],
+      success: false,
+      error: err?.message || NOT_IN_BASKET_MESSAGE,
     };
   }
 }

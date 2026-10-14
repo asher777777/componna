@@ -6,6 +6,7 @@ import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { ensureAnonymousAuth } from '../../services/firebaseAuth';
 import { useTenantScope } from '../tenant/TenantScopeContext';
 import { ROOT_TENANT_ID } from '../tenant/tenantResolver';
+import { TenantCoreService } from '../tenant/tenantService';
 import { setTokenTrackerFirestore } from '../ai/tenantTokenTracker';
 import {
   SystemApiKeysConfig,
@@ -330,6 +331,15 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
             const { updatedAt: _u, migratedAt: _m, createdAt: _c, ...keys } = (snap.data() || {}) as Record<string, any>;
             setMasterApiKeys({ ...DEFAULT_API_KEYS, ...keys });
           } else {
+            // Check global settings document if master keys doc does not exist yet
+            getDoc(doc(db, 'system_settings', 'global')).then((gSnap) => {
+              if (gSnap.exists()) {
+                const gData = gSnap.data();
+                if (gData?.apiKeys) {
+                  setMasterApiKeys((prev) => ({ ...DEFAULT_API_KEYS, ...gData.apiKeys, ...prev }));
+                }
+              }
+            }).catch(() => {});
             setMasterApiKeys(DEFAULT_API_KEYS);
           }
         },
@@ -351,7 +361,16 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         tenantRef,
         (snap) => {
           const data = snap.exists() ? snap.data() : undefined;
-          const mods: string[] = Array.isArray(data?.activeModules) ? data!.activeModules : [];
+          let mods: string[] = Array.isArray(data?.activeModules) ? data!.activeModules : [];
+          // Local fallback if Firestore document not yet populated
+          if (mods.length === 0) {
+            const localTenants = TenantCoreService.getLocalTenants();
+            const cleanTarget = apiKeysTenantId.toLowerCase().trim();
+            const found = localTenants.find((t) => (t.subdomain || '').toLowerCase().trim() === cleanTarget);
+            if (found && Array.isArray(found.activeModules) && found.activeModules.length > 0) {
+              mods = found.activeModules;
+            }
+          }
           setPurchasedModules(Array.from(new Set(mods.map(normalizeModuleId))));
         },
         (error) => console.warn('[SystemConnection] Tenant purchases sync notice:', error)

@@ -500,23 +500,66 @@ export async function fetchLiveCrmAnalytics(
       snapshot = await getDocs(query(contactsRef));
     }
 
-    // Fallback: ONLY for _master root tenant migration, if scoped collection is empty
-    if (snapshot.empty && collections.contacts.includes('/_master/')) {
+    // Fallback: If scoped collection is empty, search root or master contacts
+    if (snapshot.empty) {
       try {
         const rootTargetCol = SYSTEM_COLLECTIONS.CONTACTS;
         const rootRef = collection(db, rootTargetCol);
-        const rootQ = ownerId ? query(rootRef, where('ownerId', '==', ownerId)) : query(rootRef);
-        let rootSnap = await getDocs(rootQ);
-        if (rootSnap.empty && ownerId) {
-          rootSnap = await getDocs(query(rootRef));
+
+        // Check if we are in a subdomain context (e.g., 'tenants/<subdomain>/contacts')
+        const subMatch = collections.contacts.match(/^tenants\/([^/]+)\/contacts$/);
+        const currentSub = subMatch && subMatch[1] !== '_master' ? subMatch[1].toLowerCase() : null;
+
+        let fallbackDocs: any[] = [];
+
+        if (currentSub) {
+          // 1. In subdomain: try finding contacts tagged with or matching this subdomain in root contacts
+          try {
+            const rootSubSnap = await getDocs(query(rootRef, where('subdomain', '==', currentSub)));
+            if (!rootSubSnap.empty) {
+              fallbackDocs.push(...rootSubSnap.docs);
+            }
+          } catch {}
+
+          // 2. Also check master contacts for this subdomain
+          if (fallbackDocs.length === 0) {
+            try {
+              const masterCol = collection(db, 'tenants', '_master', 'contacts');
+              const masterSubSnap = await getDocs(query(masterCol, where('subdomain', '==', currentSub)));
+              if (!masterSubSnap.empty) {
+                fallbackDocs.push(...masterSubSnap.docs);
+              }
+            } catch {}
+          }
+
+          // 3. Check for specific tenant admin doc tenant_admin_<subdomain> in master
+          if (fallbackDocs.length === 0) {
+            try {
+              const adminDoc = await getDoc(doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${currentSub}`));
+              if (adminDoc.exists()) {
+                fallbackDocs.push(adminDoc);
+              }
+            } catch {}
+          }
+        } else if (collections.contacts.includes('/_master/')) {
+          // In master context: query root contacts
+          const rootQ = ownerId ? query(rootRef, where('ownerId', '==', ownerId)) : query(rootRef);
+          let rootSnap = await getDocs(rootQ);
+          if (rootSnap.empty && ownerId) {
+            rootSnap = await getDocs(query(rootRef));
+          }
+          if (!rootSnap.empty) {
+            fallbackDocs.push(...rootSnap.docs);
+          }
         }
-        if (!rootSnap.empty) {
-          snapshot = rootSnap;
+
+        if (fallbackDocs.length > 0) {
+          snapshot = { docs: fallbackDocs, empty: false } as any;
           // Background auto-migration / mirroring into tenant-scoped collection
           try {
             let mirrorBatch = writeBatch(db);
             let count = 0;
-            for (const docItem of rootSnap.docs) {
+            for (const docItem of fallbackDocs) {
               mirrorBatch.set(doc(db, collections.contacts, docItem.id), docItem.data(), { merge: true });
               count++;
               if (count >= 400) {
@@ -533,7 +576,7 @@ export async function fetchLiveCrmAnalytics(
           }
         }
       } catch (e) {
-        console.warn('[CRM Analytics] Root contacts fallback query notice:', e);
+        console.warn('[CRM Analytics] Contacts fallback query notice:', e);
       }
     }
 

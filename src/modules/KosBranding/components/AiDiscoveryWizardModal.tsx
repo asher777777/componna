@@ -49,7 +49,7 @@ export const AiDiscoveryWizardModal: React.FC<AiDiscoveryWizardModalProps> = ({
     }
     const apiKey = apiKeys.googleAiApiKey || '';
     if (!apiKey) {
-      setErrorMsg('יש להגדיר מפתח Google Gemini API בהגדרות המערכת');
+      setErrorMsg('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI מתקדמות, אנא פנו למנהל המערכת.');
       return;
     }
 

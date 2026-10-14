@@ -135,6 +135,16 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
         }, { merge: true });
       } catch {}
 
+      // 3. Write to subdomain's own scoped contacts collection (tenants/${cleanSub}/contacts)
+      try {
+        await setDoc(doc(db, 'tenants', cleanSub, 'contacts', targetDocId), {
+          ...contactPayload,
+          id: targetDocId,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+      } catch {}
+
       eventBus.emit('tenant:contact_synced', { subdomain: cleanSub, contactId: targetDocId });
       eventBus.emit('crm:contact:updated', { id: targetDocId, conta_name: contactName, email });
 

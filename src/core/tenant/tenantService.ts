@@ -69,14 +69,12 @@ export class TenantCoreService {
       }
 
       try {
-        // 2. Also load from master contacts collection to link sub-tenant management to contacts
-        const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
-        const contactsSnap = await getDocs(masterContactsCol);
-        for (const cDoc of contactsSnap.docs) {
+        // 2. Also load from master contacts and root contacts to link sub-tenant management to contacts
+        const parseContactDoc = (cDoc: any) => {
           const cd = cDoc.data();
           if (cd.subdomain && (cd.isSubdomainAdmin || cd.isUser)) {
             const sub = cd.subdomain.toLowerCase().trim();
-            if (sub === ROOT_TENANT_ID || sub === 'www' || sub === 'admin' || sub === '_master') continue;
+            if (sub === ROOT_TENANT_ID || sub === 'www' || sub === 'admin' || sub === '_master') return;
             
             const existing = map.get(sub);
             map.set(sub, {
@@ -85,7 +83,7 @@ export class TenantCoreService {
               clientName: cd.company_name || cd.kosun_crm_name || cd.conta_name || existing?.clientName || `עסק ${sub}`,
               ownerEmail: cd.kosun_crm_email || cd.email || existing?.ownerEmail || `${sub}@kosun.pro`,
               ownerPhone: cd.kosun_crm_phone || cd.conta_phone || existing?.ownerPhone || '050-0000000',
-              activeModules: Array.isArray(cd.activeModules) ? cd.activeModules : (existing?.activeModules || ['KosWebAi', 'KSF']),
+              activeModules: Array.isArray(cd.activeModules) ? cd.activeModules : (existing?.activeModules || ['KosBranding', 'KosWebAi', 'KSF']),
               collectionPrefix: `tenant_${sub}_mod_`,
               billingPlan: cd.billingPlan || existing?.billingPlan || 'monthly',
               monthlyTotal: cd.monthlyTotal || existing?.monthlyTotal || 0,
@@ -98,9 +96,19 @@ export class TenantCoreService {
               notes: cd.subdomainNotes || existing?.notes || '',
             });
           }
-        }
+        };
+
+        const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
+        const contactsSnap = await getDocs(masterContactsCol);
+        contactsSnap.docs.forEach(parseContactDoc);
+
+        // Also check root contacts
+        try {
+          const rootContactsSnap = await getDocs(collection(db, 'contacts'));
+          rootContactsSnap.docs.forEach(parseContactDoc);
+        } catch {}
       } catch (err) {
-        console.warn('[TenantCoreService] Master contacts fetch warning:', err);
+        console.warn('[TenantCoreService] Contacts fetch warning:', err);
       }
     }
 
