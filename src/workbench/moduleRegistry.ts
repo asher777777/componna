@@ -73,6 +73,10 @@ const KosTubeStandaloneView = React.lazy(() =>
   import('../modules/KosTube').then((m) => ({ default: m.KosTubeStandaloneView }))
 );
 
+const KosTikTokStandaloneView = React.lazy(() =>
+  import('../modules/KosTikTok').then((m) => ({ default: m.StandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -84,6 +88,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosTikTok',
+    name: 'קושאן TikTok - פרסום סרטונים, לידים ומעקב המרות',
+    description: 'חיבור חשבונות TikTok ב-OAuth 2.0, פרסום ישיר של סרטונים, קליטת לידים מטפסים ממומנים ומעקב המרות Events API.',
+    component: KosTikTokStandaloneView,
+    route: '/KosTikTok',
+    collectionPrefix: 'mod_kos_tiktok_',
+  },
   {
     id: 'KosTube',
     name: 'קושאן Tube - חיבור יוטיוב וקידום SEO מבוסס AI',

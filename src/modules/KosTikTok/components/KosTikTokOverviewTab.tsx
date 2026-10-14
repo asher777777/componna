@@ -70,7 +70,9 @@ export const KosTikTokOverviewTab: React.FC = () => {
               <div className="flex items-center gap-2">
                 <h2 className="text-2xl font-black">{activeAccount.displayName}</h2>
                 {activeAccount.isVerified && (
-                  <CheckCircle2 className="w-5 h-5 text-sky-400" title="חשבון מאומת" />
+                  <span title="חשבון מאומת">
+                    <CheckCircle2 className="w-5 h-5 text-sky-400" />
+                  </span>
                 )}
               </div>
               <p className="text-sm text-slate-400 mt-0.5">{activeAccount.username}</p>
