@@ -484,9 +484,74 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
       },
     },
   },
+
+  // 6. Kosvidio - YouTube AI SEO Video Page
+  {
+    id: 'kosvidio',
+    title: 'דף וידאו ומאמר AI SEO (Kosvidio)',
+    category: 'video',
+    description: 'נגן וידאו חדשני, כותרת, תוויות עדינות, שיתוף חברתי, תגובות בעיצוב יוטיוב, תיאור קצר ומאמר עומק מותאם SEO & AI-SEO.',
+    badge: 'Kosvidio AI 🎥',
+    icon: 'Video',
+    sectionTypes: ['header', 'kosvidio', 'contact'],
+    config: {
+      pageId: 'bp-kosvidio',
+      pageTitle: 'נגן ועמוד וידאו חכם - Kosvidio',
+      slug: 'Kosvidio',
+      published: true,
+      isHomePage: false,
+      viewsCount: 0,
+      leadsCount: 0,
+      globalSettings: {
+        siteTitle: 'Kosvidio - מרכז הוידאו והתוכן החכם',
+        companyName: 'קושאן דיגיטל',
+        slogan: 'חווית צפייה חכמה ומאמרי SEO מעמיקים',
+        theme: 'dark',
+        headerLayout: 'floating-glass',
+        headerSticky: true,
+        isHeaderVisible: true,
+        isFooterVisible: true,
+        primaryColor: '#ef4444',
+        secondaryColor: '#8b5cf6',
+        backgroundColor: '#090a0f',
+        textColor: '#f8fafc',
+        fontFamily: 'Heebo, sans-serif',
+        borderRadius: 'lg',
+        buttonStyle: 'gradient',
+        contactWhatsApp: '0526968008',
+        contactPhone: '052-6968008',
+        contactEmail: 'ovt5771@gmail.com',
+      },
+      seoSettings: {
+        title: 'Kosvidio - עמוד וידאו ומאמר מקודם',
+        description: 'צפו בוידאו וקראו את המאמר המלא עם תובנות עומק, שאלות נפוצות וסיכום מנהלים.',
+        keywords: ['וידאו', 'יוטיוב', 'SEO', 'AISEO', 'מאמר תוכן'],
+      },
+      sectionOrder: ['header-1', 'kosvidio-1', 'contact-1'],
+      sections: {
+        'header-1': {
+          ...SECTION_REGISTRY.header.defaultConfig,
+          id: 'header-1',
+          title: 'Kosvidio',
+          showLogoText: true,
+          logoText: 'Kosvidio',
+        },
+        'kosvidio-1': {
+          ...SECTION_REGISTRY.kosvidio.defaultConfig,
+          id: 'kosvidio-1',
+        },
+        'contact-1': {
+          ...SECTION_REGISTRY.contact.defaultConfig,
+          id: 'contact-1',
+          title: 'יש לכם שאלות או רוצים לשתף פעולה?',
+          subtitle: 'צרו קשר ישיר עם יוצר התוכן והצוות',
+        },
+      },
+    },
+  },
 ];
 
-  return _cachedBlueprints;
+  return _cachedBlueprints || [];
 }
 
 export const PAGE_BLUEPRINTS: PageTemplateBlueprint[] = new Proxy([] as PageTemplateBlueprint[], {

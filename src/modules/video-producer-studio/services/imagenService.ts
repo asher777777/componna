@@ -1,12 +1,26 @@
-/**
- * Google Imagen 3 & Banana Pro Photorealistic AI Image Generation Service
- */
+import { GEMINI_API_BASE_URL, TenantTokenTracker } from '../../../core/ai';
+import { ROOT_TENANT_ID, resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 export interface ImagenGenerateParams {
   prompt: string;
   aspectRatio?: '16:9' | '9:16' | '1:1';
   sampleCount?: number;
   referenceImageBase64?: string;
+}
+
+function recordVideoImageTokens() {
+  try {
+    const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+    const targetTenant = (currentResolverTenant && currentResolverTenant !== ROOT_TENANT_ID) ? currentResolverTenant : ROOT_TENANT_ID;
+    TenantTokenTracker.recordTokenUsage(
+      targetTenant,
+      'video',
+      1170,
+      { images: 1, costUSD: 0.03 }
+    ).catch(err => console.warn('[recordVideoImageTokens error]:', err));
+  } catch (err) {
+    console.warn('[recordVideoImageTokens error]:', err);
+  }
 }
 
 /**
@@ -100,7 +114,7 @@ export async function generateImagen3Image(
         }
         parts.push({ text: cleanPrompt });
 
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${trimmedKey}`;
+        const geminiEndpoint = `${GEMINI_API_BASE_URL}/models/${modelName}:generateContent?key=${trimmedKey}`;
         const res = await fetch(geminiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -121,6 +135,7 @@ export async function generateImagen3Image(
           const imagePart = candidateParts.find((p: any) => p.inlineData?.mimeType?.startsWith('image/'));
           if (imagePart?.inlineData?.data) {
             const mime = imagePart.inlineData.mimeType || 'image/jpeg';
+            recordVideoImageTokens();
             return {
               imageUrl: `data:${mime};base64,${imagePart.inlineData.data}`,
               base64Data: imagePart.inlineData.data,
@@ -134,7 +149,7 @@ export async function generateImagen3Image(
     }
 
     // B. Try Google Imagen predict via direct endpoint
-    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${trimmedKey}`;
+    const endpoint = `${GEMINI_API_BASE_URL}/models/imagen-3.0-generate-002:predict?key=${trimmedKey}`;
 
     try {
       const res = await fetch(endpoint, {
@@ -160,6 +175,7 @@ export async function generateImagen3Image(
         const b64 = data?.predictions?.[0]?.bytesBase64Encoded;
         const mime = data?.predictions?.[0]?.mimeType || 'image/jpeg';
         if (b64) {
+          recordVideoImageTokens();
           return {
             imageUrl: `data:${mime};base64,${b64}`,
             base64Data: b64,
@@ -194,6 +210,7 @@ export async function generateImagen3Image(
           if (blob && blob.size > 1500) {
             const dataUrl = await blobToBase64(blob);
             const cleanB64 = dataUrl.split(',')[1] || '';
+            recordVideoImageTokens();
             return {
               imageUrl: dataUrl,
               base64Data: cleanB64,
@@ -209,6 +226,7 @@ export async function generateImagen3Image(
       const dataUrl = await loadImageToDataUrl(mirrorUrl, width, height);
       if (dataUrl && dataUrl.startsWith('data:image')) {
         const cleanB64 = dataUrl.split(',')[1] || '';
+        recordVideoImageTokens();
         return {
           imageUrl: dataUrl,
           base64Data: cleanB64,

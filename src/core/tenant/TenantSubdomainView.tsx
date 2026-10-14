@@ -497,6 +497,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // System modules that should NEVER appear on a subdomain
+  // System modules reserved exclusively for master platform administrator
   const SYSTEM_MODULES = new Set([
     'auth-portal',
     'db-collections-hub',
@@ -508,28 +509,29 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     'saas-storefront-composer',
   ]);
 
-  // Active provisioned modules for this tenant (strictly limited to tenant's active collection)
-  const activeModuleIds = tenantRecord.activeModules || [];
+  const ALL_NON_SYSTEM_MODULES = REGISTERED_MODULES
+    .filter((m) => !SYSTEM_MODULES.has(m.id))
+    .map((m) => m.id);
+
+  // Active provisioned modules for this tenant - fallback to all standard modules if not explicitly limited
+  const activeModuleIds = Array.isArray(tenantRecord.activeModules) && tenantRecord.activeModules.length > 0
+    ? tenantRecord.activeModules
+    : ALL_NON_SYSTEM_MODULES;
+
   const allowedModules = REGISTERED_MODULES.filter((m) => {
     if (SYSTEM_MODULES.has(m.id)) return false;
-    return activeModuleIds.includes(m.id);
+    return activeModuleIds.some((id) => id.toLowerCase() === m.id.toLowerCase());
   });
 
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
-    const isLocal = typeof window !== 'undefined' && (
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.location.hostname.endsWith('.local')
-    );
-    const subQuery = isLocal ? `?tenant=${tenantRecord.subdomain}&mode=admin` : `?mode=admin`;
     const defaultRoute = customDashboard && adminViewType === 'custom_board'
-      ? `/dashboard${subQuery}`
-      : activeModuleIds.includes('KosBranding')
-      ? `/brand-dna${subQuery}`
+      ? '/dashboard'
+      : activeModuleIds.some((id) => id.toLowerCase() === 'kosbranding')
+      ? '/brand-dna'
       : allowedModules.length > 0
-      ? `${allowedModules[0].route}${subQuery}`
-      : `/overview${subQuery}`;
+      ? allowedModules[0].route
+      : '/dashboard';
 
     return (
       <div className={`flex flex-col h-screen w-screen overflow-hidden ${tenantTheme === 'dark' ? 'dark bg-[#0a0a0c] text-slate-100' : 'bg-slate-50 text-slate-900'} relative font-sans transition-colors duration-300`} dir="rtl">
@@ -615,7 +617,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                 );
               })}
               {/* Fallback alias routes for full workbench compatibility */}
-              <Route path="/smart-forms/*" element={<Navigate to={`/ksf${subQuery}`} replace />} />
+              <Route path="/smart-forms/*" element={<Navigate to="/ksf" replace />} />
               <Route path="*" element={<Navigate to={defaultRoute} replace />} />
             </Routes>
           </main>

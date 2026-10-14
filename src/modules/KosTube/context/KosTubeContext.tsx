@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { PageBuilderContract, SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { doc, setDoc } from 'firebase/firestore';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
@@ -41,6 +44,8 @@ const KosTubeContext = createContext<KosTubeContextValue | null>(null);
 export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
+  const { getCapability } = useHostCapabilities();
+  const pageBuilder = getCapability<PageBuilderContract>('page-builder');
 
   const [channel, setChannel] = useState<KosTubeChannel | null>(null);
   const [videos, setVideos] = useState<KosTubeVideo[]>([]);
@@ -160,8 +165,114 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
 
         const pageId = `page_${video.youtubeVideoId}`;
-        const slug = res.data.slug || `video-${video.youtubeVideoId.toLowerCase()}`;
-        const publicUrl = `/tube/${slug}`;
+        const slug = res.data.slug || `kosvidio-${video.youtubeVideoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+        let publicUrl = `/tube/${slug}`;
+        let pbPageId = `page_kosvidio_${video.youtubeVideoId}`;
+
+        // 1. Connect to PageBuilder capability if available
+        if (pageBuilder?.createPageFromVideo) {
+          try {
+            const pbRes = await pageBuilder.createPageFromVideo({
+              video,
+              channelTitle: channel?.title || 'ערוץ יוטיוב',
+              aiData: res.data,
+            });
+            if (pbRes.success) {
+              pbPageId = pbRes.pageId;
+              publicUrl = pbRes.publicUrl;
+            }
+          } catch (pbErr) {
+            console.warn('[KosTube] pageBuilder capability call warning:', pbErr);
+          }
+        } else if (db) {
+          // 2. Direct save to SYSTEM_COLLECTIONS.PAGES conforming to Kosvidio blueprint
+          try {
+            const effTenant = tenantId || '_master';
+            const collPath = effTenant === '_master'
+              ? `tenants/_master/${SYSTEM_COLLECTIONS.PAGES}`
+              : `tenants/${effTenant}/${SYSTEM_COLLECTIONS.PAGES}`;
+
+            const pageConfig = {
+              pageId: pbPageId,
+              pageTitle: `${res.data.h1 || video.title} - Kosvidio`,
+              slug,
+              published: true,
+              isHomePage: false,
+              viewsCount: 0,
+              leadsCount: 0,
+              globalSettings: {
+                siteTitle: `${res.data.h1 || video.title} | Kosvidio`,
+                companyName: channel?.title || 'קושאן',
+                slogan: 'וידאו חכם ומאמרי SEO מעמיקים',
+                theme: 'dark',
+                headerLayout: 'floating-glass',
+                headerSticky: true,
+                isHeaderVisible: true,
+                isFooterVisible: true,
+                primaryColor: '#ef4444',
+                secondaryColor: '#8b5cf6',
+                backgroundColor: '#090a0f',
+                textColor: '#f8fafc',
+                fontFamily: 'Heebo, sans-serif',
+                borderRadius: 'lg',
+                buttonStyle: 'gradient',
+                contactWhatsApp: '0526968008',
+                contactPhone: '052-6968008',
+                contactEmail: 'ovt5771@gmail.com',
+              },
+              seoSettings: {
+                title: res.data.metaTitle || video.title,
+                description: res.data.metaDescription || video.description.slice(0, 160),
+                keywords: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
+              },
+              sectionOrder: ['header-1', 'kosvidio-1', 'contact-1'],
+              sections: {
+                'header-1': {
+                  type: 'header',
+                  id: 'header-1',
+                  visible: true,
+                  layout: 'floating-glass',
+                  title: 'Kosvidio',
+                  showLogoText: true,
+                  logoText: 'Kosvidio',
+                },
+                'kosvidio-1': {
+                  type: 'kosvidio',
+                  id: 'kosvidio-1',
+                  visible: true,
+                  youtubeVideoId: video.youtubeVideoId,
+                  title: res.data.h1 || video.title,
+                  channelName: channel?.title || 'ערוץ יוטיוב',
+                  channelAvatarUrl: video.thumbnailUrl,
+                  tags: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
+                  comments: res.data.youtubeComments || [],
+                  shortDescription: res.data.executiveSummary || video.description.slice(0, 160),
+                  longDescriptionMarkdown: res.data.articleContent || '',
+                  keyTakeaways: res.data.keyTakeaways || [],
+                  faqs: res.data.faqs || [],
+                  callToAction: res.data.callToAction,
+                  ambientGlow: true,
+                  showTheaterMode: true,
+                  enableSocialShare: true,
+                },
+                'contact-1': {
+                  type: 'contact',
+                  id: 'contact-1',
+                  visible: true,
+                  title: 'יש לכם שאלות או רוצים לשתף פעולה?',
+                  subtitle: 'צרו קשר ישיר עם יוצר התוכן והצוות',
+                },
+              },
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+
+            await setDoc(doc(db, collPath, pbPageId), pageConfig, { merge: true });
+            publicUrl = `/p/${slug}`;
+          } catch (e) {
+            console.warn('[KosTube] Direct save to PAGES collection warning:', e);
+          }
+        }
 
         const newPage: KosTubeSeoPage = {
           id: pageId,
@@ -173,6 +284,9 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           metaTitle: res.data.metaTitle || video.title,
           metaDescription: res.data.metaDescription || video.description.slice(0, 150),
           focusKeywords: res.data.focusKeywords || [],
+          tags: res.data.tags || [],
+          youtubeComments: res.data.youtubeComments || [],
+          pageBuilderPageId: pbPageId,
           h1: res.data.h1 || video.title,
           articleContent: res.data.articleContent || '',
           executiveSummary: res.data.executiveSummary || '',
@@ -218,6 +332,8 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
 
         setSelectedPage(newPage);
+        setModalMode('page_preview');
+        setIsModalOpen(true);
         return newPage;
       } catch (err: any) {
         console.error('[KosTube] generateSeoPage failed:', err);
@@ -228,7 +344,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setGeneratingVideoId(null);
       }
     },
-    [db, tenantId, channel?.title]
+    [db, tenantId, channel?.title, pageBuilder]
   );
 
   const batchGenerateSeoPages = useCallback(async (): Promise<number> => {

@@ -9,7 +9,8 @@ import {
   InteractiveActionItem,
   InteractiveCardItem
 } from '../types';
-import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
+import { calculateGeminiCost, TokenUsageReport, executeCloudAi } from '../../../core/ai';
+import { resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 import { VISUAL_STYLES_CATALOG, PRODUCTION_TYPES_CATALOG, TTS_LANGUAGES } from '../config/catalogs';
 import { BrandDna } from '../../../core/contracts';
 import { ExtractedPageSummary } from './pageContentExtractor';
@@ -186,7 +187,7 @@ Return ONLY a valid JSON object matching this exact schema:
   ]
 }`;
 
-  const parts: any[] = [{ text: promptText }];
+  const imageParts: Array<{ inlineData: { data: string; mimeType: string } }> = [];
 
   // Attach reference image if provided
   if (params.referenceImageBase64) {
@@ -195,7 +196,7 @@ Return ONLY a valid JSON object matching this exact schema:
       : params.referenceImageBase64;
     const mimeMatch = params.referenceImageBase64.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-    parts.push({
+    imageParts.push({
       inlineData: {
         mimeType: mimeType,
         data: cleanImg
@@ -208,7 +209,7 @@ Return ONLY a valid JSON object matching this exact schema:
     const cleanPdf = params.referencePdfBase64.includes(',') 
       ? params.referencePdfBase64.split(',')[1] 
       : params.referencePdfBase64;
-    parts.push({
+    imageParts.push({
       inlineData: {
         mimeType: 'application/pdf',
         data: cleanPdf
@@ -216,43 +217,27 @@ Return ONLY a valid JSON object matching this exact schema:
     });
   }
 
-  const geminiEndpoint = apiKey
-    ? `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey}`
-    : '/api/ai/generate';
-
-  const res = await fetch(geminiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: liveModel,
-      contents: [{ parts }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.7
-      }
-    })
+  const activeTenantId = resolveCurrentTenantId();
+  const aiRes = await executeCloudAi<ClarificationResult>({
+    prompt: promptText,
+    model: liveModel,
+    responseMimeType: 'application/json',
+    temperature: 0.7,
+    imageParts: imageParts.length > 0 ? imageParts : undefined,
+    apiKey,
+    category: 'video',
+    tenantId: activeTenantId
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini API Error (${res.status}): ${res.statusText}`);
+  if (!aiRes.success || !aiRes.data) {
+    throw new Error(aiRes.error || 'No clarification questions returned from Gemini.');
   }
 
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('No clarification questions returned from Gemini.');
-  }
-
-  const parsed = JSON.parse(text);
-
-  const promptTokens = data.usageMetadata?.promptTokenCount || 550;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 400;
-
-  const costReport = calculateGeminiCost({
+  const parsed = aiRes.data;
+  const costReport = aiRes.costReport || calculateGeminiCost({
     model: modelName,
-    promptTokens,
-    candidatesTokens
+    promptTokens: 550,
+    candidatesTokens: 400
   });
 
   return {
@@ -362,7 +347,7 @@ Return ONLY a valid JSON object matching this exact schema:
   ]
 }`;
 
-  const parts: any[] = [{ text: promptText }];
+  const imageParts: Array<{ inlineData: { data: string; mimeType: string } }> = [];
 
   // If user uploaded a reference image, attach it as inlineData
   if (params.referenceImageBase64) {
@@ -371,7 +356,7 @@ Return ONLY a valid JSON object matching this exact schema:
       : params.referenceImageBase64;
     const mimeMatch = params.referenceImageBase64.match(/^data:(image\/[a-zA-Z0-9+.-]+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-    parts.push({
+    imageParts.push({
       inlineData: {
         mimeType: mimeType,
         data: cleanImg
@@ -384,7 +369,7 @@ Return ONLY a valid JSON object matching this exact schema:
     const cleanPdf = params.referencePdfBase64.includes(',') 
       ? params.referencePdfBase64.split(',')[1] 
       : params.referencePdfBase64;
-    parts.push({
+    imageParts.push({
       inlineData: {
         mimeType: 'application/pdf',
         data: cleanPdf
@@ -392,43 +377,27 @@ Return ONLY a valid JSON object matching this exact schema:
     });
   }
 
-  const geminiEndpoint = apiKey
-    ? `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey}`
-    : '/api/ai/generate';
-
-  const res = await fetch(geminiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: liveModel,
-      contents: [{ parts }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.7
-      }
-    })
+  const activeTenantId = resolveCurrentTenantId();
+  const aiRes = await executeCloudAi<any>({
+    prompt: promptText,
+    model: liveModel,
+    responseMimeType: 'application/json',
+    temperature: 0.7,
+    imageParts: imageParts.length > 0 ? imageParts : undefined,
+    apiKey,
+    category: 'video',
+    tenantId: activeTenantId
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini API Error (${res.status}): ${res.statusText}`);
+  if (!aiRes.success || !aiRes.data) {
+    throw new Error(aiRes.error || 'No storyboard content generated by Gemini.');
   }
 
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('No storyboard content generated by Gemini.');
-  }
-
-  const parsed = JSON.parse(text);
-
-  const promptTokens = data.usageMetadata?.promptTokenCount || 750;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 1400;
-
-  const costReport = calculateGeminiCost({
+  const parsed = aiRes.data;
+  const costReport = aiRes.costReport || calculateGeminiCost({
     model: modelName,
-    promptTokens,
-    candidatesTokens
+    promptTokens: 750,
+    candidatesTokens: 1400
   });
 
   const rawScenes = parsed.scenes || [];
@@ -569,43 +538,26 @@ Return ONLY a JSON object with this exact schema:
   ]
 }`;
 
-  const geminiEndpoint = apiKey
-    ? `https://generativelanguage.googleapis.com/v1beta/models/${liveModel}:generateContent?key=${apiKey}`
-    : '/api/ai/generate';
-
-  const res = await fetch(geminiEndpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: liveModel,
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.7
-      }
-    })
+  const activeTenantId = resolveCurrentTenantId();
+  const aiRes = await executeCloudAi<any>({
+    prompt,
+    model: liveModel,
+    responseMimeType: 'application/json',
+    temperature: 0.7,
+    apiKey,
+    category: 'video',
+    tenantId: activeTenantId
   });
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini Next Scene error (${res.status})`);
+  if (!aiRes.success || !aiRes.data) {
+    throw new Error(aiRes.error || 'No scene generated by Gemini.');
   }
 
-  const data = await res.json();
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) {
-    throw new Error('No scene generated by Gemini.');
-  }
-
-  const parsed = JSON.parse(text);
-
-  const promptTokens = data.usageMetadata?.promptTokenCount || 450;
-  const candidatesTokens = data.usageMetadata?.candidatesTokenCount || 550;
-
-  const costReport = calculateGeminiCost({
+  const parsed = aiRes.data;
+  const costReport = aiRes.costReport || calculateGeminiCost({
     model: modelName,
-    promptTokens,
-    candidatesTokens
+    promptTokens: 450,
+    candidatesTokens: 550
   });
 
   const newSceneId = `scene_${Date.now()}_${nextSceneNumber}`;

@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   LayoutTemplate,
   Layers,
+  Video,
 } from 'lucide-react';
 
 import { hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
@@ -53,6 +54,8 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
         return <Users className="w-5 h-5 text-pink-400" />;
       case 'Heart':
         return <Heart className="w-5 h-5 text-rose-400" />;
+      case 'Video':
+        return <Video className="w-5 h-5 text-red-500" />;
       default:
         return <LayoutTemplate className="w-5 h-5 text-indigo-400" />;
     }
@@ -82,7 +85,7 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
             <div>
               <h2 className="text-xl font-black text-white">ספריית תבניות פרימיום (Page Blueprints)</h2>
               <p className="text-xs text-slate-400">
-                5 תבניות ארכיטקטורה מוכנות מראש לטעינה בלחיצה אחת – כל תבנית כוללת שלד של 5-7 אזורים מחוברים.
+                תבניות ארכיטקטורה מוכנות מראש לטעינה בלחיצה אחת – כל תבנית כוללת שלד אזורים מחובר ומותאם אישית.
               </p>
             </div>
           </div>
@@ -99,7 +102,8 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
         {/* Categories Bar */}
         <div className="px-6 py-3 border-b border-slate-800/60 bg-slate-900/20 flex items-center gap-2 overflow-x-auto">
           {[
-            { id: 'all', label: 'כל התבניות (5)' },
+            { id: 'all', label: `כל התבניות (${PAGE_BLUEPRINTS.length})` },
+            { id: 'video', label: 'וידאו ויוטיוב (Kosvidio) 🎥' },
             { id: 'sales', label: 'מכירה והשקה' },
             { id: 'geo', label: 'שירות מקומי ו-SEO' },
             { id: 'authority', label: 'מאמר ידע וסמכות' },

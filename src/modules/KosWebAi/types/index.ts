@@ -16,7 +16,7 @@ export interface MarketingIdea {
 export interface PageTemplateBlueprint {
   id: string;
   title: string;
-  category: 'sales' | 'geo' | 'authority' | 'community' | 'campaign';
+  category: 'sales' | 'geo' | 'authority' | 'community' | 'campaign' | 'video';
   description: string;
   badge: string;
   icon: string;

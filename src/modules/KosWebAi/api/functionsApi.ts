@@ -40,13 +40,6 @@ export function resolveApiKey(providedApiKey?: string): string | null {
     return state.masterKeys.googleAiApiKey.trim();
   }
 
-  if (typeof window !== 'undefined') {
-    const local = localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey');
-    if (local && local.trim().length > 5) {
-      return local.trim();
-    }
-  }
-
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
   if (envKey && envKey.trim().length > 5) {
     return envKey.trim();
@@ -84,6 +77,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
       imageParts: options.imageParts,
       timeoutMs: options.timeoutMs || 45000,
       apiKey,
+      category: 'content',
     });
 
     if (aiRes.success) {

@@ -7,10 +7,12 @@ import {
   CommunityWebPageOptions,
   PageBuilderContract,
   CreatePageFromProductOptions,
+  CreateVideoSeoPageOptions,
 } from '../../../core/contracts';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { aiPageGenerator } from '../services/aiPageGenerator';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
+import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 
 export const KosWebAiHostBridge: React.FC = () => {
   const { registerCapability, unregisterCapability } = useHostCapabilities();
@@ -224,6 +226,101 @@ export const KosWebAiHostBridge: React.FC = () => {
             slug: '',
             publicUrl: '',
             error: err?.message || 'שגיאה ביצירת עמוד הנחיתה עם AI.',
+          };
+        }
+      },
+
+      createPageFromVideo: async (options: CreateVideoSeoPageOptions) => {
+        try {
+          const video = options.video;
+          const aiData = options.aiData;
+          const cleanSlug = aiData?.slug || `kosvidio-${video.youtubeVideoId.toLowerCase().replace(/[^a-z0-9]/g, '')}`;
+          const pageId = `page_kosvidio_${video.youtubeVideoId}`;
+          const title = aiData?.h1 || video.title || 'וידאו ומאמר AI SEO';
+
+          const pageConfig: PageBuilderConfig = {
+            pageId,
+            pageTitle: `${title} - Kosvidio`,
+            slug: cleanSlug,
+            published: true,
+            isHomePage: false,
+            viewsCount: 0,
+            leadsCount: 0,
+            globalSettings: {
+              siteTitle: `${title} | Kosvidio`,
+              companyName: options.channelTitle || 'קושאן',
+              slogan: 'וידאו חכם ומאמרי SEO מעמיקים',
+              theme: 'dark',
+              headerLayout: 'floating-glass',
+              headerSticky: true,
+              isHeaderVisible: true,
+              isFooterVisible: true,
+              primaryColor: '#ef4444',
+              secondaryColor: '#8b5cf6',
+              backgroundColor: '#090a0f',
+              textColor: '#f8fafc',
+              fontFamily: 'Heebo, sans-serif',
+              borderRadius: 'lg',
+              buttonStyle: 'gradient',
+              contactWhatsApp: options.brandDna?.trust?.whatsappSupportNumber || '0526968008',
+              contactPhone: options.brandDna?.trust?.contactPhone || '052-6968008',
+              contactEmail: options.brandDna?.trust?.contactEmail || 'ovt5771@gmail.com',
+            },
+            seoSettings: {
+              title: aiData?.metaTitle || title,
+              description: aiData?.metaDescription || video.description.slice(0, 160),
+              keywords: aiData?.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
+            },
+            sectionOrder: ['header-1', 'kosvidio-1', 'contact-1'],
+            sections: {
+              'header-1': {
+                ...SECTION_REGISTRY.header.defaultConfig,
+                id: 'header-1',
+                title: 'Kosvidio',
+                showLogoText: true,
+                logoText: 'Kosvidio',
+              },
+              'kosvidio-1': {
+                ...SECTION_REGISTRY.kosvidio.defaultConfig,
+                id: 'kosvidio-1',
+                youtubeVideoId: video.youtubeVideoId,
+                title,
+                channelName: options.channelTitle || 'ערוץ יוטיוב',
+                channelAvatarUrl: video.thumbnailUrl,
+                tags: aiData?.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
+                comments: (aiData?.youtubeComments as any) || SECTION_REGISTRY.kosvidio.defaultConfig.comments,
+                shortDescription: aiData?.executiveSummary || video.description.slice(0, 160),
+                longDescriptionMarkdown: aiData?.articleContent || '',
+                keyTakeaways: aiData?.keyTakeaways || [],
+                faqs: (aiData?.faqs as any) || [],
+                callToAction: aiData?.callToAction || SECTION_REGISTRY.kosvidio.defaultConfig.callToAction,
+              },
+              'contact-1': {
+                ...SECTION_REGISTRY.contact.defaultConfig,
+                id: 'contact-1',
+                title: 'יש לכם שאלות או רוצים לשתף פעולה?',
+                subtitle: 'צרו קשר ישיר עם יוצר התוכן והצוות',
+              },
+            },
+          };
+
+          await pageBuilderFirestore.savePage(pageConfig, db, tenantId);
+
+          return {
+            success: true,
+            pageId: pageConfig.pageId,
+            slug: pageConfig.slug,
+            publicUrl: `/p/${pageConfig.slug}`,
+            config: pageConfig,
+          };
+        } catch (err: any) {
+          console.error('[KosWebAiHostBridge] Error creating video page:', err);
+          return {
+            success: false,
+            pageId: '',
+            slug: '',
+            publicUrl: '',
+            error: err?.message || 'שגיאה ביצירת עמוד הוידאו.',
           };
         }
       },

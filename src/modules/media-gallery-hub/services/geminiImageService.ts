@@ -4,23 +4,29 @@
  * and Ultra-High-Definition AI Synthesis (Flux.1 / SDXL).
  */
 
-import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
+import { calculateGeminiCost, TokenUsageReport, GEMINI_API_BASE_URL } from '../../../core/ai';
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { translateHebrewPromptToEnglish } from './geminiPromptAssistant';
 import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
+import { ROOT_TENANT_ID, resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 function recordGalleryTokens(report: TokenUsageReport) {
   try {
-    const tenantId = getTenantApiKeysState().tenantId;
-    if (tenantId) {
-      TenantTokenTracker.recordTokenUsage(
-        tenantId,
-        'gallery',
-        report.totalTokens || 1170,
-        { costUSD: report.estimatedCostUSD, images: 1 }
-      ).catch(() => {});
-    }
-  } catch {}
+    const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+    const stateTenant = getTenantApiKeysState().tenantId;
+    const targetTenant = (currentResolverTenant && currentResolverTenant !== ROOT_TENANT_ID)
+      ? currentResolverTenant
+      : ((stateTenant && stateTenant !== ROOT_TENANT_ID) ? stateTenant : ROOT_TENANT_ID);
+
+    TenantTokenTracker.recordTokenUsage(
+      targetTenant,
+      'gallery',
+      report.totalTokens || 1170,
+      { costUSD: report.estimatedCostUSD, images: 1 }
+    ).catch((err) => console.warn('[recordGalleryTokens warning]:', err));
+  } catch (err) {
+    console.warn('[recordGalleryTokens error]:', err);
+  }
 }
 
 export interface GeminiImageOptions {
@@ -157,7 +163,7 @@ export async function generateGeminiImage(
   if (effectiveKey) {
     // A. Imagen 3 predict endpoint
     if (model === 'imagen-3.0-generate-002') {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`;
+      const endpoint = `${GEMINI_API_BASE_URL}/models/imagen-3.0-generate-002:predict?key=${effectiveKey}`;
 
       try {
         const res = await fetch(endpoint, {
@@ -226,7 +232,7 @@ export async function generateGeminiImage(
         }
         parts.push({ text: englishPrompt });
 
-        const geminiEndpoint = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent?key=${effectiveKey}`;
+        const geminiEndpoint = `${GEMINI_API_BASE_URL}/models/${targetModel}:generateContent?key=${effectiveKey}`;
         const res = await fetch(geminiEndpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -300,6 +306,7 @@ export async function generateGeminiImage(
               promptTokens: 50,
               candidatesTokens: 1120,
             });
+            recordGalleryTokens(usageReport);
 
             return {
               imageUrl: dataUrl,
@@ -325,6 +332,7 @@ export async function generateGeminiImage(
           promptTokens: 50,
           candidatesTokens: 1120,
         });
+        recordGalleryTokens(usageReport);
 
         return {
           imageUrl: preloadResult.dataUrl || mirrorUrl,
@@ -348,6 +356,7 @@ export async function generateGeminiImage(
     promptTokens: 50,
     candidatesTokens: 1120,
   });
+  recordGalleryTokens(usageReport);
 
   return {
     imageUrl: guaranteedUrl,

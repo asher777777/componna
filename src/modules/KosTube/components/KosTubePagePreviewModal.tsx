@@ -107,13 +107,22 @@ export const KosTubePagePreviewModal: React.FC = () => {
             </button>
 
             <a
-              href={`/tube/${selectedPage.slug}`}
+              href={`/KosWebAi?pageId=${selectedPage.pageBuilderPageId || 'page_kosvidio_' + selectedPage.youtubeVideoId}`}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-purple-600/20 text-purple-400 border border-purple-500/30 hover:bg-purple-600/30 text-xs font-semibold transition"
+              title="פתיחה ועריכה בבונה העמודים KosWebAi"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>ערוך ב-KosWebAi</span>
+            </a>
+
+            <a
+              href={`/p/${selectedPage.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>פתח עמוד ציבורי</span>
+              <span>פתח עמוד חי</span>
             </a>
           </div>
         </div>
@@ -121,134 +130,213 @@ export const KosTubePagePreviewModal: React.FC = () => {
         {/* Modal Body */}
         <div className="flex-1 overflow-y-auto p-6 md:p-10">
           {activeView === 'preview' && (
-            <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
+            <div className="max-w-4xl mx-auto space-y-6 animate-fadeIn">
               {/* Meta tags bar */}
               <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 text-xs space-y-1.5">
                 <div className="flex items-center gap-2 text-slate-500">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Meta Title:</span>
-                  <span>{selectedPage.metaTitle}</span>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">תבנית עמוד:</span>
+                  <span className="px-2 py-0.5 rounded bg-red-500/10 text-red-400 font-mono font-bold">Kosvidio (סלאג: {selectedPage.slug})</span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-500">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">Meta Description:</span>
-                  <span>{selectedPage.metaDescription}</span>
-                </div>
-                <div className="flex items-center gap-2 text-slate-500">
-                  <span className="font-semibold text-slate-700 dark:text-slate-300">סלאג URL:</span>
-                  <code className="text-red-500 font-mono">/tube/{selectedPage.slug}</code>
+                  <span className="font-semibold text-slate-700 dark:text-slate-300">קישור ציבורי ישיר:</span>
+                  <code className="text-red-500 font-mono">/p/{selectedPage.slug}</code>
                 </div>
               </div>
 
-              {/* Page Title & Header */}
-              <div className="text-center space-y-3">
-                <span className="inline-block text-xs font-semibold px-3 py-1 rounded-full bg-red-100 dark:bg-red-950/60 text-red-600 dark:text-red-400">
-                  {selectedPage.channelTitle || 'ערוץ יוטיוב'} • מאמר מקודם
-                </span>
-                <h1 className="text-2xl md:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
+              {/* LAYER 1: בראש העמוד נגן חדשני */}
+              <div className="relative group">
+                <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-red-600/20 via-indigo-600/20 to-purple-600/20 blur-2xl opacity-70 pointer-events-none" />
+                <div className="relative z-10 aspect-video w-full rounded-2xl overflow-hidden shadow-2xl border border-slate-800 bg-black">
+                  <iframe
+                    src={embedUrl}
+                    title={selectedPage.h1}
+                    className="w-full h-full"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              </div>
+
+              {/* LAYER 2: תחתיו הכותרת */}
+              <div className="space-y-2 pt-2">
+                <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white leading-tight">
                   {selectedPage.h1}
                 </h1>
-                <p className="text-sm md:text-base text-slate-600 dark:text-slate-300 max-w-2xl mx-auto">
-                  {selectedPage.executiveSummary}
-                </p>
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="font-bold text-slate-700 dark:text-slate-300">{selectedPage.channelTitle || 'קושאן'}</span>
+                  <span>•</span>
+                  <span>פורסם לאחרונה</span>
+                  <span>•</span>
+                  <span className="text-emerald-500 font-semibold">ציון SEO: {selectedPage.seoScore}/100</span>
+                </div>
               </div>
 
-              {/* YouTube Embed Player */}
-              <div className="aspect-video w-full rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-black">
-                <iframe
-                  src={embedUrl}
-                  title={selectedPage.h1}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
+              {/* LAYER 3: תחתיו תוויות בעיצוב עדין ואיקונים לשיתוף ברשתות */}
+              <div className="flex flex-wrap items-center justify-between gap-3 p-3.5 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800">
+                <div className="flex flex-wrap items-center gap-2">
+                  {(selectedPage.tags && selectedPage.tags.length > 0 ? selectedPage.tags : (selectedPage.focusKeywords || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'])).map((tag, i) => (
+                    <span
+                      key={i}
+                      className="text-xs px-2.5 py-1 rounded-full bg-slate-200/80 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
+                    >
+                      #{tag.replace(/^#/, '')}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleWhatsAppShare}
+                    className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition"
+                  >
+                    WhatsApp
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(window.location.origin + '/p/' + selectedPage.slug);
+                      alert('הקישור הועתק ללוח!');
+                    }}
+                    className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition"
+                  >
+                    העתק קישור
+                  </button>
+                </div>
               </div>
 
-              {/* Key Takeaways Card */}
-              {selectedPage.keyTakeaways && selectedPage.keyTakeaways.length > 0 && (
-                <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-800/40">
-                  <h3 className="text-base font-bold text-amber-900 dark:text-amber-200 flex items-center gap-2 mb-3">
-                    <Sparkles className="w-5 h-5 text-amber-500" />
-                    <span>נקודות מפתח מרכזיות מהסרטון</span>
+              {/* LAYER 4: תחתיו אזור לתגובות מעוצב כמו ביוטיוב */}
+              <div className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 space-y-4">
+                <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <Youtube className="w-4 h-4 text-red-500" />
+                    <span>{(selectedPage.youtubeComments || []).length || 3} תגובות (בסגנון יוטיוב)</span>
                   </h3>
-                  <ul className="space-y-2 text-sm text-amber-950 dark:text-amber-100">
-                    {selectedPage.keyTakeaways.map((point, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-600 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                          {i + 1}
-                        </span>
-                        <span>{point}</span>
-                      </li>
-                    ))}
-                  </ul>
+                  <span className="text-xs text-slate-400">מסודר לפי: מובילות</span>
+                </div>
+
+                <div className="space-y-3">
+                  {(selectedPage.youtubeComments && selectedPage.youtubeComments.length > 0 ? selectedPage.youtubeComments : [
+                    { id: 'c1', authorName: 'איתי לוי', publishedAt: 'לפני יומיים', content: 'סרטון מדהים ומדויק! למדתי המון.', likesCount: 16 },
+                    { id: 'c2', authorName: 'שירה אלון', publishedAt: 'לפני 4 ימים', content: 'הסבר ברור ומקיף, מומלץ מאוד!', likesCount: 9 },
+                  ]).map((comm: any) => (
+                    <div key={comm.id} className="flex items-start gap-3 text-xs">
+                      <div className="w-8 h-8 rounded-full bg-slate-700 text-white flex items-center justify-center font-bold shrink-0">
+                        {comm.authorName.slice(0, 1)}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="font-bold text-slate-800 dark:text-slate-200">{comm.authorName}</span>
+                          <span className="text-slate-400 text-[10px]">{comm.publishedAt}</span>
+                        </div>
+                        <p className="text-slate-600 dark:text-slate-300">{comm.content}</p>
+                        <div className="flex items-center gap-2 mt-1 text-slate-400 text-[11px]">
+                          <span>👍 {comm.likesCount}</span>
+                          <span>•</span>
+                          <span>השב</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* LAYER 5: תחתיו תיאור קצר */}
+              {selectedPage.executiveSummary && (
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-red-950/20 via-slate-900/40 to-purple-950/20 border border-red-500/20">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-red-400 mb-2">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>תקציר מנהלים • AI (תיאור קצר)</span>
+                  </div>
+                  <p className="text-sm md:text-base text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
+                    {selectedPage.executiveSummary}
+                  </p>
                 </div>
               )}
 
-              {/* In-depth Article Content */}
-              <div className="p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-3">
-                  מאמר עומק ומדריך מקיף
-                </h2>
-                <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-sm md:text-base whitespace-pre-line">
-                  {selectedPage.articleContent}
-                </div>
-              </div>
+              {/* LAYER 6: ותחתיו תיאור ארוך לפי דרישות SEO ו-AISEO */}
+              <div className="p-6 md:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
+                {/* Key Takeaways */}
+                {selectedPage.keyTakeaways && selectedPage.keyTakeaways.length > 0 && (
+                  <div className="p-5 rounded-xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/60">
+                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2 mb-2.5">
+                      <Sparkles className="w-4 h-4 text-amber-500" />
+                      <span>נקודות מפתח מרכזיות מהסרטון</span>
+                    </h3>
+                    <ul className="space-y-1.5 text-xs sm:text-sm text-slate-700 dark:text-slate-300">
+                      {selectedPage.keyTakeaways.map((point, i) => (
+                        <li key={i} className="flex items-start gap-2">
+                          <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
+                            {i + 1}
+                          </span>
+                          <span>{point}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
 
-              {/* FAQs Accordion */}
-              {selectedPage.faqs && selectedPage.faqs.length > 0 && (
-                <div className="p-6 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-4">
-                  <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <HelpCircle className="w-5 h-5 text-indigo-500" />
-                    <span>שאלות ותשובות נפוצות (FAQ)</span>
-                  </h3>
-                  <div className="space-y-3">
-                    {selectedPage.faqs.map((faq, i) => {
-                      const isOpen = openFaqIndex === i;
-                      return (
-                        <div
-                          key={i}
-                          className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => setOpenFaqIndex(isOpen ? null : i)}
-                            className="w-full p-4 text-right flex items-center justify-between font-semibold text-sm text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
-                          >
-                            <span>{faq.question}</span>
-                            {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                          </button>
-                          {isOpen && (
-                            <div className="p-4 text-xs md:text-sm text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
-                              {faq.answer}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                {/* Long Description Article */}
+                <div className="space-y-3">
+                  <h2 className="text-lg font-bold text-slate-900 dark:text-white border-b border-slate-100 dark:border-slate-800 pb-2">
+                    מאמר עומק ומדריך מקיף (SEO & AI-SEO)
+                  </h2>
+                  <div className="prose dark:prose-invert max-w-none text-slate-700 dark:text-slate-300 leading-relaxed text-sm whitespace-pre-line">
+                    {selectedPage.articleContent}
                   </div>
                 </div>
-              )}
 
-              {/* CapabilitySlot for Smart Lead Capture Form */}
-              <div className="p-8 rounded-2xl bg-gradient-to-br from-slate-900 to-slate-800 text-white shadow-xl border border-slate-700 text-center space-y-4">
-                <h3 className="text-xl font-bold">
-                  {selectedPage.callToAction?.title || 'מעוניינים בייעוץ והתאמה אישית?'}
-                </h3>
-                <p className="text-sm text-slate-300 max-w-md mx-auto">
-                  {selectedPage.callToAction?.subtitle || 'השאירו פרטים ונחזור אליכם בהקדם האפשרי'}
-                </p>
+                {/* FAQs */}
+                {selectedPage.faqs && selectedPage.faqs.length > 0 && (
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                      <HelpCircle className="w-4 h-4 text-indigo-500" />
+                      <span>שאלות ותשובות נפוצות (FAQ)</span>
+                    </h3>
+                    <div className="space-y-2">
+                      {selectedPage.faqs.map((faq, i) => {
+                        const isOpen = openFaqIndex === i;
+                        return (
+                          <div
+                            key={i}
+                            className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setOpenFaqIndex(isOpen ? null : i)}
+                              className="w-full p-3 text-right flex items-center justify-between font-semibold text-xs sm:text-sm text-slate-800 dark:text-slate-200 bg-slate-50/50 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                            >
+                              <span>{faq.question}</span>
+                              {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                            </button>
+                            {isOpen && (
+                              <div className="p-3 text-xs text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800">
+                                {faq.answer}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-                <div className="pt-2 max-w-lg mx-auto">
-                  <CapabilitySlot
-                    name="form-renderer"
-                    props={{
-                      formId: selectedPage.callToAction?.formId,
-                      onSubmitted: () => alert('תודה! פנייתך נשלחה בהצלחה.'),
-                    }}
-                    fallback={
-                      <div className="p-5 rounded-xl border border-dashed border-slate-600 text-center text-xs text-slate-400">
-                        טופס לידים חכם יוטמע כאן אוטומטית (חיבור CapabilitySlot)
-                      </div>
-                    }
-                  />
+                {/* CTA */}
+                <div className="p-5 rounded-2xl bg-gradient-to-r from-red-600/10 via-purple-600/10 to-indigo-600/10 border border-red-500/20 text-center sm:text-right flex flex-col sm:flex-row items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 dark:text-white">
+                      {selectedPage.callToAction?.title || 'מעוניינים בייעוץ והתאמה אישית?'}
+                    </h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {selectedPage.callToAction?.subtitle || 'השאירו פרטים ונחזור אליכם בהקדם.'}
+                    </p>
+                  </div>
+                  <a
+                    href={selectedPage.callToAction?.buttonLink || '#contact'}
+                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition"
+                  >
+                    {selectedPage.callToAction?.buttonText || 'לפרטים נוספים'}
+                  </a>
                 </div>
               </div>
             </div>

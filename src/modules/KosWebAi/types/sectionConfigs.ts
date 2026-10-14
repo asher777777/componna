@@ -499,3 +499,64 @@ export interface EventRsvpSectionConfig extends BaseSectionConfig {
   accentColor?: string;
 }
 
+export interface KosvidioComment {
+  id: string;
+  authorName: string;
+  authorAvatar?: string;
+  publishedAt: string;
+  content: string;
+  likesCount: number;
+  userLiked?: boolean;
+}
+
+export interface KosvidioFaqItem {
+  question: string;
+  answer: string;
+}
+
+export interface KosvidioSectionConfig extends BaseSectionConfig {
+  type: 'kosvidio';
+  // 1. Innovative Video Player
+  youtubeVideoId: string;
+  videoUrl?: string;
+  playerAspect?: '16:9' | '21:9' | '4:3';
+  ambientGlow?: boolean;
+  showTheaterMode?: boolean;
+  autoplay?: boolean;
+  channelName?: string;
+  channelAvatarUrl?: string;
+  channelSubscribers?: string;
+  verifiedBadge?: boolean;
+
+  // 2. Title & Stats
+  title: string;
+  viewsCountText?: string;
+  publishedDateText?: string;
+
+  // 3. Delicate tags & Social share icons
+  tags: string[];
+  shareTitle?: string;
+  enableSocialShare?: boolean;
+
+  // 4. YouTube-styled comments area
+  commentsCount?: number;
+  comments: KosvidioComment[];
+  allowUserComments?: boolean;
+
+  // 5. Short description
+  shortDescription: string;
+  shortDescriptionBadge?: string;
+
+  // 6. Long description (SEO & AISEO)
+  longDescriptionMarkdown: string;
+  keyTakeaways?: string[];
+  faqs?: KosvidioFaqItem[];
+  callToAction?: {
+    title: string;
+    subtitle?: string;
+    buttonText: string;
+    buttonLink: string;
+    showLeadForm?: boolean;
+  };
+}
+

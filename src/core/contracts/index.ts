@@ -780,6 +780,13 @@ export interface CreatePageFromProductOptions {
   onStep?: (step: { statusText: string; percent?: number }) => void;
 }
 
+export interface CreateVideoSeoPageOptions {
+  video: KosTubeVideo;
+  channelTitle?: string;
+  brandDna?: BrandDna | null;
+  aiData?: Partial<KosTubeSeoPage>;
+}
+
 export interface PageBuilderContract {
   createPageFromProduct: (options: CreatePageFromProductOptions) => Promise<{
     success: boolean;
@@ -787,6 +794,14 @@ export interface PageBuilderContract {
     slug: string;
     publicUrl: string;
     error?: string;
+  }>;
+  createPageFromVideo?: (options: CreateVideoSeoPageOptions) => Promise<{
+    success: boolean;
+    pageId: string;
+    slug: string;
+    publicUrl: string;
+    error?: string;
+    config?: any;
   }>;
   openPageBuilder: (pageId?: string) => void;
 }
@@ -944,6 +959,16 @@ export interface KosTubeSeoPage {
   schemaJsonLd: Record<string, any>;
   seoScore: number;
   seoScoreBreakdown: KosTubeSeoScoreBreakdown;
+  tags?: string[];
+  youtubeComments?: Array<{
+    id: string;
+    authorName: string;
+    authorAvatar?: string;
+    publishedAt: string;
+    content: string;
+    likesCount: number;
+  }>;
+  pageBuilderPageId?: string;
   isPublished: boolean;
   publishedAt?: string;
   publicUrl: string;

@@ -7,7 +7,7 @@ import { TenantCoreService } from './tenantService';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
-import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost, isRootPlatformHost } from './tenantResolver';
+import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost, isRootPlatformHost, DEFAULT_SUBDOMAIN_MODULES } from './tenantResolver';
 import { TenantScopeProvider, useTenantScope } from './TenantScopeContext';
 import { TenantSubdomainView } from './TenantSubdomainView';
 import { RootPublicHomePageView } from '../../pages/RootPublicHomePageView';
@@ -44,7 +44,7 @@ export const TenantAppResolver: React.FC = () => {
       clientName: `מערכת לקוח (${tenantSubdomain})`,
       ownerEmail: `${tenantSubdomain}@kosun.pro`,
       ownerPhone: '050-1234567',
-      activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
+      activeModules: DEFAULT_SUBDOMAIN_MODULES,
       collectionPrefix: `tenant_${tenantSubdomain}_mod_`,
       billingPlan: 'annual',
       monthlyTotal: 129,
@@ -96,10 +96,22 @@ export const TenantAppResolver: React.FC = () => {
       const cleanParam = tenantParam.trim().toLowerCase();
       if (!RESERVED_TENANT_SUBDOMAINS.includes(cleanParam) && cleanParam !== ROOT_TENANT_ID) {
         p.delete('tenant');
+        p.delete('mode');
         const remainingQuery = p.toString() ? `?${p.toString()}` : '';
         const targetUrl = `https://${cleanParam}.kosun.pro${window.location.pathname}${remainingQuery}${window.location.hash}`;
         window.location.replace(targetUrl);
         return;
+      }
+    }
+
+    // On subdomain in production: hostname already defines tenant! Clean up ?tenant= and ?mode= noise
+    if (!isLocal && extractSubdomainFromHost(hostname)) {
+      if (p.has('tenant') || p.has('mode')) {
+        p.delete('tenant');
+        p.delete('mode');
+        const remainingQuery = p.toString() ? `?${p.toString()}` : '';
+        const cleanUrl = `${window.location.pathname}${remainingQuery}${window.location.hash}`;
+        window.history.replaceState(null, '', cleanUrl);
       }
     }
   }, []);
@@ -196,7 +208,7 @@ export const TenantAppResolver: React.FC = () => {
       clientName: `מערכת לקוח (${tenantSubdomain})`,
       ownerEmail: `${tenantSubdomain}@kosun.pro`,
       ownerPhone: '050-1234567',
-      activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
+      activeModules: DEFAULT_SUBDOMAIN_MODULES,
       collectionPrefix: `tenant_${tenantSubdomain}_mod_`,
       billingPlan: 'annual',
       monthlyTotal: 129,

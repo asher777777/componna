@@ -26,9 +26,11 @@ import { ContactSection } from '../sections/contact/ContactSection';
 import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
 import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
 import { HeaderSection } from '../sections/header/HeaderSection';
+import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
 
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
+import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { ServicesGridEditor } from '../sections/services/ServicesGridEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
@@ -808,6 +810,85 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       noCountInitial: 4,
       showAttendeeCounter: true,
       attendeeCounterLabel: 'אישרו הגעה עד כה',
+    },
+  },
+
+  kosvidio: {
+    type: 'kosvidio',
+    name: 'נגן ועמוד וידאו Kosvidio',
+    category: 'media',
+    description: 'נגן חדשני, כותרת, תוויות עדינות, שיתוף, תגובות יוטיוב, תיאור קצר ומאמר עומק SEO/AISEO',
+    icon: Video,
+    viewComponent: KosvidioSection as any,
+    editorComponent: KosvidioEditor as any,
+    defaultConfig: {
+      type: 'kosvidio',
+      visible: true,
+      anchorId: 'kosvidio',
+      youtubeVideoId: 'dQw4w9WgXcQ',
+      title: 'המדריך המקיף לקידום וידאו ו-SEO בשנת 2026',
+      channelName: 'קושאן דיגיטל',
+      channelSubscribers: '24.5K',
+      verifiedBadge: true,
+      viewsCountText: '18,420 צפיות',
+      publishedDateText: 'פורסם לפני שבוע',
+      ambientGlow: true,
+      showTheaterMode: true,
+      tags: ['וידאו', 'יוטיוב', 'SEO', 'AISEO', 'שיווקדיגיטלי'],
+      enableSocialShare: true,
+      shortDescriptionBadge: 'תקציר מנהלים • AI',
+      shortDescription: 'הסבר תכליתי ומעשי על הפיכת תוכן וידאו למקור תנועה אורגנית עצום בגוגל ויוטיוב.',
+      longDescriptionMarkdown: `## חשיבות הוידאו במנועי החיפוש המודרניים
+וידאו הוא כבר מזמן לא רק פלטפורמת בידור, אלא אחד ממנועי החיפוש והסמכות המשמעותיים ביותר ברשת. כשמשלבים וידאו איכותי בתוך עמוד תוכן עשיר ומובנה, גוגל ומנועי החיפוש המבוססים על AI מתעדפים את התוכן בצורה דרמטית.
+
+### 3 עקרונות הברזל לקידום וידאו אורגני:
+- **סכמה מובנית (Schema.org VideoObject):** עוזרת לזחלנים להבין את זמן ההעלאה, מילות המפתח ותמצית הסרטון.
+- **תוכן עומק טקסטואלי:** מנועי AI כמו Perplexity ו-Google SGE קוראים את תמלול והסבר הוידאו לצורך הצגת תשובות ישירות.
+- **מעורבות קהילה אותנטית:** תגובות, לייקים ושיתופים מגבירים את אותות האמון וה-EEAT של המותג שלכם.`,
+      keyTakeaways: [
+        'שילוב נגן וידאו עם מאמר עומק מכפיל את זמן השהייה הממוצע בעמוד פי 3.',
+        'סימון Schema מלא של VideoObject ו-FAQPage מקפיץ את שיעור ההקלקה (CTR) בתוצאות החיפוש.',
+        'תוויות עדינות ושיתוף מהיר בוואטסאפ מניעים תנועה ויראלית מיידית.',
+      ],
+      comments: [
+        {
+          id: 'c1',
+          authorName: 'איתי לוי',
+          publishedAt: 'לפני יומיים',
+          content: 'סרטון מדהים ומדויק! ההסבר על ה-Schema עשה לי סדר מוחלט. תודה רבה.',
+          likesCount: 14,
+        },
+        {
+          id: 'c2',
+          authorName: 'שירה אלון',
+          publishedAt: 'לפני 4 ימים',
+          content: 'איזה יופי של פירוט, האם השיטה הזו עובדת גם לעסקים מקומיים עם שירותי שטח?',
+          likesCount: 8,
+        },
+        {
+          id: 'c3',
+          authorName: 'דניאל כהן',
+          publishedAt: 'לפני שבוע',
+          content: 'אחד הסרטונים הטובים שעלו בתחום השנה. מומלץ לכל מי שרוצה תנועה אמיתית.',
+          likesCount: 21,
+        },
+      ],
+      faqs: [
+        {
+          question: 'איך עמוד כזה עוזר לקידום האורגני בגוגל?',
+          answer: 'עמוד Kosvidio משלב נגן וידאו אינטראקטיבי יחד עם מאמר עומק עשיר במילות מפתח וסכמת VideoObject מלאה, מה שמאפשר להופיע גם בתוצאות הוידאו וגם בתוצאות האורגניות המובילות.',
+        },
+        {
+          question: 'האם התגובות מיוטיוב מתעדכנות או שניתן להוסיף תגובות ישירות?',
+          answer: 'התגובות מעוצבות בסגנון המוכר של יוטיוב, והגולשים באתר יכולים להגיב, לתת לייקים ולפתח דיון פורה ישירות מתוך העמוד.',
+        },
+      ],
+      callToAction: {
+        title: 'רוצים לייצר נוכחות דיגיטלית ועמודי וידאו מובילים?',
+        subtitle: 'הצוות שלנו יסייע לכם להפוך כל סרטון יוטיוב למכונת לידים וסמכות אורגנית',
+        buttonText: 'דברו איתנו עכשיו',
+        buttonLink: '#contact',
+      },
     },
   },
 };

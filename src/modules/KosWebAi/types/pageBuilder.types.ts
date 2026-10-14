@@ -25,7 +25,8 @@ export type SectionType =
   | 'smartForm'
   | 'flowPlayer'
   | 'customHtml'
-  | 'eventRsvp';
+  | 'eventRsvp'
+  | 'kosvidio';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

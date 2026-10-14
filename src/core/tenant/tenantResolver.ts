@@ -12,6 +12,26 @@ export const RESERVED_TENANT_SUBDOMAINS = [
   'www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop'
 ];
 
+/** Standard provisioned modules enabled by default for subdomain tenants */
+export const DEFAULT_SUBDOMAIN_MODULES: string[] = [
+  'KosTube',
+  'kosun-board-composer',
+  'kosun-am',
+  'kosai-engine',
+  'KosBranding',
+  'kesher-payments-hub',
+  'KosWhatsUp',
+  'KosTogether',
+  'ksf',
+  'video-producer-studio',
+  'client-platform',
+  'crm-analytics',
+  'KosWebAi',
+  'flow-player-engine',
+  'media-gallery-hub',
+  'ambassador-campaigns-hub',
+];
+
 /** Hosting hostnames that always represent the main platform path (root tenant) */
 export const ROOT_PLATFORM_HOST_PREFIXES = ['kosun', 'glowmanage', 'compona', 'comona', 'aioffice'];
 
@@ -184,7 +204,34 @@ export function resolveCurrentTenantId(): string {
       const searchParams = new URLSearchParams(window.location.search);
       const queryTenant = searchParams.get('tenant');
       if (queryTenant && queryTenant.trim() && !RESERVED_TENANT_SUBDOMAINS.includes(queryTenant.trim().toLowerCase())) {
-        return queryTenant.trim().toLowerCase();
+        const sub = queryTenant.trim().toLowerCase();
+        try {
+          sessionStorage.setItem('kosun_active_tenant_id', sub);
+          localStorage.setItem('kosun_active_tenant_id', sub);
+        } catch {}
+        return sub;
+      }
+
+      // Check session or local storage for active subdomain in local development
+      const sessionTenant = sessionStorage.getItem('kosun_active_tenant_id');
+      if (sessionTenant && sessionTenant.trim() && sessionTenant !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(sessionTenant.trim().toLowerCase())) {
+        return sessionTenant.trim().toLowerCase();
+      }
+
+      const localTenant = localStorage.getItem('kosun_active_tenant_id');
+      if (localTenant && localTenant.trim() && localTenant !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(localTenant.trim().toLowerCase())) {
+        return localTenant.trim().toLowerCase();
+      }
+
+      // Check for authenticated tenant session keys (e.g. tenant_admin_auth_mlea)
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('tenant_admin_auth_') && sessionStorage.getItem(key) === 'true') {
+          const authSub = key.replace('tenant_admin_auth_', '').trim().toLowerCase();
+          if (authSub && authSub !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(authSub)) {
+            return authSub;
+          }
+        }
       }
     } catch {}
   }
@@ -196,8 +243,6 @@ export function resolveCurrentTenantId(): string {
   }
 
   // 3. For Root Platform host (kosun.pro, compona.web.app, etc.):
-  // The root platform ALWAYS belongs to ROOT_TENANT_ID (_master).
-  // Purge any contaminated non-master localStorage to prevent master corruption.
   if (isRootPlatformHost(hostname)) {
     try {
       const storedTenant = localStorage.getItem('kosun_active_tenant_id');

@@ -5,6 +5,7 @@
  */
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { executeCloudAi } from '../../../core/ai';
+import { resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 export interface PromptStylePreset {
   id: string;
@@ -220,6 +221,8 @@ Selected Style Preset: ${preset ? preset.nameEn + ' (' + preset.promptSuffix + '
         temperature: 0.4,
         responseMimeType: 'application/json',
         apiKey: effectiveKey,
+        category: 'gallery',
+        tenantId: resolveCurrentTenantId(),
       });
 
       if (aiRes.success && aiRes.data) {
@@ -290,6 +293,8 @@ Return ONLY valid JSON in this exact structure:
         temperature: 0.3,
         responseMimeType: 'application/json',
         apiKey: effectiveKey,
+        category: 'gallery',
+        tenantId: resolveCurrentTenantId(),
       });
 
       if (aiRes.success && aiRes.data) {

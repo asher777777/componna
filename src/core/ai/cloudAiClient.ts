@@ -7,6 +7,7 @@
 import { calculateGeminiCost, TokenUsageReport } from './geminiCostTracker';
 import { TenantTokenTracker } from './tenantTokenTracker';
 import { getTenantApiKeysState } from '../connection/tenantApiKeys';
+import { ROOT_TENANT_ID, resolveCurrentTenantId } from '../tenant/tenantResolver';
 
 export interface CloudAiGenerateOptions {
   prompt: string;
@@ -33,6 +34,7 @@ export interface CloudAiResponse<T = any> {
 
 export const PLEASANT_AI_ERROR_HEBREW = 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.';
 export const NOT_IN_BASKET_MESSAGE = 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.';
+export const GEMINI_API_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta';
 
 /**
  * Execute AI request securely: attempts proxy if available, seamless direct Gemini REST fallback
@@ -190,7 +192,8 @@ export async function executeCloudAi<T = any>(
     const costReport = calculateGeminiCost({ model, promptTokens, candidatesTokens });
 
     // Track tokens for active tenant
-    const targetTenant = options.tenantId || state.tenantId;
+    const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+    const targetTenant = options.tenantId || (state.tenantId && state.tenantId !== ROOT_TENANT_ID ? state.tenantId : currentResolverTenant) || ROOT_TENANT_ID;
     if (targetTenant) {
       TenantTokenTracker.recordTokenUsage(
         targetTenant,

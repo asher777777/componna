@@ -5,14 +5,22 @@ import {
   Sparkles, 
   Share2, 
   Calendar, 
-  Clock, 
   HelpCircle, 
   ChevronDown, 
   ChevronUp, 
   ArrowRight, 
+  ArrowLeft,
   CheckCircle2, 
   Eye, 
-  Globe 
+  Check, 
+  Copy,
+  ThumbsUp,
+  ThumbsDown,
+  MessageSquare,
+  Send,
+  Maximize2,
+  Minimize2,
+  ExternalLink
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
@@ -29,6 +37,21 @@ export const PublicVideoSeoPageView: React.FC = () => {
   const [page, setPage] = useState<KosTubeSeoPage | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
+  const [isTheaterMode, setIsTheaterMode] = useState<boolean>(false);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
+
+  // Local comments state for visitor interaction
+  const [commentsList, setCommentsList] = useState<Array<{
+    id: string;
+    authorName: string;
+    publishedAt: string;
+    content: string;
+    likesCount: number;
+    userLiked?: boolean;
+  }>>([]);
+  const [newCommentText, setNewCommentText] = useState('');
+  const [commentAuthorInput, setCommentAuthorInput] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -37,8 +60,35 @@ export const PublicVideoSeoPageView: React.FC = () => {
       setLoading(true);
       try {
         const found = await kosTubeFirestore.getSeoPageBySlug(db, tenantId, slug);
-        if (isMounted) {
+        if (isMounted && found) {
           setPage(found);
+          if (found.youtubeComments && found.youtubeComments.length > 0) {
+            setCommentsList(found.youtubeComments);
+          } else {
+            setCommentsList([
+              {
+                id: 'c1',
+                authorName: 'איתי לוי',
+                publishedAt: 'לפני יומיים',
+                content: 'סרטון מדהים ומדויק! התובנות לגבי יישום מעשי עשו לי סדר מוחלט. תודה רבה.',
+                likesCount: 16,
+              },
+              {
+                id: 'c2',
+                authorName: 'שירה אלון',
+                publishedAt: 'לפני 4 ימים',
+                content: 'פירוט מעולה וברור, מומלץ מאוד לכל מי שרוצה להבין את התחום לעומק.',
+                likesCount: 11,
+              },
+              {
+                id: 'c3',
+                authorName: 'דניאל כהן',
+                publishedAt: 'לפני שבוע',
+                content: 'אחד הסרטונים הטובים ביותר שראיתי בנושא. שמח שנתקלתי בזה.',
+                likesCount: 24,
+              },
+            ]);
+          }
         }
       } catch (err) {
         console.error('[PublicVideoSeoPageView] Error loading page:', err);
@@ -68,7 +118,6 @@ export const PublicVideoSeoPageView: React.FC = () => {
     }
     scriptTag.text = JSON.stringify(page.schemaJsonLd);
 
-    // Update document title and meta description
     if (page.metaTitle) {
       document.title = page.metaTitle;
     }
@@ -81,10 +130,10 @@ export const PublicVideoSeoPageView: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-500" dir="rtl">
+      <div className="min-h-screen bg-[#07090e] flex items-center justify-center text-slate-400" dir="rtl">
         <div className="flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-4 border-red-500/20 border-t-red-600 rounded-full animate-spin" />
-          <span className="text-sm font-medium">טוען עמוד מקודם...</span>
+          <span className="text-sm font-medium">טוען עמוד וידאו ו-SEO...</span>
         </div>
       </div>
     );
@@ -92,13 +141,13 @@ export const PublicVideoSeoPageView: React.FC = () => {
 
   if (!page) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center text-slate-800 dark:text-white p-6" dir="rtl">
+      <div className="min-h-screen bg-[#07090e] flex items-center justify-center text-white p-6" dir="rtl">
         <div className="text-center max-w-md space-y-4">
-          <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-950/40 text-red-600 mx-auto flex items-center justify-center">
+          <div className="w-16 h-16 rounded-full bg-red-950/40 text-red-500 mx-auto flex items-center justify-center">
             <Youtube className="w-8 h-8" />
           </div>
           <h2 className="text-xl font-bold">עמוד ה-SEO אינו קיים או הוסר</h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400">
             העמוד שחיפשת לא נמצא במערכת. אנא בדוק את הקישור או חזור לעמוד הראשי.
           </p>
           <Link
@@ -113,172 +162,476 @@ export const PublicVideoSeoPageView: React.FC = () => {
     );
   }
 
-  const embedUrl = `https://www.youtube-nocookie.com/embed/${page.youtubeVideoId}?rel=0`;
+  const embedUrl = `https://www.youtube-nocookie.com/embed/${page.youtubeVideoId}?rel=0&modestbranding=1&enablejsapi=1`;
+  const currentUrl = typeof window !== 'undefined' ? window.location.href : '';
+  const shareText = encodeURIComponent(`${page.h1 || page.metaTitle}\n${currentUrl}`);
 
-  const handleShare = () => {
-    const text = encodeURIComponent(`צפו במאמר המלא: ${page.h1 || page.metaTitle}\n${window.location.href}`);
-    window.open(`https://wa.me/?text=${text}`, '_blank');
+  const handleCopyLink = () => {
+    if (navigator?.clipboard) {
+      navigator.clipboard.writeText(currentUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2200);
+    }
   };
 
+  const handleToggleLike = (commentId: string) => {
+    setCommentsList((prev) =>
+      prev.map((c) => {
+        if (c.id === commentId) {
+          const nextLiked = !c.userLiked;
+          return {
+            ...c,
+            userLiked: nextLiked,
+            likesCount: nextLiked ? c.likesCount + 1 : Math.max(0, c.likesCount - 1),
+          };
+        }
+        return c;
+      })
+    );
+  };
+
+  const handleAddComment = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCommentText.trim()) return;
+
+    const newComment = {
+      id: `comm_${Date.now()}`,
+      authorName: commentAuthorInput.trim() || 'אורח/ת באתר',
+      publishedAt: 'כרגע',
+      content: newCommentText.trim(),
+      likesCount: 1,
+      userLiked: true,
+    };
+
+    setCommentsList([newComment, ...commentsList]);
+    setNewCommentText('');
+    setIsInputFocused(false);
+  };
+
+  const displayTags = page.tags && page.tags.length > 0 ? page.tags : (page.focusKeywords || ['וידאו', 'יוטיוב', 'SEO', 'AISEO']);
+
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white font-sans selection:bg-red-500 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-[#07090e] text-slate-100 font-sans selection:bg-red-600 selection:text-white" dir="rtl">
       {/* Top Banner Navigation */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/80 dark:bg-slate-900/80 border-b border-slate-200/80 dark:border-slate-800">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090b14]/80 border-b border-slate-800/80">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-red-600 text-white flex items-center justify-center shadow-sm">
-              <Youtube className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-red-600 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-red-600/20">
+              <Youtube className="w-5 h-5" />
             </div>
-            <span className="font-bold text-sm tracking-tight text-slate-900 dark:text-white">
-              {page.channelTitle || 'KosTube'}
-            </span>
+            <div>
+              <span className="font-extrabold text-sm sm:text-base tracking-tight text-white">
+                {page.channelTitle || 'קושאן Kosvidio'}
+              </span>
+              <span className="block text-[11px] text-slate-400">עמוד וידאו ומאמר AI SEO מקודם</span>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleShare}
-            className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-sm transition"
-          >
-            <Share2 className="w-3.5 h-3.5" />
-            <span>שתף בוואטסאפ</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 text-xs font-semibold border border-slate-700 transition"
+            >
+              {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copiedLink ? 'הועתק!' : 'העתק קישור'}</span>
+            </button>
+
+            <a
+              href={`https://wa.me/?text=${shareText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-md shadow-emerald-600/20 transition hover:scale-105"
+            >
+              <Share2 className="w-3.5 h-3.5" />
+              <span>שיתוף בוואטסאפ</span>
+            </a>
+          </div>
         </div>
       </header>
 
       {/* Main Page Article Container */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-10 space-y-10">
-        {/* Header Breadcrumbs & Title */}
-        <div className="space-y-4">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <span>{page.channelTitle || 'יוטיוב'}</span>
-            <span>/</span>
-            <span className="text-red-600 dark:text-red-400 font-medium">מאמר וידאו מקודם</span>
-            <span>/</span>
-            <span>{new Date(page.createdAt).toLocaleDateString('he-IL')}</span>
-          </div>
+      <main className={`mx-auto px-3 sm:px-6 py-8 md:py-12 transition-all duration-500 ${isTheaterMode ? 'max-w-7xl' : 'max-w-5xl'}`}>
 
-          <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white leading-tight">
+        {/* ============================================================== */}
+        {/* 1. בראש העמוד נגן חדשני (Innovative Video Player)              */}
+        {/* ============================================================== */}
+        <div className="relative group mb-6">
+          {/* Ambient Lighting Glow Behind the Player */}
+          <div className="absolute -inset-3 sm:-inset-5 rounded-3xl bg-gradient-to-r from-red-600/25 via-indigo-600/20 to-purple-600/25 blur-3xl opacity-75 group-hover:opacity-95 transition-opacity duration-700 pointer-events-none" />
+
+          <div className="relative z-10 bg-black/95 rounded-2xl sm:rounded-3xl border border-slate-800/90 shadow-2xl overflow-hidden backdrop-blur-xl ring-1 ring-white/10">
+            {/* Top Player Ambient Header Bar */}
+            <div className="px-4 py-2.5 bg-slate-900/90 border-b border-slate-800/80 flex items-center justify-between text-xs text-slate-400">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+                <span className="font-bold text-slate-200">נגן וידאו Kosvidio Ultra HD</span>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsTheaterMode(!isTheaterMode)}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-all text-xs"
+                title={isTheaterMode ? 'מצב רגיל' : 'מצב קולנוע'}
+              >
+                {isTheaterMode ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">מצב רגיל</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">מצב קולנוע</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* 16:9 Responsive Video Frame */}
+            <div className="relative w-full aspect-video bg-black flex items-center justify-center">
+              <iframe
+                src={embedUrl}
+                title={page.h1 || page.metaTitle}
+                className="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* 2. תחתיו הכותרת (Title & Metadata)                             */}
+        {/* ============================================================== */}
+        <div className="mb-5 pb-5 border-b border-slate-800/60">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-sm mb-3">
             {page.h1 || page.metaTitle}
           </h1>
 
-          {page.executiveSummary && (
-            <p className="text-base text-slate-600 dark:text-slate-300 leading-relaxed font-normal">
-              {page.executiveSummary}
-            </p>
-          )}
-
-          {/* Keywords */}
-          {page.focusKeywords && page.focusKeywords.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              {page.focusKeywords.map((kw, i) => (
-                <span
-                  key={i}
-                  className="text-xs px-2.5 py-1 rounded-full bg-slate-200/60 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-medium"
-                >
-                  #{kw}
-                </span>
-              ))}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-slate-400">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md ring-2 ring-white/10">
+                {(page.channelTitle || 'קושאן').slice(0, 2)}
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5 font-bold text-slate-200">
+                  <span>{page.channelTitle || 'קושאן'}</span>
+                  <CheckCircle2 className="w-4 h-4 text-sky-400 fill-sky-400/20" />
+                </div>
+                <div className="text-[11px] text-slate-400">ערוץ יוטיוב מקושר</div>
+              </div>
             </div>
-          )}
+
+            <div className="flex items-center gap-4 text-slate-400 text-xs">
+              <span className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                פורסם ב-{new Date(page.publishedAt || page.createdAt).toLocaleDateString('he-IL')}
+              </span>
+              <span className="flex items-center gap-1 text-emerald-400 font-semibold">
+                <Sparkles className="w-3.5 h-3.5" />
+                ציון SEO: {page.seoScore}/100
+              </span>
+            </div>
+          </div>
         </div>
 
-        {/* Video Player */}
-        <div className="relative aspect-video w-full rounded-2xl overflow-hidden shadow-2xl border border-slate-200 dark:border-slate-800 bg-black">
-          <iframe
-            src={embedUrl}
-            title={page.h1 || page.metaTitle}
-            className="w-full h-full"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
+        {/* ============================================================== */}
+        {/* 3. תחתיו תוויות בעיצוב עדין ואיקונים לשיתוף ברשתות             */}
+        {/* ============================================================== */}
+        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 p-3.5 sm:p-4 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm">
+          {/* Delicate Tags */}
+          <div className="flex flex-wrap items-center gap-2">
+            {displayTags.map((tag, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/50 transition-colors shadow-sm"
+              >
+                #{tag.replace(/^#/, '')}
+              </span>
+            ))}
+          </div>
+
+          {/* Social Share Icons */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
+              <Share2 className="w-3.5 h-3.5" />
+              שיתוף:
+            </span>
+
+            <a
+              href={`https://wa.me/?text=${shareText}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all hover:scale-105"
+              title="שיתוף בוואטסאפ"
+            >
+              <span className="text-xs font-bold px-1">WhatsApp</span>
+            </a>
+
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all hover:scale-105"
+              title="שיתוף בפייסבוק"
+            >
+              <span className="text-xs font-bold px-1">Facebook</span>
+            </a>
+
+            <a
+              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all hover:scale-105"
+              title="שיתוף ב-LinkedIn"
+            >
+              <span className="text-xs font-bold px-1">LinkedIn</span>
+            </a>
+
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all text-xs font-medium"
+              title="העתק קישור"
+            >
+              {copiedLink ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">הועתק!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>העתק קישור</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
 
-        {/* Key Takeaways */}
-        {page.keyTakeaways && page.keyTakeaways.length > 0 && (
-          <div className="p-6 md:p-8 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/20 border border-amber-200/80 dark:border-amber-800/40 space-y-4">
-            <h3 className="text-lg font-bold text-amber-950 dark:text-amber-200 flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-500" />
-              <span>תובנות מרכזיות ונקודות מפתח מהסרטון</span>
-            </h3>
-            <ul className="space-y-2.5 text-sm md:text-base text-amber-950 dark:text-amber-100">
-              {page.keyTakeaways.map((item, idx) => (
-                <li key={idx} className="flex items-start gap-3">
-                  <span className="w-6 h-6 rounded-full bg-amber-500/20 text-amber-700 dark:text-amber-300 flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5">
-                    {idx + 1}
-                  </span>
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
+        {/* ============================================================== */}
+        {/* 4. תחתיו אזור לתגובות מעוצב כמו ביוטיוב (YouTube Comments)     */}
+        {/* ============================================================== */}
+        <div className="mb-10 p-5 sm:p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80 shadow-lg">
+          <div className="flex items-center justify-between mb-5">
+            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+              <MessageSquare className="w-5 h-5 text-red-500" />
+              <span>{commentsList.length} תגובות</span>
+            </h2>
+            <div className="text-xs text-slate-400">מסודר לפי: מובילות</div>
           </div>
-        )}
 
-        {/* In-Depth Article Content */}
-        <article className="p-6 sm:p-10 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6">
-          <div className="prose dark:prose-invert max-w-none text-slate-800 dark:text-slate-200 text-base md:text-lg leading-relaxed whitespace-pre-line font-serif sm:font-sans">
-            {page.articleContent}
-          </div>
-        </article>
+          {/* Add Comment Form */}
+          <form onSubmit={handleAddComment} className="mb-6">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0 mt-0.5">
+                👤
+              </div>
 
-        {/* FAQs */}
-        {page.faqs && page.faqs.length > 0 && (
-          <div className="p-6 sm:p-8 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
-            <h3 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-              <HelpCircle className="w-5 h-5 text-indigo-500" />
-              <span>שאלות ותשובות נפוצות</span>
-            </h3>
-            <div className="space-y-3">
-              {page.faqs.map((faq, i) => {
-                const isOpen = openFaqIndex === i;
-                return (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden"
-                  >
+              <div className="flex-1">
+                {isInputFocused && (
+                  <input
+                    type="text"
+                    placeholder="שמך (אופציונלי)"
+                    value={commentAuthorInput}
+                    onChange={(e) => setCommentAuthorInput(e.target.value)}
+                    className="w-full mb-2 px-3 py-1.5 bg-slate-800/90 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500 transition-all"
+                  />
+                )}
+
+                <textarea
+                  rows={isInputFocused ? 3 : 1}
+                  placeholder="הוסף תגובה ציבורית..."
+                  value={newCommentText}
+                  onFocus={() => setIsInputFocused(true)}
+                  onChange={(e) => setNewCommentText(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800/80 border-b-2 border-slate-700 focus:border-red-500 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none transition-all resize-none"
+                />
+
+                {isInputFocused && (
+                  <div className="flex items-center justify-end gap-2 mt-2">
                     <button
                       type="button"
-                      onClick={() => setOpenFaqIndex(isOpen ? null : i)}
-                      className="w-full p-4 sm:p-5 text-right flex items-center justify-between font-semibold text-sm sm:text-base text-slate-900 dark:text-white bg-slate-50/60 dark:bg-slate-800/40 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
+                      onClick={() => {
+                        setIsInputFocused(false);
+                        setNewCommentText('');
+                      }}
+                      className="px-3 py-1.5 rounded-full hover:bg-slate-800 text-xs text-slate-400 hover:text-white transition-colors"
                     >
-                      <span>{faq.question}</span>
-                      {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                      ביטול
                     </button>
-                    {isOpen && (
-                      <div className="p-4 sm:p-5 text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800 leading-relaxed">
-                        {faq.answer}
-                      </div>
-                    )}
+                    <button
+                      type="submit"
+                      disabled={!newCommentText.trim()}
+                      className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold text-white transition-all shadow-md shadow-red-600/20"
+                    >
+                      <Send className="w-3 h-3" />
+                      תגובה
+                    </button>
                   </div>
-                );
-              })}
+                )}
+              </div>
             </div>
+          </form>
+
+          {/* Comments List */}
+          <div className="space-y-4">
+            {commentsList.map((comment) => (
+              <div key={comment.id} className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm">
+                  {comment.authorName.slice(0, 1)}
+                </div>
+
+                <div className="flex-1 text-sm">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-slate-200 text-xs">
+                      {comment.authorName}
+                    </span>
+                    <span className="text-[11px] text-slate-400">{comment.publishedAt}</span>
+                  </div>
+
+                  <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-1.5">
+                    {comment.content}
+                  </p>
+
+                  <div className="flex items-center gap-3 text-xs text-slate-400">
+                    <button
+                      type="button"
+                      onClick={() => handleToggleLike(comment.id)}
+                      className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors ${
+                        comment.userLiked ? 'text-red-400 font-bold' : 'hover:text-slate-200'
+                      }`}
+                    >
+                      <ThumbsUp className={`w-3.5 h-3.5 ${comment.userLiked ? 'fill-red-400' : ''}`} />
+                      <span>{comment.likesCount}</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="p-1 rounded hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                      title="לא אהבתי"
+                    >
+                      <ThumbsDown className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="button"
+                      className="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 font-semibold text-[11px] transition-colors"
+                    >
+                      השב
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* ============================================================== */}
+        {/* 5. תחתיו תיאור קצר (Short Description / Executive Summary)     */}
+        {/* ============================================================== */}
+        {page.executiveSummary && (
+          <div className="mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-red-950/30 via-slate-900/60 to-purple-950/30 border border-red-900/40 shadow-xl backdrop-blur-md">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold">
+                <Sparkles className="w-3.5 h-3.5" />
+                תקציר מנהלים • AI
+              </span>
+            </div>
+
+            <p className="text-base sm:text-lg text-slate-200 leading-relaxed font-medium">
+              {page.executiveSummary}
+            </p>
           </div>
         )}
 
-        {/* Lead Capture via CapabilitySlot */}
-        <div className="p-8 sm:p-12 rounded-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 text-white shadow-2xl border border-red-500/20 text-center space-y-6">
-          <div className="max-w-xl mx-auto space-y-2">
-            <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              {page.callToAction?.title || 'רוצים לקחת את המומחיות הזו אליכם?'}
-            </h2>
-            <p className="text-sm text-slate-300">
-              {page.callToAction?.subtitle || 'השאירו פרטים ונחזור אליכם עם מענה אישי ומדויק.'}
-            </p>
-          </div>
+        {/* ============================================================== */}
+        {/* 6. ותחתיו תיאור ארוך לפי דרישות SEO ו-AISEO                   */}
+        {/* ============================================================== */}
+        <div className="p-6 sm:p-8 rounded-3xl bg-slate-900/40 border border-slate-800/80 shadow-2xl backdrop-blur-md space-y-8">
+          {/* Key Takeaways */}
+          {page.keyTakeaways && page.keyTakeaways.length > 0 && (
+            <div className="p-5 rounded-2xl bg-slate-800/50 border border-slate-700/60 space-y-3">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Check className="w-5 h-5 text-emerald-400" />
+                <span>תובנות מרכזיות ונקודות מפתח מהסרטון</span>
+              </h3>
+              <ul className="space-y-2">
+                {page.keyTakeaways.map((item, idx) => (
+                  <li key={idx} className="flex items-start gap-2.5 text-xs sm:text-sm text-slate-300">
+                    <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      {idx + 1}
+                    </span>
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-          <div className="max-w-md mx-auto pt-2">
-            <CapabilitySlot
-              name="form-renderer"
-              props={{
-                formId: page.callToAction?.formId,
-                onSubmitted: () => alert('תודה! פנייתך התקבלה בהצלחה.'),
-              }}
-              fallback={
-                <div className="p-5 rounded-2xl bg-white/5 border border-white/10 text-center text-xs text-slate-300">
-                  טופס השארת פרטים מוטמע כאן ישירות מתוך המערכת
-                </div>
-              }
-            />
+          {/* Long Description Article Content */}
+          <article className="prose prose-invert max-w-none text-slate-300 text-sm sm:text-base leading-relaxed whitespace-pre-line">
+            <div className="p-4 sm:p-6 rounded-2xl bg-slate-800/20 border border-slate-800/60">
+              {page.articleContent}
+            </div>
+          </article>
+
+          {/* FAQs */}
+          {page.faqs && page.faqs.length > 0 && (
+            <div className="pt-6 border-t border-slate-800/70 space-y-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-purple-400" />
+                <span>שאלות ותשובות נפוצות</span>
+              </h3>
+              <div className="space-y-3">
+                {page.faqs.map((faq, i) => {
+                  const isOpen = openFaqIndex === i;
+                  return (
+                    <div
+                      key={i}
+                      className="rounded-xl border border-slate-800 overflow-hidden bg-slate-800/30 transition-colors"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setOpenFaqIndex(isOpen ? null : i)}
+                        className="w-full p-4 text-right flex items-center justify-between font-semibold text-sm sm:text-base text-slate-200 hover:text-white transition-colors"
+                      >
+                        <span>{faq.question}</span>
+                        {isOpen ? <ChevronUp className="w-4 h-4 text-slate-400 shrink-0" /> : <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />}
+                      </button>
+                      {isOpen && (
+                        <div className="px-4 pb-4 text-xs sm:text-sm text-slate-400 leading-relaxed border-t border-slate-800/50 pt-3">
+                          {faq.answer}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Call to Action Box */}
+          <div className="p-6 sm:p-8 rounded-2xl bg-gradient-to-r from-red-600/20 via-purple-600/20 to-indigo-600/20 border border-red-500/30 text-center sm:text-right flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div>
+              <h4 className="text-lg font-bold text-white mb-1">
+                {page.callToAction?.title || 'רוצים לקחת את המומחיות הזו אליכם?'}
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-300">
+                {page.callToAction?.subtitle || 'השאירו פרטים ונחזור אליכם עם מענה אישי ומדויק.'}
+              </p>
+            </div>
+
+            <div className="shrink-0 flex items-center gap-3">
+              <a
+                href={page.callToAction?.buttonLink || '#contact'}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-all hover:scale-105 shadow-lg shadow-red-600/25"
+              >
+                <span>{page.callToAction?.buttonText || 'לפרטים נוספים'}</span>
+                <ArrowLeft className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </div>
       </main>
