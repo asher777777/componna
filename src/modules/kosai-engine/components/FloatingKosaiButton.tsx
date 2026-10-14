@@ -58,7 +58,7 @@ export const FloatingKosaiButton: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Detect whether we are on the frontend / website / page builder area
+  // Detect whether we are on the frontend / website / page builder area (Content pages)
   const isFront =
     location.pathname === '/' ||
     location.pathname === '' ||
@@ -72,7 +72,9 @@ export const FloatingKosaiButton: React.FC = () => {
     location.hash.includes('/page/') ||
     location.hash.includes('/preview') ||
     location.hash.includes('preview') ||
-    location.search.includes('pageId=');
+    location.search.includes('pageId=') ||
+    location.search.includes('mode=public') ||
+    (location.pathname === '/' && !location.search.includes('mode=admin'));
 
   // Day / Night mode handling (Day is strict default per Cashwan constitution)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -124,9 +126,41 @@ export const FloatingKosaiButton: React.FC = () => {
   // Dynamic module actions menu open state
   const [isQuickActionsOpen, setIsQuickActionsOpen] = useState(false);
 
-  // Curated quick actions based on the active component
+  // Dynamic Slug and Module Name based on URL route
+  const currentSlug = useMemo(() => {
+    const p = location.pathname.toLowerCase();
+    if (p.includes('crm-analytics') || p.includes('contacts') || p.includes('leads')) return 'crm-analytics';
+    if (p.includes('kesher') || p.includes('payments')) return 'kesher-payments-hub';
+    if (p.includes('whatsup') || p.includes('whatsapp')) return 'whatsapp-green-api-hub';
+    if (p.includes('media-gallery') || p.includes('gallery')) return 'media-gallery-hub';
+    if (p.includes('ksf') || p.includes('smart-forms')) return 'KSF';
+    if (p.includes('brand-dna') || p.includes('branding') || p.includes('kosbranding')) return 'KosBranding';
+    if (p.includes('dashboard') || p.includes('board')) return 'kosun-board-composer';
+    if (p.includes('video-producer')) return 'video-producer-studio';
+    if (p.includes('campaigns') || p.includes('ambassador')) return 'ambassador-campaigns-hub';
+    if (p.includes('crm-groups')) return 'KosTogether';
+    return activeModule.moduleId;
+  }, [location.pathname, activeModule.moduleId]);
+
+  const currentModuleName = useMemo(() => {
+    switch (currentSlug) {
+      case 'crm-analytics': return 'ניהול CRM ואנליטיקה';
+      case 'kesher-payments-hub': return 'סליקה וקופה';
+      case 'whatsapp-green-api-hub': return 'וואטסאפ Green-API';
+      case 'media-gallery-hub': return 'ספריית מדיה';
+      case 'KSF': return 'טפסים ושאלונים';
+      case 'KosBranding': return 'מיתוג ו-Brand DNA';
+      case 'kosun-board-composer': return 'לוח בקרה דינמי';
+      case 'video-producer-studio': return 'סטודיו וידאו';
+      case 'ambassador-campaigns-hub': return 'קמפיינים ושגרירים';
+      case 'KosTogether': return 'פילוח וקהילות CRM';
+      default: return activeModule.name;
+    }
+  }, [currentSlug, activeModule.name]);
+
+  // Curated quick actions based on the active component / slug
   const moduleQuickActions = useMemo(() => {
-    switch (activeModule.moduleId) {
+    switch (currentSlug) {
       case 'KSF':
         return [
           {
@@ -314,6 +348,103 @@ export const FloatingKosaiButton: React.FC = () => {
               window.dispatchEvent(new CustomEvent('media_open_upload'));
             },
           },
+          {
+            id: 'media-ai-gen',
+            label: 'מחולל תמונות AI (Gemini)',
+            desc: 'יצירת תמונות מותאמות לעסק',
+            icon: Sparkles,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              window.dispatchEvent(new CustomEvent('media_open_ai_generator'));
+            },
+          },
+        ];
+
+      case 'KosBranding':
+        return [
+          {
+            id: 'dna-sync',
+            label: 'סנכרון Brand DNA',
+            desc: 'החלת צבעי ופונט המותג לכל הרכיבים',
+            icon: Sparkles,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              navigate('/brand-dna');
+            },
+          },
+          {
+            id: 'dna-colors',
+            label: 'התאמת שפת מותג',
+            desc: 'עריכת לוגו, סלוגן ופלטת צבעים',
+            icon: Sliders,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              navigate('/brand-dna');
+            },
+          },
+        ];
+
+      case 'kosun-board-composer':
+        return [
+          {
+            id: 'board-view',
+            label: 'לוח בקרה מותאם אישית',
+            desc: 'צפייה במדדים ובביצועי הטננט',
+            icon: BarChart3,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              navigate('/dashboard');
+            },
+          },
+        ];
+
+      case 'video-producer-studio':
+        return [
+          {
+            id: 'video-studio',
+            label: 'סטודיו וידאו ואווטאר',
+            desc: 'הפקת סרטונים ואוואטרים מותאמים',
+            icon: Wand2,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              navigate('/video-producer');
+            },
+          },
+        ];
+
+      case 'ambassador-campaigns-hub':
+        return [
+          {
+            id: 'campaign-hub',
+            label: 'ניהול קמפיינים ושגרירים',
+            desc: 'גיוס המונים ורשת שגרירים',
+            icon: Target,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              navigate('/campaigns-hub');
+            },
+          },
+        ];
+
+      case 'KosTogether':
+        return [
+          {
+            id: 'groups-manage',
+            label: 'ניהול קהילות וקבוצות',
+            desc: 'פילוח לקוחות וחלוקה לקבוצות',
+            icon: Users,
+            action: () => {
+              setIsQuickActionsOpen(false);
+              setIsMenuOpen(false);
+              navigate('/crm-groups');
+            },
+          },
         ];
 
       default:
@@ -431,8 +562,8 @@ export const FloatingKosaiButton: React.FC = () => {
       )}
 
       {/* 2. Expanded Central Actions Dock Menu (Control Center menu - internal modules only, hidden on front) */}
-      {!isFront && isMenuOpen && (
-        <div className="mb-3.5 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shadow-2xl shadow-indigo-500/20 flex items-center gap-2 animate-scaleUp">
+      {!isFront && isMenuOpen ? (
+        <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-3xl p-2.5 shadow-2xl shadow-indigo-500/20 flex items-center gap-2 animate-scaleUp">
           {/* 1. Open KosAi Chat */}
           <button
             type="button"
@@ -451,7 +582,7 @@ export const FloatingKosaiButton: React.FC = () => {
               setIsQuickActionsOpen((prev) => !prev);
             }}
             className="p-2.5 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-md shadow-indigo-500/20 transition cursor-pointer flex items-center justify-center group"
-            title={`תפריט פעולות מהיר (${activeModule.name})`}
+            title={`תפריט פעולות מהיר (${currentModuleName})`}
             aria-label="תפריט פעולות רכיב"
           >
             <Plus className={`w-4 h-4 stroke-[2.5] transition-transform duration-300 ${isQuickActionsOpen ? 'rotate-45' : 'group-hover:rotate-90'}`} />
@@ -471,6 +602,19 @@ export const FloatingKosaiButton: React.FC = () => {
           {/* 4. Subdomain Tenant Admin Controls (Unified Single Menu standard) */}
           {!isRootTenant && (
             <>
+              {/* Tenant Settings & Sync */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.dispatchEvent(new CustomEvent('kosun_open_tenant_settings'));
+                }}
+                className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer"
+                title="הגדרות וסנכרון טננט"
+              >
+                <Settings className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              </button>
+
               {/* View as Visitor */}
               <button
                 type="button"
@@ -523,7 +667,7 @@ export const FloatingKosaiButton: React.FC = () => {
             )}
           </button>
 
-          {/* 5. Close Menu */}
+          {/* 6. Close Menu */}
           <button
             type="button"
             onClick={(e) => {
@@ -537,43 +681,43 @@ export const FloatingKosaiButton: React.FC = () => {
             <X className="w-4 h-4" />
           </button>
         </div>
-      )}
-
-      {/* Main Single Floating Button: K blinking with Star */}
-      <button
-        onClick={() => {
-          if (isFront) {
-            setIsOpen(!isOpen);
-          } else {
-            setIsMenuOpen((prev) => !prev);
-          }
-        }}
-        style={{
-          background: `linear-gradient(135deg, ${primaryColor}, #4338ca)`,
-          boxShadow: `0 12px 36px -6px ${primaryColor}80`,
-        }}
-        className="relative w-14 h-14 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group border border-white/30 cursor-pointer overflow-visible animate-pulse"
-        title={isFront ? "סוכן שירות לקוחות - מענה לפניות ושאלות" : "תפריט KOSAI - לחץ לפתיחת כל כפתורי ופעולות המערכת"}
-        aria-label={isFront ? "סוכן שירות לקוחות" : "כפתור KosAi"}
-      >
-        {/* Kosun Official Vector Symbol from Gallery */}
-        <img
-          src="/images/kosun-symbol.svg"
-          alt="KOSUN"
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+      ) : (
+        /* Main Single Floating Trigger Button: K blinking with Star (Rendered ONLY when dock is minimized) */
+        <button
+          onClick={() => {
+            if (isFront) {
+              setIsOpen(!isOpen);
+            } else {
+              setIsMenuOpen(true);
+            }
           }}
-          className="w-7 h-7 object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-300"
-        />
+          style={{
+            background: `linear-gradient(135deg, ${primaryColor}, #4338ca)`,
+            boxShadow: `0 12px 36px -6px ${primaryColor}80`,
+          }}
+          className="relative w-14 h-14 rounded-2xl text-white flex items-center justify-center hover:scale-110 active:scale-95 transition-all duration-300 group border border-white/30 cursor-pointer overflow-visible animate-pulse"
+          title={isFront ? "סוכן שירות לקוחות - מענה לפניות ושאלות" : "תפריט KOSAI - לחץ לפתיחת כל כפתורי ופעולות המערכת"}
+          aria-label={isFront ? "סוכן שירות לקוחות" : "כפתור KosAi"}
+        >
+          {/* Kosun Official Vector Symbol from Gallery */}
+          <img
+            src="/images/kosun-symbol.svg"
+            alt="KOSUN"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+            }}
+            className="w-7 h-7 object-contain drop-shadow-md group-hover:scale-110 transition-transform duration-300"
+          />
 
-        {/* Blinking Star & Ping Badge on corner */}
-        <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 pointer-events-none">
-          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
-          <span className="relative inline-flex rounded-full h-4 w-4 bg-gradient-to-tr from-amber-400 to-amber-300 items-center justify-center shadow-sm">
-            <Sparkles className="w-2.5 h-2.5 text-slate-950 animate-spin" style={{ animationDuration: '4s' }} />
+          {/* Blinking Star & Ping Badge on corner */}
+          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 pointer-events-none">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-90"></span>
+            <span className="relative inline-flex rounded-full h-4 w-4 bg-gradient-to-tr from-amber-400 to-amber-300 items-center justify-center shadow-sm">
+              <Sparkles className="w-2.5 h-2.5 text-slate-950 animate-spin" style={{ animationDuration: '4s' }} />
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+      )}
     </div>
   );
 };

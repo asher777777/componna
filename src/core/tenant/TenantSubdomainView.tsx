@@ -242,11 +242,15 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   const [authVersion, setAuthVersion] = useState(0);
   const [isKosNevOpen, setIsKosNevOpen] = useState(false);
-
   useEffect(() => {
     const handleOpen = () => setIsKosNevOpen(true);
+    const handleOpenSettings = () => setIsSettingsModalOpen(true);
     window.addEventListener('kosun_open_modules_menu', handleOpen);
-    return () => window.removeEventListener('kosun_open_modules_menu', handleOpen);
+    window.addEventListener('kosun_open_tenant_settings', handleOpenSettings);
+    return () => {
+      window.removeEventListener('kosun_open_modules_menu', handleOpen);
+      window.removeEventListener('kosun_open_tenant_settings', handleOpenSettings);
+    };
   }, []);
   const [tenantTheme, setTenantTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem(`kosun_theme_${tenantRecord.subdomain}`) as 'light' | 'dark') || 'light';
@@ -623,21 +627,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
             </div>
           </div>
         )}
-        {/* Floating System Dock with User Homepage Link, Settings Modal, and Quick Edit Page */}
-        <FloatingSystemDock
-          onGoToHome={() => {
-            setMode('public');
-            setIsEditing(false);
-          }}
-          onOpenSettings={() => setIsSettingsModalOpen(true)}
-          onToggleEditMode={() => {
-            setMode('public');
-            setIsEditing(true);
-          }}
-          editPageUrl="/?mode=public&edit=true"
-          activeModules={tenantRecord.activeModules}
-          isSubdomain={true}
-        />
+
 
         {/* Tenant Sync & Settings Modal */}
         <TenantSyncSettingsModal

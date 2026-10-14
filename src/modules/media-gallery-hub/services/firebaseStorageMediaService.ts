@@ -242,6 +242,10 @@ export class FirebaseStorageMediaService {
       const idbItems = await MediaIndexedDbService.getAllMedia();
       idbItems.forEach((it) => {
         if (it && it.url) {
+          const itemTenant = it.tenantId || it.metadata?.tenantId;
+          if (tenantId && tenantId !== '_master' && itemTenant && itemTenant !== tenantId) {
+            return;
+          }
           registerItem(it.name || it.id, it.url, it.sizeBytes, it.createdAt, it.id, it);
         }
       });
@@ -271,24 +275,26 @@ export class FirebaseStorageMediaService {
       console.warn('[FirebaseStorageMediaService] Firestore vault read notice:', firestoreErr);
     }
 
-    // 2. Base confirmed server bucket files fallback (Global across tenants)
-    const allServerVaultFiles = [
-      { name: 'scene_1_animated.mp4', fullName: '1788087385571_scene_1_animated.mp4', size: 1992294, time: 1788087385571 },
-      { name: 'scene_3_animated.mp4', fullName: '1788089036047_scene_3_animated.mp4', size: 1992294, time: 1788089036047 },
-      { name: 'batty_talk-1.mp4', fullName: '1788094281947_batty_talk-1.mp4', size: 2264924, time: 1788094281947 },
-      { name: 'batty_present.jpeg', fullName: '1788094365029_batty_present.jpeg', size: 679055, time: 1788094365029 },
-    ];
+    // 2. Base confirmed server bucket files fallback (Root _master tenant showcase ONLY)
+    if (!tenantId || tenantId === '_master') {
+      const allServerVaultFiles = [
+        { name: 'scene_1_animated.mp4', fullName: '1788087385571_scene_1_animated.mp4', size: 1992294, time: 1788087385571 },
+        { name: 'scene_3_animated.mp4', fullName: '1788089036047_scene_3_animated.mp4', size: 1992294, time: 1788089036047 },
+        { name: 'batty_talk-1.mp4', fullName: '1788094281947_batty_talk-1.mp4', size: 2264924, time: 1788094281947 },
+        { name: 'batty_present.jpeg', fullName: '1788094365029_batty_present.jpeg', size: 679055, time: 1788094365029 },
+      ];
 
-    allServerVaultFiles.forEach((k) => {
-      const encoded = encodeURIComponent(`sdo_media_vault/${k.fullName}`);
-      const fallbackBucket = 'aioffice-1426f.firebasestorage.app'; // Fixed bucket for these global assets
-      registerItem(
-        k.fullName,
-        `https://firebasestorage.googleapis.com/v0/b/${fallbackBucket}/o/${encoded}?alt=media`,
-        k.size,
-        k.time
-      );
-    });
+      allServerVaultFiles.forEach((k) => {
+        const encoded = encodeURIComponent(`sdo_media_vault/${k.fullName}`);
+        const fallbackBucket = 'aioffice-1426f.firebasestorage.app'; // Fixed bucket for these global assets
+        registerItem(
+          k.fullName,
+          `https://firebasestorage.googleapis.com/v0/b/${fallbackBucket}/o/${encoded}?alt=media`,
+          k.size,
+          k.time
+        );
+      });
+    }
 
     return items;
   }

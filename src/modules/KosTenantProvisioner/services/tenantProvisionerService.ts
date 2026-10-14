@@ -317,9 +317,16 @@ export class TenantProvisionerService {
         );
         await setDoc(brandRef, initialBrandDna, { merge: true });
 
-        // 4. Directly synchronize and create the CRM contact in master contacts
+        // Initialize isolated API keys doc under subdomain
+        const keysRef = doc(db, 'tenants', cleanSub, 'settings', 'api_keys');
+        await setDoc(keysRef, {
+          geminiModel: 'gemini-3.8-flash',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }, { merge: true });
+
+        // 4. Synchronize and create the CRM contact in subdomain contacts AND master contacts
         try {
-          const contactDocRef = doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`);
           const contactPayload = {
             id: `tenant_admin_${cleanSub}`,
             status: 'active',
@@ -348,7 +355,12 @@ export class TenantProvisionerService {
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
-          await setDoc(contactDocRef, contactPayload, { merge: true });
+
+          // Save under subdomain's own contacts collection
+          await setDoc(doc(db, 'tenants', cleanSub, 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
+
+          // Also save under master contacts collection for centralized management
+          await setDoc(doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
         } catch (cErr) {
           console.warn('[TenantProvisionerService] Direct CRM contact write warning:', cErr);
         }

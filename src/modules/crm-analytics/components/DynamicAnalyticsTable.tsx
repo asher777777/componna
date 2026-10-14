@@ -580,11 +580,7 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
                                       onClick={() => onSelectContact?.(contact)}
                                       className="font-bold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1.5"
                                     >
-                                      {contact.subdomain || contact.isSubdomainAdmin ? (
-                                        <span className="px-1.5 py-0.5 rounded text-[10px] bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 font-bold" title={`סאב-דומיין: ${contact.subdomain}`}>
-                                          🌐 טננט
-                                        </span>
-                                      ) : isLead ? (
+                                      {isLead ? (
                                         <span className="w-2 h-2 rounded-full bg-amber-500" title="ליד חדש" />
                                       ) : (
                                         <span className="w-2 h-2 rounded-full bg-indigo-500" title="איש קשר" />

@@ -175,6 +175,16 @@ export const CrmAnalyticsMainView: React.FC = () => {
       refresh();
     });
 
+    const handleCreateContact = () => {
+      setSelectedContact(null);
+      setIsContactModalOpen(true);
+    };
+    const handleCreateChart = () => {
+      setActiveMainTab('analytics');
+    };
+    window.addEventListener('crm_create_contact', handleCreateContact);
+    window.addEventListener('crm_create_chart', handleCreateChart);
+
     // ========================================================
     // KosAi CRM Protocol: Execution Engine for the 7 actions
     // ========================================================
@@ -498,6 +508,8 @@ export const CrmAnalyticsMainView: React.FC = () => {
       unsubKesher();
       unsubGroups();
       unsubKosaiAction();
+      window.removeEventListener('crm_create_contact', handleCreateContact);
+      window.removeEventListener('crm_create_chart', handleCreateChart);
     };
   }, [refresh, firebaseApp, resolvedCollections, data?.contacts, updateField, mergeDuplicateContacts, tenantId]);
 

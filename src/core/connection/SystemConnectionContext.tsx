@@ -64,7 +64,7 @@ export interface SystemConnectionContextValue {
   lastPingLatency?: number;
   lastPingError?: string;
   updateConfig: (newConfig: Partial<SystemFirebaseConfig>, newCollections?: Partial<SystemCollectionsConfig>) => Promise<void>;
-  updateApiKeys: (newKeys: Partial<SystemApiKeysConfig>) => Promise<void>;
+  updateApiKeys: (newKeys: Partial<SystemApiKeysConfig>, targetTenantId?: string) => Promise<void>;
   testGoogleAiKey: (keyToTest?: string) => Promise<{ success: boolean; error?: string }>;
   testHeyGenKey: (keyToTest?: string) => Promise<{ success: boolean; error?: string }>;
   testConnection: (customConfig?: SystemFirebaseConfig) => Promise<{ success: boolean; latency?: number; error?: string }>;
@@ -516,17 +516,20 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
   );
 
   const updateApiKeys = useCallback(
-    async (newKeys: Partial<SystemApiKeysConfig>) => {
+    async (newKeys: Partial<SystemApiKeysConfig>, targetTenantId?: string) => {
+      const targetTenant = (targetTenantId || apiKeysTenantId || ROOT_TENANT_ID).toLowerCase().trim();
       const updated = { ...tenantApiKeys, ...newKeys };
-      setTenantApiKeys(updated);
+      if (targetTenant === apiKeysTenantId) {
+        setTenantApiKeys(updated);
+      }
 
       if (!db) {
         console.warn('[SystemConnection] Cannot save API keys – Firestore is not connected');
         return;
       }
       try {
-        const ref = doc(db, ...getTenantApiKeysDocSegments(apiKeysTenantId));
-        await setDoc(ref, { ...updated, updatedAt: Date.now() }, { merge: true });
+        const ref = doc(db, ...getTenantApiKeysDocSegments(targetTenant));
+        await setDoc(ref, { ...newKeys, updatedAt: Date.now() }, { merge: true });
       } catch (err) {
         console.warn('[SystemConnection] Cloud save API keys notice:', err);
       }

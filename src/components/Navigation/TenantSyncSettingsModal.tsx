@@ -21,7 +21,8 @@ import {
 } from 'lucide-react';
 import { TenantRecord } from '../../core/contracts';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { TenantCoreService } from '../../core/tenant/tenantService';
 
 interface Props {
   isOpen: boolean;
@@ -100,29 +101,57 @@ export const TenantSyncSettingsModal: React.FC<Props> = ({
   }, []);
 
   useEffect(() => {
-    if (tenantRecord) {
+    if (!tenantRecord || !isOpen) return;
+    const cleanSub = tenantRecord.subdomain.toLowerCase().trim();
+
+    const loadTenantData = async () => {
+      let remoteKeys: Record<string, any> = {};
+      let remoteOverview: Record<string, any> = {};
+
+      if (db) {
+        try {
+          const keysDoc = await getDoc(doc(db, 'tenants', cleanSub, 'settings', 'api_keys'));
+          if (keysDoc.exists()) {
+            remoteKeys = keysDoc.data() || {};
+          }
+        } catch (err) {
+          console.warn('[TenantSyncSettingsModal] Error loading tenant keys:', err);
+        }
+
+        try {
+          const tenantDoc = await getDoc(doc(db, 'tenants', cleanSub));
+          if (tenantDoc.exists()) {
+            remoteOverview = tenantDoc.data() || {};
+          }
+        } catch (err) {
+          console.warn('[TenantSyncSettingsModal] Error loading tenant overview:', err);
+        }
+      }
+
       const fresh = {
-        clientName: tenantRecord.clientName || '',
-        ownerEmail: tenantRecord.ownerEmail || '',
-        ownerPhone: tenantRecord.ownerPhone || '',
-        kesherUserName: (tenantApiKeys.kesherUserName as string) || '',
-        kesherApiKey: (tenantApiKeys.kesherApiKey as string) || '',
-        kesherPaymentPageId: (tenantApiKeys.kesherPaymentPageId as string) || '',
-        kesherEzCountToken: (tenantApiKeys.kesherEzCountToken as string) || '',
-        kesherDefaultReceiptType: Number(tenantApiKeys.kesherDefaultReceiptType) || 405,
-        greenApiInstanceId: (tenantApiKeys.greenApiInstanceId as string) || '',
-        greenApiToken: (tenantApiKeys.greenApiToken as string) || '',
-        customWebhookUrl: (tenantApiKeys.customWebhookUrl as string) || '',
-        googleAiApiKey: (tenantApiKeys.googleAiApiKey as string) || '',
-        geminiModel: (tenantApiKeys.geminiModel as string) || 'gemini-3.8-flash',
-        heygenApiKey: (tenantApiKeys.heygenApiKey as string) || '',
-        elevenLabsApiKey: (tenantApiKeys.elevenLabsApiKey as string) || '',
+        clientName: remoteOverview.clientName || tenantRecord.clientName || '',
+        ownerEmail: remoteOverview.ownerEmail || tenantRecord.ownerEmail || '',
+        ownerPhone: remoteOverview.ownerPhone || tenantRecord.ownerPhone || '',
+        kesherUserName: (remoteKeys.kesherUserName as string) || (tenantApiKeys.kesherUserName as string) || '',
+        kesherApiKey: (remoteKeys.kesherApiKey as string) || (tenantApiKeys.kesherApiKey as string) || '',
+        kesherPaymentPageId: (remoteKeys.kesherPaymentPageId as string) || (tenantApiKeys.kesherPaymentPageId as string) || '',
+        kesherEzCountToken: (remoteKeys.kesherEzCountToken as string) || (tenantApiKeys.kesherEzCountToken as string) || '',
+        kesherDefaultReceiptType: Number(remoteKeys.kesherDefaultReceiptType ?? tenantApiKeys.kesherDefaultReceiptType) || 405,
+        greenApiInstanceId: (remoteKeys.greenApiInstanceId as string) || (tenantApiKeys.greenApiInstanceId as string) || '',
+        greenApiToken: (remoteKeys.greenApiToken as string) || (tenantApiKeys.greenApiToken as string) || '',
+        customWebhookUrl: (remoteKeys.customWebhookUrl as string) || (tenantApiKeys.customWebhookUrl as string) || '',
+        googleAiApiKey: (remoteKeys.googleAiApiKey as string) || (tenantApiKeys.googleAiApiKey as string) || '',
+        geminiModel: (remoteKeys.geminiModel as string) || (tenantApiKeys.geminiModel as string) || 'gemini-3.8-flash',
+        heygenApiKey: (remoteKeys.heygenApiKey as string) || (tenantApiKeys.heygenApiKey as string) || '',
+        elevenLabsApiKey: (remoteKeys.elevenLabsApiKey as string) || (tenantApiKeys.elevenLabsApiKey as string) || '',
       };
       setFormData(fresh);
       setInitialData(fresh);
       setShowUnsavedConfirm(false);
-    }
-  }, [tenantRecord, tenantApiKeys]);
+    };
+
+    loadTenantData();
+  }, [tenantRecord, db, isOpen]);
 
   const activeModules = useMemo(() => {
     return (tenantRecord?.activeModules || []).map((m) => m.toLowerCase());
@@ -162,8 +191,8 @@ export const TenantSyncSettingsModal: React.FC<Props> = ({
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // 1. Save secret keys via useSystemConnection (writes to tenants/{subdomain}/settings/api_keys)
-      await updateApiKeys({
+      const cleanSub = tenantRecord.subdomain.toLowerCase().trim();
+      const keysPayload = {
         kesherUserName: formData.kesherUserName.trim(),
         kesherApiKey: formData.kesherApiKey.trim(),
         kesherPaymentPageId: formData.kesherPaymentPageId.trim(),
@@ -176,11 +205,19 @@ export const TenantSyncSettingsModal: React.FC<Props> = ({
         geminiModel: formData.geminiModel.trim(),
         heygenApiKey: formData.heygenApiKey.trim(),
         elevenLabsApiKey: formData.elevenLabsApiKey.trim(),
-      });
+        updatedAt: Date.now(),
+      };
 
-      // 2. Update tenant overview info in Firestore and master contacts
       if (db) {
-        const cleanSub = tenantRecord.subdomain.toLowerCase();
+        // 1. Direct write to tenants/{cleanSub}/settings/api_keys (Subdomain Scoped Keys)
+        try {
+          const tenantKeysRef = doc(db, 'tenants', cleanSub, 'settings', 'api_keys');
+          await setDoc(tenantKeysRef, keysPayload, { merge: true });
+        } catch (err) {
+          console.warn('[TenantSyncSettingsModal] Tenant api_keys write warning:', err);
+        }
+
+        // 2. Direct write to tenants/{cleanSub} overview document
         const tenantUpdates = {
           clientName: formData.clientName.trim(),
           ownerEmail: formData.ownerEmail.trim(),
@@ -194,26 +231,49 @@ export const TenantSyncSettingsModal: React.FC<Props> = ({
           console.warn('[TenantSyncSettingsModal] Tenant update warning:', err);
         }
 
+        // 3. Direct write to the subdomain's own CRM contacts collection: tenants/{cleanSub}/contacts
+        const contactPayload = {
+          id: `tenant_admin_${cleanSub}`,
+          subdomain: cleanSub,
+          company_name: formData.clientName.trim(),
+          conta_name: formData.clientName.trim(),
+          kosun_crm_name: formData.clientName.trim(),
+          email: formData.ownerEmail.trim(),
+          kosun_crm_email: formData.ownerEmail.trim(),
+          conta_phone: formData.ownerPhone.trim(),
+          kosun_crm_phone: formData.ownerPhone.trim(),
+          job_title: 'מנהל סאב-דומיין (טננט)',
+          contact_type: 'contact',
+          isUser: true,
+          isSubdomainAdmin: true,
+          status: 'active',
+          updatedAt: new Date().toISOString(),
+        };
+
         try {
-          // Sync with master CRM contacts
+          await setDoc(
+            doc(db, 'tenants', cleanSub, 'contacts', `tenant_admin_${cleanSub}`),
+            contactPayload,
+            { merge: true }
+          );
+        } catch (err) {
+          console.warn('[TenantSyncSettingsModal] Subdomain contact save warning:', err);
+        }
+
+        // 4. Also synchronize to master CRM contacts so master administrator sees it: tenants/_master/contacts
+        try {
           await setDoc(
             doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`),
-            {
-              company_name: formData.clientName.trim(),
-              conta_name: formData.clientName.trim(),
-              kosun_crm_name: formData.clientName.trim(),
-              email: formData.ownerEmail.trim(),
-              kosun_crm_email: formData.ownerEmail.trim(),
-              conta_phone: formData.ownerPhone.trim(),
-              kosun_crm_phone: formData.ownerPhone.trim(),
-              updatedAt: new Date().toISOString(),
-            },
+            contactPayload,
             { merge: true }
           );
         } catch (err) {
           console.warn('[TenantSyncSettingsModal] Master contact sync warning:', err);
         }
       }
+
+      // 5. Update system connection cache with target tenant
+      await updateApiKeys(keysPayload, cleanSub);
 
       const updatedRecord: TenantRecord = {
         ...tenantRecord,
@@ -223,9 +283,14 @@ export const TenantSyncSettingsModal: React.FC<Props> = ({
         updatedAt: new Date().toISOString(),
       };
 
+      // 6. Update local cache
+      const localTenants = TenantCoreService.getLocalTenants();
+      const updatedList = [updatedRecord, ...localTenants.filter((t) => t.subdomain.toLowerCase() !== cleanSub)];
+      TenantCoreService.saveLocalTenants(updatedList);
+
       setInitialData({ ...formData });
       onSaved?.(updatedRecord);
-      showNotification('ההגדרות והמפתחות נשמרו וסונכרנו בהצלחה!');
+      showNotification('ההגדרות והמפתחות נשמרו וסונכרנו תחת הטננט בהצלחה!');
       setTimeout(() => onClose(), 600);
     } catch (err: any) {
       showNotification(err?.message || 'שגיאה בשמירת ההגדרות');

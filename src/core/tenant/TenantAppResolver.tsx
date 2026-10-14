@@ -8,7 +8,7 @@ import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.type
 import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ROOT_TENANT_ID, RESERVED_TENANT_SUBDOMAINS, extractSubdomainFromHost } from './tenantResolver';
-import { TenantScopeProvider } from './TenantScopeContext';
+import { TenantScopeProvider, useTenantScope } from './TenantScopeContext';
 import { TenantSubdomainView } from './TenantSubdomainView';
 import { RootPublicHomePageView } from '../../pages/RootPublicHomePageView';
 import { useLocation } from 'react-router-dom';
@@ -17,6 +17,7 @@ import { Globe, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
 export const TenantAppResolver: React.FC = () => {
   const location = useLocation();
   const { db } = useSystemConnection();
+  const { setTenantId } = useTenantScope();
   const [tenantSubdomain, setTenantSubdomain] = useState<string | null>(null);
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(null);
   const [rootHomePage, setRootHomePage] = useState<PageBuilderConfig | null>(() => {
@@ -121,6 +122,7 @@ export const TenantAppResolver: React.FC = () => {
 
     if (sub) {
       setTenantSubdomain(sub);
+      setTenantId(sub);
       TenantCoreService.getAllTenants(db).then((all) => {
         const found = all.find(t => t.subdomain.toLowerCase() === sub?.toLowerCase());
         if (found) {
@@ -148,8 +150,9 @@ export const TenantAppResolver: React.FC = () => {
     } else {
       setTenantSubdomain(null);
       setTenantRecord(null);
+      setTenantId(ROOT_TENANT_ID);
     }
-  }, [db]);
+  }, [db, setTenantId]);
 
   // 1. Subdomain View (Public Landing Page by default + Owner Admin Control Panel)
   if (tenantSubdomain && tenantRecord) {

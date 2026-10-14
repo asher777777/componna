@@ -496,7 +496,14 @@ export const MediaGalleryProvider: React.FC<{
       try {
         const idbItems = await MediaIndexedDbService.getAllMedia();
         idbItems.forEach((it) => {
-          if (it && it.url) addDeduplicated(it);
+          if (it && it.url) {
+            // Strict tenant isolation: do not load other tenants or master items into a sub-tenant
+            const itemTenant = it.tenantId || it.metadata?.tenantId;
+            if (tenantId !== '_master' && itemTenant && itemTenant !== tenantId) {
+              return;
+            }
+            addDeduplicated(it);
+          }
         });
         const idbFolders = await MediaIndexedDbService.getFolders();
         if (isMounted && idbFolders.length > 0) {
@@ -524,16 +531,6 @@ export const MediaGalleryProvider: React.FC<{
           remoteItems.forEach((item) => {
             if (item.url) addDeduplicated(item);
           });
-
-          if (collections.mediaItems !== 'sdo_media_items') {
-            const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
-              mediaItems: 'sdo_media_items',
-              folders: 'sdo_media_folders',
-            });
-            defaultItems.forEach((item) => {
-              if (item.url) addDeduplicated(item);
-            });
-          }
 
           const remoteFolders = await FirestoreMediaService.fetchFolders(db, collections);
           if (isMounted && remoteFolders.length > 0) {
