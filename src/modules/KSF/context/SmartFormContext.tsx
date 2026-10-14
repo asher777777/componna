@@ -13,6 +13,7 @@ import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { FormBuilderContract } from '../../../core/contracts';
 import { FormSubmissionsTable } from '../components/analytics/FormSubmissionsTable';
+import { SmartFormRunner } from '../components/runner/SmartFormRunner';
 
 
 export interface SmartFormContextValue {
@@ -419,10 +420,13 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
     };
 
     registerCapability('form-builder', contract);
+    registerCapability('form-renderer', SmartFormRunner);
     return () => {
       unregisterCapability('form-builder');
+      unregisterCapability('form-renderer');
     };
   }, [forms, saveForm, loadFormById, customFirestore, collectionName, registerCapability, unregisterCapability, setActiveForm]);
+
 
   return (
     <SmartFormContext.Provider

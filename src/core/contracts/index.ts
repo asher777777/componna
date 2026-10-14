@@ -62,15 +62,94 @@ export interface DefaultFormsStatus {
   missingTypes: ('leads' | 'payment' | 'whatsapp')[];
 }
 
+export interface FormFieldContract {
+  label: string;
+  type: string; // text, tel, email, textarea, select, number, fixed_amount, hidden, step, payment_summary, payment_cc
+  map_to: string;
+  map_to_2?: string;
+  required: boolean;
+  default_value?: string;
+  options?: string;
+  url_param_enable?: boolean;
+  url_param_name?: string;
+  cond_enable?: boolean;
+  cond_field_index?: number;
+  cond_operator?: string;
+  cond_value?: string;
+  step?: number;
+  payment_doc_type?: string; // 320 = מס/קבלה, 400 = קבלה, 405 = תרומה
+  payment_methods?: string[]; // 'one-time', 'installments', 'recurring', 'bit'
+  payment_recurring_limit?: string; // 'user-choice', 'unlimited', '12', '24'
+  payment_require_id?: boolean;
+  widthPercentage?: number;
+  bgColor?: string;
+  borderColor?: string;
+  focusColor?: string;
+  placeholder?: string;
+}
+
+export interface FormConfigContract {
+  enabled: boolean;
+  form_type: 'standard' | 'payment' | 'register';
+  submit_button_text: string;
+  submit_button_bg_color?: string;
+  submit_button_text_color?: string;
+  continue_button_text?: string;
+  back_button_text?: string;
+  fields: FormFieldContract[];
+  save_to_crm: boolean;
+  crm_owner_id?: string;
+  crm_save_step?: number;
+  standard_success_message: string;
+  standard_redirect_url?: string;
+  standard_whatsapp_message?: string;
+  standard_whatsapp_image_url?: string;
+  payment_amount?: number;
+  payment_amount_crm_map?: string;
+  payment_pending_message?: string;
+  payment_pending_image_url?: string;
+  payment_success_message?: string;
+  payment_success_image_url?: string;
+  payment_receipt_type?: string; // 320, 400, 405
+  payment_frequency?: 'one-time' | 'recurring' | 'user-choice';
+  payment_methods?: string[];
+  payment_require_id?: boolean;
+  templateId?: string;
+  templateName?: string;
+}
+
+export interface FormSubmissionPayload {
+  formId: string;
+  formTitle: string;
+  formType?: string;
+  formData: Record<string, any>;
+  amountPaid?: number;
+  status?: string;
+  receiptUrl?: string;
+  transactionId?: string;
+  embeddingPostId?: string;
+  embeddingCollection?: string;
+}
+
+export interface FormSubmissionResult {
+  success: boolean;
+  submissionId?: string;
+  error?: string;
+}
+
 export interface FormBuilderContract {
   getForms?: () => Promise<FormItemSummary[]>;
   getActiveFormsList?: () => FormItemSummary[];
+  getFormById?: (formId: string) => Promise<any>;
+  saveForm?: (form: any) => Promise<{ id: string; success: boolean }>;
+  submitForm?: (payload: FormSubmissionPayload) => Promise<FormSubmissionResult>;
   checkDefaultFormsStatus?: () => Promise<DefaultFormsStatus>;
   createDefaultForm?: (type: 'leads' | 'payment' | 'whatsapp') => Promise<{ id: string; title: string }>;
   openBrainstormModal?: () => void;
   openBuilderForForm?: (formId: string) => void;
   renderSubmissionsTable?: (formId: string, formTitle?: string) => React.ReactNode;
 }
+
 
 // ========================
 // Kesher Payment Clearing Contract
@@ -478,8 +557,10 @@ export interface CoreEventMap {
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
   'brand:logo_updated': { logoUrl: string; updatedAt: string };
   'brand:vibe_image_added': { imageUrl: string; updatedAt: string };
-  'media:ai_edit_requested': { item: any };
   'whatsapp:status:viewed': { phone: string; statusId: string };
+  'whatsapp:message:sent': { phone: string; text?: string; message?: string; source?: string };
+  'whatsapp:send': { phone: string; text?: string; message?: string; mediaUrl?: string };
+
   'landing_page:generated_from_doc': {
     sourceFileId: string;
     sourceFileName: string;

@@ -8,6 +8,9 @@ import { MediaPickerHostBridge } from './modules/media-gallery-hub';
 import { BrandDnaProvider } from './modules/KosBranding/context/BrandDnaContext';
 import { KosWebAiHostBridge } from './modules/KosWebAi';
 import { KosaiProvider, FloatingKosaiButton, KosaiChatDrawer } from './modules/kosai-engine';
+import { SmartFormProvider } from './modules/KSF';
+import { KesherPaymentsProvider } from './modules/kesher-payments-hub';
+import { WhatsAppProvider } from './modules/KosWhatsUp';
 
 export const App: React.FC = () => {
   return (
@@ -15,15 +18,21 @@ export const App: React.FC = () => {
       <TenantScopeProvider>
         <SystemConnectionProvider>
           <HostCapabilitiesProvider>
-            <BrandDnaProvider>
-              <KosaiProvider>
-                <TenantAppResolver />
-                <MediaPickerHostBridge />
-                <KosWebAiHostBridge />
-                <FloatingKosaiButton />
-                <KosaiChatDrawer />
-              </KosaiProvider>
-            </BrandDnaProvider>
+            <KesherPaymentsProvider>
+              <WhatsAppProvider>
+                <SmartFormProvider>
+                  <BrandDnaProvider>
+                    <KosaiProvider>
+                      <TenantAppResolver />
+                      <MediaPickerHostBridge />
+                      <KosWebAiHostBridge />
+                      <FloatingKosaiButton />
+                      <KosaiChatDrawer />
+                    </KosaiProvider>
+                  </BrandDnaProvider>
+                </SmartFormProvider>
+              </WhatsAppProvider>
+            </KesherPaymentsProvider>
           </HostCapabilitiesProvider>
         </SystemConnectionProvider>
       </TenantScopeProvider>

@@ -1,27 +1,71 @@
-import { GreenApiService } from '../../KosWhatsUp/services/greenApiService';
 import { SmartFormDefinition, FormWhatsAppRule, FormWhatsAppDeliveryLog } from '../types';
 import { renderWhatsAppMessage, evaluateRuleCondition } from './whatsappTemplateService';
 import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 
-/**
- * Retrieves the active Green-API service credentials from the tenant settings collection
- */
-export function getGreenApiService(): GreenApiService | null {
+interface GreenSendParams {
+  instanceId: string;
+  token: string;
+  chatId: string;
+  message: string;
+  mediaUrl?: string;
+  fileName?: string;
+}
+
+async function sendGreenApiMessage(params: GreenSendParams): Promise<{ idMessage?: string; error?: string }> {
   try {
-    const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
+    const { instanceId, token, chatId, message, mediaUrl, fileName } = params;
+    const cleanPhone = chatId.replace(/[^\d]/g, '');
+    const recipientChatId = cleanPhone.includes('@') ? cleanPhone : `${cleanPhone}@c.us`;
+    const cluster = instanceId.length >= 4 ? instanceId.slice(0, 4) : '7103';
+    const host = `https://${cluster}.api.greenapi.com`;
 
-    if (!instanceId || !token) {
-      return null;
+    if (mediaUrl) {
+      const url = `${host}/waInstance${instanceId}/sendFileByUrl/${token}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: recipientChatId,
+          urlFile: mediaUrl,
+          fileName: fileName || 'attachment',
+          caption: message,
+        }),
+      });
+      return await res.json();
+    } else {
+      const url = `${host}/waInstance${instanceId}/sendMessage/${token}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: recipientChatId,
+          message,
+        }),
+      });
+      return await res.json();
     }
-
-    return new GreenApiService({
-      idInstance: instanceId,
-      apiTokenInstance: token,
-    });
-  } catch (e) {
-    console.warn('Could not initialize GreenApiService:', e);
-    return null;
+  } catch (err: any) {
+    return { error: err?.message || 'שגיאה במשלוח הודעת וואטסאפ' };
   }
+}
+/**
+ * Helper providing green-api send methods for internal components
+ */
+export function getGreenApiService() {
+  const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
+  return {
+    isConfigured: () => Boolean(instanceId && token),
+    sendMessage: async (params: { chatId: string; message: string; mediaUrl?: string; fileName?: string }) => {
+      return sendGreenApiMessage({
+        instanceId,
+        token,
+        chatId: params.chatId,
+        message: params.message,
+        mediaUrl: params.mediaUrl,
+        fileName: params.fileName,
+      });
+    },
+  };
 }
 
 /**
@@ -43,7 +87,7 @@ export async function processSubmissionWhatsAppAutomations(params: {
   }
 
   const logs: FormWhatsAppDeliveryLog[] = [];
-  const greenService = getGreenApiService();
+  const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
 
   const conta_phone =
     rawAnswers['conta_phone'] ||
@@ -105,7 +149,7 @@ export async function processSubmissionWhatsAppAutomations(params: {
 
     // 4. Dispatch via Green-API for each recipient
     for (const rec of recipients) {
-      if (!greenService || !greenService.isConfigured()) {
+      if (!instanceId || !token) {
         logs.push({
           ruleId: rule.id,
           ruleName: rule.name,
@@ -120,20 +164,14 @@ export async function processSubmissionWhatsAppAutomations(params: {
       }
 
       try {
-        let sendResult: any;
-        if (rule.mediaUrl) {
-          sendResult = await greenService.sendFileByUrl({
-            chatId: rec.phone,
-            urlFile: rule.mediaUrl,
-            fileName: rule.mediaFileName || 'attachment',
-            caption: renderedMessage,
-          });
-        } else {
-          sendResult = await greenService.sendMessage({
-            chatId: rec.phone,
-            message: renderedMessage,
-          });
-        }
+        const sendResult = await sendGreenApiMessage({
+          instanceId,
+          token,
+          chatId: rec.phone,
+          message: renderedMessage,
+          mediaUrl: rule.mediaUrl,
+          fileName: rule.mediaFileName,
+        });
 
         if (sendResult?.idMessage) {
           logs.push({

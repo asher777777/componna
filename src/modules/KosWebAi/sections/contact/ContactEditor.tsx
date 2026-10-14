@@ -3,7 +3,8 @@ import { ContactSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
-import { Phone, Mail, MapPin, Sliders } from 'lucide-react';
+import { Phone, Mail, MapPin, Sliders, FormInput } from 'lucide-react';
+import { ContactFormConfigEditor, DEFAULT_CONTACT_FORM_CONFIG } from './ContactFormConfigEditor';
 
 interface ContactEditorProps {
   config: ContactSectionConfig;
@@ -15,8 +16,11 @@ export const ContactEditor: React.FC<ContactEditorProps> = ({ config, onChange }
     onChange({ ...config, [field]: value });
   };
 
+  const isFormEnabled = config.showForm ?? true;
+
   return (
     <div className="flex flex-col gap-4 text-right" dir="rtl">
+      {/* 1. Header & Contact Information */}
       <PageBuilderAccordion title="כותרות ופרטי התקשרות" icon={<Phone className="w-4 h-4 text-indigo-400" />} defaultOpen={true}>
         <PageBuilderInput
           label="כותרת האזור"
@@ -68,13 +72,30 @@ export const ContactEditor: React.FC<ContactEditorProps> = ({ config, onChange }
           <label className="text-xs font-semibold text-slate-300">הצג טופס יצירת קשר</label>
           <input
             type="checkbox"
-            checked={config.showForm ?? true}
+            checked={isFormEnabled}
             onChange={(e) => update('showForm', e.target.checked)}
             className="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-700 cursor-pointer"
           />
         </div>
       </PageBuilderAccordion>
 
+      {/* 2. Embedded KFS Form & Clearing Editor */}
+      {isFormEnabled && (
+        <PageBuilderAccordion
+          title="עריכת טופס KFS, סליקה והודעות WhatsApp"
+          icon={<FormInput className="w-4 h-4 text-emerald-400" />}
+          defaultOpen={true}
+        >
+          <ContactFormConfigEditor
+            value={config.form || DEFAULT_CONTACT_FORM_CONFIG}
+            formId={config.formId}
+            onFormIdChange={(id) => update('formId', id)}
+            onChange={(formConfig) => update('form', formConfig)}
+          />
+        </PageBuilderAccordion>
+      )}
+
+      {/* 3. Design & Anchor */}
       <PageBuilderAccordion title="עיצוב ועוגן" icon={<Sliders className="w-4 h-4 text-pink-400" />}>
         <PageBuilderColorPicker
           label="צבע רקע"

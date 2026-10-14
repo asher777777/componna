@@ -1,4 +1,6 @@
 import { BaseSectionConfig } from './pageBuilder.types';
+import { FormConfigContract } from '../../../core/contracts';
+
 
 export interface HeaderSectionConfig extends BaseSectionConfig {
   type: 'header';
@@ -427,7 +429,10 @@ export interface ContactSectionConfig extends BaseSectionConfig {
   showForm?: boolean;
   openingHours?: string;
   directWhatsappChat?: boolean;
+  formId?: string;
+  form?: FormConfigContract;
 }
+
 
 export interface FlowPlayerSectionConfig extends BaseSectionConfig {
   type: 'flowPlayer';
