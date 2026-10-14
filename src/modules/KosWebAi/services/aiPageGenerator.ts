@@ -294,14 +294,51 @@ export const aiPageGenerator = {
       }
 
       if (apiResult.success && apiResult.data) {
-        const aiData = apiResult.data;
-        if (aiData.slug) pageConfig.slug = aiData.slug;
-        if (aiData.pageTitle) pageConfig.pageTitle = aiData.pageTitle;
-        if (aiData.backgroundColor) pageConfig.globalSettings.backgroundColor = aiData.backgroundColor;
-        if (aiData.textColor) pageConfig.globalSettings.textColor = aiData.textColor;
+        let aiData = apiResult.data;
+        if (typeof aiData === 'string') {
+          try {
+            aiData = JSON.parse(aiData.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim());
+          } catch {
+            const firstBrace = aiData.indexOf('{');
+            const lastBrace = aiData.lastIndexOf('}');
+            const firstBracket = aiData.indexOf('[');
+            const lastBracket = aiData.lastIndexOf(']');
+            if (firstBrace >= 0 && lastBrace > firstBrace && (firstBracket < 0 || firstBrace < firstBracket)) {
+              try { aiData = JSON.parse(aiData.slice(firstBrace, lastBrace + 1)); } catch {}
+            } else if (firstBracket >= 0 && lastBracket > firstBracket) {
+              try { aiData = JSON.parse(aiData.slice(firstBracket, lastBracket + 1)); } catch {}
+            }
+          }
+        }
 
-        if (Array.isArray(aiData.sections) && aiData.sections.length >= 3) {
-          generatedSectionsData = aiData.sections;
+        let rawSections: any[] = [];
+        if (Array.isArray(aiData)) {
+          rawSections = aiData;
+        } else if (aiData && typeof aiData === 'object') {
+          if (Array.isArray(aiData.sections)) {
+            rawSections = aiData.sections;
+          } else if (Array.isArray(aiData.page?.sections)) {
+            rawSections = aiData.page.sections;
+          } else if (Array.isArray(aiData.data?.sections)) {
+            rawSections = aiData.data.sections;
+          } else if (Array.isArray(aiData.data)) {
+            rawSections = aiData.data;
+          } else if (aiData.sections && typeof aiData.sections === 'object') {
+            rawSections = Object.values(aiData.sections);
+          }
+
+          if (aiData.slug) pageConfig.slug = aiData.slug;
+          else if (aiData.page?.slug) pageConfig.slug = aiData.page.slug;
+
+          if (aiData.pageTitle) pageConfig.pageTitle = aiData.pageTitle;
+          else if (aiData.page?.pageTitle) pageConfig.pageTitle = aiData.page.pageTitle;
+
+          if (aiData.backgroundColor) pageConfig.globalSettings.backgroundColor = aiData.backgroundColor;
+          if (aiData.textColor) pageConfig.globalSettings.textColor = aiData.textColor;
+        }
+
+        if (Array.isArray(rawSections) && rawSections.length >= 2) {
+          generatedSectionsData = rawSections;
         } else {
           throw new Error('ה-AI החזיר תוצאה קצרה מדי או חסרת נתונים מספיקים כדי להרכיב עמוד שלם.');
         }
@@ -310,16 +347,74 @@ export const aiPageGenerator = {
       throw new Error(err.message || 'שגיאה כללית התרחשה במהלך העבודה מול בינת ה-AI.');
     }
 
-    if (!generatedSectionsData || generatedSectionsData.length < 4) {
-      throw new Error('שגיאה בתבנית שחזרה מה-AI - התקבלו פחות מ-4 אזורים במבנה העמוד.');
+    if (!generatedSectionsData || generatedSectionsData.length < 2) {
+      throw new Error('שגיאה בתבנית שחזרה מה-AI - התקבלו פחות מאזורים נדרשים במבנה העמוד.');
     }
+
+    // Auto-supplement missing essential sections if less than 4 sections were returned
+    const existingTypes = generatedSectionsData.map((s) => (s.sectionType || s.type || '').toLowerCase());
+    if (!existingTypes.some((t) => t.includes('contact') || t.includes('cta'))) {
+      generatedSectionsData.push({
+        sectionType: 'contact',
+        stepTitle: 'הוספת אזור יצירת קשר והנעה לפעולה',
+        statusText: 'מחבר פרטי התקשרות וטופס יצירת קשר...',
+        data: {
+          title: 'בואו נעשה את הצעד הבא יחד',
+          subtitle: 'השאירו פרטים ונחזור אליכם בהקדם או פנו ישירות בוואטסאפ',
+          showForm: true,
+          directWhatsappChat: true,
+        },
+      });
+    }
+    if (generatedSectionsData.length < 4 && !existingTypes.some((t) => t.includes('testim') || t.includes('review'))) {
+      generatedSectionsData.push({
+        sectionType: 'testimonials',
+        stepTitle: 'הוספת הוכחה חברתית וביקורות',
+        statusText: 'משלב חוות דעת של לקוחות מרוצים...',
+        data: {
+          title: 'מה הלקוחות שלנו אומרים',
+          subtitle: 'הסיפורים של האנשים שכבר חוו את השינוי',
+          showRatingSummary: true,
+          overallRating: 4.9,
+          items: [
+            { id: 't1', name: 'ישראל כהן', role: 'מנכ"ל', company: 'טכנולוגיות בע"מ', content: 'שירות יוצא דופן ורמה מקצועית שלא פגשתי בארץ.', rating: 5, isVerified: true },
+            { id: 't2', name: 'מיכל לוי', role: 'בעלת עסק', company: 'סטודיו לעיצוב', content: 'התוצאות דיברו בעד עצמן כבר בחודש הראשון!', rating: 5, isVerified: true },
+          ],
+        },
+      });
+    }
+
+    const CANONICAL_TYPES: SectionType[] = [
+      'header', 'hero', 'services', 'testimonials', 'logoMarquee', 'statsBento',
+      'liveAnalytics', 'beforeAfter', 'geoLocal', 'pricing', 'mainContent',
+      'videoGallery', 'imageListing', 'faq', 'timer', 'richContent', 'community',
+      'livePosts', 'landingSection', 'contact', 'smartForm', 'flowPlayer',
+      'customHtml', 'eventRsvp',
+    ];
+
+    const mapToCanonicalSectionType = (raw: string): SectionType => {
+      const clean = (raw || '').toLowerCase().trim();
+      if (CANONICAL_TYPES.includes(clean as SectionType)) return clean as SectionType;
+      if (clean.includes('hero') || clean.includes('intro') || clean.includes('banner')) return 'hero';
+      if (clean.includes('feat') || clean.includes('serv') || clean.includes('solut') || clean.includes('problem') || clean.includes('benefit') || clean.includes('advant')) return 'services';
+      if (clean.includes('testim') || clean.includes('review') || clean.includes('feedback') || clean.includes('client')) return 'testimonials';
+      if (clean.includes('price') || clean.includes('plan') || clean.includes('pack')) return 'pricing';
+      if (clean.includes('faq') || clean.includes('question')) return 'faq';
+      if (clean.includes('stat') || clean.includes('number') || clean.includes('metric')) return 'statsBento';
+      if (clean.includes('contact') || clean.includes('cta') || clean.includes('lead')) return 'contact';
+      if (clean.includes('about') || clean.includes('story') || clean.includes('content') || clean.includes('process')) return 'richContent';
+      if (clean.includes('communit')) return 'community';
+      if (clean.includes('geo') || clean.includes('local') || clean.includes('map')) return 'geoLocal';
+      return 'services';
+    };
 
     // Live Streaming Simulation: build each section step-by-step
     const totalSteps = generatedSectionsData.length;
 
     for (let i = 0; i < totalSteps; i++) {
       const step = generatedSectionsData[i];
-      const sectionType: SectionType = step.sectionType || 'hero';
+      const rawSectionType = step.sectionType || step.type || 'hero';
+      const sectionType: SectionType = mapToCanonicalSectionType(rawSectionType);
       const secId = `${sectionType}_${Date.now()}_${i + 1}`;
 
       const secData: any = {

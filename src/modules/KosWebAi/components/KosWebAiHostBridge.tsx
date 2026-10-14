@@ -2,8 +2,14 @@ import React, { useEffect } from 'react';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
-import { CommunityWebPageContract, CommunityWebPageOptions } from '../../../core/contracts';
+import {
+  CommunityWebPageContract,
+  CommunityWebPageOptions,
+  PageBuilderContract,
+  CreatePageFromProductOptions,
+} from '../../../core/contracts';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
+import { aiPageGenerator } from '../services/aiPageGenerator';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 
 export const KosWebAiHostBridge: React.FC = () => {
@@ -161,10 +167,74 @@ export const KosWebAiHostBridge: React.FC = () => {
       },
     };
 
+    const pageBuilderContract: PageBuilderContract = {
+      openPageBuilder: (pageId?: string) => {
+        window.location.href = pageId ? `/KosWebAi?pageId=${pageId}` : '/KosWebAi';
+      },
+
+      createPageFromProduct: async (options: CreatePageFromProductOptions) => {
+        try {
+          const product = options.product;
+          const prompt = `צור עמוד נחיתה מלא וממיר עבור מוצר הדגל הבא:
+שם המוצר: ${product.nameAndSlogan}
+תיאור קצר: ${product.shortDescription || ''}
+תיאור נרחב (SEO): ${product.longDescription || ''}
+נקודות כאב שהוא פותר: ${product.painPointSolved || ''}
+יתרון תחרותי: ${product.competitiveAdvantage || ''}
+קהל יעד: ${product.targetAudience || ''}
+
+חובה לייצר slug באנגלית על בסיס SEO לשם המוצר. עמוד הנחיתה צריך לכלול Hero מרשים ${product.imageUrl ? `(השתמש בתמונה ${product.imageUrl})` : ''}, פירוט היתרונות, התייחסות לנקודות הכאב כ-Features, וקריאה לפעולה מרכזית.`;
+
+          const generatedConfig = await aiPageGenerator.generatePageLive(
+            prompt,
+            options.brandDna,
+            (step) => {
+              if (options.onStep) {
+                options.onStep({
+                  statusText: step.statusText || 'מייצר עמוד...',
+                  percent: step.progressPercent,
+                });
+              }
+            },
+            { generateImages: false }
+          );
+
+          if (product.imageUrl && generatedConfig.sections) {
+            const heroSec = Object.values(generatedConfig.sections).find((s: any) => s.type === 'hero');
+            if (heroSec) {
+              (heroSec as any).imageSrc = product.imageUrl;
+              (heroSec as any).imageUrl = product.imageUrl;
+            }
+          }
+
+          // Save page through pageBuilderFirestore
+          await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+
+          return {
+            success: true,
+            pageId: generatedConfig.pageId,
+            slug: generatedConfig.slug,
+            publicUrl: `/p/${generatedConfig.slug}`,
+          };
+        } catch (err: any) {
+          console.error('[KosWebAiHostBridge] Error creating product page:', err);
+          return {
+            success: false,
+            pageId: '',
+            slug: '',
+            publicUrl: '',
+            error: err?.message || 'שגיאה ביצירת עמוד הנחיתה עם AI.',
+          };
+        }
+      },
+    };
+
     registerCapability('community-webpage', contract);
+    registerCapability('page-builder', pageBuilderContract);
 
     return () => {
       unregisterCapability('community-webpage');
+      unregisterCapability('page-builder');
     };
   }, [db, tenantId, registerCapability, unregisterCapability]);
 

@@ -762,6 +762,36 @@ export interface CommunityWebPageContract {
 }
 
 // ========================
+// KosWebAi - חוזה בונה האתרים המרכזי (KosWebAi Monopoly)
+// ========================
+
+export interface CreatePageFromProductOptions {
+  product: {
+    id?: string;
+    nameAndSlogan: string;
+    shortDescription?: string;
+    longDescription?: string;
+    imageUrl?: string;
+    painPointSolved?: string;
+    competitiveAdvantage?: string;
+    targetAudience?: string;
+  };
+  brandDna?: BrandDna | null;
+  onStep?: (step: { statusText: string; percent?: number }) => void;
+}
+
+export interface PageBuilderContract {
+  createPageFromProduct: (options: CreatePageFromProductOptions) => Promise<{
+    success: boolean;
+    pageId: string;
+    slug: string;
+    publicUrl: string;
+    error?: string;
+  }>;
+  openPageBuilder: (pageId?: string) => void;
+}
+
+// ========================
 // Recruitment / Campaigns Contract for Communities (גיוס כספים לקהילה)
 // ========================
 
