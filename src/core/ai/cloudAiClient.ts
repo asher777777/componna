@@ -32,9 +32,10 @@ export interface CloudAiResponse<T = any> {
 }
 
 export const PLEASANT_AI_ERROR_HEBREW = 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.';
+export const NOT_IN_BASKET_MESSAGE = 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.';
 
 /**
- * Execute AI request securely via Cloud Functions proxy
+ * Execute AI request securely: attempts proxy if available, seamless direct Gemini REST fallback
  */
 export async function executeCloudAi<T = any>(
   options: CloudAiGenerateOptions
@@ -42,23 +43,127 @@ export async function executeCloudAi<T = any>(
   const model = options.model || 'gemini-3.8-flash';
   const timeoutMs = options.timeoutMs || 45000;
 
+  // Resolve API Key: provided key > master tenant key > tenant key > local fallback
+  const state = getTenantApiKeysState();
+  const effectiveApiKey = (
+    options.apiKey ||
+    state.masterKeys?.googleAiApiKey ||
+    state.tenantKeys?.googleAiApiKey ||
+    (typeof window !== 'undefined' ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '') : '') ||
+    (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
+    ''
+  ).trim();
+
+  if (!effectiveApiKey) {
+    return {
+      success: false,
+      error: NOT_IN_BASKET_MESSAGE,
+      costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 }),
+    };
+  }
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-    const res = await fetch('/api/ai/generate', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...options,
-        model,
-      }),
-      signal: controller.signal,
-    }).catch(() => null);
+    let rawText = '';
+    let promptTokens = 250;
+    let candidatesTokens = 200;
 
-    clearTimeout(timeoutId);
+    // 1. Try server proxy endpoint if available
+    let proxySucceeded = false;
+    try {
+      const res = await fetch('/api/ai/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...options,
+          apiKey: effectiveApiKey,
+          model,
+        }),
+        signal: controller.signal,
+      });
 
-    if (!res || !res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
+        const payload = await res.json();
+        rawText = payload.text || (typeof payload.data === 'string' ? payload.data : '');
+        if (payload.costReport) {
+          promptTokens = payload.costReport.promptTokens || promptTokens;
+          candidatesTokens = payload.costReport.candidatesTokens || candidatesTokens;
+        }
+        proxySucceeded = true;
+      }
+    } catch {
+      proxySucceeded = false;
+    }
+
+    // 2. Direct Gemini REST API Execution if proxy is not configured or failed
+    if (!proxySucceeded) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${effectiveApiKey}`;
+
+      const parts: any[] = [];
+      if (options.imageBase64 && options.mimeType) {
+        parts.push({
+          inlineData: {
+            data: options.imageBase64.replace(/^data:image\/[a-z]+;base64,/, ''),
+            mimeType: options.mimeType,
+          },
+        });
+      }
+      if (options.imageParts && Array.isArray(options.imageParts)) {
+        parts.push(...options.imageParts);
+      }
+      if (options.prompt) {
+        parts.push({ text: options.prompt });
+      }
+
+      const contents = [{ role: 'user', parts }];
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: options.temperature ?? 0.7,
+          ...(options.responseMimeType ? { responseMimeType: options.responseMimeType } : {}),
+        },
+      };
+
+      if (options.systemInstruction) {
+        requestBody.systemInstruction = {
+          parts: [{ text: options.systemInstruction }],
+        };
+      }
+
+      const directRes = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!directRes.ok) {
+        const errJson = await directRes.json().catch(() => ({}));
+        const errMsg = errJson?.error?.message || `Gemini API returned status ${directRes.status}`;
+        console.warn('[executeCloudAi] Direct Gemini API call notice:', errMsg);
+        return {
+          success: false,
+          error: PLEASANT_AI_ERROR_HEBREW,
+          costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 }),
+        };
+      }
+
+      const json = await directRes.json();
+      rawText = json.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      if (json.usageMetadata) {
+        promptTokens = json.usageMetadata.promptTokenCount || promptTokens;
+        candidatesTokens = json.usageMetadata.candidatesTokenCount || candidatesTokens;
+      }
+    } else {
+      clearTimeout(timeoutId);
+    }
+
+    if (!rawText) {
       return {
         success: false,
         error: PLEASANT_AI_ERROR_HEBREW,
@@ -66,39 +171,37 @@ export async function executeCloudAi<T = any>(
       };
     }
 
-    const payload = await res.json().catch(() => ({}));
-    const text = payload.text || (typeof payload.data === 'string' ? payload.data : '');
-
-    let data = payload.data;
-    if (!data && text && options.responseMimeType === 'application/json') {
+    let data: T | undefined = undefined;
+    if (options.responseMimeType === 'application/json') {
       try {
-        const cleaned = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
         data = JSON.parse(cleaned);
       } catch {
         data = undefined;
       }
     }
 
-    const costReport = payload.costReport || calculateGeminiCost({ model, promptTokens: 250, candidatesTokens: 200 });
+    const costReport = calculateGeminiCost({ model, promptTokens, candidatesTokens });
 
     // Track tokens for active tenant
-    const targetTenant = options.tenantId || getTenantApiKeysState().tenantId;
+    const targetTenant = options.tenantId || state.tenantId;
     if (targetTenant) {
       TenantTokenTracker.recordTokenUsage(
         targetTenant,
         options.category || 'content',
-        costReport.totalTokens || 450,
+        costReport.totalTokens || promptTokens + candidatesTokens,
         { costUSD: costReport.estimatedCostUSD }
       ).catch(() => {});
     }
 
     return {
       success: true,
-      text,
+      text: rawText,
       data,
       costReport,
     };
-  } catch {
+  } catch (err: any) {
+    console.warn('[executeCloudAi] Unexpected error:', err);
     return {
       success: false,
       error: PLEASANT_AI_ERROR_HEBREW,

@@ -135,7 +135,7 @@ export const TenantAppResolver: React.FC = () => {
             clientName: `מערכת לקוח (${sub})`,
             ownerEmail: `${sub}@kosun.pro`,
             ownerPhone: '050-1234567',
-            activeModules: ['KosWebAi'],
+            activeModules: ['KosBranding', 'KosWebAi', 'KSF', 'KosWhatsUp', 'crm-analytics', 'media-gallery-hub', 'kosun-board-composer'],
             collectionPrefix: `tenant_${sub}_mod_`,
             billingPlan: 'annual',
             monthlyTotal: 129,

@@ -326,21 +326,52 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       const masterKeysRef = doc(db, ...getTenantApiKeysDocSegments(ROOT_TENANT_ID));
       const unsubscribe = onSnapshot(
         masterKeysRef,
-        (snap) => {
+        async (snap) => {
           if (snap.exists()) {
             const { updatedAt: _u, migratedAt: _m, createdAt: _c, ...keys } = (snap.data() || {}) as Record<string, any>;
-            setMasterApiKeys({ ...DEFAULT_API_KEYS, ...keys });
+            let resolvedKeys: SystemApiKeysConfig = { ...DEFAULT_API_KEYS, ...keys };
+
+            // If master doc exists but has no googleAiApiKey, check system_settings/global
+            if (!resolvedKeys.googleAiApiKey || !resolvedKeys.googleAiApiKey.trim()) {
+              try {
+                const gSnap = await getDoc(doc(db, 'system_settings', 'global'));
+                if (gSnap.exists()) {
+                  const gData = gSnap.data();
+                  if (gData?.apiKeys?.googleAiApiKey) {
+                    resolvedKeys.googleAiApiKey = gData.apiKeys.googleAiApiKey.trim();
+                  }
+                }
+              } catch {}
+            }
+
+            setMasterApiKeys(resolvedKeys);
+            if (resolvedKeys.googleAiApiKey && resolvedKeys.googleAiApiKey.trim()) {
+              try {
+                localStorage.setItem('googleAiApiKey', resolvedKeys.googleAiApiKey.trim());
+                localStorage.setItem('geminiApiKey', resolvedKeys.googleAiApiKey.trim());
+              } catch {}
+            }
           } else {
             // Check global settings document if master keys doc does not exist yet
             getDoc(doc(db, 'system_settings', 'global')).then((gSnap) => {
               if (gSnap.exists()) {
                 const gData = gSnap.data();
                 if (gData?.apiKeys) {
-                  setMasterApiKeys((prev) => ({ ...DEFAULT_API_KEYS, ...gData.apiKeys, ...prev }));
+                  const merged = { ...DEFAULT_API_KEYS, ...gData.apiKeys };
+                  setMasterApiKeys(merged);
+                  if (merged.googleAiApiKey && merged.googleAiApiKey.trim()) {
+                    try {
+                      localStorage.setItem('googleAiApiKey', merged.googleAiApiKey.trim());
+                      localStorage.setItem('geminiApiKey', merged.googleAiApiKey.trim());
+                    } catch {}
+                  }
+                  return;
                 }
               }
-            }).catch(() => {});
-            setMasterApiKeys(DEFAULT_API_KEYS);
+              setMasterApiKeys(DEFAULT_API_KEYS);
+            }).catch(() => {
+              setMasterApiKeys(DEFAULT_API_KEYS);
+            });
           }
         },
         (error) => console.warn('[SystemConnection] Master API keys sync notice:', error)

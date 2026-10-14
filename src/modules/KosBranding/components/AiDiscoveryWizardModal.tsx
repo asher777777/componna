@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { generateBrandDnaFromInterview } from '../services/geminiBrandPrompt';
 import { BrandDna } from '../types/brandDna';
 import {
@@ -47,7 +48,7 @@ export const AiDiscoveryWizardModal: React.FC<AiDiscoveryWizardModalProps> = ({
       setErrorMsg('נא להזין תיאור קצר על הפעילות או תשובות לשאלות');
       return;
     }
-    const apiKey = apiKeys.googleAiApiKey || '';
+    const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
     if (!apiKey) {
       setErrorMsg('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI מתקדמות, אנא פנו למנהל המערכת.');
       return;

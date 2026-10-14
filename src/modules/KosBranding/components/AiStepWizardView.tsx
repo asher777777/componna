@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useBrandDna } from '../context/BrandDnaContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import {
   generateStepAiAssistance,
   StepAiSuggestion,
@@ -278,7 +279,7 @@ export const AiStepWizardView: React.FC<{ onSwitchToTabs?: () => void }> = ({ on
   // Call AI Assistance for the current step
   const handleRequestAi = async () => {
     setIsAiLoading(true);
-    const apiKey = apiKeys.googleAiApiKey || '';
+    const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
     const res = await generateStepAiAssistance(currentStep.id, brandDna, apiKey);
     setAiResult(res);
     setSelectedSuggestionIdx(res?.recommendedIndex ?? 0);

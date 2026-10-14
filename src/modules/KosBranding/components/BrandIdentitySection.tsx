@@ -4,6 +4,7 @@ import { OrganizationType } from '../types/brandDna';
 import { extractDominantColorsFromImage } from '../services/colorExtractor';
 import { rephraseTextWithBrandAi } from '../services/geminiBrandPrompt';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
 import {
@@ -181,7 +182,7 @@ export const BrandIdentitySection: React.FC = () => {
       alert('אנא הזן תחילה את חזון המותג המלא');
       return;
     }
-    const apiKey = apiKeys.googleAiApiKey || '';
+    const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
     if (!apiKey) {
       alert('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
       return;
@@ -210,7 +211,7 @@ export const BrandIdentitySection: React.FC = () => {
   };
 
   const handleRunAiImprove = async () => {
-    const apiKey = apiKeys.googleAiApiKey || '';
+    const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
     if (!apiKey) {
       alert('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
       return;

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBrandDna } from '../context/BrandDnaContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { generateBrandContentStrategies } from '../services/geminiBrandPrompt';
 import { ContentStrategyItem } from '../types/brandDna';
 import { saveContentStrategyItem } from '../services/brandDnaFirestore';
@@ -48,7 +49,7 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const apiKey = apiKeys.googleAiApiKey || '';
+      const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
       const res = await generateBrandContentStrategies(brandDna, apiKey);
       if (res.success && res.strategies.length > 0) {
         setStrategies(res.strategies);

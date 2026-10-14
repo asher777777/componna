@@ -67,12 +67,9 @@ export function getTenantApiKeysDocSegments(tenantId: string): [string, string, 
   return ['tenants', tenantId || ROOT_TENANT_ID, SYSTEM_COLLECTIONS.SETTINGS, API_KEYS_SETTINGS_DOC_ID];
 }
 
-/** Legacy local storage keys – purged on startup (keys are never stored locally anymore) */
+/** Legacy local storage keys – only purge old full-system configs */
 export const LEGACY_LOCAL_API_KEY_ENTRIES = [
   'kosun_system_apikeys_config',
-  'googleAiApiKey',
-  'geminiApiKey',
-  'gemini_api_key',
 ];
 
 export function purgeLegacyLocalApiKeys(): void {

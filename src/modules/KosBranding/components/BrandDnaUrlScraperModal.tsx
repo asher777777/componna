@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBrandDna } from '../context/BrandDnaContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { scrapeBrandFromUrlOrSocial } from '../services/geminiBrandPrompt';
 import {
   Globe,
@@ -48,7 +49,7 @@ export const BrandDnaUrlScraperModal: React.FC<BrandDnaUrlScraperModalProps> = (
     setExtractedResult(null);
 
     try {
-      const apiKey = apiKeys.googleAiApiKey || '';
+      const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
       const res = await scrapeBrandFromUrlOrSocial(urlInput.trim(), apiKey);
       if (res.success && res.extractedBrand) {
         setExtractedResult(res);
