@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, BrandDesignTokens, BrandTrustAndCheckout } from '../types/brandDna';
-import { loadBrandDna, saveBrandDna, getCommunityBrand, saveCommunityBrand } from '../services/brandDnaFirestore';
+import { loadBrandDna, saveBrandDna, getCommunityBrand, saveCommunityBrand, createTenantInitialBrandDna } from '../services/brandDnaFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { buildBrandSystemContext } from '../services/geminiBrandPrompt';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -36,7 +36,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { registerCapability, unregisterCapability } = useHostCapabilities();
-  const [brandDna, setBrandDna] = useState<BrandDna>(DEFAULT_BRAND_DNA);
+  const [brandDna, setBrandDna] = useState<BrandDna>(() => createTenantInitialBrandDna(tenantId));
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -63,16 +63,32 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           (snap) => {
             if (snap.exists() && mounted) {
               const remoteData = snap.data() as BrandDna;
+              const isMaster = tenantId === '_master';
+              const baseDefault = isMaster ? DEFAULT_BRAND_DNA : createTenantInitialBrandDna(tenantId);
+
+              // Cleanse accidental master data leak into custom tenant
+              if (!isMaster) {
+                if (remoteData.identity?.companyName === 'קושאן') {
+                  remoteData.identity.companyName = tenantId;
+                }
+                if (remoteData.identity?.logoUrl === '/images/kosun-logo.svg') {
+                  remoteData.identity.logoUrl = '';
+                }
+                if (remoteData.identity?.slogan === 'כל אדם זה נכס') {
+                  remoteData.identity.slogan = '';
+                }
+              }
+
               setBrandDna((prev) => {
                 if (JSON.stringify(prev) === JSON.stringify(remoteData)) return prev;
                 return {
-                  ...DEFAULT_BRAND_DNA,
+                  ...baseDefault,
                   ...remoteData,
-                  identity: { ...DEFAULT_BRAND_DNA.identity, ...(remoteData.identity || {}) },
-                  voice: { ...DEFAULT_BRAND_DNA.voice, ...(remoteData.voice || {}) },
-                  audience: { ...DEFAULT_BRAND_DNA.audience, ...(remoteData.audience || {}) },
-                  designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...(remoteData.designTokens || {}) },
-                  trust: { ...DEFAULT_BRAND_DNA.trust, ...(remoteData.trust || {}) },
+                  identity: { ...baseDefault.identity, ...(remoteData.identity || {}) },
+                  voice: { ...baseDefault.voice, ...(remoteData.voice || {}) },
+                  audience: { ...baseDefault.audience, ...(remoteData.audience || {}) },
+                  designTokens: { ...baseDefault.designTokens, ...(remoteData.designTokens || {}) },
+                  trust: { ...baseDefault.trust, ...(remoteData.trust || {}) },
                 };
               });
             }

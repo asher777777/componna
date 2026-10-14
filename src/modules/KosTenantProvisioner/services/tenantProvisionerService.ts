@@ -12,6 +12,7 @@ import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '
 import { StorefrontService } from '../../saas-storefront-composer/services/storefrontService';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { tenantContactSyncService } from '../../crm-analytics/services/tenantContactSyncService';
+import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
@@ -293,15 +294,13 @@ export class TenantProvisionerService {
 
         // Initialize clean isolated brand DNA for this tenant
         const brandRef = doc(db, 'tenants', cleanSub, 'settings', 'kos_branding_dna');
-        await setDoc(brandRef, {
-          identity: {
-            brandName: newRecord.clientName,
-            tagline: 'פתרונות דיגיטליים מתקדמים',
-            primaryColor: '#6366f1',
-            accentColor: '#0ea5e9',
-          },
-          updatedAt: new Date().toISOString(),
-        }, { merge: true });
+        const initialBrandDna = createTenantInitialBrandDna(
+          cleanSub,
+          newRecord.clientName,
+          newRecord.ownerPhone,
+          newRecord.ownerEmail
+        );
+        await setDoc(brandRef, initialBrandDna, { merge: true });
 
         // 4. Directly synchronize and create the CRM contact in master contacts
         try {

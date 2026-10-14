@@ -40,6 +40,10 @@ export const TenantAdminLoginView: React.FC<TenantAdminLoginViewProps> = ({
 
       if (res.success) {
         onLoginSuccess();
+        const url = new URL(window.location.href);
+        url.pathname = '/brand-dna';
+        url.searchParams.set('admin', 'true');
+        window.location.href = url.toString();
       } else {
         setError(res.error || 'שם משתמש או סיסמה שגויים');
       }

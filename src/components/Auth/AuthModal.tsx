@@ -131,6 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setTimeout(() => {
             onClose();
             const url = new URL(window.location.href);
+            url.pathname = '/brand-dna';
             url.searchParams.set('admin', 'true');
             window.location.href = url.toString();
           }, 500);

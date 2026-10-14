@@ -1,5 +1,5 @@
 import React, { useState, useEffect, Suspense } from 'react';
-import { Routes, Route, useLocation, NavLink } from 'react-router-dom';
+import { Routes, Route, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { TenantRecord } from '../../modules/saas-storefront-composer/types';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../../modules/KosWebAi/registry/sectionRegistry';
@@ -220,7 +220,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   const [authVersion, setAuthVersion] = useState(0);
   const [isKosNevOpen, setIsKosNevOpen] = useState(false);
   const [tenantTheme, setTenantTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem(`kosun_theme_${tenantRecord.subdomain}`) as 'light' | 'dark') || 'dark';
+    return (localStorage.getItem(`kosun_theme_${tenantRecord.subdomain}`) as 'light' | 'dark') || 'light';
   });
 
   const toggleTenantTheme = () => {
@@ -254,146 +254,129 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
     return (
-      <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 ${tenantTheme === 'dark' ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'}`} dir="rtl">
-        {/* Full Manager Cashwan TopNav Bar */}
-        <header className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md px-4 py-2.5 text-xs flex items-center justify-between border-b border-slate-200 dark:border-slate-800 shrink-0 shadow-2xs z-30">
-          <div className="flex items-center gap-3">
-            {/* KosNev Module Launcher Button */}
-            <button
-              type="button"
-              onClick={() => setIsKosNevOpen(true)}
-              className="relative p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1.5 shadow-md shadow-indigo-600/20 transition cursor-pointer group"
-              title="תפריט רכיבים מוטענים (KosNev)"
-            >
-              <Grid className="w-4 h-4" />
-              <span className="hidden sm:inline font-mono">KosNev</span>
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping pointer-events-none" />
-            </button>
+      <div className={`flex flex-col h-screen w-screen overflow-hidden ${tenantTheme === 'dark' ? 'dark bg-[#0a0a0c] text-slate-100' : 'bg-slate-50 text-slate-900'} relative font-sans transition-colors duration-300`} dir="rtl">
+        {/* 2026 Kosun Standard: 100% Headerless - Zero Top Header (Exact UI Mirror of Manager Workbench) */}
 
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-slate-900 dark:text-white text-sm">
-                {tenantRecord.clientName}
-              </span>
-              <span className="font-mono text-indigo-700 dark:text-indigo-300 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-[11px] font-medium" dir="ltr">
-                {tenantRecord.fullDomain}
-              </span>
-              <NavLink
-                to="/"
-                className="text-[10px] bg-purple-50 dark:bg-purple-950/60 text-purple-600 dark:text-purple-400 px-2.5 py-0.5 rounded-full font-bold border border-purple-500/20 hover:bg-purple-100 transition hidden sm:inline-flex items-center gap-1"
-                title="לוח הבקרה המרכזי: רכיב המיתוג ושפת המותג"
-              >
-                ✨ לוח בקרה: מיתוג ושפת מותג
-              </NavLink>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 sm:gap-3">
-            {customDashboard && (
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700">
-                <button
-                  type="button"
-                  onClick={() => setAdminViewType('custom_board')}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
-                    adminViewType === 'custom_board'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <Sparkles className="w-3 h-3" />
-                  <span>לוח מותאם AI</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setAdminViewType('standard')}
-                  className={`flex items-center gap-1 text-[11px] px-2.5 py-1 rounded-md font-bold transition cursor-pointer ${
-                    adminViewType === 'standard'
-                      ? 'bg-indigo-600 text-white shadow-xs'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-                  }`}
-                >
-                  <LayoutDashboard className="w-3 h-3" />
-                  <span>מרכז שליטה</span>
-                </button>
-              </div>
-            )}
-
-            {/* Day / Night Mode Toggle */}
-            <button
-              type="button"
-              onClick={toggleTenantTheme}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 transition cursor-pointer"
-              title={tenantTheme === 'dark' ? 'עבור למצב יום' : 'עבור למצב לילה'}
-            >
-              {tenantTheme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-            </button>
-
-            {/* View as Visitor */}
-            <button
-              onClick={() => setMode('public')}
-              className="flex items-center gap-1.5 text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-xl transition shadow-xs cursor-pointer"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">צפייה באתר (עבור מבקרים)</span>
-            </button>
-
-            {/* Logout Button */}
-            <button
-              type="button"
-              onClick={() => {
-                TenantAuthService.logoutTenant(tenantRecord.subdomain);
-                setAuthVersion((v) => v + 1);
-              }}
-              className="flex items-center gap-1 text-[11px] bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/40 dark:hover:bg-rose-900/60 text-rose-600 dark:text-rose-400 px-2.5 py-1.5 rounded-xl transition cursor-pointer font-bold"
-              title="התנתק מחשבון הניהול"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">התנתק</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Manager Workspace Router - Strictly Filtered to Provisioned Modules */}
-        <div className="flex-1 overflow-auto bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-          <Routes>
-            <Route
-              path="/"
-              element={<BrandDnaHubStandaloneView />}
-            />
-            <Route path="/branding/*" element={<BrandDnaHubStandaloneView />} />
-            <Route
-              path="/dashboard/*"
-              element={
-                customDashboard && adminViewType === 'custom_board' ? (
-                  <KosunBoardProvider>
-                    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-                      <DynamicCustomDashboardView dashboard={customDashboard} />
-                    </div>
-                  </KosunBoardProvider>
-                ) : (
-                  <BrandDnaHubStandaloneView />
-                )
-              }
-            />
-            <Route path="/control-center/*" element={<ControlCenterStandaloneView />} />
-            {allowedModules.map((module) => {
-              const Component = module.component;
-              return (
-                <Route
-                  key={module.id}
-                  path={`${module.route}/*`}
-                  element={
-                    <ModuleErrorBoundary moduleName={module.name}>
-                      <Suspense fallback={<ModuleLoadingFallback moduleName={module.name} />}>
-                        <Component />
-                      </Suspense>
-                    </ModuleErrorBoundary>
-                  }
-                />
-              );
-            })}
-            <Route path="*" element={<ControlCenterStandaloneView />} />
-          </Routes>
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative transition-colors duration-300">
+            <Routes>
+              {/* Default redirects to Brand DNA or custom board */}
+              <Route
+                path="/"
+                element={
+                  customDashboard && adminViewType === 'custom_board' ? (
+                    <Navigate to="/dashboard" replace />
+                  ) : (
+                    <Navigate to="/brand-dna" replace />
+                  )
+                }
+              />
+              <Route path="/brand-dna/*" element={<BrandDnaHubStandaloneView />} />
+              <Route path="/KosBranding/*" element={<BrandDnaHubStandaloneView />} />
+              <Route path="/branding/*" element={<BrandDnaHubStandaloneView />} />
+              <Route path="/control-center/*" element={<ControlCenterStandaloneView />} />
+              <Route
+                path="/dashboard/*"
+                element={
+                  customDashboard ? (
+                    <KosunBoardProvider>
+                      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+                        <DynamicCustomDashboardView dashboard={customDashboard} />
+                      </div>
+                    </KosunBoardProvider>
+                  ) : (
+                    <Navigate to="/brand-dna" replace />
+                  )
+                }
+              />
+              {/* All provisioned modules with exact same routes as Manager Workbench */}
+              {allowedModules.map((module) => {
+                const Component = module.component;
+                return (
+                  <Route
+                    key={module.id}
+                    path={`${module.route}/*`}
+                    element={
+                      <ModuleErrorBoundary moduleName={module.name}>
+                        <Suspense fallback={<ModuleLoadingFallback moduleName={module.name} />}>
+                          <Component />
+                        </Suspense>
+                      </ModuleErrorBoundary>
+                    }
+                  />
+                );
+              })}
+              {/* Fallback alias routes for full workbench compatibility */}
+              <Route path="/smart-forms/*" element={<Navigate to="/ksf" replace />} />
+              <Route path="*" element={<Navigate to="/brand-dna" replace />} />
+            </Routes>
+          </main>
         </div>
+
+        {/* Floating Kosun System Dock - Zero intrusive top header */}
+        <nav 
+          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900/95 text-white backdrop-blur-xl border border-slate-700/80 px-3.5 py-2 rounded-2xl shadow-2xl transition-all duration-300 animate-in fade-in"
+          dir="rtl"
+        >
+          {/* KosNev Module Launcher Button */}
+          <button
+            type="button"
+            onClick={() => setIsKosNevOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition cursor-pointer"
+            title="תפריט רכיבים מוטענים (KosNev)"
+          >
+            <Grid className="w-4 h-4" />
+            <span className="font-mono">KosNev</span>
+            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+          </button>
+
+          {/* Subdomain domain badge */}
+          <span className="font-mono text-[11px] text-slate-300 px-2 py-1 bg-slate-800/80 rounded-lg border border-slate-700 hidden sm:inline-block" dir="ltr">
+            {tenantRecord.fullDomain}
+          </span>
+
+          {/* View as Visitor */}
+          <button
+            type="button"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.delete('admin');
+              url.pathname = '/';
+              window.location.href = url.toString();
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer"
+            title="צפייה באתר כפי שרואה מבקר"
+          >
+            <Eye className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">צפייה באתר</span>
+          </button>
+
+          {/* Day / Night Theme Toggle */}
+          <button
+            type="button"
+            onClick={toggleTenantTheme}
+            className="p-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-amber-400 transition cursor-pointer"
+            title={tenantTheme === 'dark' ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
+          >
+            {tenantTheme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-300" />}
+          </button>
+
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={() => {
+              TenantAuthService.logoutTenant(tenantRecord.subdomain);
+              const url = new URL(window.location.href);
+              url.searchParams.delete('admin');
+              url.pathname = '/';
+              window.location.href = url.toString();
+            }}
+            className="p-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 transition cursor-pointer"
+            title="התנתק ממערכת הניהול"
+          >
+            <LogOut className="w-3.5 h-3.5" />
+          </button>
+        </nav>
 
         {/* KosNev Module Launcher Modal (Exact Manager UI Launcher) */}
         {isKosNevOpen && (

@@ -7,12 +7,90 @@ import { getTenantStorageKey } from '../../../core/tenant';
 const BASE_LOCAL_STORAGE_KEY = 'kos_branding_settings';
 const LEGACY_STORAGE_KEY = 'brand_dna_settings';
 
+export function createTenantInitialBrandDna(
+  tenantId: string = '_master',
+  clientName?: string,
+  phone?: string,
+  email?: string
+): BrandDna {
+  if (tenantId === '_master') {
+    return DEFAULT_BRAND_DNA;
+  }
+
+  const cleanName = clientName || tenantId;
+
+  return {
+    identity: {
+      companyName: cleanName,
+      organizationType: 'חברה',
+      organizationPurpose: 'מתן שירותים ופתרונות מותאמים אישית ללקוחותינו',
+      memberCount: 'עד 10',
+      slogan: '',
+      companyVision: `להעניק שירות מקצועי, אמין ואיכותי לכל לקוחות ${cleanName}.`,
+      shortVision: `איכות ושירות ללא פשרות.`,
+      logoUrl: '',
+      vibeImages: [],
+    },
+    ecosystem: {
+      services: [],
+      products: [],
+      annualEvents: [],
+      communities: [],
+      businessPackages: [],
+    },
+    voice: {
+      personality: {
+        formality: 3,
+        warmth: 4,
+        luxury: 3,
+        energy: 4,
+      },
+      genderAddressing: 'plural',
+      sectorCompliance: 'general',
+      powerWords: ['איכות', 'מקצועיות', 'שירות אישי', 'אמינות'],
+      forbiddenWords: ['זול', 'חלטורה'],
+      shabbatObservant: false,
+    },
+    audience: {
+      mainUvp: `פתרונות ייחודיים ומקצועיים המותאמים אישית עבורכם על ידי ${cleanName}.`,
+      targetAudiences: ['לקוחות פרטיים ועסקיים'],
+      personas: [],
+      commonObjections: [],
+    },
+    designTokens: {
+      primaryColor: '#6366f1',
+      secondaryColor: '#0ea5e9',
+      backgroundColor: '#ffffff',
+      textColor: '#0f172a',
+      textColorH1: '#0f172a',
+      textColorH2: '#475569',
+      buttonBgColor: '#6366f1',
+      buttonTextColor: '#ffffff',
+      fontFamily: 'Heebo, sans-serif',
+      borderRadius: 'md',
+      buttonStyle: 'gradient',
+    },
+    trust: {
+      legalEntityId: '',
+      contactPhone: phone || '',
+      contactEmail: email || `${tenantId}@kosun.pro`,
+      officeAddress: 'ישראל',
+      refundPolicySummary: 'שירות אמין ושקוף בהתאם לחוק הגנת הצרכן.',
+      securityBadgeText: 'סליקה מאובטחת בתקן PCI-DSS ובהצפנת SSL 256-bit',
+      whatsappSupportNumber: phone ? phone.replace(/\D/g, '') : '',
+    },
+  };
+}
+
 /**
  * Load Brand DNA from Firestore (scoped to tenant) or LocalStorage
  * With automatic migration from legacy 'brand_dna' to new 'kos_branding_dna'
  * Path in Firestore: `tenants/{tenantId}/settings/kos_branding_dna`
  */
 export async function loadBrandDna(db?: Firestore, tenantId: string = '_master'): Promise<BrandDna> {
+  const isMaster = tenantId === '_master';
+  const baseDefault = isMaster ? DEFAULT_BRAND_DNA : createTenantInitialBrandDna(tenantId);
+
   // 1. Try Firestore (tenants/{tenantId}/settings/kos_branding_dna)
   if (db) {
     try {
@@ -20,14 +98,28 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data() as BrandDna;
+
+        // Cleanse accidental master data leak into custom tenant
+        if (!isMaster) {
+          if (data.identity?.companyName === 'קושאן') {
+            data.identity.companyName = tenantId;
+          }
+          if (data.identity?.logoUrl === '/images/kosun-logo.svg') {
+            data.identity.logoUrl = '';
+          }
+          if (data.identity?.slogan === 'כל אדם זה נכס') {
+            data.identity.slogan = '';
+          }
+        }
+
         return {
-          ...DEFAULT_BRAND_DNA,
+          ...baseDefault,
           ...data,
-          identity: { ...DEFAULT_BRAND_DNA.identity, ...data.identity },
-          voice: { ...DEFAULT_BRAND_DNA.voice, ...data.voice },
-          audience: { ...DEFAULT_BRAND_DNA.audience, ...data.audience },
-          designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...data.designTokens },
-          trust: { ...DEFAULT_BRAND_DNA.trust, ...data.trust },
+          identity: { ...baseDefault.identity, ...(data.identity || {}) },
+          voice: { ...baseDefault.voice, ...(data.voice || {}) },
+          audience: { ...baseDefault.audience, ...(data.audience || {}) },
+          designTokens: { ...baseDefault.designTokens, ...(data.designTokens || {}) },
+          trust: { ...baseDefault.trust, ...(data.trust || {}) },
         };
       }
 
@@ -36,14 +128,25 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
       const legacySnap = await getDoc(legacyDocRef);
       if (legacySnap.exists()) {
         const legacyData = legacySnap.data() as BrandDna;
+        if (!isMaster) {
+          if (legacyData.identity?.companyName === 'קושאן') {
+            legacyData.identity.companyName = tenantId;
+          }
+          if (legacyData.identity?.logoUrl === '/images/kosun-logo.svg') {
+            legacyData.identity.logoUrl = '';
+          }
+          if (legacyData.identity?.slogan === 'כל אדם זה נכס') {
+            legacyData.identity.slogan = '';
+          }
+        }
         const merged = {
-          ...DEFAULT_BRAND_DNA,
+          ...baseDefault,
           ...legacyData,
-          identity: { ...DEFAULT_BRAND_DNA.identity, ...legacyData.identity },
-          voice: { ...DEFAULT_BRAND_DNA.voice, ...legacyData.voice },
-          audience: { ...DEFAULT_BRAND_DNA.audience, ...legacyData.audience },
-          designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...legacyData.designTokens },
-          trust: { ...DEFAULT_BRAND_DNA.trust, ...legacyData.trust },
+          identity: { ...baseDefault.identity, ...(legacyData.identity || {}) },
+          voice: { ...baseDefault.voice, ...(legacyData.voice || {}) },
+          audience: { ...baseDefault.audience, ...(legacyData.audience || {}) },
+          designTokens: { ...baseDefault.designTokens, ...(legacyData.designTokens || {}) },
+          trust: { ...baseDefault.trust, ...(legacyData.trust || {}) },
         };
         // Migrate to new collection doc in background
         setDoc(docRef, merged, { merge: true }).catch(console.warn);
@@ -59,26 +162,37 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
   try {
     const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
     let raw = localStorage.getItem(localStorageKey);
-    if (!raw && tenantId === '_master') {
+    if (!raw && isMaster) {
       raw = localStorage.getItem(BASE_LOCAL_STORAGE_KEY);
     }
     if (raw) {
       const parsed = JSON.parse(raw);
+      if (!isMaster) {
+        if (parsed.identity?.companyName === 'קושאן') {
+          parsed.identity.companyName = tenantId;
+        }
+        if (parsed.identity?.logoUrl === '/images/kosun-logo.svg') {
+          parsed.identity.logoUrl = '';
+        }
+        if (parsed.identity?.slogan === 'כל אדם זה נכס') {
+          parsed.identity.slogan = '';
+        }
+      }
       return {
-        ...DEFAULT_BRAND_DNA,
+        ...baseDefault,
         ...parsed,
-        identity: { ...DEFAULT_BRAND_DNA.identity, ...parsed.identity },
-        voice: { ...DEFAULT_BRAND_DNA.voice, ...parsed.voice },
-        audience: { ...DEFAULT_BRAND_DNA.audience, ...parsed.audience },
-        designTokens: { ...DEFAULT_BRAND_DNA.designTokens, ...parsed.designTokens },
-        trust: { ...DEFAULT_BRAND_DNA.trust, ...parsed.trust },
+        identity: { ...baseDefault.identity, ...(parsed.identity || {}) },
+        voice: { ...baseDefault.voice, ...(parsed.voice || {}) },
+        audience: { ...baseDefault.audience, ...(parsed.audience || {}) },
+        designTokens: { ...baseDefault.designTokens, ...(parsed.designTokens || {}) },
+        trust: { ...baseDefault.trust, ...(parsed.trust || {}) },
       };
     }
   } catch (err) {
     console.warn('[BrandDNA] LocalStorage read fallback error:', err);
   }
 
-  return DEFAULT_BRAND_DNA;
+  return baseDefault;
 }
 
 /**
