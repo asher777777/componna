@@ -183,7 +183,7 @@ export const BrandIdentitySection: React.FC = () => {
     }
     const apiKey = apiKeys.googleAiApiKey || '';
     if (!apiKey) {
-      alert('יש להגדיר מפתח Gemini API בהגדרות המערכת');
+      alert('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
       return;
     }
 
@@ -199,7 +199,7 @@ export const BrandIdentitySection: React.FC = () => {
     if (res.success && res.text) {
       updateIdentity({ shortVision: res.text });
     } else {
-      alert(res.error || 'שגיאה ביצירת תמצית חזון');
+      alert(res.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה, פנו למנהל המערכת.');
     }
   };
 
@@ -212,7 +212,7 @@ export const BrandIdentitySection: React.FC = () => {
   const handleRunAiImprove = async () => {
     const apiKey = apiKeys.googleAiApiKey || '';
     if (!apiKey) {
-      alert('יש להגדיר מפתח Gemini API');
+      alert('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
       return;
     }
     setIsImprovingVision(true);

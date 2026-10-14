@@ -570,6 +570,15 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         setTenantApiKeys(updated);
       }
 
+      if (newKeys.googleAiApiKey && newKeys.googleAiApiKey.trim()) {
+        const cleanAiKey = newKeys.googleAiApiKey.trim();
+        setMasterApiKeys((prev) => ({ ...prev, googleAiApiKey: cleanAiKey }));
+        try {
+          localStorage.setItem('googleAiApiKey', cleanAiKey);
+          localStorage.setItem('geminiApiKey', cleanAiKey);
+        } catch {}
+      }
+
       if (!db) {
         console.warn('[SystemConnection] Cannot save API keys – Firestore is not connected');
         return;
@@ -577,6 +586,12 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       try {
         const ref = doc(db, ...getTenantApiKeysDocSegments(targetTenant));
         await setDoc(ref, { ...newKeys, updatedAt: Date.now() }, { merge: true });
+
+        // Clause ה: AI keys belong to Master. Whenever an AI key is saved, also persist into master
+        if (newKeys.googleAiApiKey && newKeys.googleAiApiKey.trim() && targetTenant !== ROOT_TENANT_ID) {
+          const masterRef = doc(db, ...getTenantApiKeysDocSegments(ROOT_TENANT_ID));
+          await setDoc(masterRef, { googleAiApiKey: newKeys.googleAiApiKey.trim(), updatedAt: Date.now() }, { merge: true });
+        }
       } catch (err) {
         console.warn('[SystemConnection] Cloud save API keys notice:', err);
       }

@@ -142,7 +142,8 @@ export const DatabaseConnectorModal: React.FC = () => {
   }, [config]);
 
   useEffect(() => {
-    setGoogleAiApiKey(apiKeys.googleAiApiKey || '');
+    const existingAiKey = apiKeys.googleAiApiKey || (typeof window !== 'undefined' ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '') : '');
+    setGoogleAiApiKey((prev) => (prev ? prev : existingAiKey));
     setGeminiModel(apiKeys.geminiModel || 'gemini-3.8-flash');
     setGeminiImageModel(apiKeys.geminiImageModel || 'gemini-3.1-flash-image');
     setGeminiVideoModel(apiKeys.geminiVideoModel || 'veo-3.1-generate-preview');

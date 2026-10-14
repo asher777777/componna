@@ -223,9 +223,25 @@ export interface ApiKeysResolutionInput {
 export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: string): boolean {
   if (input.isRootTenant) return true;
   const rawTarget = moduleId || input.activeModuleId;
-  if (!rawTarget) return false;
+  if (!rawTarget) return true;
   const target = normalizeModuleId(rawTarget);
   const purchased = (input.purchasedModules || []).map(normalizeModuleId);
+  if (purchased.length === 0) {
+    // When tenant purchases list is loading or unconfigured, permit standard core modules by default
+    const DEFAULT_CORE_MODULES = [
+      'kosbranding',
+      'koswebai',
+      'page-builder',
+      'ksf',
+      'smart-forms',
+      'smart-form-builder',
+      'koswhatsup',
+      'whatsapp-hub',
+      'crm-analytics',
+      'media-gallery-hub',
+    ];
+    return DEFAULT_CORE_MODULES.includes(target);
+  }
   if (purchased.includes('*') || purchased.includes('all')) return true;
   return purchased.includes(target);
 }
@@ -236,10 +252,17 @@ export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: st
  * Rule (Clause ד): Subdomain transactional APIs (Kesher, Green-API WhatsApp, HeyGen, Webhook) use tenant-scoped keys.
  */
 export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: string): SystemApiKeysConfig {
+  const localFallbackKey = typeof window !== 'undefined'
+    ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '')
+    : '';
+  const envFallbackKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) || '';
+
   const masterAiKey = (
     input.masterKeys?.googleAiApiKey ||
     (input.isRootTenant ? input.tenantKeys.googleAiApiKey : '') ||
     input.tenantKeys.googleAiApiKey ||
+    localFallbackKey ||
+    envFallbackKey ||
     ''
   ).trim();
 
@@ -257,7 +280,7 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
     ...DEFAULT_API_KEYS,
     ...input.tenantKeys,
     // Clause ה: AI key is always taken through master collection if available
-    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || '',
+    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || localFallbackKey || envFallbackKey || '',
   };
 }
 
