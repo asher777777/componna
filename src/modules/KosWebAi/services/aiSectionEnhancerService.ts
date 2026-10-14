@@ -319,74 +319,79 @@ INSTRUCTIONS:
 4. Preserve "id" and "type".
 Return ONLY the raw updated JSON object.`;
 
-    // Try Gemini API first if API key is resolved
-    if (apiKey) {
-      try {
-        const response = await callGeminiApi<any>({
-          prompt: promptText,
-          systemInstruction,
-          providedApiKey: apiKey,
-          temperature: 0.7,
-          timeoutMs: 30000,
-          responseMimeType: 'application/json',
-        });
-
-        if (response.success && response.data) {
-          const rawData = response.data;
-          // Flatten if wrapped in data or section
-          const unwrapped = rawData.data || rawData.section || rawData;
-
-          const merged = {
-            ...currentConfig,
-            ...unwrapped,
-            id: currentConfig?.id || `${sectionType}_${Date.now()}`,
-            type: sectionType,
-            anchorId: currentConfig?.anchorId || unwrapped.anchorId,
-          };
-
-          const summary: string[] = [];
-          if (merged.title && merged.title !== currentConfig?.title) {
-            summary.push(`כותרת שודרגה: "${merged.title}"`);
-          }
-          if (merged.subtitle && merged.subtitle !== currentConfig?.subtitle) {
-            summary.push(`תת-כותרת הותאמה ל-DNA המותג`);
-          }
-          if (merged.layout && merged.layout !== currentConfig?.layout) {
-            summary.push(`סגנון פריסה עודכן ל-${merged.layout}`);
-          }
-          if (summary.length === 0) {
-            summary.push(`שדרוג מקיף בתוכן ובמסרים של האזור`);
-          }
-
-          return {
-            success: true,
-            updatedConfig: merged,
-            summaryOfChanges: summary,
-            isFromAi: true,
-            message: 'השדרוג הופק בהצלחה על ידי KOSUN AI',
-          };
-        }
-      } catch (err) {
-        console.warn('[aiSectionEnhancerService] Gemini API call had an issue, falling back to smart brand heuristic:', err);
-      }
+    if (!apiKey) {
+      return {
+        success: false,
+        updatedConfig: currentConfig,
+        summaryOfChanges: [],
+        isFromAi: false,
+        message: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
+      };
     }
 
-    // Smart Rule-Based Brand Heuristic Fallback
-    // Guarantees immediate, high quality results even without an API key
-    const fallbackResult = this.applySmartBrandHeuristic(
-      sectionType,
-      currentConfig,
-      instructionPrompt,
-      dna
-    );
+    try {
+      const response = await callGeminiApi<any>({
+        prompt: promptText,
+        systemInstruction,
+        providedApiKey: apiKey,
+        temperature: 0.7,
+        timeoutMs: 30000,
+        responseMimeType: 'application/json',
+      });
 
-    return {
-      success: true,
-      updatedConfig: fallbackResult.config,
-      summaryOfChanges: fallbackResult.changes,
-      isFromAi: false,
-      message: 'השדרוג הוחל על בסיס קולקציית המיתוג ורצף העמוד',
-    };
+      if (response.success && response.data) {
+        const rawData = response.data;
+        // Flatten if wrapped in data or section
+        const unwrapped = rawData.data || rawData.section || rawData;
+
+        const merged = {
+          ...currentConfig,
+          ...unwrapped,
+          id: currentConfig?.id || `${sectionType}_${Date.now()}`,
+          type: sectionType,
+          anchorId: currentConfig?.anchorId || unwrapped.anchorId,
+        };
+
+        const summary: string[] = [];
+        if (merged.title && merged.title !== currentConfig?.title) {
+          summary.push(`כותרת שודרגה: "${merged.title}"`);
+        }
+        if (merged.subtitle && merged.subtitle !== currentConfig?.subtitle) {
+          summary.push(`תת-כותרת הותאמה ל-DNA המותג`);
+        }
+        if (merged.layout && merged.layout !== currentConfig?.layout) {
+          summary.push(`סגנון פריסה עודכן ל-${merged.layout}`);
+        }
+        if (summary.length === 0) {
+          summary.push(`שדרוג מקיף בתוכן ובמסרים של האזור`);
+        }
+
+        return {
+          success: true,
+          updatedConfig: merged,
+          summaryOfChanges: summary,
+          isFromAi: true,
+          message: 'השדרוג הופק בהצלחה על ידי KOSUN AI',
+        };
+      }
+
+      return {
+        success: false,
+        updatedConfig: currentConfig,
+        summaryOfChanges: [],
+        isFromAi: false,
+        message: response.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
+      };
+    } catch (err: any) {
+      console.warn('[aiSectionEnhancerService] Gemini API call error:', err);
+      return {
+        success: false,
+        updatedConfig: currentConfig,
+        summaryOfChanges: [],
+        isFromAi: false,
+        message: err?.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
+      };
+    }
   },
 
   /**

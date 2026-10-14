@@ -155,7 +155,7 @@ export const aiPageGenerator = {
 
     const apiKey = resolveApiKey(providedApiKey);
     if (!apiKey) {
-      return fallbackIdeas;
+      throw new Error('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
     }
 
     const prompt = GENERATE_MARKETING_IDEAS_PROMPT({
@@ -172,6 +172,7 @@ export const aiPageGenerator = {
       prompt,
       providedApiKey: apiKey,
       temperature: 0.85,
+      responseMimeType: 'application/json',
       timeoutMs: 45000,
     });
 
@@ -179,7 +180,7 @@ export const aiPageGenerator = {
       return response.data;
     }
 
-    return fallbackIdeas;
+    throw new Error(response.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
   },
 
   /**
@@ -263,8 +264,8 @@ export const aiPageGenerator = {
     let generatedSectionsData: any[] = [];
     const apiKey = resolveApiKey(options?.apiKey);
 
-        if (!apiKey) {
-      throw new Error('חסר מפתח API למערכת ה-AI. אנא הגדר מפתח ב-DB Connector Hub תחת Tenant זה.');
+    if (!apiKey) {
+      throw new Error('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
     }
 
     try {
@@ -284,13 +285,12 @@ export const aiPageGenerator = {
         prompt: fullPrompt,
         providedApiKey: apiKey,
         temperature: 0.75,
+        responseMimeType: 'application/json',
         timeoutMs: 90000, // 90 seconds for large full-page generation
       });
 
       if (!apiResult.success) {
-        throw new Error(apiResult.error === 'NO_API_KEY_FOUND'
-          ? 'לא הוגדר מפתח API תקין. נא להגדיר ב-Connector Hub.'
-          : `ה-AI נכשל ביצירת התוכן. שגיאה טכנית מהשרת: ${apiResult.error || 'שגיאת רשת'}`);
+        throw new Error(apiResult.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
       }
 
       if (apiResult.success && apiResult.data) {
@@ -412,7 +412,7 @@ export const aiPageGenerator = {
   ): Promise<any> {
     const apiKey = resolveApiKey(providedApiKey);
     if (!apiKey) {
-      return currentConfig;
+      throw new Error('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
     }
 
     const companyName = brandDna?.identity?.companyName || 'החברה המובילה';
@@ -427,6 +427,7 @@ export const aiPageGenerator = {
       prompt,
       providedApiKey: apiKey,
       temperature: 0.7,
+      responseMimeType: 'application/json',
       timeoutMs: 45000, // 45 seconds for a single section
     });
 
@@ -439,7 +440,7 @@ export const aiPageGenerator = {
       return updated;
     }
 
-    return currentConfig;
+    throw new Error(response.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
   },
 
   /**

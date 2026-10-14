@@ -76,6 +76,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       setIsGenerating(false);
       setWizardStep(1);
       setSelectedIdeaId(null);
+      setErrorMsg(null);
       loadIdeas();
     }
   }, [isOpen, brandDna]);
@@ -86,8 +87,9 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       const existingPages = await pageBuilderFirestore.getAllPages();
       const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, existingPages);
       setIdeas(generatedIdeas);
-    } catch {
-      // fallback handled in generator
+    } catch (err: any) {
+      console.warn('Could not load marketing ideas:', err);
+      setErrorMsg(err?.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
     } finally {
       setLoadingIdeas(false);
     }
@@ -187,6 +189,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       progressPercent: 5,
     });
 
+    setErrorMsg(null);
     try {
       const result = await aiPageGenerator.generatePageLive(
         enrichedPrompt,
@@ -203,9 +206,10 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       setApprovedSectionIds([]);
       setIsGenerating(false);
       setWizardStep(3);
-    } catch (err) {
+    } catch (err: any) {
       console.error('AI Generation error:', err);
       setIsGenerating(false);
+      setErrorMsg(err?.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
     }
   };
 
@@ -566,30 +570,8 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
         )}
 
         {/* Footer Actions */}
-        {!isGenerating && (
-          <div className="p-6 border-t border-slate-800/80 bg-slate-900/60 flex justify-between items-center">
-            {wizardStep === 1 ? (
-              <button
-                type="button"
-                onClick={() => setWizardStep(2)}
-                disabled={!promptText.trim()}
-                className="flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-sm shadow-xl shadow-indigo-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
-              >
-                <span>המשך לבחירת שלד וסגנון</span>
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            ) : wizardStep === 2 ? (
-              <button
-                type="button"
-                onClick={handleStartGeneration}
-                className="flex items-center gap-2 px-7 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm shadow-xl shadow-indigo-500/20 hover:scale-105 transition-all cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4" />
-                <span>צור עמוד מלא ב-AI</span>
-                <ArrowLeft className="w-4 h-4" />
-              </button>
-            ) : null}
-
+        {!isGenerating && wizardStep !== 3 && (
+          <div className="p-6 border-t border-slate-800/80 bg-slate-900/60 flex justify-end items-center">
             {wizardStep === 1 ? (
               <button
                 type="button"

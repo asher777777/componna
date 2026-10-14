@@ -1,4 +1,4 @@
-import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
 import { executeCloudAi, PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
 
 export interface GeminiApiOptions {
@@ -25,14 +25,26 @@ export function resolveApiKey(providedApiKey?: string): string | null {
     return providedApiKey.trim();
   }
 
+  const systemKey = getModuleGeminiKey('KosWebAi');
+  if (systemKey && systemKey.trim().length > 5) {
+    return systemKey.trim();
+  }
+
   const kosaiKey = getModuleGeminiKey('kosai-engine');
   if (kosaiKey && kosaiKey.trim().length > 5) {
     return kosaiKey.trim();
   }
 
-  const systemKey = getModuleGeminiKey('KosWebAi');
-  if (systemKey && systemKey.trim().length > 5) {
-    return systemKey.trim();
+  const state = getTenantApiKeysState();
+  if (state.masterKeys?.googleAiApiKey && state.masterKeys.googleAiApiKey.trim().length > 5) {
+    return state.masterKeys.googleAiApiKey.trim();
+  }
+
+  if (typeof window !== 'undefined') {
+    const local = localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey');
+    if (local && local.trim().length > 5) {
+      return local.trim();
+    }
   }
 
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
@@ -75,9 +87,22 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
     });
 
     if (aiRes.success) {
+      let data = aiRes.data;
+      if (!data && typeof aiRes.text === 'string') {
+        const trimmed = aiRes.text.trim();
+        if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('```')) {
+          try {
+            const cleaned = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+            data = JSON.parse(cleaned);
+          } catch {
+            data = undefined;
+          }
+        }
+      }
+
       return {
         success: true,
-        data: aiRes.data || (aiRes.text as unknown as T),
+        data: (data || aiRes.text) as unknown as T,
         usageMetadata: { promptTokenCount: 250, candidatesTokenCount: 200 },
       };
     }

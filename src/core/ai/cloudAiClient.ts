@@ -172,9 +172,15 @@ export async function executeCloudAi<T = any>(
     }
 
     let data: T | undefined = undefined;
-    if (options.responseMimeType === 'application/json') {
+    const trimmedText = rawText.trim();
+    if (
+      options.responseMimeType === 'application/json' ||
+      trimmedText.startsWith('{') ||
+      trimmedText.startsWith('[') ||
+      trimmedText.startsWith('```')
+    ) {
       try {
-        const cleaned = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        const cleaned = trimmedText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
         data = JSON.parse(cleaned);
       } catch {
         data = undefined;
