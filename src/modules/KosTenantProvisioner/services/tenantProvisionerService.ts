@@ -12,6 +12,7 @@ import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '
 import { eventBus } from '../../../core/bridge/EventBus';
 import { tenantContactSyncService } from '../../crm-analytics/services/tenantContactSyncService';
 import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
+import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
@@ -504,6 +505,129 @@ export class TenantProvisionerService {
       } catch (err) {
         console.warn('[TenantProvisionerService] Firestore delete warning:', err);
       }
+    }
+  }
+
+  /**
+   * Get Master / Main Domain account (kosun.pro / _master)
+   * Fulfills Clause ו: Display main domain and its data with ability to edit keys
+   */
+  static async getMasterTenant(db?: Firestore): Promise<TenantAccount> {
+    const allModules = AVAILABLE_MODULES_CATALOG.map((m) => m.id);
+    let masterData: any = {};
+    if (db) {
+      try {
+        const snap = await getDoc(doc(db, 'tenants', '_master'));
+        if (snap.exists()) {
+          masterData = snap.data();
+        }
+      } catch (err) {
+        console.warn('[TenantProvisionerService] Error loading _master doc:', err);
+      }
+    }
+
+    const tokenUsage = await TenantTokenTracker.getTenantTokenUsage(db, '_master');
+
+    return {
+      subdomain: '_master',
+      fullDomain: masterData.fullDomain || 'kosun.pro',
+      clientName: masterData.clientName || 'מערכת KOSUN ראשית (Master Domain)',
+      adminUsername: masterData.adminUsername || 'master@kosun.pro',
+      adminPassword: '••••••••',
+      ownerEmail: masterData.ownerEmail || 'admin@kosun.pro',
+      ownerPhone: masterData.ownerPhone || '050-0000000',
+      activeModules: allModules,
+      collectionPrefix: 'master_mod_',
+      status: 'active',
+      isMaster: true,
+      createdAt: masterData.createdAt || '2026-01-01T00:00:00.000Z',
+      updatedAt: masterData.updatedAt || new Date().toISOString(),
+      billingPlan: 'custom',
+      tokenUsage,
+    };
+  }
+
+  /**
+   * Load API keys for a specific tenant or master
+   */
+  static async getTenantKeys(db: Firestore | undefined, subdomain: string): Promise<Record<string, any>> {
+    const cleanSub = (subdomain || '_master').trim().toLowerCase();
+    if (db) {
+      try {
+        const keysDoc = await getDoc(doc(db, 'tenants', cleanSub, 'settings', 'api_keys'));
+        if (keysDoc.exists()) {
+          return keysDoc.data() || {};
+        }
+      } catch (err) {
+        console.warn(`[TenantProvisionerService] Error fetching keys for ${cleanSub}:`, err);
+      }
+    }
+    return {};
+  }
+
+  /**
+   * Update API keys for a specific tenant or master
+   */
+  static async updateTenantKeys(
+    db: Firestore | undefined,
+    subdomain: string,
+    keys: Record<string, any>
+  ): Promise<void> {
+    const cleanSub = (subdomain || '_master').trim().toLowerCase();
+    const payload = {
+      ...keys,
+      updatedAt: Date.now(),
+    };
+
+    if (db) {
+      try {
+        const keysDocRef = doc(db, 'tenants', cleanSub, 'settings', 'api_keys');
+        await setDoc(keysDocRef, payload, { merge: true });
+      } catch (err) {
+        console.warn(`[TenantProvisionerService] Error saving keys for ${cleanSub}:`, err);
+      }
+    }
+
+    // Broadcast browser event for instant synchronization across open tabs/windows
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('kosun_tenant_keys_updated', {
+          detail: { subdomain: cleanSub, keys: payload },
+        })
+      );
+    }
+  }
+
+  /**
+   * Update full details of a tenant (clientName, ownerEmail, ownerPhone, status)
+   */
+  static async updateTenantFullDetails(
+    db: Firestore | undefined,
+    subdomain: string,
+    updates: Partial<TenantAccount>
+  ): Promise<void> {
+    const cleanSub = subdomain.trim().toLowerCase();
+    if (db && cleanSub !== '_master') {
+      try {
+        const tenantRef = doc(db, 'tenants', cleanSub);
+        await setDoc(
+          tenantRef,
+          {
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          },
+          { merge: true }
+        );
+      } catch (err) {
+        console.warn(`[TenantProvisionerService] Error updating full details for ${cleanSub}:`, err);
+      }
+    }
+
+    const local = this.getLocalTenants();
+    const idx = local.findIndex((t) => t.subdomain.toLowerCase() === cleanSub);
+    if (idx >= 0) {
+      local[idx] = { ...local[idx], ...updates, updatedAt: new Date().toISOString() };
+      this.saveLocalTenants(local);
     }
   }
 

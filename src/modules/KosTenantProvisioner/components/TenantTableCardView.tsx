@@ -182,14 +182,28 @@ export const TenantTableCardView: React.FC = () => {
 
                 {/* Card Actions Footer */}
                 <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingTenant(tenant)}
+                    className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
+                    title="עריכת רכיבים, מפתחות ומד טוקנים"
+                  >
+                    <SlidersHorizontal className="w-3.5 h-3.5" />
+                    <span>ערוך והגדרות</span>
+                  </button>
+
                   <a
                     href={adminUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer"
-                    title="כניסה ישירה ללוח הניהול"
+                    onClick={() => {
+                      sessionStorage.setItem(`tenant_admin_auth_${tenant.subdomain.toLowerCase()}`, 'true');
+                      sessionStorage.setItem(`tenant_admin_${tenant.subdomain.toLowerCase()}`, 'true');
+                    }}
+                    className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                    title="כניסה ישירה ללוח הניהול של הסאב-דומיין"
                   >
-                    <Lock className="w-3.5 h-3.5" />
+                    <Lock className="w-3.5 h-3.5 text-indigo-500" />
                     <span>לוח ניהול</span>
                   </a>
 

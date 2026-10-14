@@ -139,6 +139,8 @@ interface TenantApiKeysState {
   isRootTenant: boolean;
   /** Raw keys of the current tenant (tenants/{tenantId}/settings/api_keys) */
   tenantKeys: SystemApiKeysConfig;
+  /** Master keys document (tenants/_master/settings/api_keys) */
+  masterKeys?: SystemApiKeysConfig;
   /** Canonical module IDs purchased by the current tenant (subdomain only) */
   purchasedModules: string[];
   /** Module currently on screen (derived from route) */
@@ -150,6 +152,7 @@ let state: TenantApiKeysState = {
   tenantId: ROOT_TENANT_ID,
   isRootTenant: true,
   tenantKeys: { ...DEFAULT_API_KEYS },
+  masterKeys: { ...DEFAULT_API_KEYS },
   purchasedModules: [],
   activeModuleId: undefined,
   loaded: false,
@@ -184,6 +187,7 @@ export function getTenantApiKeysState(): Readonly<TenantApiKeysState> {
 export interface ApiKeysResolutionInput {
   isRootTenant: boolean;
   tenantKeys: SystemApiKeysConfig;
+  masterKeys?: SystemApiKeysConfig;
   purchasedModules: string[];
   activeModuleId?: string;
 }
@@ -196,19 +200,32 @@ export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: st
   return input.purchasedModules.includes(target);
 }
 
-/** Pure resolver: keys a module may use for the given tenant state */
+/**
+ * Pure resolver: keys a module may use for the given tenant state.
+ * Rule (Clause ה): Google AI / Gemini keys are ALWAYS resolved from Master collection (tenants/_master).
+ * Rule (Clause ד): Subdomain transactional APIs (Kesher, Green-API WhatsApp, HeyGen, Webhook) use tenant-scoped keys.
+ */
 export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: string): SystemApiKeysConfig {
+  const masterAiKey = (input.masterKeys?.googleAiApiKey || (input.isRootTenant ? input.tenantKeys.googleAiApiKey : '') || '').trim();
+
   if (!isModuleEntitledFor(input, moduleId)) {
     // Not entitled → secrets stripped, only non-secret model defaults kept
     return {
       ...DEFAULT_API_KEYS,
-      geminiModel: input.tenantKeys.geminiModel || DEFAULT_API_KEYS.geminiModel,
-      geminiImageModel: input.tenantKeys.geminiImageModel || DEFAULT_API_KEYS.geminiImageModel,
-      geminiVideoModel: input.tenantKeys.geminiVideoModel || DEFAULT_API_KEYS.geminiVideoModel,
+      geminiModel: input.tenantKeys.geminiModel || input.masterKeys?.geminiModel || DEFAULT_API_KEYS.geminiModel,
+      geminiImageModel: input.tenantKeys.geminiImageModel || input.masterKeys?.geminiImageModel || DEFAULT_API_KEYS.geminiImageModel,
+      geminiVideoModel: input.tenantKeys.geminiVideoModel || input.masterKeys?.geminiVideoModel || DEFAULT_API_KEYS.geminiVideoModel,
     };
   }
-  return { ...DEFAULT_API_KEYS, ...input.tenantKeys };
+
+  return {
+    ...DEFAULT_API_KEYS,
+    ...input.tenantKeys,
+    // Clause ה: AI key is always taken through master collection if available
+    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || '',
+  };
 }
+
 
 /** Whether the current tenant is entitled to use keys for the given module */
 export function isModuleEntitled(moduleId?: string): boolean {

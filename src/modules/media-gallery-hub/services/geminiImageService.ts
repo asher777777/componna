@@ -5,8 +5,23 @@
  */
 
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
+import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { translateHebrewPromptToEnglish } from './geminiPromptAssistant';
-import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
+
+function recordGalleryTokens(report: TokenUsageReport) {
+  try {
+    const tenantId = getTenantApiKeysState().tenantId;
+    if (tenantId) {
+      TenantTokenTracker.recordTokenUsage(
+        tenantId,
+        'gallery',
+        report.totalTokens || 1170,
+        { costUSD: report.estimatedCostUSD, images: 1 }
+      ).catch(() => {});
+    }
+  } catch {}
+}
 
 export interface GeminiImageOptions {
   prompt: string;
@@ -171,6 +186,7 @@ export async function generateGeminiImage(
                 promptTokens: 50,
                 candidatesTokens: 1120,
               });
+              recordGalleryTokens(usageReport);
 
               return {
                 imageUrl: `data:${mime};base64,${b64}`,
@@ -238,6 +254,7 @@ export async function generateGeminiImage(
               promptTokens: data.usageMetadata?.promptTokenCount || 65,
               candidatesTokens: data.usageMetadata?.candidatesTokenCount || 1120,
             });
+            recordGalleryTokens(usageReport);
 
             return {
               imageUrl: `data:${mime};base64,${b64}`,

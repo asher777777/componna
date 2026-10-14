@@ -6,6 +6,7 @@ import { getStorage, FirebaseStorage } from 'firebase/storage';
 import { ensureAnonymousAuth } from '../../services/firebaseAuth';
 import { useTenantScope } from '../tenant/TenantScopeContext';
 import { ROOT_TENANT_ID } from '../tenant/tenantResolver';
+import { setTokenTrackerFirestore } from '../ai/tenantTokenTracker';
 import {
   SystemApiKeysConfig,
   DEFAULT_API_KEYS,
@@ -139,6 +140,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
   const activeModuleId = useMemo(() => resolveModuleIdFromPath(location.pathname), [location.pathname]);
 
   const [tenantApiKeys, setTenantApiKeys] = useState<SystemApiKeysConfig>(DEFAULT_API_KEYS);
+  const [masterApiKeys, setMasterApiKeys] = useState<SystemApiKeysConfig>(DEFAULT_API_KEYS);
   const [purchasedModules, setPurchasedModules] = useState<string[]>([]);
 
   // Legacy locally-stored keys (captured once at module load, already purged from the browser)
@@ -314,6 +316,31 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     }
   }, [db, apiKeysTenantId]);
 
+  // Real-time master API keys: tenants/_master/settings/api_keys
+  // Clause ה: AI keys are ALWAYS taken through the master collection
+  useEffect(() => {
+    if (!db) return;
+    setTokenTrackerFirestore(db);
+    try {
+      const masterKeysRef = doc(db, ...getTenantApiKeysDocSegments(ROOT_TENANT_ID));
+      const unsubscribe = onSnapshot(
+        masterKeysRef,
+        (snap) => {
+          if (snap.exists()) {
+            const { updatedAt: _u, migratedAt: _m, createdAt: _c, ...keys } = (snap.data() || {}) as Record<string, any>;
+            setMasterApiKeys({ ...DEFAULT_API_KEYS, ...keys });
+          } else {
+            setMasterApiKeys(DEFAULT_API_KEYS);
+          }
+        },
+        (error) => console.warn('[SystemConnection] Master API keys sync notice:', error)
+      );
+      return () => unsubscribe();
+    } catch (err) {
+      console.warn('[SystemConnection] Master API keys setup notice:', err);
+    }
+  }, [db]);
+
   // Purchased modules of a subdomain tenant: tenants/{tenantId}.activeModules
   useEffect(() => {
     setPurchasedModules([]);
@@ -337,8 +364,8 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
 
   // Resolution input shared by the context and non-React services
   const resolutionInput = useMemo(
-    () => ({ isRootTenant, tenantKeys: tenantApiKeys, purchasedModules, activeModuleId }),
-    [isRootTenant, tenantApiKeys, purchasedModules, activeModuleId]
+    () => ({ isRootTenant, tenantKeys: tenantApiKeys, masterKeys: masterApiKeys, purchasedModules, activeModuleId }),
+    [isRootTenant, tenantApiKeys, masterApiKeys, purchasedModules, activeModuleId]
   );
 
   // Mirror into the plain store so services (outside React) read the same keys synchronously
@@ -346,11 +373,12 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     updateTenantApiKeysState({
       tenantId: apiKeysTenantId,
       tenantKeys: tenantApiKeys,
+      masterKeys: masterApiKeys,
       purchasedModules,
       activeModuleId,
       loaded: true,
     });
-  }, [apiKeysTenantId, tenantApiKeys, purchasedModules, activeModuleId]);
+  }, [apiKeysTenantId, tenantApiKeys, masterApiKeys, purchasedModules, activeModuleId]);
 
   const apiKeys = useMemo(() => resolveApiKeysFor(resolutionInput), [resolutionInput]);
   const getApiKeysForModule = useCallback(

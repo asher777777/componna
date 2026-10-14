@@ -337,7 +337,16 @@ export const FloatingSystemDock: React.FC<FloatingSystemDockProps> = ({
     } else if (homeUrl) {
       window.location.href = homeUrl;
     } else {
-      window.location.href = isSubdomain ? '/?mode=public' : '/';
+      const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+      const params = new URLSearchParams(window.location.search);
+      const tenantParam = params.get('tenant');
+      if (isSubdomain && isLocal && tenantParam) {
+        window.location.href = `/?tenant=${tenantParam}&mode=public`;
+      } else if (isSubdomain) {
+        window.location.href = '/?mode=public';
+      } else {
+        window.location.href = '/';
+      }
     }
   };
 

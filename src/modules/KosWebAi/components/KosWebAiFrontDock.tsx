@@ -201,7 +201,18 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                window.location.href = '/';
+                const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+                if (tenantId) {
+                  sessionStorage.setItem(`tenant_admin_${tenantId}`, 'false');
+                  window.dispatchEvent(new CustomEvent('kosun_navigate_home'));
+                  if (isLocal) {
+                    window.location.href = `/?tenant=${tenantId}&mode=public`;
+                  } else {
+                    window.location.href = '/?mode=public';
+                  }
+                } else {
+                  window.location.href = '/';
+                }
               }}
               className="flex items-center justify-center p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-400 hover:text-white transition cursor-pointer"
               title="מעבר לעמוד הבית הראשי של המשתמש"
@@ -315,6 +326,21 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         isOpen={isDynamicMenuOpen} 
         onClose={() => setIsDynamicMenuOpen(false)} 
         onOpenSettings={onOpenSettings}
+        onGoToHome={() => {
+          setIsDynamicMenuOpen(false);
+          const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+          if (tenantId) {
+            sessionStorage.setItem(`tenant_admin_${tenantId}`, 'false');
+            window.dispatchEvent(new CustomEvent('kosun_navigate_home'));
+            if (isLocal) {
+              window.location.href = `/?tenant=${tenantId}&mode=public`;
+            } else {
+              window.location.href = '/?mode=public';
+            }
+          } else {
+            window.location.href = '/';
+          }
+        }}
         isSubdomain={Boolean(tenantId)}
       />
     </>

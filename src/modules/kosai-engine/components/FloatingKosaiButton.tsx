@@ -24,7 +24,8 @@ import {
   User,
   Target,
   Eye,
-  LogOut
+  LogOut,
+  Globe
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../../../workbench/moduleRegistry';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -499,6 +500,24 @@ export const FloatingKosaiButton: React.FC = () => {
     window.dispatchEvent(new CustomEvent('kosun_open_modules_menu'));
   };
 
+  const handleGoToHomePage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsMenuOpen(false);
+    setIsQuickActionsOpen(false);
+    if (!isRootTenant && tenantId) {
+      sessionStorage.setItem(`tenant_admin_${tenantId}`, 'false');
+      window.dispatchEvent(new CustomEvent('kosun_navigate_home'));
+      const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+      if (isLocal) {
+        window.location.href = `${window.location.origin}/?tenant=${tenantId}&mode=public`;
+      } else {
+        window.location.href = `https://${tenantId}.kosun.pro/?mode=public`;
+      }
+    } else {
+      window.location.href = '/';
+    }
+  };
+
   // If chat is already open, do not render dock
   if (isOpen) return null;
 
@@ -599,7 +618,18 @@ export const FloatingKosaiButton: React.FC = () => {
             <span>KosNev</span>
           </button>
 
-          {/* 4. Subdomain Tenant Admin Controls (Unified Single Menu standard) */}
+          {/* 4. Homepage Button (Requirement ו) */}
+          <button
+            type="button"
+            onClick={handleGoToHomePage}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300 transition text-xs font-bold cursor-pointer"
+            title="מעבר לעמוד הבית של המשתמש"
+          >
+            <Globe className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="hidden sm:inline">עמוד הבית</span>
+          </button>
+
+          {/* 5. Subdomain Tenant Admin Controls (Unified Single Menu standard) */}
           {!isRootTenant && (
             <>
               {/* Tenant Settings & Sync */}
@@ -615,24 +645,6 @@ export const FloatingKosaiButton: React.FC = () => {
                 <Settings className="w-4 h-4 text-slate-500 dark:text-slate-400" />
               </button>
 
-              {/* View as Visitor */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMenuOpen(false);
-                  const url = new URL(window.location.href);
-                  url.searchParams.delete('admin');
-                  url.pathname = '/';
-                  window.location.href = url.toString();
-                }}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 transition text-xs font-bold cursor-pointer"
-                title="צפייה באתר כפי שרואה מבקר"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">צפייה באתר</span>
-              </button>
-
               {/* Logout */}
               <button
                 type="button"
@@ -640,10 +652,13 @@ export const FloatingKosaiButton: React.FC = () => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
                   TenantAuthService.logoutTenant(tenantId);
-                  const url = new URL(window.location.href);
-                  url.searchParams.delete('admin');
-                  url.pathname = '/';
-                  window.location.href = url.toString();
+                  sessionStorage.setItem(`tenant_admin_${tenantId}`, 'false');
+                  const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+                  if (isLocal) {
+                    window.location.href = `${window.location.origin}/?tenant=${tenantId}&mode=public`;
+                  } else {
+                    window.location.href = `https://${tenantId}.kosun.pro/?mode=public`;
+                  }
                 }}
                 className="p-2 rounded-2xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-600 dark:text-rose-400 transition cursor-pointer"
                 title="התנתק ממערכת הניהול"

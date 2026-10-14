@@ -6,6 +6,7 @@ import { TenantProvisionerService, AVAILABLE_MODULES_CATALOG } from '../services
 interface TenantProvisionerContextValue {
   tenants: TenantAccount[];
   filteredTenants: TenantAccount[];
+  masterTenant: TenantAccount | null;
   loading: boolean;
   searchTerm: string;
   setSearchTerm: (s: string) => void;
@@ -15,8 +16,12 @@ interface TenantProvisionerContextValue {
   createTenant: (form: TenantProvisionFormState) => Promise<TenantAccount>;
   updateModules: (subdomain: string, modules: string[]) => Promise<void>;
   updateCredentials: (subdomain: string, credentials: { username: string; password: string }) => Promise<void>;
+  updateTenantAccount: (subdomain: string, updates: Partial<TenantAccount>) => Promise<void>;
+  updateTenantKeys: (subdomain: string, keys: Record<string, any>) => Promise<void>;
+  getTenantKeys: (subdomain: string) => Promise<Record<string, any>>;
   deleteTenant: (subdomain: string) => Promise<void>;
   refreshTenants: () => Promise<void>;
+  refreshMasterTenant: () => Promise<void>;
   // Modals state
   isCreateModalOpen: boolean;
   setIsCreateModalOpen: (open: boolean) => void;
@@ -31,6 +36,7 @@ const TenantProvisionerContext = createContext<TenantProvisionerContextValue | n
 export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
   const [tenants, setTenants] = useState<TenantAccount[]>([]);
+  const [masterTenant, setMasterTenant] = useState<TenantAccount | null>(null);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedModuleFilter, setSelectedModuleFilter] = useState('all');
@@ -39,11 +45,24 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
   const [editingTenant, setEditingTenant] = useState<TenantAccount | null>(null);
   const [viewingCredentialsTenant, setViewingCredentialsTenant] = useState<TenantAccount | null>(null);
 
+  const refreshMasterTenant = useCallback(async () => {
+    try {
+      const master = await TenantProvisionerService.getMasterTenant(db);
+      setMasterTenant(master);
+    } catch (err) {
+      console.warn('[TenantProvisionerContext] Error fetching master tenant:', err);
+    }
+  }, [db]);
+
   const refreshTenants = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await TenantProvisionerService.getAllTenants(db);
+      const [data, master] = await Promise.all([
+        TenantProvisionerService.getAllTenants(db),
+        TenantProvisionerService.getMasterTenant(db),
+      ]);
       setTenants(data);
+      setMasterTenant(master);
     } catch (e) {
       console.warn('[TenantProvisionerContext] Error fetching tenants:', e);
     } finally {
@@ -72,8 +91,11 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
           t.subdomain === subdomain ? { ...t, activeModules: modules, updatedAt: new Date().toISOString() } : t
         )
       );
+      if (editingTenant && editingTenant.subdomain === subdomain) {
+        setEditingTenant((prev) => (prev ? { ...prev, activeModules: modules } : null));
+      }
     },
-    [db]
+    [db, editingTenant]
   );
 
   const updateCredentials = useCallback(
@@ -95,6 +117,44 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
     [db]
   );
 
+  const updateTenantAccount = useCallback(
+    async (subdomain: string, updates: Partial<TenantAccount>): Promise<void> => {
+      await TenantProvisionerService.updateTenantFullDetails(db, subdomain, updates);
+      setTenants((prev) =>
+        prev.map((t) =>
+          t.subdomain === subdomain
+            ? {
+                ...t,
+                ...updates,
+                updatedAt: new Date().toISOString(),
+              }
+            : t
+        )
+      );
+      if (editingTenant && editingTenant.subdomain === subdomain) {
+        setEditingTenant((prev) => (prev ? { ...prev, ...updates } : null));
+      }
+    },
+    [db, editingTenant]
+  );
+
+  const updateTenantKeys = useCallback(
+    async (subdomain: string, keys: Record<string, any>): Promise<void> => {
+      await TenantProvisionerService.updateTenantKeys(db, subdomain, keys);
+      if (subdomain === '_master') {
+        refreshMasterTenant();
+      }
+    },
+    [db, refreshMasterTenant]
+  );
+
+  const getTenantKeys = useCallback(
+    async (subdomain: string): Promise<Record<string, any>> => {
+      return TenantProvisionerService.getTenantKeys(db, subdomain);
+    },
+    [db]
+  );
+
   const deleteTenant = useCallback(
     async (subdomain: string): Promise<void> => {
       await TenantProvisionerService.deleteTenant(db, subdomain);
@@ -103,49 +163,55 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
     [db]
   );
 
-  // Compute stats
-  const stats = useMemo<TenantStats>(() => {
-    const total = tenants.length;
-    const active = tenants.filter((t) => t.status === 'active').length;
-    const totalModules = tenants.reduce((acc, t) => acc + (t.activeModules?.length || 0), 0);
-    const avg = total > 0 ? Math.round((totalModules / total) * 10) / 10 : 0;
+  // Computed KPIs
+  const stats: TenantStats = useMemo(() => {
+    const totalTenants = tenants.length;
+    const activeTenants = tenants.filter((t) => t.status === 'active').length;
 
-    const moduleFreq: Record<string, number> = {};
+    let totalModulesCount = 0;
+    const moduleUsageMap: Record<string, number> = {};
+
     tenants.forEach((t) => {
-      (t.activeModules || []).forEach((m) => {
-        moduleFreq[m] = (moduleFreq[m] || 0) + 1;
+      const mods = t.activeModules || [];
+      totalModulesCount += mods.length;
+      mods.forEach((m) => {
+        moduleUsageMap[m] = (moduleUsageMap[m] || 0) + 1;
       });
     });
 
-    let topModId = 'KosWebAi';
-    let topModCount = 0;
-    Object.entries(moduleFreq).forEach(([modId, count]) => {
+    const avgModulesPerTenant = totalTenants > 0 ? Number((totalModulesCount / totalTenants).toFixed(1)) : 0;
+
+    let topModId = '';
+    let topModCount = -1;
+    Object.entries(moduleUsageMap).forEach(([modId, count]) => {
       if (count > topModCount) {
         topModCount = count;
         topModId = modId;
       }
     });
 
-    const matchedMod = AVAILABLE_MODULES_CATALOG.find((m) => m.id === topModId);
-    const mostPopular = matchedMod ? matchedMod.name : topModId;
+    const topModuleMeta = AVAILABLE_MODULES_CATALOG.find((m) => m.id === topModId);
+    const mostPopularModule = topModuleMeta ? topModuleMeta.name : 'טרם הוגדר';
 
     return {
-      totalTenants: total,
-      activeTenants: active,
-      avgModulesPerTenant: avg,
-      mostPopularModule: mostPopular,
+      totalTenants,
+      activeTenants,
+      avgModulesPerTenant,
+      mostPopularModule,
     };
   }, [tenants]);
 
-  // Filtered tenants list
+  // Filtered tenants by search and module
   const filteredTenants = useMemo(() => {
+    const cleanSearch = searchTerm.trim().toLowerCase();
+
     return tenants.filter((t) => {
       const matchSearch =
-        !searchTerm.trim() ||
-        t.subdomain.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.adminUsername.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (t.ownerPhone && t.ownerPhone.includes(searchTerm));
+        !cleanSearch ||
+        t.subdomain.toLowerCase().includes(cleanSearch) ||
+        t.clientName.toLowerCase().includes(cleanSearch) ||
+        t.adminUsername.toLowerCase().includes(cleanSearch) ||
+        (t.ownerEmail && t.ownerEmail.toLowerCase().includes(cleanSearch));
 
       const matchModule =
         selectedModuleFilter === 'all' ||
@@ -159,6 +225,7 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
     () => ({
       tenants,
       filteredTenants,
+      masterTenant,
       loading,
       searchTerm,
       setSearchTerm,
@@ -168,8 +235,12 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
       createTenant,
       updateModules,
       updateCredentials,
+      updateTenantAccount,
+      updateTenantKeys,
+      getTenantKeys,
       deleteTenant,
       refreshTenants,
+      refreshMasterTenant,
       isCreateModalOpen,
       setIsCreateModalOpen,
       editingTenant,
@@ -180,6 +251,7 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
     [
       tenants,
       filteredTenants,
+      masterTenant,
       loading,
       searchTerm,
       selectedModuleFilter,
@@ -187,8 +259,12 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
       createTenant,
       updateModules,
       updateCredentials,
+      updateTenantAccount,
+      updateTenantKeys,
+      getTenantKeys,
       deleteTenant,
       refreshTenants,
+      refreshMasterTenant,
       isCreateModalOpen,
       editingTenant,
       viewingCredentialsTenant,

@@ -1,4 +1,4 @@
-﻿import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { VideoProject, VideoScene, HeyGenAvatar, HeyGenVoice, ClarificationResult } from '../types';
 import { 
   fetchAllProjects, 
@@ -26,7 +26,7 @@ import { synthesizeGoogleSpeechAudio } from '../services/googleTtsService';
 import { exportVideoProjectToFlowPlayer, convertVideoProjectToCampaign } from '../services/videoStudioFlowBridge';
 import { CampaignConfig } from '../../flow-player-engine/types';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
-import { TokenUsageReport } from '../../../core/ai';
+import { TokenUsageReport, TenantTokenTracker } from '../../../core/ai';
 import { BrandDna, BrandDnaContract } from '../../../core/contracts';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 
@@ -98,7 +98,7 @@ interface VideoStudioContextValue {
 const VideoStudioContext = createContext<VideoStudioContextValue | null>(null);
 
 export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { db, config, apiKeys, openConnectorModal } = useSystemConnection();
+  const { db, config, apiKeys, apiKeysTenantId, openConnectorModal } = useSystemConnection();
   const { getCapability } = useHostCapabilities();
   const [tab, setTab] = useState<StudioTab>('projects');
   const [projects, setProjects] = useState<VideoProject[]>([]);
@@ -296,6 +296,16 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       // 4. Automatically switch view to the Editor
       setTab('editor');
       await loadProjects();
+
+      if (apiKeysTenantId) {
+        TenantTokenTracker.recordTokenUsage(
+          apiKeysTenantId,
+          'video',
+          res.costReport.totalTokens || 950,
+          { costUSD: res.costReport.estimatedCostUSD }
+        ).catch(() => {});
+      }
+
       return res.costReport;
     } finally {
       setIsGeneratingScript(false);
@@ -360,6 +370,16 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
       
       await loadProjects();
       setTab('editor');
+
+      if (apiKeysTenantId) {
+        TenantTokenTracker.recordTokenUsage(
+          apiKeysTenantId,
+          'video',
+          res.costReport.totalTokens || 950,
+          { costUSD: res.costReport.estimatedCostUSD }
+        ).catch(() => {});
+      }
+
       return res.costReport;
     } finally {
       setIsGeneratingScript(false);
@@ -694,6 +714,15 @@ export const VideoStudioProvider: React.FC<{ children: React.ReactNode }> = ({ c
         audioUrl: sceneAudioUrl || scene.renderedAudioUrl,
         isPhotoAvatar: true
       });
+
+      if (apiKeysTenantId) {
+        TenantTokenTracker.recordTokenUsage(
+          apiKeysTenantId,
+          'video',
+          5000,
+          { heygenSeconds: 30, costUSD: 0.15 }
+        ).catch(() => {});
+      }
 
       updateCurrentScene(sceneId, { heygenJobId: videoJobId, isPhotoAvatar: true });
 

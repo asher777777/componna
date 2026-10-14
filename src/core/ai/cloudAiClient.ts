@@ -5,6 +5,8 @@
  */
 
 import { calculateGeminiCost, TokenUsageReport } from './geminiCostTracker';
+import { TenantTokenTracker } from './tenantTokenTracker';
+import { getTenantApiKeysState } from '../connection/tenantApiKeys';
 
 export interface CloudAiGenerateOptions {
   prompt: string;
@@ -17,6 +19,8 @@ export interface CloudAiGenerateOptions {
   mimeType?: string;
   timeoutMs?: number;
   apiKey?: string;
+  category?: 'gallery' | 'video' | 'content' | 'chatbot';
+  tenantId?: string;
 }
 
 export interface CloudAiResponse<T = any> {
@@ -75,11 +79,24 @@ export async function executeCloudAi<T = any>(
       }
     }
 
+    const costReport = payload.costReport || calculateGeminiCost({ model, promptTokens: 250, candidatesTokens: 200 });
+
+    // Track tokens for active tenant
+    const targetTenant = options.tenantId || getTenantApiKeysState().tenantId;
+    if (targetTenant) {
+      TenantTokenTracker.recordTokenUsage(
+        targetTenant,
+        options.category || 'content',
+        costReport.totalTokens || 450,
+        { costUSD: costReport.estimatedCostUSD }
+      ).catch(() => {});
+    }
+
     return {
       success: true,
       text,
       data,
-      costReport: payload.costReport || calculateGeminiCost({ model, promptTokens: 250, candidatesTokens: 200 }),
+      costReport,
     };
   } catch {
     return {
@@ -89,3 +106,4 @@ export async function executeCloudAi<T = any>(
     };
   }
 }
+

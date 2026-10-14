@@ -3,7 +3,8 @@
  * Follows Kosun Modular Standards: Resilient AI caller with direct REST fallback and model cascade.
  */
 import { BrandDna } from '../../../core/contracts';
-import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
+import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 
 export interface AiCallResponse {
   text: string;
@@ -112,12 +113,18 @@ export const functionsApi = {
           const data = await response.json();
           const candidateText = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
           if (candidateText && candidateText.trim().length > 0) {
+            const tokenCount = data?.usageMetadata?.totalTokenCount || 350;
+            const activeTenant = getTenantApiKeysState().tenantId;
+            if (activeTenant) {
+              TenantTokenTracker.recordTokenUsage(activeTenant, 'chatbot', tokenCount).catch(() => {});
+            }
+
             return {
               text: candidateText.trim(),
               cachedContentId: data?.cachedContent || params.cachedContentId,
               costReport: {
                 model,
-                totalTokens: data?.usageMetadata?.totalTokenCount || 0
+                totalTokens: tokenCount
               }
             };
           }

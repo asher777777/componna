@@ -9,7 +9,7 @@ import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
 import { BrandDnaHubStandaloneView } from '../../modules/KosBranding';
-import { FloatingSystemDock } from '../../components/Navigation/FloatingSystemDock';
+import { FloatingSystemDock, CashwanDynamicMenu } from '../../components/Navigation/FloatingSystemDock';
 import { TenantSyncSettingsModal } from '../../components/Navigation/TenantSyncSettingsModal';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
@@ -37,12 +37,19 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   const [mode, setMode] = useState<'public' | 'admin'>(() => {
     const params = new URLSearchParams(window.location.search);
     const pathname = window.location.pathname;
+    if (params.get('mode') === 'public' || params.get('public') === 'true') {
+      return 'public';
+    }
     if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
       return 'admin';
     }
     // Any module or control-center route is inherently admin mode
     if (pathname !== '/' && !pathname.startsWith('/p/') && !pathname.startsWith('/page/')) {
       return 'admin';
+    }
+    // If root path '/' without explicit admin query, default to public homepage!
+    if (pathname === '/' || pathname === '') {
+      return 'public';
     }
     if (sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true') {
       return 'admin';
@@ -53,6 +60,26 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   useEffect(() => {
     sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, mode === 'admin' ? 'true' : 'false');
   }, [mode, tenantRecord.subdomain]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('mode') === 'public' || params.get('public') === 'true') {
+      setMode('public');
+      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
+    } else if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
+      setMode('admin');
+      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+    }
+  }, [location.search, tenantRecord.subdomain]);
+
+  useEffect(() => {
+    const handleGoToPublicHome = () => {
+      setMode('public');
+      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
+    };
+    window.addEventListener('kosun_navigate_home', handleGoToPublicHome);
+    return () => window.removeEventListener('kosun_navigate_home', handleGoToPublicHome);
+  }, [tenantRecord.subdomain]);
 
   const isControlCenter = location.pathname === '/' || location.pathname.startsWith('/control-center');
 
@@ -490,6 +517,15 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
+    const subQuery = `?tenant=${tenantRecord.subdomain}&mode=admin`;
+    const defaultRoute = customDashboard && adminViewType === 'custom_board'
+      ? `/dashboard${subQuery}`
+      : activeModuleIds.includes('KosBranding')
+      ? `/brand-dna${subQuery}`
+      : allowedModules.length > 0
+      ? `${allowedModules[0].route}${subQuery}`
+      : `/overview${subQuery}`;
+
     return (
       <div className={`flex flex-col h-screen w-screen overflow-hidden ${tenantTheme === 'dark' ? 'dark bg-[#0a0a0c] text-slate-100' : 'bg-slate-50 text-slate-900'} relative font-sans transition-colors duration-300`} dir="rtl">
         {/* 2026 Kosun Standard: 100% Headerless - Zero Top Header (Exact UI Mirror of Manager Workbench) */}
@@ -497,21 +533,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         <div className="flex-1 flex flex-col h-full overflow-hidden">
           <main className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0a0a0c] relative transition-colors duration-300 pb-20">
             <Routes>
-              {/* Default redirects to Brand DNA or custom board */}
-              <Route
-                path="/"
-                element={
-                  customDashboard && adminViewType === 'custom_board' ? (
-                    <Navigate to="/dashboard" replace />
-                  ) : activeModuleIds.includes('KosBranding') ? (
-                    <Navigate to="/brand-dna" replace />
-                  ) : allowedModules.length > 0 ? (
-                    <Navigate to={allowedModules[0].route} replace />
-                  ) : (
-                    <Navigate to="/dashboard" replace />
-                  )
-                }
-              />
+              {/* Default redirects with preserved tenant query param */}
+              <Route path="/" element={<Navigate to={defaultRoute} replace />} />
               <Route path="/brand-dna/*" element={<BrandDnaHubStandaloneView />} />
               <Route path="/KosBranding/*" element={<BrandDnaHubStandaloneView />} />
               <Route path="/branding/*" element={<BrandDnaHubStandaloneView />} />
@@ -525,8 +548,48 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                       </div>
                     </KosunBoardProvider>
                   ) : (
-                    <Navigate to="/brand-dna" replace />
+                    <Navigate to={defaultRoute} replace />
                   )
+                }
+              />
+              {/* Fallback overview view if no modules are assigned */}
+              <Route
+                path="/overview/*"
+                element={
+                  <div className="p-6 sm:p-10 max-w-4xl mx-auto space-y-6">
+                    <div className="p-6 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-sm text-center space-y-4">
+                      <div className="w-14 h-14 mx-auto rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                        <Globe className="w-7 h-7" />
+                      </div>
+                      <div>
+                        <h2 className="text-xl font-black text-slate-900 dark:text-white">
+                          לוח ניהול סאב-דומיין: {tenantRecord.clientName}
+                        </h2>
+                        <span className="font-mono text-xs text-indigo-600 dark:text-indigo-400" dir="ltr">
+                          {tenantRecord.fullDomain}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+                        הרכיבים המוטענים עבור סאב-דומיין זה: {allowedModules.length > 0 ? allowedModules.map(m => m.name).join(', ') : 'עדיין לא הופעלו רכיבים. ניתן להפעיל רכיבים דרך ניהול הסאב-דומיינים.'}
+                      </p>
+                      <div className="flex items-center justify-center gap-3 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsSettingsModalOpen(true)}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-xs shadow-sm hover:bg-indigo-500 cursor-pointer"
+                        >
+                          הגדרות מפתחות וסנכרון
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setMode('public')}
+                          className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                        >
+                          מעבר לתצוגה ציבורית
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 }
               />
               {/* All provisioned modules with exact same routes as Manager Workbench */}
@@ -547,93 +610,49 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                 );
               })}
               {/* Fallback alias routes for full workbench compatibility */}
-              <Route path="/smart-forms/*" element={<Navigate to="/ksf" replace />} />
-              <Route path="*" element={<Navigate to="/brand-dna" replace />} />
+              <Route path="/smart-forms/*" element={<Navigate to={`/ksf${subQuery}`} replace />} />
+              <Route path="*" element={<Navigate to={defaultRoute} replace />} />
             </Routes>
           </main>
         </div>
 
-        {/* KosNev Module Launcher Modal (Triggered dynamically from K Menu) */}
-        {isKosNevOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn" dir="rtl">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
-              
-              <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex items-center justify-between z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-md">
-                    <Grid className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-black text-slate-900 dark:text-white font-mono">
-                      KosNev - רכיבים מוטענים
-                    </h2>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">
-                      הרכיבים המופעלים בסאב-דומיין {tenantRecord.fullDomain}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsKosNevOpen(false)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                >
-                  <ArrowRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              <div className="p-4 sm:p-6 space-y-3">
-                {allowedModules.map((module) => {
-                  const isActive = location.pathname.startsWith(module.route);
-                  return (
-                    <NavLink
-                      key={module.id}
-                      to={module.route}
-                      onClick={() => setIsKosNevOpen(false)}
-                      className={`text-right w-full p-3.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-3 group cursor-pointer ${
-                        isActive
-                          ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/20'
-                          : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/80 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-indigo-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border ${
-                          isActive ? 'bg-indigo-600 text-white border-indigo-500' : 'bg-slate-100 dark:bg-slate-700/80 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
-                        }`}>
-                          <Grid className="w-5 h-5" />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                          <span className={`font-bold text-sm block truncate ${isActive ? 'text-indigo-950 dark:text-indigo-100' : 'text-slate-900 dark:text-white'}`}>
-                            {module.name}
-                          </span>
-                          <span className="text-xs text-slate-500 dark:text-slate-400 block truncate">
-                            {module.description}
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2 shrink-0" dir="ltr">
-                        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-slate-100 dark:bg-slate-900 px-2.5 py-1 rounded-xl border border-slate-200 dark:border-slate-800">
-                          {module.id}
-                        </span>
-                        <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 transition" />
-                      </div>
-                    </NavLink>
-                  );
-                })}
-              </div>
-
-            </div>
-          </div>
-        )}
-
+        {/* Cashwan Dynamic Menu (KosNev) */}
+        <CashwanDynamicMenu
+          isOpen={isKosNevOpen}
+          onClose={() => setIsKosNevOpen(false)}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onGoToHome={() => {
+            setIsKosNevOpen(false);
+            setMode('public');
+            sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
+            const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+            const targetUrl = isLocal ? `/?tenant=${tenantRecord.subdomain}&mode=public` : '/?mode=public';
+            window.location.href = targetUrl;
+          }}
+          activeModules={tenantRecord.activeModules}
+          isSubdomain={true}
+        />
 
         {/* Tenant Sync & Settings Modal */}
         <TenantSyncSettingsModal
           isOpen={isSettingsModalOpen}
           onClose={() => setIsSettingsModalOpen(false)}
           tenantRecord={tenantRecord}
+        />
+
+        {/* Floating System Dock (Cashwan Branding Standard) */}
+        <FloatingSystemDock
+          isSubdomain={true}
+          activeModules={allowedModules.map((m) => m.id)}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onGoToHome={() => {
+            setMode('public');
+            sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
+            const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
+            const targetUrl = isLocal ? `/?tenant=${tenantRecord.subdomain}&mode=public` : '/?mode=public';
+            window.location.href = targetUrl;
+          }}
+          homeUrl={typeof window !== 'undefined' && (window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1')) ? `/?tenant=${tenantRecord.subdomain}&mode=public` : '/?mode=public'}
         />
       </div>
     );

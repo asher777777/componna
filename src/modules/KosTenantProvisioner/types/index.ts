@@ -19,6 +19,17 @@ export interface TenantAccount {
   billingPlan?: 'monthly' | 'annual' | 'custom';
   monthlyTotal?: number;
   notes?: string;
+  isMaster?: boolean;
+  tokenUsage?: {
+    totalTokens: number;
+    galleryTokens: number;
+    videoTokens: number;
+    contentTokens: number;
+    chatbotTokens: number;
+    totalCostUSD: number;
+    totalCostILS: number;
+    monthlyQuota?: number;
+  };
 }
 
 export interface AvailableModuleOption {
