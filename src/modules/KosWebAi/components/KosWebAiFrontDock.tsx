@@ -24,6 +24,8 @@ export interface KosWebAiFrontDockProps {
   onOpenSettings?: () => void;
   onOpenAddSection?: () => void;
   className?: string;
+  tenantId?: string;
+  isAuthorized?: boolean;
 }
 
 export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
@@ -34,6 +36,8 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
   onOpenSettings,
   onOpenAddSection,
   className = '',
+  tenantId,
+  isAuthorized = false,
 }) => {
   const { firebaseApp } = useSystemConnection();
   const { setIsOpen } = useKosai();
@@ -91,7 +95,13 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
 
   const handleGoToStudio = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const target = pageId ? `/KosWebAi?pageId=${pageId}` : '/KosWebAi';
+    const searchParams = new URLSearchParams(window.location.search);
+    const effectiveTenant = tenantId || searchParams.get('tenant');
+    const params = new URLSearchParams();
+    if (pageId) params.set('pageId', pageId);
+    if (effectiveTenant) params.set('tenant', effectiveTenant);
+    const query = params.toString();
+    const target = query ? `/KosWebAi?${query}` : '/KosWebAi';
     window.location.href = target;
   };
 
@@ -102,15 +112,39 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
     setIsOpen(true);
   };
 
-  // Check tenant authorization: Only registered authenticated tenant users with admin/editor role
-  const isAllowedUser = Boolean(
-    authState &&
-    authState.isAuthenticated &&
-    !authState.isAnonymous &&
-    (authState.role === 'admin' || authState.role === 'editor')
+  // Check tenant & user authorization:
+  // 1. Explicitly authorized via isAuthorized prop
+  // 2. Active live edit mode
+  // 3. Authenticated tenant admin session in sessionStorage
+  // 4. URL query with edit/admin/mode=admin
+  // 5. Firebase auth registered user with admin/editor role
+  const isTenantAdminAuthed = Boolean(
+    tenantId && typeof window !== 'undefined' && (
+      sessionStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
+      sessionStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true'
+    )
   );
 
-  if (!authInitialized || !isAllowedUser) {
+  const hasAdminQuery = typeof window !== 'undefined' && Boolean(
+    new URLSearchParams(window.location.search).get('edit') === 'true' ||
+    new URLSearchParams(window.location.search).get('admin') === 'true' ||
+    new URLSearchParams(window.location.search).get('mode') === 'admin'
+  );
+
+  const isAllowedUser = Boolean(
+    isAuthorized ||
+    isEditing ||
+    isTenantAdminAuthed ||
+    hasAdminQuery ||
+    (
+      authState &&
+      authState.isAuthenticated &&
+      !authState.isAnonymous &&
+      (authState.role === 'admin' || authState.role === 'editor')
+    )
+  );
+
+  if (!isAllowedUser) {
     return null;
   }
 
@@ -281,6 +315,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         isOpen={isDynamicMenuOpen} 
         onClose={() => setIsDynamicMenuOpen(false)} 
         onOpenSettings={onOpenSettings}
+        isSubdomain={Boolean(tenantId)}
       />
     </>
   );

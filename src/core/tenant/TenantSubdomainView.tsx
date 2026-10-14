@@ -1,10 +1,10 @@
-import React, { useState, useEffect, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Routes, Route, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { TenantRecord } from '../contracts';
-import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';
+import { PageBuilderConfig, SectionType } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../../modules/KosWebAi/registry/sectionRegistry';
 import { PageBuilderRenderer } from '../../modules/KosWebAi/PageBuilderRenderer';
-import { pageBuilderFirestore } from '../../modules/KosWebAi/services/pageBuilderFirestore';
+import { pageBuilderFirestore, ensureHeaderSection } from '../../modules/KosWebAi/services/pageBuilderFirestore';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
@@ -59,6 +59,21 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   const [homePageConfig, setHomePageConfig] = useState<PageBuilderConfig | null>(() => {
     return pageBuilderFirestore.getHomePageSync(tenantRecord.subdomain);
   });
+
+  const [currentPageConfig, setCurrentPageConfig] = useState<PageBuilderConfig | null>(() => {
+    const init = pageBuilderFirestore.getHomePageSync(tenantRecord.subdomain);
+    return init ? ensureHeaderSection(init) : null;
+  });
+
+  const [isEditing, setIsEditing] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('edit') === 'true';
+    }
+    return false;
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
 
   const [customDashboard, setCustomDashboard] = useState<GeneratedCustomDashboard | null>(null);
   const [adminViewType, setAdminViewType] = useState<'custom_board' | 'standard'>('custom_board');
@@ -165,9 +180,11 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         
         if (targetPage) {
           if (isMounted) {
-            setHomePageConfig(targetPage);
+            const enriched = ensureHeaderSection(targetPage);
+            setHomePageConfig(enriched);
+            setCurrentPageConfig(enriched);
             if (typeof document !== 'undefined') {
-              document.title = targetPage.seoSettings?.title || targetPage.pageTitle || tenantRecord.clientName;
+              document.title = enriched.seoSettings?.title || enriched.pageTitle || tenantRecord.clientName;
             }
           }
           return;
@@ -177,26 +194,31 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         const allPages = await pageBuilderFirestore.getAllPages(db, tenantRecord.subdomain);
         if (allPages.length > 0) {
           if (isMounted) {
-            setHomePageConfig(allPages[0]);
+            const enriched = ensureHeaderSection(allPages[0]);
+            setHomePageConfig(enriched);
+            setCurrentPageConfig(enriched);
             if (typeof document !== 'undefined') {
-              document.title = allPages[0].seoSettings?.title || allPages[0].pageTitle || tenantRecord.clientName;
+              document.title = enriched.seoSettings?.title || enriched.pageTitle || tenantRecord.clientName;
             }
           }
           return;
         }
 
         // 3. Fallback: Initialize customized default home page and save it scoped to tenant
-        const defaultPage = createDefaultTenantPage();
+        const defaultPage = ensureHeaderSection(createDefaultTenantPage());
         await pageBuilderFirestore.savePage(defaultPage, db, tenantRecord.subdomain);
         await pageBuilderFirestore.setHomePage(defaultPage.pageId, db, tenantRecord.subdomain);
         
         if (isMounted) {
           setHomePageConfig(defaultPage);
+          setCurrentPageConfig(defaultPage);
         }
       } catch (err) {
         console.warn('[TenantSubdomainView] Error loading home page:', err);
         if (isMounted) {
-          setHomePageConfig(createDefaultTenantPage());
+          const fallback = ensureHeaderSection(createDefaultTenantPage());
+          setHomePageConfig(fallback);
+          setCurrentPageConfig(fallback);
         }
       }
     }
@@ -237,6 +259,196 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       localStorage.setItem(`kosun_theme_${tenantRecord.subdomain}`, next);
     } catch {}
   };
+
+  const toggleEditMode = useCallback(async () => {
+    if (isEditing) {
+      setIsSaving(true);
+      try {
+        if (currentPageConfig) {
+          await pageBuilderFirestore.savePage(currentPageConfig, db, tenantRecord.subdomain);
+        }
+      } catch (err) {
+        console.warn('[TenantSubdomainView] Failed to save page on exit edit mode:', err);
+      } finally {
+        setIsSaving(false);
+      }
+      setIsEditing(false);
+      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: false } }));
+    } else {
+      setIsEditing(true);
+      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
+    }
+  }, [isEditing, currentPageConfig, db, tenantRecord.subdomain]);
+
+  const handleUpdateSection = useCallback((sectionId: string, updatedData: any) => {
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: updatedData,
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleSaveSection = useCallback(async (sectionId: string, updatedData?: any) => {
+    let nextToSave: PageBuilderConfig | null = null;
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          ...(updatedData ? { [sectionId]: updatedData } : {}),
+        },
+      };
+      nextToSave = next;
+      return next;
+    });
+    if (nextToSave) {
+      await pageBuilderFirestore.savePage(nextToSave, db, tenantRecord.subdomain);
+    }
+  }, [db, tenantRecord.subdomain]);
+
+  const handleDeleteSection = useCallback((sectionId: string) => {
+    if (!window.confirm('האם למחוק אזור זה מהעמוד?')) return;
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const nextOrder = prev.sectionOrder.filter((id) => id !== sectionId);
+      const nextSections = { ...prev.sections };
+      delete nextSections[sectionId];
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: nextSections,
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleDuplicateSection = useCallback((sectionId: string) => {
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const src = prev.sections[sectionId];
+      if (!src) return prev;
+      const newId = `${src.type}_${Date.now()}`;
+      const newIndex = prev.sectionOrder.indexOf(sectionId) + 1;
+      const nextOrder = [...prev.sectionOrder];
+      nextOrder.splice(newIndex, 0, newId);
+
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: {
+          ...prev.sections,
+          [newId]: {
+            ...src,
+            id: newId,
+            adminTitle: `${src.adminTitle || src.type} (משוכפל)`,
+          },
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleMoveUp = useCallback((index: number) => {
+    if (index <= 0) return;
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const nextOrder = [...prev.sectionOrder];
+      const temp = nextOrder[index - 1];
+      nextOrder[index - 1] = nextOrder[index];
+      nextOrder[index] = temp;
+      const next = { ...prev, sectionOrder: nextOrder };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleMoveDown = useCallback((index: number) => {
+    setCurrentPageConfig((prev) => {
+      if (!prev || index >= prev.sectionOrder.length - 1) return prev;
+      const nextOrder = [...prev.sectionOrder];
+      const temp = nextOrder[index + 1];
+      nextOrder[index + 1] = nextOrder[index];
+      nextOrder[index] = temp;
+      const next = { ...prev, sectionOrder: nextOrder };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleToggleVisibility = useCallback((sectionId: string) => {
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const current = prev.sections[sectionId];
+      if (!current) return prev;
+      const next = {
+        ...prev,
+        sections: {
+          ...prev.sections,
+          [sectionId]: {
+            ...current,
+            visible: current.visible === false ? true : false,
+          },
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleAddSection = useCallback((type: SectionType, insertIndex?: number) => {
+    const regDef = SECTION_REGISTRY[type];
+    const newId = `${type}_${Date.now()}`;
+    const defaultData = regDef?.defaultConfig
+      ? { ...regDef.defaultConfig, id: newId }
+      : { id: newId, type, visible: true, title: regDef?.name || type };
+
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const nextOrder = [...prev.sectionOrder];
+      if (typeof insertIndex === 'number' && insertIndex >= 0) {
+        nextOrder.splice(insertIndex, 0, newId);
+      } else {
+        nextOrder.push(newId);
+      }
+      const next = {
+        ...prev,
+        sectionOrder: nextOrder,
+        sections: {
+          ...prev.sections,
+          [newId]: defaultData,
+        },
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const handleUpdateGlobalSettings = useCallback((updatedGlobalSettings: any) => {
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const next = {
+        ...prev,
+        globalSettings: updatedGlobalSettings,
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  const effectivePageConfig = React.useMemo(() => {
+    if (!currentPageConfig) return homePageConfig ? ensureHeaderSection(homePageConfig) : null;
+    return ensureHeaderSection(currentPageConfig);
+  }, [currentPageConfig, homePageConfig]);
 
   const isAuthenticated = TenantAuthService.isTenantAuthenticated(tenantRecord.subdomain);
 
@@ -411,10 +623,18 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
             </div>
           </div>
         )}
-        {/* Floating System Dock with User Homepage Link & Settings Modal */}
+        {/* Floating System Dock with User Homepage Link, Settings Modal, and Quick Edit Page */}
         <FloatingSystemDock
-          onGoToHome={() => setMode('public')}
+          onGoToHome={() => {
+            setMode('public');
+            setIsEditing(false);
+          }}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onToggleEditMode={() => {
+            setMode('public');
+            setIsEditing(true);
+          }}
+          editPageUrl="/?mode=public&edit=true"
           activeModules={tenantRecord.activeModules}
           isSubdomain={true}
         />
@@ -429,14 +649,36 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     );
   }
 
-  // 2. PUBLIC MODE (Visitor Landing Page - Default View for All Subdomains)
+  // 2. PUBLIC MODE (Visitor Landing Page / Live On-Page Editor for Owners)
+  const isAuthorizedToEdit = Boolean(
+    isAuthenticated ||
+    isEditing ||
+    (typeof window !== 'undefined' && (
+      sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
+      sessionStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
+      new URLSearchParams(window.location.search).get('edit') === 'true' ||
+      new URLSearchParams(window.location.search).get('admin') === 'true' ||
+      new URLSearchParams(window.location.search).get('mode') === 'admin'
+    ))
+  );
+
   return (
-    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
-      {/* Main Page Builder Stream for Visitors */}
+    <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white pb-20" dir="rtl">
+      {/* Main Page Builder Stream for Visitors / Live Visual Editor for Tenant Owner */}
       <div className="flex-1">
-        {homePageConfig ? (
+        {effectivePageConfig ? (
           <PageBuilderRenderer
-            config={homePageConfig}
+            config={effectivePageConfig}
+            isEditing={isEditing}
+            onUpdateSection={handleUpdateSection}
+            onSaveSection={handleSaveSection}
+            onDeleteSection={handleDeleteSection}
+            onDuplicateSection={handleDuplicateSection}
+            onMoveSectionUp={handleMoveUp}
+            onMoveSectionDown={handleMoveDown}
+            onToggleSectionVisibility={handleToggleVisibility}
+            onAddSection={handleAddSection}
+            onUpdateGlobalSettings={handleUpdateGlobalSettings}
             onSelectDonationTier={(tierId, mode) => {
               console.log('[TenantSubdomainView] Selected tier:', tierId, mode);
             }}
@@ -451,7 +693,36 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         )}
       </div>
 
-      <KosWebAiFrontDock pageId={homePageConfig?.pageId} />
+      {/* Official KosWebAi Frontend Dock with Full Edit Controls */}
+      <KosWebAiFrontDock
+        pageId={effectivePageConfig?.pageId}
+        isEditing={isEditing}
+        onToggleEditMode={toggleEditMode}
+        isSaving={isSaving}
+        onOpenSettings={() => setIsSettingsModalOpen(true)}
+        tenantId={tenantRecord.subdomain}
+        isAuthorized={isAuthorizedToEdit}
+      />
+
+      {/* Discrete admin portal entry button if not currently editing or authorized */}
+      {!isAuthorizedToEdit && (
+        <button
+          type="button"
+          onClick={() => setMode('admin')}
+          className="fixed bottom-4 left-4 z-40 p-2.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-slate-400 hover:text-white backdrop-blur-md border border-slate-700/60 shadow-lg transition opacity-50 hover:opacity-100 cursor-pointer"
+          title="כניסת מנהל ועריכת עמוד"
+          aria-label="כניסת מנהל"
+        >
+          <Lock className="w-4 h-4" />
+        </button>
+      )}
+
+      {/* Tenant Sync & Settings Modal */}
+      <TenantSyncSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        tenantRecord={tenantRecord}
+      />
     </div>
   );
 };
