@@ -502,6 +502,11 @@ export const WorkbenchApp: React.FC = () => {
                 />
               );
             })}
+            {/* Communities & legacy alias routes */}
+            <Route path="/communities/*" element={<Navigate to="/crm-groups" replace />} />
+            <Route path="/together/*" element={<Navigate to="/crm-groups" replace />} />
+            <Route path="/crm-groups-hub/*" element={<Navigate to="/crm-groups" replace />} />
+            <Route path="/KosTogether/*" element={<Navigate to="/crm-groups" replace />} />
           </Routes>
         </main>
       </div>

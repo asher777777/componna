@@ -58,29 +58,62 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     return 'public';
   });
 
+  const [isEditing, setIsEditing] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('edit') === 'true';
+    }
+    return false;
+  });
+
+  const [isSaving, setIsSaving] = useState(false);
+
   useEffect(() => {
-    sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, mode === 'admin' ? 'true' : 'false');
+    sessionStorage.setItem(`tenant_view_mode_${tenantRecord.subdomain}`, mode);
+    if (mode === 'admin') {
+      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+    }
   }, [mode, tenantRecord.subdomain]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('mode') === 'public' || params.get('public') === 'true') {
       setMode('public');
-      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
     } else if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
       setMode('admin');
+      sessionStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
       sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+    }
+
+    // Clean noisy parameters (?mode=, ?admin=, ?tenant=) from the URL bar immediately
+    if (typeof window !== 'undefined' && (params.has('mode') || params.has('admin') || params.has('tenant'))) {
+      params.delete('mode');
+      params.delete('admin');
+      params.delete('tenant');
+      const cleanSearch = params.toString() ? `?${params.toString()}` : '';
+      const cleanUrl = `${window.location.pathname}${cleanSearch}${window.location.hash}`;
+      window.history.replaceState(null, '', cleanUrl);
     }
   }, [location.search, tenantRecord.subdomain]);
 
   useEffect(() => {
     const handleGoToPublicHome = () => {
       setMode('public');
-      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
+    };
+    const handleToggleEdit = (e: any) => {
+      const targetState = e?.detail?.isEditMode !== undefined ? Boolean(e.detail.isEditMode) : !isEditing;
+      if (mode === 'admin' && targetState) {
+        setMode('public');
+      }
+      setIsEditing(targetState);
     };
     window.addEventListener('kosun_navigate_home', handleGoToPublicHome);
-    return () => window.removeEventListener('kosun_navigate_home', handleGoToPublicHome);
-  }, [tenantRecord.subdomain]);
+    window.addEventListener('kosun_toggle_edit_mode', handleToggleEdit);
+    return () => {
+      window.removeEventListener('kosun_navigate_home', handleGoToPublicHome);
+      window.removeEventListener('kosun_toggle_edit_mode', handleToggleEdit);
+    };
+  }, [tenantRecord.subdomain, mode, isEditing]);
 
   const isControlCenter = location.pathname === '/' || location.pathname.startsWith('/control-center');
 
@@ -92,16 +125,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     const init = pageBuilderFirestore.getHomePageSync(tenantRecord.subdomain);
     return init ? ensureHeaderSection(init) : null;
   });
-
-  const [isEditing, setIsEditing] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const p = new URLSearchParams(window.location.search);
-      return p.get('edit') === 'true';
-    }
-    return false;
-  });
-
-  const [isSaving, setIsSaving] = useState(false);
 
   const [customDashboard, setCustomDashboard] = useState<GeneratedCustomDashboard | null>(null);
   const [adminViewType, setAdminViewType] = useState<'custom_board' | 'standard'>('custom_board');
@@ -521,7 +544,17 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   const allowedModules = REGISTERED_MODULES.filter((m) => {
     if (SYSTEM_MODULES.has(m.id)) return false;
-    return activeModuleIds.some((id) => id.toLowerCase() === m.id.toLowerCase());
+    return activeModuleIds.some((id) => {
+      const lowerId = id.toLowerCase();
+      const lowerM = m.id.toLowerCase();
+      return lowerId === lowerM ||
+        (lowerM === 'kostogether' && lowerId === 'crm-groups-hub') ||
+        (lowerM === 'crm-groups-hub' && lowerId === 'kostogether') ||
+        (lowerM === 'ksf' && lowerId === 'smart-form-builder') ||
+        (lowerM === 'smart-form-builder' && lowerId === 'ksf') ||
+        (lowerM === 'koswhatsup' && lowerId === 'whatsapp-green-api-hub') ||
+        (lowerM === 'whatsapp-green-api-hub' && lowerId === 'koswhatsup');
+    });
   });
 
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
@@ -619,6 +652,10 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               })}
               {/* Fallback alias routes for full workbench compatibility */}
               <Route path="/smart-forms/*" element={<Navigate to="/ksf" replace />} />
+              <Route path="/communities/*" element={<Navigate to="/crm-groups" replace />} />
+              <Route path="/together/*" element={<Navigate to="/crm-groups" replace />} />
+              <Route path="/crm-groups-hub/*" element={<Navigate to="/crm-groups" replace />} />
+              <Route path="/KosTogether/*" element={<Navigate to="/crm-groups" replace />} />
               <Route path="*" element={<Navigate to={defaultRoute} replace />} />
             </Routes>
           </main>
@@ -638,14 +675,17 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           isSubdomain={true}
           activeModules={allowedModules.map((m) => m.id)}
           onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onToggleEditMode={() => {
+            setMode('public');
+            setIsEditing(true);
+          }}
           onGoToHome={() => {
             setMode('public');
-            sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'false');
             const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
-            const targetUrl = isLocal ? `/?tenant=${tenantRecord.subdomain}&mode=public` : '/?mode=public';
+            const targetUrl = isLocal ? `/?tenant=${tenantRecord.subdomain}` : '/';
             window.location.href = targetUrl;
           }}
-          homeUrl={typeof window !== 'undefined' && (window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1')) ? `/?tenant=${tenantRecord.subdomain}&mode=public` : '/?mode=public'}
+          homeUrl={typeof window !== 'undefined' && (window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1')) ? `/?tenant=${tenantRecord.subdomain}` : '/'}
         />
       </div>
     );

@@ -166,9 +166,9 @@ export const HomePage: React.FC = () => {
     if (matchedTenant && matchedTenant.subdomain && !RESERVED_SUBDOMAINS.includes(matchedTenant.subdomain.toLowerCase())) {
       const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
       if (isLocal) {
-        window.location.href = `${window.location.origin}/?tenant=${matchedTenant.subdomain}&mode=admin`;
+        window.location.href = `${window.location.origin}/?tenant=${matchedTenant.subdomain}`;
       } else {
-        window.location.href = `https://${matchedTenant.fullDomain}/?mode=admin`;
+        window.location.href = `https://${matchedTenant.fullDomain}/brand-dna`;
       }
       return;
     }

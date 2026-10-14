@@ -37,6 +37,7 @@ export interface KosunUniversalDockProps {
   tenantId?: string;
   className?: string;
   isGlobalFallback?: boolean;
+  isAuthorized?: boolean;
 }
 
 /**
@@ -61,6 +62,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   tenantId: propTenantId,
   className = '',
   isGlobalFallback = false,
+  isAuthorized: propIsAuthorized,
 }: KosunUniversalDockProps & { isGlobalFallback?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -248,16 +250,16 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   // Toggle Live Edit
   const handleToggleEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const next = !isEditing;
+    setInternalIsEditing(next);
     if (onToggleEditMode) {
       onToggleEditMode();
     } else if (editPageUrl) {
       navigate(editPageUrl);
     } else {
-      const next = !isEditing;
-      setInternalIsEditing(next);
       window.dispatchEvent(new CustomEvent('kosun_toggle_edit_mode', { detail: { isEditMode: next } }));
-      window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: next } }));
     }
+    window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: next } }));
   };
 
   // Open SEO & Page Settings
@@ -283,11 +285,15 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   const isSuperAdminBypass = typeof window !== 'undefined' && sessionStorage.getItem('kosun_super_admin_bypass') === 'true';
 
   const isAuthorized = Boolean(
-    isAdminOrEditor ||
-    isTenantAuthed ||
-    isSuperAdminBypass ||
-    (hasAdminQuery && (isAdminOrEditor || isTenantAuthed)) ||
-    isEditing
+    propIsAuthorized !== undefined
+      ? propIsAuthorized
+      : (
+          isAdminOrEditor ||
+          isTenantAuthed ||
+          isSuperAdminBypass ||
+          (hasAdminQuery && (isAdminOrEditor || isTenantAuthed)) ||
+          isEditing
+        )
   );
 
   if (isGlobalFallback && hasExplicitDock) {

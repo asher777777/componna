@@ -51,13 +51,18 @@ export async function fetchGroupsAndContactsData(
   const colls = getCollNames(customCollections);
 
   // 1. Fetch contacts with fallback to root collection if scoped collection is empty
-  let contactsQuery = ownerId
-    ? query(collection(db, colls.contacts), where('ownerId', '==', ownerId))
-    : query(collection(db, colls.contacts));
+  let contactsSnap: any = { empty: true, forEach: () => {} };
+  try {
+    const contactsQuery = ownerId
+      ? query(collection(db, colls.contacts), where('ownerId', '==', ownerId))
+      : query(collection(db, colls.contacts));
 
-  let contactsSnap = await getDocs(contactsQuery);
-  if (contactsSnap.empty && ownerId) {
-    contactsSnap = await getDocs(query(collection(db, colls.contacts)));
+    contactsSnap = await getDocs(contactsQuery);
+    if (contactsSnap.empty && ownerId) {
+      contactsSnap = await getDocs(query(collection(db, colls.contacts)));
+    }
+  } catch (scopedErr) {
+    console.warn('[KosTogether] Scoped contacts query error, trying root fallback:', scopedErr);
   }
 
   // Fallback if scoped collection is empty: check root contacts or master contacts
@@ -110,7 +115,7 @@ export async function fetchGroupsAndContactsData(
   const citiesSet = new Set<string>();
   const isNumericTag = (t: string) => /^\d+$/.test(t.trim());
 
-  contactsSnap.forEach((d) => {
+  contactsSnap.forEach((d: any) => {
     const data = d.data();
     if (data.status === 'trashed' || data.kosun_crm_status === 'trashed') return;
 
@@ -188,23 +193,37 @@ export async function fetchGroupsAndContactsData(
   });
 
   // 2. Fetch saved groups from crm_groups collection with root fallback
-  let groupsQuery = ownerId
-    ? query(collection(db, colls.groups), where('ownerId', '==', ownerId))
-    : query(collection(db, colls.groups));
+  let groupsSnap: any = { empty: true, forEach: () => {} };
+  try {
+    const groupsQuery = ownerId
+      ? query(collection(db, colls.groups), where('ownerId', '==', ownerId))
+      : query(collection(db, colls.groups));
 
-  let groupsSnap = await getDocs(groupsQuery);
-  if (groupsSnap.empty && ownerId) {
-    groupsSnap = await getDocs(query(collection(db, colls.groups)));
+    groupsSnap = await getDocs(groupsQuery);
+    if (groupsSnap.empty && ownerId) {
+      groupsSnap = await getDocs(query(collection(db, colls.groups)));
+    }
+  } catch (scopedGroupsErr) {
+    console.warn('[KosTogether] Scoped groups query error:', scopedGroupsErr);
   }
 
-  // Fallback if scoped collection is empty
-  if (groupsSnap.empty && ownerId) {
-    groupsSnap = await getDocs(query(collection(db, colls.groups)));
+  // Fallback if scoped collection is empty or failed
+  if (groupsSnap.empty) {
+    try {
+      const subMatch = colls.groups.match(/^tenants\/([^/]+)\/crm_groups$/);
+      const currentSub = subMatch && subMatch[1] !== '_master' ? subMatch[1].toLowerCase() : null;
+      if (currentSub) {
+        const subSnap = await getDocs(query(collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.GROUPS)));
+        if (!subSnap.empty) {
+          groupsSnap = subSnap;
+        }
+      }
+    } catch {}
   }
 
   const savedGroups = new Map<string, SmartGroup>();
 
-  groupsSnap.forEach((gDoc) => {
+  groupsSnap.forEach((gDoc: any) => {
     const gData = gDoc.data() as SmartGroup;
     const gName = (gData.name || '').trim();
 

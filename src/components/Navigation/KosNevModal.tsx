@@ -86,6 +86,12 @@ export const MODULE_META_CONFIG: Record<string, {
     englishRest: 'Together CRM',
     icon: Layers,
   },
+  'crm-groups-hub': {
+    hebrewName: 'ניהול קהילות וסגמנטים CRM',
+    englishPrefix: 'KOS',
+    englishRest: 'Together CRM',
+    icon: Layers,
+  },
   'ksf': {
     hebrewName: 'מחולל טפסים ושאלונים שלביים',
     englishPrefix: 'KOS',
@@ -234,8 +240,14 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
       // 2. Filter by activeModules collection if provided
       if (activeModules && activeModules.length > 0) {
         const lowerList = activeModules.map((x) => x.toLowerCase());
-        const match = lowerList.includes(m.id.toLowerCase());
-        if (!match) return false;
+        const isMatch = lowerList.includes(m.id.toLowerCase()) ||
+          (m.id.toLowerCase() === 'kostogether' && lowerList.includes('crm-groups-hub')) ||
+          (m.id.toLowerCase() === 'crm-groups-hub' && lowerList.includes('kostogether')) ||
+          (m.id.toLowerCase() === 'ksf' && lowerList.includes('smart-form-builder')) ||
+          (m.id.toLowerCase() === 'smart-form-builder' && lowerList.includes('ksf')) ||
+          (m.id.toLowerCase() === 'koswhatsup' && lowerList.includes('whatsapp-green-api-hub')) ||
+          (m.id.toLowerCase() === 'whatsapp-green-api-hub' && lowerList.includes('koswhatsup'));
+        if (!isMatch) return false;
       }
 
       // 3. Search query filter
@@ -244,14 +256,22 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
         const heb = meta?.hebrewName || m.name;
         const eng = `${meta?.englishPrefix || 'KOS'} ${meta?.englishRest || m.id}`;
         const query = searchQuery.toLowerCase();
-        return heb.toLowerCase().includes(query) || eng.toLowerCase().includes(query);
+        return heb.toLowerCase().includes(query) || eng.toLowerCase().includes(query) || (m.name || '').toLowerCase().includes(query);
       }
 
       return true;
     });
 
+    // De-duplicate by canonical route so legacy alias routes don't show twice
+    const seenRoutes = new Set<string>();
+    const uniqueList = list.filter((m) => {
+      if (seenRoutes.has(m.route)) return false;
+      seenRoutes.add(m.route);
+      return true;
+    });
+
     // Sort dynamically by usage count (highest first), then alphabetically
-    return list.sort((a, b) => {
+    return uniqueList.sort((a, b) => {
       const countA = moduleUsageStats[a.id] || 0;
       const countB = moduleUsageStats[b.id] || 0;
       if (countB !== countA) return countB - countA;

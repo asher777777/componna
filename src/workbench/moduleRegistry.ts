@@ -178,6 +178,14 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'crm_groups',
   },
   {
+    id: 'crm-groups-hub',
+    name: 'KosTogether (Legacy Route)',
+    description: 'KOSUN Communities Hub - תאימות מלאה למזהה crm-groups-hub ולנתיבי קהילות.',
+    component: KosTogetherStandaloneView,
+    route: '/crm-groups',
+    collectionPrefix: 'crm_groups',
+  },
+  {
     id: 'ksf',
     name: 'KSF',
     description: 'KOSUN Smart Forms - מערכת טפסים שלביים (שאלה אחת בלבד בכל שלב), תפריט צף, הקראה קולית ובידוד מודולרי מלא.',

@@ -109,9 +109,10 @@ export const TenantAppResolver: React.FC = () => {
       const isSubdomainHost = Boolean(extractSubdomainFromHost(hostname));
       const hasLocalSessionTenant = isLocal && Boolean(sessionStorage.getItem('kosun_active_tenant_id') && sessionStorage.getItem('kosun_active_tenant_id') !== ROOT_TENANT_ID);
       if (isSubdomainHost || hasLocalSessionTenant) {
-        if (p.has('tenant') || p.has('mode')) {
+        if (p.has('tenant') || p.has('mode') || p.has('admin')) {
           p.delete('tenant');
           p.delete('mode');
+          p.delete('admin');
           const remainingQuery = p.toString() ? `?${p.toString()}` : '';
           const cleanUrl = `${window.location.pathname}${remainingQuery}${window.location.hash}`;
           window.history.replaceState(null, '', cleanUrl);

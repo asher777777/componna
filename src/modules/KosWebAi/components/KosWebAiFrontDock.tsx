@@ -37,6 +37,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
       onOpenSettings={onOpenSettings}
       tenantId={tenantId}
       className={className}
+      isAuthorized={isAuthorized}
     />
   );
 };

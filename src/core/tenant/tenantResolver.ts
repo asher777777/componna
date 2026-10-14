@@ -138,8 +138,8 @@ export function extractSubdomainFromHost(hostname: string): string | null {
 
 /**
  * Builds canonical URL to a tenant's admin dashboard:
- * - On local development (localhost / 127.0.0.1): `/?tenant=xyz&mode=admin`
- * - In production: `https://xyz.kosun.pro/?mode=admin` (or custom fullDomain)
+ * - On local development (localhost / 127.0.0.1): `/?tenant=xyz`
+ * - In production: `https://xyz.kosun.pro/brand-dna` (or custom fullDomain) - 100% clean, zero noisy query params
  */
 export function buildTenantAdminUrl(subdomain: string, fullDomain?: string): string {
   if (!subdomain) return '/';
@@ -153,11 +153,11 @@ export function buildTenantAdminUrl(subdomain: string, fullDomain?: string): str
   );
 
   if (isLocal) {
-    return `/?tenant=${encodeURIComponent(cleanSub)}&mode=admin`;
+    return `/?tenant=${encodeURIComponent(cleanSub)}`;
   }
 
   const domain = fullDomain ? fullDomain.trim().toLowerCase() : `${cleanSub}.kosun.pro`;
-  return `https://${domain}/?mode=admin`;
+  return `https://${domain}/brand-dna`;
 }
 
 /**
