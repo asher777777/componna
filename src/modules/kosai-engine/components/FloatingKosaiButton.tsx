@@ -22,15 +22,20 @@ import {
   Image,
   Users,
   User,
-  Target
+  Target,
+  Eye,
+  LogOut
 } from 'lucide-react';
 import { REGISTERED_MODULES } from '../../../workbench/moduleRegistry';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
+import { useTenantScope } from '../../../core/tenant';
+import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAuthService';
 
 export const FloatingKosaiButton: React.FC = () => {
   const { firebaseApp } = useSystemConnection();
+  const { tenantId, isRootTenant } = useTenantScope();
   const [authState, setAuthState] = useState<AuthState | null>(null);
   const { isOpen, setIsOpen, activeRoleMode, activeModule } = useKosai();
 
@@ -463,7 +468,48 @@ export const FloatingKosaiButton: React.FC = () => {
             <span>KosNev</span>
           </button>
 
-          {/* 4. Day / Night Mode Toggle */}
+          {/* 4. Subdomain Tenant Admin Controls (Unified Single Menu standard) */}
+          {!isRootTenant && (
+            <>
+              {/* View as Visitor */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('admin');
+                  url.pathname = '/';
+                  window.location.href = url.toString();
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:hover:bg-emerald-900/80 text-emerald-700 dark:text-emerald-300 transition text-xs font-bold cursor-pointer"
+                title="צפייה באתר כפי שרואה מבקר"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">צפייה באתר</span>
+              </button>
+
+              {/* Logout */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(false);
+                  TenantAuthService.logoutTenant(tenantId);
+                  const url = new URL(window.location.href);
+                  url.searchParams.delete('admin');
+                  url.pathname = '/';
+                  window.location.href = url.toString();
+                }}
+                className="p-2 rounded-2xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/60 dark:hover:bg-rose-900/80 text-rose-600 dark:text-rose-400 transition cursor-pointer"
+                title="התנתק ממערכת הניהול"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </>
+          )}
+
+          {/* 5. Day / Night Mode Toggle */}
           <button
             type="button"
             onClick={toggleTheme}

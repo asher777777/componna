@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { BrandDnaProvider, useBrandDna } from './context/BrandDnaContext';
+import React, { useState, useEffect, useContext } from 'react';
+import { BrandDnaProvider, useBrandDna, BrandDnaContext } from './context/BrandDnaContext';
 import { BrandIdentitySection } from './components/BrandIdentitySection';
 import { MarketResearchAgentSection } from './components/MarketResearchAgentSection';
 import { BrandVoiceSection } from './components/BrandVoiceSection';
@@ -355,13 +355,14 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   );
 };
 
-export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = ({
-  initialTab = 'identity',
-  initialMode = 'tabs',
-}) => {
+export const BrandDnaHubStandaloneView: React.FC<BrandDnaViewProps> = (props) => {
+  const existingContext = useContext(BrandDnaContext);
+  if (existingContext) {
+    return <BrandDnaContent {...props} />;
+  }
   return (
     <BrandDnaProvider>
-      <BrandDnaContent initialTab={initialTab} initialMode={initialMode} />
+      <BrandDnaContent {...props} />
     </BrandDnaProvider>
   );
 };

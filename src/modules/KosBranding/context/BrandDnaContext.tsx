@@ -30,7 +30,7 @@ export interface BrandDnaContextValue {
   removeVibeImage: (url: string) => Promise<boolean>;
 }
 
-const BrandDnaContext = createContext<BrandDnaContextValue | undefined>(undefined);
+export const BrandDnaContext = createContext<BrandDnaContextValue | undefined>(undefined);
 
 export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
@@ -61,15 +61,18 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         unsubscribeSnapshot = onSnapshot(
           docRef,
           (snap) => {
+            // Ignore local pending writes to avoid race conditions while typing in form inputs
+            if (snap.metadata.hasPendingWrites) return;
+
             if (snap.exists() && mounted) {
               const remoteData = snap.data() as BrandDna;
               const isMaster = tenantId === '_master';
               const baseDefault = isMaster ? DEFAULT_BRAND_DNA : createTenantInitialBrandDna(tenantId);
 
-              // Cleanse accidental master data leak into custom tenant
+              // Cleanse accidental master data leak or slug fallback into custom tenant
               if (!isMaster) {
-                if (remoteData.identity?.companyName === 'קושאן') {
-                  remoteData.identity.companyName = tenantId;
+                if (remoteData.identity?.companyName === 'קושאן' || remoteData.identity?.companyName === tenantId) {
+                  remoteData.identity.companyName = '';
                 }
                 if (remoteData.identity?.logoUrl === '/images/kosun-logo.svg') {
                   remoteData.identity.logoUrl = '';
@@ -77,10 +80,19 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 if (remoteData.identity?.slogan === 'כל אדם זה נכס') {
                   remoteData.identity.slogan = '';
                 }
+                if (remoteData.identity?.companyVision?.includes('קושאן') || remoteData.identity?.companyVision?.includes(tenantId)) {
+                  remoteData.identity.companyVision = '';
+                }
+                if (remoteData.audience?.mainUvp?.includes('קושאן') || remoteData.audience?.mainUvp?.includes(tenantId)) {
+                  remoteData.audience.mainUvp = '';
+                }
               }
 
               setBrandDna((prev) => {
-                if (JSON.stringify(prev) === JSON.stringify(remoteData)) return prev;
+                const { updatedAt: _p, ...prevClean } = prev as any;
+                const { updatedAt: _r, ...remoteClean } = remoteData as any;
+                if (JSON.stringify(prevClean) === JSON.stringify(remoteClean)) return prev;
+
                 return {
                   ...baseDefault,
                   ...remoteData,
@@ -308,42 +320,42 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const recommendations: string[] = [];
 
     // Identity (30%)
-    if (brandDna.identity.companyName.trim()) score += 8;
+    if (brandDna?.identity?.companyName?.trim()) score += 8;
     else recommendations.push('הגדר שם חברה או ארגון');
 
-    if (brandDna.identity.slogan.trim()) score += 7;
+    if (brandDna?.identity?.slogan?.trim()) score += 7;
     else recommendations.push('הוסף סלוגן קליט');
 
-    if (brandDna.identity.companyVision.trim()) score += 8;
+    if (brandDna?.identity?.companyVision?.trim()) score += 8;
     else recommendations.push('נסח חזון מפורט');
 
-    if (brandDna.identity.logoUrl) score += 7;
+    if (brandDna?.identity?.logoUrl) score += 7;
     else recommendations.push('העלה לוגו של המותג');
 
     // Voice & Tone (25%)
-    if (brandDna.voice.powerWords.length >= 3) score += 10;
+    if ((brandDna?.voice?.powerWords?.length || 0) >= 3) score += 10;
     else recommendations.push('הוסף לפחות 3 מילות כוח שיווקיות');
 
-    if (brandDna.voice.forbiddenWords.length >= 1) score += 8;
+    if ((brandDna?.voice?.forbiddenWords?.length || 0) >= 1) score += 8;
     else recommendations.push('הגדר מילים אסורות לשימוש (Guardrails)');
 
-    if (brandDna.voice.genderAddressing) score += 7;
+    if (brandDna?.voice?.genderAddressing && ((brandDna?.voice?.powerWords?.length || 0) > 0 || (brandDna?.voice?.forbiddenWords?.length || 0) > 0)) score += 7;
 
     // Audience & UVP (25%)
-    if (brandDna.audience.mainUvp.trim()) score += 10;
+    if (brandDna?.audience?.mainUvp?.trim()) score += 10;
     else recommendations.push('הגדר הצעת ערך ייחודית (UVP)');
 
-    if (brandDna.audience.personas.length >= 1) score += 8;
+    if ((brandDna?.audience?.personas?.length || 0) >= 1) score += 8;
     else recommendations.push('צור לפחות פרסונת לקוח אחת');
 
-    if (brandDna.audience.commonObjections.length >= 1) score += 7;
+    if ((brandDna?.audience?.commonObjections?.length || 0) >= 1) score += 7;
     else recommendations.push('הזן מענה לחשש או התנגדות נפוצה');
 
     // Trust & Legal (20%)
-    if (brandDna.trust.legalEntityId.trim()) score += 5;
-    if (brandDna.trust.contactPhone.trim() || brandDna.trust.contactEmail.trim()) score += 5;
-    if (brandDna.trust.refundPolicySummary.trim()) score += 5;
-    if (brandDna.trust.securityBadgeText.trim()) score += 5;
+    if (brandDna?.trust?.legalEntityId?.trim()) score += 5;
+    if (brandDna?.trust?.contactPhone?.trim()) score += 5;
+    if (brandDna?.trust?.refundPolicySummary?.trim()) score += 5;
+    if (brandDna?.trust?.securityBadgeText?.trim()) score += 5;
 
     return {
       completenessScore: Math.min(100, score),

@@ -219,6 +219,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   const [authVersion, setAuthVersion] = useState(0);
   const [isKosNevOpen, setIsKosNevOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpen = () => setIsKosNevOpen(true);
+    window.addEventListener('kosun_open_modules_menu', handleOpen);
+    return () => window.removeEventListener('kosun_open_modules_menu', handleOpen);
+  }, []);
   const [tenantTheme, setTenantTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem(`kosun_theme_${tenantRecord.subdomain}`) as 'light' | 'dark') || 'light';
   });
@@ -313,74 +319,9 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           </main>
         </div>
 
-        {/* Floating Kosun System Dock - Zero intrusive top header */}
-        <nav 
-          className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 bg-slate-900/95 text-white backdrop-blur-xl border border-slate-700/80 px-3.5 py-2 rounded-2xl shadow-2xl transition-all duration-300 animate-in fade-in"
-          dir="rtl"
-        >
-          {/* KosNev Module Launcher Button */}
-          <button
-            type="button"
-            onClick={() => setIsKosNevOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs shadow-md shadow-indigo-600/30 transition cursor-pointer"
-            title="תפריט רכיבים מוטענים (KosNev)"
-          >
-            <Grid className="w-4 h-4" />
-            <span className="font-mono">KosNev</span>
-            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-          </button>
-
-          {/* Subdomain domain badge */}
-          <span className="font-mono text-[11px] text-slate-300 px-2 py-1 bg-slate-800/80 rounded-lg border border-slate-700 hidden sm:inline-block" dir="ltr">
-            {tenantRecord.fullDomain}
-          </span>
-
-          {/* View as Visitor */}
-          <button
-            type="button"
-            onClick={() => {
-              const url = new URL(window.location.href);
-              url.searchParams.delete('admin');
-              url.pathname = '/';
-              window.location.href = url.toString();
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-600/80 hover:bg-emerald-500 text-white font-bold text-xs transition cursor-pointer"
-            title="צפייה באתר כפי שרואה מבקר"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">צפייה באתר</span>
-          </button>
-
-          {/* Day / Night Theme Toggle */}
-          <button
-            type="button"
-            onClick={toggleTenantTheme}
-            className="p-1.5 rounded-xl border border-slate-700 hover:bg-slate-800 text-amber-400 transition cursor-pointer"
-            title={tenantTheme === 'dark' ? 'מעבר למצב יום' : 'מעבר למצב לילה'}
-          >
-            {tenantTheme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-300" />}
-          </button>
-
-          {/* Logout */}
-          <button
-            type="button"
-            onClick={() => {
-              TenantAuthService.logoutTenant(tenantRecord.subdomain);
-              const url = new URL(window.location.href);
-              url.searchParams.delete('admin');
-              url.pathname = '/';
-              window.location.href = url.toString();
-            }}
-            className="p-1.5 rounded-xl border border-rose-500/40 bg-rose-500/10 hover:bg-rose-500/30 text-rose-400 transition cursor-pointer"
-            title="התנתק ממערכת הניהול"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-          </button>
-        </nav>
-
-        {/* KosNev Module Launcher Modal (Exact Manager UI Launcher) */}
+        {/* KosNev Module Launcher Modal (Triggered dynamically from K Menu) */}
         {isKosNevOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn" dir="rtl">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-md animate-fadeIn" dir="rtl">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl flex flex-col animate-scaleUp">
               
               <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 p-4 sm:p-5 flex items-center justify-between z-10">
@@ -451,18 +392,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
             </div>
           </div>
-        )}
-
-        {/* Floating Return Pill for other modules (when not in control center) */}
-        {!isControlCenter && (
-          <NavLink
-            to="/control-center"
-            className="fixed bottom-6 left-6 z-50 flex items-center gap-2 px-4 py-2.5 bg-slate-950/90 hover:bg-indigo-600 text-white rounded-2xl border border-indigo-500/30 hover:border-indigo-400 shadow-2xl backdrop-blur-xl transition group text-xs font-bold cursor-pointer"
-            title="חזרה מהירה למרכז השליטה"
-          >
-            <Sparkles className="w-4 h-4 text-indigo-400 group-hover:text-white" />
-            <span>מרכז השליטה</span>
-          </NavLink>
         )}
       </div>
     );

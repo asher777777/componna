@@ -17,17 +17,18 @@ export function createTenantInitialBrandDna(
     return DEFAULT_BRAND_DNA;
   }
 
-  const cleanName = clientName || tenantId;
+  // If a distinct client name was explicitly provided (not just the tenant slug), use it; otherwise start clean
+  const initialCompanyName = (clientName && clientName.trim() !== tenantId.trim()) ? clientName.trim() : '';
 
   return {
     identity: {
-      companyName: cleanName,
+      companyName: initialCompanyName,
       organizationType: 'חברה',
-      organizationPurpose: 'מתן שירותים ופתרונות מותאמים אישית ללקוחותינו',
+      organizationPurpose: '',
       memberCount: 'עד 10',
       slogan: '',
-      companyVision: `להעניק שירות מקצועי, אמין ואיכותי לכל לקוחות ${cleanName}.`,
-      shortVision: `איכות ושירות ללא פשרות.`,
+      companyVision: '',
+      shortVision: '',
       logoUrl: '',
       vibeImages: [],
     },
@@ -47,13 +48,13 @@ export function createTenantInitialBrandDna(
       },
       genderAddressing: 'plural',
       sectorCompliance: 'general',
-      powerWords: ['איכות', 'מקצועיות', 'שירות אישי', 'אמינות'],
-      forbiddenWords: ['זול', 'חלטורה'],
+      powerWords: [],
+      forbiddenWords: [],
       shabbatObservant: false,
     },
     audience: {
-      mainUvp: `פתרונות ייחודיים ומקצועיים המותאמים אישית עבורכם על ידי ${cleanName}.`,
-      targetAudiences: ['לקוחות פרטיים ועסקיים'],
+      mainUvp: '',
+      targetAudiences: [],
       personas: [],
       commonObjections: [],
     },
@@ -73,10 +74,10 @@ export function createTenantInitialBrandDna(
     trust: {
       legalEntityId: '',
       contactPhone: phone || '',
-      contactEmail: email || `${tenantId}@kosun.pro`,
-      officeAddress: 'ישראל',
-      refundPolicySummary: 'שירות אמין ושקוף בהתאם לחוק הגנת הצרכן.',
-      securityBadgeText: 'סליקה מאובטחת בתקן PCI-DSS ובהצפנת SSL 256-bit',
+      contactEmail: email || '',
+      officeAddress: '',
+      refundPolicySummary: '',
+      securityBadgeText: '',
       whatsappSupportNumber: phone ? phone.replace(/\D/g, '') : '',
     },
   };
@@ -99,16 +100,22 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
       if (snap.exists()) {
         const data = snap.data() as BrandDna;
 
-        // Cleanse accidental master data leak into custom tenant
+        // Cleanse accidental master data leak or slug fallback into custom tenant
         if (!isMaster) {
-          if (data.identity?.companyName === 'קושאן') {
-            data.identity.companyName = tenantId;
+          if (data.identity?.companyName === 'קושאן' || data.identity?.companyName === tenantId) {
+            data.identity.companyName = '';
           }
           if (data.identity?.logoUrl === '/images/kosun-logo.svg') {
             data.identity.logoUrl = '';
           }
           if (data.identity?.slogan === 'כל אדם זה נכס') {
             data.identity.slogan = '';
+          }
+          if (data.identity?.companyVision?.includes('קושאן') || data.identity?.companyVision?.includes(tenantId)) {
+            data.identity.companyVision = '';
+          }
+          if (data.audience?.mainUvp?.includes('קושאן') || data.audience?.mainUvp?.includes(tenantId)) {
+            data.audience.mainUvp = '';
           }
         }
 
@@ -129,8 +136,8 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
       if (legacySnap.exists()) {
         const legacyData = legacySnap.data() as BrandDna;
         if (!isMaster) {
-          if (legacyData.identity?.companyName === 'קושאן') {
-            legacyData.identity.companyName = tenantId;
+          if (legacyData.identity?.companyName === 'קושאן' || legacyData.identity?.companyName === tenantId) {
+            legacyData.identity.companyName = '';
           }
           if (legacyData.identity?.logoUrl === '/images/kosun-logo.svg') {
             legacyData.identity.logoUrl = '';

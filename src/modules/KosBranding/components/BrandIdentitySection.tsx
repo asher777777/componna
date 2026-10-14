@@ -290,9 +290,10 @@ export const BrandIdentitySection: React.FC = () => {
               </label>
               <input
                 type="text"
-                value={brandDna.identity.companyName}
+                value={brandDna?.identity?.companyName ?? ''}
                 onChange={(e) => updateIdentity({ companyName: e.target.value })}
                 placeholder="לדוגמה: קומונה טכנולוגיות בע״מ"
+                dir="auto"
                 className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors"
               />
             </div>
@@ -486,9 +487,10 @@ export const BrandIdentitySection: React.FC = () => {
             </label>
             <input
               type="text"
-              value={brandDna.identity.slogan}
+              value={brandDna?.identity?.slogan ?? ''}
               onChange={(e) => updateIdentity({ slogan: e.target.value })}
               placeholder="לדוגמה: מובילים את המהפכה הדיגיטלית שלך"
+              dir="auto"
               className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors"
             />
           </div>
@@ -502,9 +504,10 @@ export const BrandIdentitySection: React.FC = () => {
           </label>
           <input
             type="text"
-            value={brandDna.identity.organizationPurpose}
+            value={brandDna?.identity?.organizationPurpose ?? ''}
             onChange={(e) => updateIdentity({ organizationPurpose: e.target.value })}
             placeholder="תאר את ייעוד הארגון או בחר תבנית..."
+            dir="auto"
             className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors mb-2"
           />
           <div className="flex flex-wrap gap-2">
