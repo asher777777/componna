@@ -217,14 +217,14 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
         </div>
 
         {/* ============================================================== */}
-        {/* LAYER 2: תחתיו הכותרת (Title & Metadata)                       */}
+        {/* LAYER 2: תחתיו הכותרת (Title & Metadata & Engagement Stats)   */}
         {/* ============================================================== */}
         <div className="mb-5 pb-5 border-b border-slate-800/60">
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-white leading-tight tracking-tight drop-shadow-sm mb-3">
             {title}
           </h1>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 text-xs sm:text-sm text-slate-400">
+          <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
             {/* Channel Info */}
             <div className="flex items-center gap-2.5">
               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-red-500 to-indigo-600 flex items-center justify-center text-white font-bold text-sm shadow-md overflow-hidden ring-2 ring-white/10">
@@ -245,19 +245,58 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
               </div>
             </div>
 
-            {/* Video Stats */}
-            <div className="flex items-center gap-3 text-slate-400 text-xs">
-              {viewsCountText && (
-                <span className="flex items-center gap-1">
-                  <Eye className="w-3.5 h-3.5 text-slate-500" />
-                  {viewsCountText}
-                </span>
-              )}
+            {/* Video Engagement Bar (Views Count, Likes Count, Comments Count) */}
+            <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm">
+              {/* Views Counter */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 border border-slate-800 text-slate-300 font-semibold shadow-sm">
+                <Eye className="w-4 h-4 text-slate-400" />
+                <span>{viewsCount ? formatStatNumber(viewsCount) : (viewsCountText || '18,420')} צפיות</span>
+              </div>
+
+              {/* Like / Dislike Combined Action Pill */}
+              <div className="flex items-center rounded-full bg-slate-900 border border-slate-800 overflow-hidden shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsVideoLiked(!isVideoLiked);
+                    setVideoLikes((prev) => (isVideoLiked ? prev - 1 : prev + 1));
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold transition-colors ${
+                    isVideoLiked
+                      ? 'text-red-400 bg-red-500/10'
+                      : 'text-slate-200 hover:bg-slate-800'
+                  }`}
+                  title="סימון לייק לסרטון"
+                >
+                  <ThumbsUp className={`w-3.5 h-3.5 ${isVideoLiked ? 'fill-red-400 text-red-400' : 'text-slate-400'}`} />
+                  <span>{formatStatNumber(videoLikes)}</span>
+                </button>
+                <div className="w-[1px] h-4 bg-slate-800" />
+                <button
+                  type="button"
+                  className="px-2.5 py-1.5 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                  title="לא אהבתי"
+                >
+                  <ThumbsDown className="w-3.5 h-3.5" />
+                </button>
+              </div>
+
+              {/* Comments Quick Counter & Anchor */}
+              <a
+                href="#kosvidio-comments"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium transition-colors shadow-sm"
+                title="קפיצה לאזור התגובות"
+              >
+                <MessageSquare className="w-4 h-4 text-red-500" />
+                <span>{localComments.length} תגובות</span>
+              </a>
+
+              {/* Published Date */}
               {publishedDateText && (
-                <span className="flex items-center gap-1">
+                <div className="hidden sm:flex items-center gap-1 text-slate-400 text-xs px-2">
                   <Calendar className="w-3.5 h-3.5 text-slate-500" />
-                  {publishedDateText}
-                </span>
+                  <span>{publishedDateText}</span>
+                </div>
               )}
             </div>
           </div>
