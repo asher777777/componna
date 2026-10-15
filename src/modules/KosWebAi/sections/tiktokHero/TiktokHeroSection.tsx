@@ -72,6 +72,7 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMuted, setIsMuted] = useState<boolean>(video.muted ?? true);
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
+  const [isVideoLoaded, setIsVideoLoaded] = useState<boolean>(false);
 
   // Modal form states
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -317,7 +318,7 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
 
   // Video fallback sample
   const effectiveVideoUrl = video.videoUrl || 'https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-308-large.mp4';
-  const effectivePosterUrl = video.posterUrl || 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80';
+  const effectivePosterUrl = video.posterUrl || undefined;
 
   // Headline sizing classes
   const headlineClass = clsx(
@@ -360,8 +361,34 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
           loop={video.loop ?? true}
           muted={isMuted}
           playsInline
+          onCanPlay={() => setIsVideoLoaded(true)}
+          onPlaying={() => setIsVideoLoaded(true)}
+          onLoadedData={() => setIsVideoLoaded(true)}
           className="absolute inset-0 w-full h-full object-cover z-0 pointer-events-none"
         />
+
+        {/* KOSUN Luxury Animated Video Preloader */}
+        {!isVideoLoaded && (
+          <div className="absolute inset-0 z-[2] bg-gradient-to-b from-slate-950 via-slate-900 to-black flex flex-col items-center justify-center gap-3 select-none animate-in fade-in transition-opacity duration-700">
+            <div className="relative flex items-center justify-center">
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500/20 via-yellow-400/30 to-indigo-500/20 animate-ping absolute" />
+              <div className="w-16 h-16 rounded-2xl bg-slate-900/90 border border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.3)] flex items-center justify-center relative backdrop-blur-md">
+                <img
+                  src="/images/kosun-symbol.svg"
+                  alt="KOSUN"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = '/images/kosun-official-logo.png';
+                  }}
+                  className="w-9 h-9 object-contain drop-shadow-md animate-pulse"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 border border-white/10 backdrop-blur-md">
+              <Loader2 className="w-3.5 h-3.5 text-amber-400 animate-spin" />
+              <span className="text-[11px] font-bold text-slate-200">קושאן • טוען סרטון...</span>
+            </div>
+          </div>
+        )}
 
         {/* Overlay Layer */}
         {overlay.mode !== 'none' && (

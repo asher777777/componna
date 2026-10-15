@@ -40,7 +40,7 @@ interface ConversationThread {
 
 export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
   const { db } = useSystemConnection();
-  const { currentTenantId } = useTenantScope();
+  const { tenantId } = useTenantScope();
   
   const [threads, setThreads] = useState<ConversationThread[]>([]);
   const [allMessages, setAllMessages] = useState<ChatMessageItem[]>([]);
@@ -86,8 +86,8 @@ export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
       if (contactDocId) {
         const pathsToCheck = [
           `contacts/${contactDocId}/conversations`,
-          currentTenantId && currentTenantId !== '_master' 
-            ? `tenants/${currentTenantId}/contacts/${contactDocId}/conversations` 
+          tenantId && tenantId !== '_master' 
+            ? `tenants/${tenantId}/contacts/${contactDocId}/conversations` 
             : null
         ].filter(Boolean) as string[];
 
@@ -118,8 +118,8 @@ export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
       const botChatPaths = [
         'wa_bot_chats',
         'kos_whatsup_bot_chats',
-        currentTenantId && currentTenantId !== '_master' 
-          ? `tenants/${currentTenantId}/kos_whatsup_bot_chats` 
+        tenantId && tenantId !== '_master' 
+          ? `tenants/${tenantId}/kos_whatsup_bot_chats` 
           : null
       ].filter(Boolean) as string[];
 
@@ -190,7 +190,7 @@ export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
     } finally {
       setLoading(false);
     }
-  }, [db, formData.id, normPhone, intlPhone, cleanDigits, targetChatId, currentTenantId]);
+  }, [db, formData.id, normPhone, intlPhone, cleanDigits, targetChatId, tenantId]);
 
   useEffect(() => {
     fetchConversations();
@@ -243,8 +243,8 @@ export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
       // 2. Persist to Firestore: contact's subcollection
       if (db && formData.id) {
         const convId = `conv_${normPhone}`;
-        const contactSubPath = currentTenantId && currentTenantId !== '_master'
-          ? `tenants/${currentTenantId}/contacts/${formData.id}/conversations`
+        const contactSubPath = tenantId && tenantId !== '_master'
+          ? `tenants/${tenantId}/contacts/${formData.id}/conversations`
           : `contacts/${formData.id}/conversations`;
 
         const existingUpdated = [...allMessages, newMsg];
@@ -263,8 +263,8 @@ export const ContactWhatsAppTab: React.FC<Props> = ({ formData }) => {
           );
 
           // Update contact document with last_message
-          const contactDocPath = currentTenantId && currentTenantId !== '_master'
-            ? `tenants/${currentTenantId}/contacts/${formData.id}`
+          const contactDocPath = tenantId && tenantId !== '_master'
+            ? `tenants/${tenantId}/contacts/${formData.id}`
             : `contacts/${formData.id}`;
 
           await updateDoc(doc(db, contactDocPath), {
