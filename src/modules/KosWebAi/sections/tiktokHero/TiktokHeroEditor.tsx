@@ -141,31 +141,55 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
             />
             <span>אנימציית גלי קול בתחתית</span>
           </label>
+
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer col-span-2">
+            <input
+              type="checkbox"
+              checked={video.showTopBadges ?? false}
+              onChange={(e) => updateVideo('showTopBadges', e.target.checked)}
+              className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+            />
+            <span>הצג תגיות מידע עליונות (VIDEO / טיימר / נושא)</span>
+          </label>
+
+          <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer col-span-2">
+            <input
+              type="checkbox"
+              checked={video.showMuteButton ?? true}
+              onChange={(e) => updateVideo('showMuteButton', e.target.checked)}
+              className="w-4 h-4 rounded text-blue-600 bg-slate-950 border-slate-700"
+            />
+            <span>הצג כפתור בקרת סאונד בפינה העליונה</span>
+          </label>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-          <PageBuilderInput
-            label="תגית עליונה (באדג' וידאו)"
-            value={video.badgeText || ''}
-            onChange={(e) => updateVideo('badgeText', e.target.value)}
-            placeholder="VIDEO"
-          />
-          <PageBuilderInput
-            label="משך זמן / טיימר"
-            value={video.durationText || ''}
-            onChange={(e) => updateVideo('durationText', e.target.value)}
-            placeholder="9.9s"
-          />
-        </div>
+        {(video.showTopBadges ?? false) && (
+          <div className="p-3 mt-3 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <PageBuilderInput
+                label="תגית עליונה (באדג' וידאו)"
+                value={video.badgeText || ''}
+                onChange={(e) => updateVideo('badgeText', e.target.value)}
+                placeholder="VIDEO"
+              />
+              <PageBuilderInput
+                label="משך זמן / טיימר"
+                value={video.durationText || ''}
+                onChange={(e) => updateVideo('durationText', e.target.value)}
+                placeholder="9.9s"
+              />
+            </div>
 
-        <div className="mt-3">
-          <PageBuilderInput
-            label="תגית סדרה / נושא"
-            value={video.seasonEpisodeText || ''}
-            onChange={(e) => updateVideo('seasonEpisodeText', e.target.value)}
-            placeholder="S2 Command the Room"
-          />
-        </div>
+            <div>
+              <PageBuilderInput
+                label="תגית סדרה / נושא"
+                value={video.seasonEpisodeText || ''}
+                onChange={(e) => updateVideo('seasonEpisodeText', e.target.value)}
+                placeholder="S2 Command the Room"
+              />
+            </div>
+          </div>
+        )}
       </PageBuilderAccordion>
 
       {/* 2. Background & Overlay */}
@@ -236,60 +260,74 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
 
       {/* 3. Main Hook Headline */}
       <PageBuilderAccordion title="כותרת ראשית (Hook Headline)" icon={<Type className="w-4 h-4 text-emerald-400" />} defaultOpen={true}>
-        <PageBuilderInput
-          label="טקסט הכותרת הראשית"
-          value={config.headline || ''}
-          onChange={(e) => update('headline', e.target.value)}
-          placeholder="למשל: מחפש עבודה"
-        />
-
-        <div className="mt-3">
-          <PageBuilderColorPicker
-            label="צבע כותרת"
-            value={config.headlineColor || '#ffffff'}
-            onChange={(color) => update('headlineColor', color)}
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-300">גודל גופן</label>
-            <select
-              value={config.headlineSize || 'xl'}
-              onChange={(e) => update('headlineSize', e.target.value as any)}
-              className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none"
-            >
-              <option value="sm">קטן (Small)</option>
-              <option value="md">בינוני (Medium)</option>
-              <option value="lg">גדול (Large)</option>
-              <option value="xl">ענק (Extra Large)</option>
-              <option value="2xl">עוצמתי (2XL)</option>
-            </select>
-          </div>
-
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-300">משקל גופן</label>
-            <select
-              value={config.headlineWeight || 'extrabold'}
-              onChange={(e) => update('headlineWeight', e.target.value as any)}
-              className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none"
-            >
-              <option value="bold">מודגש (Bold)</option>
-              <option value="extrabold">מודגש במיוחד (Extra Bold)</option>
-              <option value="black">שחור כבד (Black)</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 mt-3">
-          <label className="text-xs font-semibold text-slate-300">צל מודגש לקריאות גבוהה (Text Drop Shadow)</label>
+        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 mb-3">
+          <label className="text-xs font-semibold text-slate-300">הצג כותרת ראשית</label>
           <input
             type="checkbox"
-            checked={config.headlineShadow ?? true}
-            onChange={(e) => update('headlineShadow', e.target.checked)}
+            checked={config.showHeadline ?? true}
+            onChange={(e) => update('showHeadline', e.target.checked)}
             className="w-4 h-4 rounded text-emerald-600 bg-slate-950 border-slate-700 cursor-pointer"
           />
         </div>
+
+        {(config.showHeadline ?? true) && (
+          <>
+            <PageBuilderInput
+              label="טקסט הכותרת הראשית"
+              value={config.headline || ''}
+              onChange={(e) => update('headline', e.target.value)}
+              placeholder="למשל: מחפש עבודה"
+            />
+
+            <div className="mt-3">
+              <PageBuilderColorPicker
+                label="צבע כותרת"
+                value={config.headlineColor || '#ffffff'}
+                onChange={(color) => update('headlineColor', color)}
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-300">גודל גופן</label>
+                <select
+                  value={config.headlineSize || 'xl'}
+                  onChange={(e) => update('headlineSize', e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none"
+                >
+                  <option value="sm">קטן (Small)</option>
+                  <option value="md">בינוני (Medium)</option>
+                  <option value="lg">גדול (Large)</option>
+                  <option value="xl">ענק (Extra Large)</option>
+                  <option value="2xl">עוצמתי (2XL)</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-slate-300">משקל גופן</label>
+                <select
+                  value={config.headlineWeight || 'extrabold'}
+                  onChange={(e) => update('headlineWeight', e.target.value as any)}
+                  className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none"
+                >
+                  <option value="bold">מודגש (Bold)</option>
+                  <option value="extrabold">מודגש במיוחד (Extra Bold)</option>
+                  <option value="black">שחור כבד (Black)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 mt-3">
+              <label className="text-xs font-semibold text-slate-300">צל מודגש לקריאות גבוהה (Text Drop Shadow)</label>
+              <input
+                type="checkbox"
+                checked={config.headlineShadow ?? true}
+                onChange={(e) => update('headlineShadow', e.target.checked)}
+                className="w-4 h-4 rounded text-emerald-600 bg-slate-950 border-slate-700 cursor-pointer"
+              />
+            </div>
+          </>
+        )}
       </PageBuilderAccordion>
 
       {/* 4. Floating Content Card */}
@@ -306,36 +344,77 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
 
         {card.enabled && (
           <div className="space-y-3">
-            <PageBuilderImageUpload
-              label="תמונה / לוגו לכרטיס (אופציונלי)"
-              value={card.imageUrl || ''}
-              onChange={(url) => updateCard('imageUrl', url)}
-            />
+            {/* Control Toggles: Image, Tag, Text */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 p-3 rounded-2xl bg-slate-900 border border-slate-800">
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={card.showImage ?? true}
+                  onChange={(e) => updateCard('showImage', e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-600 bg-slate-950 border-slate-700"
+                />
+                <span>הצג תמונה</span>
+              </label>
 
-            <PageBuilderInput
-              label="תגית עליונה של הכרטיס"
-              value={card.tag || ''}
-              onChange={(e) => updateCard('tag', e.target.value)}
-              placeholder="למשל: קושאן – כל אדם זה נכס"
-            />
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={card.showTag ?? true}
+                  onChange={(e) => updateCard('showTag', e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-600 bg-slate-950 border-slate-700"
+                />
+                <span>הצג תגית</span>
+              </label>
 
-            <PageBuilderInput
-              label="כותרת הכרטיס"
-              value={card.title || ''}
-              onChange={(e) => updateCard('title', e.target.value)}
-              placeholder="כותרת הכרטיס"
-            />
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-300">תת-כותרת / תיאור</label>
-              <textarea
-                value={card.subtitle || ''}
-                onChange={(e) => updateCard('subtitle', e.target.value)}
-                rows={2}
-                placeholder="פירוט קצר..."
-                className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none"
-              />
+              <label className="flex items-center gap-2 text-xs font-semibold text-slate-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={card.showText ?? true}
+                  onChange={(e) => updateCard('showText', e.target.checked)}
+                  className="w-4 h-4 rounded text-amber-600 bg-slate-950 border-slate-700"
+                />
+                <span>הצג כיתוב וטקסט</span>
+              </label>
             </div>
+
+            {(card.showImage ?? true) && (
+              <PageBuilderImageUpload
+                label="תמונה / לוגו לכרטיס (אופציונלי)"
+                value={card.imageUrl || ''}
+                onChange={(url) => updateCard('imageUrl', url)}
+              />
+            )}
+
+            {(card.showTag ?? true) && (
+              <PageBuilderInput
+                label="תגית עליונה של הכרטיס"
+                value={card.tag || ''}
+                onChange={(e) => updateCard('tag', e.target.value)}
+                placeholder="למשל: קושאן – כל אדם זה נכס"
+              />
+            )}
+
+            {(card.showText ?? true) && (
+              <>
+                <PageBuilderInput
+                  label="כותרת הכרטיס"
+                  value={card.title || ''}
+                  onChange={(e) => updateCard('title', e.target.value)}
+                  placeholder="כותרת הכרטיס"
+                />
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-slate-300">תת-כותרת / תיאור</label>
+                  <textarea
+                    value={card.subtitle || ''}
+                    onChange={(e) => updateCard('subtitle', e.target.value)}
+                    rows={2}
+                    placeholder="פירוט קצר..."
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none"
+                  />
+                </div>
+              </>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-semibold text-slate-300">סגנון עיצוב הכרטיס</label>

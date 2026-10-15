@@ -25,6 +25,7 @@ export const KosTubeOverviewTab: React.FC = () => {
     isGenerating, 
     generatingVideoId,
     generateSeoPage,
+    openGenerationModal,
     setSelectedPage,
     setIsModalOpen,
     setModalMode,
@@ -292,9 +293,9 @@ export const KosTubeOverviewTab: React.FC = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => generateSeoPage(video)}
+                          onClick={() => openGenerationModal(video)}
                           disabled={isProcessingThis || isGenerating}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition shadow-sm disabled:opacity-50"
+                          className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-medium transition shadow-sm disabled:opacity-50 cursor-pointer"
                         >
                           <Sparkles className={`w-3.5 h-3.5 ${isProcessingThis ? 'animate-spin' : ''}`} />
                           <span>{isProcessingThis ? 'מעבד מאמר...' : 'צור עמוד SEO'}</span>

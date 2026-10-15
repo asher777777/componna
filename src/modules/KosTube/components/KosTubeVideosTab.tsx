@@ -20,6 +20,7 @@ import { KosTubeVideo } from '../types';
 export const KosTubeVideosTab: React.FC = () => {
   const { 
     generateSeoPage, 
+    openGenerationModal,
     batchGenerateSeoPages, 
     isGenerating, 
     generatingVideoId, 
@@ -195,7 +196,7 @@ export const KosTubeVideosTab: React.FC = () => {
 
                         <button
                           type="button"
-                          onClick={() => generateSeoPage(video)}
+                          onClick={() => openGenerationModal(video)}
                           disabled={isProcessingThis || isGenerating}
                           className="p-2 rounded-xl text-slate-400 hover:text-red-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition"
                           title="ייצר מחדש בעזרת AI"
@@ -206,7 +207,7 @@ export const KosTubeVideosTab: React.FC = () => {
                     ) : (
                       <button
                         type="button"
-                        onClick={() => generateSeoPage(video)}
+                        onClick={() => openGenerationModal(video)}
                         disabled={isProcessingThis || isGenerating}
                         className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
                       >

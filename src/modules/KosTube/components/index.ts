@@ -5,4 +5,6 @@ export * from './KosTubeSettingsTab';
 export * from './KosTubeChannelModal';
 export * from './KosTubeAddVideoModal';
 export * from './KosTubePagePreviewModal';
+export * from './KosTubeGenerationModal';
+export * from './KosTubeGenerationCurtain';
 export * from './PublicVideoSeoPageView';

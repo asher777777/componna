@@ -18,6 +18,8 @@ import { KosTubeSettingsTab } from './components/KosTubeSettingsTab';
 import { KosTubeChannelModal } from './components/KosTubeChannelModal';
 import { KosTubeAddVideoModal } from './components/KosTubeAddVideoModal';
 import { KosTubePagePreviewModal } from './components/KosTubePagePreviewModal';
+import { KosTubeGenerationModal } from './components/KosTubeGenerationModal';
+import { KosTubeGenerationCurtain } from './components/KosTubeGenerationCurtain';
 
 const KosTubeMainContent: React.FC = () => {
   const { 
@@ -26,6 +28,8 @@ const KosTubeMainContent: React.FC = () => {
     setActiveTab, 
     isSyncing, 
     isGenerating, 
+    generationMode,
+    selectedVideo,
     error, 
     clearError, 
     setIsModalOpen, 
@@ -147,6 +151,14 @@ const KosTubeMainContent: React.FC = () => {
       <KosTubeChannelModal />
       <KosTubeAddVideoModal />
       <KosTubePagePreviewModal />
+      <KosTubeGenerationModal />
+
+      {/* Dynamic Reveal Curtain Animation */}
+      <KosTubeGenerationCurtain
+        isGenerating={isGenerating}
+        mode={generationMode}
+        videoTitle={selectedVideo?.title}
+      />
 
       {/* Floating System Dock for Backoffice Navigation */}
       <KosunUniversalDock mode="backoffice" />

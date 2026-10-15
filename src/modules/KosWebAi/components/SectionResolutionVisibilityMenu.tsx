@@ -158,7 +158,7 @@ export const SectionResolutionVisibilityMenu: React.FC<SectionResolutionVisibili
       >
         {renderTriggerIcon()}
         {!compact && badgeInfo.isRestricted && (
-          <span className="text-[10px] font-bold truncate max-w-[80px]">
+          <span className="text-[10px] font-bold truncate max-w-[80px] hidden sm:inline">
             {badgeInfo.label}
           </span>
         )}
@@ -167,7 +167,7 @@ export const SectionResolutionVisibilityMenu: React.FC<SectionResolutionVisibili
 
       {/* Floating Resolution Popover */}
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-72 rounded-2xl bg-slate-950/98 border border-slate-700/80 p-3 shadow-2xl z-50 text-right backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
+        <div className="absolute left-0 sm:right-0 top-full mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-slate-950/98 border border-slate-700/80 p-3 shadow-2xl z-50 text-right backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150">
           {/* Header */}
           <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-800">
             <span className="text-xs font-black text-white flex items-center gap-1.5">

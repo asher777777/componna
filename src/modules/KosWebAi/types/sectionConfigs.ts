@@ -549,11 +549,13 @@ export interface TiktokHeroVideoSettings {
   muted?: boolean;
   loop?: boolean;
   autoplay?: boolean;
+  showTopBadges?: boolean;
   showBadge?: boolean;
   badgeText?: string;
   durationText?: string;
   seasonEpisodeText?: string;
   showSoundWaveAnimation?: boolean;
+  showMuteButton?: boolean;
 }
 
 export interface TiktokHeroOverlaySettings {
@@ -568,6 +570,9 @@ export interface TiktokHeroOverlaySettings {
 
 export interface TiktokHeroFloatingCard {
   enabled?: boolean;
+  showImage?: boolean;
+  showText?: boolean;
+  showTag?: boolean;
   title?: string;
   subtitle?: string;
   tag?: string;
@@ -597,6 +602,7 @@ export interface TiktokHeroSectionConfig extends BaseSectionConfig {
   video: TiktokHeroVideoSettings;
   overlay: TiktokHeroOverlaySettings;
   ambientGlow?: boolean;
+  showHeadline?: boolean;
   headline: string;
   headlineColor?: string;
   headlineSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';

@@ -8,8 +8,15 @@ import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
 import { PLEASANT_KOS_TUBE_ERROR_HE } from '../config';
+import { KosTubeAiMode } from '../../kosai-engine/modelsAiService';
 
 export type KosTubeTab = 'overview' | 'videos' | 'pages' | 'settings';
+
+export interface KosTubeGenerationOptions {
+  mode?: KosTubeAiMode;
+  includeBrand?: boolean;
+  customText?: string;
+}
 
 export interface KosTubeContextValue {
   channel: KosTubeChannel | null;
@@ -21,11 +28,13 @@ export interface KosTubeContextValue {
   isSyncing: boolean;
   isGenerating: boolean;
   generatingVideoId: string | null;
+  generationMode: KosTubeAiMode;
   error: string | null;
   clearError: () => void;
   syncChannel: (query: string, apiKey?: string) => Promise<boolean>;
   addVideoByUrl: (url: string) => Promise<KosTubeVideo | null>;
-  generateSeoPage: (video: KosTubeVideo) => Promise<KosTubeSeoPage | null>;
+  generateSeoPage: (video: KosTubeVideo, options?: KosTubeGenerationOptions) => Promise<KosTubeSeoPage | null>;
+  openGenerationModal: (video: KosTubeVideo) => void;
   batchGenerateSeoPages: () => Promise<number>;
   deleteSeoPage: (pageId: string, videoId?: string) => Promise<void>;
   refreshData: () => Promise<void>;
@@ -35,8 +44,8 @@ export interface KosTubeContextValue {
   setSelectedPage: (p: KosTubeSeoPage | null) => void;
   isModalOpen: boolean;
   setIsModalOpen: (open: boolean) => void;
-  modalMode: 'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view';
-  setModalMode: (mode: 'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view') => void;
+  modalMode: 'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view' | 'generate_options';
+  setModalMode: (mode: 'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view' | 'generate_options') => void;
 }
 
 const KosTubeContext = createContext<KosTubeContextValue | null>(null);
@@ -56,12 +65,13 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [generatingVideoId, setGeneratingVideoId] = useState<string | null>(null);
+  const [generationMode, setGenerationMode] = useState<KosTubeAiMode>('eco');
   const [error, setError] = useState<string | null>(null);
 
   const [selectedVideo, setSelectedVideo] = useState<KosTubeVideo | null>(null);
   const [selectedPage, setSelectedPage] = useState<KosTubeSeoPage | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [modalMode, setModalMode] = useState<'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view'>('channel_connect');
+  const [modalMode, setModalMode] = useState<'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view' | 'generate_options'>('channel_connect');
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -148,34 +158,50 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [db, tenantId, channel?.channelId]
   );
 
+  const openGenerationModal = useCallback((video: KosTubeVideo) => {
+    setSelectedVideo(video);
+    setModalMode('generate_options');
+    setIsModalOpen(true);
+  }, []);
+
   const generateSeoPage = useCallback(
-    async (video: KosTubeVideo): Promise<KosTubeSeoPage | null> => {
+    async (video: KosTubeVideo, options?: KosTubeGenerationOptions): Promise<KosTubeSeoPage | null> => {
+      const effMode = options?.mode || 'eco';
+      const effIncludeBrand = options?.includeBrand !== false;
+      const customText = options?.customText;
+
       setIsGenerating(true);
       setGeneratingVideoId(video.id);
+      setGenerationMode(effMode);
       setError(null);
       try {
         let brandDna: any = null;
-        try {
-          const brandCap = getCapability<BrandDnaContract>('brand-dna');
-          if (brandCap?.getBrandDna) {
-            brandDna = brandCap.getBrandDna();
-          }
-          if (!brandDna && db) {
-            const bSnap = await getDoc(
-              doc(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC)
-            );
-            if (bSnap.exists()) {
-              brandDna = bSnap.data();
+        if (effIncludeBrand) {
+          try {
+            const brandCap = getCapability<BrandDnaContract>('brand-dna');
+            if (brandCap?.getBrandDna) {
+              brandDna = brandCap.getBrandDna();
             }
+            if (!brandDna && db) {
+              const bSnap = await getDoc(
+                doc(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC)
+              );
+              if (bSnap.exists()) {
+                brandDna = bSnap.data();
+              }
+            }
+          } catch (e) {
+            console.warn('[KosTube] Could not load brand DNA:', e);
           }
-        } catch (e) {
-          console.warn('[KosTube] Could not load brand DNA:', e);
         }
 
         const res = await generateAiSeoContent({
           video,
           channelTitle: channel?.title || 'ערוץ יוטיוב',
           brandDna,
+          mode: effMode,
+          includeBrand: effIncludeBrand,
+          customText,
         });
 
         if (!res.success || !res.data) {
@@ -189,9 +215,9 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         let publicUrl = `/tube/${slug}`;
         let pbPageId = `page_kosvidio_${video.youtubeVideoId}`;
 
-        const brandCompanyName = brandDna?.identity?.companyName || 'קושאן';
-        const brandLogo = brandDna?.identity?.logoUrl || '';
-        const brandSlogan = brandDna?.identity?.slogan || 'וידאו חכם ומאמרי SEO מעמיקים';
+        const brandCompanyName = (effIncludeBrand && brandDna?.identity?.companyName) ? brandDna.identity.companyName : 'קושאן';
+        const brandLogo = (effIncludeBrand && brandDna?.identity?.logoUrl) ? brandDna.identity.logoUrl : '';
+        const brandSlogan = (effIncludeBrand && brandDna?.identity?.slogan) ? brandDna.identity.slogan : 'וידאו חכם ומאמרי SEO מעמיקים';
         const primaryColor = brandDna?.designTokens?.primaryColor || '#ef4444';
         const secondaryColor = brandDna?.designTokens?.secondaryColor || '#8b5cf6';
         const whatsapp = brandDna?.trust?.whatsappSupportNumber || '';
@@ -221,6 +247,16 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const collPath = effTenant === '_master'
               ? `tenants/_master/${SYSTEM_COLLECTIONS.PAGES}`
               : `tenants/${effTenant}/${SYSTEM_COLLECTIONS.PAGES}`;
+
+            const articleHtml = (res.data.articleContent || '')
+              .split('\n\n')
+              .map((p: string) => {
+                if (p.startsWith('### ')) return `<h3 class="text-xl font-bold text-slate-900 dark:text-white mt-6 mb-3">${p.replace('### ', '')}</h3>`;
+                if (p.startsWith('## ')) return `<h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-8 mb-4">${p.replace('## ', '')}</h2>`;
+                if (p.trim()) return `<p class="text-base sm:text-lg leading-relaxed text-slate-700 dark:text-slate-300 mb-4">${p}</p>`;
+                return '';
+              })
+              .join('');
 
             const pageConfig = {
               pageId: pbPageId,
@@ -255,7 +291,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 description: res.data.metaDescription || video.description.slice(0, 160),
                 keywords: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
               },
-              sectionOrder: ['header-1', 'kosvidio-1', 'contact-1'],
+              sectionOrder: ['header-1', 'kosvidio-1', 'about-1', 'contact-1'],
               sections: {
                 'header-1': {
                   type: 'header',
@@ -265,7 +301,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   title: brandCompanyName,
                   showLogoText: true,
                   logoText: brandCompanyName,
-                  useBrandLogo: true,
+                  useBrandLogo: Boolean(brandLogo),
                   customLogoUrl: brandLogo,
                 },
                 'kosvidio-1': {
@@ -291,6 +327,14 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   showTheaterMode: true,
                   enableSocialShare: true,
                 },
+                'about-1': {
+                  type: 'richContent',
+                  id: 'about-1',
+                  visible: true,
+                  heading: `אודות וניתוח תוכן מקצועי${effIncludeBrand ? ` - ${brandCompanyName}` : ''}`,
+                  body: `<div class="kosvidio-about-article space-y-4 font-normal leading-relaxed text-slate-800 dark:text-slate-200">${articleHtml}</div>`,
+                  layout: 'highlight-box',
+                },
                 'contact-1': {
                   type: 'contact',
                   id: 'contact-1',
@@ -308,6 +352,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
             await setDoc(doc(db, collPath, pbPageId), pageConfig, { merge: true });
             publicUrl = `/p/${slug}`;
+
           } catch (e) {
             console.warn('[KosTube] Direct save to PAGES collection warning:', e);
           }
@@ -432,11 +477,13 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isSyncing,
     isGenerating,
     generatingVideoId,
+    generationMode,
     error,
     clearError,
     syncChannel,
     addVideoByUrl,
     generateSeoPage,
+    openGenerationModal,
     batchGenerateSeoPages,
     deleteSeoPage,
     refreshData,

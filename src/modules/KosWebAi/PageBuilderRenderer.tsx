@@ -3,7 +3,7 @@ import { PageBuilderConfig } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { 
   MessageCircle, Phone, ArrowLeft, Heart, ShieldCheck, MapPin, LogIn,
-  Edit3, ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Copy, Sparkles, Plus, Settings
+  Edit3, ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Copy, Sparkles, Plus, Settings, MoreVertical
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../KosBranding/hooks/useBrandDna';
@@ -62,6 +62,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   const [addSectionInsertIndex, setAddSectionInsertIndex] = useState<number | undefined>(undefined);
   const [isWidgetSettingsModalOpen, setIsWidgetSettingsModalOpen] = useState(false);
   const [savedNotificationSectionId, setSavedNotificationSectionId] = useState<string | null>(null);
+  const [moreMenuSectionId, setMoreMenuSectionId] = useState<string | null>(null);
   const [, setThemeVersion] = useState(0);
 
   useEffect(() => {
@@ -188,30 +189,30 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               {/* On-Page Live Edit Floating Toolbar */}
               {isEditing && (
                 <div className={clsx(
-                  "max-w-7xl mx-auto px-4 mb-2",
-                  sectionData.type === 'header' ? 'relative z-50 pt-2' : 'sticky top-4 z-40'
+                  "w-full max-w-7xl mx-auto px-2 sm:px-4 mb-2 select-none",
+                  sectionData.type === 'header' ? 'relative z-50 pt-2' : 'sticky top-2 sm:top-4 z-40'
                 )}>
-                  <div className="flex items-center justify-between gap-2 p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl text-right animate-in fade-in duration-150">
-                    {/* Left: Section Type & Title */}
-                    <div className="flex items-center gap-2 min-w-0 pr-1">
-                      <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30">
+                  <div className="flex items-center justify-between gap-1 sm:gap-2 p-1.5 sm:p-2 rounded-2xl bg-slate-900/95 backdrop-blur-md border border-slate-700 shadow-2xl text-right animate-in fade-in duration-150">
+                    {/* Left: Section Type & Title (Compact on mobile) */}
+                    <div className="flex items-center gap-1.5 min-w-0 pr-0.5 max-w-[110px] xs:max-w-[150px] sm:max-w-xs">
+                      <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded-lg bg-indigo-600/30 text-indigo-300 border border-indigo-500/30 truncate shrink-0">
                         {regDef.name || sectionData.type}
                       </span>
                       {sectionData.adminTitle && (
-                        <span className="text-xs text-slate-300 truncate font-bold">
+                        <span className="text-xs text-slate-300 truncate font-bold hidden sm:inline">
                           {sectionData.adminTitle}
                         </span>
                       )}
                       {isHidden && (
-                        <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30">
-                          מוסתר מגולשים
+                        <span className="text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-md bg-amber-500/20 text-amber-300 border border-amber-500/30 shrink-0 font-bold">
+                          מוסתר
                         </span>
                       )}
                       {(() => {
                         const resBadge = getResolutionBadgeInfo(sectionData);
                         if (!resBadge.isRestricted) return null;
                         return (
-                          <span className={clsx("text-[10px] px-2 py-0.5 rounded-md border font-bold", resBadge.colorClass)}>
+                          <span className={clsx("text-[9px] sm:text-[10px] px-1.5 py-0.5 rounded-md border font-bold shrink-0 hidden xs:inline", resBadge.colorClass)}>
                             {resBadge.label}
                           </span>
                         );
@@ -219,16 +220,16 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                     </div>
 
                     {/* Right: Actions */}
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 shrink-0">
                       {/* Edit Content */}
                       <button
                         type="button"
                         onClick={() => setEditingSectionId(sectionId)}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                        className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
                         title="עריכת תוכן והגדרות אזור זה"
                       >
                         <Edit3 className="w-3.5 h-3.5" />
-                        <span>ערוך אזור</span>
+                        <span className="hidden sm:inline">ערוך אזור</span>
                       </button>
 
                       {/* Save Specific Section Button */}
@@ -241,7 +242,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                             setTimeout(() => setSavedNotificationSectionId(null), 2500);
                           }}
                           className={clsx(
-                            "flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer",
+                            "flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer",
                             savedNotificationSectionId === sectionId
                               ? "bg-emerald-600 text-white border border-emerald-400"
                               : "bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700"
@@ -249,34 +250,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                           title="שמירת שינויי אזור זה"
                         >
                           <Check className={clsx("w-3.5 h-3.5", savedNotificationSectionId === sectionId ? "text-white" : "text-emerald-400")} />
-                          <span>{savedNotificationSectionId === sectionId ? 'נשמר בהצלחה!' : 'שמור אזור'}</span>
-                        </button>
-                      )}
-
-                      {/* AI Re-design */}
-                      <button
-                        type="button"
-                        onClick={() => setAiDesignerSectionId(sectionId)}
-                        className="p-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 hover:text-white transition cursor-pointer"
-                        title="עיצוב מחדש בעזרת AI"
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                      </button>
-
-                      {/* Visibility Toggle (Hide / Show) */}
-                      {onToggleSectionVisibility && (
-                        <button
-                          type="button"
-                          onClick={() => onToggleSectionVisibility(sectionId)}
-                          className={clsx(
-                            'p-1.5 rounded-xl border transition cursor-pointer',
-                            !isHidden
-                              ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
-                              : 'bg-amber-500/20 border-amber-500/40 text-amber-300'
-                          )}
-                          title={!isHidden ? 'הסתר אזור' : 'הצג אזור'}
-                        >
-                          {!isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          <span className="hidden sm:inline">{savedNotificationSectionId === sectionId ? 'נשמר בהצלחה!' : 'שמור אזור'}</span>
                         </button>
                       )}
 
@@ -289,55 +263,219 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         />
                       )}
 
-                      {/* Move Up (Not applicable to permanent top Header) */}
-                      {onMoveSectionUp && sectionData.type !== 'header' && (
+                      {/* Desktop Quick Actions (Visible on md+ screens) */}
+                      <div className="hidden md:flex items-center gap-1">
+                        {/* AI Re-design */}
                         <button
                           type="button"
-                          disabled={isFirst}
-                          onClick={() => onMoveSectionUp(index)}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700 text-slate-300 transition cursor-pointer"
-                          title="העבר למעלה"
+                          onClick={() => setAiDesignerSectionId(sectionId)}
+                          className="p-1.5 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/25 border border-indigo-500/30 text-indigo-300 hover:text-white transition cursor-pointer"
+                          title="עיצוב מחדש בעזרת AI"
                         >
-                          <ArrowUp className="w-3.5 h-3.5" />
+                          <Sparkles className="w-3.5 h-3.5" />
                         </button>
-                      )}
 
-                      {/* Move Down (Not applicable to permanent top Header) */}
-                      {onMoveSectionDown && sectionData.type !== 'header' && (
-                        <button
-                          type="button"
-                          disabled={isLast}
-                          onClick={() => onMoveSectionDown(index)}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700 text-slate-300 transition cursor-pointer"
-                          title="העבר למטה"
-                        >
-                          <ArrowDown className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                        {/* Visibility Toggle (Hide / Show) */}
+                        {onToggleSectionVisibility && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleSectionVisibility(sectionId)}
+                            className={clsx(
+                              'p-1.5 rounded-xl border transition cursor-pointer',
+                              !isHidden
+                                ? 'bg-slate-800 border-slate-700 text-slate-300 hover:text-white'
+                                : 'bg-amber-500/20 border-amber-500/40 text-amber-300'
+                            )}
+                            title={!isHidden ? 'הסתר אזור' : 'הצג אזור'}
+                          >
+                            {!isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                          </button>
+                        )}
 
-                      {/* Duplicate (Not applicable to permanent top Header) */}
-                      {onDuplicateSection && sectionData.type !== 'header' && (
-                        <button
-                          type="button"
-                          onClick={() => onDuplicateSection(sectionId)}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer"
-                          title="שכפל אזור"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                      )}
+                        {/* Move Up (Not applicable to permanent top Header) */}
+                        {onMoveSectionUp && sectionData.type !== 'header' && (
+                          <button
+                            type="button"
+                            disabled={isFirst}
+                            onClick={() => onMoveSectionUp(index)}
+                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700 text-slate-300 transition cursor-pointer"
+                            title="העבר למעלה"
+                          >
+                            <ArrowUp className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
-                      {/* Delete (Header is permanent, user uses visibility toggle to hide/show) */}
-                      {onDeleteSection && sectionData.type !== 'header' && (
+                        {/* Move Down (Not applicable to permanent top Header) */}
+                        {onMoveSectionDown && sectionData.type !== 'header' && (
+                          <button
+                            type="button"
+                            disabled={isLast}
+                            onClick={() => onMoveSectionDown(index)}
+                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 disabled:opacity-30 border border-slate-700 text-slate-300 transition cursor-pointer"
+                            title="העבר למטה"
+                          >
+                            <ArrowDown className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* Duplicate (Not applicable to permanent top Header) */}
+                        {onDuplicateSection && sectionData.type !== 'header' && (
+                          <button
+                            type="button"
+                            onClick={() => onDuplicateSection(sectionId)}
+                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-300 transition cursor-pointer"
+                            title="שכפל אזור"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+
+                        {/* Delete (Header is permanent, user uses visibility toggle to hide/show) */}
+                        {onDeleteSection && sectionData.type !== 'header' && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteSection(sectionId)}
+                            className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-900/40 border border-slate-700 hover:border-rose-700 text-slate-400 hover:text-rose-300 transition cursor-pointer"
+                            title="מחק אזור"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Mobile More Actions Menu (...) Button & Popover (Hidden on md+) */}
+                      <div className="relative md:hidden">
                         <button
                           type="button"
-                          onClick={() => onDeleteSection(sectionId)}
-                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-rose-900/40 border border-slate-700 hover:border-rose-700 text-slate-400 hover:text-rose-300 transition cursor-pointer"
-                          title="מחק אזור"
+                          onClick={() => setMoreMenuSectionId(moreMenuSectionId === sectionId ? null : sectionId)}
+                          className={clsx(
+                            "p-1.5 rounded-xl border transition cursor-pointer",
+                            moreMenuSectionId === sectionId
+                              ? "bg-indigo-600 text-white border-indigo-500 shadow-md"
+                              : "bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300 hover:text-white"
+                          )}
+                          title="פעולות נוספות"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <MoreVertical className="w-3.5 h-3.5" />
                         </button>
-                      )}
+
+                        {/* Mobile Popover Menu */}
+                        {moreMenuSectionId === sectionId && (
+                          <>
+                            {/* Backdrop to close */}
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setMoreMenuSectionId(null)}
+                            />
+                            <div 
+                              className="absolute left-0 top-full mt-2 z-50 w-48 p-1.5 rounded-2xl bg-slate-900/98 backdrop-blur-xl border border-slate-700 shadow-2xl text-right animate-in fade-in zoom-in-95 space-y-1"
+                              dir="rtl"
+                            >
+                              {/* AI Re-design in mobile menu */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMoreMenuSectionId(null);
+                                  setAiDesignerSectionId(sectionId);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-indigo-300 hover:text-white hover:bg-indigo-600/30 transition text-right"
+                              >
+                                <Sparkles className="w-4 h-4 text-indigo-400" />
+                                <span>עיצוב מחדש ב-AI</span>
+                              </button>
+
+                              {/* Visibility in mobile menu */}
+                              {onToggleSectionVisibility && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMoreMenuSectionId(null);
+                                    onToggleSectionVisibility(sectionId);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition text-right"
+                                >
+                                  {!isHidden ? (
+                                    <>
+                                      <EyeOff className="w-4 h-4 text-amber-400" />
+                                      <span>הסתרת אזור זה</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Eye className="w-4 h-4 text-emerald-400" />
+                                      <span>הצגת אזור זה</span>
+                                    </>
+                                  )}
+                                </button>
+                              )}
+
+                              {/* Move Up in mobile menu */}
+                              {onMoveSectionUp && sectionData.type !== 'header' && (
+                                <button
+                                  type="button"
+                                  disabled={isFirst}
+                                  onClick={() => {
+                                    setMoreMenuSectionId(null);
+                                    onMoveSectionUp(index);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition text-right"
+                                >
+                                  <ArrowUp className="w-4 h-4 text-slate-400" />
+                                  <span>העבר למעלה</span>
+                                </button>
+                              )}
+
+                              {/* Move Down in mobile menu */}
+                              {onMoveSectionDown && sectionData.type !== 'header' && (
+                                <button
+                                  type="button"
+                                  disabled={isLast}
+                                  onClick={() => {
+                                    setMoreMenuSectionId(null);
+                                    onMoveSectionDown(index);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 disabled:opacity-30 transition text-right"
+                                >
+                                  <ArrowDown className="w-4 h-4 text-slate-400" />
+                                  <span>העבר למטה</span>
+                                </button>
+                              )}
+
+                              {/* Duplicate in mobile menu */}
+                              {onDuplicateSection && sectionData.type !== 'header' && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMoreMenuSectionId(null);
+                                    onDuplicateSection(sectionId);
+                                  }}
+                                  className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-slate-300 hover:text-white hover:bg-slate-800 transition text-right"
+                                >
+                                  <Copy className="w-4 h-4 text-slate-400" />
+                                  <span>שכפל אזור</span>
+                                </button>
+                              )}
+
+                              {/* Delete in mobile menu */}
+                              {onDeleteSection && sectionData.type !== 'header' && (
+                                <>
+                                  <div className="h-px bg-slate-800 my-1" />
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setMoreMenuSectionId(null);
+                                      onDeleteSection(sectionId);
+                                    }}
+                                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 transition text-right"
+                                  >
+                                    <Trash2 className="w-4 h-4 text-rose-400" />
+                                    <span>מחיקת אזור</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

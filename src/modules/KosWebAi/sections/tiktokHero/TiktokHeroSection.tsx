@@ -38,6 +38,7 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
     video = {},
     overlay = { mode: 'gradient', opacity: 40 },
     ambientGlow = true,
+    showHeadline = true,
     headline = 'מחפש עבודה',
     headlineColor = '#ffffff',
     headlineSize = 'xl',
@@ -384,44 +385,48 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
 
         {/* TOP LAYER: Authentic TikTok/Reels Badges & Controls */}
         <div className="relative z-10 flex items-center justify-between w-full pt-1">
-          {/* Top Left: Video Tag & Sound Toggle */}
+          {/* Top Left: Sound Toggle & Optional Video Tag */}
           <div className="flex items-center gap-2">
-            {(video.showBadge ?? true) && (
+            {(video.showMuteButton ?? true) && (
+              <button
+                type="button"
+                onClick={toggleMute}
+                className="p-1.5 rounded-full bg-black/50 hover:bg-black/70 text-white text-xs backdrop-blur-md border border-white/20 transition cursor-pointer"
+                title={isMuted ? 'בטל השתקה' : 'השתק'}
+              >
+                {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+              </button>
+            )}
+            {video.showTopBadges && (video.showBadge ?? true) && (
               <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-600/90 text-white text-[11px] font-bold backdrop-blur-md shadow-md border border-blue-400/30">
                 <VideoIcon className="w-3.5 h-3.5" />
                 <span>{video.badgeText || 'VIDEO'}</span>
               </div>
             )}
-            <button
-              type="button"
-              onClick={toggleMute}
-              className="p-1.5 rounded-full bg-black/50 hover:bg-black/70 text-white text-xs backdrop-blur-md border border-white/20 transition cursor-pointer"
-              title={isMuted ? 'בטל השתקה' : 'השתק'}
-            >
-              {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
-            </button>
           </div>
 
-          {/* Top Right: Timer & Episode Pill */}
-          <div className="flex items-center gap-1.5">
-            {video.durationText && (
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 text-slate-200 text-[10px] font-mono backdrop-blur-md border border-white/10">
-                <Clock className="w-3 h-3 text-sky-400" />
-                <span>{video.durationText}</span>
-              </div>
-            )}
-            {video.seasonEpisodeText && (
-              <div className="px-2 py-0.5 rounded-full bg-purple-600/80 text-white text-[10px] font-bold backdrop-blur-md border border-purple-400/30">
-                {video.seasonEpisodeText}
-              </div>
-            )}
-          </div>
+          {/* Top Right: Optional Timer & Episode Pill (hidden unless showTopBadges enabled) */}
+          {video.showTopBadges && (
+            <div className="flex items-center gap-1.5">
+              {video.durationText && (
+                <div className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-black/40 text-slate-200 text-[10px] font-mono backdrop-blur-md border border-white/10">
+                  <Clock className="w-3 h-3 text-sky-400" />
+                  <span>{video.durationText}</span>
+                </div>
+              )}
+              {video.seasonEpisodeText && (
+                <div className="px-2 py-0.5 rounded-full bg-purple-600/80 text-white text-[10px] font-bold backdrop-blur-md border border-purple-400/30">
+                  {video.seasonEpisodeText}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* MIDDLE LAYER: Central Hook Headline, Floating Card & Attached CTA Button */}
         <div className="relative z-10 flex flex-col items-center justify-center my-auto gap-3.5 w-full text-center">
-          {/* Main Headline */}
-          {headline && (
+          {/* Main Headline (can be toggled) */}
+          {(showHeadline ?? true) && headline && (
             <h1 className={headlineClass} style={{ color: headlineColor }}>
               {headline}
             </h1>
@@ -431,47 +436,72 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
           <div className="w-full flex flex-col items-center">
             {/* Floating Card */}
             {(card?.enabled ?? true) && (
-              <div
-                className={clsx(
-                  'w-full max-w-[92%] p-3.5 sm:p-4 rounded-2xl text-right backdrop-blur-xl transition-all shadow-xl',
-                  card?.style === 'glass'
-                    ? 'bg-white/85 dark:bg-slate-900/85 border border-white/40 dark:border-slate-700/60 text-slate-900 dark:text-white'
-                    : card?.style === 'bordered'
-                    ? 'bg-slate-950/80 border-2 border-indigo-500/50 text-white'
-                    : 'bg-white text-slate-900 border border-slate-100 shadow-2xl'
-                )}
-              >
-                {card?.imageUrl && (
-                  <div className="flex items-center justify-center mb-2.5 overflow-hidden rounded-xl">
-                    <img
-                      src={card.imageUrl}
-                      alt={card.title || 'תמונת כרטיס'}
-                      className="max-h-28 sm:max-h-36 w-auto object-cover rounded-xl"
-                    />
+              (() => {
+                const isCardImageVisible = (card?.showImage ?? true) && !!card?.imageUrl;
+                const isCardTagVisible = (card?.showTag ?? true) && !!card?.tag;
+                const isCardTextVisible = (card?.showText ?? true) && (!!card?.title || !!card?.subtitle);
+                const hasCardContent = isCardImageVisible || isCardTagVisible || isCardTextVisible;
+
+                if (!hasCardContent) return null;
+
+                return (
+                  <div
+                    className={clsx(
+                      'w-full max-w-[92%] p-3.5 sm:p-4 rounded-2xl text-right backdrop-blur-xl transition-all shadow-xl',
+                      card?.style === 'glass'
+                        ? 'bg-white/85 dark:bg-slate-900/85 border border-white/40 dark:border-slate-700/60 text-slate-900 dark:text-white'
+                        : card?.style === 'bordered'
+                        ? 'bg-slate-950/80 border-2 border-indigo-500/50 text-white'
+                        : 'bg-white text-slate-900 border border-slate-100 shadow-2xl'
+                    )}
+                  >
+                    {isCardImageVisible && (
+                      <div className="flex items-center justify-center mb-2.5 overflow-hidden rounded-xl">
+                        <img
+                          src={card.imageUrl}
+                          alt={card.title || 'תמונת כרטיס'}
+                          className="max-h-28 sm:max-h-36 w-auto object-cover rounded-xl"
+                        />
+                      </div>
+                    )}
+                    {isCardTagVisible && (
+                      <div className="flex items-center justify-center mb-2">
+                        <span className="inline-block px-3 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200/60 text-center">
+                          {card.tag}
+                        </span>
+                      </div>
+                    )}
+                    {isCardTextVisible && (
+                      <>
+                        {card?.title && (
+                          <h3 className="text-base sm:text-lg font-black text-center text-slate-900 leading-snug">
+                            {card.title}
+                          </h3>
+                        )}
+                        {card?.subtitle && (
+                          <p className="text-[12px] sm:text-xs text-slate-600 text-center mt-1.5 leading-relaxed font-normal">
+                            {card.subtitle}
+                          </p>
+                        )}
+                      </>
+                    )}
                   </div>
-                )}
-                {card?.tag && (
-                  <div className="flex items-center justify-center mb-2">
-                    <span className="inline-block px-3 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[11px] font-semibold border border-blue-200/60 text-center">
-                      {card.tag}
-                    </span>
-                  </div>
-                )}
-                {card?.title && (
-                  <h3 className="text-base sm:text-lg font-black text-center text-slate-900 leading-snug">
-                    {card.title}
-                  </h3>
-                )}
-                {card?.subtitle && (
-                  <p className="text-[12px] sm:text-xs text-slate-600 text-center mt-1.5 leading-relaxed font-normal">
-                    {card.subtitle}
-                  </p>
-                )}
-              </div>
+                );
+              })()
             )}
 
             {/* CTA Button Elevated and Attached to Card with exactly 20px outer margin */}
-            <div className="w-full px-[20px] -mt-3 z-20">
+            <div
+              className={clsx(
+                'w-full px-[20px] z-20',
+                (card?.enabled ?? true) &&
+                  (((card?.showImage ?? true) && card?.imageUrl) ||
+                    ((card?.showTag ?? true) && card?.tag) ||
+                    ((card?.showText ?? true) && (card?.title || card?.subtitle)))
+                  ? '-mt-3'
+                  : 'mt-2'
+              )}
+            >
               <button
                 type="button"
                 onClick={handleCtaClick}

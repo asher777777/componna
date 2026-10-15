@@ -1,4 +1,4 @@
-import { executeCloudAi, PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
+import { kosTubeAiContract, KosTubeAiMode } from '../../kosai-engine/modelsAiService';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage, KosTubeSeoScoreBreakdown } from '../types';
 
 export interface YoutubeChannelFetchParams {
@@ -11,6 +11,9 @@ export interface VideoSeoPromptParams {
   channelTitle?: string;
   brandContext?: string;
   brandDna?: any;
+  customText?: string;
+  mode?: KosTubeAiMode;
+  includeBrand?: boolean;
 }
 
 /**
@@ -160,106 +163,38 @@ export function buildSchemaJsonLd(
 }
 
 /**
- * Generates an SEO article and metadata from real video data using AI,
- * and intelligently fills in ALL missing data that was not received from YouTube.
+ * Generates an SEO article and metadata using KOSAI AI Monopoly (kosTubeAiContract),
+ * and intelligently fills in ALL missing data with 100% authentic metrics and exactly 5 FAQs.
  */
 export async function generateAiSeoContent(
   params: VideoSeoPromptParams
 ): Promise<{ success: boolean; data?: Partial<KosTubeSeoPage>; error?: string }> {
-  const { video, channelTitle = 'ערוץ יוטיוב', brandContext = '', brandDna } = params;
-
-  const brandName = brandDna?.identity?.companyName || 'העסק שלנו';
-  const brandVision = brandDna?.identity?.companyVision || brandDna?.identity?.shortVision || '';
-  const brandUvp = brandDna?.audience?.mainUvp || '';
-  const targetAudience = brandDna?.audience?.targetAudiences?.map((a: any) => a.name || a.title || a).join(', ') || '';
-  const brandServices = brandDna?.ecosystem?.services?.map((s: any) => s.name || s.title || s).join(', ') || '';
-  const brandPersonality = brandDna?.voice?.personality;
-  const powerWords = brandDna?.voice?.powerWords?.join(', ');
-  const forbiddenWords = brandDna?.voice?.forbiddenWords?.join(', ');
-  const genderAddressing = brandDna?.voice?.genderAddressing || 'רבים';
-
-  const prompt = `
-אתה מומחה בכיר לקידום אתרים, AI-SEO, וקופירייטינג לוידאו (Google SEO & AI Search Specialist).
-המשימה שלך היא לקחת סרטון מיוטיוב ולהפיק עבורו עמוד תוכן ומאמר שלם תחת תבנית "Kosvidio".
-
-=== חוק בעלות הטננט והמיתוג של KOSUN26 (כלל ברזל מחייב): ===
-העמוד שייך באופן בלעדי לעסק/הטננט "${brandName}"!
-הסרטון ביוטיוב (מאת "${channelTitle}") משמש כחומר גלם והשראה מקצועית.
-מותר לתת קרדיט קצר בתוך גוף המאמר למקור הוידאו ("קרדיט מקור לוידאו: ${channelTitle}"), אך כל המאמר, הניתוח המקצועי, הטון, השפה, התובנות, והקריאה לפעולה (CTA) חייבים לייצג ב-100% את המותג והעסק "${brandName}" ואת שירותיו.
-
-פרטי המותג והעסק של הטננט (חובה לכתוב לפיהם):
-- שם העסק: "${brandName}"
-${brandVision ? `- חזון ומהות העסק: "${brandVision}"` : ''}
-${brandUvp ? `- הצעת ערך ייחודית (UVP): "${brandUvp}"` : ''}
-${targetAudience ? `- קהל היעד של העסק: "${targetAudience}"` : ''}
-${brandServices ? `- שירותים ומוצרים מרכזיים: "${brandServices}"` : ''}
-- סגנון וטון דיבור (Voice & Tone): פנייה בלשון ${genderAddressing}${brandPersonality ? `, רשמיות ${brandPersonality.formality}/5, חמימות ${brandPersonality.warmth}/5, אנרגיה ${brandPersonality.energy}/5` : ''}.
-${powerWords ? `- מילות כוח שיש לשלב: ${powerWords}` : ''}
-${forbiddenWords ? `- מילים שאסור להשתמש בהן: ${forbiddenWords}` : ''}
-
-פרטי הסרטון שהתקבלו מיוטיוב:
-כותרת: "${video.title || 'ללא כותרת'}"
-תיאור מקורי: "${video.description && video.description.trim().length > 20 ? video.description : 'לא התקבל תיאור מיוטיוב'}"
-ערוץ מקור: "${channelTitle}"
-מזהה יוטיוב: "${video.youtubeVideoId}"
-${brandContext ? `הקשר נוסף: "${brandContext}"` : ''}
-
-הוראות מפתח ליצירת התוכן:
-1. סלאג (Slug): חובה שיהיה "Kosvidio" או יתחיל ב-"kosvidio-" (לדוגמה: "kosvidio" או "kosvidio-${video.youtubeVideoId.toLowerCase().replace(/[^a-z0-9]/g, '')}").
-2. מאמר AISEO: מאמר עומק מקיף ומקצועי בעברית (450-650 מילים) המחבר את הידע שבסרטון למומחיות של "${brandName}", עונה על כוונת החיפוש (Search Intent) של גולשים ומנועי חיפוש מבוססי AI, וכולל אזכור קרדיט מכבד ליוצר המקורי (${channelTitle}).
-3. תגיות (Tags): 6-8 תוויות עדינות, רלוונטיות ומדויקות ב-SEO.
-4. קריאה לפעולה (Call to Action): חייבת להניע לפנות ישירות ל-"${brandName}" בהקשר לשירותיו (${brandServices || 'ייעוץ וליווי מקצועי'}).
-5. אין להמציא תגובות מזויפות! התגובות מנוהלות באופן אורגני על ידי הגולשים בעמוד.
-
-אנא החזר אך ורק JSON תקין (ללא markdown backticks סביב ה-JSON) במבנה המדויק הבא:
-{
-  "metaTitle": "כותרת מטא מושכת בין 50 ל-60 תווים כולל מילת מפתח עיקרית ומותג ${brandName}",
-  "metaDescription": "תיאור מטא מנצח באורך 140-160 תווים שגורם לגולש להקליק",
-  "slug": "kosvidio",
-  "focusKeywords": ["מילת מפתח 1", "מילת מפתח 2", "מילת מפתח 3", "מילת מפתח 4"],
-  "tags": ["תגית עדינה 1", "תגית 2", "תגית 3", "תגית 4", "תגית 5", "תגית 6"],
-  "h1": "כותרת ראשית מרשימה וממוקדת למאמר שמחברת את הוידאו ל-${brandName}",
-  "executiveSummary": "על הסרטון בכמה מילים - תיאור קצר, מהיר ומדויק של 2-3 משפטים על התובנות המרכזיות בוידאו",
-  "keyTakeaways": [
-    "נקודת מפתח ראשונה וחשובה מהוידאו",
-    "נקודת מפתח שנייה",
-    "נקודת מפתח שלישית",
-    "נקודת מפתח רביעית"
-  ],
-  "articleContent": "מאמר עומק מקיף ומקצועי בעברית (בפורמט Markdown הכולל כותרות H2, H3, פסקאות מנומקות, דוגמאות מעשיות, וקרדיט ל-${channelTitle}).",
-  "faqs": [
-    {"question": "שאלה נפוצה רלוונטית ראשונה בנושא הוידאו?", "answer": "תשובה מקיפה וממוקדת"},
-    {"question": "שאלה נפוצה שנייה?", "answer": "תשובה מקיפה וממוקדת"},
-    {"question": "שאלה נפוצה שלישית?", "answer": "תשובה מקיפה וממוקדת"}
-  ],
-  "callToAction": {
-    "title": "רוצים לקחת את הידע הזה צעד קדימה עם ${brandName}?",
-    "subtitle": "פנו אלינו ונשמח לבנות עבורכם תוכנית עבודה מותאמת אישית",
-    "buttonText": "צרו קשר לייעוץ",
-    "buttonLink": "#contact"
-  }
-}
-`;
+  const {
+    video,
+    channelTitle = 'ערוץ יוטיוב',
+    brandDna,
+    customText,
+    mode = 'eco',
+    includeBrand = true,
+  } = params;
 
   try {
-    const res = await executeCloudAi<any>({
-      prompt,
-      responseMimeType: 'application/json',
-      systemInstruction: `אתה מומחה ה-SEO והתוכן המוביל. כתוב בקולו של המותג "${brandName}", תוך שמירה מוחלטת על חוקי המיתוג של KOSUN26. החזר אך ורק תשובת JSON תקינה ומדויקת.`,
+    const res = await kosTubeAiContract.generateVideoSeoContent({
+      video,
+      channelTitle,
+      customText,
+      mode,
+      includeBrand,
+      brandDna,
     });
 
-    let parsed: any = null;
-    if (res.success && res.text) {
-      try {
-        const cleaned = res.text.replace(/```json\s*/gi, '').replace(/```\s*$/gi, '').trim();
-        parsed = JSON.parse(cleaned);
-      } catch (e) {
-        console.warn('[KosTube] JSON parsing failed, using smart fallback completion:', e);
-      }
+    let aiData: any = null;
+    if (res.success && res.data) {
+      aiData = res.data;
     }
 
     // Intelligent completion ensuring tenant branding & authentic data
-    const completed = fillMissingVideoData(parsed, video, channelTitle, brandDna);
+    const completed = fillMissingVideoData(aiData, video, channelTitle, brandDna, includeBrand);
     const { score, breakdown } = calculateSeoScore(completed);
     const schema = buildSchemaJsonLd(completed, video, channelTitle);
 
@@ -273,8 +208,8 @@ ${brandContext ? `הקשר נוסף: "${brandContext}"` : ''}
       },
     };
   } catch (err: any) {
-    console.warn('[KosTube] AI execution error, applying resilient fallback:', err);
-    const fallback = fillMissingVideoData(null, video, channelTitle, brandDna);
+    console.warn('[KosTube] AI execution error via kosTubeAiContract, applying fallback:', err);
+    const fallback = fillMissingVideoData(null, video, channelTitle, brandDna, includeBrand);
     const { score, breakdown } = calculateSeoScore(fallback);
     const schema = buildSchemaJsonLd(fallback, video, channelTitle);
 
@@ -299,11 +234,12 @@ export function fillMissingVideoData(
   aiData: any,
   video: KosTubeVideo,
   channelTitle?: string,
-  brandDna?: any
+  brandDna?: any,
+  includeBrand: boolean = true
 ): Partial<KosTubeSeoPage> {
-  const brandName = brandDna?.identity?.companyName || 'קושאן';
+  const brandName = (includeBrand && brandDna?.identity?.companyName) ? brandDna.identity.companyName : 'קושאן';
   const safeTitle = (aiData?.h1 || video.title || 'מדריך וידאו מעמיק').trim();
-  const cleanVideoSlug = video.youtubeVideoId.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cleanVideoSlug = (video.youtubeVideoId || 'clip').toLowerCase().replace(/[^a-z0-9]/g, '');
 
   let slug = 'kosvidio';
   if (aiData?.slug) {
@@ -313,11 +249,11 @@ export function fillMissingVideoData(
     slug = `kosvidio-${cleanVideoSlug}`;
   }
 
-  const metaTitle = (aiData?.metaTitle || `${safeTitle} | ${brandName}`).slice(0, 65);
+  const metaTitle = (aiData?.metaTitle || (includeBrand ? `${safeTitle} | ${brandName}` : safeTitle)).slice(0, 65);
 
   const defaultSummary = video.description && video.description.length > 50
     ? video.description.slice(0, 200).trim() + '...'
-    : `צפו בסרטון המלא ולמדו את התובנות המובילות, שיטות הפעולה ועקרונות המפתח להצלחה מעשית מבית ${brandName}. (מקור וידאו: ${channelTitle || 'ערוץ יוטיוב'}).`;
+    : `צפו בסרטון המלא ולמדו את התובנות המובילות, שיטות הפעולה ועקרונות המפתח להצלחה מעשית${includeBrand ? ` מבית ${brandName}` : ''}. (מקור וידאו: ${channelTitle || 'ערוץ יוטיוב'}).`;
 
   const executiveSummary = aiData?.executiveSummary || defaultSummary;
   const metaDescription = (aiData?.metaDescription || executiveSummary).slice(0, 160);
@@ -335,48 +271,64 @@ export function fillMissingVideoData(
   const keyTakeaways = Array.isArray(aiData?.keyTakeaways) && aiData.keyTakeaways.length > 0
     ? aiData.keyTakeaways
     : [
-        'הבנה יסודית של הנושא המרכזי המוצג בסרטון ומשמעותו לעסק.',
-        'צעדים מעשיים ליישום מיידי של הכלים שנלמדו.',
+        'הבנה יסודית של הנושא המרכזי המוצג בסרטון ומשמעותו המעשית.',
+        'צעדים מדויקים ליישום מיידי של הכלים שנלמדו.',
         'הימנעות מטעויות נפוצות שרבים עושים בשלבי ההתחלה.',
-        `חיבור מעשי למומחיות ולפתרונות של ${brandName}.`,
+        includeBrand ? `חיבור מעשי למומחיות ולפתרונות של ${brandName}.` : 'עקרונות להמשך צמיחה ומעקב אחר תוצאות.',
       ];
 
-  const defaultArticle = `## סקירה מקיפה וניתוח מקצועי מבית ${brandName}
+  const defaultArticle = `## סקירה מקיפה וניתוח מקצועי${includeBrand ? ` מבית ${brandName}` : ''}
 הסרטון **${safeTitle}** מציג נקודת מבט ייחודית ומעשית על הנושא.
 *(קרדיט מקור לוידאו: ${channelTitle || 'ערוץ יוטיוב'})*
 
 בעידן שבו צרכני תוכן ומנועי חיפוש מבוססי בינה מלאכותית דורשים ערך אמיתי, חיבור של וידאו מקצועי עם מאמר תוכן מובנה מייצר סמכות גבוהה (EEAT).
 
-### עקרונות הליבה שנלמדו בסרטון:
+### עקרונות הליבה שנלמדו:
 1. **בהירות המסר:** העברת המסר המרכזי בדקות הראשונות של הסרטון.
 2. **יישום מעשי:** מתן כלים קונקרטיים שניתן להפעיל באופן מיידי.
 3. **שילוב מולטימדיה ותוכן מקצועי:** העמוד משלב נגן וידאו מותאם לצד ניתוח מעמיק.
 
-### סיכום והמשך עבודה עם ${brandName}
-כדי ליישם את התובנות שהוצגו בסרטון בעסק שלכם, אנו מזמינים אתכם ליצור עמנו קשר ישיר דרך טופס הפנייה בתחתית העמוד.`;
+### סיכום והמשך פעולה
+${includeBrand ? `כדי ליישם את התובנות שהוצגו בסרטון בעסק שלכם, אנו מזמינים אתכם ליצור עמנו קשר ישיר דרך טופס הפנייה בתחתית העמוד.` : `מומלץ לשמור עמוד זה במועדפים ולשתף את התובנות עם עמיתים ושותפים.`}`;
 
   const articleContent = aiData?.articleContent && aiData.articleContent.length > 100
     ? aiData.articleContent
     : defaultArticle;
 
-  const faqs = Array.isArray(aiData?.faqs) && aiData.faqs.length > 0
-    ? aiData.faqs
-    : [
-        {
-          question: `מה הנושא המרכזי של הסרטון "${safeTitle}"?`,
-          answer: executiveSummary,
-        },
-        {
-          question: `כיצד המומחיות של ${brandName} מתחברת לנושא?`,
-          answer: `אנו ב-${brandName} מיישמים את שיטות העבודה הללו באופן יומיומי ומלווים לקוחות להשגת תוצאות מעשיות.`,
-        },
-        {
-          question: 'איך ניתן ליצור קשר בנושא?',
-          answer: 'ניתן להשאיר פרטים בטופס יצירת הקשר בתחתית העמוד או לפנות בוואטסאפ הישיר שלנו.',
-        },
-      ];
+  // STRICT 5 FAQs REQUIREMENT: Exactly 5 FAQs returned
+  const rawFaqs = Array.isArray(aiData?.faqs) ? aiData.faqs : [];
+  const defaultFiveFaqs = [
+    {
+      question: `מה הנושא המרכזי של הסרטון "${safeTitle}"?`,
+      answer: executiveSummary,
+    },
+    {
+      question: includeBrand ? `כיצד המומחיות של ${brandName} מתחברת לנושא?` : 'מהם היתרונות המרכזיים בשיטה זו?',
+      answer: includeBrand
+        ? `אנו ב-${brandName} מיישמים את שיטות העבודה הללו באופן יומיומי ומלווים לקוחות להשגת תוצאות מעשיות.`
+        : 'השיטה מאפשרת מיקוד, חיסכון במשאבים והשגת תוצאות מוכחות באופן מהיר ועקבי.',
+    },
+    {
+      question: 'איך מומלץ להתחיל ליישם את התובנות מהסרטון?',
+      answer: 'מומלץ להתחיל בהגדרת יעדים ברורים, סקירת נקודות המפתח ומיפוי הצעדים הנדרשים לביצוע.',
+    },
+    {
+      question: 'האם נדרש ידע מקדים כדי להבין את החומר המוצג?',
+      answer: 'הסרטון והמאמר נבנו בצורה מודולרית כך שכל צופה וקורא יוכל להבין וליישם, בין אם הוא מתחיל או בעל ניסיון.',
+    },
+    {
+      question: 'איך ניתן ליצור קשר או לקבל ליווי בנושא?',
+      answer: 'ניתן להשאיר פרטים בטופס יצירת הקשר בתחתית העמוד או לפנות בוואטסאפ הישיר שלנו.',
+    },
+  ];
 
-  // STRICT TRUTHFUL DATA: Real YouTube stats only (0 if absent, no fake 18,450 or 1,240!)
+  let faqs = rawFaqs.slice(0, 5);
+  if (faqs.length < 5) {
+    const needed = 5 - faqs.length;
+    faqs = [...faqs, ...defaultFiveFaqs.slice(5 - needed)];
+  }
+
+  // STRICT TRUTHFUL DATA: Real YouTube stats only (0 if absent, no fake metrics)
   const viewCount = Number(video.viewCount || 0);
   const likeCount = Number(video.likeCount || 0);
   const commentsCount = Array.isArray((video as any).comments) ? (video as any).comments.length : 0;
@@ -397,13 +349,15 @@ export function fillMissingVideoData(
     youtubeComments,
     faqs,
     callToAction: aiData?.callToAction || {
-      title: `רוצים לקחת את התוצאות צעד קדימה עם ${brandName}?`,
-      subtitle: 'פנו אלינו ונשמח לסייע לכם להגיע ליעדים העסקיים שלכם',
+      title: includeBrand ? `רוצים לקחת את התוצאות צעד קדימה עם ${brandName}?` : 'אהבתם את התוכן והתובנות? פנו לקבלת מידע נוסף',
+      subtitle: includeBrand ? 'פנו אלינו ונשמח לסייע לכם להגיע ליעדים העסקיים שלכם' : 'הצטרפו לקהילה וקבלו עדכונים שוטפים',
       buttonText: 'צרו קשר עכשיו',
       buttonLink: '#contact',
     },
   };
 }
+
+
 
 /**
  * Fetches REAL video metadata directly via URL using standard CORS oEmbed (no API key required, no QUIC errors)

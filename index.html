@@ -21,7 +21,145 @@
       })();
     </script>
   </head>
-  <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-hebrew antialiased selection:bg-indigo-500 selection:text-white transition-colors duration-200">
+  <body class="bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-hebrew antialiased selection:bg-indigo-500 selection:text-white">
+    <!-- KOSUN Branded Luxury Reveal Curtain / Splash Screen -->
+    <div id="kosun-splash-curtain" style="position: fixed; inset: 0; z-index: 999999; background: radial-gradient(circle at center, #0b0f19 0%, #000000 85%); display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: auto; user-select: none; transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1), transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);">
+      <style>
+        @keyframes kosunPulseGlow {
+          0%, 100% { filter: drop-shadow(0 0 16px rgba(99, 102, 241, 0.45)); transform: scale(1); }
+          50% { filter: drop-shadow(0 0 28px rgba(56, 189, 248, 0.7)); transform: scale(1.02); }
+        }
+        @keyframes kosunCursorBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0; }
+        }
+        .kosun-k-animate {
+          animation: kosunPulseGlow 2.4s ease-in-out infinite;
+        }
+        .kosun-cursor {
+          display: inline-block;
+          color: #38bdf8;
+          font-weight: 300;
+          animation: kosunCursorBlink 0.7s infinite;
+          margin-left: 2px;
+        }
+      </style>
+
+      <!-- Brand Mark & Typographic Lockup (LTR) -->
+      <div style="display: flex; align-items: center; gap: 14px; direction: ltr;">
+        <!-- KOSUN K SVG Mark -->
+        <div class="kosun-k-animate" style="width: 58px; height: 58px; display: flex; align-items: center; justify-content: center;">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%">
+            <defs>
+              <linearGradient id="splashBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#4f46e5" />
+                <stop offset="50%" stop-color="#6366f1" />
+                <stop offset="100%" stop-color="#8b5cf6" />
+              </linearGradient>
+              <linearGradient id="splashAccentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#06b6d4" />
+                <stop offset="100%" stop-color="#38bdf8" />
+              </linearGradient>
+              <linearGradient id="splashSparkleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff" />
+                <stop offset="100%" stop-color="#e0e7ff" />
+              </linearGradient>
+              <filter id="splashGlow" x="-20%" y="-20%" width="140%" height="140%">
+                <feDropShadow dx="0" dy="6" stdDeviation="8" flood-color="#4f46e5" flood-opacity="0.5" />
+              </filter>
+            </defs>
+            <rect x="10" y="10" width="100" height="100" rx="28" fill="url(#splashBgGrad)" filter="url(#splashGlow)" />
+            <rect x="11" y="11" width="98" height="98" rx="27" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="1.5" />
+            <rect x="34" y="30" width="13" height="60" rx="6.5" fill="url(#splashSparkleGrad)" />
+            <path d="M47 56 L69 34 C71.5 31.5 76 33.2 76 36.8 L76 43 C76 44.8 75.2 46.5 73.8 47.7 L57 63 Z" fill="url(#splashSparkleGrad)" opacity="0.95" />
+            <path d="M52 57 L77 82 C78.5 83.5 77.8 86 75.7 86 L67 86 C65 86 63.2 85.1 61.9 83.7 L45 66 Z" fill="url(#splashAccentGrad)" />
+            <path d="M85 24 Q85 32 93 32 Q85 32 85 40 Q85 32 77 32 Q85 32 85 24 Z" fill="#ffffff" opacity="0.9" />
+          </svg>
+        </div>
+
+        <!-- Typed OSUN Wordmark in Light Blue -->
+        <div style="display: flex; align-items: baseline; font-family: 'Heebo', -apple-system, sans-serif; font-weight: 800; font-size: 42px; letter-spacing: 3px; line-height: 1;">
+          <span id="kosun-splash-typed" style="color: #38bdf8; text-shadow: 0 0 20px rgba(56, 189, 248, 0.5);"></span>
+          <span id="kosun-splash-cursor" class="kosun-cursor" style="font-size: 40px; margin-left: 2px;">|</span>
+        </div>
+      </div>
+
+      <!-- Slogan Fade-Up: "אינטראקציה שהיא נכס" in SVG Matching Colors -->
+      <div 
+        id="kosun-splash-slogan" 
+        dir="rtl"
+        style="
+          margin-top: 16px; 
+          font-family: 'Heebo', sans-serif; 
+          font-size: 17px; 
+          font-weight: 600; 
+          letter-spacing: 1.2px; 
+          background: linear-gradient(135deg, #818cf8 0%, #a855f7 60%, #38bdf8 100%); 
+          -webkit-background-clip: text; 
+          -webkit-text-fill-color: transparent; 
+          opacity: 0; 
+          transform: translateY(14px); 
+          transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1), transform 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+          text-shadow: 0 2px 14px rgba(99, 102, 241, 0.3);
+        "
+      >
+        אינטראקציה שהיא נכס
+      </div>
+    </div>
+
+    <script>
+      (function() {
+        var curtain = document.getElementById('kosun-splash-curtain');
+        var typedEl = document.getElementById('kosun-splash-typed');
+        var cursorEl = document.getElementById('kosun-splash-cursor');
+        var sloganEl = document.getElementById('kosun-splash-slogan');
+        if (!curtain || !typedEl) return;
+
+        var textToType = 'OSUN';
+        var index = 0;
+        var animCompleted = false;
+        var domReady = false;
+
+        function dismissCurtain() {
+          if (!curtain || curtain.dataset.dismissed === 'true') return;
+          curtain.dataset.dismissed = 'true';
+          curtain.style.opacity = '0';
+          curtain.style.transform = 'scale(1.03)';
+          curtain.style.pointerEvents = 'none';
+          setTimeout(function() {
+            try { curtain.remove(); } catch(e) {}
+          }, 650);
+        }
+
+        // Type letters O - S - U - N
+        setTimeout(function() {
+          var typeInterval = setInterval(function() {
+            if (index < textToType.length) {
+              typedEl.textContent += textToType.charAt(index);
+              index++;
+            } else {
+              clearInterval(typeInterval);
+              setTimeout(function() {
+                if (cursorEl) cursorEl.style.display = 'none';
+                if (sloganEl) {
+                  sloganEl.style.opacity = '1';
+                  sloganEl.style.transform = 'translateY(0)';
+                }
+                animCompleted = true;
+                // Wait for viewing the complete animation, then dismiss cleanly
+                setTimeout(function() {
+                  dismissCurtain();
+                }, 850);
+              }, 120);
+            }
+          }, 140);
+        }, 220);
+
+        // Safety fallback: ensure curtain never hangs longer than 2.8s under any condition
+        setTimeout(dismissCurtain, 2800);
+      })();
+    </script>
+
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

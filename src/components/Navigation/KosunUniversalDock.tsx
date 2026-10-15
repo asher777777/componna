@@ -370,7 +370,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
         ) : (
           /* Full Expanded Luxury Dock Bar */
           <nav 
-            className="flex items-center gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 p-2 rounded-3xl shadow-2xl animate-in fade-in zoom-in-95"
+            className="flex items-center gap-1 sm:gap-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 p-1.5 sm:p-2 rounded-3xl shadow-2xl animate-in fade-in zoom-in-95 max-w-[calc(100vw-1rem)] overflow-x-auto no-scrollbar"
             aria-label="תפריט מערכת קושאן"
           >
             {/* 1. Dynamic AI Agent Button */}
