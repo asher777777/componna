@@ -357,7 +357,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
           {tab === 'icons' && (
             <div className="py-1">
               <LuxuryIconsGallery
-                onSelectIcon={(dataUri) => {
+                onSelectIcon={(dataUri: string) => {
                   onChange(dataUri);
                   setUrlInput(dataUri);
                 }}
