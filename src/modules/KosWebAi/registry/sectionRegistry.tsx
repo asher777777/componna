@@ -28,12 +28,14 @@ import { HeaderSection } from '../sections/header/HeaderSection';
 import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
 import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
+import { FutureContentSection } from '../sections/futureContent/FutureContentSection';
 
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
 import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
+import { FutureContentEditor } from '../sections/futureContent/FutureContentEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
@@ -993,6 +995,103 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
       primaryButton: {
         text: 'צפייה בכל מאגר הפעילויות',
+        url: '#',
+      },
+    },
+  },
+
+  futureContent2027: {
+    type: 'futureContent2027',
+    name: 'אזור תוכן עתידני 2027 (Multi-Mode)',
+    category: 'content',
+    description: 'אזור תוכן פורץ דרך משנת 2027 הכולל 3 תצורות יוקרה: בנטו מרחבי, מגזין קינטי ואיים צפים, עם החלפה אינטראקטיבית בלייב',
+    icon: Sparkles,
+    viewComponent: FutureContentSection as any,
+    editorComponent: FutureContentEditor as any,
+    defaultConfig: {
+      type: 'futureContent2027',
+      visible: true,
+      anchorId: 'future-content',
+      activeMode: 'prism-bento',
+      allowVisitorSwitching: true,
+      badge: 'חוויית תוכן 2027',
+      title: 'העתיד של עולם התוכן והחדשנות',
+      subtitle: 'שילוב רב-ממדי של עומק מרחבי, טיפוגרפיה קינטית ואיי תוכן אינטראקטיביים עם תקצירי AI קוליים',
+      ambientMeshGlow: true,
+      ambientGlowColor: '#6366f1',
+      effectStyle: 'prism-beam',
+      items: [
+        {
+          id: 'future-1',
+          title: 'אדריכלות המידע והתוכן לשנת 2027',
+          subtitle: 'מעבר מפריסות שטוחות ומיושנות לממשקים מרחביים חיים המגיבים לתשומת הלב של המשתמש בזמן אמת.',
+          description: 'בשנת 2027 הממשק כבר אינו אוסף קופסאות סטטיות. השילוב של תאורה סביבתית (Ray-tracing Ray Glow), זכוכית נוזלית עמוקה ומיקרו-אינטראקציות קינטיות יוצר תחושת יוקרה, עניין ומעורבות משתמש חסרת תקדים.',
+          imageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+          category: 'חזון ומגמות',
+          tag: '• תפיסה מרחבית •',
+          badge: 'FEATURED',
+          readTime: '3 דק׳ קריאה',
+          audioDuration: '01:45',
+          metrics: [
+            { label: 'זמן שהייה', value: '+340%', trend: 'עלייה' },
+            { label: 'מעורבות', value: '98.4%', trend: 'שיא' },
+          ],
+          ctaText: 'סקירה מעמיקה',
+          ctaUrl: '#',
+          featured: true,
+        },
+        {
+          id: 'future-2',
+          title: 'סוכני תוכן אוטונומיים ומיקרו-האזנה',
+          subtitle: 'אינטגרציית קול AI חיה המייצרת תקציר מותאם אישית בלחיצת כפתור אחת ללא צורך בקריאה ממושכת.',
+          description: 'מערכת התוכן מנגישה לכל משתמש פודקאסט ממוקד של 90 שניות הממצה את עיקרי הדברים בקול ישראלי טבעי ורהוט, בליווי אנימציית גלי קול פעילה.',
+          imageUrl: 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80',
+          category: 'סוכני AI',
+          tag: '• סאונד קינטי •',
+          readTime: '2 דק׳ קריאה',
+          audioDuration: '01:20',
+          metrics: [
+            { label: 'האזנות', value: '45.2K', trend: 'פופולרי' },
+          ],
+          ctaText: 'האזן עכשיו',
+          ctaUrl: '#',
+        },
+        {
+          id: 'future-3',
+          title: 'קפסולות מידע ואיי גלישה צפים',
+          subtitle: 'חשיפה מהירה (Peek Sheets) ללא טעינת דפים מחדש ומבלי לקטוע את חוויית הגלישה השוטפת.',
+          description: 'כל אי מידע נפתח בצורה נוזלית ורכה למגירת תוכן אינטראקטיבית המרכזת נתונים, גרפים, פעולות מהירות ויצירת קשר ישירה.',
+          imageUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
+          category: 'ממשקים חכמים',
+          tag: '• ביצועים •',
+          readTime: '4 דק׳ קריאה',
+          audioDuration: '02:10',
+          metrics: [
+            { label: 'מהירות תגובה', value: '12ms', trend: 'מיידי' },
+          ],
+          ctaText: 'פתיחת קפסולה',
+          ctaUrl: '#',
+        },
+        {
+          id: 'future-4',
+          title: 'אקו-סיסטם אינטגרטיבי וחיבור מערכות',
+          subtitle: 'שילוב חלק עם מודולי CRM, וואטסאפ ותשלומים ללא קטיעות וללא הפניות חיצוניות מגושמות.',
+          description: 'התשתית החדשה מאפשרת סגירת עסקאות, הרשמה לאירועים ותיאום פגישות ישירות מתוך שכבת התוכן באפס חיכוך.',
+          imageUrl: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=800&q=80',
+          category: 'אינטגרציות',
+          tag: '• המרה גבוהה •',
+          readTime: '3 דק׳ קריאה',
+          audioDuration: '01:15',
+          ctaText: 'לפרטים נוספים',
+          ctaUrl: '#',
+        },
+      ],
+      primaryButton: {
+        text: 'גלה את כל פתרונות 2027',
+        url: '#',
+      },
+      secondaryButton: {
+        text: 'תיאום שיחת הדגמה',
         url: '#',
       },
     },

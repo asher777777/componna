@@ -13,4 +13,5 @@ export * from './crmAiContract';
 export * from './emailAiContract';
 export * from './kosTubeAiContract';
 export * from './togetherAiContract';
+export * from './brandAiContract';
 

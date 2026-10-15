@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useBrandDna } from '../context/BrandDnaContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
-import { generateBrandContentStrategies } from '../services/geminiBrandPrompt';
+import { generateBrandContentStrategies, generateBrandSummaryParagraph } from '../services/brandCopilotService';
 import { ContentStrategyItem } from '../types/brandDna';
 import { saveContentStrategyItem } from '../services/brandDnaFirestore';
 import {
@@ -21,6 +21,7 @@ import {
   ExternalLink,
   X,
   Target,
+  BookOpen,
 } from 'lucide-react';
 
 interface ContentStrategyModalProps {
@@ -35,6 +36,7 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
   const { brandDna } = useBrandDna();
   const { apiKeys } = useSystemConnection();
 
+  const [activeTab, setActiveTab] = useState<'strategies' | 'paragraph'>('strategies');
   const [isLoading, setIsLoading] = useState(false);
   const [strategies, setStrategies] = useState<ContentStrategyItem[]>([]);
   const [activeStrategyIdx, setActiveStrategyIdx] = useState(0);
@@ -42,6 +44,11 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
   const [savingIdx, setSavingIdx] = useState<number | null>(null);
   const [savedSuccessIdx, setSavedSuccessIdx] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Brand Summary Paragraph State (250-300 words)
+  const [paragraph, setParagraph] = useState<string | null>(null);
+  const [wordCount, setWordCount] = useState<number>(0);
+  const [isGeneratingParagraph, setIsGeneratingParagraph] = useState(false);
 
   if (!isOpen) return null;
 
@@ -61,6 +68,25 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
       setErrorMessage(err.message || 'שגיאה בלתי צפויה');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGenerateParagraph = async () => {
+    setIsGeneratingParagraph(true);
+    setErrorMessage(null);
+    try {
+      const apiKey = apiKeys.googleAiApiKey || getModuleGeminiKey('KosBranding') || '';
+      const res = await generateBrandSummaryParagraph(brandDna, apiKey);
+      if (res.success && res.paragraph) {
+        setParagraph(res.paragraph);
+        setWordCount(res.wordCount);
+      } else {
+        setErrorMessage(res.error || 'לא הצלחנו לייצר פסקת תמצית מותג');
+      }
+    } catch (err: any) {
+      setErrorMessage(err.message || 'שגיאה בלתי צפויה');
+    } finally {
+      setIsGeneratingParagraph(false);
     }
   };
 
@@ -124,6 +150,38 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
           </button>
         </div>
 
+        {/* Navigation Tabs */}
+        <div className="flex items-center gap-2 px-6 pt-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/40 dark:bg-slate-950/40">
+          <button
+            type="button"
+            onClick={() => setActiveTab('strategies')}
+            className={`pb-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'strategies'
+                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>אסטרטגיות עמודי שירות ומכירה</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('paragraph')}
+            className={`pb-3 px-4 text-xs font-bold border-b-2 transition-all flex items-center gap-2 ${
+              activeTab === 'paragraph'
+                ? 'border-purple-600 text-purple-600 dark:text-purple-400'
+                : 'border-transparent text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
+            <span>פסקת תמצית מותג (250-300 מילים)</span>
+            <span className="px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-bold">
+              מועט המחזיק את המרובה
+            </span>
+          </button>
+        </div>
+
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 flex-1">
           {errorMessage && (
@@ -131,6 +189,91 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
               {errorMessage}
             </div>
           )}
+
+          {/* PARAGRAPH TAB CONTENT */}
+          {activeTab === 'paragraph' && (
+            <div className="space-y-6">
+              {!paragraph && !isGeneratingParagraph && (
+                <div className="py-12 flex flex-col items-center justify-center text-center space-y-4">
+                  <div className="w-16 h-16 rounded-3xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shadow-inner">
+                    <BookOpen className="w-8 h-8" />
+                  </div>
+                  <div className="max-w-md space-y-1">
+                    <h3 className="text-base font-bold text-slate-800 dark:text-white">
+                      פסקת תמצית מותג מרוכזת (250-300 מילים)
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      פסקה אחת דחוסה ועוצמתית המחזיקה את המרובה: מייצגת את כל מהות המותג, השפה, קהלי היעד, והבידול העסקי, מתאימה לאודות, לפרופיל חברה ולדפי נחיתה.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateParagraph}
+                    className="px-6 py-3 bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-500 hover:to-indigo-500 text-white rounded-2xl text-xs font-bold shadow-lg shadow-emerald-600/20 transition-all flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>חבר פסקת מיתוג עכשיו (250-300 מילים)</span>
+                  </button>
+                </div>
+              )}
+
+              {isGeneratingParagraph && (
+                <div className="py-16 flex flex-col items-center justify-center text-center space-y-3">
+                  <Loader2 className="w-10 h-10 animate-spin text-emerald-600 dark:text-emerald-400" />
+                  <p className="text-sm font-bold text-slate-800 dark:text-white">
+                    KOSAI מנסח פסקת תמצית מותג דחוסה ומדויקת (250-300 מילים)...
+                  </p>
+                </div>
+              )}
+
+              {paragraph && !isGeneratingParagraph && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-2xl">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                      <div>
+                        <span className="text-xs font-bold text-emerald-900 dark:text-emerald-200 block">
+                          פסקת תמצית מותג מוכנה לשימוש
+                        </span>
+                        <span className="text-[11px] text-emerald-700 dark:text-emerald-400">
+                          {wordCount} מילים (יעד: 250-300 מילים) • תוכן דחוס ומדויק
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleCopyText(paragraph, 'summary_paragraph')}
+                        className="px-3.5 py-1.5 bg-white dark:bg-slate-800 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-50 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5"
+                      >
+                        {copiedField === 'summary_paragraph' ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedField === 'summary_paragraph' ? 'הועתק!' : 'העתק פסקה'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleGenerateParagraph}
+                        className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-sm"
+                      >
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>רענן ניסוח</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 rounded-3xl leading-relaxed text-sm text-slate-800 dark:text-slate-200 font-normal selection:bg-emerald-500 selection:text-white">
+                    {paragraph}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* STRATEGIES TAB CONTENT */}
+          {activeTab === 'strategies' && (
+            <>
 
           {/* Initial State / Generate Trigger */}
           {strategies.length === 0 && !isLoading && (
@@ -330,6 +473,8 @@ export const ContentStrategyModal: React.FC<ContentStrategyModalProps> = ({
                 </div>
               )}
             </div>
+          )}
+          </>
           )}
         </div>
 

@@ -26,7 +26,8 @@ export type SectionType =
   | 'eventRsvp'
   | 'kosvidio'
   | 'tiktokHero'
-  | 'dynamicListing';
+  | 'dynamicListing'
+  | 'futureContent2027';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

@@ -306,6 +306,27 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'futureContent2027': {
+      cloned.title = `העתיד של ${companyName}: תוכן ועשייה`;
+      cloned.subtitle = slogan;
+      if (services.length > 0 && Array.isArray(cloned.items)) {
+        cloned.items = services.slice(0, 5).map((srv: any, idx: number) => ({
+          id: `item-${idx + 1}`,
+          title: srv.name || `פעילות ${idx + 1}`,
+          subtitle: srv.description || slogan,
+          description: srv.description || `השירות המוביל של ${companyName} בסטנדרט האיכות הגבוה ביותר.`,
+          imageUrl: srv.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+          category: srv.category || 'פעילות',
+          tag: '• 2027 INNOVATION •',
+          readTime: '3 דק׳ קריאה',
+          audioDuration: '01:30',
+          ctaText: 'גלה עוד',
+          ctaUrl: buildWhatsAppUrl(whatsapp, `היי, אשמח לקבל פרטים על ${srv.name}`),
+        }));
+      }
+      break;
+    }
+
     default: {
       // General fallbacks for common fields across any section type
       if ('companyName' in cloned && !cloned.companyName) cloned.companyName = companyName;

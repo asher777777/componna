@@ -726,3 +726,64 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   titleColor?: string;
 }
 
+export type FutureContentMode = 'prism-bento' | 'kinetic-editorial' | 'floating-islands';
+
+export type FutureContentEffect = 'prism-beam' | 'fluid-glass' | 'cyber-aura' | 'minimal-refract';
+
+export interface FutureContentMetric {
+  label: string;
+  value: string;
+  trend?: string;
+}
+
+export interface FutureContentItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  imageUrl: string;
+  videoUrl?: string;
+  category: string;
+  tag?: string;
+  badge?: string;
+  readTime?: string;
+  audioDuration?: string;
+  metrics?: FutureContentMetric[];
+  author?: {
+    name: string;
+    avatarUrl?: string;
+    role?: string;
+  };
+  ctaText?: string;
+  ctaUrl?: string;
+  featured?: boolean;
+  colSpan?: 1 | 2;
+  rowSpan?: 1 | 2;
+}
+
+export interface FutureContentSectionConfig extends BaseSectionConfig {
+  type: 'futureContent2027';
+  activeMode: FutureContentMode;
+  allowVisitorSwitching?: boolean;
+  badge?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  ambientMeshGlow?: boolean;
+  ambientGlowColor?: string;
+  effectStyle?: FutureContentEffect;
+  items: FutureContentItem[];
+  enableAudioPreview?: boolean;
+  primaryButton?: {
+    text: string;
+    url: string;
+  };
+  secondaryButton?: {
+    text: string;
+    url: string;
+  };
+  cardBgColor?: string;
+  titleColor?: string;
+  textColor?: string;
+}
+

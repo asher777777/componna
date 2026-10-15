@@ -71,6 +71,7 @@ User Goal & Specific Request:
 13. "beforeAfter": title, subtitle, description, beforeLabel, afterLabel
 14. "tiktokHero": video {videoUrl, badgeText, durationText, seasonEpisodeText}, overlay {mode: 'gradient'|'solid', opacity: 40}, headline, card {enabled: true, tag, title, subtitle}, ctaButton {text, iconName: 'Sparkles', actionType: 'modal_form'}, modalTitle, modalSubtitle
 15. "dynamicListing": title, subtitle, badge, layout ('bento-showcase'|'floating-grid'|'snap-carousel'|'editorial-list'|'masonry'), source ('custom'|'pages'|'kos_tube'|'campaigns'), categories: string[], items [{id, title, subtitle, excerpt, imageUrl, category, date, badge, price, actionType: 'modal'}]
+16. "futureContent2027": title, subtitle, badge, activeMode ('prism-bento'|'kinetic-editorial'|'floating-islands'), allowVisitorSwitching: true, effectStyle ('prism-beam'|'fluid-glass'|'cyber-aura'), items [{id, title, subtitle, description, imageUrl, category, tag, readTime, audioDuration, metrics: [{label, value, trend}]}]
 
 Return ONLY a valid JSON object with NO MARKDOWN ticks:
 {
