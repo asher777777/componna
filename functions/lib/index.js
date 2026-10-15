@@ -14,47 +14,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
     try {
         const rawDigits = phone.replace(/\D/g, '');
         const normPhone = rawDigits.startsWith('972') ? '0' + rawDigits.slice(3) : rawDigits;
-        const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash-lite' });
-        const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
-        const prompt = `
-    Extract contact information from the following chat log.
-    If the user mentions their name, email, or business type, extract it.
-    Return ONLY a raw JSON object with the following structure (no markdown tags, no backticks).
-    {
-      "name": "extracted name or null",
-      "email": "extracted email or null",
-      "businessType": "extracted business type or null"
-    }
-    
-    Chat:
-    ${chatText}
-    `;
-        const result = await model.generateContent(prompt);
-        // Track token usage to platform meter
-        try {
-            const pTokens = ((_a = result.response.usageMetadata) === null || _a === void 0 ? void 0 : _a.promptTokenCount) || 200;
-            const cTokens = ((_b = result.response.usageMetadata) === null || _b === void 0 ? void 0 : _b.candidatesTokenCount) || 80;
-            const tTokens = pTokens + cTokens;
-            const costUSD = Number(((pTokens * 0.75 + cTokens * 3.75) / 1000000).toFixed(6));
-            await db.doc('tenants/_master/settings/token_usage').set({
-                totalTokens: admin.firestore.FieldValue.increment(tTokens),
-                contentTokens: admin.firestore.FieldValue.increment(tTokens),
-                totalCostUSD: admin.firestore.FieldValue.increment(costUSD),
-                totalCostILS: admin.firestore.FieldValue.increment(Number((costUSD * 3.7).toFixed(6))),
-                updatedAt: new Date().toISOString()
-            }, { merge: true });
-        }
-        catch (_c) { }
-        const text = result.response.text().trim().replace(/```json/g, '').replace(/```/g, '');
-        let data = {};
-        try {
-            data = JSON.parse(text);
-        }
-        catch (_d) {
-            data = {};
-        }
-        // Smart lookup existing contact
+        // 1. Smart lookup existing contact FIRST (Zero-Token Rule)
         let matchedDocId = contactIdHint || null;
         let existingData = null;
         if (!matchedDocId) {
@@ -84,9 +44,56 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
                 existingData = docSnap.data();
             }
         }
-        const resolvedName = data.name || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.conta_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.name) || fallbackSenderName || `לקוח ${normPhone.slice(-4)}`;
+        const existingName = (existingData === null || existingData === void 0 ? void 0 : existingData.name) || (existingData === null || existingData === void 0 ? void 0 : existingData.conta_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_name);
+        const hasValidName = Boolean(existingName && existingName !== phone && existingName !== normPhone && !existingName.startsWith('לקוח '));
+        const hasCompany = Boolean((existingData === null || existingData === void 0 ? void 0 : existingData.company_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_company));
+        const hasEmail = Boolean((existingData === null || existingData === void 0 ? void 0 : existingData.email) || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_email));
+        // ZERO-TOKEN SHORTCUT:
+        // If contact already has name and company/email, OR extraction ran recently, skip Gemini completely!
+        const lastExtracted = (existingData === null || existingData === void 0 ? void 0 : existingData.lastAiExtractionTimestamp) || 0;
+        const isRecentlyExtracted = (Date.now() - lastExtracted) < (2 * 60 * 60 * 1000); // 2 hours throttle
+        const lastMsgText = messages.length > 0 ? (messages[messages.length - 1].text || '') : '';
+        const isTrivialMessage = /^(כן|לא|בטח|מחר|תודה|שלום|אהלן|היי|מעולה|אוקי|ok|סבבה|05\d{8})$/i.test(lastMsgText.trim());
+        let data = {};
+        // ONLY call Gemini if we genuinely lack essential info and message might contain details
+        if ((!hasValidName || (!hasCompany && !hasEmail)) && !isRecentlyExtracted && !isTrivialMessage && geminiKey) {
+            // Send AT MOST the last 4 messages, NOT the whole multi-day conversation!
+            const recentSlice = messages.slice(-4);
+            const chatText = recentSlice.map(m => `${m.role}: ${m.text}`).join('\n');
+            const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
+            const model = genAI.getGenerativeModel({
+                model: 'gemini-3.8-flash-lite',
+                generationConfig: {
+                    maxOutputTokens: 60,
+                    temperature: 0.1,
+                    responseMimeType: 'application/json',
+                }
+            });
+            const prompt = `חלץ שם, אימייל או תחום עיסוק והחזר JSON בלבד:
+${chatText}
+פורמט: {"name":null,"email":null,"businessType":null}`;
+            try {
+                const result = await model.generateContent(prompt);
+                const pTokens = ((_a = result.response.usageMetadata) === null || _a === void 0 ? void 0 : _a.promptTokenCount) || 40;
+                const cTokens = ((_b = result.response.usageMetadata) === null || _b === void 0 ? void 0 : _b.candidatesTokenCount) || 20;
+                const tTokens = pTokens + cTokens;
+                const costUSD = Number(((pTokens * 0.75 + cTokens * 3.75) / 1000000).toFixed(6));
+                await db.doc('tenants/_master/settings/token_usage').set({
+                    totalTokens: admin.firestore.FieldValue.increment(tTokens),
+                    contentTokens: admin.firestore.FieldValue.increment(tTokens),
+                    totalCostUSD: admin.firestore.FieldValue.increment(costUSD),
+                    totalCostILS: admin.firestore.FieldValue.increment(Number((costUSD * 3.7).toFixed(6))),
+                    updatedAt: new Date().toISOString()
+                }, { merge: true });
+                const text = result.response.text().trim();
+                data = JSON.parse(text);
+            }
+            catch (err) {
+                data = {};
+            }
+        }
+        const resolvedName = data.name || existingName || fallbackSenderName || `לקוח ${normPhone.slice(-4)}`;
         const nowIso = new Date().toISOString();
-        const lastMsgText = messages.length > 0 ? messages[messages.length - 1].text : '';
         if (!matchedDocId) {
             // Create new contact in canonical KOSUN CRM schema
             const newContactDoc = {
@@ -114,6 +121,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
                 last_message: lastMsgText,
                 last_channel: 'whatsapp',
                 last_conversation_date: nowIso,
+                lastAiExtractionTimestamp: Date.now(),
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
@@ -122,7 +130,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
             try {
                 await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).set(newContactDoc, { merge: true });
             }
-            catch (_e) { }
+            catch (_c) { }
         }
         else {
             // Update existing contact
@@ -131,6 +139,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
                 last_message: lastMsgText,
                 last_channel: 'whatsapp',
                 last_conversation_date: nowIso,
+                lastAiExtractionTimestamp: Date.now(),
             };
             if (data.name && (!(existingData === null || existingData === void 0 ? void 0 : existingData.name) || (existingData === null || existingData === void 0 ? void 0 : existingData.name) === phone || (existingData === null || existingData === void 0 ? void 0 : existingData.name) === normPhone)) {
                 updates.name = data.name;
@@ -149,7 +158,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
             try {
                 await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).set(updates, { merge: true });
             }
-            catch (_f) { }
+            catch (_d) { }
         }
         // Persist full conversation history into contact's subcollection
         if (matchedDocId) {
@@ -170,7 +179,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
                     messages: messages,
                 }, { merge: true });
             }
-            catch (_g) { }
+            catch (_e) { }
         }
     }
     catch (err) {
@@ -504,7 +513,9 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             }
             // 6. Generate AI Response strictly using valid 2026 model per google-ai-studio-gemini skill
             const targetModel = triggeredBot.model || 'gemini-3.8-flash-lite';
-            const contents = chatHistory.map(msg => ({
+            // SLIDING WINDOW CONTEXT: Send at most the last 8 messages (4 turns) to prevent token explosion over long chats!
+            const recentHistory = chatHistory.length > 8 ? chatHistory.slice(-8) : chatHistory;
+            const contents = recentHistory.map(msg => ({
                 role: msg.role === 'model' ? 'model' : 'user',
                 parts: [{ text: msg.text }]
             }));
@@ -524,6 +535,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     contents,
                     generationConfig: {
                         temperature: triggeredBot.temperature || 0.7,
+                        maxOutputTokens: 250,
                     }
                 });
                 replyText = ((_5 = result.response.text()) === null || _5 === void 0 ? void 0 : _5.trim()) || '';

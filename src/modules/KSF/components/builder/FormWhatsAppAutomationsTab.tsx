@@ -25,6 +25,8 @@ import {
   Check,
   RefreshCw,
   ExternalLink,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 
 export interface FormWhatsAppAutomationsTabProps {
@@ -548,6 +550,77 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
                         />
                       </div>
                     )}
+                  </div>
+                </div>
+
+                {/* Cloud Reminders & Contact Card (תזכורות ענן וכרטיס איש קשר) */}
+                <div className="p-4 bg-emerald-500/5 dark:bg-emerald-950/20 rounded-2xl border border-emerald-500/20 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold text-slate-800 dark:text-slate-200">
+                      <Clock className="w-4 h-4 text-emerald-500" />
+                      <span>תזמון שליחה (Google Cloud Functions Scheduler):</span>
+                    </div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold">
+                      אוטונומי בענן 24/7
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-slate-400 font-bold block mb-1">מתי לשלוח את ההודעה?</label>
+                      <select
+                        value={activeRule.timing || 'immediate'}
+                        onChange={(e) =>
+                          handleUpdateActiveRule({
+                            timing: e.target.value as 'immediate' | 'delayed_reminder',
+                            delayMinutes: e.target.value === 'delayed_reminder' ? (activeRule.delayMinutes || 60) : undefined
+                          })
+                        }
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="immediate">⚡ מיידי (בעת הגשת הטופס)</option>
+                        <option value="delayed_reminder">⏰ תזכורת ענן אוטומטית (Cloud Reminder)</option>
+                      </select>
+                    </div>
+
+                    {activeRule.timing === 'delayed_reminder' && (
+                      <div>
+                        <label className="text-[10px] text-slate-400 font-bold block mb-1">השהיה לתזכורת (בדקות)</label>
+                        <select
+                          value={activeRule.delayMinutes || 60}
+                          onChange={(e) => handleUpdateActiveRule({ delayMinutes: Number(e.target.value) })}
+                          className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          <option value={15}>15 דקות לאחר ההרשמה</option>
+                          <option value={60}>שעה לאחר ההרשמה</option>
+                          <option value={180}>3 שעות לאחר ההרשמה</option>
+                          <option value={1440}>24 שעות (יום למחרת)</option>
+                          <option value={2880}>יומיים לאחר ההרשמה</option>
+                          <option value={4320}>3 ימים לאחר ההרשמה</option>
+                        </select>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Anti-Ban & Statuses Contact Card Toggle */}
+                  <div className="pt-2 border-t border-emerald-500/15">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(activeRule.sendContactCard)}
+                        onChange={(e) => handleUpdateActiveRule({ sendContactCard: e.target.checked })}
+                        className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                          <span>צרף כרטיס איש קשר רשמי (vCard) לשמירה בזיכרון הליד</span>
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          מאפשר לליד לצפות בסטטוסים שלנו ומונע חסימות והשעיות חשבון (Anti-Ban)
+                        </span>
+                      </div>
+                    </label>
                   </div>
                 </div>
 

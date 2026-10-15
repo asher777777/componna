@@ -27,6 +27,9 @@ export interface FormWhatsAppRule {
   messageTemplate: string;    // E.g. "שלום {{conta_name}}, תודה שפנית בנושא {{service_type}}!..."
   mediaUrl?: string;          // Optional image/PDF URL to attach
   mediaFileName?: string;     // Optional filename
+  timing?: 'immediate' | 'delayed_reminder'; // Immediate or Google Cloud Scheduled Reminder
+  delayMinutes?: number;      // Delay in minutes for cloud reminder (e.g. 60, 1440)
+  sendContactCard?: boolean;  // Send business vCard so lead adds number (Anti-Ban & Statuses)
 }
 
 export interface FormWhatsAppDeliveryLog {

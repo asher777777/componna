@@ -559,17 +559,21 @@ export interface TiktokHeroVideoSettings {
 }
 
 export interface TiktokHeroOverlaySettings {
-  mode: 'solid' | 'gradient' | 'image' | 'none';
+  mode: 'solid' | 'gradient' | 'image' | 'vignette' | 'none';
   solidColor?: string;
   gradientFrom?: string;
   gradientTo?: string;
   gradientDirection?: 'to-t' | 'to-b' | 'to-r' | 'to-l';
   opacity?: number; // 0 - 100
   imageUrl?: string;
+  blur?: 'none' | 'sm' | 'md' | 'lg';
 }
 
 export interface TiktokHeroFloatingCard {
   enabled?: boolean;
+  position?: 'bottom' | 'center' | 'top';
+  width?: 'compact' | 'normal' | 'wide' | 'full';
+  textAlign?: 'right' | 'center' | 'left';
   showImage?: boolean;
   showText?: boolean;
   showTag?: boolean;
@@ -577,9 +581,18 @@ export interface TiktokHeroFloatingCard {
   subtitle?: string;
   tag?: string;
   imageUrl?: string;
-  shape?: 'rounded' | 'capsule' | 'square';
+  shape?: 'rounded' | 'capsule' | 'square' | 'asymmetric';
   style?: 'glass' | 'solid' | 'bordered';
+  bgColor?: string;
   borderColor?: string;
+  titleSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  titleColor?: string;
+  subtitleSize?: 'xs' | 'sm' | 'md';
+  subtitleColor?: string;
+  tagSize?: 'xs' | 'sm' | 'md';
+  tagColor?: string;
+  tagBgColor?: string;
+  padding?: 'compact' | 'normal' | 'spacious';
 }
 
 export interface TiktokHeroCtaButton {
@@ -588,7 +601,14 @@ export interface TiktokHeroCtaButton {
   customIconUrl?: string;
   showIcon?: boolean;
   iconPosition?: 'left' | 'right';
+  iconSize?: 'sm' | 'md' | 'lg';
+  buttonSize?: 'compact' | 'normal' | 'spacious' | 'huge' | 'fullWidth';
+  widthMode?: 'auto' | 'full' | 'fixed';
+  customWidthPx?: number;
+  fontSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   paddingY?: 'compact' | 'normal' | 'spacious';
+  position?: 'inside-card' | 'below-card' | 'center-video' | 'bottom-floating';
+  align?: 'right' | 'center' | 'left' | 'stretch';
   bgColor?: string;
   textColor?: string;
   shape?: 'rounded' | 'capsule' | 'square';
@@ -600,18 +620,53 @@ export interface TiktokHeroCtaButton {
 export interface TiktokHeroSectionConfig extends BaseSectionConfig {
   type: 'tiktokHero';
   video: TiktokHeroVideoSettings;
+  // Foreground overlay in front of the video (סעיף ד)
   overlay: TiktokHeroOverlaySettings;
+  // Background behind the video (סעיף ד)
+  backgroundType?: 'solid' | 'gradient' | 'image';
+  backgroundColor?: string;
+  backgroundGradientFrom?: string;
+  backgroundGradientTo?: string;
+  backgroundGradientDirection?: 'to-t' | 'to-b' | 'to-r' | 'to-l' | 'to-br';
+  backgroundImageUrl?: string;
   ambientGlow?: boolean;
+  ambientGlowColor?: string;
+  ambientGlowOpacity?: number;
+
+  // Headline element & positioning (סעיף א)
   showHeadline?: boolean;
   headline: string;
+  headlinePosition?: 'top' | 'inside-top' | 'above-card';
+  headlineAlign?: 'right' | 'center' | 'left';
   headlineColor?: string;
-  headlineSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  headlineSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl';
   headlineWeight?: 'bold' | 'extrabold' | 'black';
   headlineShadow?: boolean;
+  headlineMarginBottom?: 'none' | 'sm' | 'md' | 'lg';
+
+  // Floating card element & positioning (סעיף א)
   card?: TiktokHeroFloatingCard;
+
+  // CTA button element & size over video (סעיף א ו-ג)
   ctaButton: TiktokHeroCtaButton;
+
+  // Modal element, text sizes and modal button (סעיף א ו-ב)
   modalTitle?: string;
   modalSubtitle?: string;
+  modalButtonText?: string;
+  modalButtonSize?: 'compact' | 'normal' | 'spacious' | 'fullWidth';
+  modalButtonFontSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  modalButtonBgColor?: string;
+  modalButtonTextColor?: string;
+  modalButtonShape?: 'rounded' | 'capsule' | 'square';
+  modalButtonPulse?: boolean;
+  modalShape?: 'rounded-2xl' | 'rounded-3xl' | 'rounded-capsule' | 'rounded-asymmetric' | 'rounded-sharp';
+  modalEffect?: 'glass' | 'neon' | 'aura' | 'shadow-luxury' | 'flat' | 'gradient-border';
+  modalBgColor?: string;
+  modalBackdropBlur?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  modalMaxWidth?: 'sm' | 'md' | 'lg' | 'xl';
+
+  // Forms component delegation (סעיף ב)
   formId?: string;
   form?: FormConfigContract;
 }

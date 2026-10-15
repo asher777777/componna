@@ -224,6 +224,7 @@ export async function submitFormResponse(
         metadata,
         submissionId,
         submittedAt: now,
+        customFirestore: targetDb,
       });
     } catch (waErr) {
       console.warn('Error processing WhatsApp automations:', waErr);

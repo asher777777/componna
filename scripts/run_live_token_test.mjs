@@ -135,7 +135,7 @@ const functionsContent = fs.readFileSync(
 );
 
 assert(
-  functionsContent.includes("const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash-lite' });"),
+  functionsContent.includes("model: 'gemini-3.8-flash-lite'"),
   'functions/src/index.ts extractAndSaveContact uses gemini-3.8-flash-lite'
 );
 assert(

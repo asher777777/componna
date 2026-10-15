@@ -1,6 +1,9 @@
 import { SmartFormDefinition, FormWhatsAppRule, FormWhatsAppDeliveryLog } from '../types';
 import { renderWhatsAppMessage, evaluateRuleCondition } from './whatsappTemplateService';
 import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
+import { SYSTEM_COLLECTIONS, ScheduledReminderPayload } from '../../../core/contracts';
+import { collection, doc, setDoc, Firestore } from 'firebase/firestore';
+import { db } from '../../../services/firebase';
 
 interface GreenSendParams {
   instanceId: string;
@@ -48,6 +51,7 @@ async function sendGreenApiMessage(params: GreenSendParams): Promise<{ idMessage
     return { error: err?.message || 'שגיאה במשלוח הודעת וואטסאפ' };
   }
 }
+
 /**
  * Helper providing green-api send methods for internal components
  */
@@ -70,6 +74,7 @@ export function getGreenApiService() {
 
 /**
  * Processes all configured WhatsApp rules for a form submission and sends messages via Green-API
+ * or schedules them to Google Cloud Functions via ScheduledReminderContract
  */
 export async function processSubmissionWhatsAppAutomations(params: {
   form: SmartFormDefinition;
@@ -78,8 +83,9 @@ export async function processSubmissionWhatsAppAutomations(params: {
   metadata?: any;
   submissionId: string;
   submittedAt: string;
+  customFirestore?: Firestore;
 }): Promise<FormWhatsAppDeliveryLog[]> {
-  const { form, rawAnswers, detailedAnswers, metadata, submissionId, submittedAt } = params;
+  const { form, rawAnswers, detailedAnswers, metadata, submissionId, submittedAt, customFirestore } = params;
 
   // If automation is globally disabled on the form or no rules exist
   if (!form.whatsappAutomationEnabled || !form.whatsappRules || form.whatsappRules.length === 0) {
@@ -88,6 +94,7 @@ export async function processSubmissionWhatsAppAutomations(params: {
 
   const logs: FormWhatsAppDeliveryLog[] = [];
   const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
+  const targetDb = customFirestore || db;
 
   const conta_phone =
     rawAnswers['conta_phone'] ||
@@ -144,6 +151,65 @@ export async function processSubmissionWhatsAppAutomations(params: {
         renderedMessage,
         error: 'לא נמצא מספר טלפון תקין למשלוח',
       });
+      continue;
+    }
+
+    // 4. Handle Cloud Scheduled Reminders (runs via Google Cloud Functions, not local storage)
+    if (rule.timing === 'delayed_reminder' || (rule.delayMinutes && rule.delayMinutes > 0)) {
+      const delayMs = (rule.delayMinutes || 60) * 60 * 1000;
+      const scheduledAtIso = new Date(Date.now() + delayMs).toISOString();
+
+      for (const rec of recipients) {
+        try {
+          if (targetDb) {
+            const reminderRef = doc(collection(targetDb, SYSTEM_COLLECTIONS.SCHEDULED_REMINDERS));
+            const reminderDoc: ScheduledReminderPayload = {
+              id: reminderRef.id,
+              sourceModule: 'KSF',
+              sourceId: form.id,
+              recipientPhone: rec.phone,
+              recipientName: rawAnswers['conta_name'] || rawAnswers['name'] || '',
+              recipientType: rec.type,
+              message: renderedMessage,
+              mediaUrl: rule.mediaUrl,
+              mediaFileName: rule.mediaFileName,
+              scheduledAt: scheduledAtIso,
+              status: 'pending',
+              createdAt: new Date().toISOString(),
+              sendContactCard: Boolean(rule.sendContactCard),
+              metadata: {
+                submissionId,
+                formTitle: form.title,
+                ruleId: rule.id,
+                ruleName: rule.name,
+              },
+            };
+
+            await setDoc(reminderRef, reminderDoc);
+          }
+
+          logs.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            recipientPhone: rec.phone,
+            recipientType: rec.type,
+            status: 'sent',
+            sentAt: new Date().toISOString(),
+            renderedMessage: `[מתוזמן לענן: ${scheduledAtIso}] ${renderedMessage}`,
+          });
+        } catch (e: any) {
+          logs.push({
+            ruleId: rule.id,
+            ruleName: rule.name,
+            recipientPhone: rec.phone,
+            recipientType: rec.type,
+            status: 'failed',
+            sentAt: new Date().toISOString(),
+            renderedMessage,
+            error: `שגיאה בתזמון תזכורת ענן: ${e?.message || e}`,
+          });
+        }
+      }
       continue;
     }
 

@@ -35,6 +35,9 @@ export interface WhatsAppAiBotConfig {
   temperature: number;
   interactiveButtons: WhatsAppBotButton[];
   autoGenerateButtons: boolean;
+  conversationGoal?: string;
+  landingPagesCatalog?: Array<{ title: string; url: string; category?: string }>;
+  sendContactCardOnClose?: boolean;
   knowledgeBase?: {
     type: 'pdf' | 'collection' | 'url' | 'none';
     source: string;

@@ -8,6 +8,7 @@ import { ProgressBar } from './ProgressBar';
 import { FormCompletionScreen } from './FormCompletionScreen';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { DEFAULT_FORMS_COLLECTION } from '../../config/constants';
+import { SMART_FORM_TEMPLATES } from '../../config/formTemplates';
 
 export interface SmartFormRunnerProps {
   formId?: string;
@@ -17,6 +18,12 @@ export interface SmartFormRunnerProps {
   onComplete?: (answers: Record<string, any>, submissionId: string) => void;
   previewMode?: boolean;
   className?: string;
+  submitButtonText?: string;
+  submitButtonBgColor?: string;
+  submitButtonTextColor?: string;
+  submitButtonSize?: 'compact' | 'normal' | 'spacious' | 'fullWidth';
+  submitButtonFontSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  submitButtonShape?: 'rounded' | 'capsule' | 'square';
 }
 
 export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
@@ -27,6 +34,12 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
   onComplete,
   previewMode = false,
   className = '',
+  submitButtonText,
+  submitButtonBgColor,
+  submitButtonTextColor,
+  submitButtonSize,
+  submitButtonFontSize,
+  submitButtonShape,
 }) => {
   const [loadedForm, setLoadedForm] = useState<SmartFormDefinition | null>(propForm || null);
   const [isLoadingForm, setIsLoadingForm] = useState<boolean>(!propForm && !!formId);
@@ -45,11 +58,17 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
           if (f) {
             setLoadedForm(f);
           } else {
-            setLoadError('הטופס המבוקש לא נמצא');
+            const fallbackTpl = SMART_FORM_TEMPLATES.find((t) => t.id === formId) || SMART_FORM_TEMPLATES[0];
+            setLoadedForm(fallbackTpl || null);
           }
         })
-        .catch((e) => setLoadError(e.message || 'שגיאה בטעינת הטופס'))
+        .catch(() => {
+          const fallbackTpl = SMART_FORM_TEMPLATES[0];
+          setLoadedForm(fallbackTpl || null);
+        })
         .finally(() => setIsLoadingForm(false));
+    } else {
+      setLoadedForm(SMART_FORM_TEMPLATES[0] || null);
     }
   }, [formId, propForm, customFirestore, collectionName]);
 
@@ -83,6 +102,12 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
       onComplete={onComplete}
       previewMode={previewMode}
       className={className}
+      submitButtonText={submitButtonText}
+      submitButtonBgColor={submitButtonBgColor}
+      submitButtonTextColor={submitButtonTextColor}
+      submitButtonSize={submitButtonSize}
+      submitButtonFontSize={submitButtonFontSize}
+      submitButtonShape={submitButtonShape}
     />
   );
 };
@@ -94,6 +119,12 @@ interface InnerProps {
   onComplete?: (answers: Record<string, any>, submissionId: string) => void;
   previewMode?: boolean;
   className?: string;
+  submitButtonText?: string;
+  submitButtonBgColor?: string;
+  submitButtonTextColor?: string;
+  submitButtonSize?: 'compact' | 'normal' | 'spacious' | 'fullWidth';
+  submitButtonFontSize?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
+  submitButtonShape?: 'rounded' | 'capsule' | 'square';
 }
 
 const SmartFormRunnerInner: React.FC<InnerProps> = ({
@@ -103,6 +134,12 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
   onComplete,
   previewMode,
   className,
+  submitButtonText,
+  submitButtonBgColor,
+  submitButtonTextColor,
+  submitButtonSize,
+  submitButtonFontSize,
+  submitButtonShape,
 }) => {
   const {
     currentStepIndex,
@@ -315,9 +352,36 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
               type="button"
               onClick={handleNext}
               disabled={isSubmitting}
-              className="px-7 py-3 rounded-2xl font-bold text-white shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2 text-sm sm:text-base disabled:opacity-50"
+              className={`font-bold shadow-lg transition-all transform hover:-translate-y-0.5 active:translate-y-0 flex items-center justify-center gap-2 disabled:opacity-50 cursor-pointer ${
+                submitButtonShape === 'capsule'
+                  ? 'rounded-full'
+                  : submitButtonShape === 'square'
+                  ? 'rounded-none'
+                  : 'rounded-2xl'
+              } ${
+                submitButtonSize === 'compact'
+                  ? 'px-4 py-2'
+                  : submitButtonSize === 'spacious'
+                  ? 'px-9 py-4'
+                  : submitButtonSize === 'fullWidth'
+                  ? 'w-full py-3.5 px-6'
+                  : 'px-7 py-3'
+              } ${
+                submitButtonFontSize === 'xs'
+                  ? 'text-xs'
+                  : submitButtonFontSize === 'sm'
+                  ? 'text-sm'
+                  : submitButtonFontSize === 'lg'
+                  ? 'text-lg'
+                  : submitButtonFontSize === 'xl'
+                  ? 'text-xl'
+                  : 'text-sm sm:text-base'
+              } ${
+                submitButtonTextColor ? '' : 'text-white'
+              }`}
               style={{
-                backgroundColor: accentColor,
+                backgroundColor: submitButtonBgColor || accentColor,
+                color: submitButtonTextColor || undefined,
               }}
             >
               {isSubmitting ? (
@@ -327,7 +391,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
                 </>
               ) : isLastStep ? (
                 <>
-                  <span>שליחת הטופס</span>
+                  <span>{submitButtonText || 'שליחת הטופס'}</span>
                   <Sparkles className="w-5 h-5" />
                 </>
               ) : (

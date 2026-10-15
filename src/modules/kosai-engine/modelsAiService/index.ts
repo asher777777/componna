@@ -12,4 +12,5 @@ export * from './whatsUpAiContract';
 export * from './crmAiContract';
 export * from './emailAiContract';
 export * from './kosTubeAiContract';
+export * from './togetherAiContract';
 
