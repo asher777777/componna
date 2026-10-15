@@ -101,6 +101,37 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
     setFormData(initial);
   }, [propForm]);
 
+  // Modal styling classes from activeForm (User Request ה)
+  const modalShape = activeForm?.modal_shape || 'rounded-3xl';
+  const modalEffect = activeForm?.modal_effect || 'glass';
+  const modalBackdropBlur = activeForm?.modal_backdrop_blur || 'md';
+  const modalBgColor = activeForm?.modal_bg_color;
+
+  const shapeClass = {
+    'rounded-3xl': 'rounded-3xl',
+    'rounded-2xl': 'rounded-2xl',
+    'rounded-capsule': 'rounded-[36px] sm:rounded-[44px]',
+    'rounded-asymmetric': 'rounded-tr-[44px] rounded-bl-[44px] rounded-tl-2xl rounded-br-2xl',
+    'rounded-sharp': 'rounded-lg',
+  }[modalShape] || 'rounded-3xl';
+
+  const blurClass = {
+    none: '',
+    sm: 'backdrop-blur-sm',
+    md: 'backdrop-blur-md',
+    lg: 'backdrop-blur-lg',
+    xl: 'backdrop-blur-xl',
+  }[modalBackdropBlur] || 'backdrop-blur-md';
+
+  const effectClass = {
+    glass: 'bg-white/90 dark:bg-slate-900/90 backdrop-blur-xl border border-white/20 dark:border-slate-700/60 shadow-2xl',
+    neon: 'bg-slate-950 border-2 border-indigo-500/80 shadow-[0_0_50px_rgba(99,102,241,0.35)]',
+    aura: 'bg-gradient-to-b from-slate-900 via-slate-900/95 to-slate-950 border border-amber-500/30 shadow-[0_10px_40px_rgba(245,158,11,0.2)]',
+    'shadow-luxury': 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.6)]',
+    'gradient-border': 'bg-slate-950 border-2 border-indigo-500/40 shadow-2xl ring-1 ring-amber-400/30',
+    flat: 'bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 shadow-md',
+  }[modalEffect] || 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-2xl';
+
   const toggleMute = () => {
     if (videoRef.current) {
       const nextMuted = !videoRef.current.muted;
@@ -588,9 +619,10 @@ export const TiktokHeroSection: React.FC<{ config: TiktokHeroSectionConfig }> = 
 
       {/* 3. Popup Lead Form Modal (learned from ContactSection) */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 ${blurClass} animate-in fade-in duration-200`}>
           <div
-            className="relative w-full max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-right animate-in zoom-in-95 duration-200"
+            style={modalBgColor ? { backgroundColor: modalBgColor } : undefined}
+            className={`relative w-full max-w-xl max-h-[90vh] overflow-y-auto ${shapeClass} ${effectClass} p-6 sm:p-8 text-right animate-in zoom-in-95 duration-200`}
             dir="rtl"
           >
             {/* Close Button */}
