@@ -223,14 +223,72 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'tiktokHero': {
+      cloned.headline = companyName ? `${companyName} • ${slogan}` : 'חוויית וידאו יוקרתית';
+      if (cloned.card) {
+        cloned.card.tag = `• ${companyName} • ${slogan} •`;
+        cloned.card.title = companyName;
+        cloned.card.subtitle = uvp || (slogan ? `${slogan} • מענה מדויק ואיכותי לכל לקוח` : 'פתרון יוקרתי ומותאם אישית');
+      }
+      cloned.modalTitle = `השארת פרטים לקבלת הצעה • ${companyName}`;
+      cloned.modalSubtitle = slogan ? `${slogan} • השאירו פרטים ונשוב אליכם בהקדם` : 'השאירו פרטים ונציגנו יחזרו אליכם בהקדם האפשרי';
+      if (cloned.ctaButton) {
+        cloned.ctaButton.text = 'השאירו פרטים לקבלת הצעה';
+        cloned.ctaButton.actionType = 'modal_form';
+      }
+      break;
+    }
+
     case 'flowPlayer':
-    case 'tiktokHero':
     case 'kosvidio': {
-      cloned.title = cloned.title || `${companyName} - צפו בסיפור שלנו`;
-      cloned.headline = cloned.headline || companyName;
-      cloned.subheadline = cloned.subheadline || slogan;
+      cloned.title = `${companyName} - צפו בסיפור שלנו`;
+      cloned.headline = companyName;
+      cloned.subheadline = slogan;
       cloned.ctaButtonText = 'לשיחה מהירה ב-WhatsApp';
       cloned.ctaButtonUrl = buildWhatsAppUrl(whatsapp, `היי, הגעתי דרך הווידאו של ${companyName}`);
+      break;
+    }
+
+    case 'features': {
+      cloned.title = `למה לבחור ב-${companyName}?`;
+      cloned.subtitle = uvp || slogan;
+      if (services.length > 0 && Array.isArray(cloned.items)) {
+        cloned.items = cloned.items.map((it: any, idx: number) => {
+          if (services[idx]) {
+            return {
+              ...it,
+              title: services[idx],
+              description: `פתרון מקצועי ואמין מבית ${companyName}.`,
+            };
+          }
+          return it;
+        });
+      }
+      break;
+    }
+
+    case 'about': {
+      cloned.title = `אודות ${companyName}`;
+      cloned.subtitle = slogan;
+      if (uvp) cloned.description = uvp;
+      break;
+    }
+
+    case 'cta': {
+      cloned.title = `מוכנים להתקדם עם ${companyName}?`;
+      cloned.subtitle = slogan;
+      cloned.buttonText = 'צרו איתנו קשר עכשיו';
+      cloned.buttonUrl = buildWhatsAppUrl(whatsapp, `שלום ${companyName}, אני מעוניין לשמוע פרטים נוספים`);
+      break;
+    }
+
+    case 'footer': {
+      cloned.copyrightText = `© ${new Date().getFullYear()} ${companyName}. כל הזכויות שמורות.`;
+      cloned.companyName = companyName;
+      cloned.phone = phone;
+      cloned.email = email;
+      cloned.whatsapp = whatsapp;
+      cloned.address = address;
       break;
     }
 
