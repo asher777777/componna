@@ -20,7 +20,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     description: 'Hero מפוצל עם תמונה/וידאו, באנר לוגואים, כרטיסי יתרונות, מחירון חבילות, ביקורות לקוחות, טיימר דחיפות וטופס רכישה.',
     badge: 'הכי ממיר 🔥',
     icon: 'Zap',
-    sectionTypes: ['hero', 'logoMarquee', 'services', 'pricing', 'testimonials', 'timer', 'contact'],
+    sectionTypes: ['hero', 'logoMarquee', 'pricing', 'testimonials', 'timer', 'contact'],
     config: {
       pageId: 'bp-sales-funnel',
       pageTitle: 'השקה מיוחדת - חבילות VIP והטבת פריסייל',
@@ -56,7 +56,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
         description: 'הצטרפו עוד היום להשקה הבלעדית וקבלו חבילת הטבות ייחודית במחיר היכרות.',
         keywords: ['מכירה', 'השקה', 'קורס', 'שירות פרימיום'],
       },
-      sectionOrder: ['hero-1', 'marquee-1', 'services-1', 'pricing-1', 'testimonials-1', 'timer-1', 'contact-1'],
+      sectionOrder: ['hero-1', 'marquee-1', 'pricing-1', 'testimonials-1', 'timer-1', 'contact-1'],
       sections: {
         'hero-1': {
           ...SECTION_REGISTRY.hero.defaultConfig,
@@ -78,12 +78,6 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
           ...SECTION_REGISTRY.logoMarquee.defaultConfig,
           id: 'marquee-1',
           title: 'החברות המובילות בישראל שבחרו בנו',
-        },
-        'services-1': {
-          ...SECTION_REGISTRY.services.defaultConfig,
-          id: 'services-1',
-          title: 'מה מחכה לכם בפנים?',
-          subtitle: 'מעטפת מלאה שתוכננה להביא אתכם לתוצאות מקסימליות',
         },
         'pricing-1': {
           ...SECTION_REGISTRY.pricing.defaultConfig,
@@ -121,7 +115,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     description: 'כותרת ממוקדת עיר/אזור, מפת פעילות וזמני הגעה, שירותים אזוריים, ביקורות מאומתות וכפתור חיוג מהיר ו-WhatsApp צף.',
     badge: 'דירוג מקומי 📍',
     icon: 'MapPin',
-    sectionTypes: ['hero', 'geoLocal', 'services', 'statsBento', 'testimonials', 'faq', 'contact'],
+    sectionTypes: ['hero', 'geoLocal', 'statsBento', 'testimonials', 'faq', 'contact'],
     config: {
       pageId: 'bp-geo-local',
       pageTitle: 'שירות מומחה באזור המרכז וגוש דן - הגעה מהירה',
@@ -167,7 +161,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
           openingHours: 'א-ה 08:00-20:00, ו 08:00-13:00',
         },
       },
-      sectionOrder: ['geo-hero', 'geo-map', 'geo-services', 'geo-stats', 'geo-testimonials', 'geo-faq', 'geo-contact'],
+      sectionOrder: ['geo-hero', 'geo-map', 'geo-stats', 'geo-testimonials', 'geo-faq', 'geo-contact'],
       sections: {
         'geo-hero': {
           ...SECTION_REGISTRY.hero.defaultConfig,
@@ -189,12 +183,6 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
           subtitle: 'פריסה רחבה בכל ערי גוש דן והשרון',
           city: 'תל אביב וגוש דן',
           serviceAreas: ['תל אביב-יפו', 'רמת גן', 'גבעתיים', 'פתח תקווה', 'חולון ובת ים', 'הרצליה ורמת השרון'],
-        },
-        'geo-services': {
-          ...SECTION_REGISTRY.services.defaultConfig,
-          id: 'geo-services',
-          title: 'השירותים שלנו באזורכם',
-          subtitle: 'פתרון מקצועי מקיף לכל צורך עם אחריות בכתב',
         },
         'geo-stats': {
           ...SECTION_REGISTRY.statsBento.defaultConfig,
@@ -315,7 +303,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     description: 'תמונת קאבר קהילתית, מונה חברים חי, הטבות בלעדיות לחברים, לוח אירועים ופעילויות, וטופס הצטרפות מהיר.',
     badge: 'חוויית שייכות 👥',
     icon: 'Users',
-    sectionTypes: ['hero', 'community', 'statsBento', 'services', 'testimonials', 'contact'],
+    sectionTypes: ['hero', 'community', 'statsBento', 'testimonials', 'contact'],
     config: {
       pageId: 'bp-community-hub',
       pageTitle: 'הקהילה הרשמית - מקום המפגש של המקצוענים',
@@ -349,7 +337,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
         description: 'הבית של המובילים בתחום. מפגשי חברים חודשיים, קבוצת דיונים סגורה והטבות מיוחדות.',
         keywords: ['קהילה', 'מועדון חברים', 'נטוורקינג', 'וובינרים'],
       },
-      sectionOrder: ['comm-hero', 'comm-main', 'comm-stats', 'comm-benefits', 'comm-testimonials', 'comm-join'],
+      sectionOrder: ['comm-hero', 'comm-main', 'comm-stats', 'comm-testimonials', 'comm-join'],
       sections: {
         'comm-hero': {
           ...SECTION_REGISTRY.hero.defaultConfig,
@@ -375,12 +363,6 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
           ...SECTION_REGISTRY.statsBento.defaultConfig,
           id: 'comm-stats',
           title: 'עוצמת הקהילה במספרים',
-        },
-        'comm-benefits': {
-          ...SECTION_REGISTRY.services.defaultConfig,
-          id: 'comm-benefits',
-          title: 'פעילויות ואירועים שוטפים',
-          subtitle: 'מפגשי זום שבועיים, כנסי נטוורקינג פרונטליים וסדנאות עבודה',
         },
         'comm-testimonials': {
           ...SECTION_REGISTRY.testimonials.defaultConfig,

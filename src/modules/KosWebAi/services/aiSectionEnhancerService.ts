@@ -165,29 +165,7 @@ export const aiSectionEnhancerService = {
           iconName: 'Target',
           prompt: 'הפוך את האזור לעיצוב centered אלגנטי ומינימליסטי עם טיפוגרפיה גדולה ומרווחים נושמים.',
         }
-      );
-    } else if (sectionType === 'services') {
-      layoutSuggestions.push(
-        {
-          id: 'services-layout-bento',
-          tab: 'layout',
-          title: 'פריסת Bento Grid עם כרטיסים בגדלים שונים',
-          description: 'הדגשת השירות המוביל בכרטיס רחב (Span 2) עם אפקט Border Beam עדין.',
-          badge: 'Bento Grid',
-          iconName: 'Sparkles',
-          prompt: 'שדרג את אזור השירותים לפריסת Bento חכמה, סמן את השירות המרכזי עם span רחב ואפקט hover-glow.',
-        },
-        {
-          id: 'services-layout-cards',
-          tab: 'layout',
-          title: 'כרטיסים מודרניים עם אייקוני פרימיום',
-          description: 'כרטיסי שירות אלגנטיים עם מעברי ריחוף (Hover Scale) ותיאורים ממירים.',
-          badge: 'מודרני',
-          iconName: 'Layers',
-          prompt: 'עצב את השירותים בכרטיסי grid אלגנטיים עם אפקט hover-scale ואייקונים יוקרתיים.',
-        }
-      );
-    } else if (sectionType === 'pricing') {
+      );    } else if (sectionType === 'pricing') {
       layoutSuggestions.push(
         {
           id: 'pricing-layout-featured',
@@ -445,27 +423,7 @@ Return ONLY the raw updated JSON object.`;
       };
 
       changes.push(`כותרת ותת-כותרת סונכרנו ישירות עם שם המותג וה-UVP`);
-      changes.push(`חיבור כפתורי הנעה לפעולה ישירות לוואטסאפ ולטופס העמוד`);
-    } else if (sectionType === 'services') {
-      if (prompt.includes('bento') || prompt.includes('Bento')) {
-        updated.layout = 'bento';
-        updated.effect = 'hover-glow';
-        changes.push('פריסת שירותים עודכנה ל-Bento Grid עם אפקט Hover Glow');
-      }
-
-      updated.title = `הפתרונות והשירותים של ${company}`;
-      updated.subtitle = `ארבעה יתרונות מרכזיים שנועדו להאיץ את ההצלחה שלך`;
-
-      if (Array.isArray(updated.items) && updated.items.length > 0) {
-        updated.items = updated.items.map((item: any, i: number) => ({
-          ...item,
-          span: i === 0 ? '2' : '1',
-          highlight: i === 0,
-          badge: i === 0 ? 'המומלץ ביותר' : item.badge,
-        }));
-        changes.push('השירות המוביל הודגש בכרטיס Bento רחב');
-      }
-    } else if (sectionType === 'pricing') {
+      changes.push(`חיבור כפתורי הנעה לפעולה ישירות לוואטסאפ ולטופס העמוד`); else if (sectionType === 'pricing') {
       updated.title = `מסלולי הצטרפות מותאמים עבורכם`;
       updated.subtitle = `שקיפות מלאה ללא אותיות קטנות – בחרו את החבילה המתאימה`;
       if (Array.isArray(updated.packages) && updated.packages.length > 1) {

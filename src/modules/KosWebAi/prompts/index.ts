@@ -27,9 +27,9 @@ User Goal & Specific Request:
 1. NEVER output a generic or single-section page! You MUST output a vibrant, coherent story of 5 to 8 distinct sections.
 2. DYNAMIC LAYOUTS & STYLING VARIETY:
    - Do NOT just stick to the same predictable order! Think like a bespoke web design agency.
-   - For a sales page: hero (spatial/split) -> logoMarquee -> services (bento) -> statsBento -> timer -> pricing -> testimonials -> faq -> contact.
-   - For an educational/lead page: hero (centered/mesh) -> richContent (highlight-box) -> services -> beforeAfter -> testimonials -> faq -> landingSection.
-   - For a local service: hero (bento-hero) -> geoLocal -> services -> statsBento -> testimonials -> faq -> contact.
+   - For a sales page: hero (spatial/split) -> logoMarquee -> statsBento -> timer -> pricing -> testimonials -> faq -> contact.
+   - For an educational/lead page: hero (centered/mesh) -> richContent (highlight-box) -> beforeAfter -> testimonials -> faq -> landingSection.
+   - For a local service: hero (bento-hero) -> geoLocal -> statsBento -> testimonials -> faq -> contact.
    - For a community/club: hero -> community -> logoMarquee -> statsBento -> testimonials -> pricing -> contact.
 3. ADAPTIVE STYLING & EFFECTS:
    - Set section backgrounds with variety (e.g. subtle dark glass, dark slate, deep indigo hues, or matching brand accents).
@@ -40,11 +40,8 @@ User Goal & Specific Request:
    - FAQ must answer real, sharp customer objections.
 5. VISUAL INTEGRATION:
    - For hero, provide imagePrompt in English and set imageSrc.
-   - For services, provide unique icons (e.g. 'Zap', 'ShieldCheck', 'Sparkles', 'Rocket', 'Users', 'Target', 'Flame', 'TrendingUp', 'Star', 'Crown').
-
 ### AVAILABLE SECTION TYPES & SCHEMAS:
 1. "hero": layout ('split'|'fz'|'spatial'|'centered'|'bento-hero'), heroStyle ('mesh-glow'|'modern'|'classic'), title, subtitle, description, buttonsVisible (true), primaryButton {text, url}, secondaryButton {text, url}, announcementBadge {text, url}, socialProofAvatars {visible: true, ratingText, starsCount: 5}
-2. "services": layout ('bento'|'grid'|'cards'|'minimal'), effect ('border-beam'|'hover-glow'|'hover-scale'), title, subtitle, description, items [{id, title, description, icon, badge, span: '1'|'2', highlight: boolean, statNumber, statLabel}]
 3. "statsBento": layout ('bento-4'|'row-4'|'cards-3'), title, subtitle, stats [{id, number, label, description, suffix}]
 4. "testimonials": layout ('grid'|'carousel'|'masonry'), title, subtitle, description, showRatingSummary: true, overallRating: 4.9, items [{id, name, role, company, content, rating: 5, isVerified: true, badge: 'מאומת'}]
 5. "pricing": title, subtitle, description, showBillingToggle: true, packages [{id, name, priceMonthly, priceYearly, isFeatured, badge, description, features: string[], buttonText, actionType: 'kesher_checkout'|'smart_form'}]

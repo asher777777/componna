@@ -385,7 +385,7 @@ export const aiPageGenerator = {
     }
 
     const CANONICAL_TYPES: SectionType[] = [
-      'header', 'hero', 'services', 'testimonials', 'logoMarquee', 'statsBento',
+      'header', 'hero', 'testimonials', 'logoMarquee', 'statsBento',
       'liveAnalytics', 'beforeAfter', 'geoLocal', 'pricing', 'mainContent',
       'videoGallery', 'imageListing', 'faq', 'timer', 'richContent', 'community',
       'livePosts', 'landingSection', 'contact', 'smartForm', 'flowPlayer',
@@ -396,7 +396,7 @@ export const aiPageGenerator = {
       const clean = (raw || '').toLowerCase().trim();
       if (CANONICAL_TYPES.includes(clean as SectionType)) return clean as SectionType;
       if (clean.includes('hero') || clean.includes('intro') || clean.includes('banner')) return 'hero';
-      if (clean.includes('feat') || clean.includes('serv') || clean.includes('solut') || clean.includes('problem') || clean.includes('benefit') || clean.includes('advant')) return 'services';
+      if (clean.includes('feat') || clean.includes('serv') || clean.includes('solut') || clean.includes('problem') || clean.includes('benefit') || clean.includes('advant')) return 'richContent';
       if (clean.includes('testim') || clean.includes('review') || clean.includes('feedback') || clean.includes('client')) return 'testimonials';
       if (clean.includes('price') || clean.includes('plan') || clean.includes('pack')) return 'pricing';
       if (clean.includes('faq') || clean.includes('question')) return 'faq';
@@ -405,7 +405,7 @@ export const aiPageGenerator = {
       if (clean.includes('about') || clean.includes('story') || clean.includes('content') || clean.includes('process')) return 'richContent';
       if (clean.includes('communit')) return 'community';
       if (clean.includes('geo') || clean.includes('local') || clean.includes('map')) return 'geoLocal';
-      return 'services';
+      return 'richContent';
     };
 
     // Live Streaming Simulation: build each section step-by-step
@@ -447,28 +447,6 @@ export const aiPageGenerator = {
           secData.imageSrc = heroImg;
           secData.imageUrl = heroImg;
         }
-        if (sectionType === 'services' && Array.isArray(secData.items)) {
-          secData.items = secData.items.map((it: any, itemIdx: number) => {
-            const srvImg = it.imageSrc || it.imageUrl || getSmartPlaceholderImage('service', itemIdx);
-            return {
-              ...it,
-              imageSrc: srvImg,
-              imageUrl: srvImg,
-            };
-          });
-        }
-        if (sectionType === 'testimonials' && Array.isArray(secData.items)) {
-          secData.items = secData.items.map((it: any, itemIdx: number) => {
-            const avatarUrl = it.avatarUrl || `https://images.unsplash.com/photo-${1534528741775 + itemIdx * 1000}?auto=format&fit=crop&w=120&q=80`;
-            return {
-              ...it,
-              avatarUrl,
-              content: it.content || it.quote || 'שירות יוצא דופן!',
-            };
-          });
-        }
-      }
-
       pageConfig.sectionOrder.push(secId);
       pageConfig.sections[secId] = secData;
 
@@ -594,8 +572,7 @@ export const aiPageGenerator = {
           },
         },
         {
-          sectionType: 'services',
-          stepTitle: 'כרטיסי ערך ויתרונות תחרותיים (Services Grid)',
+          sectionType: stepTitle: 'כרטיסי ערך ויתרונות תחרותיים (Services Grid)',
           statusText: 'מבליט את היתרונות הייחודיים שהופכים את ההצעה לבלתי ניתנת לסירוב...',
           data: {
             title: 'למה כולם בוחרים בנו?',
@@ -738,8 +715,7 @@ export const aiPageGenerator = {
           },
         },
         {
-          sectionType: 'services',
-          stepTitle: 'סל השירותים המקומי (Services)',
+          sectionType: stepTitle: 'סל השירותים המקומי (Services)',
           statusText: 'מפרט תחומי התמחות עם אייקונים מקצועיים...',
           data: {
             title: 'השירותים שאנחנו מספקים',
@@ -930,8 +906,7 @@ export const aiPageGenerator = {
         },
       },
       {
-        sectionType: 'services',
-        stepTitle: 'הקמת רשת יתרונות ושירותים (Services Grid)',
+        sectionType: stepTitle: 'הקמת רשת יתרונות ושירותים (Services Grid)',
         statusText: 'מרכיב כרטיסי שירות עם אייקונים ותיאורי ערך מנצחים...',
         data: {
           title: 'למה לבחור דווקא בנו?',

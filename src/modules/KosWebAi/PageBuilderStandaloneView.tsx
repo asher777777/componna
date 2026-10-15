@@ -68,7 +68,6 @@ const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
   sectionOrder: [
     'hero',
     'logoMarquee',
-    'services',
     'statsBento',
     'testimonials',
     'pricing',
@@ -81,7 +80,6 @@ const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
   sections: {
     hero: { ...SECTION_REGISTRY.hero.defaultConfig, id: 'hero' },
     logoMarquee: { ...SECTION_REGISTRY.logoMarquee.defaultConfig, id: 'logoMarquee' },
-    services: { ...SECTION_REGISTRY.services.defaultConfig, id: 'services' },
     statsBento: { ...SECTION_REGISTRY.statsBento.defaultConfig, id: 'statsBento' },
     testimonials: { ...SECTION_REGISTRY.testimonials.defaultConfig, id: 'testimonials' },
     pricing: { ...SECTION_REGISTRY.pricing.defaultConfig, id: 'pricing' },
@@ -194,7 +192,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       service_product: {
         title: 'עמוד שירות / מוצר חדש',
         slugPrefix: 'kosass',
-        sections: ['hero', 'services', 'pricing', 'smartForm', 'contact'],
+        sections: ['hero', 'richContent', 'pricing', 'smartForm', 'contact'],
         keywords: ['שירותים', 'מוצרים', 'הצעת מחיר'],
       },
       info_content: {

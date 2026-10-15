@@ -1,8 +1,6 @@
 export type SectionType =
   | 'header'
-  | 'hero'
-  | 'services'
-  | 'testimonials'
+  | 'hero'  | 'testimonials'
   | 'logoMarquee'
   | 'statsBento'
   | 'liveAnalytics'

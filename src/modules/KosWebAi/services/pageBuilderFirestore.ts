@@ -492,7 +492,7 @@ export const pageBuilderFirestore = {
         title: 'קושאן | כל אדם זה נכס',
         description: 'הפלטפורמה המובילה לניהול קהילות ודפי נחיתה',
       },
-      sectionOrder: ['header-1', 'hero-1', 'services-1', 'contact-1'],
+      sectionOrder: ['header-1', 'hero-1', 'contact-1'],
       sections: {
         'header-1': {
           id: 'header-1',
@@ -523,15 +523,6 @@ export const pageBuilderFirestore = {
           subtitle: 'ניהול קהילות, דפי תוכן ומועדון לקוחות מתקדם',
           layout: 'bento-hero',
           heroStyle: 'mesh-glow',
-        },
-        'services-1': {
-          id: 'services-1',
-          type: 'services',
-          visible: true,
-          anchorId: 'services',
-          title: 'השירותים והיכולות שלנו',
-          layout: 'bento',
-          items: [],
         },
         'contact-1': {
           id: 'contact-1',

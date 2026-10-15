@@ -73,32 +73,7 @@ export interface HeroSectionConfig extends BaseSectionConfig {
   };
 }
 
-export interface ServiceItem {
-  id: string;
-  title: string;
-  description?: string;
-  icon?: string;
-  imageSrc?: string;
-  url?: string;
-  isVisible?: boolean;
-  badge?: string;
-  span?: '1' | '2' | '3'; // Bento Span
-  highlight?: boolean;
-  statNumber?: string;
-  statLabel?: string;
-}
 
-export interface ServicesSectionConfig extends BaseSectionConfig {
-  type: 'services';
-  title: string;
-  subtitle?: string;
-  description?: string;
-  layout?: 'grid' | 'bento' | 'cards' | 'minimal';
-  columns?: number;
-  columnsMobile?: number;
-  effect?: 'hover-scale' | 'hover-glow' | 'border-beam' | 'none';
-  items: ServiceItem[];
-}
 
 export interface TestimonialItem {
   id: string;

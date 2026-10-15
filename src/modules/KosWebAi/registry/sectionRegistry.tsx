@@ -3,7 +3,6 @@ import { SectionType } from '../types/pageBuilder.types';
 
 // Display Views
 import { HeroSection } from '../sections/hero/HeroSection';
-import { ServicesGridSection } from '../sections/services/ServicesGridSection';
 import { TestimonialsSection } from '../sections/testimonials/TestimonialsSection';
 import { LogoMarqueeSection } from '../sections/logoMarquee/LogoMarqueeSection';
 import { StatsBentoSection } from '../sections/statsBento/StatsBentoSection';
@@ -32,7 +31,6 @@ import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
 import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
-import { ServicesGridEditor } from '../sections/services/ServicesGridEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
 import { StatsBentoEditor } from '../sections/statsBento/StatsBentoEditor';
