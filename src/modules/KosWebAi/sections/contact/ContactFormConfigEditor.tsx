@@ -1729,6 +1729,126 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
         )}
       </div>
 
+      {/* Tab 6: Modal Window Design & Background Effects (User Request ה) */}
+      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden transition-all shadow-sm">
+        <button
+          type="button"
+          onClick={() => setActiveTab(activeTab === 'modal_design' ? '' : 'modal_design')}
+          className="w-full p-3.5 flex justify-between items-center hover:bg-slate-800/60 text-white font-bold text-xs cursor-pointer select-none"
+        >
+          <span className="flex items-center gap-2">
+            <Palette className="w-4 h-4 text-pink-400" />
+            <span>עיצוב חלון המודאל, צורות רקע ואפקטים</span>
+          </span>
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${activeTab === 'modal_design' ? 'rotate-180 text-white' : ''}`} />
+        </button>
+
+        {activeTab === 'modal_design' && (
+          <div className="p-4 bg-slate-950/80 border-t border-slate-800/80 space-y-4">
+            {/* 1. Modal Background Shape */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                צורת רקע ופינות המודאל (Modal Shape)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'rounded-3xl', label: 'פינות מעוגלות פרימיום (32px)' },
+                  { id: 'rounded-2xl', label: 'פינות רכות קלאסיות (16px)' },
+                  { id: 'rounded-capsule', label: 'קפסולה יוקרתית (40px)' },
+                  { id: 'rounded-asymmetric', label: 'א-סימטרי מעוצב (קצוות אלכסוניים)' },
+                  { id: 'rounded-sharp', label: 'חד ועסקי (נקי ומינימלי)' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => update({ modal_shape: s.id as any })}
+                    className={`p-2.5 rounded-xl border text-xs font-medium text-right transition cursor-pointer ${
+                      (value.modal_shape || 'rounded-3xl') === s.id
+                        ? 'bg-pink-500/20 border-pink-500/60 text-pink-200 font-bold shadow'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Visual Effects */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-2">
+                אפקט רקע ותאורה (Visual Effects & Aura)
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {[
+                  { id: 'glass', label: '✨ זכוכית יוקרתית (Glassmorphism)', desc: 'רקע שקוף למחצה עם טשטוש עמוק' },
+                  { id: 'neon', label: '⚡ הילת ניאון זוהרת (Neon Glow)', desc: 'שוליים זוהרים עם צל מוקרן' },
+                  { id: 'aura', label: '🔮 אאורה מטאלית (Aura Mesh)', desc: 'גרדיאנט פרימיום עמוק' },
+                  { id: 'shadow-luxury', label: '👑 צל עמוק יוקרתי (Deep Shadow)', desc: 'ריחוף תלת ממדי אלגנטי' },
+                  { id: 'gradient-border', label: '🌈 מסגרת גרדיאנט זהב/אינדיגו', desc: 'גבול זוהר בצבעי יוקרה' },
+                  { id: 'flat', label: '⏹️ שטוח ונקי (Flat Clean)', desc: 'עיצוב מינימליסטי ורגוע' },
+                ].map((eff) => (
+                  <button
+                    key={eff.id}
+                    type="button"
+                    onClick={() => update({ modal_effect: eff.id as any })}
+                    className={`p-2.5 rounded-xl border text-right transition cursor-pointer flex flex-col gap-0.5 ${
+                      (value.modal_effect || 'glass') === eff.id
+                        ? 'bg-pink-500/20 border-pink-500/60 text-pink-200 font-bold shadow'
+                        : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span className="text-xs">{eff.label}</span>
+                    <span className="text-[10px] text-slate-500">{eff.desc}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Backdrop Blur & Modal Background Color */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  טשטוש מסך הרקע (Backdrop Blur)
+                </label>
+                <select
+                  value={value.modal_backdrop_blur || 'md'}
+                  onChange={(e) => update({ modal_backdrop_blur: e.target.value as any })}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-pink-500"
+                >
+                  <option value="none">ללא טשטוש (רק כהות)</option>
+                  <option value="sm">טשטוש קל (Subtle 4px)</option>
+                  <option value="md">טשטוש בינוני מומלץ (Medium 12px)</option>
+                  <option value="lg">טשטוש עמוק (Heavy 16px)</option>
+                  <option value="xl">טשטוש מוחלט (Ultra 24px)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  צבע רקע חלון המודאל
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    value={value.modal_bg_color || '#0f172a'}
+                    onChange={(e) => update({ modal_bg_color: e.target.value })}
+                    className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-700 cursor-pointer p-0.5"
+                  />
+                  <input
+                    type="text"
+                    value={value.modal_bg_color || '#0f172a'}
+                    onChange={(e) => update({ modal_bg_color: e.target.value })}
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white font-mono"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Modal: Add Custom CRM Field */}
       {showAddCustomFieldModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in" dir="rtl">
