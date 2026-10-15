@@ -96,6 +96,7 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
           isOpen={true}
           onClose={handleClose}
           allowedTypes={undefined}
+          initialTab={options?.initialTab}
           maxSelectCount={options?.multiple ? options.maxFiles || 10 : 1}
           onSelectMedia={handleSelect}
           firebaseApp={firebaseApp}

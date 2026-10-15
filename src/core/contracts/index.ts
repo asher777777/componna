@@ -7,6 +7,7 @@ export interface MediaPickerOptions {
   accept?: 'image/*' | 'video/*' | 'audio/*' | '*/*';
   multiple?: boolean;
   maxFiles?: number;
+  initialTab?: 'gallery' | 'icons';
 }
 
 export interface MediaPickerContract {

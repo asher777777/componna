@@ -6,8 +6,10 @@ import {
   Sun,
   SlidersHorizontal,
   Menu,
+  Crown,
 } from 'lucide-react';
 import { MediaGalleryProvider, useMediaGallery } from '../context/MediaGalleryContext';
+import { LuxuryIconsGallery } from './LuxuryIconsGallery';
 import { MediaDriveSidebar } from './MediaDriveSidebar';
 import { MediaGalleryGrid } from './MediaGalleryGrid';
 import { MediaFileInspector } from './MediaFileInspector';
@@ -29,12 +31,15 @@ export interface MediaPickerModalProps extends MediaGalleryModuleConfig {
   onClose: () => void;
   title?: string;
   allowedTypes?: MediaType[];
+  initialTab?: 'gallery' | 'icons';
 }
 
 const MediaPickerModalContent: React.FC<{
   title: string;
   onClose: () => void;
-}> = ({ title, onClose }) => {
+  initialTab?: 'gallery' | 'icons';
+}> = ({ title, onClose, initialTab = 'gallery' }) => {
+  const [activeTab, setActiveTab] = useState<'gallery' | 'icons'>(initialTab);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const {
     isSidebarOpen,
@@ -103,6 +108,34 @@ const MediaPickerModalContent: React.FC<{
           </div>
         </div>
 
+        {/* Gallery / Luxury Icons Mode Switcher */}
+        <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-2xl border border-slate-700/60 shadow-inner">
+          <button
+            type="button"
+            onClick={() => setActiveTab('gallery')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'gallery'
+                ? 'bg-amber-500 text-black shadow font-extrabold'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>קבצי מדיה</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('icons')}
+            className={`px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+              activeTab === 'icons'
+                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow font-extrabold'
+                : 'text-amber-400/90 hover:text-amber-300'
+            }`}
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span>אייקונים יוקרתיים</span>
+          </button>
+        </div>
+
         {/* Controls & Close */}
         <div className="flex items-center space-x-2 rtl:space-x-reverse text-xs shrink-0">
           {/* Theme Toggle */}
@@ -148,30 +181,53 @@ const MediaPickerModalContent: React.FC<{
         </div>
       </header>
 
-      {/* 2. Main 3-Pane Body Workspace */}
-      <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* Left Navigation Sidebar */}
-        <MediaDriveSidebar
-          isOpenMobile={isMobileSidebarOpen}
-          onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        />
+      {/* 2. Main Body Workspace */}
+      {activeTab === 'icons' ? (
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-950 flex flex-col items-center custom-scrollbar">
+          <div className="w-full max-w-5xl">
+            <LuxuryIconsGallery
+              onSelectIcon={(svgDataUrl, iconName) => {
+                onSelectMedia?.([
+                  {
+                    id: `icon_${Date.now()}`,
+                    name: iconName,
+                    url: svgDataUrl,
+                    type: 'image',
+                    size: 1024,
+                    createdAt: new Date().toISOString(),
+                    updatedAt: new Date().toISOString(),
+                  } as MediaItem,
+                ]);
+                onClose();
+              }}
+            />
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex min-h-0 overflow-hidden relative">
+          {/* Left Navigation Sidebar */}
+          <MediaDriveSidebar
+            isOpenMobile={isMobileSidebarOpen}
+            onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          />
 
-        {/* Center Explorer Main View */}
-        <main
-          className={`flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 custom-scrollbar transition-colors ${
-            isLight ? 'bg-slate-100/70' : 'bg-slate-950'
-          }`}
-        >
-          {/* Uploader */}
-          <MediaUploader />
+          {/* Center Explorer Main View */}
+          <main
+            className={`flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 custom-scrollbar transition-colors ${
+              isLight ? 'bg-slate-100/70' : 'bg-slate-950'
+            }`}
+          >
+            {/* Uploader */}
+            <MediaUploader />
 
-          {/* Core Explorer Grid / List */}
-          <MediaGalleryGrid />
-        </main>
+            {/* Core Explorer Grid / List */}
+            <MediaGalleryGrid />
+          </main>
 
-        {/* Right Details Inspector Pane */}
-        <MediaFileInspector />
-      </div>
+          {/* Right Details Inspector Pane */}
+          <MediaFileInspector />
+        </div>
+      )}
 
       {/* 3. Modals & Bulk Actions */}
       <MediaPreviewModal />
@@ -243,6 +299,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
   onClose,
   title = 'KosCloudStore - בחר קובץ מהענן',
   allowedTypes,
+  initialTab,
   onSelectMedia,
   ...restConfig
 }) => {
@@ -269,7 +326,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
           onClosePicker: onClose,
         }}
       >
-        <MediaPickerModalContent title={title} onClose={onClose} />
+        <MediaPickerModalContent title={title} onClose={onClose} initialTab={initialTab} />
       </MediaGalleryProvider>
     </div>
   );

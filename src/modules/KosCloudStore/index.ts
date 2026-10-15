@@ -23,6 +23,7 @@ export * from './components/ImageConverterModal';
 export * from './components/GeminiImageStudioModal';
 export * from './components/MediaPickerModal';
 export * from './components/MediaPickerHostBridge';
+export * from './components/LuxuryIconsGallery';
 export * from './components/BulkActionBar';
 export * from './components/DocumentViewerModal';
 export * from './components/QuickImageEditorModal';
