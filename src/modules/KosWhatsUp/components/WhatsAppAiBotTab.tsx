@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TenantTokenBadge } from '../../../core/ai';
 import {
   Bot, Sparkles, Plus, Trash2, Edit3, Check, Play, MessageSquare,
   ShieldCheck, Send, KeyRound, ExternalLink, RefreshCw, Smartphone,
@@ -374,6 +375,7 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
               <Sparkles className={`w-3.5 h-3.5 text-emerald-500 ${isSyncingKosai ? 'animate-spin' : ''}`} />
               <span>{isSyncingKosai ? 'מסנכרן...' : 'סנכרן מסוכני קושאן AI'}</span>
             </button>
+            <TenantTokenBadge />
             <button
               onClick={handleCreateNewBot}
               className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl text-xs flex items-center gap-1 transition cursor-pointer shadow"

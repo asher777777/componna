@@ -8,6 +8,7 @@ import {
 import { useStorefront } from '../context/StorefrontContext';
 import { ModulePricingConfig } from '../types';
 import { TenantTokenTracker, TenantTokenUsage } from '../../../core/ai';
+import { TokenPricingCalculatorCard } from './TokenPricingCalculatorCard';
 
 export const AdminStorefrontManager: React.FC = () => {
   const { 
@@ -184,6 +185,9 @@ export const AdminStorefrontManager: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Real-time AI Token Calculator & Admin Quota Manager */}
+      <TokenPricingCalculatorCard />
 
       {/* Domain & DNS Settings Section */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 shadow-lg border border-indigo-900/50">

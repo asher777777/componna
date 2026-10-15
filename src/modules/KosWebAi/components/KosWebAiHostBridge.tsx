@@ -122,11 +122,11 @@ export const KosWebAiHostBridge: React.FC = () => {
                 },
                 [servicesId]: {
                   id: servicesId,
-                  type: 'services',
+                  type: 'richContent',
                   visible: true,
                   title: 'פעילויות ושירותי הקהילה',
                   subtitle: 'מה מחכה לכם אצלנו בקהילה',
-                  services: servicesList,
+                  body: servicesList.join(' • '),
                 },
                 [ctaId]: {
                   id: ctaId,

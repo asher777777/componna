@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { TenantTokenBadge } from '../../../core/ai';
 import { useLocation } from 'react-router-dom';
 import { useKosai } from '../context/KosaiContext';
 import { 
@@ -355,6 +356,7 @@ export const KosaiChatDrawer: React.FC = () => {
 
           {/* Action buttons with Close on left */}
           <div className="flex items-center gap-1 shrink-0">
+            <TenantTokenBadge compact={true} />
             {/* New Conversation Button */}
             <button
               type="button"

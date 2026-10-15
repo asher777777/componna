@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { TenantTokenBadge } from '../../../core/ai';
 import {
   X,
   Sparkles,
@@ -680,6 +681,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
               <span className="hidden sm:inline font-bold">API</span>
             </button>
 
+            <TenantTokenBadge />
             {/* Close Button */}
             <button
               type="button"
