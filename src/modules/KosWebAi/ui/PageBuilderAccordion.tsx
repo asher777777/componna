@@ -1,13 +1,46 @@
-import React, { useState } from 'react';
+import React, { useState, useContext, createContext } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-interface PageBuilderAccordionProps {
+interface AccordionGroupContextType {
+  activeId: string | null;
+  toggleId: (id: string) => void;
+}
+
+const AccordionGroupContext = createContext<AccordionGroupContextType | null>(null);
+
+/**
+ * PageBuilderAccordionGroup enforces mutual exclusion across child accordions:
+ * - Default state: ALL CLOSED (activeId: null)
+ * - Only one accordion open at any time
+ */
+export const PageBuilderAccordionGroup: React.FC<{
+  children: React.ReactNode;
+  defaultActiveId?: string | null;
+  className?: string;
+}> = ({ children, defaultActiveId = null, className }) => {
+  const [activeId, setActiveId] = useState<string | null>(defaultActiveId);
+
+  const toggleId = (id: string) => {
+    setActiveId((prev) => (prev === id ? null : id));
+  };
+
+  return (
+    <AccordionGroupContext.Provider value={{ activeId, toggleId }}>
+      <div className={twMerge('flex flex-col gap-3', className)}>{children}</div>
+    </AccordionGroupContext.Provider>
+  );
+};
+
+export interface PageBuilderAccordionProps {
+  id?: string;
   title: string;
   subtitle?: string;
   icon?: React.ReactNode;
   defaultOpen?: boolean;
+  isOpen?: boolean;
+  onToggle?: () => void;
   children: React.ReactNode;
   badge?: React.ReactNode;
   actionNode?: React.ReactNode;
@@ -15,30 +48,57 @@ interface PageBuilderAccordionProps {
 }
 
 export const PageBuilderAccordion: React.FC<PageBuilderAccordionProps> = ({
+  id,
   title,
   subtitle,
   icon,
   defaultOpen = false,
+  isOpen: controlledIsOpen,
+  onToggle: controlledOnToggle,
   children,
   badge,
   actionNode,
   className,
 }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
+  const group = useContext(AccordionGroupContext);
+  const [internalOpen, setInternalOpen] = useState(defaultOpen);
+
+  // Determine whether this accordion is open:
+  // 1. If inside an AccordionGroup with an ID, group state controls it.
+  // 2. Else if controlled via isOpen/onToggle props, use controlled state.
+  // 3. Otherwise fall back to local internal state (default false = all closed).
+  const isGroupControlled = Boolean(group && id);
+  const isDirectlyControlled = typeof controlledIsOpen === 'boolean';
+
+  const effectiveOpen = isGroupControlled
+    ? group!.activeId === id
+    : isDirectlyControlled
+    ? controlledIsOpen!
+    : internalOpen;
+
+  const handleToggle = () => {
+    if (isGroupControlled) {
+      group!.toggleId(id!);
+    } else if (isDirectlyControlled && controlledOnToggle) {
+      controlledOnToggle();
+    } else {
+      setInternalOpen(!internalOpen);
+    }
+  };
 
   return (
     <div
       className={twMerge(
         clsx(
           'border border-slate-800 bg-slate-900/40 rounded-2xl overflow-hidden transition-all duration-200',
-          isOpen && 'border-slate-700 bg-slate-900/80 shadow-lg',
+          effectiveOpen && 'border-slate-700 bg-slate-900/80 shadow-lg',
           className
         )
       )}
       dir="rtl"
     >
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleToggle}
         className="flex items-center justify-between px-4 py-3 cursor-pointer select-none hover:bg-white/5 transition-colors"
       >
         <div className="flex items-center gap-3">
@@ -56,15 +116,20 @@ export const PageBuilderAccordion: React.FC<PageBuilderAccordionProps> = ({
           {actionNode}
           <button
             type="button"
-            onClick={() => setIsOpen(!isOpen)}
-            className="p-1 text-slate-400 hover:text-white transition-transform"
+            onClick={handleToggle}
+            className="p-1 text-slate-400 hover:text-white transition-transform cursor-pointer"
           >
-            <ChevronDown className={clsx('w-4 h-4 transition-transform duration-200', isOpen && 'rotate-180 text-indigo-400')} />
+            <ChevronDown
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                effectiveOpen && 'rotate-180 text-amber-400'
+              )}
+            />
           </button>
         </div>
       </div>
 
-      {isOpen && (
+      {effectiveOpen && (
         <div className="px-4 py-3.5 border-t border-slate-800/80 bg-slate-950/40 flex flex-col gap-3.5 animate-in slide-in-from-top-1 duration-150">
           {children}
         </div>

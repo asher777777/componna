@@ -8,7 +8,7 @@ import {
 } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
-import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
+import { PageBuilderAccordion, PageBuilderAccordionGroup } from '../../ui/PageBuilderAccordion';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { PageBuilderIconPicker } from '../../ui/PageBuilderIconPicker';
 import { ContactFormConfigEditor, DEFAULT_CONTACT_FORM_CONFIG } from '../contact/ContactFormConfigEditor';
@@ -85,8 +85,9 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
 
   return (
     <div className="flex flex-col gap-4 text-right" dir="rtl">
-      {/* 1. Video & Player Media */}
-      <PageBuilderAccordion title="נגן וידאו אנכי (9:16)" icon={<Video className="w-4 h-4 text-blue-400" />} defaultOpen={true}>
+      <PageBuilderAccordionGroup defaultActiveId={null}>
+        {/* 1. Video & Player Media */}
+        <PageBuilderAccordion id="video" title="נגן וידאו אנכי (9:16)" icon={<Video className="w-4 h-4 text-blue-400" />}>
         <PageBuilderImageUpload
           label="קובץ וידאו (MP4) מתוך הגלריה או קישור"
           value={video.videoUrl || ''}
@@ -193,7 +194,7 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
       </PageBuilderAccordion>
 
       {/* 2. Background & Overlay */}
-      <PageBuilderAccordion title="שכבת רקע וציפוי (Overlay)" icon={<Layers className="w-4 h-4 text-purple-400" />}>
+      <PageBuilderAccordion id="overlay" title="שכבת רקע וציפוי (Overlay)" icon={<Layers className="w-4 h-4 text-purple-400" />}>
         <div className="flex flex-col gap-1.5 mb-3">
           <label className="text-xs font-semibold text-slate-300">סוג שכבת הציפוי</label>
           <select
@@ -259,7 +260,7 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
       </PageBuilderAccordion>
 
       {/* 3. Main Hook Headline */}
-      <PageBuilderAccordion title="כותרת ראשית (Hook Headline)" icon={<Type className="w-4 h-4 text-emerald-400" />} defaultOpen={true}>
+      <PageBuilderAccordion id="headline" title="כותרת ראשית (Hook Headline)" icon={<Type className="w-4 h-4 text-emerald-400" />}>
         <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 mb-3">
           <label className="text-xs font-semibold text-slate-300">הצג כותרת ראשית</label>
           <input
@@ -331,7 +332,7 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
       </PageBuilderAccordion>
 
       {/* 4. Floating Content Card */}
-      <PageBuilderAccordion title="כרטיס מידע צף" icon={<Square className="w-4 h-4 text-amber-400" />}>
+      <PageBuilderAccordion id="card" title="כרטיס מידע צף" icon={<Square className="w-4 h-4 text-amber-400" />}>
         <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900 border border-slate-800 mb-3">
           <label className="text-xs font-semibold text-slate-300">הצג כרטיס תוכן צף מעל הוידאו</label>
           <input
@@ -433,7 +434,7 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
       </PageBuilderAccordion>
 
       {/* 5. CTA Button with Lucide Icon or Gallery Image */}
-      <PageBuilderAccordion title="כפתור הנעה לפעולה (CTA)" icon={<Sparkles className="w-4 h-4 text-sky-400" />} defaultOpen={true}>
+      <PageBuilderAccordion id="cta" title="כפתור הנעה לפעולה (CTA)" icon={<Sparkles className="w-4 h-4 text-sky-400" />}>
         <PageBuilderInput
           label="טקסט הכפתור"
           value={cta.text || ''}
@@ -551,9 +552,9 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
       {/* 6. Lead Form Modal & KFS Configuration */}
       {cta.actionType === 'modal_form' && (
         <PageBuilderAccordion
+          id="modal_form"
           title="הגדרות מודאל טופס לידים, סליקה ו-WhatsApp"
           icon={<FormInput className="w-4 h-4 text-emerald-400" />}
-          defaultOpen={true}
         >
           <PageBuilderInput
             label="כותרת חלון המודאל"
@@ -583,7 +584,7 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
       )}
 
       {/* 7. Anchor Settings */}
-      <PageBuilderAccordion title="עוגן מזהה (Anchor)" icon={<SlidersHorizontal className="w-4 h-4 text-slate-400" />}>
+      <PageBuilderAccordion id="anchor" title="עוגן מזהה (Anchor)" icon={<SlidersHorizontal className="w-4 h-4 text-slate-400" />}>
         <PageBuilderInput
           label="עוגן ניווט (Anchor ID)"
           value={config.anchorId || ''}
@@ -592,6 +593,7 @@ export const TiktokHeroEditor: React.FC<TiktokHeroEditorProps> = ({ config, onCh
           dir="ltr"
         />
       </PageBuilderAccordion>
-    </div>
-  );
+    </PageBuilderAccordionGroup>
+  </div>
+);
 };

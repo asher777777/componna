@@ -145,6 +145,12 @@ export interface FormConfigContract {
   payment_require_id?: boolean;
   templateId?: string;
   templateName?: string;
+  // Modal container styling & visual effects
+  modal_shape?: 'rounded-2xl' | 'rounded-3xl' | 'rounded-capsule' | 'rounded-asymmetric' | 'rounded-sharp';
+  modal_effect?: 'glass' | 'neon' | 'aura' | 'shadow-luxury' | 'flat' | 'gradient-border';
+  modal_bg_color?: string;
+  modal_backdrop_blur?: 'none' | 'sm' | 'md' | 'lg' | 'xl';
+  modal_max_width?: 'sm' | 'md' | 'lg' | 'xl';
 }
 
 export interface FormSubmissionPayload {

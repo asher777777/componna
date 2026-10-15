@@ -7,6 +7,7 @@ import {
   CrmFieldOption,
 } from '../../../../core/contracts';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import {
   Folder,
   Settings2,
@@ -105,6 +106,11 @@ export const DEFAULT_CONTACT_FORM_CONFIG: FormConfigContract = {
   payment_methods: ['one-time', 'installments', 'recurring', 'bit'],
   payment_frequency: 'one-time',
   payment_require_id: false,
+  modal_shape: 'rounded-3xl',
+  modal_effect: 'glass',
+  modal_bg_color: '#0f172a',
+  modal_backdrop_blur: 'md',
+  modal_max_width: 'md',
 };
 
 const CRM_DB_FIELDS: Record<string, string> = {
@@ -284,7 +290,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
   const formBuilder = getCapability<any>('form-builder');
   const crmService = getCapability<CrmMetadataContract>('crm-service');
 
-  const [activeTab, setActiveTab] = useState<string>('fields');
+  const [activeTab, setActiveTab] = useState<string>('');
   const [expandedFieldIndex, setExpandedFieldIndex] = useState<number | null>(null);
   const [activeFieldTab, setActiveFieldTab] = useState<'settings' | 'design' | 'mapping' | 'advanced'>('settings');
   const [availableForms, setAvailableForms] = useState<FormItemSummary[]>([]);
@@ -1540,17 +1546,11 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-slate-300 mb-1">
-                    קישור לתמונה מצורפת להודעת WhatsApp (אופציונלי)
-                  </label>
-                  <input
-                    type="url"
+                <div className="pt-1">
+                  <PageBuilderImageUpload
+                    label="תמונה מצורפת להודעת WhatsApp (העלאה מהמחשב, בחירה מגלריה או אייקון יוקרתי)"
                     value={value.standard_whatsapp_image_url || ''}
-                    onChange={(e) => update({ standard_whatsapp_image_url: e.target.value })}
-                    className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500 font-mono"
-                    placeholder="https://example.com/banner.png"
-                    dir="ltr"
+                    onChange={(url) => update({ standard_whatsapp_image_url: url })}
                   />
                 </div>
               </div>
@@ -1568,6 +1568,11 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 resize-none"
                     placeholder="שלום {שם מלא}, ההזמנה שלך התקבלה וממתינה להשלמת התשלום..."
                   />
+                  <PageBuilderImageUpload
+                    label="תמונה מצורפת להודעת המתנה לתשלום (אופציונלי)"
+                    value={value.payment_pending_image_url || ''}
+                    onChange={(url) => update({ payment_pending_image_url: url })}
+                  />
                 </div>
 
                 <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
@@ -1581,6 +1586,11 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
                     onChange={(e) => update({ payment_success_message: e.target.value })}
                     className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-indigo-500 resize-none"
                     placeholder="שלום {שם מלא}, התשלום בסך {סכום} ש״ח בוצע בהצלחה! קבלה: {link_kabala}"
+                  />
+                  <PageBuilderImageUpload
+                    label="תמונה מצורפת להודעת תשלום מוצלח (אופציונלי)"
+                    value={value.payment_success_image_url || ''}
+                    onChange={(url) => update({ payment_success_image_url: url })}
                   />
                 </div>
               </div>
