@@ -1,4 +1,4 @@
-﻿import React, { useState, Suspense } from 'react';
+import React, { useState, Suspense } from 'react';
 import { 
   Sliders, TrendingUp, Layout, Image, PlayCircle, 
   Database, LogOut, User, Menu, X, Shield, ChevronLeft,
@@ -67,6 +67,7 @@ export const DynamicClientShell: React.FC<DynamicClientShellProps> = ({ onExitTo
         return <AuthPortalStandaloneView />;
       case 'flow-player-engine':
         return <FlowPlayerEngineStandaloneView />;
+      case 'KosCloudStore':
       case 'media-gallery-hub':
         return <MediaGalleryHubStandaloneView />;
       case 'db-collections-hub':

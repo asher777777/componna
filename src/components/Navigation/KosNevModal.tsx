@@ -18,7 +18,8 @@ import {
   MessageSquare,
   Layout,
   LayoutGrid,
-  Youtube
+  Youtube,
+  HardDrive,
 } from 'lucide-react';
 import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegistry';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
@@ -129,11 +130,17 @@ export const MODULE_META_CONFIG: Record<string, {
     englishRest: 'CRM Analytics',
     icon: Layout,
   },
-  'media-gallery-hub': {
-    hebrewName: 'ספריית מדיה ותוכן עשיר',
+  'KosCloudStore': {
+    hebrewName: 'כספת ענן ומדיה',
     englishPrefix: 'KOS',
-    englishRest: 'Media Gallery',
-    icon: Sparkles,
+    englishRest: 'CloudStore',
+    icon: HardDrive,
+  },
+  'media-gallery-hub': {
+    hebrewName: 'כספת ענן ומדיה',
+    englishPrefix: 'KOS',
+    englishRest: 'CloudStore',
+    icon: HardDrive,
   },
   'KosTenantProvisioner': {
     hebrewName: 'ניהול סאב-דומיינים והטענת רכיבים',

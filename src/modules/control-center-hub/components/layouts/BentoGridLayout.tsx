@@ -160,13 +160,13 @@ export const BentoGridLayout: React.FC = () => {
                     </button>
                   )}
 
-                  {mod.id === 'media-gallery-hub' && (
+                  {(mod.id === 'media-gallery-hub' || mod.id === 'KosCloudStore') && (
                     <button
                       onClick={async (e) => {
                         e.stopPropagation();
                         const mediaPicker = getCapability<MediaPickerContract>('media-picker');
                         if (mediaPicker) await mediaPicker.openPicker({ accept: '*/*' });
-                        else navigate('/media-gallery-hub');
+                        else navigate('/KosCloudStore');
                       }}
                       className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-xl bg-sky-500/10 hover:bg-sky-600 hover:text-white text-sky-700 border border-sky-500/20 transition cursor-pointer"
                     >

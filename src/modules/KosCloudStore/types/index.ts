@@ -11,7 +11,7 @@ export type MediaType =
   | 'archive'
   | 'code'
   | 'other';
-export type MediaCategoryFilter = 'all' | MediaType | 'heygen';
+export type MediaCategoryFilter = 'all' | MediaType | 'heygen' | 'icons';
 
 export interface MediaFolder {
   id: string;

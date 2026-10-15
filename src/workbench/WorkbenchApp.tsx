@@ -401,6 +401,9 @@ export const WorkbenchApp: React.FC = () => {
                 />
               );
             })}
+            {/* KosCloudStore legacy alias redirects */}
+            <Route path="/media-gallery-hub/*" element={<Navigate to="/KosCloudStore" replace />} />
+            <Route path="/media-gallery/*" element={<Navigate to="/KosCloudStore" replace />} />
             <Route
               path="/"
               element={
@@ -542,6 +545,10 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/together/*" element={<Navigate to="/crm-groups" replace />} />
             <Route path="/crm-groups-hub/*" element={<Navigate to="/crm-groups" replace />} />
             <Route path="/KosTogether/*" element={<Navigate to="/crm-groups" replace />} />
+
+            {/* KosCloudStore legacy alias redirects */}
+            <Route path="/media-gallery-hub/*" element={<Navigate to="/KosCloudStore" replace />} />
+            <Route path="/media-gallery/*" element={<Navigate to="/KosCloudStore" replace />} />
           </Routes>
         </main>
       </div>

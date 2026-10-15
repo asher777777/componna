@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import {
   Layers,
   Megaphone,
@@ -39,7 +39,7 @@ export const QuickActionsPillBar: React.FC = () => {
     if (mediaPicker) {
       await mediaPicker.openPicker({ accept: '*/*' });
     } else {
-      navigate('/media-gallery-hub');
+      navigate('/KosCloudStore');
     }
   };
 

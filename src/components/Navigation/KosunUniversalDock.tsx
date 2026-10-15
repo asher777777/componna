@@ -224,7 +224,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
     if (p.includes('crm-analytics') || p.includes('contacts') || p.includes('leads')) return 'crm-analytics';
     if (p.includes('kesher') || p.includes('payments')) return 'kesher-payments-hub';
     if (p.includes('whatsup') || p.includes('whatsapp')) return 'whatsapp-green-api-hub';
-    if (p.includes('media-gallery') || p.includes('gallery')) return 'media-gallery-hub';
+    if (p.includes('koscloudstore') || p.includes('media-gallery') || p.includes('gallery')) return 'KosCloudStore';
     if (p.includes('ksf') || p.includes('smart-forms')) return 'ksf';
     if (p.includes('brand-dna') || p.includes('branding') || p.includes('kosbranding')) return 'KosBranding';
     if (p.includes('dashboard') || p.includes('board')) return 'kosun-board-composer';

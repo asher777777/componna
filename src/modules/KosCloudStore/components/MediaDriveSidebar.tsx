@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Folder,
   FolderPlus,
@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Loader2,
   Sparkles,
+  Crown,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES, isHeyGenItem } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -56,12 +57,33 @@ export const MediaDriveSidebar: React.FC<{
   const [isComponentsCollapsed, setIsComponentsCollapsed] = useState(false);
   const [isTypesCollapsed, setIsTypesCollapsed] = useState(false);
 
+  // Dynamic usage sorting state
+  const [usageStats, setUsageStats] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('kosun_media_sidebar_usage');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const recordUsage = (id: string) => {
+    setUsageStats((prev) => {
+      const updated = { ...prev, [id]: (prev[id] || 0) + 1 };
+      try {
+        localStorage.setItem('kosun_media_sidebar_usage', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
   // If sidebar is closed on desktop and not in mobile drawer mode, don't render or collapse to 0
   if (!isSidebarOpen && !isOpenMobile) {
     return null;
   }
 
   const handleSelectRoot = () => {
+    recordUsage('all');
     setActiveFolderId(null);
     setFilters((prev) => ({
       ...prev,
@@ -73,6 +95,7 @@ export const MediaDriveSidebar: React.FC<{
   };
 
   const handleSelectFolder = (folderId: string) => {
+    recordUsage(`folder_${folderId}`);
     setActiveFolderId(folderId);
     setFilters((prev) => ({
       ...prev,
@@ -83,6 +106,7 @@ export const MediaDriveSidebar: React.FC<{
   };
 
   const handleSelectType = (typeId: MediaCategoryFilter) => {
+    recordUsage(typeId);
     setActiveFolderId(null);
     setFilters((prev) => ({
       ...prev,
@@ -93,6 +117,7 @@ export const MediaDriveSidebar: React.FC<{
   };
 
   const handleSelectComponent = (sourceId: string) => {
+    recordUsage(`source_${sourceId}`);
     setActiveFolderId(null);
     setFilters((prev) => ({
       ...prev,
@@ -139,6 +164,7 @@ export const MediaDriveSidebar: React.FC<{
     badge?: string;
     isHighlight?: boolean;
   }[] = [
+    { id: 'icons' as any, label: 'ספריית אייקונים יוקרתיים', icon: Crown, count: 50, badge: 'VIP', isHighlight: true },
     { id: 'image', label: 'תמונות', icon: ImageIcon, count: imagesCount },
     { id: 'video', label: 'סרטוני וידאו', icon: FileVideo, count: mediaItems.filter((i) => i.type === 'video' || i.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)).length },
     { id: 'heygen', label: 'סרטוני HEYGEN AI', icon: Sparkles, count: heygenVideosCount, badge: 'AI', isHighlight: true },
@@ -149,6 +175,16 @@ export const MediaDriveSidebar: React.FC<{
     { id: 'archive', label: 'ארכיונים וקוד', icon: Archive, count: archiveCount },
     { id: 'all', label: 'כל הקבצים', icon: HardDrive, count: allCount },
   ];
+
+  const sortedFileTypeOptions = useMemo(() => {
+    return [...fileTypeOptions].sort((a, b) => (usageStats[b.id] || 0) - (usageStats[a.id] || 0));
+  }, [fileTypeOptions, usageStats]);
+
+  const sortedComponents = useMemo(() => {
+    return Object.values(KNOWN_MODULE_SOURCES).sort((a, b) => {
+      return (usageStats[`source_${b.id}`] || 0) - (usageStats[`source_${a.id}`] || 0);
+    });
+  }, [usageStats]);
 
   const isRootActive =
     activeFolderId === null &&
@@ -172,9 +208,7 @@ export const MediaDriveSidebar: React.FC<{
             onClick={handleSelectRoot}
             className={`flex-1 p-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
               isRootActive
-                ? isLight
-                  ? 'bg-amber-500 text-black shadow-md'
-                  : 'bg-yellow-500 text-black shadow-[0_0_15px_rgba(234,179,8,0.35)]'
+                ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/25'
                 : isLight
                 ? 'text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'
                 : 'text-slate-300 hover:bg-slate-800 hover:text-white'
@@ -187,7 +221,7 @@ export const MediaDriveSidebar: React.FC<{
             <span
               className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
                 isRootActive
-                  ? 'bg-black/20 text-black'
+                  ? 'bg-white/20 text-white'
                   : isLight
                   ? 'bg-slate-200 text-slate-700'
                   : 'bg-slate-800 text-slate-400'
@@ -219,13 +253,13 @@ export const MediaDriveSidebar: React.FC<{
             openAiImageGenerator();
             if (onCloseMobile) onCloseMobile();
           }}
-          className="w-full p-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black flex items-center justify-between text-xs font-black shadow-md shadow-amber-500/20 hover:shadow-amber-500/35 transition-all active:scale-98 cursor-pointer"
+          className="w-full p-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-sky-600 to-indigo-500 hover:from-indigo-500 hover:to-sky-400 text-white flex items-center justify-between text-xs font-black shadow-md shadow-indigo-500/20 hover:shadow-indigo-500/35 transition-all active:scale-98 cursor-pointer"
         >
           <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
             <Sparkles className="w-4 h-4 flex-shrink-0 animate-pulse" />
             <span className="truncate">סטודיו Gemini AI</span>
           </div>
-          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-black/20 text-black font-bold uppercase">
+          <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-white/20 text-white font-bold uppercase">
             יצירה
           </span>
         </button>
@@ -255,8 +289,8 @@ export const MediaDriveSidebar: React.FC<{
               }}
               className={`p-1 rounded-lg transition-colors cursor-pointer ${
                 isLight
-                  ? 'text-amber-700 hover:text-amber-900 hover:bg-amber-100'
-                  : 'text-yellow-400 hover:text-yellow-300 hover:bg-yellow-500/10'
+                  ? 'text-indigo-700 hover:text-indigo-900 hover:bg-indigo-100'
+                  : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-500/10'
               }`}
               title="צור תיקייה חדשה"
             >
@@ -273,7 +307,7 @@ export const MediaDriveSidebar: React.FC<{
               ) : (
                 folders.map((folder) => {
                   const isSelected = activeFolderId === folder.id;
-                  const folderColor = folder.color || '#eab308';
+                  const folderColor = folder.color || '#6366f1';
 
                   return (
                     <div
@@ -282,8 +316,8 @@ export const MediaDriveSidebar: React.FC<{
                       className={`group w-full p-2 rounded-xl flex items-center justify-between text-xs font-medium transition-all cursor-pointer ${
                         isSelected
                           ? isLight
-                            ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-sm font-bold'
-                            : 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 shadow'
+                            ? 'bg-indigo-50 text-indigo-900 border border-indigo-200 shadow-sm font-bold'
+                            : 'bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 shadow'
                           : isLight
                           ? 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
                           : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
@@ -302,8 +336,8 @@ export const MediaDriveSidebar: React.FC<{
                           className={`text-[10px] px-1.5 py-0.2 rounded-md font-mono ${
                             isSelected
                               ? isLight
-                                ? 'bg-amber-200 text-amber-950 font-bold'
-                                : 'bg-yellow-500/30 text-yellow-200'
+                                ? 'bg-indigo-100 text-indigo-950 font-bold'
+                                : 'bg-indigo-500/30 text-indigo-200'
                               : isLight
                               ? 'bg-slate-200 text-slate-600'
                               : 'bg-slate-950 text-slate-500'
@@ -316,7 +350,7 @@ export const MediaDriveSidebar: React.FC<{
                           <button
                             type="button"
                             onClick={(e) => handleEditFolder(e, folder)}
-                            className={`p-1 rounded ${isLight ? 'text-slate-500 hover:text-amber-700' : 'text-slate-400 hover:text-yellow-400'}`}
+                            className={`p-1 rounded ${isLight ? 'text-slate-500 hover:text-indigo-700' : 'text-slate-400 hover:text-indigo-400'}`}
                             title="ערוך"
                           >
                             <FolderEdit className="w-3 h-3" />
@@ -339,7 +373,7 @@ export const MediaDriveSidebar: React.FC<{
           )}
         </div>
 
-        {/* 2. File Categories (סוגי קבצים ומדיה) */}
+        {/* 2. File Categories (סוגי קבצים ומדיה מסודרים לפי שימוש) */}
         <div>
           <div className={`flex items-center justify-between px-2 mb-1.5 text-xs font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
             <button
@@ -350,13 +384,13 @@ export const MediaDriveSidebar: React.FC<{
               }`}
             >
               {isTypesCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              <span>סוגי מדיה וקבצים</span>
+              <span>סוגי מדיה וקבצים (לפי שימוש)</span>
             </button>
           </div>
 
           {!isTypesCollapsed && (
             <div className="space-y-1">
-              {fileTypeOptions.map((opt) => {
+              {sortedFileTypeOptions.map((opt) => {
                 const isSelected = activeFolderId === null && filters.typeFilter === opt.id;
                 const Icon = opt.icon;
 
@@ -368,12 +402,12 @@ export const MediaDriveSidebar: React.FC<{
                     className={`w-full p-2 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer ${
                       isSelected
                         ? isLight
-                          ? 'bg-amber-100/80 text-slate-900 font-bold border-r-4 border-amber-500 shadow-sm'
-                          : 'bg-yellow-500/20 text-yellow-300 font-bold border-r-4 border-yellow-500 shadow-sm'
+                          ? 'bg-indigo-50 text-slate-900 font-bold border-r-4 border-indigo-600 shadow-sm'
+                          : 'bg-indigo-500/20 text-indigo-300 font-bold border-r-4 border-indigo-500 shadow-sm'
                         : opt.isHighlight
                         ? isLight
-                          ? 'text-purple-700 bg-purple-50/70 hover:bg-purple-100 hover:text-purple-900 font-medium'
-                          : 'text-purple-300 bg-purple-950/20 hover:bg-purple-900/40 hover:text-purple-200 font-medium'
+                          ? 'text-indigo-700 bg-indigo-50/70 hover:bg-indigo-100 hover:text-indigo-900 font-medium'
+                          : 'text-indigo-300 bg-indigo-950/20 hover:bg-indigo-900/40 hover:text-indigo-200 font-medium'
                         : isLight
                         ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
@@ -383,7 +417,7 @@ export const MediaDriveSidebar: React.FC<{
                       <Icon
                         className={`w-3.5 h-3.5 flex-shrink-0 ${
                           opt.isHighlight
-                            ? 'text-purple-500 animate-pulse'
+                            ? 'text-indigo-500 animate-pulse'
                             : isLight
                             ? 'text-slate-600'
                             : 'text-slate-400'
@@ -391,7 +425,7 @@ export const MediaDriveSidebar: React.FC<{
                       />
                       <span className="truncate">{opt.label}</span>
                       {opt.badge && (
-                        <span className="text-[9px] px-1.5 py-0.2 rounded font-black uppercase bg-gradient-to-r from-purple-500 to-indigo-500 text-white shadow-xs">
+                        <span className="text-[9px] px-1.5 py-0.2 rounded font-black uppercase bg-gradient-to-r from-indigo-600 to-sky-500 text-white shadow-xs">
                           {opt.badge}
                         </span>
                       )}
@@ -406,7 +440,7 @@ export const MediaDriveSidebar: React.FC<{
           )}
         </div>
 
-        {/* 3. Component Sources (מיון לפי רכיב יוצר) */}
+        {/* 3. Component Sources (מיון לפי רכיב יוצר ושימוש) */}
         <div>
           <div className={`flex items-center justify-between px-2 mb-1.5 text-xs font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
             <button
@@ -419,14 +453,14 @@ export const MediaDriveSidebar: React.FC<{
               {isComponentsCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
               <span className="flex items-center space-x-1 rtl:space-x-reverse">
                 <Layers className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
-                <span>לפי רכיב יוצר</span>
+                <span>לפי רכיב יוצר (דינמי)</span>
               </span>
             </button>
           </div>
 
           {!isComponentsCollapsed && (
             <div className="space-y-1">
-              {Object.values(KNOWN_MODULE_SOURCES).map((src) => {
+              {sortedComponents.map((src) => {
                 const isSelected =
                   activeFolderId === null &&
                   filters.sourceModuleFilter === src.id;
@@ -444,8 +478,8 @@ export const MediaDriveSidebar: React.FC<{
                     className={`w-full p-2 rounded-xl flex items-center justify-between text-xs transition-all cursor-pointer group ${
                       isSelected
                         ? isLight
-                          ? 'bg-slate-200 text-slate-900 font-bold border-r-4 border-amber-500 shadow-sm'
-                          : 'bg-slate-800 text-white font-bold border-r-4 border-yellow-500 shadow-sm'
+                          ? 'bg-slate-200 text-slate-900 font-bold border-r-4 border-indigo-600 shadow-sm'
+                          : 'bg-slate-800 text-white font-bold border-r-4 border-indigo-500 shadow-sm'
                         : isLight
                         ? 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                         : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
@@ -470,10 +504,10 @@ export const MediaDriveSidebar: React.FC<{
                           disabled={isSyncingHeyGen}
                           className={`p-1 rounded-lg transition-colors cursor-pointer ${
                             isSyncingHeyGen
-                              ? 'text-purple-400 animate-spin'
+                              ? 'text-indigo-400 animate-spin'
                               : isLight
-                              ? 'text-purple-600 hover:text-purple-800 hover:bg-purple-100'
-                              : 'text-purple-400 hover:text-purple-300 hover:bg-purple-950'
+                              ? 'text-indigo-600 hover:text-indigo-800 hover:bg-indigo-100'
+                              : 'text-indigo-400 hover:text-indigo-300 hover:bg-indigo-950'
                           }`}
                           title="סנכרן סרטונים מ-HeyGen עכשיו"
                         >
@@ -498,7 +532,7 @@ export const MediaDriveSidebar: React.FC<{
       <div className={`p-3 border-t space-y-2 text-xs ${isLight ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-slate-950/80 border-slate-800 text-slate-400'}`}>
         <div className="flex items-center justify-between">
           <span className="flex items-center space-x-1.5 rtl:space-x-reverse">
-            <HardDrive className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-yellow-400'}`} />
+            <HardDrive className={`w-3.5 h-3.5 ${isLight ? 'text-indigo-600' : 'text-indigo-400'}`} />
             <span>נפח מאגר:</span>
           </span>
           <span className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>

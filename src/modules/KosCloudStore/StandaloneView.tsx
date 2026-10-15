@@ -119,7 +119,7 @@ const KosCloudStoreContent: React.FC = () => {
 
   return (
     <div
-      className={`flex flex-col h-screen max-h-screen overflow-hidden font-sans selection:bg-yellow-500 selection:text-black transition-colors duration-200 ${
+      className={`flex flex-col h-screen max-h-screen overflow-hidden font-sans selection:bg-indigo-500 selection:text-white transition-colors duration-200 ${
         isLight ? 'bg-slate-100 text-slate-900' : 'bg-slate-950 text-slate-100'
       }`}
       dir="rtl"
@@ -173,16 +173,16 @@ const KosCloudStoreContent: React.FC = () => {
             {isMobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
           </button>
 
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-yellow-500 via-amber-500 to-yellow-400 text-black flex items-center justify-center shadow-[0_0_15px_rgba(234,179,8,0.35)] shrink-0">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
             <HardDrive className="w-4 h-4" />
           </div>
 
           <div className="truncate">
             <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
-              <span className="font-black text-sm sm:text-base tracking-tight text-yellow-500">
+              <span className="font-black text-sm sm:text-base tracking-tight text-indigo-600 dark:text-indigo-400">
                 KosCloudStore
               </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-yellow-500/10 text-yellow-500 border border-yellow-500/30 hidden sm:inline">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 hidden sm:inline">
                 2026
               </span>
             </div>
@@ -200,7 +200,7 @@ const KosCloudStoreContent: React.FC = () => {
               type="button"
               onClick={() => setMobileViewMode('grid')}
               className={`p-1.5 rounded-lg transition-colors ${
-                mobileViewMode === 'grid' ? 'bg-amber-500 text-black' : 'text-slate-400 hover:text-white'
+                mobileViewMode === 'grid' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
               title="תצוגת גריד"
             >
@@ -210,7 +210,7 @@ const KosCloudStoreContent: React.FC = () => {
               type="button"
               onClick={() => setMobileViewMode('list')}
               className={`p-1.5 rounded-lg transition-colors ${
-                mobileViewMode === 'list' ? 'bg-amber-500 text-black' : 'text-slate-400 hover:text-white'
+                mobileViewMode === 'list' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
               }`}
               title="תצוגת רשימה"
             >
@@ -229,24 +229,23 @@ const KosCloudStoreContent: React.FC = () => {
             }`}
             title={isLight ? 'מעבר למצב לילה' : 'מעבר למצב יום'}
           >
-            {isLight ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-amber-400" />}
+            {isLight ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-sky-400" />}
           </button>
 
-          {/* Sidebar Toggle (Desktop) */}
+          {/* Sidebar Toggle (Desktop) - Icon only with tooltip */}
           <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`hidden md:flex px-3 py-1.5 rounded-xl border text-xs font-semibold items-center space-x-1.5 rtl:space-x-reverse transition-colors cursor-pointer ${
+            className={`hidden md:flex p-2 rounded-xl border text-xs items-center justify-center transition-colors cursor-pointer ${
               isSidebarOpen
                 ? isLight
                   ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
                   : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-                : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow'
+                : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow'
             }`}
             title={isSidebarOpen ? 'הסתר סרגל צדדי' : 'הצג סרגל צדדי'}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
-            <span>{isSidebarOpen ? 'הסתר סרגל' : 'סרגל תיקיות'}</span>
+            <SlidersHorizontal className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
           </button>
 
           {/* Cloud Sync Status Indicator */}
