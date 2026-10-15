@@ -478,9 +478,22 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     let strictPrompt = (triggeredBot.systemPrompt || 'אתה נציג שירות ומכירות אינטליגנטי.') + brandContext + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
     strictPrompt += '1. התשובות שלך חייבות להיות **קצרות מאוד ותמציתיות** (עד 2-3 משפטים בלבד).\n';
     strictPrompt += '2. אם הלקוח מבקש מידע ארוך (כמו חבילות), תן לו אותו מתומצת מאוד בנקודות קצרות.\n';
-    strictPrompt += '3. סיים כל הודעה שלך ב**שאלה ממוקדת** כדי להוביל את השיחה.\n';
-    strictPrompt += '4. אם שם הלקוח מצוין בנתוני השיחה, פנה אליו לפעמים בשמו. אם מדובר בלקוח חדש ללא שם, שאל לשמו בעדינות ובקצרה בפתח השיחה.\n';
-    strictPrompt += '5. אם אין לך תשובה טובה, תגיד שאתה מעביר את הפנייה לנציג אנושי.\n';
+    strictPrompt += '3. הובלת השיחה וסגירת מעגל: כאשר השיחה בשלב בירור צרכים, סיים בשאלה ממוקדת כדי לקדם את השיחה. אולם, כאשר הלקוח אישר העברה לנציג אנושי, סגרת פנייה, או הגעתם לסיכום - **איסור מוחלט לשאול שאלות נוספות**! תן אישור קצר, ברכת הצלחה חמה ושחרר את הלקוח.\n';
+    strictPrompt += '4. מודעות ערוץ וואטסאפ: אתה מתכתב עם הלקוח ישירות בתוך הוואטסאפ! **לעולם אל תשאל מה מספר הטלפון שלו**, שכן המספר שלו כבר גלוי ומוגדר בהקשר השיחה. אם הלקוח מבקש לשלוח לו דוגמאות או לינקים בווטסאפ, השב שיישלח ישירות למספר זה.\n';
+    strictPrompt += '5. כרטיס איש קשר (vCard) ושמירת מספר: כשהלקוח מתעניין או כשהשיחה נסגרת, הצע לו לשמור את כרטיס איש הקשר הרשמי שלנו כדי שיוכל לצפות בסטטוסים שלנו ולקבל תזכורות ועדכונים ישירות ללא סינון ספאם. אם יש צורך בשליחת כרטיס, הוסף את התגית [SEND_CONTACT] בסוף התשובה.\n';
+    strictPrompt += '6. אם אין לך תשובה טובה, תגיד שאתה מעביר את הפנייה לנציג אנושי.\n';
+
+    if (triggeredBot.conversationGoal) {
+      strictPrompt += `\n=== משימת השיחה העיקרית של הבוט ===\n${triggeredBot.conversationGoal}\n`;
+    }
+
+    if (triggeredBot.landingPagesCatalog && Array.isArray(triggeredBot.landingPagesCatalog) && triggeredBot.landingPagesCatalog.length > 0) {
+      strictPrompt += `\n=== קטלוג דפי נחיתה וקישורים זמינים למשלוח ללקוח ===\n`;
+      triggeredBot.landingPagesCatalog.forEach((lp: any) => {
+        strictPrompt += `- ${lp.title}: ${lp.url}\n`;
+      });
+      strictPrompt += `אם הלקוח מתעניין או מבקש דוגמה/קישור, שלח לו ישירות את הקישור המתאים מהקטלוג!\n`;
+    }
 
     // Loop Guard 1: Anti-Duplication via Message ID
     const messageId = body.idMessage;
@@ -637,26 +650,116 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     // 8. Trigger Async Info Extraction
     extractAndSaveContact(geminiKey, phone, chatHistory, senderName, contactDocId || undefined);
 
-    // 9. Send message back via Green API using direct cluster host
+    // 9. Process Media / Contact tags in reply
+    let sendContactRequested = false;
+    if (replyText.includes('[SEND_CONTACT]')) {
+      sendContactRequested = true;
+      replyText = replyText.replace(/\[SEND_CONTACT\]/g, '').trim();
+    }
+
+    let extractedImageUrl = '';
+    let extractedImageCaption = '';
+    const imageTagMatch = replyText.match(/\[SEND_IMAGE:\s*([^\s|\]]+)(?:\s*\|\s*([^\]]+))?\]/);
+    if (imageTagMatch) {
+      extractedImageUrl = imageTagMatch[1]?.trim() || '';
+      extractedImageCaption = imageTagMatch[2]?.trim() || '';
+      replyText = replyText.replace(imageTagMatch[0], '').trim();
+    }
+
+    // Send message back via Green API using direct cluster host
     const instStr = String(greenApiInstanceId || '').trim();
     let host = 'https://api.green-api.com';
     if (instStr.length >= 4) {
       host = `https://${instStr.slice(0, 4)}.api.greenapi.com`;
     }
-    const greenApiUrl = `${host}/waInstance${instStr}/sendMessage/${greenApiToken}`;
-
     const cleanChatId = targetChatId.includes('@')
       ? targetChatId
       : `${targetChatId.replace(/\D/g, '')}@c.us`;
 
-    await fetch(greenApiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        chatId: cleanChatId,
-        message: replyText
-      })
-    });
+    // 9a. Send text message
+    if (replyText) {
+      const greenApiUrl = `${host}/waInstance${instStr}/sendMessage/${greenApiToken}`;
+      await fetch(greenApiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chatId: cleanChatId,
+          message: replyText
+        })
+      });
+    }
+
+    // 9b. Send image if requested
+    if (extractedImageUrl) {
+      try {
+        const sendFileUrl = `${host}/waInstance${instStr}/sendFileByUrl/${greenApiToken}`;
+        await fetch(sendFileUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chatId: cleanChatId,
+            urlFile: extractedImageUrl,
+            fileName: 'image.jpg',
+            caption: extractedImageCaption || undefined
+          })
+        });
+      } catch (imgErr) {
+        console.warn('[whatsappWebhook] Error sending image attachment:', imgErr);
+      }
+    }
+
+    // 9c. Send vCard contact card if requested (enables mutual contact saving for status visibility & anti-ban)
+    if (sendContactRequested) {
+      try {
+        const businessPhone = String(apiKeys.businessContactPhone || apiKeys.adminNotificationPhone || apiKeys.adminPhone || instStr).replace(/\D/g, '');
+        const businessName = String(apiKeys.businessContactName || 'Kosun - שירות לקוחות');
+        const phoneInt = parseInt(businessPhone, 10);
+        if (!isNaN(phoneInt) && phoneInt > 0) {
+          const sendContactUrl = `${host}/waInstance${instStr}/sendContact/${greenApiToken}`;
+          await fetch(sendContactUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: cleanChatId,
+              contact: {
+                phoneContact: phoneInt,
+                firstName: businessName,
+                company: 'Kosun'
+              }
+            })
+          });
+        }
+      } catch (cardErr) {
+        console.warn('[whatsappWebhook] Error sending contact card:', cardErr);
+      }
+    }
+
+    // 9d. Admin Alert for Hot Lead / Human Handoff
+    const isHumanHandoff =
+      replyText.includes('נציג אנושי') ||
+      replyText.includes('מתקשר אליך') ||
+      replyText.includes('מחייג אליך') ||
+      replyText.includes('בדקות הקרובות');
+
+    const adminAlertPhone = apiKeys.adminNotificationPhone || apiKeys.adminPhone;
+    if (isHumanHandoff && adminAlertPhone) {
+      try {
+        const adminDigits = String(adminAlertPhone).replace(/\D/g, '');
+        const adminChatId = adminDigits.includes('@') ? adminDigits : `${adminDigits}@c.us`;
+        const adminMsg = `🚨 *התראת ליד דורש מענה / העברה לנציג אנושי!*\n\n👤 *שם:* ${contactName || 'לקוח חדש'}\n📱 *טלפון:* ${normPhone}\n💬 *הודעת לקוח:* "${messageText}"\n🤖 *מענה בוט:* "${replyText.slice(0, 160)}..."\n\n_Kosun CRM & WhatsApp AI Bot_`;
+        const adminSendUrl = `${host}/waInstance${instStr}/sendMessage/${greenApiToken}`;
+        await fetch(adminSendUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chatId: adminChatId,
+            message: adminMsg
+          })
+        });
+      } catch (adminErr) {
+        console.warn('[whatsappWebhook] Error sending admin alert:', adminErr);
+      }
+    }
 
     res.status(200).send('Success');
   } catch (error) {
@@ -729,3 +832,205 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
     }
   });
 });
+
+/**
+ * Helper to process pending reminders from Firestore
+ * Supports Anti-Ban Jitter, vCard contact card dispatch, and status updating.
+ */
+async function processPendingReminders(): Promise<{ processed: number; success: number; failed: number }> {
+  let processed = 0;
+  let successCount = 0;
+  let failedCount = 0;
+
+  try {
+    // 1. Fetch API keys
+    let apiKeys: any = {};
+    try {
+      const masterDoc = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
+      if (masterDoc.exists) {
+        apiKeys = masterDoc.data() || {};
+      }
+    } catch {}
+
+    if (!apiKeys.greenApiInstanceId || !apiKeys.greenApiToken) {
+      try {
+        const rootDoc = await db.collection('settings').doc('api_keys').get();
+        if (rootDoc.exists) Object.assign(apiKeys, rootDoc.data() || {});
+      } catch {}
+    }
+
+    const greenApiInstanceId = apiKeys.greenApiInstanceId;
+    const greenApiToken = apiKeys.greenApiToken;
+
+    if (!greenApiInstanceId || !greenApiToken) {
+      console.warn('[dispatchScheduledReminders] Green-API credentials missing.');
+      return { processed: 0, success: 0, failed: 0 };
+    }
+
+    const instStr = String(greenApiInstanceId).trim();
+    let host = 'https://api.green-api.com';
+    if (instStr.length >= 4) {
+      host = `https://${instStr.slice(0, 4)}.api.greenapi.com`;
+    }
+
+    // 2. Fetch pending reminders from global and collectionGroup
+    const nowIso = new Date().toISOString();
+    const querySnapshot = await db.collection('scheduled_reminders')
+      .where('status', '==', 'pending')
+      .limit(50)
+      .get();
+
+    const pendingDocs: any[] = [];
+    querySnapshot.forEach(d => {
+      const data = d.data();
+      if (!data.scheduledAt || data.scheduledAt <= nowIso) {
+        pendingDocs.push({ ref: d.ref, data: { ...data, id: d.id } });
+      }
+    });
+
+    try {
+      const groupSnap = await db.collectionGroup('scheduled_reminders')
+        .where('status', '==', 'pending')
+        .limit(50)
+        .get();
+      groupSnap.forEach(d => {
+        if (!pendingDocs.some(p => p.data.id === d.id)) {
+          const data = d.data();
+          if (!data.scheduledAt || data.scheduledAt <= nowIso) {
+            pendingDocs.push({ ref: d.ref, data: { ...data, id: d.id } });
+          }
+        }
+      });
+    } catch (gErr) {
+      console.warn('[dispatchScheduledReminders] collectionGroup query skipped:', gErr);
+    }
+
+    processed = pendingDocs.length;
+    if (processed === 0) {
+      return { processed: 0, success: 0, failed: 0 };
+    }
+
+    // 3. Process each reminder with Anti-Ban Jitter (2.5s delay between sends)
+    for (const item of pendingDocs) {
+      const reminder = item.data;
+      const docRef = item.ref;
+      const rawPhone = String(reminder.recipientPhone || '').replace(/\D/g, '');
+      if (!rawPhone) {
+        await docRef.update({
+          status: 'failed',
+          error: 'Missing recipient phone',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        failedCount++;
+        continue;
+      }
+
+      const cleanChatId = rawPhone.includes('@') ? rawPhone : `${rawPhone}@c.us`;
+
+      try {
+        let messageId = '';
+
+        // 3a. Send media or text
+        if (reminder.mediaUrl) {
+          const sendFileUrl = `${host}/waInstance${instStr}/sendFileByUrl/${greenApiToken}`;
+          const res = await fetch(sendFileUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: cleanChatId,
+              urlFile: reminder.mediaUrl,
+              fileName: reminder.mediaFileName || 'reminder_attachment',
+              caption: reminder.message
+            })
+          });
+          const json: any = await res.json();
+          messageId = json.idMessage || '';
+        } else {
+          const sendMsgUrl = `${host}/waInstance${instStr}/sendMessage/${greenApiToken}`;
+          const res = await fetch(sendMsgUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: cleanChatId,
+              message: reminder.message
+            })
+          });
+          const json: any = await res.json();
+          messageId = json.idMessage || '';
+        }
+
+        // 3b. Send vCard contact card if configured (enables lead to save us -> view statuses + anti-ban)
+        if (reminder.sendContactCard) {
+          try {
+            const bPhone = String(reminder.businessContact?.phone || apiKeys.businessContactPhone || apiKeys.adminPhone || instStr).replace(/\D/g, '');
+            const bName = String(reminder.businessContact?.name || apiKeys.businessContactName || 'Kosun');
+            const phoneInt = parseInt(bPhone, 10);
+            if (!isNaN(phoneInt) && phoneInt > 0) {
+              const sendContactUrl = `${host}/waInstance${instStr}/sendContact/${greenApiToken}`;
+              await fetch(sendContactUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  chatId: cleanChatId,
+                  contact: {
+                    phoneContact: phoneInt,
+                    firstName: bName,
+                    company: reminder.businessContact?.company || 'Kosun'
+                  }
+                })
+              });
+            }
+          } catch (cErr) {
+            console.warn('[dispatchScheduledReminders] Error sending contact card:', cErr);
+          }
+        }
+
+        // Mark as sent
+        await docRef.update({
+          status: 'sent',
+          messageId: messageId || 'sent',
+          sentAt: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        successCount++;
+
+        // Anti-Ban Jitter delay (2500ms)
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      } catch (err: any) {
+        console.error('[dispatchScheduledReminders] Failed sending reminder to', cleanChatId, err);
+        await docRef.update({
+          status: 'failed',
+          error: err?.message || String(err),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        failedCount++;
+      }
+    }
+  } catch (outerErr) {
+    console.error('[dispatchScheduledReminders] Global processing error:', outerErr);
+  }
+
+  return { processed, success: successCount, failed: failedCount };
+}
+
+/**
+ * Cloud Scheduled Reminders Cron (Google Cloud Functions Pub/Sub)
+ * Runs automatically every 5 minutes in Google Cloud to dispatch pending reminders.
+ */
+export const dispatchScheduledReminders = functions.pubsub
+  .schedule('every 5 minutes')
+  .onRun(async () => {
+    const res = await processPendingReminders();
+    console.log('[dispatchScheduledReminders] Completed cycle:', res);
+  });
+
+/**
+ * HTTPS Endpoint to trigger reminders processing on-demand or via Webhook
+ */
+export const triggerScheduledReminders = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    const result = await processPendingReminders();
+    res.status(200).json(result);
+  });
+});
+

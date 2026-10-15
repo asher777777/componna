@@ -1,12 +1,12 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { Sparkles, RefreshCw, Send } from 'lucide-react';
 import { Contact } from '../../types';
 import { 
-  generateContactAISummary, 
+  generateContactSummary, 
   generateSmartMessageDraft, 
-  AISummaryResult, 
-  AIDraftMessageResult 
-} from '../../services/aiCrmService';
+  ContactSummaryResult, 
+  DraftMessageResult 
+} from '../../services/crmCopilotService';
 
 interface Props {
   formData: Contact;
@@ -15,10 +15,10 @@ interface Props {
 
 export const ContactAiCopilotTab: React.FC<Props> = ({ formData, onAddTag }) => {
   const [aiLoading, setAiLoading] = useState(false);
-  const [aiSummary, setAiSummary] = useState<AISummaryResult | null>(null);
+  const [aiSummary, setAiSummary] = useState<ContactSummaryResult | null>(null);
   const [aiDraftChannel, setAiDraftChannel] = useState<'whatsapp' | 'email'>('whatsapp');
   const [aiDraftGoal, setAiDraftGoal] = useState<'warm_intro' | 'campaign_invite' | 'payment_reminder'>('warm_intro');
-  const [aiDraftResult, setAiDraftResult] = useState<AIDraftMessageResult | null>(null);
+  const [aiDraftResult, setAiDraftResult] = useState<DraftMessageResult | null>(null);
   const [draftLoading, setDraftLoading] = useState(false);
 
   const cleanPhone = formData.conta_phone?.replace(/\D/g, '') || '';
@@ -31,7 +31,7 @@ export const ContactAiCopilotTab: React.FC<Props> = ({ formData, onAddTag }) => 
   const handleRunAiSummary = async () => {
     setAiLoading(true);
     try {
-      const res = await generateContactAISummary(formData);
+      const res = await generateContactSummary(formData);
       setAiSummary(res);
     } catch (e) {
       console.error(e);

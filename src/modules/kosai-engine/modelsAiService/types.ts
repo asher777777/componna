@@ -21,6 +21,8 @@ export interface KosaiExecutionOptions {
   tenantId?: string;
   category?: 'content' | 'chatbot' | 'gallery' | 'video';
   customApiKey?: string;
+  imageBase64?: string;
+  imageMimeType?: string;
 }
 
 export interface KosaiContractResult<T = any> {

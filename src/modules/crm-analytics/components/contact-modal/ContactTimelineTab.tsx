@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Mic, MicOff, Sparkles, Loader2, CheckCircle2, Clock, Calendar, Tag } from 'lucide-react';
 import { Contact } from '../../types';
-import { analyzeVoiceDebrief } from '../../services/aiCrmService';
+import { analyzeVoiceDebrief } from '../../services/crmCopilotService';
 
 interface Props {
   formData: Contact;

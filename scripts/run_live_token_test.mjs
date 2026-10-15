@@ -156,8 +156,24 @@ const emailAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-en
 const whatsUpAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/whatsUpAiContract.ts'), 'utf-8');
 
 assert(crmAiContract.includes("model: 'gemini-3.8-flash-lite'"), 'crmAiContract uses gemini-3.8-flash-lite');
+assert(crmAiContract.includes('extractBusinessCard('), 'crmAiContract has extractBusinessCard method');
+assert(crmAiContract.includes('maxOutputTokens: 500'), 'crmAiContract caps output tokens');
 assert(emailAiContract.includes("model: 'gemini-3.8-flash-lite'"), 'emailAiContract uses gemini-3.8-flash-lite');
 assert(whatsUpAiContract.includes("model: 'gemini-3.8-flash-lite'"), 'whatsUpAiContract uses gemini-3.8-flash-lite');
+
+// ---------------------------------------------------------------------------
+// TEST 8B: Verify CRM Prompts & Dispatcher Separation
+// ---------------------------------------------------------------------------
+console.log('\n🔍 TEST 8B: Verifying CRM Separation of Concerns & Lean Prompts');
+const crmPromptsContent = fs.readFileSync(path.join(rootDir, 'src/modules/crm-analytics/prompts/contactPrompts.ts'), 'utf-8');
+const crmDispatcherContent = fs.readFileSync(path.join(rootDir, 'src/modules/crm-analytics/kosai/promptToKosai.ts'), 'utf-8');
+const crmServiceContent = fs.readFileSync(path.join(rootDir, 'src/modules/crm-analytics/services/crmCopilotService.ts'), 'utf-8');
+
+assert(crmPromptsContent.includes('BUILD_CONTACT_SUMMARY_PROMPT'), 'contactPrompts.ts exports BUILD_CONTACT_SUMMARY_PROMPT');
+assert(crmDispatcherContent.includes('dispatchContactSummaryToKosai'), 'promptToKosai.ts exports dispatchContactSummaryToKosai');
+assert(crmDispatcherContent.includes('kosaiCrmContract'), 'CRM dispatcher routes through kosaiCrmContract');
+assert(crmServiceContent.includes('dispatchContactSummaryToKosai'), 'crmCopilotService routes through KOSAI dispatcher');
+assert(crmServiceContent.includes('fallback:'), 'crmCopilotService contains zero-token offline fallbacks');
 
 // ---------------------------------------------------------------------------
 // TEST 9: Functional Simulation of Fallback Ideas (Pure JavaScript)

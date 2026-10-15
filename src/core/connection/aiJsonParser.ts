@@ -109,65 +109,39 @@ export async function parseJsonCredentialsWithAI(
     };
   }
 
-  // If unrecognized structure, invoke Gemini API to analyze custom JSON
+  // If unrecognized structure, invoke KOSAI AI Monopoly gateway to analyze custom JSON
   if (apiKey && apiKey.length > 10) {
     try {
-      const prompt = `
-אתה מומחה תשתיות ענן ו-Firebase. נתח את ה-JSON הבא וחלץ מתוכו את מפתחות ה-DB וה-Hosting:
+      const prompt = `נתח את ה-JSON הבא וחלץ מתוכו מפתחות DB ו-Hosting:
 ${rawJsonString}
+החזר JSON בלבד:
+{"sdkType":"admin_sdk|client_sdk|unknown","projectId":"string","apiKey":"string","authDomain":"string","storageBucket":"string","appId":"string","clientEmail":"string","hostingUrl":"string","explanation":"הסבר תמציתי"}`;
 
-החזר תשובה אך ורק בפורמט JSON:
-{
-  "sdkType": "admin_sdk" | "client_sdk" | "unknown",
-  "projectId": "string",
-  "apiKey": "string",
-  "authDomain": "string",
-  "storageBucket": "string",
-  "appId": "string",
-  "clientEmail": "string",
-  "hostingUrl": "string",
-  "explanation": "הסבר תמציתי בעברית"
-}
-`;
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: { responseMimeType: 'application/json' }
-          })
-        }
-      );
-      if (res.ok) {
-        const json = await res.json();
-        const raw = json.candidates?.[0]?.content?.parts?.[0]?.text;
-        if (raw) {
-          const geminiResult = JSON.parse(raw);
-          const projId = geminiResult.projectId || '';
+      const { executeKosaiAi } = await import('../../modules/kosai-engine/modelsAiService/executeKosaiAi');
+      const kosaiRes = await executeKosaiAi<any>('db-connector-hub', prompt, {
+        model: 'gemini-3.8-flash-lite',
+        responseMimeType: 'application/json',
+        temperature: 0.2,
+        maxOutputTokens: 400,
+        customApiKey: apiKey,
+      });
 
-          const promptTokens = json.usageMetadata?.promptTokenCount || 200;
-          const candidatesTokens = json.usageMetadata?.candidatesTokenCount || 100;
-          TenantTokenTracker.recordTokenUsage(
-            ROOT_TENANT_ID,
-            'content',
-            promptTokens + candidatesTokens
-          ).catch(() => {});
-          return {
-            ...geminiResult,
-            consoleLinks: [
-              {
-                title: 'הגדרות פרויקט ב-Firebase Console',
-                url: projId ? `https://console.firebase.google.com/project/${projId}/settings/general` : 'https://console.firebase.google.com',
-                description: 'מעבר מהיר לפרויקט'
-              }
-            ]
-          };
-        }
+      if (kosaiRes?.data && typeof kosaiRes.data === 'object') {
+        const geminiResult = kosaiRes.data;
+        const projId = geminiResult.projectId || '';
+        return {
+          ...geminiResult,
+          consoleLinks: [
+            {
+              title: 'הגדרות פרויקט ב-Firebase Console',
+              url: projId ? `https://console.firebase.google.com/project/${projId}/settings/general` : 'https://console.firebase.google.com',
+              description: 'מעבר מהיר לפרויקט'
+            }
+          ]
+        };
       }
     } catch (e) {
-      console.warn('Gemini custom json parser failed:', e);
+      console.warn('[CredentialsParser] KOSAI custom json parser fallback failed:', e);
     }
   }
 

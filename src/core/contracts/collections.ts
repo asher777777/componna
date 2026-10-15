@@ -39,6 +39,7 @@ export const SYSTEM_COLLECTIONS = {
   KOS_WHATSUP_STATUSES: 'kos_whatsup_statuses',
   KOS_WHATSUP_TEMPLATES: 'kos_whatsup_templates',
   KOS_WHATSUP_AUTOMATIONS: 'kos_whatsup_automations',
+  KOS_WHATSUP_SCHEDULED_REMINDERS: 'scheduled_reminders',
   // Backward compatibility aliases
   WHATSAPP_CHATS: 'kos_whatsup_chats',
   WHATSAPP_MESSAGES: 'kos_whatsup_messages',
@@ -48,6 +49,7 @@ export const SYSTEM_COLLECTIONS = {
   WHATSAPP_STATUSES: 'kos_whatsup_statuses',
   WHATSAPP_TEMPLATES: 'kos_whatsup_templates',
   WHATSAPP_AUTOMATIONS: 'kos_whatsup_automations',
+  SCHEDULED_REMINDERS: 'scheduled_reminders',
   
   // 7. Video Producer Studio & Flow Player
   VIDEO_PROJECTS: 'sdo_video_projects',

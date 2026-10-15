@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Camera, Upload, Sparkles, Loader2, Check, X, UserPlus, Phone, Mail, Building, MapPin, Briefcase } from 'lucide-react';
 import { Contact } from '../types';
-import { parseBusinessCardImage } from '../services/aiCrmService';
+import { parseBusinessCardImage } from '../services/crmCopilotService';
 
 interface Props {
   isOpen: boolean;

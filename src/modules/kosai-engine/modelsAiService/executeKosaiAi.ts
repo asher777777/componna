@@ -76,8 +76,21 @@ export async function executeKosaiAi<T = any>(
   return kosaiCircuitBreaker.executeSingleFlight(flightKey, async () => {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
+    const userParts: any[] = [{ text: prompt }];
+    if (options.imageBase64) {
+      const cleanData = options.imageBase64.includes('base64,')
+        ? options.imageBase64.split('base64,')[1]
+        : options.imageBase64;
+      userParts.push({
+        inlineData: {
+          mimeType: options.imageMimeType || 'image/jpeg',
+          data: cleanData,
+        },
+      });
+    }
+
     const requestBody: any = {
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      contents: [{ role: 'user', parts: userParts }],
       generationConfig: {
         temperature: options.temperature ?? 0.7,
         ...(options.maxOutputTokens ? { maxOutputTokens: options.maxOutputTokens } : {}),

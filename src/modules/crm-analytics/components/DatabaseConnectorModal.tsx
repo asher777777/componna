@@ -5,7 +5,7 @@ import {
   FileJson, UploadCloud, Copy, ArrowLeft, CheckCircle2
 } from 'lucide-react';
 import { DatabaseConnectionProfile, DatabaseProviderType } from '../types';
-import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../services/aiJsonParser';
+import { parseJsonCredentials, JsonCredentialsResult } from '../services/credentialsParserService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 
@@ -53,7 +53,7 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
     }
   });
   const [isParsingJson, setIsParsingJson] = useState(false);
-  const [parsedResult, setParsedResult] = useState<AIJsonCredentialsResult | null>(() => {
+  const [parsedResult, setParsedResult] = useState<JsonCredentialsResult | null>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_PARSED_KEY);
       if (saved) return JSON.parse(saved);
@@ -119,7 +119,7 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
     setSaveFeedback(null);
 
     try {
-      const res = await parseJsonCredentialsWithAI(jsonInput);
+      const res = await parseJsonCredentials(jsonInput);
       setParsedResult(res);
 
       const targetProjId = res.projectId || firestoreProjectId;

@@ -261,6 +261,48 @@ export interface WhatsAppSendPollParams {
   multipleAnswers?: boolean;
 }
 
+export interface WhatsAppSendContactParams {
+  phone?: string;
+  chatId?: string;
+  contact: {
+    phoneContact: string | number;
+    firstName: string;
+    lastName?: string;
+    company?: string;
+  };
+}
+
+export interface ScheduledReminderPayload {
+  id?: string;
+  tenantId?: string;
+  sourceModule: 'KSF' | 'CRM' | 'KosWhatsUp' | 'manual';
+  sourceId: string; // e.g. formId or submissionId
+  recipientPhone: string;
+  recipientName?: string;
+  recipientType?: 'submitter' | 'admin';
+  message: string;
+  mediaUrl?: string;
+  mediaFileName?: string;
+  scheduledAt: string; // ISO 8601 string or future timestamp
+  status: 'pending' | 'sent' | 'failed' | 'cancelled';
+  createdAt?: string;
+  sentAt?: string;
+  messageId?: string;
+  error?: string;
+  sendContactCard?: boolean; // Send vCard so lead saves our number (Anti-Ban & Statuses visibility)
+  businessContact?: {
+    name: string;
+    phone: string;
+    company?: string;
+  };
+  metadata?: Record<string, any>;
+}
+
+export interface ScheduledReminderContract {
+  scheduleReminder: (payload: ScheduledReminderPayload) => Promise<{ success: boolean; reminderId?: string; error?: string }>;
+  cancelReminder?: (reminderId: string) => Promise<boolean>;
+}
+
 export interface WhatsAppGroupSummary {
   id: string;
   name: string;
@@ -281,6 +323,8 @@ export interface WhatsAppContract {
   ) => Promise<WhatsAppSendResult>;
   sendFile?: (params: WhatsAppSendFileParams) => Promise<WhatsAppSendResult>;
   sendPoll?: (params: WhatsAppSendPollParams) => Promise<WhatsAppSendResult>;
+  sendContact?: (params: WhatsAppSendContactParams) => Promise<WhatsAppSendResult>;
+  scheduleReminder?: (payload: ScheduledReminderPayload) => Promise<{ success: boolean; reminderId?: string; error?: string }>;
   fetchGroups?: () => Promise<WhatsAppGroupSummary[]>;
   fetchGroupParticipants?: (groupId: string) => Promise<WhatsAppGroupParticipantSummary[]>;
   sendTemplateNotification?: (
