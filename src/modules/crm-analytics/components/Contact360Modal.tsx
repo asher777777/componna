@@ -26,6 +26,7 @@ import {
   FormBuilderContract 
 } from '../../../core/contracts';
 import { ContactSubdomainTab } from './contact-modal/ContactSubdomainTab';
+import { ContactWhatsAppTab } from './contact-modal/ContactWhatsAppTab';
 import { tenantContactSyncService } from '../services/tenantContactSyncService';
 
 interface Props {
@@ -845,7 +846,7 @@ export const Contact360Modal: React.FC<Props> = ({
             </button>
             
             {openSections['whatsapp'] && (
-              <div className={`p-3.5 sm:p-4 border-t space-y-2.5 text-xs animate-fadeIn ${
+              <div className={`p-3.5 sm:p-4 border-t space-y-3 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
               }`}>
                 <div className={`flex items-center justify-between p-2.5 rounded-xl border ${
@@ -860,12 +861,16 @@ export const Contact360Modal: React.FC<Props> = ({
                       href={waUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition"
+                      className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition flex items-center gap-1.5 shadow-sm"
                     >
-                      פתח צ'אט
+                      <MessageCircle className="w-3.5 h-3.5" />
+                      <span>פתח ב-WhatsApp Web</span>
                     </a>
                   )}
                 </div>
+
+                {/* Full conversation logs, incoming webhook chats, KSF form dispatches & live sender */}
+                <ContactWhatsAppTab formData={formData} />
               </div>
             )}
           </div>
