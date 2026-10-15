@@ -1,11 +1,10 @@
 import React, { useState, useRef } from 'react';
-import { Image as ImageIcon, Upload, Link, Sparkles, X, Check, Layers, FolderOpen, Edit3, Trash2, Crown, Video as VideoIcon } from 'lucide-react';
+import { Image as ImageIcon, Upload, Link, Sparkles, X, FolderOpen, Edit3, Trash2, Crown, Video as VideoIcon } from 'lucide-react';
 import { PageBuilderButton } from './PageBuilderButton';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
-import { LuxuryIconsGallery } from './LuxuryIconsGallery';
 
 interface PageBuilderImageUploadProps {
   label?: string;
@@ -42,16 +41,16 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [tab, setTab] = useState<'gallery' | 'icons' | 'url' | 'samples' | 'ai'>('gallery');
+  const [tab, setTab] = useState<'media' | 'url' | 'samples' | 'ai'>('media');
   const [urlInput, setUrlInput] = useState(value || '');
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleOpenMediaGallery = async () => {
+  const handleOpenMediaGallery = async (initialTab: 'gallery' | 'icons' = 'gallery') => {
     if (mediaPicker) {
       try {
-        const selected = await mediaPicker.openPicker({ multiple: false });
+        const selected = await mediaPicker.openPicker({ multiple: false, initialTab });
         if (selected) {
           const finalUrl = Array.isArray(selected) ? selected[0] : selected;
           if (finalUrl) {
@@ -111,7 +110,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
             }}
             className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
           >
-            <Trash2 className="w-3 h-3" /> הסר תמונה
+            <Trash2 className="w-3 h-3" /> הסר מדיה
           </button>
         )}
       </div>
@@ -138,7 +137,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
                 className="w-full h-full object-cover"
               />
             ) : (
-              <img src={value} alt="Preview" className="w-full h-full object-cover" />
+              <img src={value} alt="Preview" className="w-full h-full object-contain p-2 max-h-full" />
             )}
 
             {isVideoMedia(value) && (
@@ -156,11 +155,19 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
               <div className="flex items-center gap-2 flex-wrap justify-center">
                 <button
                   type="button"
-                  onClick={handleOpenMediaGallery}
+                  onClick={() => handleOpenMediaGallery('gallery')}
                   className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 hover:from-yellow-400 hover:to-amber-400 text-black text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-yellow-500/20 transition-all cursor-pointer active:scale-95"
                 >
                   <FolderOpen className="w-3.5 h-3.5" />
-                  <span>בחר מגלריה</span>
+                  <span>גלריית מדיה</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleOpenMediaGallery('icons')}
+                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 border border-amber-500/40 transition-all cursor-pointer"
+                >
+                  <Crown className="w-3.5 h-3.5 text-amber-400" />
+                  <span>אייקונים</span>
                 </button>
                 <button
                   type="button"
@@ -168,18 +175,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
                   className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium flex items-center gap-1.5 border border-slate-600 transition-all cursor-pointer"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span>העלה קובץ</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange('');
-                    setTab('icons');
-                  }}
-                  className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 text-xs font-bold flex items-center gap-1.5 border border-amber-500/40 transition-all cursor-pointer"
-                >
-                  <Crown className="w-3.5 h-3.5 text-amber-400" />
-                  <span>אייקונים</span>
+                  <span>העלאה</span>
                 </button>
                 <button
                   type="button"
@@ -194,24 +190,21 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
           </div>
 
           {/* Quick Action Buttons Under Preview (Always Visible) */}
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
-              onClick={handleOpenMediaGallery}
-              className="flex-1 py-1.5 px-2.5 rounded-xl bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              onClick={() => handleOpenMediaGallery('gallery')}
+              className="py-1.5 px-2.5 rounded-xl bg-yellow-500/10 hover:bg-yellow-500/20 border border-yellow-500/40 text-yellow-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               title="פתח גלריית מדיה לבחירה או העלאה"
             >
               <FolderOpen className="w-3.5 h-3.5 text-yellow-400" />
-              <span>החלף מגלריית המדיה</span>
+              <span>גלריית מדיה</span>
             </button>
             <button
               type="button"
-              onClick={() => {
-                onChange('');
-                setTab('icons');
-              }}
+              onClick={() => handleOpenMediaGallery('icons')}
               className="py-1.5 px-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-xs font-bold flex items-center justify-center gap-1 transition-colors cursor-pointer"
-              title="בחר מתוך מאגר האייקונים היוקרתיים"
+              title="בחר מתוך מאגר האייקונים היוקרתיים של רכיב המדיה"
             >
               <Crown className="w-3.5 h-3.5 text-amber-400" />
               <span>אייקונים</span>
@@ -232,7 +225,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
               title="ערוך כתובת מדיה ידנית"
             >
               <Link className="w-3.5 h-3.5 text-slate-400" />
-              <span>כתובת URL</span>
+              <span>URL</span>
             </button>
           </div>
 
@@ -266,25 +259,13 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
           <div className="flex items-center gap-1 border-b border-slate-800 pb-2 overflow-x-auto custom-scrollbar">
             <button
               type="button"
-              onClick={() => setTab('gallery')}
+              onClick={() => setTab('media')}
               className={clsx(
                 'px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex items-center gap-1.5 cursor-pointer shrink-0',
-                tab === 'gallery' ? 'bg-amber-500 text-black font-bold shadow' : 'text-slate-400 hover:text-white'
+                tab === 'media' ? 'bg-amber-500 text-black font-bold shadow' : 'text-slate-400 hover:text-white'
               )}
             >
-              <FolderOpen className="w-3.5 h-3.5" /> גלריה והעלאה
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab('icons')}
-              className={clsx(
-                'px-2.5 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0',
-                tab === 'icons'
-                  ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-black shadow-lg shadow-yellow-500/20'
-                  : 'text-amber-300 hover:text-amber-200 bg-amber-500/10 border border-amber-500/20'
-              )}
-            >
-              <Crown className="w-3.5 h-3.5" /> אייקונים יוקרתיים
+              <FolderOpen className="w-3.5 h-3.5" /> מאגר מדיה ואייקונים
             </button>
             <button
               type="button"
@@ -318,24 +299,41 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
             </button>
           </div>
 
-          {/* TAB 1: Main Gallery Hub & Local Upload */}
-          {tab === 'gallery' && (
+          {/* TAB 1: Media Hub, Luxury Icons and Local Upload Cards */}
+          {tab === 'media' && (
             <div className="flex flex-col gap-3 py-1">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {/* 1. Media Picker Hub */}
                 <button
                   type="button"
-                  onClick={handleOpenMediaGallery}
+                  onClick={() => handleOpenMediaGallery('gallery')}
                   className="p-4 rounded-2xl bg-gradient-to-r from-yellow-500/20 via-amber-500/20 to-yellow-600/20 hover:from-yellow-500/30 hover:to-amber-500/30 border-2 border-dashed border-yellow-500/50 hover:border-yellow-400 text-yellow-300 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer shadow-md group active:scale-98"
                 >
                   <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-yellow-500 to-amber-500 text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
                     <FolderOpen className="w-5 h-5" />
                   </div>
                   <div className="text-center">
-                    <div className="text-xs font-extrabold text-white">בחר מגלריית המדיה</div>
-                    <div className="text-[10px] text-yellow-300/80">עיון בכל הקבצים והתיקיות במאגר</div>
+                    <div className="text-xs font-extrabold text-white">גלריית המדיה</div>
+                    <div className="text-[10px] text-yellow-300/80">עיון בכל הקבצים והתיקיות</div>
                   </div>
                 </button>
 
+                {/* 2. Luxury Icons via Media Picker Hub */}
+                <button
+                  type="button"
+                  onClick={() => handleOpenMediaGallery('icons')}
+                  className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/20 via-yellow-600/20 to-amber-500/20 hover:from-amber-500/30 hover:to-yellow-500/30 border-2 border-dashed border-amber-500/50 hover:border-amber-400 text-amber-300 flex flex-col items-center justify-center gap-2 transition-all cursor-pointer shadow-md group active:scale-98"
+                >
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-400 to-yellow-500 text-black flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                    <Crown className="w-5 h-5" />
+                  </div>
+                  <div className="text-center">
+                    <div className="text-xs font-extrabold text-white">אייקונים יוקרתיים</div>
+                    <div className="text-[10px] text-amber-300/80">סמלי זהב, פלטינה וטכנולוגיה</div>
+                  </div>
+                </button>
+
+                {/* 3. Local Upload */}
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
@@ -345,27 +343,15 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
                     <Upload className="w-5 h-5 text-indigo-400" />
                   </div>
                   <div className="text-center">
-                    <div className="text-xs font-bold text-white">העלה קובץ מהמחשב</div>
-                    <div className="text-[10px] text-slate-400">PNG, JPG, WEBP, GIF, MP4</div>
+                    <div className="text-xs font-bold text-white">העלאה מהמחשב</div>
+                    <div className="text-[10px] text-slate-400">תמונות, וידאו וקובצי מדיה</div>
                   </div>
                 </button>
               </div>
             </div>
           )}
 
-          {/* TAB 2: Luxury Icons Tab (Item ג) */}
-          {tab === 'icons' && (
-            <div className="py-1">
-              <LuxuryIconsGallery
-                onSelectIcon={(dataUri: string) => {
-                  onChange(dataUri);
-                  setUrlInput(dataUri);
-                }}
-              />
-            </div>
-          )}
-
-          {/* TAB 3: Direct URL */}
+          {/* TAB 2: Direct URL */}
           {tab === 'url' && (
             <div className="flex items-center gap-2">
               <input
@@ -427,4 +413,3 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
     </div>
   );
 };
-

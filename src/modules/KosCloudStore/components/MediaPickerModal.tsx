@@ -193,10 +193,13 @@ const MediaPickerModalContent: React.FC<{
                     name: iconName,
                     url: svgDataUrl,
                     type: 'image',
-                    size: 1024,
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                  } as MediaItem,
+                    mimeType: 'image/svg+xml',
+                    sizeBytes: 1024,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    sourceModule: 'luxury-icons',
+                    sourceModuleLabel: 'אייקונים וסמלים יוקרתיים',
+                  },
                 ]);
                 onClose();
               }}
