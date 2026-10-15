@@ -7,12 +7,9 @@ import { TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 
 export interface KosaiExecutionOptions {
   model?:
-    | 'gemini-3.8-flash'
     | 'gemini-3.8-flash-lite'
-    | 'gemini-2.5-flash-lite'
-    | 'gemini-2.5-flash'
-    | 'gemini-2.5-pro'
-    | 'gemini-1.5-flash'
+    | 'gemini-3.8-flash'
+    | 'gemini-3.8-pro'
     | (string & {});
   temperature?: number;
   responseMimeType?: 'application/json' | 'text/plain';
@@ -20,6 +17,7 @@ export interface KosaiExecutionOptions {
   cacheKey?: string;
   skipCache?: boolean;
   timeoutMs?: number;
+  maxOutputTokens?: number;
   tenantId?: string;
   category?: 'content' | 'chatbot' | 'gallery' | 'video';
   customApiKey?: string;

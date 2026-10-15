@@ -1,14 +1,24 @@
-import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai';
+import { TokenUsageReport } from '../../../core/ai';
 import { BrandDna, SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
-import { functionsApi } from '../api/functionsApi';
+import { kosaiWhatsUpContract } from '../../kosai-engine/modelsAiService';
+import {
+  buildDenseBrandContext,
+  dispatchBotReplyToKosai,
+  dispatchStatusEnhanceToKosai,
+  dispatchStatusVariationsToKosai,
+  WhatsAppStatusTone,
+} from '../kosai/promptToKosai';
+
 export interface WhatsAppBotButton {
   buttonId: string;
   buttonText: string;
   actionType: 'prompt' | 'message' | 'link';
   actionValue?: string;
 }
+
+export type WhatsAppBotConfig = WhatsAppAiBotConfig;
 
 export interface WhatsAppAiBotConfig {
   id: string;
@@ -283,7 +293,7 @@ function buildBrandDnaPromptBlock(brandDna?: BrandDna | null): string {
 `;
 }
 
-export class WhatsAppAiBotService {
+export class WhatsAppBotService {
   private static STORAGE_KEY = 'kosun_whatsup_ai_bots';
 
   public static getStoredBots(): WhatsAppAiBotConfig[] {
@@ -407,7 +417,7 @@ export class WhatsAppAiBotService {
   }
 
   /**
-   * AI Assistant Caller routed securely through Cloud Functions (functionsApi)
+   * AI Assistant Caller routed securely through KOSAI ModelsAiService monopoly
    * Follows Kosun Module Monopoly: Sibling modules never call Gemini directly from browser.
    */
   public static async callGeminiApi(params: {
@@ -423,38 +433,36 @@ export class WhatsAppAiBotService {
     const {
       prompt,
       systemInstruction,
-      temperature = 0.7,
+      temperature = 0.6,
       brandDna,
     } = params;
 
-    const brandDnaBlock = buildBrandDnaPromptBlock(brandDna);
+    const denseContext = buildDenseBrandContext(brandDna);
     const combinedSystemInstruction = [
+      denseContext,
       systemInstruction,
-      brandDnaBlock
     ].filter(Boolean).join('\n\n');
 
-    // Secure call through functionsApi with fallback
-    const result = await functionsApi.callAiAssistant({
+    const result = await kosaiWhatsUpContract.generateBotReply(
       prompt,
-      systemInstruction: combinedSystemInstruction,
-      temperature,
-      preferredModel: params.preferredModel,
-      apiKey: params.apiKey,
-      cachedContentId: params.cachedContentId,
-      brandDna
-    });
+      combinedSystemInstruction,
+      {
+        apiKey: params.apiKey,
+        model: params.preferredModel || 'gemini-3.8-flash-lite',
+        temperature,
+        maxOutputTokens: params.maxOutputTokens || 250,
+      }
+    );
 
-    if (result.error || !result.text) {
+    if (!result.success || !result.data) {
       throw new Error(result.error || 'שירות הבינה המלאכותית עמוס כעת, אנא נסה שוב בעוד מספר רגעים.');
     }
 
-    const costReport = result.costReport || calculateGeminiCost({
-      model: 'gemini-3.8-flash',
-      promptTokens: 200,
-      candidatesTokens: 150
-    });
-
-    return { text: result.text, cachedContentId: result.cachedContentId, costReport };
+    return {
+      text: result.data,
+      cachedContentId: params.cachedContentId,
+      costReport: result.costReport,
+    };
   }
 
   /**
@@ -467,36 +475,19 @@ export class WhatsAppAiBotService {
     preferredModel?: string;
     brandDna?: BrandDna | null;
   }): Promise<{ text: string; costReport?: TokenUsageReport }> {
-    const { apiKey, originalText, tone = 'marketing', preferredModel, brandDna } = params;
+    const text = await dispatchStatusEnhanceToKosai(
+      {
+        originalText: params.originalText,
+        tone: params.tone as any,
+        brandDna: params.brandDna,
+      },
+      {
+        apiKey: params.apiKey,
+        model: params.preferredModel || 'gemini-3.8-flash-lite',
+      }
+    );
 
-    const toneInstruction = {
-      chasidic: 'בסגנון תורני חסידי מאיר ומחזק, עם פתגם חסידי / פסוק מתאים, לשון נקייה ומכובדת, וברכת הצלחה.',
-      marketing: 'בסגנון שיווקי מושך, פאנצ׳י, עם כותרת בולטת, נקודות מפתח ברורות, אימוג׳ים מתאימים והנעה לפעולה (CTA) ברורה.',
-      official: 'בסגנון רשמי, מנומס, מכובד, בהיר ומסודר המתאים להודעה לקהילה או ללקוחות עסקיים.',
-      warm: 'בסגנון חם, אישי, מעודד ומחבר עם נימה נעימה ורגשית.',
-      viral: 'בסגנון קצר במיוחד, ויראלי וקולע לסטורי (עד 120 תווים), עם אימוג׳י מדויקים ופאנץ׳ חזק.',
-    }[tone];
-
-    const prompt = `אתה מומחה קופירייטינג ושיווק בוואטסאפ (WhatsApp Story & Status Copywriter).
-קח את הטקסט הבא שכתב המשתמש, שפר ולטש אותו בצורה מקצועית:
-"${originalText}"
-
-דגשים:
-1. ${toneInstruction}
-2. שמור על המסר המקורי של המשתמש אך הפוך אותו למרתק וקריא פי כמה.
-3. השתמש בעיצוב וואטסאפ מתאים (כגון הדגשות *כוכביות* או מקפים).
-4. החזר אך ורק את הטקסט המשופר המוכן לפרסום בעברית, ללא הערות, ללא מרכאות מסביב וללא הסברים.`;
-
-    const res = await this.callGeminiApi({
-      apiKey,
-      prompt,
-      systemInstruction: 'אתה מומחה לכתיבת סטטוסים והודעות וואטסאפ בעברית קולחת ומדויקת.',
-      temperature: 0.7,
-      preferredModel,
-      brandDna,
-    });
-
-    return { text: res.text, costReport: res.costReport };
+    return { text };
   }
 
   /**
@@ -509,82 +500,44 @@ export class WhatsAppAiBotService {
     preferredModel?: string;
     brandDna?: BrandDna | null;
   }): Promise<{ variations: StatusVariation[]; costReport?: TokenUsageReport }> {
-    const { apiKey, topic, tone = 'chasidic', preferredModel, brandDna } = params;
+    const variations = await dispatchStatusVariationsToKosai(
+      {
+        topic: params.topic,
+        tone: params.tone as any,
+        brandDna: params.brandDna,
+      },
+      {
+        apiKey: params.apiKey,
+        model: params.preferredModel || 'gemini-3.8-flash-lite',
+      }
+    );
 
-    const prompt = `כתוב 3 גרסאות שונות של סטטוס לוואטסאפ (WhatsApp Story) בעברית בנושא: "${topic}".
-הטון המבוקש הוא: ${STATUS_TONE_LABELS[tone].label} (${STATUS_TONE_LABELS[tone].desc}).
-
-פורמט התשובה המבוקש (JSON בלבד):
-[
-  {
-    "id": "v1",
-    "title": "גרסה 1: קצר ופאנצ׳י",
-    "text": "תוכן הסטטוס..."
-  },
-  {
-    "id": "v2",
-    "title": "גרסה 2: עשיר ומחבר",
-    "text": "תוכן הסטטוס..."
-  },
-  {
-    "id": "v3",
-    "title": "גרסה 3: הנעה חזקה לפעולה",
-    "text": "תוכן הסטטוס..."
-  }
-]
-
-דרישות:
-- החזר JSON תקני בלבד ללא Markdown backticks מסביב.
-- כל סטטוס חייב להכיל אימוג'ים מתאימים ומבנה קריא.`;
-
-    try {
-      const res = await this.callGeminiApi({
-        apiKey,
-        prompt,
-        systemInstruction: 'אתה מחולל סטטוסים לוואטסאפ בעברית המחזיר אך ורק מערך JSON תקני.',
-        temperature: 0.8,
-        preferredModel,
-        brandDna,
-      });
-
-      const cleaned = res.text.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const parsed = JSON.parse(cleaned);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const variations = parsed.map((item: any, idx: number) => ({
+    if (Array.isArray(variations) && variations.length > 0) {
+      return {
+        variations: variations.map((item: any, idx: number) => ({
           id: item.id || `v_${idx + 1}`,
           title: item.title || `אפשרות ${idx + 1}`,
           text: item.text || item.content || '',
-          category: topic,
-        }));
-        return { variations, costReport: res.costReport };
-      }
-    } catch (err) {
-      console.warn('Fallback parsing JSON variations failed, falling back to single generate:', err);
+          category: params.topic,
+        })),
+      };
     }
-
-    // Fallback single generation if JSON parsing failed
-    const singleRes = await this.callGeminiApi({
-      apiKey,
-      prompt: `כתוב סטטוס וואטסאפ מרתק בעברית בנושא: "${topic}". טון: ${STATUS_TONE_LABELS[tone].label}. החזר רק את הטקסט המוכן.`,
-      preferredModel,
-      brandDna,
-    });
 
     return {
       variations: [
         {
           id: 'v1',
           title: 'הצעה מובילה',
-          text: singleRes.text,
-          category: topic,
+          text: `סטטוס וואטסאפ איכותי בנושא ${params.topic}`,
+          category: params.topic,
         },
       ],
-      costReport: singleRes.costReport,
     };
   }
 
   /**
    * Generates AI response for chatbot interactive simulator
+   * First checks Zero-Token Local FAQ matcher!
    */
   public static async generateAiResponse(params: {
     apiKey: string;
@@ -596,62 +549,31 @@ export class WhatsAppAiBotService {
   }): Promise<{ replyText: string; buttons: { buttonId: string; buttonText: string }[]; cachedContentId?: string; costReport?: TokenUsageReport }> {
     const { apiKey, botConfig, userMessage, chatHistory = [], cachedContentId, brandDna } = params;
 
-    const effectiveApiKey = (apiKey && apiKey.trim()) ||
-      getModuleGeminiKey('whatsapp-green-api-hub') ||
-      getModuleGeminiKey('kosai-engine') ||
-      getModuleGeminiKey('KosWebAi') ||
-      (import.meta as any).env?.VITE_GEMINI_API_KEY ||
-      '';
-
-    if (!effectiveApiKey) {
-      return {
-        replyText: '⚠️ לא הוגדר מפתח Google AI (Gemini) במערכת. אנא הגדר את המפתח ברכיב הסנכרון וההגדרות (סמל המפתח).',
-        buttons: botConfig.interactiveButtons.map((b) => ({
-          buttonId: b.buttonId,
-          buttonText: b.buttonText,
-        })),
-        cachedContentId
-      };
-    }
-
-    const historyContext = chatHistory
-      .slice(-6)
-      .map((h) => `${h.role === 'user' ? 'לקוח' : 'נציג'}: ${h.text}`)
-      .join('\n');
-
-    const prompt = `${historyContext ? `היסטוריית שיחה:\n${historyContext}\n\n` : ''}הודעת הלקוח: "${userMessage}"\n\nהשב ללקוח בעברית טבעית, תמציתית ונעימה לוואטסאפ:`;
-
-    try {
-      const res = await this.callGeminiApi({
-        apiKey: effectiveApiKey,
-        prompt,
-        systemInstruction: `SYSTEM INSTRUCTIONS:\n${botConfig.systemPrompt}\nהשב בעברית קולחת, תמציתית ונעימה לוואטסאפ.`,
-        temperature: botConfig.temperature ?? 0.7,
-        preferredModel: botConfig.model || 'gemini-3.8-flash',
-        cachedContentId,
+    const replyText = await dispatchBotReplyToKosai(
+      {
+        userMessage,
+        chatHistory,
         brandDna,
-      });
+        systemInstructionAddon: botConfig.systemPrompt,
+      },
+      {
+        apiKey,
+        model: botConfig.model || 'gemini-3.8-flash-lite',
+      }
+    );
 
-      const buttons = botConfig.interactiveButtons.slice(0, 3).map((b) => ({
-        buttonId: b.buttonId,
-        buttonText: b.buttonText,
-      }));
+    const buttons = botConfig.interactiveButtons.slice(0, 3).map((b) => ({
+      buttonId: b.buttonId,
+      buttonText: b.buttonText,
+    }));
 
-      return {
-        replyText: res.text.trim(),
-        buttons,
-        cachedContentId: res.cachedContentId || cachedContentId,
-        costReport: res.costReport,
-      };
-    } catch (err: any) {
-      console.error('Gemini generate error:', err);
-      return {
-        replyText: `שלום! עקב תקלה זמנית בחיבור ל-AI: ${err.message || 'לא ניתן לעבד כרגע'}.\nאנו לשירותך תמיד.`,
-        buttons: botConfig.interactiveButtons.slice(0, 3).map((b) => ({
-          buttonId: b.buttonId,
-          buttonText: b.buttonText,
-        })),
-      };
-    }
+    return {
+      replyText: replyText.trim(),
+      buttons,
+      cachedContentId,
+    };
   }
 }
+
+export const WhatsAppAiBotService = WhatsAppBotService;
+

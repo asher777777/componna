@@ -14,6 +14,7 @@ export interface ModelPricingRate {
 
 export const GEMINI_PRICING_TABLE: Record<string, ModelPricingRate> = {
   // Multimodal & Text Models (Google AI Studio Official 2026 Paid Tier Rates)
+  'gemini-3.8-pro': { inputPerMillion: 1.25, outputPerMillion: 5.00, cachedInputPerMillion: 0.125, searchQueryCost: 0.000035 },
   'gemini-3.8-flash': { inputPerMillion: 0.75, outputPerMillion: 3.75, cachedInputPerMillion: 0.075, searchQueryCost: 0.000035 },
   'gemini-3.8-flash-lite': { inputPerMillion: 0.375, outputPerMillion: 1.875, cachedInputPerMillion: 0.0375, searchQueryCost: 0.000035 },
   'gemini-3.7-flash': { inputPerMillion: 0.75, outputPerMillion: 3.75, cachedInputPerMillion: 0.075, searchQueryCost: 0.000035 },

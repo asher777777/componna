@@ -27,12 +27,13 @@ import {
   deleteStatusFromArchive
 } from '../services/whatsappStatusService';
 import {
+  WhatsAppBotService,
   WhatsAppAiBotService,
   STATUS_PRESETS,
   STATUS_TONE_LABELS,
   StatusTone,
   StatusVariation
-} from '../services/whatsappAiBotService';
+} from '../services/whatsappBotService';
 import { normalizePhone } from '../services/whatsappCrmSyncService';
 import { WhatsAppMediaPicker } from './WhatsAppMediaPicker';
 import { WhatsAppImageStudio } from './WhatsAppImageStudio';
@@ -456,7 +457,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     setAiFeedbackMessage(null);
 
     try {
-      const result = await WhatsAppAiBotService.enhanceStatusText({
+      const result = await WhatsAppBotService.enhanceStatusText({
         apiKey: googleAiApiKey || '',
         originalText: currentText,
         
@@ -493,7 +494,7 @@ export const WhatsAppStatusesTab: React.FC<Props> = ({
     setAiFeedbackMessage(null);
 
     try {
-      const result = await WhatsAppAiBotService.generateStatusVariations({
+      const result = await WhatsAppBotService.generateStatusVariations({
         apiKey: googleAiApiKey || '',
         topic: topicToUse,
         

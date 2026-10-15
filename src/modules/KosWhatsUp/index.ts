@@ -2,7 +2,8 @@ export * from './config';
 export * from './context/WhatsAppContext';
 export * from './types';
 export * from './services/greenApiService';
-export * from './services/whatsappAiBotService';
+export * from './services/whatsappBotService';
+export * from './kosai/promptToKosai';
 export * from './services/whatsappCrmSyncService';
 export * from './services/whatsappStatusService';
 

@@ -1,10 +1,11 @@
 /**
  * WhatsApp Cloud Functions API Proxy & AI Assistant Client
- * Follows KOSUN26 Architecture: Routes all AI through executeCloudAi for central governance and token tracking.
+ * Follows KOSUN26 Architecture: Routes all AI through executeKosaiAi for central governance and token tracking.
  */
 import { BrandDna } from '../../../core/contracts';
-import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
-import { executeCloudAi, PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
+import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
+import { PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
+import { executeKosaiAi } from '../../kosai-engine/modelsAiService';
 import { resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 export interface AiCallResponse {
@@ -14,15 +15,19 @@ export interface AiCallResponse {
   error?: string;
 }
 
-const DEFAULT_MODEL = 'gemini-3.8-flash';
+const DEFAULT_MODEL = 'gemini-3.8-flash-lite';
 
 export function resolveAiApiKey(explicitKey?: string): string {
   if (explicitKey && explicitKey.trim().length > 5) {
     return explicitKey.trim();
   }
-  const moduleKey = getModuleGeminiKey('KosWhatsUp') || getModuleGeminiKey('whatsapp-green-api-hub') || getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('KosWebAi');
+  const moduleKey = getModuleGeminiKey('KosWhatsUp') || getModuleGeminiKey('whatsapp-green-api-hub') || getModuleGeminiKey('kosai-engine');
   if (moduleKey && moduleKey.trim().length > 5) {
     return moduleKey.trim();
+  }
+  const state = getTenantApiKeysState();
+  if (state.masterKeys?.googleAiApiKey && state.masterKeys.googleAiApiKey.trim().length > 5) {
+    return state.masterKeys.googleAiApiKey.trim();
   }
   const envKey = (import.meta as any).env?.VITE_GEMINI_API_KEY;
   if (envKey && envKey.trim().length > 5) {
@@ -33,7 +38,7 @@ export function resolveAiApiKey(explicitKey?: string): string {
 
 export const functionsApi = {
   /**
-   * Calls the AI assistant strictly using valid 2026 models through the cloud AI authority.
+   * Calls the AI assistant strictly using valid models through the KOSAI monopoly authority.
    */
   async callAiAssistant(params: {
     prompt: string;
@@ -48,24 +53,25 @@ export const functionsApi = {
     const targetTenant = resolveCurrentTenantId();
 
     try {
-      const res = await executeCloudAi({
-        prompt: params.prompt,
+      const res = await executeKosaiAi<any>('KosWhatsUp', params.prompt, {
         systemInstruction: params.systemInstruction,
         model: params.preferredModel || DEFAULT_MODEL,
-        temperature: params.temperature ?? 0.7,
-        apiKey: apiKey || undefined,
+        temperature: params.temperature ?? 0.6,
+        maxOutputTokens: 250,
+        customApiKey: apiKey || undefined,
         category: 'chatbot',
         tenantId: targetTenant,
       });
 
-      if (res.success && res.text) {
+      if (res.success && res.data) {
+        const text = typeof res.data === 'string'
+          ? res.data
+          : (res.data?.reply || res.data?.message || res.data?.text || JSON.stringify(res.data));
+
         return {
-          text: res.text.trim(),
+          text: text.trim(),
           cachedContentId: params.cachedContentId,
-          costReport: {
-            model: res.costReport?.model || DEFAULT_MODEL,
-            totalTokens: res.costReport?.totalTokens || 350,
-          },
+          costReport: res.costReport,
         };
       }
 

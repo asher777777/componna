@@ -83,7 +83,7 @@ export const KosTubeGenerationModal: React.FC = () => {
               </div>
               <h5 className="text-sm font-bold text-white">⚡ חסכוני (Lite)</h5>
               <p className="text-xs text-slate-400 mt-1">
-                Gemini 2.5 Flash Lite. עד 300 מילים. עלות אפסית (~$0.002).
+                Gemini 3.8 Flash Lite. עד 300 מילים. עלות אפסית (~$0.002).
               </p>
             </button>
 
@@ -105,7 +105,7 @@ export const KosTubeGenerationModal: React.FC = () => {
               </div>
               <h5 className="text-sm font-bold text-white">⚖️ בינוני (Flash)</h5>
               <p className="text-xs text-slate-400 mt-1">
-                Gemini 2.5 Flash. מאמר מאוזן של כ-450 מילים ועושר תוכן.
+                Gemini 3.8 Flash. מאמר מאוזן של כ-450 מילים ועושר תוכן.
               </p>
             </button>
 
@@ -127,8 +127,9 @@ export const KosTubeGenerationModal: React.FC = () => {
               </div>
               <h5 className="text-sm font-bold text-white">🚀 עומק (Pro)</h5>
               <p className="text-xs text-slate-400 mt-1">
-                Gemini 2.5 Pro. ניתוח עומק מקיף ומדעי של 700+ מילים.
+                Gemini 3.8 Pro. ניתוח עומק מקיף ומדעי של 700+ מילים.
               </p>
+
             </button>
           </div>
         </div>

@@ -80,6 +80,7 @@ export async function executeKosaiAi<T = any>(
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: options.temperature ?? 0.7,
+        ...(options.maxOutputTokens ? { maxOutputTokens: options.maxOutputTokens } : {}),
         ...(options.responseMimeType ? { responseMimeType: options.responseMimeType } : {}),
       },
     };

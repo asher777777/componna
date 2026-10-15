@@ -10,7 +10,7 @@ import { FirebaseApp } from 'firebase/app';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { GreenApiService } from '../services/greenApiService';
 import { GreenApiChat, GreenApiChatMessage } from '../types';
-import { WhatsAppAiBotService } from '../services/whatsappAiBotService';
+import { WhatsAppBotService } from '../services/whatsappBotService';
 import { WhatsAppBulkSenderModal } from './WhatsAppBulkSenderModal';
 import { WhatsAppCrmExportModal } from './WhatsAppCrmExportModal';
 import { WhatsAppDynamicBroadcastModal } from './WhatsAppDynamicBroadcastModal';
@@ -64,7 +64,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
 
     setIsAiResponding(true);
     try {
-      const bots = WhatsAppAiBotService.getStoredBots();
+      const bots = WhatsAppBotService.getStoredBots();
       const activeBot = bots.find(b => b.isActive) || bots[0];
       if (!activeBot) {
         alert('לא נמצא סוכן AI מוגדר.');
@@ -74,7 +74,7 @@ export const WhatsAppWebChatView: React.FC<Props> = ({
       const lastIncoming = [...messages].reverse().find(m => m.type === 'incoming') || messages[messages.length - 1];
       const promptText = inputMessage.trim() || lastIncoming?.textMessage || 'שלום, אשמח לקבל מידע ושירות';
 
-      const res = await WhatsAppAiBotService.generateAiResponse({
+      const res = await WhatsAppBotService.generateAiResponse({
         apiKey,
         botConfig: activeBot,
         userMessage: promptText,

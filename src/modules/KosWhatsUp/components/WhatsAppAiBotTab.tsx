@@ -11,7 +11,7 @@ import {
   WhatsAppAiBotService,
   DEFAULT_AI_BOTS,
   checkKeywordMatch
-} from '../services/whatsappAiBotService';
+} from '../services/whatsappBotService';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
 const PREDEFINED_COLLECTIONS = [

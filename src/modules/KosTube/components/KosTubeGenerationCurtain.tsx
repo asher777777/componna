@@ -85,10 +85,10 @@ export const KosTubeGenerationCurtain: React.FC<KosTubeGenerationCurtainProps> =
 
   const modeBadge =
     mode === 'eco'
-      ? { label: '⚡ מצב חסכוני (Gemini 2.5 Flash Lite)', desc: 'חיסכון של כ-60% בעלויות טוקנים' }
+      ? { label: '⚡ מצב חסכוני (Gemini 3.8 Flash Lite)', desc: 'חיסכון מרבי בעלויות טוקנים' }
       : mode === 'balanced'
-      ? { label: '⚖️ מצב מאוזן (Gemini 2.5 Flash)', desc: 'כיסוי מורחב ואיזון אופטימלי' }
-      : { label: '🚀 מצב עומק (Gemini 2.5 Pro)', desc: 'ניתוח עומק מקיף וסמכותי' };
+      ? { label: '⚖️ מצב מאוזן (Gemini 3.8 Flash)', desc: 'כיסוי מורחב ואיזון אופטימלי' }
+      : { label: '🚀 מצב עומק (Gemini 3.8 Pro)', desc: 'ניתוח עומק מקיף וסמכותי' };
 
   return (
     <div

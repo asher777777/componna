@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
-import { WhatsAppAiBotService, checkKeywordMatch, WhatsAppAiBotConfig } from '../services/whatsappAiBotService';
+import { WhatsAppBotService, checkKeywordMatch, WhatsAppAiBotConfig } from '../services/whatsappBotService';
 import { whatsappAutoCrmService } from '../services/whatsappAutoCrmService';
 
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
@@ -47,7 +47,7 @@ export const useWhatsAppAutoResponder = ({
 
       // 1. Load from localStorage first
       try {
-        const localBots = WhatsAppAiBotService.getStoredBots();
+        const localBots = WhatsAppBotService.getStoredBots();
         for (const b of localBots) {
           if (b.isActive) botsMap.set(b.id, b);
         }
@@ -86,7 +86,7 @@ export const useWhatsAppAutoResponder = ({
                 triggerKeywords: tr.keywords || [],
                 matchMode: tr.matchMode || 'contains',
                 systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                model: 'gemini-3.8-flash',
+                model: 'gemini-3.8-flash-lite',
                 temperature: 0.7,
                 interactiveButtons: [],
                 autoGenerateButtons: false,
@@ -184,7 +184,7 @@ export const useWhatsAppAutoResponder = ({
                 }
 
                 try {
-                  const res = await WhatsAppAiBotService.generateAiResponse({
+                  const res = await WhatsAppBotService.generateAiResponse({
                     apiKey: apiKey || '',
                     botConfig: triggeredBot,
                     userMessage: messageText,

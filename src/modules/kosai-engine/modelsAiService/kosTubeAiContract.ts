@@ -62,14 +62,14 @@ export const kosTubeAiContract = {
     const includeBrand = input.includeBrand !== false; // default true
     const { video, channelTitle = 'ערוץ יוטיוב', customText = '', brandDna, options } = input;
 
-    // 1. Model resolution according to cost mode
-    let model = 'gemini-2.5-flash-lite';
+    // 1. Model resolution according to cost mode - Standardized exclusively on the 3 Gemini 3.8 variations
+    let model = 'gemini-3.8-flash-lite';
     let wordLimit = 'עד 300 מילים (תמציתי ומדויק לחיסכון מרבי בטוקנים)';
     if (mode === 'balanced') {
-      model = 'gemini-2.5-flash';
+      model = 'gemini-3.8-flash';
       wordLimit = '400-500 מילים (מאמר מאוזן ומקיף)';
     } else if (mode === 'deep') {
-      model = 'gemini-2.5-pro';
+      model = 'gemini-3.8-pro';
       wordLimit = '650-800 מילים (ניתוח עומק מקצועי ומפורט)';
     }
 

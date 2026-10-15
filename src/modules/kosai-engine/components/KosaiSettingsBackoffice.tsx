@@ -14,7 +14,7 @@ import { KOSAI_SUPPORTED_MODULES } from '../config/kosaiModules';
 import { KOSAI_TEMPLATES } from '../config/kosaiTemplates';
 import { generateAgentPromptWithAi } from '../api/kosaiApi';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
-import { checkKeywordMatch, WhatsAppAiBotService, WhatsAppAiBotConfig } from '../../KosWhatsUp/services/whatsappAiBotService';
+import { checkKeywordMatch, WhatsAppBotService, WhatsAppAiBotConfig } from '../../KosWhatsUp/services/whatsappBotService';
 import { doc, setDoc } from 'firebase/firestore';
 import { clsx } from 'clsx';
 import { MODULE_AGENTS_MAP, createDefaultRuleForModule } from '../config/moduleAgents';
@@ -265,14 +265,14 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
           await setDoc(doc(db, botPath, botConfig.id), botConfig, { merge: true });
 
           try {
-            const currentStored = WhatsAppAiBotService.getStoredBots();
-            const existingIdx = currentStored.findIndex(b => b.id === botConfig.id || b.kosaiRuleId === updated.id);
+            const currentStored = WhatsAppBotService.getStoredBots();
+            const existingIdx = currentStored.findIndex((b: WhatsAppAiBotConfig) => b.id === botConfig.id || b.kosaiRuleId === updated.id);
             if (existingIdx >= 0) {
               currentStored[existingIdx] = botConfig;
             } else {
               currentStored.push(botConfig);
             }
-            WhatsAppAiBotService.saveBots(currentStored);
+            WhatsAppBotService.saveBots(currentStored);
           } catch (storageErr) {
             console.warn('Could not update localStorage bots:', storageErr);
           }
