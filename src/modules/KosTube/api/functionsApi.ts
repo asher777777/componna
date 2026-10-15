@@ -434,8 +434,9 @@ export async function fetchYoutubeChannelData(
 
     // Resolve handle to channelId
     if (parsedQuery.type === 'handle') {
+      const handleParam = parsedQuery.value.startsWith('@') ? parsedQuery.value : `@${parsedQuery.value}`;
       const searchUrl = `https://www.googleapis.com/youtube/v3/channels?part=snippet,contentDetails,statistics&forHandle=${encodeURIComponent(
-        parsedQuery.value
+        handleParam
       )}&key=${apiKey.trim()}`;
 
       const sRes = await fetch(searchUrl, { cache: 'no-cache' });

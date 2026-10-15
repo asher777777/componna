@@ -34,7 +34,7 @@ import {
   Image as ImageIcon,
 } from 'lucide-react';
 import { useMediaGallery } from '../context/MediaGalleryContext';
-import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
+import { resolveSafeMediaUrl, getMediaUrlCandidates } from '../utils/mediaUrlSanitizer';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaItem } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -212,7 +212,24 @@ export const MediaPreviewModal: React.FC = () => {
 
   if (!previewItem) return null;
 
-  const safeUrl = resolveSafeMediaUrl(previewItem.url, previewItem);
+  const candidates = React.useMemo(() => {
+    return previewItem ? getMediaUrlCandidates(previewItem.url, previewItem) : [];
+  }, [previewItem]);
+  const [candidateIndex, setCandidateIndex] = useState(0);
+
+  useEffect(() => {
+    setCandidateIndex(0);
+  }, [previewItem?.id]);
+
+  const safeUrl = candidates[candidateIndex] || (previewItem ? resolveSafeMediaUrl(previewItem.url, previewItem) : '');
+
+  const handleVideoError = () => {
+    if (candidateIndex < candidates.length - 1) {
+      setCandidateIndex((i) => i + 1);
+    } else {
+      setMediaError(true);
+    }
+  };
 
   const isVideo =
     previewItem.type === 'video' ||
@@ -490,7 +507,7 @@ export const MediaPreviewModal: React.FC = () => {
                 playsInline
                 preload="auto"
                 className="w-full h-full max-h-full rounded-2xl object-contain shadow-2xl bg-black"
-                onError={() => setMediaError(true)}
+                onError={handleVideoError}
               />
 
               {/* Video Floating Controls Pill */}
@@ -516,7 +533,7 @@ export const MediaPreviewModal: React.FC = () => {
 
               {mediaError && (
                 <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-4 z-30">
-                  <FileVideo className="w-16 h-16 text-amber-500 animate-pulse" />
+                  <FileVideo className="w-16 h-16 text-indigo-400 animate-pulse" />
                   <div className="space-y-1">
                     <h4 className="text-base font-bold text-white">לא ניתן לנגן וידאו זה ישירות בדפדפן</h4>
                     <p className="text-xs text-slate-400 max-w-md">
@@ -528,16 +545,18 @@ export const MediaPreviewModal: React.FC = () => {
                       href={safeUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-bold text-xs shadow-lg"
+                      className="p-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-500/25 transition-all"
+                      title="פתח בחלון חדש"
                     >
-                      פתח בחלון חדש
+                      <ExternalLink className="w-5 h-5" />
                     </a>
                     <button
                       type="button"
                       onClick={handleDownload}
-                      className="px-5 py-2.5 rounded-xl bg-slate-800 text-white font-bold text-xs border border-slate-700"
+                      className="p-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-white font-bold border border-slate-700 transition-all cursor-pointer"
+                      title="הורד למחשב"
                     >
-                      הורד למחשב
+                      <Download className="w-5 h-5" />
                     </button>
                   </div>
                 </div>
@@ -809,10 +828,10 @@ export const MediaPreviewModal: React.FC = () => {
                   onSelectMedia([previewItem]);
                   setPreviewItem(null);
                 }}
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-black text-xs font-black shadow-lg shadow-yellow-500/25 flex items-center space-x-1.5 rtl:space-x-reverse transition-all active:scale-95 cursor-pointer"
+                className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-400 text-white shadow-lg shadow-indigo-500/25 flex items-center justify-center transition-all active:scale-95 cursor-pointer"
+                title="בחר קובץ זה לשימוש"
               >
-                <Check className="w-4 h-4 text-black" />
-                <span>בחר קובץ זה לשימוש</span>
+                <Check className="w-4.5 h-4.5 text-white" />
               </button>
             )}
 
@@ -823,11 +842,10 @@ export const MediaPreviewModal: React.FC = () => {
                   setPreviewItem(null);
                   openImageEditor(previewItem);
                 }}
-                className="px-3.5 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-md"
-                title="פתח סטודיו עריכה: חיתוך, סיבוב, הוספת סימן מים והסרת רקע"
+                className="p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white shadow-md"
+                title="סטודיו עריכה: חיתוך, סיבוב, הוספת סימן מים והסרת רקע"
               >
-                <Crop className="w-4 h-4" />
-                <span>סטודיו עריכה: חיתוך ורקע</span>
+                <Crop className="w-4.5 h-4.5" />
               </button>
             )}
 
@@ -838,11 +856,10 @@ export const MediaPreviewModal: React.FC = () => {
                   setPreviewItem(null);
                   openDocViewer(previewItem);
                 }}
-                className="px-3.5 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer bg-blue-600 hover:bg-blue-500 text-white shadow-md"
+                className="p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer bg-sky-600 hover:bg-sky-500 text-white shadow-md"
                 title="פתח מציג מסמכים והמר לעמוד נחיתה"
               >
-                <FileText className="w-4 h-4" />
-                <span>מציג מסמכים והמרה לעמוד</span>
+                <FileText className="w-4.5 h-4.5" />
               </button>
             )}
 
@@ -853,11 +870,10 @@ export const MediaPreviewModal: React.FC = () => {
                   setPreviewItem(null);
                   openTextEditor(previewItem);
                 }}
-                className="px-3.5 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
+                className="p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer bg-emerald-600 hover:bg-emerald-500 text-white shadow-md"
                 title="ערוך קובץ טקסט זה ישירות בענן"
               >
-                <Pencil className="w-4 h-4" />
-                <span>ערוך קובץ טקסט</span>
+                <Pencil className="w-4.5 h-4.5" />
               </button>
             )}
 
@@ -868,11 +884,10 @@ export const MediaPreviewModal: React.FC = () => {
                   setPreviewItem(null);
                   openAiImageGenerator(previewItem);
                 }}
-                className="px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer bg-gradient-to-r from-amber-500 to-yellow-500 text-black shadow-md hover:from-amber-400 hover:to-yellow-400"
+                className="p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 text-white shadow-md hover:from-indigo-500 hover:to-sky-400"
                 title="ערוך תמונה זו עם קושאן AI"
               >
-                <Wand2 className="w-4 h-4" />
-                <span>ערוך ב-AI</span>
+                <Wand2 className="w-4.5 h-4.5" />
               </button>
             )}
 
@@ -880,18 +895,16 @@ export const MediaPreviewModal: React.FC = () => {
             {isImage && (
               <button
                 onClick={handleSetLogo}
-                className={`px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                   isCurrentLogo
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
                     : isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                 }`}
-                title="הגדר כלוגו המותג ב-Brand DNA"
+                title={isCurrentLogo ? 'לוגו המותג הנוכחי ב-Brand DNA' : 'הגדר כלוגו המותג ב-Brand DNA'}
               >
-                <PenTool className="w-3.5 h-3.5 text-amber-500" />
-                <span>{isCurrentLogo ? 'לוגו מותג' : 'קבע כלוגו'}</span>
-                {isCurrentLogo && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                <PenTool className="w-4.5 h-4.5" />
               </button>
             )}
 
@@ -899,18 +912,16 @@ export const MediaPreviewModal: React.FC = () => {
             {isImage && (
               <button
                 onClick={handleAddVibe}
-                className={`px-3 py-2 rounded-xl font-bold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                   isInVibeImages
-                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
                     : isLight
                     ? 'bg-white hover:bg-slate-100 text-slate-800 border-slate-300'
                     : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
                 }`}
-                title="הוסף לתמונות אווירה ב-Brand DNA"
+                title={isInVibeImages ? 'נמצא בתמונות האווירה של Brand DNA' : 'הוסף לתמונות האווירה ב-Brand DNA'}
               >
-                <Flame className="w-3.5 h-3.5 text-amber-500" />
-                <span>{isInVibeImages ? 'באווירה' : 'הוסף לאווירה'}</span>
-                {isInVibeImages && <Check className="w-3.5 h-3.5 text-emerald-400" />}
+                <Flame className="w-4.5 h-4.5" />
               </button>
             )}
 
@@ -918,29 +929,28 @@ export const MediaPreviewModal: React.FC = () => {
             {(isImage || previewItem.type === 'code' || previewItem.type === 'document') && (
               <button
                 onClick={handleOpenConverter}
-                className={`px-3 py-2 rounded-xl font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+                className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                   isLight
                     ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border-indigo-200'
-                    : 'bg-indigo-900/80 hover:bg-indigo-800 text-indigo-200 border-indigo-700/60'
+                    : 'bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 border-indigo-700/60'
                 }`}
+                title="המרה ודחיסת קבצים"
               >
-                <Sparkles className="w-4 h-4 text-indigo-400" />
-                <span>המר / דחוס</span>
+                <Sparkles className="w-4.5 h-4.5 text-indigo-400" />
               </button>
             )}
 
             {/* Move to Folder */}
             <button
               onClick={handleMoveToFolder}
-              className={`px-3 py-2 rounded-xl font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+              className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                 isLight
-                  ? 'bg-slate-100 hover:bg-slate-200 text-amber-800 border-slate-300'
-                  : 'bg-slate-800 hover:bg-slate-700 text-yellow-400 border-slate-700'
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
               }`}
               title="העבר לתיקייה"
             >
-              <FolderInput className="w-4 h-4" />
-              <span>תיקייה</span>
+              <FolderInput className="w-4.5 h-4.5" />
             </button>
 
             {/* Share WhatsApp */}
@@ -949,51 +959,51 @@ export const MediaPreviewModal: React.FC = () => {
                 const text = encodeURIComponent(`מצורף קובץ: ${previewItem.name}\n${safeUrl || previewItem.url}`);
                 window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
               }}
-              className={`px-3 py-2 rounded-xl font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
+              className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                 isLight
                   ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
                   : 'bg-emerald-950/60 hover:bg-emerald-900 text-emerald-300 border-emerald-800/60'
               }`}
               title="שתף בוואטסאפ"
             >
-              <MessageSquare className="w-4 h-4" />
-              <span>וואטסאפ</span>
+              <MessageSquare className="w-4.5 h-4.5" />
             </button>
 
             {/* Copy Link */}
             <button
               onClick={handleCopyUrl}
-              className={`px-3 py-2 rounded-xl font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${
-                isLight
+              className={`p-2.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                copied
+                  ? 'bg-emerald-600 text-white border-emerald-500'
+                  : isLight
                   ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border-slate-300'
                   : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
               }`}
-              title="העתק קישור ישיר לקובץ"
+              title={copied ? 'הקישור הועתק!' : 'העתק קישור ישיר לקובץ'}
             >
-              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? 'הועתק!' : 'העתק קישור'}</span>
+              {copied ? <Check className="w-4.5 h-4.5 text-white" /> : <Copy className="w-4.5 h-4.5" />}
             </button>
 
             {/* Download */}
             <button
               onClick={handleDownload}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black font-black flex items-center space-x-1.5 rtl:space-x-reverse shadow-md transition-all active:scale-95 cursor-pointer"
+              className="p-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500 text-white font-black flex items-center justify-center shadow-md shadow-indigo-500/20 transition-all active:scale-95 cursor-pointer"
+              title="הורד קובץ למחשב"
             >
-              <Download className="w-4 h-4" />
-              <span>הורד קובץ</span>
+              <Download className="w-4.5 h-4.5" />
             </button>
 
             {/* Delete */}
             <button
               onClick={handleDelete}
-              className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+              className={`p-2.5 rounded-xl border transition-colors cursor-pointer ${
                 isLight
                   ? 'text-red-700 hover:bg-red-50 border-red-200'
                   : 'text-red-400 hover:text-red-300 hover:bg-red-950/50 border-red-900/40'
               }`}
-              title="מחק קובץ"
+              title="מחק קובץ לצמיתות"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-4.5 h-4.5" />
             </button>
           </div>
         </div>

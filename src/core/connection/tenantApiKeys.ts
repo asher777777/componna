@@ -267,9 +267,9 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
 
   const masterYoutubeKey = (
     input.masterKeys?.youtubeApiKey ||
-    input.masterKeys?.googleAiApiKey ||
+    (input.masterKeys?.googleAiApiKey?.startsWith('AIzaSy') ? input.masterKeys.googleAiApiKey : '') ||
     (input.isRootTenant ? input.tenantKeys.youtubeApiKey : '') ||
-    input.tenantKeys.youtubeApiKey ||
+    (input.tenantKeys.youtubeApiKey?.startsWith('AIzaSy') ? input.tenantKeys.youtubeApiKey : '') ||
     ''
   ).trim();
 

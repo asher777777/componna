@@ -43,13 +43,25 @@ export const kosTubeFirestore = {
   /**
    * Retrieves the active connected YouTube channel
    */
+  /**
+   * Retrieves the active connected YouTube channel
+   */
   async getChannel(db: Firestore | null | undefined, tenantId: string): Promise<KosTubeChannel | null> {
     if (!db) return null;
     try {
-      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
       const snapshot = await getDocs(query(colRef, limit(1)));
       if (!snapshot.empty) {
         return snapshot.docs[0].data() as KosTubeChannel;
+      }
+
+      // Fallback to Master collection if subdomain has no custom channel yet
+      if (tenantId && tenantId !== '_master') {
+        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
+        const masterSnap = await getDocs(query(masterCol, limit(1)));
+        if (!masterSnap.empty) {
+          return masterSnap.docs[0].data() as KosTubeChannel;
+        }
       }
     } catch (err) {
       console.warn('[KosTube] getChannel failed:', err);
@@ -87,13 +99,29 @@ export const kosTubeFirestore = {
   async getVideos(db: Firestore | null | undefined, tenantId: string, channelId?: string): Promise<KosTubeVideo[]> {
     if (!db) return [];
     try {
-      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
       let q = query(colRef, orderBy('publishedAt', 'desc'), limit(50));
       if (channelId) {
         q = query(colRef, where('channelId', '==', channelId), orderBy('publishedAt', 'desc'), limit(50));
       }
       const snapshot = await getDocs(q);
-      return snapshot.docs.map((d) => d.data() as KosTubeVideo);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => d.data() as KosTubeVideo);
+      }
+
+      // Fallback to Master collection if subdomain has no custom videos yet
+      if (tenantId && tenantId !== '_master') {
+        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
+        let mq = query(masterCol, orderBy('publishedAt', 'desc'), limit(50));
+        if (channelId) {
+          mq = query(masterCol, where('channelId', '==', channelId), orderBy('publishedAt', 'desc'), limit(50));
+        }
+        const masterSnap = await getDocs(mq);
+        if (!masterSnap.empty) {
+          return masterSnap.docs.map((d) => d.data() as KosTubeVideo);
+        }
+      }
+      return [];
     } catch (err) {
       console.warn('[KosTube] getVideos failed:', err);
       return [];
@@ -138,9 +166,21 @@ export const kosTubeFirestore = {
   async getSeoPages(db: Firestore | null | undefined, tenantId: string): Promise<KosTubeSeoPage[]> {
     if (!db) return [];
     try {
-      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
       const snapshot = await getDocs(query(colRef, orderBy('createdAt', 'desc'), limit(100)));
-      return snapshot.docs.map((d) => d.data() as KosTubeSeoPage);
+      if (!snapshot.empty) {
+        return snapshot.docs.map((d) => d.data() as KosTubeSeoPage);
+      }
+
+      // Fallback to Master collection if subdomain has no custom pages yet
+      if (tenantId && tenantId !== '_master') {
+        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+        const masterSnap = await getDocs(query(masterCol, orderBy('createdAt', 'desc'), limit(100)));
+        if (!masterSnap.empty) {
+          return masterSnap.docs.map((d) => d.data() as KosTubeSeoPage);
+        }
+      }
+      return [];
     } catch (err) {
       console.warn('[KosTube] getSeoPages failed:', err);
       return [];
@@ -153,7 +193,7 @@ export const kosTubeFirestore = {
   async getSeoPageBySlug(db: Firestore | null | undefined, tenantId: string, slug: string): Promise<KosTubeSeoPage | null> {
     if (!db || !slug) return null;
     try {
-      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
       // 1. Direct match
       const q = query(colRef, where('slug', '==', slug), limit(1));
       let snapshot = await getDocs(q);
@@ -174,6 +214,22 @@ export const kosTubeFirestore = {
         snapshot = await getDocs(titleQ);
         if (!snapshot.empty) {
           return snapshot.docs[0].data() as KosTubeSeoPage;
+        }
+      }
+
+      // 4. Fallback to Master collection if not found on subdomain
+      if (tenantId && tenantId !== '_master') {
+        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+        const mq = query(masterCol, where('slug', '==', slug), limit(1));
+        let mSnap = await getDocs(mq);
+        if (!mSnap.empty) {
+          return mSnap.docs[0].data() as KosTubeSeoPage;
+        }
+
+        const mLowerQ = query(masterCol, where('slug', '==', slug.toLowerCase()), limit(1));
+        mSnap = await getDocs(mLowerQ);
+        if (!mSnap.empty) {
+          return mSnap.docs[0].data() as KosTubeSeoPage;
         }
       }
     } catch (err) {

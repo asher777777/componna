@@ -5,7 +5,7 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { PageBuilderContract, BrandDnaContract, SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { ROOT_TENANT_ID } from '../../../core/tenant';
 import { getModuleYoutubeKey } from '../../../core/connection/tenantApiKeys';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, getDocs, collection, query, limit } from 'firebase/firestore';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
@@ -121,12 +121,15 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         // For subdomains, automatically inherit the Master tenant key!
         let effectiveApiKey = apiKey?.trim() || channel?.apiKey;
 
-        if (!effectiveApiKey || effectiveApiKey.length < 10) {
+        if (!effectiveApiKey || !effectiveApiKey.startsWith('AIzaSy')) {
           // 1. Try in-memory module key inherited from master
-          effectiveApiKey = getModuleYoutubeKey('KosTube');
+          const mKey = getModuleYoutubeKey('KosTube');
+          if (mKey && mKey.startsWith('AIzaSy')) {
+            effectiveApiKey = mKey;
+          }
         }
 
-        if ((!effectiveApiKey || effectiveApiKey.length < 10) && db) {
+        if ((!effectiveApiKey || !effectiveApiKey.startsWith('AIzaSy')) && db) {
           // 2. Fetch directly from Master collection: tenants/_master/settings/api_keys
           try {
             const masterSnap = await getDoc(
@@ -134,22 +137,40 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             );
             if (masterSnap.exists()) {
               const mData = masterSnap.data();
-              effectiveApiKey = mData.youtubeApiKey || mData.googleAiApiKey || '';
+              if (mData.youtubeApiKey && mData.youtubeApiKey.startsWith('AIzaSy')) {
+                effectiveApiKey = mData.youtubeApiKey;
+              } else if (mData.googleAiApiKey && mData.googleAiApiKey.startsWith('AIzaSy')) {
+                effectiveApiKey = mData.googleAiApiKey;
+              }
             }
           } catch (e) {
             console.warn('[KosTube] Could not read master api_keys:', e);
           }
         }
 
-        if ((!effectiveApiKey || effectiveApiKey.length < 10) && db) {
-          // 3. Fallback to master kostube doc
+        // 3. Check Master channel document directly: tenants/_master/mod_kos_tube_channels
+        if ((!effectiveApiKey || !effectiveApiKey.startsWith('AIzaSy')) && db) {
+          try {
+            const masterChan = await kosTubeFirestore.getChannel(db, ROOT_TENANT_ID);
+            if (masterChan?.apiKey && masterChan.apiKey.startsWith('AIzaSy')) {
+              effectiveApiKey = masterChan.apiKey;
+            }
+          } catch (e) {
+            console.warn('[KosTube] Could not read master channel apiKey:', e);
+          }
+        }
+
+        if ((!effectiveApiKey || !effectiveApiKey.startsWith('AIzaSy')) && db) {
+          // 4. Fallback to master kostube doc: tenants/_master/settings/kostube
           try {
             const masterTubeSnap = await getDoc(
               doc(db, 'tenants', ROOT_TENANT_ID, SYSTEM_COLLECTIONS.SETTINGS, 'kostube')
             );
             if (masterTubeSnap.exists()) {
               const tData = masterTubeSnap.data();
-              effectiveApiKey = tData.apiKey || '';
+              if (tData?.apiKey && tData.apiKey.startsWith('AIzaSy')) {
+                effectiveApiKey = tData.apiKey;
+              }
             }
           } catch (e) {}
         }
