@@ -423,7 +423,8 @@ Return ONLY the raw updated JSON object.`;
       };
 
       changes.push(`כותרת ותת-כותרת סונכרנו ישירות עם שם המותג וה-UVP`);
-      changes.push(`חיבור כפתורי הנעה לפעולה ישירות לוואטסאפ ולטופס העמוד`); else if (sectionType === 'pricing') {
+      changes.push(`חיבור כפתורי הנעה לפעולה ישירות לוואטסאפ ולטופס העמוד`);
+    } else if (sectionType === 'pricing') {
       updated.title = `מסלולי הצטרפות מותאמים עבורכם`;
       updated.subtitle = `שקיפות מלאה ללא אותיות קטנות – בחרו את החבילה המתאימה`;
       if (Array.isArray(updated.packages) && updated.packages.length > 1) {

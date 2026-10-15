@@ -31,6 +31,7 @@ export interface KosunUniversalDockProps {
   onToggleEditMode?: () => void;
   isSaving?: boolean;
   onOpenSettings?: () => void;
+  onOpenSeoSettings?: () => void;
   onGoToHome?: () => void;
   homeUrl?: string;
   activeModules?: string[];
@@ -56,6 +57,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   onToggleEditMode,
   isSaving = false,
   onOpenSettings,
+  onOpenSeoSettings,
   onGoToHome,
   homeUrl,
   activeModules,
@@ -285,7 +287,9 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   // Open SEO & Page Settings
   const handleOpenSeoSettings = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (onOpenSettings) {
+    if (onOpenSeoSettings) {
+      onOpenSeoSettings();
+    } else if (onOpenSettings && !isSubdomain) {
       onOpenSettings();
     } else {
       window.dispatchEvent(new CustomEvent('pb_open_seo'));

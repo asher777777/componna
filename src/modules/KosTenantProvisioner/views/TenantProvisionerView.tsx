@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { Globe, Plus, RefreshCw, BarChart3, ChevronDown, ChevronUp } from 'lucide-react';
+import { Globe, Plus, RefreshCw, BarChart3, ChevronDown, ChevronUp, Calculator } from 'lucide-react';
 import { useTenantProvisioner } from '../hooks/useTenantProvisioner';
 import { TenantStatsOverview } from '../components/TenantStatsOverview';
 import { TenantTableCardView } from '../components/TenantTableCardView';
 import { TenantCreateModal } from '../components/TenantCreateModal';
 import { TenantComprehensiveEditModal } from '../components/TenantComprehensiveEditModal';
 import { TenantCredentialsModal } from '../components/TenantCredentialsModal';
+import { TokenPricingCalculatorCard } from '../../../core/ai/components/TokenPricingCalculatorCard';
 
 export const TenantProvisionerView: React.FC = () => {
   const { setIsCreateModalOpen, refreshTenants, loading } = useTenantProvisioner();
-  // סרגלי מידע מוסתרים כברירת מחדל (דרישה ב')
   const [showStats, setShowStats] = useState(false);
+  const [showCalculator, setShowCalculator] = useState(true);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 p-4 sm:p-6 lg:p-8 font-sans space-y-5" dir="rtl">
-      {/* Top Banner / Header (דרישה א: כותרת תמציתית ונקייה ללא פסקאות תיאור ארוכות) */}
+      {/* Top Banner / Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20 shrink-0">
@@ -30,8 +31,24 @@ export const TenantProvisionerView: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* Toggle KPI Stats Overview (מוסתר כברירת מחדל) */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Toggle Token Pricing Calculator */}
+          <button
+            type="button"
+            onClick={() => setShowCalculator((prev) => !prev)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold border flex items-center gap-1.5 transition cursor-pointer shadow-xs ${
+              showCalculator
+                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/20'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700/60'
+            }`}
+            title="הצג / הסתר מחשבון טוקנים, תמחור API והקצאת מכסות"
+          >
+            <Calculator className="w-3.5 h-3.5" />
+            <span>מחשבון טוקנים ועלויות AI</span>
+            {showCalculator ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+
+          {/* Toggle KPI Stats Overview */}
           <button
             type="button"
             onClick={() => setShowStats((prev) => !prev)}
@@ -70,6 +87,13 @@ export const TenantProvisionerView: React.FC = () => {
         </div>
       </div>
 
+      {/* Token Pricing & Simulation Calculator (פתוח כברירת מחדל) */}
+      {showCalculator && (
+        <div className="animate-fadeIn">
+          <TokenPricingCalculatorCard />
+        </div>
+      )}
+
       {/* KPI Stats (סרגלי מידע מוסתרים כברירת מחדל - נפתחים רק בלחיצה) */}
       {showStats && (
         <div className="animate-fadeIn">
@@ -87,3 +111,5 @@ export const TenantProvisionerView: React.FC = () => {
     </div>
   );
 };
+
+export default TenantProvisionerView;

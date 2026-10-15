@@ -3,11 +3,12 @@ import {
   X, Layers, KeyRound, Cpu, ShieldCheck, Check, Save, 
   Eye, EyeOff, RefreshCw, AlertCircle, Copy, Sparkles, 
   Crown, Film, MessageSquare, Image, FileText, Lock, Globe,
-  ChevronDown, ExternalLink, AlertTriangle
+  ChevronDown, ExternalLink, AlertTriangle, Plus
 } from 'lucide-react';
 import { useTenantProvisioner } from '../hooks/useTenantProvisioner';
 import { AVAILABLE_MODULES_CATALOG } from '../services/tenantProvisionerService';
 import { TenantTokenTracker, TenantTokenUsage, getDefaultTokenUsage } from '../../../core/ai/tenantTokenTracker';
+import { addTokensToTenant } from '../../../core/ai/pricingService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 
 export type TenantAccordionSection = 'modules' | 'keys' | 'tokens' | 'details';
@@ -98,6 +99,9 @@ export const TenantComprehensiveEditModal: React.FC = () => {
   const [tokenUsage, setTokenUsage] = useState<TenantTokenUsage>(() => 
     getDefaultTokenUsage(editingTenant?.subdomain || '_master')
   );
+  const [grantTokensAmount, setGrantTokensAmount] = useState(500_000);
+  const [isGrantingModalTokens, setIsGrantingModalTokens] = useState(false);
+  const [grantModalMessage, setGrantModalMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (editingTenant) {
@@ -160,20 +164,47 @@ export const TenantComprehensiveEditModal: React.FC = () => {
     return modsChanged || detailsChanged || keysChanged;
   }, [selectedModules, clientName, ownerEmail, ownerPhone, status, adminUsername, adminPassword, keysData, initialData]);
 
-  if (!editingTenant) return null;
-
-  const isMaster = editingTenant.isMaster || editingTenant.subdomain === '_master';
+  const isMaster = Boolean(editingTenant?.isMaster || editingTenant?.subdomain === '_master');
 
   // Avatar initials icon (2 letters connected)
   const initials = useMemo(() => {
     if (isMaster) return '👑';
-    const name = clientName || editingTenant.clientName || editingTenant.subdomain || '';
+    const name = clientName || editingTenant?.clientName || editingTenant?.subdomain || '';
     const parts = name.trim().split(' ').filter(Boolean);
     if (parts.length >= 2) {
       return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
     }
     return name.slice(0, 2).toUpperCase() || 'TN';
   }, [clientName, editingTenant, isMaster]);
+
+  if (!editingTenant) return null;
+
+  const handleQuickGrant = async () => {
+    if (!editingTenant) return;
+    if (grantTokensAmount <= 0) return;
+    setIsGrantingModalTokens(true);
+    setGrantModalMessage(null);
+    try {
+      const res = await addTokensToTenant({
+        tenantId: editingTenant.subdomain,
+        tokensToAdd: grantTokensAmount,
+        reason: 'admin_grant',
+      });
+      if (res.success) {
+        setGrantModalMessage(`הוטענו בהצלחה ${grantTokensAmount.toLocaleString()} טוקנים! מכסה: ${res.newQuota.toLocaleString()}`);
+        setTokenUsage((prev) => ({
+          ...prev,
+          tokensQuota: res.newQuota,
+        }));
+      } else {
+        setGrantModalMessage(res.error || 'שגיאה בהטענת טוקנים');
+      }
+    } catch (e: any) {
+      setGrantModalMessage(e?.message || 'שגיאה בלתי צפויה');
+    } finally {
+      setIsGrantingModalTokens(false);
+    }
+  };
 
   const toggleSection = (section: TenantAccordionSection) => {
     setOpenSections(prev => ({ ...prev, [section]: !prev[section] }));
@@ -1009,6 +1040,65 @@ export const TenantComprehensiveEditModal: React.FC = () => {
                       </span>
                     </div>
                   </div>
+                </div>
+
+                {/* Admin Quick Grant Box */}
+                <div className={`p-3.5 rounded-xl border mt-3 space-y-2.5 ${
+                  isDarkMode ? 'bg-[#181818] border-white/10' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                      <Plus className="w-3.5 h-3.5" />
+                      הטענת טוקנים לדייר זה (Admin Grant)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-normal">
+                      מכסה נוכחית: {quota.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[250_000, 500_000, 1_000_000, 5_000_000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        onClick={() => setGrantTokensAmount(amt)}
+                        className={`text-[10px] px-2.5 py-1 rounded-lg border font-mono transition cursor-pointer ${
+                          grantTokensAmount === amt
+                            ? 'bg-indigo-600 text-white border-indigo-600 font-bold'
+                            : isDarkMode 
+                              ? 'border-white/10 text-slate-300 hover:bg-white/5' 
+                              : 'border-slate-200 text-slate-700 hover:bg-white'
+                        }`}
+                      >
+                        +{amt >= 1_000_000 ? `${amt / 1_000_000}M` : `${amt / 1_000}K`}
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      step="50000"
+                      value={grantTokensAmount}
+                      onChange={(e) => setGrantTokensAmount(Number(e.target.value))}
+                      className={`w-28 text-xs p-1.5 rounded-lg border font-mono ${
+                        isDarkMode ? 'bg-black border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleQuickGrant}
+                      disabled={isGrantingModalTokens}
+                      className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition cursor-pointer disabled:opacity-50 flex items-center gap-1 shrink-0"
+                    >
+                      {isGrantingModalTokens ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                      <span>הטען עכשיו</span>
+                    </button>
+                  </div>
+
+                  {grantModalMessage && (
+                    <div className="text-[10px] text-emerald-500 font-semibold flex items-center gap-1">
+                      <Check className="w-3 h-3" />
+                      <span>{grantModalMessage}</span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

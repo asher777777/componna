@@ -447,6 +447,8 @@ export const aiPageGenerator = {
           secData.imageSrc = heroImg;
           secData.imageUrl = heroImg;
         }
+      }
+
       pageConfig.sectionOrder.push(secId);
       pageConfig.sections[secId] = secData;
 
@@ -553,7 +555,7 @@ export const aiPageGenerator = {
             badgeText: '🔥 הטבת השקה מוגבלת בזמן',
             buttonsVisible: true,
             primaryButton: { text: 'בחרו חבילה עכשיו', url: '#pricing' },
-            secondaryButton: { text: 'למידע נוסף', url: '#services' },
+            secondaryButton: { text: 'למידע נוסף', url: '#about' },
             socialProofEnabled: true,
             socialProofText: 'מעל 2,500 לקוחות מרוצים כבר איתנו',
             imageUrl: getSmartPlaceholderImage('hero', 0),
@@ -572,7 +574,8 @@ export const aiPageGenerator = {
           },
         },
         {
-          sectionType: stepTitle: 'כרטיסי ערך ויתרונות תחרותיים (Services Grid)',
+          sectionType: 'richContent',
+          stepTitle: 'כרטיסי ערך ויתרונות תחרותיים (Services Grid)',
           statusText: 'מבליט את היתרונות הייחודיים שהופכים את ההצעה לבלתי ניתנת לסירוב...',
           data: {
             title: 'למה כולם בוחרים בנו?',
@@ -715,7 +718,8 @@ export const aiPageGenerator = {
           },
         },
         {
-          sectionType: stepTitle: 'סל השירותים המקומי (Services)',
+          sectionType: 'richContent',
+          stepTitle: 'סל השירותים המקומי (Services)',
           statusText: 'מפרט תחומי התמחות עם אייקונים מקצועיים...',
           data: {
             title: 'השירותים שאנחנו מספקים',
@@ -898,7 +902,7 @@ export const aiPageGenerator = {
           badgeText: 'המובילים בישראל לשנת 2026',
           buttonsVisible: true,
           primaryButton: { text: 'התחילו עכשיו', url: '#contact' },
-          secondaryButton: { text: 'למידע נוסף', url: '#services' },
+          secondaryButton: { text: 'למידע נוסף', url: '#about' },
           socialProofEnabled: true,
           socialProofText: 'מעל 2,400 לקוחות מרוצים כבר איתנו',
           imageUrl: getSmartPlaceholderImage('hero', 0),
@@ -906,7 +910,8 @@ export const aiPageGenerator = {
         },
       },
       {
-        sectionType: stepTitle: 'הקמת רשת יתרונות ושירותים (Services Grid)',
+        sectionType: 'richContent',
+          stepTitle: 'הקמת רשת יתרונות ושירותים (Services Grid)',
         statusText: 'מרכיב כרטיסי שירות עם אייקונים ותיאורי ערך מנצחים...',
         data: {
           title: 'למה לבחור דווקא בנו?',

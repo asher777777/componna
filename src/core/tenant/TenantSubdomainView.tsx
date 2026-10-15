@@ -195,7 +195,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           openingHours: 'א׳-ה׳: 09:00-18:00',
         },
       },
-      sectionOrder: ['hero', 'services', 'statsBento', 'testimonials', 'pricing', 'faq', 'contact'],
+      sectionOrder: ['hero', 'statsBento', 'testimonials', 'pricing', 'faq', 'contact'],
       sections: {
         hero: {
           ...SECTION_REGISTRY.hero.defaultConfig,
@@ -205,7 +205,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           subtitle: `הפלטפורמה והשירותים הדיגיטליים שלנו זמינים עבורכם ישירות בכתובת ${tenantRecord.fullDomain}`,
           ctaButtonText: 'צרו קשר עכשיו',
         },
-        services: { ...SECTION_REGISTRY.services.defaultConfig, id: 'services' },
         statsBento: { ...SECTION_REGISTRY.statsBento.defaultConfig, id: 'statsBento' },
         testimonials: { ...SECTION_REGISTRY.testimonials.defaultConfig, id: 'testimonials' },
         pricing: { ...SECTION_REGISTRY.pricing.defaultConfig, id: 'pricing' },
@@ -754,6 +753,20 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       {/* Official KosWebAi Frontend Dock with Full Edit Controls */}
       <KosWebAiFrontDock
         pageId={effectivePageConfig?.pageId}
+        pageConfig={effectivePageConfig}
+        globalSettings={effectivePageConfig?.globalSettings}
+        seoSettings={effectivePageConfig?.seoSettings}
+        onUpdateGlobalSettings={handleUpdateGlobalSettings}
+        onUpdateSeoSettings={(updatedSeo) => {
+          setCurrentPageConfig((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, seoSettings: updatedSeo };
+            pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+            return next;
+          });
+        }}
+        pageTitle={effectivePageConfig?.pageTitle}
+        pageSections={effectivePageConfig?.sections ? Object.values(effectivePageConfig.sections) : []}
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}

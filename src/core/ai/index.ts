@@ -5,3 +5,4 @@ export * from './geminiCacheManager';
 export * from './pricingService';
 export * from './components/TenantTokenBadge';
 export * from './components/TokenPurchaseModal';
+export * from './components/TokenPricingCalculatorCard';
