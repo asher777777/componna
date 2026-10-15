@@ -1,7 +1,7 @@
 import { BrandDna, AiTextAssistantContract } from '../../../core/contracts';
 import { dispatchSeoMetadataToKosai } from '../kosai/promptToKosai';
 
-export interface GoogleSeoAuditResult {
+export interface SeoAuditResult {
   title: string;
   description: string;
   keywords: string[];
@@ -17,29 +17,33 @@ export interface GoogleSeoAuditResult {
   aiBotIndexingEnabled?: boolean;
 }
 
-export interface GoogleSeoAuditResponse {
+export type GoogleSeoAuditResult = SeoAuditResult;
+
+export interface SeoAuditResponse {
   success: boolean;
-  data: GoogleSeoAuditResult;
+  data: SeoAuditResult;
   error?: string;
   isFallback: boolean;
 }
 
+export type GoogleSeoAuditResponse = SeoAuditResponse;
+
 /**
- * Generates Google-Compliant SEO Metadata & AI Engine Optimization (GEO/AIO) based on:
- * - Google Search Quality Evaluator Criteria (E-E-A-T)
+ * Generates Compliant SEO Metadata & AI Engine Optimization (GEO/AIO) based on:
+ * - Search Quality Evaluator Criteria (E-E-A-T)
  * - Generative Engine Optimization (ChatGPT, Perplexity, Gemini, Claude citations)
  * - Schema.org Knowledge Graph structured definitions
  * Connects directly through the KOSAI parent AI module (kosai-engine) when available,
  * and adheres to KOSUN26 rules by explicitly informing the user when AI is unavailable.
  */
-export async function generateGoogleCompliantSeo(params: {
+export async function generateCompliantSeo(params: {
   pageTitle: string;
   brandDna?: BrandDna | null;
   pageSections?: any[];
   currentSeo?: any;
   apiKey?: string;
   aiAssistant?: AiTextAssistantContract | null;
-}): Promise<GoogleSeoAuditResponse> {
+}): Promise<SeoAuditResponse> {
   const { pageTitle, brandDna, pageSections, currentSeo, apiKey, aiAssistant } = params;
   const company = brandDna?.identity?.companyName || 'קושאן';
   const slogan = brandDna?.identity?.slogan || 'כל אדם זה נכס';
@@ -162,7 +166,7 @@ Respond ONLY with valid JSON in this exact structure:
         };
       }
     } catch (err: any) {
-      console.warn('[aiGoogleSeoService] kosai-engine contract call notice:', err);
+      console.warn('[seoService] kosai-engine contract call notice:', err);
     }
   }
 
@@ -198,7 +202,7 @@ Respond ONLY with valid JSON in this exact structure:
       isFallback: true,
     };
   } catch (err: any) {
-    console.warn('[aiGoogleSeoService] generateGoogleCompliantSeo notice:', err);
+    console.warn('[seoService] generateCompliantSeo notice:', err);
     return {
       success: false,
       data: buildFallbackData(),
@@ -207,3 +211,6 @@ Respond ONLY with valid JSON in this exact structure:
     };
   }
 }
+
+export const generateGoogleCompliantSeo = generateCompliantSeo;
+export const seoService = { generateCompliantSeo };

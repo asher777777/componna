@@ -3,7 +3,7 @@ import { GeoLocalSectionConfig } from '../../types/sectionConfigs';
 import { MapPin, Phone, Mail, Clock, MessageCircle, Navigation, Sparkles } from 'lucide-react';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../../core/contracts';
-import { resolveLiveBrandDna } from '../../services/aiPageGenerator';
+import { resolveLiveBrandDna } from '../../generators/pageGenerator';
 
 export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ config }) => {
   const { getCapability } = useHostCapabilities();

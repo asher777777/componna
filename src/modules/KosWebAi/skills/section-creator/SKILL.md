@@ -124,8 +124,8 @@ export interface MySectionConfig {
 
 ### שלב 6: שילוב במנוע ה-AI (AI Generation & Enhancement)
 כדי שה-AI יידע לייצר ולשדרג את האזור:
-1. הוספת האזור ל-`aiPageGenerator.ts` במידת הצורך (פרומפט מובנה ליצירת עמודים שלמים).
-2. הוספת תמיכה ב-`aiSectionEnhancerService.ts` לשדרוג תכנים, שכתוב שיווקי, והתאמת טקסטים לקהל יעד.
+1. הוספת האזור ל-`generators/pageGenerator.ts` במידת הצורך (פרומפט מובנה ליצירת עמודים שלמים).
+2. הוספת תמיכה ב-`generators/sectionEnhancerService.ts` לשדרוג תכנים, שכתוב שיווקי, והתאמת טקסטים לקהל יעד.
 
 ---
 

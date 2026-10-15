@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
-import { aiPageGenerator, GenerationStep } from '../services/aiPageGenerator';
+import { pageGenerator, GenerationStep } from '../generators/pageGenerator';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
 import { resolveApiKey } from '../api/functionsApi';
@@ -95,7 +95,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
     setLoadingIdeas(true);
     try {
       const existingPages = await pageBuilderFirestore.getAllPages();
-      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, existingPages, force);
+      const generatedIdeas = await pageGenerator.generatePageIdeas(brandDna, apiKey, existingPages, force);
       setIdeas(generatedIdeas);
     } catch (err: any) {
       console.warn('Could not load marketing ideas:', err);
@@ -202,7 +202,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
 
     setErrorMsg(null);
     try {
-      const result = await aiPageGenerator.generatePageLive(
+      const result = await pageGenerator.generatePageLive(
         enrichedPrompt,
         useBrandDna ? brandDna : null,
         (step, partialConfig) => {

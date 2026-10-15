@@ -2,7 +2,7 @@ import { SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../../core/contracts';
 import { resolveApiKey } from '../api/functionsApi';
 import { dispatchSectionEnhancementToKosai } from '../kosai/promptToKosai';
-import { resolveLiveBrandDna } from './aiPageGenerator';
+import { resolveLiveBrandDna } from './pageGenerator';
 
 export interface SectionAiSuggestion {
   id: string;
@@ -26,7 +26,7 @@ export interface SectionEnhancementResult {
   message?: string;
 }
 
-export const aiSectionEnhancerService = {
+export const sectionEnhancerService = {
   /**
    * Generates intelligent, context-aware suggestions across 3 main dimensions:
    * 1. Brand DNA (קולקציית המיתוג)
@@ -422,7 +422,7 @@ Return ONLY the raw updated JSON object.`;
         message: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
       };
     } catch (err: any) {
-      console.warn('[aiSectionEnhancerService] Gemini API call error:', err);
+      console.warn('[sectionEnhancerService] kosai call error:', err);
       return {
         success: false,
         updatedConfig: currentConfig,
@@ -557,3 +557,5 @@ Return ONLY the raw updated JSON object.`;
     };
   },
 };
+
+export const aiSectionEnhancerService = sectionEnhancerService;

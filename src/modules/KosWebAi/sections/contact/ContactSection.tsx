@@ -5,7 +5,7 @@ import { Phone, Mail, MapPin, MessageCircle, Send, CheckCircle2, CreditCard, Coi
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
-import { resolveLiveBrandDna } from '../../services/aiPageGenerator';
+import { resolveLiveBrandDna } from '../../generators/pageGenerator';
 import { DEFAULT_CONTACT_FORM_CONFIG } from './ContactFormConfigEditor';
 
 export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ config }) => {

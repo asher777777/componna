@@ -23,11 +23,11 @@ import { useTenantScope } from '../../../core/tenant';
 import { BrandDnaContract, BrandDna } from '../../../core/contracts';
 import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 import {
-  aiSectionEnhancerService,
+  sectionEnhancerService,
   SectionAiSuggestion,
   SectionEnhancementResult,
-} from '../services/aiSectionEnhancerService';
-import { resolveLiveBrandDna } from '../services/aiPageGenerator';
+} from '../generators/sectionEnhancerService';
+import { resolveLiveBrandDna } from '../generators/pageGenerator';
 
 interface AiSectionDesignerModalProps {
   isOpen: boolean;
@@ -100,7 +100,7 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
 
   // Get Suggestions
   const { brandSuggestions, pageContextSuggestions, layoutSuggestions } =
-    aiSectionEnhancerService.getSuggestionsForSection(
+    sectionEnhancerService.getSuggestionsForSection(
       sectionType,
       currentConfig,
       brandDna,
@@ -120,7 +120,7 @@ export const AiSectionDesignerModal: React.FC<AiSectionDesignerModalProps> = ({
 
     try {
       const apiKey = getApiKeysForModule('KosWebAi').googleAiApiKey || undefined;
-      const result = await aiSectionEnhancerService.enhanceSection({
+      const result = await sectionEnhancerService.enhanceSection({
         sectionType,
         instructionPrompt: promptToUse,
         currentConfig,

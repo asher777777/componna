@@ -77,7 +77,7 @@ export function resolveLiveBrandDna(provided?: BrandDna | null): BrandDna | null
 const marketingIdeasMemoryCache = new Map<string, { timestamp: number; ideas: MarketingIdea[] }>();
 const inFlightIdeasRequests = new Map<string, Promise<MarketingIdea[]>>();
 
-export const aiPageGenerator = {
+export const pageGenerator = {
   /**
    * Generates 6 marketing angles derived continuously from Brand DNA and existing pages
    */
@@ -221,7 +221,7 @@ export const aiPageGenerator = {
 
         return fallbackIdeas;
       } catch (err) {
-        console.warn('[aiPageGenerator] Failed to generate marketing ideas, using fallback:', err);
+        console.warn('[pageGenerator] Failed to generate marketing ideas, using fallback:', err);
         return fallbackIdeas;
       } finally {
         inFlightIdeasRequests.delete(cacheKey);
@@ -1044,3 +1044,5 @@ export const aiPageGenerator = {
     ];
   },
 };
+
+export const aiPageGenerator = pageGenerator;

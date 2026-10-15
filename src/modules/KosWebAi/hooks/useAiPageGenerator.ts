@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
-import { aiPageGenerator } from '../services/aiPageGenerator';
+import { pageGenerator } from '../generators/pageGenerator';
 import { GenerationStep } from '../types';
 import { usePageBuilderContext } from '../context/PageBuilderContext';
 import { resolveApiKey } from '../api/functionsApi';
@@ -43,7 +43,7 @@ export const useAiPageGenerator = (): UseAiPageGeneratorResult => {
       });
 
       try {
-        const finalConfig = await aiPageGenerator.generatePageLive(
+        const finalConfig = await pageGenerator.generatePageLive(
           userPrompt,
           brandDna,
           (step, partial) => {
@@ -73,7 +73,7 @@ export const useAiPageGenerator = (): UseAiPageGeneratorResult => {
       currentData: any,
       apiKey?: string
     ): Promise<any> => {
-      return aiPageGenerator.generateSectionLive(
+      return pageGenerator.generateSectionLive(
         sectionType,
         prompt,
         brandDna,

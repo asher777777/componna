@@ -25,7 +25,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { clsx } from 'clsx';
-import { generateGoogleCompliantSeo } from '../services/aiGoogleSeoService';
+import { generateCompliantSeo } from '../generators/seoService';
 
 interface PageSettingsDrawerProps {
   isOpen: boolean;
@@ -199,7 +199,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   const handleGenerateAiSeo = async () => {
     setIsAiGeneratingSeo(true);
     try {
-      const response = await generateGoogleCompliantSeo({
+      const response = await generateCompliantSeo({
         pageTitle: formDataGlobal.siteTitle || pageTitle,
         brandDna,
         pageSections,

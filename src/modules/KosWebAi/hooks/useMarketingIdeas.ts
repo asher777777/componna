@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { MarketingIdea } from '../types';
-import { aiPageGenerator } from '../services/aiPageGenerator';
+import { pageGenerator } from '../generators/pageGenerator';
 import { usePageBuilderContext } from '../context/PageBuilderContext';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -33,7 +33,7 @@ export const useMarketingIdeas = (enabled: boolean = false): UseMarketingIdeasRe
       setError(null);
       try {
         const pages = await pageBuilderFirestore.getAllPages(db);
-        const result = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, pages, forceRefresh);
+        const result = await pageGenerator.generatePageIdeas(brandDna, apiKey, pages, forceRefresh);
         setIdeas(result);
       } catch (err: any) {
         console.warn('[useMarketingIdeas] Failed to fetch marketing ideas:', err);

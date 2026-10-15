@@ -12,7 +12,7 @@ export * from './api/functionsApi';
 export * from './routes/PageBuilderRoutes';
 export * from './blueprints/pageBlueprints';
 export * from './registry/sectionRegistry';
-export * from './services/aiPageGenerator';
+export * from './generators';
 export * from './services/pageBuilderFirestore';
 
 // Main Components

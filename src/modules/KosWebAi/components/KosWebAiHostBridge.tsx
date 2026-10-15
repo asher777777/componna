@@ -13,7 +13,7 @@ import {
 } from '../../../core/contracts';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
-import { aiPageGenerator } from '../services/aiPageGenerator';
+import { pageGenerator } from '../generators/pageGenerator';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 
@@ -190,7 +190,7 @@ export const KosWebAiHostBridge: React.FC = () => {
 
 חובה לייצר slug באנגלית על בסיס SEO לשם המוצר. עמוד הנחיתה צריך לכלול Hero מרשים ${product.imageUrl ? `(השתמש בתמונה ${product.imageUrl})` : ''}, פירוט היתרונות, התייחסות לנקודות הכאב כ-Features, וקריאה לפעולה מרכזית.`;
 
-          const generatedConfig = await aiPageGenerator.generatePageLive(
+          const generatedConfig = await pageGenerator.generatePageLive(
             prompt,
             options.brandDna,
             (step) => {

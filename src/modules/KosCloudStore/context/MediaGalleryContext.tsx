@@ -16,6 +16,7 @@ import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaSer
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { HeyGenSyncService } from '../services/heygenSyncService';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { subscribeToAuth } from '../../../services/firebaseAuth';
@@ -466,7 +467,14 @@ export const MediaGalleryProvider: React.FC<{
 
       const addDeduplicated = (rawItem: MediaItem) => {
         if (!rawItem) return;
-        const item = normalizeItem(rawItem);
+        const normalized = normalizeItem(rawItem);
+        const safeUrl = resolveSafeMediaUrl(normalized.url, normalized);
+        const safeThumb = resolveSafeMediaUrl(normalized.thumbnailUrl, normalized);
+        const item: MediaItem = {
+          ...normalized,
+          url: safeUrl || normalized.url,
+          thumbnailUrl: safeThumb || normalized.thumbnailUrl,
+        };
         const nameKey = (item.name || '').toLowerCase().trim();
         const idKey = (item.id || '').toLowerCase().trim();
         if (!nameKey && !idKey) return;

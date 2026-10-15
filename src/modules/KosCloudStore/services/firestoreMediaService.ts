@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { MediaItem, MediaFolder, MediaGalleryCollectionsConfig } from '../types';
 import { resolveMediaCollections } from '../config';
+import { resolveSafeMediaUrl, isAlienBlobUrl, getPermanentMediaUrl } from '../utils/mediaUrlSanitizer';
 
 export class FirestoreMediaService {
   private static cleanUndefinedFields<T extends Record<string, any>>(obj: T): T {
@@ -47,7 +48,30 @@ export class FirestoreMediaService {
       const items: MediaItem[] = [];
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() as MediaItem;
-        items.push({ ...data, id: docSnap.id });
+        const rawItem: MediaItem = { ...data, id: docSnap.id };
+
+        // Sanitize alien localhost/stale blob URLs
+        const safeUrl = resolveSafeMediaUrl(rawItem.url, rawItem);
+        const safeThumb = resolveSafeMediaUrl(rawItem.thumbnailUrl, rawItem);
+
+        const sanitizedItem: MediaItem = {
+          ...rawItem,
+          url: safeUrl || rawItem.url,
+          thumbnailUrl: safeThumb || rawItem.thumbnailUrl,
+        };
+
+        // Self-healing: if Firestore was storing an invalid blob URL, repair it in the database
+        if (isAlienBlobUrl(rawItem.url) || rawItem.url?.startsWith('blob:')) {
+          if (safeUrl && !safeUrl.startsWith('blob:')) {
+            updateDoc(doc(db, collNames.mediaItems, docSnap.id), {
+              url: safeUrl,
+              thumbnailUrl: safeThumb || safeUrl,
+              updatedAt: Date.now(),
+            }).catch(() => {});
+          }
+        }
+
+        items.push(sanitizedItem);
       });
 
       return items;
@@ -73,6 +97,14 @@ export class FirestoreMediaService {
         delete meta.dataUrl;
       }
       cleanItem.metadata = meta;
+    }
+
+    // Never persist ephemeral or alien blob: URLs into Firestore
+    if (cleanItem.url?.startsWith('blob:')) {
+      cleanItem.url = getPermanentMediaUrl(cleanItem);
+    }
+    if (cleanItem.thumbnailUrl?.startsWith('blob:')) {
+      cleanItem.thumbnailUrl = getPermanentMediaUrl(cleanItem);
     }
 
     const sanitized = this.cleanUndefinedFields({
@@ -167,7 +199,14 @@ export class FirestoreMediaService {
         (snapshot) => {
           const items: MediaItem[] = [];
           snapshot.forEach((docSnap) => {
-            items.push({ ...(docSnap.data() as MediaItem), id: docSnap.id });
+            const raw = { ...(docSnap.data() as MediaItem), id: docSnap.id };
+            const safeUrl = resolveSafeMediaUrl(raw.url, raw);
+            const safeThumb = resolveSafeMediaUrl(raw.thumbnailUrl, raw);
+            items.push({
+              ...raw,
+              url: safeUrl || raw.url,
+              thumbnailUrl: safeThumb || raw.thumbnailUrl,
+            });
           });
           onData(items);
         },
