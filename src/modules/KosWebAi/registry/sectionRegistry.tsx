@@ -27,11 +27,13 @@ import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
 import { HeaderSection } from '../sections/header/HeaderSection';
 import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
 import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
+import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
 
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
 import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
+import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
@@ -66,6 +68,7 @@ import { EventRsvpEditor } from '../sections/eventRsvp/EventRsvpEditor';
 import {
   LayoutTemplate,
   Grid,
+  LayoutGrid,
   GraduationCap,
   Target,
   Heart,
@@ -909,6 +912,82 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
             placeholder: 'your@email.com',
           },
         ],
+      },
+    },
+  },
+
+  dynamicListing: {
+    type: 'dynamicListing',
+    name: 'ליסטינג תוכן וקולקציות דינמי',
+    category: 'content',
+    description: 'ליסטינג רב-תכליתי ב-5 פריסות פרימיום (Bento, זכוכית מרחפת, קרוסלה, מגזין ופינטרסט) עם סינון טאבים וחיפוש לייב',
+    icon: LayoutGrid,
+    viewComponent: DynamicListingSection as any,
+    editorComponent: DynamicListingEditor as any,
+    defaultConfig: {
+      type: 'dynamicListing',
+      visible: true,
+      anchorId: 'dynamic-listing',
+      badge: 'תוכן ופעילות',
+      title: 'הפרויקטים והפעילויות המובילות',
+      subtitle: 'מגוון שירותים, עדכונים ואירועים מובילים בהתאמה אישית ובפריסה חדשנית',
+      source: 'custom',
+      layout: 'bento-showcase',
+      gridColumns: 3,
+      aspectRatio: '16:9',
+      showCategoryFilter: true,
+      showSearchBar: true,
+      searchPlaceholder: 'חיפוש מהיר בתוכן...',
+      effectStyle: 'border-beam',
+      categories: ['אירועים', 'שירותים', 'חדשות', 'פיתוח'],
+      items: [
+        {
+          id: 'item-1',
+          title: 'סיכום כנס החדשנות השנתי 2026',
+          subtitle: 'אירוע השיא שאיחד מאות מומחים ויזמים מכל רחבי הארץ להצגת פריצות דרך טכנולוגיות.',
+          excerpt: 'כנס החדשנות השנתי לשנת 2026 כלל עשרות הרצאות מרתקות, סדנאות מעשיות והכרזות על שיתופי פעולה פורצי דרך. המשתתפים נהנו מחיבור ישיר למובילי דעה בתעשייה וחשיפה לכלים העדכניים ביותר.',
+          imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80',
+          category: 'אירועים',
+          badge: 'מומלץ ★',
+          date: '15 באוגוסט 2026',
+          actionType: 'modal',
+          price: 'כניסה חופשית',
+        },
+        {
+          id: 'item-2',
+          title: 'השקת תוכנית ההכשרה הדיגיטלית',
+          subtitle: 'מסלול מואץ ומעשי להקניית מיומנויות מתקדמות עם ליווי צמוד של מנטורים בכירים.',
+          excerpt: 'תוכנית ההכשרה נבנתה במיוחד כדי לגשר על הפער בין תיאוריה לפרקטיקה. הסטודנטים זוכים לפרויקטים אמיתיים, ביקורת קוד אישית וסיוע בהשמה בעבודה.',
+          imageUrl: 'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+          category: 'שירותים',
+          date: '02 באוגוסט 2026',
+          actionType: 'modal',
+          price: '₪1,200',
+        },
+        {
+          id: 'item-3',
+          title: 'פרויקט הרחבת מרכז הפעילות והקהילה',
+          subtitle: 'שדרוג המבנה המרכזי והקמת חללי עבודה ומפגש שיתופיים ומאובזרים.',
+          excerpt: 'במסגרת עבודות הפיתוח שודרגו התשתיות, הותקנו מערכות שמע ותצוגה מתקדמות, ונוספו חדרים ייעודיים לפגישות וימי עיון.',
+          imageUrl: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=800&q=80',
+          category: 'פיתוח',
+          date: '28 ביולי 2026',
+          actionType: 'modal',
+        },
+        {
+          id: 'item-4',
+          title: 'פתיחת הרשמה לסיורי למידה ונטוורקינג',
+          subtitle: 'מפגשים בלתי אמצעיים עם צוותי הפיתוח וההנהלה.',
+          excerpt: 'הצטרפו לסיורים מקצועיים מאחורי הקלעים הכוללים שיח פתוח, שאלות ותשובות וחיבורים מקצועיים.',
+          imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80',
+          category: 'אירועים',
+          date: '10 ביולי 2026',
+          actionType: 'modal',
+        },
+      ],
+      primaryButton: {
+        text: 'צפייה בכל מאגר הפעילויות',
+        url: '#',
       },
     },
   },

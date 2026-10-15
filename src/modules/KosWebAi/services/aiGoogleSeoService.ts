@@ -1,5 +1,5 @@
 import { BrandDna, AiTextAssistantContract } from '../../../core/contracts';
-import { callGeminiApi } from '../api/functionsApi';
+import { dispatchSeoMetadataToKosai } from '../kosai/promptToKosai';
 
 export interface GoogleSeoAuditResult {
   title: string;
@@ -166,14 +166,21 @@ Respond ONLY with valid JSON in this exact structure:
     }
   }
 
-  // 2. Direct AI call through cloud client
+  // 2. Route directly through KOSAI Monopoly Contract
   try {
-    const apiRes = await callGeminiApi({
-      prompt,
-      temperature: 0.4,
-      responseMimeType: 'application/json',
-      providedApiKey: apiKey,
-    });
+    const seoData = await dispatchSeoMetadataToKosai(
+      {
+        pageTitle,
+        company,
+        slogan,
+        topics,
+      },
+      {
+        cacheKey: encodeURIComponent(pageTitle).toLowerCase(),
+        apiKey,
+      }
+    );
+    const apiRes = { success: !!seoData, data: seoData };
 
     if (apiRes.success && apiRes.data) {
       const parsed = typeof apiRes.data === 'string' ? JSON.parse(apiRes.data) : apiRes.data;

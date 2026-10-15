@@ -1,6 +1,7 @@
 import { PageBuilderConfig, SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../../core/contracts';
-import { resolveApiKey, callGeminiApi } from '../api/functionsApi';
+import { resolveApiKey } from '../api/functionsApi';
+import { dispatchMarketingIdeasToKosai, dispatchPageStructureToKosai, dispatchSectionEnhancementToKosai } from '../kosai/promptToKosai';
 import {
   GENERATE_MULTI_SECTION_PAGE_PROMPT,
   GENERATE_MARKETING_IDEAS_PROMPT,
@@ -197,32 +198,25 @@ export const aiPageGenerator = {
 
     const runCall = async (): Promise<MarketingIdea[]> => {
       try {
-        const prompt = GENERATE_MARKETING_IDEAS_PROMPT({
-          companyName,
-          purpose,
-          targetAudiences,
-          uvp,
-          objections,
-          personas,
-          existingPages: existingPagesSummary,
-        });
+        const ideas = await dispatchMarketingIdeasToKosai(
+          {
+            companyName,
+            purpose,
+            targetAudiences,
+            uvp,
+            objections,
+            personas,
+            existingPages: existingPagesSummary,
+          },
+          {
+            cacheKey,
+            skipCache: forceRefresh,
+            apiKey,
+          }
+        );
 
-        const response = await callGeminiApi<MarketingIdea[]>({
-          prompt,
-          providedApiKey: apiKey,
-          temperature: 0.85,
-          responseMimeType: 'application/json',
-          timeoutMs: 45000,
-        });
-
-        if (response.success && Array.isArray(response.data) && response.data.length >= 3) {
-          marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas: response.data });
-          try {
-            if (typeof window !== 'undefined' && window.sessionStorage) {
-              window.sessionStorage.setItem(cacheKey, JSON.stringify(response.data));
-            }
-          } catch {}
-          return response.data;
+        if (Array.isArray(ideas) && ideas.length >= 3) {
+          return ideas;
         }
 
         return fallbackIdeas;
@@ -337,20 +331,23 @@ export const aiPageGenerator = {
         generateImages: options?.generateImages ?? true,
       });
 
-      const apiResult = await callGeminiApi<any>({
-        prompt: fullPrompt,
-        providedApiKey: apiKey,
-        temperature: 0.75,
-        responseMimeType: 'application/json',
-        timeoutMs: 90000, // 90 seconds for large full-page generation
-      });
+      const aiResult = await dispatchPageStructureToKosai(
+        {
+          companyName,
+          slogan,
+          targetAudience: brandDna?.audience?.targetAudiences?.join(', '),
+          uvp: brandDna?.audience?.mainUvp,
+          voiceTone: (brandDna?.identity as any)?.brandPersonality || 'מקצועי, מוביל ומשכנע',
+          primaryColor,
+          backgroundColor: pageConfig.globalSettings.backgroundColor,
+          userPrompt,
+          generateImages: options?.generateImages ?? true,
+        },
+        { apiKey }
+      );
 
-      if (!apiResult.success) {
-        throw new Error(apiResult.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
-      }
-
-      if (apiResult.success && apiResult.data) {
-        let aiData = apiResult.data;
+      if (aiResult) {
+        let aiData = aiResult;
         if (typeof aiData === 'string') {
           try {
             aiData = JSON.parse(aiData.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim());
@@ -554,17 +551,19 @@ export const aiPageGenerator = {
       currentConfig,
     });
 
-    const response = await callGeminiApi<any>({
-      prompt,
-      providedApiKey: apiKey,
-      temperature: 0.7,
-      responseMimeType: 'application/json',
-      timeoutMs: 45000, // 45 seconds for a single section
-    });
+    const responseData = await dispatchSectionEnhancementToKosai(
+      {
+        sectionType,
+        userPrompt,
+        companyName,
+        currentConfig,
+      },
+      { apiKey }
+    );
 
-    if (response.success && response.data) {
+    if (responseData) {
       const updated = {
-        ...response.data,
+        ...responseData,
         id: currentConfig?.id || `${sectionType}_${Date.now()}`,
         type: sectionType,
       };

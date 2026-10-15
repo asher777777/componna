@@ -1,6 +1,7 @@
 import { SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../../core/contracts';
-import { resolveApiKey, callGeminiApi } from '../api/functionsApi';
+import { resolveApiKey } from '../api/functionsApi';
+import { dispatchSectionEnhancementToKosai } from '../kosai/promptToKosai';
 import { resolveLiveBrandDna } from './aiPageGenerator';
 
 export interface SectionAiSuggestion {
@@ -228,6 +229,36 @@ export const aiSectionEnhancerService = {
           prompt: 'הדגש את הניווט המהיר ל-Waze ואת אישור ההגעה המהיר בלחיצה אחת.',
         }
       );
+    } else if (sectionType === 'dynamicListing') {
+      layoutSuggestions.push(
+        {
+          id: 'dynamic-listing-bento',
+          tab: 'layout',
+          title: 'מעבר לפריסת Bento Showcase (כרטיס מוביל)',
+          description: 'כרטיס Spotlight רחב לפריט המוביל לצד כרטיסי משנה חכמים.',
+          badge: 'מומלץ KOSUN',
+          iconName: 'Sparkles',
+          prompt: 'הגדר את פריסת הליסטינג ל-bento-showcase עם הילת border-beam על הכרטיס המרכזי.',
+        },
+        {
+          id: 'dynamic-listing-carousel',
+          tab: 'layout',
+          title: 'מעבר לפריסת Snap Carousel (סליידר אופקי חלק)',
+          description: 'קרוסלת גרירה אופקית מודרנית ללא גלילה אנכית ארוכה.',
+          badge: 'סליידר חלק',
+          iconName: 'Layers',
+          prompt: 'הגדר את פריסת הליסטינג ל-snap-carousel עם חיצי ניווט ואינדיקטורים.',
+        },
+        {
+          id: 'dynamic-listing-editorial',
+          tab: 'layout',
+          title: 'מעבר לפריסת Editorial Magazine (מגזין ותמונה צפה)',
+          description: 'רשימה שורתית אלגנטית עם תמונה שמרחפת בריחוף סמן.',
+          badge: 'עיצוב מגזין',
+          iconName: 'Target',
+          prompt: 'הגדר את פריסת הליסטינג ל-editorial-list עם טיפוגרפיה גדולה ואפקט תמונה מרחפת.',
+        }
+      );
     } else {
       layoutSuggestions.push(
         {
@@ -338,17 +369,17 @@ Return ONLY the raw updated JSON object.`;
     }
 
     try {
-      const response = await callGeminiApi<any>({
-        prompt: promptText,
-        systemInstruction,
-        providedApiKey: apiKey,
-        temperature: 0.7,
-        timeoutMs: 30000,
-        responseMimeType: 'application/json',
-      });
+      const rawData = await dispatchSectionEnhancementToKosai(
+        {
+          sectionType,
+          userPrompt: promptText,
+          companyName: brandDna?.identity?.companyName || 'העסק',
+          currentConfig,
+        },
+        { apiKey }
+      );
 
-      if (response.success && response.data) {
-        const rawData = response.data;
+      if (rawData) {
         // Flatten if wrapped in data or section
         const unwrapped = rawData.data || rawData.section || rawData;
 

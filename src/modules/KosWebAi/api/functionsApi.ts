@@ -1,5 +1,6 @@
 import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
-import { executeCloudAi, PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
+import { PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
+import { executeKosaiAi } from '../../kosai-engine/modelsAiService';
 
 export interface GeminiApiOptions {
   prompt: string;
@@ -68,15 +69,13 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
   const model = options.model || AUTHORIZED_WEB_AI_MODEL;
 
   try {
-    const aiRes = await executeCloudAi<T>({
-      prompt: options.prompt,
+    const aiRes = await executeKosaiAi<T>('KosWebAi', options.prompt, {
       systemInstruction: options.systemInstruction,
       model,
       temperature: options.temperature ?? 0.7,
       responseMimeType: options.responseMimeType,
-      imageParts: options.imageParts,
       timeoutMs: options.timeoutMs || 45000,
-      apiKey,
+      customApiKey: apiKey,
       category: 'content',
     });
 
