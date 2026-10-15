@@ -31,6 +31,7 @@ User Goal & Specific Request:
    - For an educational/lead page: hero (centered/mesh) -> richContent (highlight-box) -> beforeAfter -> testimonials -> faq -> landingSection.
    - For a local service: hero (bento-hero) -> geoLocal -> statsBento -> testimonials -> faq -> contact.
    - For a community/club: hero -> community -> logoMarquee -> statsBento -> testimonials -> pricing -> contact.
+   - For high-engagement reels / viral leads / recruiting: tiktokHero -> logoMarquee -> statsBento -> testimonials -> faq -> contact.
 3. ADAPTIVE STYLING & EFFECTS:
    - Set section backgrounds with variety (e.g. subtle dark glass, dark slate, deep indigo hues, or matching brand accents).
    - Use effects: 'border-beam', 'hover-glow', 'hover-scale'.
@@ -53,6 +54,7 @@ User Goal & Specific Request:
 11. "timer": title, subtitle, targetDate (ISO string), ctaText, ctaUrl, layout: 'boxed'|'cards'
 12. "richContent": heading, subtitle, body, layout: 'standard'|'two-columns'|'highlight-box'
 13. "beforeAfter": title, subtitle, description, beforeLabel, afterLabel
+14. "tiktokHero": video {videoUrl, badgeText, durationText, seasonEpisodeText}, overlay {mode: 'gradient'|'solid', opacity: 40}, headline, card {enabled: true, tag, title, subtitle}, ctaButton {text, iconName: 'Sparkles', actionType: 'modal_form'}, modalTitle, modalSubtitle
 
 Return ONLY a valid JSON object with NO MARKDOWN ticks:
 {

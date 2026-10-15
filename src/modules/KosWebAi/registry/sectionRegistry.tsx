@@ -26,10 +26,12 @@ import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
 import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
 import { HeaderSection } from '../sections/header/HeaderSection';
 import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
+import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
+import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
@@ -88,6 +90,7 @@ import {
   Activity,
   BarChart3,
   CalendarCheck2,
+  Smartphone,
 } from 'lucide-react';
 
 export interface SectionDefinition {
@@ -811,4 +814,103 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       },
     },
   },
+
+  tiktokHero: {
+    type: 'tiktokHero',
+    name: 'הירו טיקטוק סטייל (9:16 Reel)',
+    category: 'media',
+    description: 'נגן וידאו אנכי 9:16 בסגנון TikTok/Reels עם הוק שיווקי, כרטיס מותג צף וכפתור פתיחת טופס לידים במודאל',
+    icon: Smartphone,
+    viewComponent: TiktokHeroSection as any,
+    editorComponent: TiktokHeroEditor as any,
+    defaultConfig: {
+      type: 'tiktokHero',
+      visible: true,
+      anchorId: 'tiktok-hero',
+      video: {
+        videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-man-working-on-his-laptop-308-large.mp4',
+        posterUrl: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1200&q=80',
+        muted: true,
+        loop: true,
+        autoplay: true,
+        showBadge: true,
+        badgeText: 'VIDEO',
+        durationText: '9.9s',
+        seasonEpisodeText: 'S2 Command the Room',
+        showSoundWaveAnimation: true,
+      },
+      overlay: {
+        mode: 'gradient',
+        gradientDirection: 'to-b',
+        opacity: 45,
+      },
+      ambientGlow: true,
+      headline: 'מחפש עבודה',
+      headlineColor: '#ffffff',
+      headlineSize: 'xl',
+      headlineWeight: 'extrabold',
+      headlineShadow: true,
+      card: {
+        enabled: true,
+        tag: '• חוקי גיוס והשמה חדשים לשנת 2026 •',
+        title: 'קושאן – כל אדם זה נכס',
+        subtitle: 'מערכת פרימיום מתקדמת המעניקה מענה מדויק, מהיר ומותאם אישית לכל צורך עסקי.',
+        style: 'solid',
+      },
+      ctaButton: {
+        text: 'מצא עכשיו',
+        iconName: 'Sparkles',
+        showIcon: true,
+        iconPosition: 'left',
+        paddingY: 'compact',
+        bgColor: '#0284c7',
+        textColor: '#ffffff',
+        pulseEffect: true,
+        actionType: 'modal_form',
+      },
+      modalTitle: 'השארת פרטים לקבלת הצעה',
+      modalSubtitle: 'מלאו את הפרטים ונחזור אליכם בהקדם האפשרי',
+      form: {
+        enabled: true,
+        form_type: 'standard',
+        submit_button_text: 'שליחת פנייה מיידית',
+        fields: [
+          {
+            label: 'שם מלא',
+            type: 'text',
+            map_to: 'conta_name',
+            required: true,
+            default_value: '',
+            options: '',
+            step: 1,
+            widthPercentage: 50,
+            placeholder: 'ישראל ישראלי',
+          },
+          {
+            label: 'טלפון נייד',
+            type: 'tel',
+            map_to: 'conta_phone',
+            required: true,
+            default_value: '',
+            options: '',
+            step: 1,
+            widthPercentage: 50,
+            placeholder: '050-1234567',
+          },
+          {
+            label: 'דואר אלקטרוני',
+            type: 'email',
+            map_to: 'email',
+            required: false,
+            default_value: '',
+            options: '',
+            step: 1,
+            widthPercentage: 100,
+            placeholder: 'your@email.com',
+          },
+        ],
+      },
+    },
+  },
 };
+

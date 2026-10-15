@@ -1,0 +1,591 @@
+import React, { useState, useEffect, useRef } from 'react';
+import {
+  X,
+  HardDrive,
+  Calendar,
+  Layers,
+  Folder,
+  Download,
+  Sparkles,
+  FolderInput,
+  Copy,
+  Check,
+  Trash2,
+  ExternalLink,
+  FileVideo,
+  Image as ImageIcon,
+  Music,
+  FileText,
+  Archive,
+  Code2,
+  Eye,
+  Pencil,
+  Wand2,
+  PenTool,
+  Flame,
+  CheckCircle2,
+  Crop,
+} from 'lucide-react';
+import { useMediaGallery } from '../context/MediaGalleryContext';
+import { FileCompressionService } from '../services/fileCompressionService';
+import { MediaItem } from '../types';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
+
+export const MediaFileInspector: React.FC = () => {
+  const {
+    focusedItem,
+    setFocusedItem,
+    isInspectorOpen,
+    setIsInspectorOpen,
+    setPreviewItem,
+    setConverterItem,
+    setIsMoveModalOpen,
+    setItemsToMove,
+    deleteMediaItems,
+    renameMediaItem,
+    theme,
+    selectionMode,
+    onSelectMedia,
+    openAiImageGenerator,
+    openImageEditor,
+    openDocViewer,
+    openTextEditor,
+  } = useMediaGallery();
+
+  const isLight = theme === 'light';
+  const [copied, setCopied] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState('');
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const { getCapability } = useHostCapabilities();
+  const brandContract = getCapability<BrandDnaContract>('brand-dna');
+  const brandDna = brandContract?.getBrandDna();
+  const isCurrentLogo = Boolean(focusedItem?.url && brandDna?.identity?.logoUrl === focusedItem.url);
+  const isInVibeImages = Boolean(focusedItem?.url && (brandDna?.identity?.vibeImages || []).includes(focusedItem.url));
+
+  const handleSetAsBrandLogo = async () => {
+    if (!focusedItem || !brandContract?.setLogoUrl) return;
+    await brandContract.setLogoUrl(focusedItem.url);
+    setFeedbackMsg('הוגדר כלוגו המותג ב-Brand DNA');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  const handleAddToBrandVibe = async () => {
+    if (!focusedItem || !brandContract?.addVibeImage) return;
+    await brandContract.addVibeImage(focusedItem.url);
+    setFeedbackMsg('נוסף לתמונות האווירה ב-Brand DNA');
+    setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  useEffect(() => {
+    if (focusedItem) {
+      setEditNameValue(focusedItem.name);
+      setIsEditingName(false);
+    }
+  }, [focusedItem?.id, focusedItem?.name]);
+
+  useEffect(() => {
+    if (isEditingName && nameInputRef.current) {
+      nameInputRef.current.focus();
+      nameInputRef.current.select();
+    }
+  }, [isEditingName]);
+
+  if (!isInspectorOpen || !focusedItem) return null;
+
+  const handleStartRename = () => {
+    setEditNameValue(focusedItem.name);
+    setIsEditingName(true);
+  };
+
+  const handleSaveRename = async () => {
+    const trimmed = editNameValue.trim();
+    if (trimmed && trimmed !== focusedItem.name) {
+      await renameMediaItem(focusedItem.id, trimmed);
+    }
+    setIsEditingName(false);
+  };
+
+  const handleCancelRename = () => {
+    setEditNameValue(focusedItem.name);
+    setIsEditingName(false);
+  };
+
+  const handleKeyDownRename = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveRename();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelRename();
+    }
+  };
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(focusedItem.url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = () => {
+    FileCompressionService.downloadMedia(focusedItem.url, focusedItem.name);
+  };
+
+  const handleDelete = async () => {
+    if (confirm(`האם למחוק את "${focusedItem.name}"?`)) {
+      await deleteMediaItems([focusedItem.id]);
+      setFocusedItem(null);
+    }
+  };
+
+  const handleMove = () => {
+    setItemsToMove([focusedItem.id]);
+    setIsMoveModalOpen(true);
+  };
+
+  const handleConvert = () => {
+    setConverterItem(focusedItem);
+  };
+
+  const renderBidiFileName = (name: string) => {
+    const lastDotIndex = name.lastIndexOf('.');
+    if (lastDotIndex <= 0 || lastDotIndex === name.length - 1) {
+      return (
+        <span className="truncate break-words" dir="auto">
+          {name}
+        </span>
+      );
+    }
+    const baseName = name.slice(0, lastDotIndex);
+    const ext = name.slice(lastDotIndex + 1);
+    return (
+      <div className="flex items-baseline gap-1.5 flex-wrap" dir="rtl">
+        <bdi className="font-bold text-sm break-words">{baseName}</bdi>
+        <span
+          dir="ltr"
+          className={`font-mono text-[11px] px-1.5 py-0.5 rounded font-semibold ${
+            isLight ? 'bg-slate-200 text-slate-700' : 'bg-slate-800 text-slate-300'
+          }`}
+        >
+          .{ext}
+        </span>
+      </div>
+    );
+  };
+
+  return (
+    <aside
+      className={`w-72 lg:w-80 flex-shrink-0 border-r flex flex-col justify-between overflow-y-auto custom-scrollbar p-4 space-y-4 transition-colors ${
+        isLight
+          ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
+          : 'bg-slate-900/95 border-slate-800 text-slate-100'
+      }`}
+      dir="rtl"
+    >
+      {/* Inspector Top Bar */}
+      <div className={`flex items-center justify-between pb-3 border-b ${isLight ? 'border-slate-200 text-slate-700' : 'border-slate-800 text-slate-300'}`}>
+        <div className="flex items-center space-x-2 rtl:space-x-reverse text-xs font-bold">
+          <Eye className={`w-4 h-4 ${isLight ? 'text-amber-600' : 'text-yellow-400'}`} />
+          <span>פרטי קובץ</span>
+        </div>
+        <button
+          type="button"
+          onClick={() => setIsInspectorOpen(false)}
+          className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
+            isLight ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-800'
+          }`}
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Preview Thumbnail Box */}
+      <div
+        className={`w-full h-44 rounded-2xl border flex items-center justify-center overflow-hidden relative group ${
+          isLight ? 'bg-slate-100 border-slate-200' : 'bg-black/80 border-slate-800'
+        }`}
+      >
+        {(focusedItem.type === 'video' || focusedItem.name.match(/\.(mp4|webm|mov|mkv)$/i)) && (
+          <video
+            src={focusedItem.url}
+            controls
+            playsInline
+            preload="metadata"
+            className="w-full h-full object-contain bg-black"
+          />
+        )}
+        {(focusedItem.type === 'image' || focusedItem.name.match(/\.(png|jpe?g|webp|gif|svg|avif)$/i)) && (
+          <img src={focusedItem.url} alt={focusedItem.name} className="w-full h-full object-contain" />
+        )}
+        {focusedItem.type === 'audio' && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-amber-500">
+            <Music className="w-10 h-10 animate-pulse" />
+            <span className="text-[11px] font-bold">שמע</span>
+          </div>
+        )}
+        {focusedItem.type === 'document' && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-blue-500">
+            <FileText className="w-10 h-10" />
+            <span className="text-[11px] font-bold">מסמך</span>
+          </div>
+        )}
+        {focusedItem.type === 'archive' && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-purple-500">
+            <Archive className="w-10 h-10" />
+            <span className="text-[11px] font-bold">ארכיון ZIP</span>
+          </div>
+        )}
+        {focusedItem.type === 'code' && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-pink-500">
+            <Code2 className="w-10 h-10" />
+            <span className="text-[11px] font-bold">קוד ונתונים</span>
+          </div>
+        )}
+        {focusedItem.type === 'other' && (
+          <div className="flex flex-col items-center justify-center space-y-2 text-slate-500">
+            <HardDrive className="w-10 h-10" />
+            <span className="text-[11px] font-bold">קובץ</span>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setPreviewItem(focusedItem)}
+          className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center space-x-1.5 rtl:space-x-reverse text-xs font-bold text-white transition-opacity cursor-pointer"
+        >
+          <ExternalLink className="w-4 h-4 text-amber-400" />
+          <span>פתח מציג מלא</span>
+        </button>
+      </div>
+
+      {/* File Name & MIME with Edit Support */}
+      <div className="space-y-1.5">
+        {isEditingName ? (
+          <div className="space-y-1.5 bg-slate-50 dark:bg-slate-950 p-2.5 rounded-2xl border border-amber-500/50">
+            <div className="text-[11px] font-bold text-slate-500">עריכת שם קובץ:</div>
+            <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
+              <input
+                ref={nameInputRef}
+                type="text"
+                value={editNameValue}
+                onChange={(e) => setEditNameValue(e.target.value)}
+                onKeyDown={handleKeyDownRename}
+                className={`w-full text-xs px-2.5 py-1.5 rounded-xl border focus:outline-none ${
+                  isLight
+                    ? 'bg-white border-amber-500 text-slate-900'
+                    : 'bg-slate-900 border-yellow-500 text-white'
+                }`}
+                dir="auto"
+              />
+              <button
+                type="button"
+                onClick={handleSaveRename}
+                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-sm flex-shrink-0"
+                title="שמור שם חדש"
+              >
+                <Check className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={handleCancelRename}
+                className="p-2 rounded-xl bg-slate-600 hover:bg-slate-500 text-white shadow-sm flex-shrink-0"
+                title="בטל"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between gap-2 p-1.5 rounded-xl border border-slate-200/40 dark:border-slate-800/60 bg-slate-50/50 dark:bg-slate-950/30 group/name">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              {renderBidiFileName(focusedItem.name)}
+            </div>
+            <button
+              type="button"
+              onClick={handleStartRename}
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer flex-shrink-0 ${
+                isLight ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-slate-800 hover:bg-slate-700 text-yellow-400'
+              }`}
+              title="שנה שם קובץ"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
+        <div className={`text-[11px] font-mono truncate px-1 ${isLight ? 'text-slate-500' : 'text-slate-400'}`} dir="ltr">
+          {focusedItem.mimeType}
+        </div>
+      </div>
+
+      {/* Details List */}
+      <div
+        className={`border rounded-2xl p-3 space-y-2.5 text-xs ${
+          isLight
+            ? 'bg-slate-50 border-slate-200 text-slate-700'
+            : 'bg-slate-950/70 border-slate-800/80 text-slate-300'
+        }`}
+      >
+        {/* Size */}
+        <div className="flex items-center justify-between">
+          <span className="flex items-center space-x-1.5 rtl:space-x-reverse text-slate-500">
+            <HardDrive className={`w-3.5 h-3.5 ${isLight ? 'text-amber-600' : 'text-yellow-400'}`} />
+            <span>נפח קובץ:</span>
+          </span>
+          <span dir="ltr" className={`font-mono font-bold ${isLight ? 'text-slate-900' : 'text-white'}`}>
+            {FileCompressionService.formatBytes(focusedItem.sizeBytes)}
+          </span>
+        </div>
+
+        {/* Date */}
+        <div className="flex items-center justify-between">
+          <span className="flex items-center space-x-1.5 rtl:space-x-reverse text-slate-500">
+            <Calendar className="w-3.5 h-3.5" />
+            <span>תאריך יצירה:</span>
+          </span>
+          <span dir="ltr" className={`font-mono ${isLight ? 'text-slate-800' : 'text-slate-200'}`}>
+            {new Date(focusedItem.createdAt).toLocaleDateString('he-IL')}
+          </span>
+        </div>
+
+        {/* Source Component */}
+        {focusedItem.sourceModuleLabel && (
+          <div className={`flex items-center justify-between pt-1 border-t ${isLight ? 'border-slate-200' : 'border-slate-900'}`}>
+            <span className="flex items-center space-x-1.5 rtl:space-x-reverse text-slate-500">
+              <Layers className="w-3.5 h-3.5 text-indigo-500" />
+              <span>רכיב יוצר:</span>
+            </span>
+            <span className={`font-bold truncate max-w-[140px] ${isLight ? 'text-amber-800' : 'text-yellow-400'}`}>
+              {focusedItem.sourceModuleLabel}
+            </span>
+          </div>
+        )}
+
+        {/* Folder */}
+        {focusedItem.folderName && (
+          <div className={`flex items-center justify-between pt-1 border-t ${isLight ? 'border-slate-200' : 'border-slate-900'}`}>
+            <span className="flex items-center space-x-1.5 rtl:space-x-reverse text-slate-500">
+              <Folder className="w-3.5 h-3.5 text-amber-500" />
+              <span>תיקייה:</span>
+            </span>
+            <span className={`font-medium truncate max-w-[140px] ${isLight ? 'text-slate-900' : 'text-white'}`}>
+              {focusedItem.folderName}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Tags */}
+      {focusedItem.tags && focusedItem.tags.length > 0 && (
+        <div className="space-y-1.5">
+          <div className={`text-[11px] font-bold ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>תגיות:</div>
+          <div className="flex flex-wrap gap-1.5">
+            {focusedItem.tags.map((tag) => (
+              <span
+                key={tag}
+                dir="ltr"
+                className={`text-[10px] px-2 py-0.5 rounded-lg border font-mono font-medium ${
+                  isLight
+                    ? 'bg-slate-100 text-slate-700 border-slate-300'
+                    : 'bg-slate-950 text-slate-300 border-slate-800'
+                }`}
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action Buttons Grid */}
+      <div className={`pt-2 border-t space-y-2 ${isLight ? 'border-slate-200' : 'border-slate-800'}`}>
+        {/* Selection Confirmation Button (Shown in Picker / Selection Mode) */}
+        {selectionMode && onSelectMedia && (
+          <button
+            type="button"
+            onClick={() => onSelectMedia([focusedItem])}
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-black text-xs font-black shadow-lg shadow-yellow-500/25 flex items-center justify-center space-x-1.5 rtl:space-x-reverse transition-all active:scale-95 cursor-pointer mb-2"
+          >
+            <Check className="w-4 h-4 text-black" />
+            <span>בחר קובץ זה לשימוש</span>
+          </button>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          {/* Download */}
+          <button
+            type="button"
+            onClick={handleDownload}
+            className={`p-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 rtl:space-x-reverse border transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
+                : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+            }`}
+          >
+            <Download className="w-3.5 h-3.5 text-amber-500" />
+            <span>הורד</span>
+          </button>
+
+          {/* Move to Folder */}
+          <button
+            type="button"
+            onClick={handleMove}
+            className={`p-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 rtl:space-x-reverse border transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
+                : 'bg-slate-800 hover:bg-slate-700 text-white border-slate-700'
+            }`}
+          >
+            <FolderInput className="w-3.5 h-3.5 text-amber-500" />
+            <span>העבר</span>
+          </button>
+        </div>
+
+        {/* Feedback message banner */}
+        {feedbackMsg && (
+          <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-bold flex items-center gap-1.5 animate-fade-in">
+            <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+            <span>{feedbackMsg}</span>
+          </div>
+        )}
+
+        {/* AI Studio & Brand DNA Actions for Images */}
+        {focusedItem.type === 'image' && (
+          <div className="space-y-1.5">
+            {/* Quick In-Drive Image Studio (Crop, Rotate, Watermark, Magic BG) */}
+            <button
+              type="button"
+              onClick={() => openImageEditor(focusedItem)}
+              className="w-full p-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-indigo-500/20 transition-all cursor-pointer"
+              title="חיתוך, סיבוב, הוספת סימן מים והסרת רקע"
+            >
+              <Crop className="w-3.5 h-3.5" />
+              <span>סטודיו עריכה: חיתוך ורקע</span>
+            </button>
+
+            {/* Edit Image with Kosai AI */}
+            <button
+              type="button"
+              onClick={() => openAiImageGenerator(focusedItem)}
+              className="w-full p-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black text-xs font-black flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-amber-500/20 transition-all cursor-pointer"
+              title="ערוך תמונה זו או צור וריאציות עם קושאן AI"
+            >
+              <Wand2 className="w-3.5 h-3.5" />
+              <span>ערוך עם קושאן AI</span>
+            </button>
+
+            {/* Set as Brand Logo / Add to Vibe Grid */}
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={handleSetAsBrandLogo}
+                className={`p-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1 rtl:space-x-reverse border transition-all cursor-pointer ${
+                  isCurrentLogo
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                }`}
+                title="קבע תמונה זו כלוגו הרשמי של המותג ב-Brand DNA"
+              >
+                <PenTool className="w-3 h-3 text-amber-500" />
+                <span>{isCurrentLogo ? 'לוגו מותג' : 'קבע כלוגו'}</span>
+                {isCurrentLogo && <Check className="w-3 h-3 text-emerald-400" />}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleAddToBrandVibe}
+                className={`p-2 rounded-xl text-[11px] font-bold flex items-center justify-center space-x-1 rtl:space-x-reverse border transition-all cursor-pointer ${
+                  isInVibeImages
+                    ? 'bg-amber-500/20 text-amber-400 border-amber-500/50'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 border-slate-200'
+                    : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                }`}
+                title="הוסף תמונה זו לתמונות האווירה של המותג ב-Brand DNA"
+              >
+                <Flame className="w-3 h-3 text-amber-500" />
+                <span>{isInVibeImages ? 'באווירה' : 'הוסף לאווירה'}</span>
+                {isInVibeImages && <Check className="w-3 h-3 text-emerald-400" />}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Document Viewer & Page Generation for Documents */}
+        {(focusedItem.type === 'document' || focusedItem.mimeType?.includes('pdf') || focusedItem.name.match(/\.(pdf|docx?|xlsx?)$/i)) && (
+          <button
+            type="button"
+            onClick={() => openDocViewer(focusedItem)}
+            className="w-full p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md transition-all cursor-pointer"
+            title="פתח מציג מסמכים אינטראקטיבי והמר לעמוד נחיתה"
+          >
+            <FileText className="w-3.5 h-3.5" />
+            <span>מציג מסמכים והמרה לעמוד</span>
+          </button>
+        )}
+
+        {/* Text / Code In-Drive Editor */}
+        {(focusedItem.type === 'code' || focusedItem.mimeType?.includes('text') || focusedItem.mimeType?.includes('json') || focusedItem.name.match(/\.(txt|md|csv|json|html|css|js|ts)$/i)) && (
+          <button
+            type="button"
+            onClick={() => openTextEditor(focusedItem)}
+            className="w-full p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center space-x-1.5 rtl:space-x-reverse shadow-md transition-all cursor-pointer"
+            title="ערוך קובץ טקסט / קוד זה בענן"
+          >
+            <Pencil className="w-3.5 h-3.5" />
+            <span>ערוך קובץ טקסט בענן</span>
+          </button>
+        )}
+
+        <div className="grid grid-cols-2 gap-2">
+          {/* Convert */}
+          <button
+            type="button"
+            onClick={handleConvert}
+            className={`p-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 rtl:space-x-reverse border transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border-indigo-200'
+                : 'bg-indigo-950/70 hover:bg-indigo-900 text-indigo-200 border-indigo-800/40'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <span>המר / דחוס</span>
+          </button>
+
+          {/* Copy Link */}
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className={`p-2 rounded-xl text-xs font-semibold flex items-center justify-center space-x-1.5 rtl:space-x-reverse border transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-900 border-slate-300'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+            }`}
+          >
+            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+            <span>{copied ? 'הועתק!' : 'קישור'}</span>
+          </button>
+        </div>
+
+        {/* Delete */}
+        <button
+          type="button"
+          onClick={handleDelete}
+          className={`w-full p-2 rounded-xl border text-xs font-semibold flex items-center justify-center space-x-1.5 rtl:space-x-reverse transition-colors cursor-pointer ${
+            isLight
+              ? 'text-red-700 hover:bg-red-50 border-red-200'
+              : 'text-red-400 hover:text-red-300 hover:bg-red-950/40 border-red-900/30'
+          }`}
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+          <span>מחק קובץ מהמאגר</span>
+        </button>
+      </div>
+    </aside>
+  );
+};

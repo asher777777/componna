@@ -9,7 +9,7 @@ import { callGeminiApi } from '../api/kosaiApi';
 import { buildKosaiSystemPrompt, KosaiPromptContext } from '../prompts';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { KosaiAgentContract, MediaPickerContract } from '../../../core/contracts';
+import { KosaiAgentContract, MediaPickerContract, AiTextAssistantContract } from '../../../core/contracts';
 import { kosaiImageAgentService } from '../services/kosaiImageAgentService';
 import { kosaiDataGroundingService } from '../services/kosaiDataGroundingService';
 import { kosaiContactAutoSyncService } from '../services/kosaiContactAutoSyncService';
@@ -175,9 +175,70 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       editImageWithAi: (opts) => kosaiImageAgentService.editImageWithAi({ ...opts, brandDna: opts.brandDna || brandDnaRef.current }),
       enhancePromptWithBrandContext: (prompt, type, bDna) => kosaiImageAgentService.enhancePromptWithBrandContext(prompt, type, bDna || brandDnaRef.current),
     };
+    const textAssistantContract: AiTextAssistantContract = {
+      generateReply: async ({ systemPrompt, userMessage, chatHistory }) => {
+        try {
+          const res = await callGeminiApi({
+            prompt: userMessage,
+            systemInstruction: systemPrompt,
+            history: (chatHistory || []).map((h) => ({
+              role: h.role === 'model' ? 'assistant' : 'user',
+              content: h.text,
+            })),
+          });
+          const text = typeof res.data === 'string' ? res.data : res.data?.message || '';
+          return { text, isFallback: !res.data || res.data?.action === 'NONE' };
+        } catch (err: any) {
+          return {
+            text: '',
+            error: 'שירות הבינה המלאכותית אינו זמין כעת. אנא נסה שוב בעוד מספר רגעים.',
+            isFallback: true,
+          };
+        }
+      },
+      enhanceText: async ({ originalText, instruction }) => {
+        try {
+          const res = await callGeminiApi({
+            prompt: `Original: "${originalText}"\nInstruction: "${instruction}"`,
+            systemInstruction: 'You are an expert AI copywriting assistant. Return the enhanced text directly.',
+          });
+          const text = typeof res.data === 'string' ? res.data : res.data?.message || originalText;
+          return { text, isFallback: false };
+        } catch (err: any) {
+          return {
+            text: originalText,
+            error: 'שירות הבינה המלאכותית אינו זמין כעת. אנא נסה שוב בעוד מספר רגעים.',
+            isFallback: true,
+          };
+        }
+      },
+      generateJson: async <T = any>({ prompt, systemPrompt, brandDna }: { prompt: string; systemPrompt?: string; brandDna?: any }) => {
+        try {
+          const res = await callGeminiApi({
+            prompt,
+            systemInstruction: systemPrompt,
+          });
+          if (res.data && res.data.action !== 'NONE') {
+            return { data: res.data as T, isFallback: false };
+          }
+          return {
+            error: 'לא התקבלה תשובה תקינה משרתי ה-AI. ייתכן שקיימת מגבלת שימוש או עומס במודל.',
+            isFallback: true,
+          };
+        } catch (err: any) {
+          return {
+            error: err?.message || 'שירות הבינה המלאכותית אינו זמין כעת. אנא נסה שוב בעוד מספר רגעים.',
+            isFallback: true,
+          };
+        }
+      },
+    };
+
     registerCapability('kosai-agent', contract);
+    registerCapability('ai-assistant', textAssistantContract);
     return () => {
       unregisterCapability('kosai-agent');
+      unregisterCapability('ai-assistant');
     };
   }, [registerCapability, unregisterCapability]);
 

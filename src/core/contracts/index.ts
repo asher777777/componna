@@ -13,6 +13,8 @@ export interface MediaPickerContract {
   openPicker: (options?: MediaPickerOptions) => Promise<string | string[] | null>;
 }
 
+export type KosCloudStoreContract = MediaPickerContract;
+
 export * from './collections';
 
 export interface LeadPayload {
@@ -559,6 +561,7 @@ export interface CoreEventMap {
   'kosai:action': any;
   'kosai:action_result': KosaiActionResult;
   'media:request_picker': any;
+  'cloud_store:request_picker': any;
   'crm:lead:created': LeadPayload;
   'media:uploaded': { url: string; fileName: string; type: string; sourceModule?: string };
   'auth:state_changed': AuthSessionContract;
@@ -1021,13 +1024,19 @@ export interface AiTextAssistantContract {
     userMessage: string;
     chatHistory?: Array<{ role: 'user' | 'model'; text: string }>;
     brandDna?: BrandDna | null;
-  }) => Promise<{ text: string; error?: string }>;
+  }) => Promise<{ text: string; error?: string; isFallback?: boolean }>;
 
   enhanceText: (params: {
     originalText: string;
     instruction: string;
     brandDna?: BrandDna | null;
-  }) => Promise<{ text: string; error?: string }>;
+  }) => Promise<{ text: string; error?: string; isFallback?: boolean }>;
+
+  generateJson?: <T = any>(params: {
+    prompt: string;
+    systemPrompt?: string;
+    brandDna?: BrandDna | null;
+  }) => Promise<{ data?: T; error?: string; isFallback?: boolean }>;
 }
 
 // ========================

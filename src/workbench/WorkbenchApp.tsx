@@ -4,7 +4,7 @@ import {
   Sparkles, Grid, X, Check, Lock, Edit3, User, LogOut, Sun, Moon,
   Mail, Bot, ShoppingBag, CreditCard, MessageSquare, Layers, BookOpen,
   Film, Layout, BarChart3, Image, Database, ShieldCheck, ChevronLeft,
-  ArrowUpRight
+  ArrowUpRight, HardDrive
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { CashwanTopNav } from './components/CashwanTopNav';
@@ -299,6 +299,12 @@ export const WorkbenchApp: React.FC = () => {
       englishPrefix: 'KOS',
       englishRest: 'Flow Player',
       icon: Film,
+    },
+    'KosCloudStore': {
+      hebrewName: 'כספת ענן ומדיה חכמה',
+      englishPrefix: 'KOS',
+      englishRest: 'CloudStore',
+      icon: HardDrive,
     },
     'media-gallery-hub': {
       hebrewName: 'ניהול ספריית מדיה',

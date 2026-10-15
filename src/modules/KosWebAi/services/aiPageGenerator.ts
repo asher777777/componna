@@ -72,6 +72,10 @@ export function resolveLiveBrandDna(provided?: BrandDna | null): BrandDna | null
   return provided || null;
 }
 
+// In-memory cache and in-flight deduplication for marketing ideas
+const marketingIdeasMemoryCache = new Map<string, { timestamp: number; ideas: MarketingIdea[] }>();
+const inFlightIdeasRequests = new Map<string, Promise<MarketingIdea[]>>();
+
 export const aiPageGenerator = {
   /**
    * Generates 6 marketing angles derived continuously from Brand DNA and existing pages
@@ -79,7 +83,8 @@ export const aiPageGenerator = {
   async generatePageIdeas(
     brandDna?: BrandDna | null,
     providedApiKey?: string,
-    existingPages?: PageBuilderConfig[]
+    existingPages?: PageBuilderConfig[],
+    forceRefresh: boolean = false
   ): Promise<MarketingIdea[]> {
     const effectiveDna = resolveLiveBrandDna(brandDna);
     const companyName = effectiveDna?.identity?.companyName || 'העסק המוביל';
@@ -88,6 +93,38 @@ export const aiPageGenerator = {
     const uvp = effectiveDna?.audience?.mainUvp || '';
     const objections = effectiveDna?.audience?.commonObjections || [];
     const personas = effectiveDna?.audience?.personas || [];
+    const pagesCount = existingPages?.length || 0;
+
+    // Cache key based on brand identity and existing pages count
+    const cacheKey = `kos_ideas_${encodeURIComponent(companyName)}_${pagesCount}_${targetAudiences.length}`;
+
+    // 1. In-memory & SessionStorage Cache check (skip if forceRefresh)
+    if (!forceRefresh) {
+      const memoryCached = marketingIdeasMemoryCache.get(cacheKey);
+      if (memoryCached && Array.isArray(memoryCached.ideas) && memoryCached.ideas.length >= 3) {
+        return memoryCached.ideas;
+      }
+
+      try {
+        if (typeof window !== 'undefined' && window.sessionStorage) {
+          const stored = window.sessionStorage.getItem(cacheKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (Array.isArray(parsed) && parsed.length >= 3) {
+              marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas: parsed });
+              return parsed;
+            }
+          }
+        }
+      } catch {
+        // Ignore storage access errors
+      }
+    }
+
+    // 2. In-flight request deduplication (Single Flight Pattern)
+    if (!forceRefresh && inFlightIdeasRequests.has(cacheKey)) {
+      return inFlightIdeasRequests.get(cacheKey)!;
+    }
 
     const existingPagesSummary = (existingPages || []).map((p) => ({
       title: p.pageTitle,
@@ -155,32 +192,51 @@ export const aiPageGenerator = {
 
     const apiKey = resolveApiKey(providedApiKey);
     if (!apiKey) {
-      throw new Error('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
+      return fallbackIdeas;
     }
 
-    const prompt = GENERATE_MARKETING_IDEAS_PROMPT({
-      companyName,
-      purpose,
-      targetAudiences,
-      uvp,
-      objections,
-      personas,
-      existingPages: existingPagesSummary,
-    });
+    const runCall = async (): Promise<MarketingIdea[]> => {
+      try {
+        const prompt = GENERATE_MARKETING_IDEAS_PROMPT({
+          companyName,
+          purpose,
+          targetAudiences,
+          uvp,
+          objections,
+          personas,
+          existingPages: existingPagesSummary,
+        });
 
-    const response = await callGeminiApi<MarketingIdea[]>({
-      prompt,
-      providedApiKey: apiKey,
-      temperature: 0.85,
-      responseMimeType: 'application/json',
-      timeoutMs: 45000,
-    });
+        const response = await callGeminiApi<MarketingIdea[]>({
+          prompt,
+          providedApiKey: apiKey,
+          temperature: 0.85,
+          responseMimeType: 'application/json',
+          timeoutMs: 45000,
+        });
 
-    if (response.success && Array.isArray(response.data) && response.data.length >= 3) {
-      return response.data;
-    }
+        if (response.success && Array.isArray(response.data) && response.data.length >= 3) {
+          marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas: response.data });
+          try {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+              window.sessionStorage.setItem(cacheKey, JSON.stringify(response.data));
+            }
+          } catch {}
+          return response.data;
+        }
 
-    throw new Error(response.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
+        return fallbackIdeas;
+      } catch (err) {
+        console.warn('[aiPageGenerator] Failed to generate marketing ideas, using fallback:', err);
+        return fallbackIdeas;
+      } finally {
+        inFlightIdeasRequests.delete(cacheKey);
+      }
+    };
+
+    const callPromise = runCall();
+    inFlightIdeasRequests.set(cacheKey, callPromise);
+    return callPromise;
   },
 
   /**

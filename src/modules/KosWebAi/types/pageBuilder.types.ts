@@ -24,7 +24,8 @@ export type SectionType =
   | 'flowPlayer'
   | 'customHtml'
   | 'eventRsvp'
-  | 'kosvidio';
+  | 'kosvidio'
+  | 'tiktokHero';
 
 export interface GlobalPageSettings {
   siteTitle?: string;

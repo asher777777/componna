@@ -40,9 +40,10 @@ const AuthPortalStandaloneView = React.lazy(() =>
 const FlowPlayerEngineStandaloneView = React.lazy(() =>
   import('../modules/flow-player-engine').then((m) => ({ default: m.FlowPlayerEngineStandaloneView }))
 );
-const MediaGalleryHubStandaloneView = React.lazy(() =>
-  import('../modules/media-gallery-hub').then((m) => ({ default: m.MediaGalleryHubStandaloneView }))
+const KosCloudStoreStandaloneView = React.lazy(() =>
+  import('../modules/KosCloudStore').then((m) => ({ default: m.KosCloudStoreStandaloneView }))
 );
+const MediaGalleryHubStandaloneView = KosCloudStoreStandaloneView;
 const DbCollectionsHubStandaloneView = React.lazy(() =>
   import('../modules/db-collections-hub').then((m) => ({ default: m.DbCollectionsHubStandaloneView }))
 );
@@ -258,9 +259,17 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     collectionPrefix: 'sdo_player_',
   },
   {
+    id: 'KosCloudStore',
+    name: 'KosCloudStore - כספת ענן ומדיה',
+    description: 'כספת ענן מודולרית מתקדמת לאחסון, ניהול, סטודיו עריכת תמונות ומסמכים, הסרת רקע מבוססת AI והמרת פורמטים.',
+    component: KosCloudStoreStandaloneView,
+    route: '/KosCloudStore',
+    collectionPrefix: 'sdo_media_',
+  },
+  {
     id: 'media-gallery-hub',
-    name: 'קשואן Gallery - ניהול מדיה מתקדם',
-    description: 'ספריית מדיה איכותית לניהול חכם של תמונות, וידאו ושמע, כדי שתמיד תשדרו ללקוחות איכות ומקצועיות ברמה הגבוהה ביותר.',
+    name: 'KosCloudStore (Gallery)',
+    description: 'ספריית ענן ומדיה לניהול חכם של תמונות, וידאו, שמע ומסמכים.',
     component: MediaGalleryHubStandaloneView,
     route: '/media-gallery-hub',
     collectionPrefix: 'sdo_media_',

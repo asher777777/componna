@@ -543,3 +543,70 @@ export interface KosvidioSectionConfig extends BaseSectionConfig {
   };
 }
 
+export interface TiktokHeroVideoSettings {
+  videoUrl?: string;
+  posterUrl?: string;
+  muted?: boolean;
+  loop?: boolean;
+  autoplay?: boolean;
+  showBadge?: boolean;
+  badgeText?: string;
+  durationText?: string;
+  seasonEpisodeText?: string;
+  showSoundWaveAnimation?: boolean;
+}
+
+export interface TiktokHeroOverlaySettings {
+  mode: 'solid' | 'gradient' | 'image' | 'none';
+  solidColor?: string;
+  gradientFrom?: string;
+  gradientTo?: string;
+  gradientDirection?: 'to-t' | 'to-b' | 'to-r' | 'to-l';
+  opacity?: number; // 0 - 100
+  imageUrl?: string;
+}
+
+export interface TiktokHeroFloatingCard {
+  enabled?: boolean;
+  title?: string;
+  subtitle?: string;
+  tag?: string;
+  imageUrl?: string;
+  shape?: 'rounded' | 'capsule' | 'square';
+  style?: 'glass' | 'solid' | 'bordered';
+  borderColor?: string;
+}
+
+export interface TiktokHeroCtaButton {
+  text: string;
+  iconName?: string;
+  customIconUrl?: string;
+  showIcon?: boolean;
+  iconPosition?: 'left' | 'right';
+  paddingY?: 'compact' | 'normal' | 'spacious';
+  bgColor?: string;
+  textColor?: string;
+  shape?: 'rounded' | 'capsule' | 'square';
+  pulseEffect?: boolean;
+  actionType: 'modal_form' | 'link';
+  linkUrl?: string;
+}
+
+export interface TiktokHeroSectionConfig extends BaseSectionConfig {
+  type: 'tiktokHero';
+  video: TiktokHeroVideoSettings;
+  overlay: TiktokHeroOverlaySettings;
+  ambientGlow?: boolean;
+  headline: string;
+  headlineColor?: string;
+  headlineSize?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  headlineWeight?: 'bold' | 'extrabold' | 'black';
+  headlineShadow?: boolean;
+  card?: TiktokHeroFloatingCard;
+  ctaButton: TiktokHeroCtaButton;
+  modalTitle?: string;
+  modalSubtitle?: string;
+  formId?: string;
+  form?: FormConfigContract;
+}
+

@@ -74,10 +74,12 @@ export async function executeCloudAi<T = any>(
     let candidatesTokens = 200;
     let cachedTokens = 0;
 
-    // 1. Try server proxy endpoint if available
+    // 1. Try server proxy endpoint if available (skip in local Vite client dev to avoid 404 console error)
     let proxySucceeded = false;
-    try {
-      const res = await fetch('/api/ai/generate', {
+    const isViteLocalDev = typeof window !== 'undefined' && (window.location.port === '5173' || window.location.hostname === 'localhost');
+    if (!isViteLocalDev) {
+      try {
+        const res = await fetch('/api/ai/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -99,8 +101,9 @@ export async function executeCloudAi<T = any>(
         }
         proxySucceeded = true;
       }
-    } catch {
-      proxySucceeded = false;
+      } catch {
+        proxySucceeded = false;
+      }
     }
 
     // 2. Direct Gemini REST API Execution if proxy is not configured or failed
@@ -156,10 +159,33 @@ export async function executeCloudAi<T = any>(
         const errJson = await directRes.json().catch(() => ({}));
         const errMsg = errJson?.error?.message || `Gemini API returned status ${directRes.status}`;
         console.warn('[executeCloudAi] Direct Gemini API call notice:', errMsg);
+        let errorMsg = PLEASANT_AI_ERROR_HEBREW;
+        if (directRes.status === 402) {
+          errorMsg = 'שירות ה-AI דורש חשבון עם חיוב פעיל (Billing/402). אנא ודא שמפתח ה-API משויך לחשבון תקין ב-Google Cloud.';
+        } else if (directRes.status === 429) {
+          errorMsg = 'הגעת למגבלת הקריאות לדקה (Rate Limit). אנא המתן מספר שניות ונסה שוב.';
+        }
+
+        // Record attempted outbound prompt tokens so client ledger matches Google Cloud metrics
+        const estimatedPromptTokens = Math.max(10, Math.round((options.prompt?.length || 0) / 3.5));
+        const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+        const targetTenant = options.tenantId || (state.tenantId && state.tenantId !== ROOT_TENANT_ID ? state.tenantId : currentResolverTenant) || ROOT_TENANT_ID;
+        if (targetTenant) {
+          TenantTokenTracker.recordTokenUsage(
+            targetTenant,
+            options.category || 'content',
+            estimatedPromptTokens,
+            {
+              costUSD: estimatedPromptTokens * 0.00000075,
+              retailBilledUSD: estimatedPromptTokens * 0.0000015,
+            }
+          ).catch(() => {});
+        }
+
         return {
           success: false,
-          error: PLEASANT_AI_ERROR_HEBREW,
-          costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0, cachedTokens: 0 }),
+          error: errorMsg,
+          costReport: calculateGeminiCost({ model, promptTokens: estimatedPromptTokens, candidatesTokens: 0, cachedTokens: 0 }),
         };
       }
 

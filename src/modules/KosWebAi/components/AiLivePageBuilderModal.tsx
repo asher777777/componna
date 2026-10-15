@@ -70,6 +70,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
   const hasApiKey = !!resolveApiKey();
 
   const wasOpenRef = React.useRef(false);
+  const isLoadingIdeasRef = React.useRef(false);
 
   useEffect(() => {
     if (isOpen && !wasOpenRef.current) {
@@ -80,22 +81,28 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
       setWizardStep(1);
       setSelectedIdeaId(null);
       setErrorMsg(null);
-      loadIdeas();
+      if (ideas.length === 0) {
+        loadIdeas();
+      }
     }
     wasOpenRef.current = isOpen;
-  }, [isOpen]);
+  }, [isOpen, ideas.length]);
 
-  const loadIdeas = async () => {
+  const loadIdeas = async (force: boolean = false) => {
+    if (isLoadingIdeasRef.current) return;
+    if (!force && ideas.length > 0) return;
+    isLoadingIdeasRef.current = true;
     setLoadingIdeas(true);
     try {
       const existingPages = await pageBuilderFirestore.getAllPages();
-      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, existingPages);
+      const generatedIdeas = await aiPageGenerator.generatePageIdeas(brandDna, apiKey, existingPages, force);
       setIdeas(generatedIdeas);
     } catch (err: any) {
       console.warn('Could not load marketing ideas:', err);
       setErrorMsg(err?.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
     } finally {
       setLoadingIdeas(false);
+      isLoadingIdeasRef.current = false;
     }
   };
 

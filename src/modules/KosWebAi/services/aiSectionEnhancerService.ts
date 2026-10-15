@@ -177,6 +177,36 @@ export const aiSectionEnhancerService = {
           prompt: 'שדרג את מחירון החבילות כך שחבילת האמצע תהיה מסומנת כ-Featured עם תגית בולטת וכפתור מודגש.',
         }
       );
+    } else if (sectionType === 'tiktokHero') {
+      layoutSuggestions.push(
+        {
+          id: 'tiktok-hero-hook-viral',
+          tab: 'layout',
+          title: 'הוק ויראלי וכותרת קצבית בסגנון טיקטוק',
+          description: 'ניסוח כותרת קצרה, מסקרנת ובועטת שגורמת לעצור את הגלילה באופן מיידי.',
+          badge: 'ויראלי במיוחד 🔥',
+          iconName: 'Sparkles',
+          prompt: 'נסח כותרת הוק קצרה, מסקרנת וממגנטת בסגנון טיקטוק/רילס (2-4 מילים) שמעוררת סקרנות בלתי נשלטת, והתאם את תגית הוידאו.',
+        },
+        {
+          id: 'tiktok-hero-cta-boost',
+          tab: 'layout',
+          title: 'חיזוק הנעה לפעולה (CTA) לפתיחת מודאל הלידים',
+          description: 'כוונון טקסט הכפתור, אפקט הפולס ואייקון מושך מתוך ספריית Lucide.',
+          badge: 'מקסום המרות',
+          iconName: 'Zap',
+          prompt: 'שדרג את כפתור הפעולה (CTA) של אזור הטיקטוק למילים מניעות לפעולה ברורה, בחר אייקון Lucide מתאים והגדר כותרת מודאל מזמינה.',
+        },
+        {
+          id: 'tiktok-hero-card-brand',
+          tab: 'layout',
+          title: 'סנכרון כרטיס המותג הצף עם ה-Brand DNA',
+          description: 'התאמת תגית הכרטיס, הכותרת והסלוגן להבטחת המותג ולקהל היעד.',
+          badge: 'מיתוג מדויק',
+          iconName: 'Target',
+          prompt: 'עדכן את כרטיס המותג הצף מעל הוידאו עם תגית מותג יוקרתית, שם החברה והצעת הערך המרכזית (UVP).',
+        }
+      );
     } else if (sectionType === 'eventRsvp') {
       layoutSuggestions.push(
         {
@@ -441,6 +471,25 @@ Return ONLY the raw updated JSON object.`;
       updated.phone = phone;
       updated.whatsapp = whatsapp;
       updated.directWhatsappChat = true;
+    } else if (sectionType === 'tiktokHero') {
+      updated.headline = prompt.includes('הוק') || prompt.includes('קצר') ? `${slogan || 'ההזדמנות שלך מתחילה כאן'}` : `${company} – כל אדם זה נכס`;
+      updated.card = {
+        enabled: true,
+        tag: `• ${company} – פתרונות מובילים לשנת 2026 •`,
+        title: `${company} – ${slogan || 'כל אדם זה נכס'}`,
+        subtitle: uvp || 'מערכת פרימיום מתקדמת המעניקה מענה מדויק, מהיר ומותאם אישית לכל צורך עסקי.',
+        style: 'solid',
+      };
+      updated.ctaButton = {
+        ...(updated.ctaButton || {}),
+        text: 'התחל עכשיו בחינם',
+        iconName: 'Sparkles',
+        showIcon: true,
+        actionType: 'modal_form',
+      };
+      updated.modalTitle = `השארת פרטים לקבלת הצעה מ-${company}`;
+      updated.modalSubtitle = `נשמח לחזור אליך בהקדם עם כל המידע והפתרונות המותאמים אישית.`;
+      changes.push(`סונכרנו כותרת ההוק, כרטיס המותג הצף ופרטי מודאל הטופס עם ${company}`);
       changes.push(`הוטמעו מספרי יצירת הקשר והוואטסאפ של המותג`);
     } else if (sectionType === 'eventRsvp') {
       updated.eventTitle = `אירוע חגיגי מבית ${company}`;

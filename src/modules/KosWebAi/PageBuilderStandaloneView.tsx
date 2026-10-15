@@ -466,22 +466,24 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         />
       )}
 
-      {/* AI Live Page Generator Modal */}
-      <AiLivePageBuilderModal
-        isOpen={isAiModalOpen}
-        onClose={() => setIsAiModalOpen(false)}
-        onComplete={async (generatedConfig) => {
-          await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
-          const all = await pageBuilderFirestore.getAllPages(db, tenantId);
-          setPages(all);
-          setCurrentPage(generatedConfig);
-          setViewMode('editor');
-        }}
-        onOpenMarketingDrawer={() => {
-          setIsAiModalOpen(false);
-          setIsMarketingDrawerOpen(true);
-        }}
-      />
+      {/* AI Live Page Generator Modal (Dashboard view only) */}
+      {viewMode === 'pages' && (
+        <AiLivePageBuilderModal
+          isOpen={isAiModalOpen}
+          onClose={() => setIsAiModalOpen(false)}
+          onComplete={async (generatedConfig) => {
+            await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+            const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+            setPages(all);
+            setCurrentPage(generatedConfig);
+            setViewMode('editor');
+          }}
+          onOpenMarketingDrawer={() => {
+            setIsAiModalOpen(false);
+            setIsMarketingDrawerOpen(true);
+          }}
+        />
+      )}
 
       {/* URL Shortener Modal */}
       {selectedShortPage && (
@@ -498,15 +500,17 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         />
       )}
 
-      {/* Brand DNA Marketing Ideas Drawer */}
-      <ContinuousMarketingIdeasDrawer
-        isOpen={isMarketingDrawerOpen}
-        onClose={() => setIsMarketingDrawerOpen(false)}
-        onSelectIdea={(prompt) => {
-          setIsMarketingDrawerOpen(false);
-          setIsAiModalOpen(true);
-        }}
-      />
+      {/* Brand DNA Marketing Ideas Drawer (Dashboard view only) */}
+      {viewMode === 'pages' && (
+        <ContinuousMarketingIdeasDrawer
+          isOpen={isMarketingDrawerOpen}
+          onClose={() => setIsMarketingDrawerOpen(false)}
+          onSelectIdea={(prompt) => {
+            setIsMarketingDrawerOpen(false);
+            setIsAiModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 };

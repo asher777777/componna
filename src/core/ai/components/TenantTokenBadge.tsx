@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Zap, Plus, BatteryCharging, AlertTriangle, Sparkles } from 'lucide-react';
 import { TenantTokenTracker, TenantTokenUsage } from '../tenantTokenTracker';
 import { resolveCurrentTenantId } from '../../tenant/tenantResolver';
+import { useSystemConnection } from '../../connection/SystemConnectionContext';
 import { TokenPurchaseModal } from './TokenPurchaseModal';
 
 interface TenantTokenBadgeProps {
@@ -15,14 +16,15 @@ export const TenantTokenBadge: React.FC<TenantTokenBadgeProps> = ({
   showAddButton = true,
   compact = false,
 }) => {
+  const { db } = useSystemConnection();
   const [tokenUsage, setTokenUsage] = useState<TenantTokenUsage | null>(null);
   const [isPurchaseModalOpen, setIsPurchaseModalOpen] = useState(false);
 
   useEffect(() => {
     const tenantId = resolveCurrentTenantId();
-    TenantTokenTracker.getTenantTokenUsage(undefined, tenantId).then(setTokenUsage);
+    TenantTokenTracker.getTenantTokenUsage(db, tenantId).then(setTokenUsage);
 
-    const unsub = TenantTokenTracker.subscribe(undefined, tenantId, (usage) => {
+    const unsub = TenantTokenTracker.subscribe(db, tenantId, (usage) => {
       setTokenUsage(usage);
     });
 
@@ -44,9 +46,12 @@ export const TenantTokenBadge: React.FC<TenantTokenBadgeProps> = ({
   const remaining = Math.max(0, quota - used);
   const percent = Math.min(100, Math.max(0, Math.round((remaining / quota) * 100)));
 
-  // Format numbers nicely (e.g. 750K)
+  // Format numbers nicely with higher precision for large quotas
   const formatTokens = (val: number) => {
-    if (val >= 1_000_000) return `${(val / 1_000_000).toFixed(1)}M`;
+    if (val >= 1_000_000) {
+      const m = val / 1_000_000;
+      return m % 1 === 0 ? `${m}M` : `${m.toFixed(2)}M`;
+    }
     if (val >= 1_000) return `${Math.round(val / 1_000)}K`;
     return val.toString();
   };
@@ -67,7 +72,7 @@ export const TenantTokenBadge: React.FC<TenantTokenBadgeProps> = ({
               ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-100'
               : 'bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60 hover:bg-indigo-100'
           }`}
-          title={`יתרת טוקנים: ${remaining.toLocaleString()} מתוך ${quota.toLocaleString()} (${percent}% נותרו). לחץ להטענה.`}
+          title={`יתרת טוקנים: ${remaining.toLocaleString()} מתוך ${quota.toLocaleString()} (נוצלו: ${used.toLocaleString()} | עלות ממשית: ${(tokenUsage?.totalCostUSD || 0).toFixed(4)} | ${percent}% נותרו). לחץ להטענה.`}
         >
           <Zap className={`w-3.5 h-3.5 shrink-0 ${isLow ? 'text-rose-500' : 'text-amber-500'}`} />
           <span>{formatTokens(remaining)}</span>
