@@ -27,6 +27,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { PAGE_BLUEPRINTS, hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { GreenApiService } from '../../KosWhatsUp/services/greenApiService';
+import { TenantTokenBadge } from '../../../core/ai';
 
 interface AiLivePageBuilderModalProps {
   isOpen: boolean;
@@ -236,6 +237,7 @@ export const AiLivePageBuilderModal: React.FC<AiLivePageBuilderModalProps> = ({
           </div>
           {!isGenerating && (
             <div className="flex items-center gap-2">
+              <TenantTokenBadge />
               <button
                 type="button"
                 onClick={() => openConnectorModal('apiKeys')}

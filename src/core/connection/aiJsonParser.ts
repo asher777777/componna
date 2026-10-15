@@ -1,4 +1,6 @@
 import { getModuleGeminiKey } from './tenantApiKeys';
+import { TenantTokenTracker } from '../ai/tenantTokenTracker';
+import { ROOT_TENANT_ID } from '../tenant/tenantResolver';
 
 export interface AIJsonCredentialsResult {
   sdkType: 'admin_sdk' | 'client_sdk' | 'unknown';
@@ -144,6 +146,14 @@ ${rawJsonString}
         if (raw) {
           const geminiResult = JSON.parse(raw);
           const projId = geminiResult.projectId || '';
+
+          const promptTokens = json.usageMetadata?.promptTokenCount || 200;
+          const candidatesTokens = json.usageMetadata?.candidatesTokenCount || 100;
+          TenantTokenTracker.recordTokenUsage(
+            ROOT_TENANT_ID,
+            'content',
+            promptTokens + candidatesTokens
+          ).catch(() => {});
           return {
             ...geminiResult,
             consoleLinks: [

@@ -116,7 +116,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       type: 'header',
       visible: true,
       anchorId: 'header',
-      layout: 'floating-glass',
+      layout: 'capsule-floating',
       sticky: true,
       useBrandLogo: true,
       showLogoText: true,
@@ -837,7 +837,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       showTheaterMode: true,
       tags: ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
       enableSocialShare: true,
-      shortDescriptionBadge: 'תקציר מנהלים • AI',
+      shortDescriptionBadge: 'על הסרטון בכמה מילים',
       shortDescription: 'הסבר תכליתי ומעשי על הפיכת תוכן וידאו למקור תנועה אורגנית עצום בגוגל ויוטיוב.',
       longDescriptionMarkdown: `## חשיבות הוידאו במנועי החיפוש המודרניים
 וידאו הוא כבר מזמן לא רק פלטפורמת בידור, אלא אחד ממנועי החיפוש והסמכות המשמעותיים ביותר ברשת. כשמשלבים וידאו איכותי בתוך עמוד תוכן עשיר ומובנה, גוגל ומנועי החיפוש המבוססים על AI מתעדפים את התוכן בצורה דרמטית.

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PageBuilderConfig, SectionType } from './types/pageBuilder.types';
+import { PageBuilderConfig, SectionType, PageCategory, PAGE_CATEGORIES } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { PageBuilderEditor } from './PageBuilderEditor';
 import { PageBuilderRenderer } from './PageBuilderRenderer';
 import { PagesDashboardTab } from './components/PagesDashboardTab';
+import { PageCreationOptions } from './components/CreatePageWizardModal';
 import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
 import { UrlShortenerModal } from './components/UrlShortenerModal';
 import { pageBuilderFirestore } from './services/pageBuilderFirestore';
@@ -33,7 +34,7 @@ const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
     companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
     slogan: brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת',
     theme: 'modern',
-    headerLayout: 'floating-glass',
+    headerLayout: 'capsule-floating',
     headerSticky: true,
     isHeaderVisible: true,
     isFooterVisible: true,
@@ -164,39 +165,216 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
     navigate('/video-producer-studio');
   };
 
-  // Create empty new page
-  const handleCreateNewPage = async () => {
+  const extractYouTubeId = (url?: string): string => {
+    if (!url) return 'dQw4w9WgXcQ';
+    const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+    return match ? match[1] : (url.length === 11 ? url : 'dQw4w9WgXcQ');
+  };
+
+  // Create new page categorized by type (KOSASS, KOSINFO, KOSEVENT, KOSFUNRISE, KOSTUBE, P)
+  const handleCreateNewPage = async (categoryOrOptions: PageCreationOptions | PageCategory = 'service_product') => {
+    const isOptionsObject = typeof categoryOrOptions === 'object' && categoryOrOptions !== null;
+    const options: PageCreationOptions = isOptionsObject
+      ? categoryOrOptions
+      : {
+          category: categoryOrOptions,
+          pageTitle: '',
+        };
+
+    const category: PageCategory = options.category || 'service_product';
     const newId = `page_${Date.now()}`;
     const baseInitial = getInitialCleanPageConfig(brandDna);
+
+    const categoryTemplates: Record<PageCategory, {
+      title: string;
+      slugPrefix: string;
+      sections: SectionType[];
+      keywords: string[];
+    }> = {
+      service_product: {
+        title: 'עמוד שירות / מוצר חדש',
+        slugPrefix: 'kosass',
+        sections: ['hero', 'services', 'pricing', 'smartForm', 'contact'],
+        keywords: ['שירותים', 'מוצרים', 'הצעת מחיר'],
+      },
+      info_content: {
+        title: 'עמוד מידע ותוכן חדש',
+        slugPrefix: 'kosinfo',
+        sections: ['hero', 'richContent', 'faq', 'contact'],
+        keywords: ['מאמרים', 'מדריכים', 'מידע מקצועי'],
+      },
+      event: {
+        title: 'עמוד אירוע חדש',
+        slugPrefix: 'kosevent',
+        sections: ['hero', 'timer', 'eventRsvp', 'contact'],
+        keywords: ['אירוע', 'כנס', 'הרשמה', 'RSVP', 'Waze'],
+      },
+      fundraising: {
+        title: 'קמפיין גיוס כספים ושגרירים',
+        slugPrefix: 'kosfunrise',
+        sections: ['campaignHeader', 'campaignTiers', 'campaignDonors', 'contact'],
+        keywords: ['תרומות', 'קמפיין', 'שגרירים', 'גיוס כספים'],
+      },
+      youtube_post: {
+        title: 'עמוד פוסט וידאו KosTube',
+        slugPrefix: 'kostube',
+        sections: ['kosvidio', 'faq', 'contact'],
+        keywords: ['וידאו', 'יוטיוב', 'KosTube', 'תוכן'],
+      },
+      general: {
+        title: 'דף נחיתה חדש',
+        slugPrefix: 'p',
+        sections: ['hero', 'richContent', 'contact'],
+        keywords: ['דף נחיתה', 'קמונה'],
+      },
+    };
+
+    const targetTemplate = categoryTemplates[category] || categoryTemplates.service_product;
+    const finalTitle = options.pageTitle?.trim() || targetTemplate.title;
+
+    // Build unique slug conforming to category prefix
+    let finalSlug = '';
+    const cleanPrefix = targetTemplate.slugPrefix;
+    if (options.slugSuffix?.trim()) {
+      const cleanSuffix = options.slugSuffix
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9_-]/g, '-')
+        .replace(/^-+|-+$/g, '');
+      finalSlug = cleanSuffix.startsWith(`${cleanPrefix}-`) ? cleanSuffix : `${cleanPrefix}-${cleanSuffix}`;
+    } else {
+      const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
+      finalSlug = `${cleanPrefix}-${randomSuffix}`;
+    }
+
+    const builtSections: Record<string, any> = {};
+    targetTemplate.sections.forEach((secType) => {
+      if (SECTION_REGISTRY[secType]) {
+        builtSections[secType] = { ...SECTION_REGISTRY[secType].defaultConfig, id: secType };
+      }
+    });
+
+    // Tailor section configurations according to wizard options
+    if (builtSections.hero) {
+      builtSections.hero.title = finalTitle;
+      if (options.description?.trim()) {
+        builtSections.hero.subtitle = options.description.trim();
+      }
+    }
+
+    if (category === 'event') {
+      if (builtSections.timer && options.eventDate) {
+        builtSections.timer.title = `הספירה לאחור לקראת: ${finalTitle}`;
+        builtSections.timer.targetDate = `${options.eventDate}T${options.eventTime || '19:30'}:00`;
+      }
+      if (builtSections.eventRsvp) {
+        builtSections.eventRsvp.eventTitle = finalTitle;
+        if (options.eventDate) builtSections.eventRsvp.eventDate = options.eventDate;
+        if (options.eventTime) builtSections.eventRsvp.eventTime = options.eventTime;
+        if (options.eventEndTime) builtSections.eventRsvp.eventEndTime = options.eventEndTime;
+        if (options.locationName) builtSections.eventRsvp.locationName = options.locationName;
+        if (options.locationAddress) builtSections.eventRsvp.locationAddress = options.locationAddress;
+        if (options.wazeQuery) builtSections.eventRsvp.wazeQuery = options.wazeQuery;
+        else if (options.locationAddress) builtSections.eventRsvp.wazeQuery = options.locationAddress;
+        if (options.description) builtSections.eventRsvp.description = options.description;
+        if (options.enableCalendarAdd !== undefined) builtSections.eventRsvp.showCalendarCard = options.enableCalendarAdd;
+        if (options.isPaidEvent) {
+          builtSections.eventRsvp.isPaidEvent = true;
+          builtSections.eventRsvp.ticketPrice = options.ticketPrice || 0;
+        }
+        if (options.enableCrmRsvp) {
+          builtSections.eventRsvp.enableCrmRsvp = true;
+          builtSections.eventRsvp.crmGroupName = options.crmGroupName || finalTitle;
+        }
+      }
+    } else if (category === 'service_product') {
+      if (builtSections.pricing && options.servicePrice) {
+        const sPrice = options.servicePrice;
+        builtSections.pricing.packages = (builtSections.pricing.packages || []).map((pkg: any, idx: number) => {
+          if (idx === 1 || pkg.isFeatured) {
+            return {
+              ...pkg,
+              priceMonthly: `₪${sPrice}`,
+              priceYearly: `₪${Math.round(sPrice * 0.8)}`,
+              name: finalTitle,
+            };
+          }
+          return pkg;
+        });
+      }
+      if (builtSections.smartForm) {
+        builtSections.smartForm.sectionTitle = `הזמנת ${finalTitle} / השארת פרטים`;
+        if (options.servicePrice) {
+          builtSections.smartForm.sectionSubtitle = `מחיר שירות / מוצר: ₪${options.servicePrice} | מלאו את הפרטים ונחזור אליכם בהקדם`;
+        }
+      }
+    } else if (category === 'fundraising') {
+      if (builtSections.campaignHeader) {
+        builtSections.campaignHeader.title = finalTitle;
+        if (options.targetGoal) builtSections.campaignHeader.targetGoal = options.targetGoal;
+        builtSections.campaignHeader.totalRaised = 0;
+        builtSections.campaignHeader.donorsCount = 0;
+      }
+      if (builtSections.campaignTiers && options.campaignTiers && options.campaignTiers.length > 0) {
+        builtSections.campaignTiers.tiers = options.campaignTiers.map((t, idx) => ({
+          id: String(idx + 1),
+          title: t.title,
+          amount: t.amount,
+          description: `תמיכה עבור ${t.title}`,
+          isPopular: idx === 1,
+          badgeText: idx === 1 ? 'הכי נבחר' : undefined,
+        }));
+      }
+    } else if (category === 'youtube_post') {
+      if (builtSections.kosvidio) {
+        builtSections.kosvidio.title = finalTitle;
+        if (options.youtubeUrl) {
+          builtSections.kosvidio.youtubeVideoId = extractYouTubeId(options.youtubeUrl);
+        }
+        if (options.description) {
+          builtSections.kosvidio.shortDescription = options.description;
+        }
+      }
+    } else if (category === 'info_content') {
+      if (builtSections.richContent && options.description) {
+        builtSections.richContent.heading = finalTitle;
+        builtSections.richContent.body = `<p>${options.description}</p>`;
+      }
+    }
+
     const newPage: PageBuilderConfig = {
       ...baseInitial,
       pageId: newId,
-      pageTitle: 'דף נחיתה חדש',
-      slug: `page-${Math.floor(Math.random() * 9000 + 1000)}`,
+      pageTitle: finalTitle,
+      slug: finalSlug,
+      pageCategory: category,
       published: false,
       isHomePage: false,
       viewsCount: 0,
       leadsCount: 0,
       globalSettings: {
         ...baseInitial.globalSettings,
-        siteTitle: 'דף נחיתה חדש',
+        siteTitle: finalTitle,
         primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
         companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
         fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
       },
       seoSettings: {
-        title: 'דף נחיתה חדש ומעוצב',
-        description: 'תיאור קצר של הדף...',
-        keywords: ['שירותים', 'איכות'],
+        title: `${finalTitle} | ${PAGE_CATEGORIES[category]?.label || 'דף נחיתה'}`,
+        description: options.description || `עמוד ${PAGE_CATEGORIES[category]?.label || ''} מקצועי ומעוצב`,
+        keywords: targetTemplate.keywords,
       },
-      sectionOrder: ['hero', 'services', 'pricing', 'contact'],
-      sections: {
-        hero: { ...SECTION_REGISTRY.hero.defaultConfig, id: 'hero' },
-        services: { ...SECTION_REGISTRY.services.defaultConfig, id: 'services' },
-        pricing: { ...SECTION_REGISTRY.pricing.defaultConfig, id: 'pricing' },
-        contact: { ...SECTION_REGISTRY.contact.defaultConfig, id: 'contact' },
-      },
+      sectionOrder: targetTemplate.sections,
+      sections: builtSections,
     };
+
+    // If it's a service/product page, register slug with BrandDNA contract
+    if (category === 'service_product') {
+      const brandContract = getCapability<BrandDnaContract>('brand-dna');
+      if (brandContract?.registerServicePageSlug) {
+        brandContract.registerServicePageSlug(newPage.pageId, newPage.slug);
+      }
+    }
 
     await pageBuilderFirestore.savePage(newPage, db, tenantId);
     const all = await pageBuilderFirestore.getAllPages(db, tenantId);

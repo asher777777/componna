@@ -1,6 +1,8 @@
 import { resolveApiKey as defaultResolveApiKey, callGeminiApi as coreCallGeminiApi } from '../../KosWebAi/api/functionsApi';
 import { calculateGeminiCost, TokenUsageReport } from '../../../core/ai/geminiCostTracker';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
+import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 
 interface KosaiApiOptions {
   prompt: string;
@@ -159,6 +161,14 @@ export const callGeminiApi = async ({
           promptTokens: result.usageMetadata?.promptTokenCount || 20,
           candidatesTokens: result.usageMetadata?.candidatesTokenCount || 40,
         });
+
+        const activeTenant = (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
+        TenantTokenTracker.recordTokenUsage(
+          activeTenant,
+          'chatbot',
+          usageReport.totalTokens,
+          { costUSD: usageReport.estimatedCostUSD }
+        ).catch(() => {});
 
         return {
           data: parsed,

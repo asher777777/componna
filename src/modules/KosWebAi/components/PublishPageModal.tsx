@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { PageBuilderConfig } from '../types/pageBuilder.types';
+import { PageBuilderConfig, PAGE_CATEGORIES, getCategoryFromPage } from '../types/pageBuilder.types';
 import {
   Globe,
   CheckCircle2,
@@ -88,6 +88,22 @@ export const PublishPageModal: React.FC<PublishPageModalProps> = ({
             <span className="text-sm font-bold text-white">
               סטטוס: {config.published ? 'פעיל ומפורסם' : 'טיוטה (לא מפורסם)'}
             </span>
+            {(() => {
+              const cat = getCategoryFromPage(config);
+              if (!cat) return null;
+              const meta = PAGE_CATEGORIES[cat];
+              return (
+                <span
+                  className={clsx(
+                    'text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 font-mono',
+                    meta.badgeStyle
+                  )}
+                  title={`${meta.label} (${meta.slugPrefix})`}
+                >
+                  {meta.slugPrefix}
+                </span>
+              );
+            })()}
           </div>
 
           <button

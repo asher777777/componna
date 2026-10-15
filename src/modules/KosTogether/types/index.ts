@@ -14,6 +14,7 @@ export type GroupRuleField =
   | 'mh_crm_city' 
   | 'company_name' 
   | 'job_title'
+  | 'tags'
   | 'status'
   | 'last_form_name' 
   | 'has_phone'

@@ -235,8 +235,8 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
               : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
           }`}
         >
-          <Target className="w-3.5 h-3.5" />
-          <span>יעדי גיוס וחזון</span>
+          <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+          <span>חזון ומטרות הקהילה</span>
         </button>
 
         <button
@@ -279,37 +279,29 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
         </button>
       </div>
 
-      {/* TAB 1: Overview & Goals */}
+      {/* TAB 1: Overview & Vision */}
       {activeTab === 'overview' && (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Progress Card */}
+          {/* Community Overview Card */}
           <div className="lg:col-span-7 bg-white border border-slate-200/90 rounded-3xl p-6 shadow-xs space-y-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <h3 className="text-sm font-black text-slate-900 flex items-center gap-2">
-                <Target className="w-4 h-4 text-amber-500" />
-                <span>מדד גיוס משאבים חי</span>
+                <Sparkles className="w-4 h-4 text-indigo-600" />
+                <span>חזון ומדדי הקהילה</span>
               </h3>
-              <span className="text-xs font-mono font-bold text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-lg border border-amber-200">
-                {percent}% מהיעד
+              <span className="text-xs font-mono font-bold text-indigo-700 bg-indigo-50 px-2.5 py-0.5 rounded-lg border border-indigo-200">
+                {contacts.length} חברים פעילים
               </span>
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-black">
-                <span className="text-slate-800">
-                  גויסו: <strong className="font-mono text-emerald-600 text-base">₪{currentRaised.toLocaleString()}</strong>
-                </span>
-                <span className="text-slate-500">
-                  יעד: <strong className="font-mono text-slate-800">₪{targetGoal.toLocaleString()}</strong>
-                </span>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-4 text-center">
+                <span className="text-slate-400 text-[11px] block font-bold">חברי הקהילה</span>
+                <span className="text-2xl font-black text-indigo-600 font-mono">{contacts.length}</span>
               </div>
-
-              {/* Animated Progress Bar */}
-              <div className="w-full h-3.5 bg-slate-100 rounded-full overflow-hidden p-0.5">
-                <div
-                  className="h-full bg-gradient-to-l from-emerald-500 via-teal-500 to-indigo-600 rounded-full transition-all duration-700"
-                  style={{ width: `${percent}%` }}
-                />
+              <div className="bg-slate-50 border border-slate-200/70 rounded-2xl p-4 text-center">
+                <span className="text-slate-400 text-[11px] block font-bold">ציון מעורבות</span>
+                <span className="text-2xl font-black text-amber-500 font-mono">{community.engagementScore || 95}%</span>
               </div>
             </div>
 

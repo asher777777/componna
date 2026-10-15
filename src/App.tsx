@@ -7,6 +7,7 @@ import { SystemConnectionProvider } from './core/connection/SystemConnectionCont
 import { MediaPickerHostBridge } from './modules/media-gallery-hub';
 import { BrandDnaProvider } from './modules/KosBranding/context/BrandDnaContext';
 import { KosWebAiHostBridge } from './modules/KosWebAi';
+import { CrmAnalyticsHostBridge } from './modules/crm-analytics';
 import { KosaiProvider, FloatingKosaiButton, KosaiChatDrawer } from './modules/kosai-engine';
 import { SmartFormProvider } from './modules/KSF';
 import { KesherPaymentsProvider } from './modules/kesher-payments-hub';
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
                       <TenantAppResolver />
                       <MediaPickerHostBridge />
                       <KosWebAiHostBridge />
+                      <CrmAnalyticsHostBridge />
                       <FloatingKosaiButton />
                       <KosaiChatDrawer />
                     </KosaiProvider>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { PageBuilderConfig, ViewportMode, BuilderTab } from '../types/pageBuilder.types';
+import { PageBuilderConfig, ViewportMode, BuilderTab, PAGE_CATEGORIES, getCategoryFromPage } from '../types/pageBuilder.types';
 import { PageBuilderButton } from '../ui/PageBuilderButton';
 import {
   Save,
@@ -94,6 +94,22 @@ export const PageBuilderHeader: React.FC<PageBuilderHeaderProps> = ({
               >
                 {config.pageTitle?.includes('|') ? config.pageTitle.split('|')[0].trim() : (config.pageTitle || 'עמוד ללא שם')}
               </h1>
+              {(() => {
+                const cat = getCategoryFromPage(config);
+                if (!cat) return null;
+                const meta = PAGE_CATEGORIES[cat];
+                return (
+                  <span
+                    className={clsx(
+                      'text-[10px] font-bold px-2 py-0.5 rounded-full border flex items-center gap-1 font-mono',
+                      meta.badgeStyle
+                    )}
+                    title={`${meta.label} (${meta.slugPrefix})`}
+                  >
+                    {meta.slugPrefix}
+                  </span>
+                );
+              })()}
               {config.isHomePage && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-500/30 flex items-center gap-1">
                   עמוד בית ראשי

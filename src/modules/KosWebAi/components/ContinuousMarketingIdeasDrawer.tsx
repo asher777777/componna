@@ -30,7 +30,7 @@ export const ContinuousMarketingIdeasDrawer: React.FC<ContinuousMarketingIdeasDr
   onSelectIdea,
 }) => {
   const { brandDna } = usePageBuilderContext();
-  const { ideas, loading, error, refreshIdeas } = useMarketingIdeas();
+  const { ideas, loading, error, refreshIdeas } = useMarketingIdeas(isOpen);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   if (!isOpen) return null;

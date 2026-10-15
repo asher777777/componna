@@ -257,13 +257,15 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                 <label className="text-xs font-bold text-slate-300">פריסת אזור ההדר (Header Layout):</label>
                 <div className="grid grid-cols-2 gap-2">
                   {[
+                    { id: 'capsule-floating', label: 'קפסולה צפה (KosTogether Style - ברירת מחדל)', desc: 'כפתור קפסולה צף ומגירה' },
                     { id: 'floating-glass', label: 'זכוכית צפה (Floating Glass)', desc: 'מעוגל ומרחף' },
                     { id: 'classic', label: 'קלאסי מלא (Classic)', desc: 'לוגו בצד ופעולות בצד' },
                     { id: 'centered', label: 'מרכוז מלא (Centered)', desc: 'לוגו ושם במרכז' },
                     { id: 'minimal', label: 'מינימליסטי נקי (Minimal)', desc: 'קומפקטי ודק' },
                     { id: 'transparent', label: 'שקוף מעל התוכן (Transparent)', desc: 'משתלב בהירו' },
                   ].map((layout) => {
-                    const isSelected = (globalSettings.headerLayout || 'floating-glass') === layout.id;
+                    const activeHeaderLayout = (!globalSettings.headerLayout || globalSettings.headerLayout === 'floating-glass') ? 'capsule-floating' : globalSettings.headerLayout;
+                    const isSelected = activeHeaderLayout === layout.id;
                     return (
                       <button
                         key={layout.id}

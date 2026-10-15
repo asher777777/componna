@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { 
   ShoppingBag, Sparkles, Check, ArrowLeft, Zap, Shield, 
   Film, Cpu, TrendingUp, Layout, Image, PlayCircle, Database, CheckCircle2 
@@ -20,7 +20,7 @@ interface ModuleMarketplaceItem {
 const MARKETPLACE_MODULES: ModuleMarketplaceItem[] = [
   {
     id: 'KosWebAi',
-    name: 'יוצר עמודים ואתרים (Page Builder)',
+    name: 'KWB',
     badge: 'בסיס המערכת',
     description: 'מערכת ויזואלית מתקדמת לבנייה, עריכה, עיצוב וסידור דפי נחיתה ואתרים מלאים בסאב-דומיין שלך.',
     features: ['עורך Live Visual Drag & Drop', 'התאמה מלאה למובייל ודסקטופ', 'סנכרון מיידי לעמוד הבית', 'טפסי איסוף לידים'],

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { 
@@ -60,18 +60,30 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   const [addSectionInsertIndex, setAddSectionInsertIndex] = useState<number | undefined>(undefined);
   const [isWidgetSettingsModalOpen, setIsWidgetSettingsModalOpen] = useState(false);
   const [savedNotificationSectionId, setSavedNotificationSectionId] = useState<string | null>(null);
+  const [, setThemeVersion] = useState(0);
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setThemeVersion((v) => v + 1);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
 
   // Fallback cascade: page siteLogoUrl -> Brand DNA identity.logoUrl
   const effectiveLogoUrl = !logoLoadFailed ? (globalSettings.siteLogoUrl || brandLogoUrl || '') : '';
 
-  const isDefaultDarkBg = !globalSettings.backgroundColor || ['#0a0a0c', '#090a0f', '#09090b', '#041017', '#0c0714', '#0f0728'].includes(globalSettings.backgroundColor.toLowerCase());
+  // Recognizes common dark palette defaults so light mode can render freely
+  const defaultDarkBgList = [
+    '#0a0a0c', '#090a0f', '#09090b', '#041017', '#0c0714', '#0f0728', 
+    '#07090e', '#08080a', '#060608', '#000000', '#050505', '#111827', '#0f172a'
+  ];
+  const isDefaultDarkBg = !globalSettings.backgroundColor || defaultDarkBgList.includes(globalSettings.backgroundColor.toLowerCase());
   const customBgColor = !isDefaultDarkBg ? globalSettings.backgroundColor : undefined;
 
   const customStyle: React.CSSProperties = {
     ['--primary' as any]: globalSettings.primaryColor || '#6366f1',
     ['--secondary' as any]: globalSettings.secondaryColor || '#0ea5e9',
-    ['--background' as any]: globalSettings.backgroundColor || 'transparent',
-    ['--foreground' as any]: globalSettings.textColor || 'currentColor',
     fontFamily: globalSettings.fontFamily || 'Heebo, sans-serif',
   };
 
@@ -469,7 +481,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                 <span>מאובטח ומוגן בתקן SSL 256-bit</span>
               </div>
               <p className="text-slate-500 text-[11px]">
-                © {new Date().getFullYear()} {globalSettings.companyName || 'כל הזכויות שמורות'}. נבנה באמצעות Kosun Web.
+                © {new Date().getFullYear()} {globalSettings.companyName || 'כל הזכויות שמורות'}. נבנה באמצעות KWB.
               </p>
             </div>
           </div>

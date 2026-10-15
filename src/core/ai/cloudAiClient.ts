@@ -22,6 +22,7 @@ export interface CloudAiGenerateOptions {
   apiKey?: string;
   category?: 'gallery' | 'video' | 'content' | 'chatbot';
   tenantId?: string;
+  cachedContentId?: string;
 }
 
 export interface CloudAiResponse<T = any> {
@@ -71,6 +72,7 @@ export async function executeCloudAi<T = any>(
     let rawText = '';
     let promptTokens = 250;
     let candidatesTokens = 200;
+    let cachedTokens = 0;
 
     // 1. Try server proxy endpoint if available
     let proxySucceeded = false;
@@ -93,6 +95,7 @@ export async function executeCloudAi<T = any>(
         if (payload.costReport) {
           promptTokens = payload.costReport.promptTokens || promptTokens;
           candidatesTokens = payload.costReport.candidatesTokens || candidatesTokens;
+          cachedTokens = payload.costReport.cachedTokens || 0;
         }
         proxySucceeded = true;
       }
@@ -129,7 +132,12 @@ export async function executeCloudAi<T = any>(
         },
       };
 
-      if (options.systemInstruction) {
+      if (options.cachedContentId) {
+        // Explicit Context Caching reference
+        requestBody.cachedContent = options.cachedContentId.startsWith('cachedContents/')
+          ? options.cachedContentId
+          : `cachedContents/${options.cachedContentId}`;
+      } else if (options.systemInstruction) {
         requestBody.systemInstruction = {
           parts: [{ text: options.systemInstruction }],
         };
@@ -151,7 +159,7 @@ export async function executeCloudAi<T = any>(
         return {
           success: false,
           error: PLEASANT_AI_ERROR_HEBREW,
-          costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 }),
+          costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0, cachedTokens: 0 }),
         };
       }
 
@@ -160,6 +168,8 @@ export async function executeCloudAi<T = any>(
       if (json.usageMetadata) {
         promptTokens = json.usageMetadata.promptTokenCount || promptTokens;
         candidatesTokens = json.usageMetadata.candidatesTokenCount || candidatesTokens;
+        // Official Google Gemini usageMetadata cached tokens field
+        cachedTokens = json.usageMetadata.cachedContentTokenCount || 0;
       }
     } else {
       clearTimeout(timeoutId);
@@ -169,7 +179,7 @@ export async function executeCloudAi<T = any>(
       return {
         success: false,
         error: PLEASANT_AI_ERROR_HEBREW,
-        costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0 }),
+        costReport: calculateGeminiCost({ model, promptTokens: 0, candidatesTokens: 0, cachedTokens: 0 }),
       };
     }
 
@@ -189,7 +199,7 @@ export async function executeCloudAi<T = any>(
       }
     }
 
-    const costReport = calculateGeminiCost({ model, promptTokens, candidatesTokens });
+    const costReport = calculateGeminiCost({ model, promptTokens, candidatesTokens, cachedTokens });
 
     // Track tokens for active tenant
     const currentResolverTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
@@ -199,7 +209,11 @@ export async function executeCloudAi<T = any>(
         targetTenant,
         options.category || 'content',
         costReport.totalTokens || promptTokens + candidatesTokens,
-        { costUSD: costReport.estimatedCostUSD }
+        {
+          costUSD: costReport.estimatedCostUSD,
+          retailBilledUSD: costReport.retailBilledUSD,
+          cachedTokens: costReport.cachedTokens,
+        }
       ).catch(() => {});
     }
 

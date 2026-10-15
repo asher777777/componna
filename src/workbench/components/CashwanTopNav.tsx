@@ -36,6 +36,7 @@ import { DatabaseConnectorModal } from '../../modules/db-connector-hub';
 import { subscribeToAuth, AuthState, logoutUser } from '../../services/firebaseAuth';
 import { SmartTooltip } from '../../components/Ui/SmartTooltip';
 import { useBrandDna } from '../../modules/KosBranding/hooks/useBrandDna';
+import { TenantTokenBadge } from '../../core/ai';
 
 const BRAND_DNA_TABS = [
   { id: 'identity', label: '1. זהות עסקית', icon: Building2 },
@@ -353,8 +354,11 @@ export const CashwanTopNav: React.FC<CashwanTopNavProps> = ({ onOpenAuthModal })
           </div>
         )}
 
-        {/* Right: Only Day / Night Mode Toggle with Attached Completeness Score */}
+        {/* Right: Tenant AI Tokens Badge & Day/Night Mode Toggle */}
         <div className="flex items-center gap-2">
+          {/* Reactive Tenant Token Counter Badge */}
+          <TenantTokenBadge />
+
           <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
             {isBrandDna && dnaScore !== null && (
               <div

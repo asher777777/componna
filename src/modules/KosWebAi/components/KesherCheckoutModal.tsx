@@ -219,7 +219,7 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
         conta_name: clientName,
         conta_phone: phone,
         email,
-        source: 'עמוד נחיתה / Page Builder',
+        source: 'עמוד נחיתה / KWB',
         tags: [
           'רוכש דרך דף נחיתה',
           `חבילה: ${pkg.name}`,

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { HeaderSectionConfig } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { useBrandDna } from '../../../KosBranding/hooks/useBrandDna';
@@ -71,6 +71,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
   const [activeTooltip, setActiveTooltip] = useState<string | null>(null);
 
   const layouts = [
+    { id: 'capsule-floating', label: 'קפסולה צפה (KosTogether Style - ברירת מחדל)', desc: 'כפתור קפסולה מעוצב עם אייקון מותג, תפריט מגירה צדדי ומצב יום/לילה' },
     { id: 'floating-glass', label: 'צף עם זכוכית (Glass)', desc: 'פינות מעוגלות, אפקט טשטוש צף ומודרני 2026' },
     { id: 'classic', label: 'קלאסי מלא', desc: 'תפריט לרוחב מלא עם גבול תחתון עדין' },
     { id: 'logo-center', label: 'לוגו במרכז', desc: 'לוגו ואייקון באמצע, תפריטים ופעולות בצדדים' },
@@ -204,7 +205,8 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {layouts.map((l) => {
-            const isSelected = (config.layout || 'floating-glass') === l.id;
+            const activeLayout = (!config.layout || config.layout === 'floating-glass') ? 'capsule-floating' : config.layout;
+            const isSelected = activeLayout === l.id;
             return (
               <button
                 key={l.id}

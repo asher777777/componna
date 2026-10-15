@@ -338,6 +338,18 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLogoUrl,
       addVibeImage,
       removeVibeImage,
+      registerServicePageSlug: async (serviceName: string, slug: string): Promise<boolean> => {
+        markLocalEdit();
+        setBrandDna((prev) => {
+          const updatedSlugs = { ...(prev.serviceSlugs || {}), [serviceName]: slug };
+          const updated = { ...prev, serviceSlugs: updatedSlugs };
+          saveBrandDna(updated, db, tenantId).catch(console.warn);
+          return updated;
+        });
+        eventBus.publish('brand:service_slug_updated', { serviceName, slug });
+        return true;
+      },
+      getServicePageSlugs: () => brandDnaRef.current.serviceSlugs || {},
     };
     registerCapability('brand-dna', contract);
 

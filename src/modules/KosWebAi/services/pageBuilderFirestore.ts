@@ -56,15 +56,21 @@ export function ensureHeaderSection(page: PageBuilderConfig): PageBuilderConfig 
   if (allHeaderEntries.length > 0) {
     // Keep the first existing header
     headerId = allHeaderEntries[0][0];
-    headerSection = allHeaderEntries[0][1];
+    const existing = allHeaderEntries[0][1];
+    // Upgrade legacy floating-glass or unconfigured headers to the new permanent default: capsule-floating (KosTogether style)
+    headerSection = {
+      ...existing,
+      layout: (!existing.layout || existing.layout === 'floating-glass') ? 'capsule-floating' : existing.layout,
+    };
   } else {
     headerId = 'header-1';
+    const chosenLayout = page.globalSettings?.headerLayout;
     headerSection = {
       id: headerId,
       type: 'header',
       visible: true,
       anchorId: 'header',
-      layout: (page.globalSettings?.headerLayout as any) || 'floating-glass',
+      layout: (!chosenLayout || chosenLayout === 'floating-glass') ? 'capsule-floating' : chosenLayout,
       sticky: page.globalSettings?.headerSticky ?? true,
       useBrandLogo: true,
       showLogoText: true,
@@ -78,7 +84,7 @@ export function ensureHeaderSection(page: PageBuilderConfig): PageBuilderConfig 
       phone: page.globalSettings?.contactPhone || '052-6968008',
       showWhatsApp: Boolean(page.globalSettings?.contactWhatsApp),
       whatsApp: page.globalSettings?.contactWhatsApp || '0526968008',
-      desktopMenuDisplay: 'links',
+      desktopMenuDisplay: 'hamburger',
     };
   }
 

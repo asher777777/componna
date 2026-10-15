@@ -1,4 +1,4 @@
-﻿import { ModulePricingConfig, StorefrontGeneralSettings } from '../types';
+import { ModulePricingConfig, StorefrontGeneralSettings } from '../types';
 
 export const STOREFRONT_COLLECTIONS = {
   CATALOG: 'sys_storefront_catalog',
@@ -37,7 +37,7 @@ export const INITIAL_MODULE_PRICING_CATALOG: ModulePricingConfig[] = [
   },
   {
     id: 'KosWebAi',
-    name: 'יוצר דפי נחיתה ואתרים',
+    name: 'KWB',
     category: 'marketing',
     description: 'עורך ויזואלי מהיר (Drag & Drop) לבניית דפי נחיתה ממירים עם תמיכת RTL מלאה',
     longDescription: 'בנה דפי מכירה ודפי נחיתה מעוצבים ללא צורך במתכנת. כולל סקשנים מוכנים, טיפוגרפיה בעברית ואופטימיזציית מובייל.',

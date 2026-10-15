@@ -30,6 +30,7 @@ export const MODULE_META_CONFIG: Record<string, {
   hebrewName: string;
   englishPrefix: string;
   englishRest: string;
+  slogan?: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = {
   'KosTube': {
@@ -141,9 +142,10 @@ export const MODULE_META_CONFIG: Record<string, {
     icon: Grid,
   },
   'KosWebAi': {
-    hebrewName: 'בונה אתרים ודפי נחיתה AI',
+    hebrewName: 'KosWebBulider',
     englishPrefix: 'KOS',
-    englishRest: 'Web AI Builder',
+    englishRest: 'WebBulider',
+    slogan: 'Building Your Digital Interaction',
     icon: Layout,
   },
 };
@@ -255,8 +257,15 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
         const meta = MODULE_META_CONFIG[m.id];
         const heb = meta?.hebrewName || m.name;
         const eng = `${meta?.englishPrefix || 'KOS'} ${meta?.englishRest || m.id}`;
+        const slogan = meta?.slogan || '';
         const query = searchQuery.toLowerCase();
-        return heb.toLowerCase().includes(query) || eng.toLowerCase().includes(query) || (m.name || '').toLowerCase().includes(query);
+        return (
+          heb.toLowerCase().includes(query) ||
+          eng.toLowerCase().includes(query) ||
+          (m.name || '').toLowerCase().includes(query) ||
+          slogan.toLowerCase().includes(query) ||
+          (m.id === 'KosWebAi' && (query === 'kwb' || query.includes('builder') || query.includes('bulider') || query.includes('בונה') || query.includes('אתר')))
+        );
       }
 
       return true;
@@ -438,6 +447,11 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
                             </span>
                           )}
                         </div>
+                        {meta.slogan && (
+                          <div className="text-[11px] text-slate-500 dark:text-slate-400 font-medium truncate mt-0.5">
+                            {meta.slogan}
+                          </div>
+                        )}
                       </div>
                     </div>
 

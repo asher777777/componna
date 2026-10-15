@@ -1,5 +1,5 @@
-﻿export const KOSAI_SUPPORTED_MODULES = [
-  { id: 'KosWebAi', name: 'Page Builder', route: '/KosWebAi' },
+export const KOSAI_SUPPORTED_MODULES = [
+  { id: 'KosWebAi', name: 'KWB', route: '/KosWebAi' },
   { id: 'smart-form-builder', name: 'Smart Form Builder', route: '/smart-form' },
   { id: 'media-gallery-hub', name: 'Media Gallery', route: '/media-gallery' },
   { id: 'crm-analytics', name: 'CRM & Analytics', route: '/crm-analytics' },

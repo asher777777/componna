@@ -2,8 +2,6 @@ import React, { useState } from 'react';
 import { 
   Menu, 
   X, 
-  Sun, 
-  Moon, 
   Users, 
   MessageCircle, 
   Globe, 
@@ -13,13 +11,19 @@ import {
   LayoutGrid, 
   Settings,
   HelpCircle,
-  Wrench
+  Wrench,
+  UserPlus,
+  MessageSquare,
+  Brain,
+  Info,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { GroupListSidebar } from './GroupListSidebar';
 import { GroupHeaderStatsBar } from './GroupHeaderStatsBar';
 import { GroupContactsTable } from './GroupContactsTable';
 import { GroupInteractionsTab } from './GroupInteractionsTab';
+import { CommunityGrowthTab } from './CommunityGrowthTab';
+import { SmartCommunityRulesModal } from './SmartCommunityRulesModal';
 import { GroupEditModal } from './GroupEditModal';
 import { GroupTransferModal } from './GroupTransferModal';
 import { GroupAddMembersModal } from './GroupAddMembersModal';
@@ -28,13 +32,23 @@ import { WhatsAppGroupImportView } from './WhatsAppGroupImportView';
 import { GroupEngagementRadar } from './GroupEngagementRadar';
 import { CommunityMicroPortalView } from './CommunityMicroPortalView';
 import { CommunityChatRoomView } from './CommunityChatRoomView';
-import { SmartGroup } from '../types';
+import { SmartGroup, GroupRule } from '../types';
 
 export const CrmGroupsMainView: React.FC = () => {
-  const { loading, onOpenContactDetail, activeGroup, filteredContacts, groups } = useCrmGroups();
+  const {
+    loading,
+    onOpenContactDetail,
+    activeGroup,
+    filteredContacts,
+    contacts,
+    groups,
+    availableCities,
+    saveGroup,
+    bulkAssignToGroup,
+  } = useCrmGroups();
 
   const [mainMode, setMainMode] = useState<'manage' | 'whatsapp_import' | 'micro_portal' | 'community_chat'>('manage');
-  const [currentTab, setCurrentTab] = useState<'contacts' | 'interactions'>('contacts');
+  const [currentTab, setCurrentTab] = useState<'grow' | 'contacts' | 'interactions'>('grow');
 
   // Hidden collapsible bars states (hidden by default per KOSUN Constitution)
   const [isRadarOpen, setIsRadarOpen] = useState(false);
@@ -42,24 +56,6 @@ export const CrmGroupsMainView: React.FC = () => {
 
   // Floating Side Drawer State (Hidden by default according to Constitution)
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  // Day/Night mode state (Light mode is default)
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark');
-    }
-    return false;
-  });
-
-  const toggleDarkMode = () => {
-    const next = !isDarkMode;
-    setIsDarkMode(next);
-    if (next) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  };
 
   // Modal States
   const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
@@ -72,6 +68,9 @@ export const CrmGroupsMainView: React.FC = () => {
   const [isAddMembersModalOpen, setIsAddMembersModalOpen] = useState(false);
   const [isWhatsAppBroadcastOpen, setIsWhatsAppBroadcastOpen] = useState(false);
   const [broadcastTargetIds, setBroadcastTargetIds] = useState<string[] | undefined>(undefined);
+
+  // Thinking Man modal state (סעיף ח)
+  const [isSmartRulesModalOpen, setIsSmartRulesModalOpen] = useState(false);
 
   const handleOpenCreateGroup = (mode: 'group' | 'community' | 'smart') => {
     setEditingGroup(null);
@@ -92,6 +91,17 @@ export const CrmGroupsMainView: React.FC = () => {
   const handleOpenWhatsAppBroadcast = (contactIds?: string[]) => {
     setBroadcastTargetIds(contactIds);
     setIsWhatsAppBroadcastOpen(true);
+  };
+
+  const handleSaveSmartRule = async (rules: GroupRule[], matchingContactIds: string[]) => {
+    await saveGroup({
+      ...activeGroup,
+      type: 'smart',
+      rules,
+    });
+    if (matchingContactIds.length > 0) {
+      await bulkAssignToGroup(matchingContactIds, activeGroup.name);
+    }
   };
 
   if (loading) {
@@ -139,19 +149,8 @@ export const CrmGroupsMainView: React.FC = () => {
 
   return (
     <div className="relative min-h-screen w-full bg-slate-50/50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-x-hidden text-right font-sans" dir="rtl">
-      {/* 1. Day / Night mode floating button (fixed top-4 left-4, light default) */}
-      <div className="fixed top-4 left-4 z-40">
-        <button
-          type="button"
-          onClick={toggleDarkMode}
-          className="w-10 h-10 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center justify-center text-slate-700 dark:text-slate-200 shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
-          title="החלף מצב יום / לילה"
-        >
-          {isDarkMode ? <Sun className="w-5 h-5 text-amber-400" /> : <Moon className="w-5 h-5 text-indigo-600" />}
-        </button>
-      </div>
-
-      {/* 2. Floating Menu Trigger Button (fixed top-4 right-4, Official Kosun Symbol + English name) */}
+      
+      {/* 1. Floating Menu Trigger Button (fixed top-4 right-4, Official Kosun Symbol + English name) */}
       <div className="fixed top-4 right-4 z-40">
         <button
           type="button"
@@ -172,7 +171,7 @@ export const CrmGroupsMainView: React.FC = () => {
         </button>
       </div>
 
-      {/* 3. Floating Side Drawer (Hidden by default, opened on floating icon click, with 'x' to close) */}
+      {/* 2. Floating Side Drawer (Hidden by default, opened on floating icon click) */}
       {isDrawerOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
@@ -210,6 +209,19 @@ export const CrmGroupsMainView: React.FC = () => {
             <nav className="flex-1 py-4 space-y-1.5 overflow-y-auto text-xs font-bold text-slate-600 dark:text-slate-300">
               <button
                 type="button"
+                onClick={() => { setMainMode('manage'); setCurrentTab('grow'); setIsDrawerOpen(false); }}
+                className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
+                  mainMode === 'manage' && currentTab === 'grow'
+                    ? 'bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-extrabold'
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                <UserPlus className="w-4 h-4 text-indigo-600" />
+                <span>מגדלים את הקהילה</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => { setMainMode('manage'); setCurrentTab('contacts'); setIsDrawerOpen(false); }}
                 className={`w-full flex items-center gap-3 p-3 rounded-2xl transition text-right ${
                   mainMode === 'manage' && currentTab === 'contacts'
@@ -218,7 +230,7 @@ export const CrmGroupsMainView: React.FC = () => {
                 }`}
               >
                 <Users className="w-4 h-4 text-indigo-600" />
-                <span>חברי קהילות וקבוצות CRM</span>
+                <span>חברי הקהילה</span>
               </button>
 
               <button
@@ -231,7 +243,7 @@ export const CrmGroupsMainView: React.FC = () => {
                 }`}
               >
                 <Globe className="w-4 h-4 text-indigo-600" />
-                <span>פורטל קהילה, יעדים ופיד</span>
+                <span>פורטל קהילה ופיד</span>
               </button>
 
               <button
@@ -263,7 +275,7 @@ export const CrmGroupsMainView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { handleOpenCreateGroup('community'); setIsDrawerOpen(false); }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right"
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right cursor-pointer"
               >
                 <Plus className="w-4 h-4 text-indigo-600" />
                 <span>יצירת קהילה חדשה</span>
@@ -272,10 +284,10 @@ export const CrmGroupsMainView: React.FC = () => {
               <button
                 type="button"
                 onClick={() => { handleOpenWhatsAppBroadcast(); setIsDrawerOpen(false); }}
-                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right"
+                className="w-full flex items-center gap-3 p-3 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition text-right cursor-pointer"
               >
                 <MessageCircle className="w-4 h-4 text-emerald-600" />
-                <span>שידור וואטסאפ וסקרים</span>
+                <span>שידור וואטסאפ</span>
               </button>
             </nav>
 
@@ -298,14 +310,104 @@ export const CrmGroupsMainView: React.FC = () => {
           />
 
           {/* Right Main Content */}
-          <div className="flex-1 w-full space-y-6 min-w-0">
+          <div className="flex-1 w-full space-y-5 min-w-0">
+            {/* Sub-tabs & Action Toolbar (סעיף ב: ללא תוויות טקסט, רק איקונים עם טולטיפ) */}
+            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-2.5 shadow-xs flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-1.5">
+                {/* 1. מגדלים את הקהילה (First Tab) - Icon only with tooltip */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('grow')}
+                  className={`w-10 h-10 rounded-2xl transition-all flex items-center justify-center cursor-pointer ${
+                    currentTab === 'grow'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                  title="מגדלים את הקהילה (הוספת חברים בגרירה)"
+                >
+                  <UserPlus className="w-4 h-4" />
+                </button>
+
+                {/* 2. חברי הקהילה - Icon + count badge with tooltip */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('contacts')}
+                  className={`h-10 px-3 rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-mono font-bold ${
+                    currentTab === 'contacts'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                  title="חברי הקהילה (רשימה וניהול)"
+                >
+                  <Users className="w-4 h-4" />
+                  <span>{filteredContacts.length}</span>
+                </button>
+
+                {/* 3. אינטראקציות - Icon only with tooltip */}
+                <button
+                  type="button"
+                  onClick={() => setCurrentTab('interactions')}
+                  className={`w-10 h-10 rounded-2xl transition-all flex items-center justify-center cursor-pointer ${
+                    currentTab === 'interactions'
+                      ? 'bg-emerald-600 text-white shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                  title="יומן אינטראקציות ופעילות"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                </button>
+
+                <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
+
+                {/* סעיף ח: כפתור איש חושב (צירוף חכם לפי תנאים לוגיים) */}
+                <button
+                  type="button"
+                  onClick={() => setIsSmartRulesModalOpen(true)}
+                  className="w-10 h-10 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shadow-xs transition-all cursor-pointer"
+                  title="איש חושב: הוספה אוטומטית לקהילה בעזרת תנאים לוגיים"
+                >
+                  <Brain className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Quick Actions: Icon only with tooltips (סעיף ב) */}
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => handleOpenWhatsAppBroadcast()}
+                  className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+                  title="שידור וואטסאפ לקהילה"
+                >
+                  <Share2 className="w-4 h-4" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMainMode('micro_portal')}
+                  className="w-10 h-10 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+                  title="פורטל קהילה ופיד"
+                >
+                  <Globe className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
             {/* Hidden Collapsible Community Engagement Radar (Engagement Heatmap) */}
             <GroupEngagementRadar
               isOpen={isRadarOpen}
               onToggle={() => setIsRadarOpen(false)}
             />
 
-            {currentTab === 'contacts' ? (
+            {/* Active Tab View */}
+            {currentTab === 'grow' ? (
+              <CommunityGrowthTab
+                activeGroup={activeGroup}
+                allContacts={contacts}
+                onAssignToGroup={bulkAssignToGroup}
+                onOpenContactDetail={onOpenContactDetail}
+                onOpenSmartRulesModal={() => setIsSmartRulesModalOpen(true)}
+              />
+            ) : currentTab === 'contacts' ? (
               <GroupContactsTable
                 onOpenTransferModal={handleOpenTransferModal}
                 onOpenAddMembersModal={() => setIsAddMembersModalOpen(true)}
@@ -332,6 +434,15 @@ export const CrmGroupsMainView: React.FC = () => {
         onClose={() => setIsGroupModalOpen(false)}
         editingGroup={editingGroup}
         initialMode={groupModalMode}
+      />
+
+      <SmartCommunityRulesModal
+        isOpen={isSmartRulesModalOpen}
+        onClose={() => setIsSmartRulesModalOpen(false)}
+        activeGroup={activeGroup}
+        contacts={contacts}
+        availableCities={availableCities}
+        onSaveRule={handleSaveSmartRule}
       />
 
       <GroupTransferModal

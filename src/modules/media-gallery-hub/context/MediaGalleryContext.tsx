@@ -63,8 +63,8 @@ export const KNOWN_MODULE_SOURCES: Record<string, ModuleSourceInfo> = {
   },
   'KosWebAi': {
     id: 'KosWebAi',
-    name: 'יוצר העמודים והאתרים',
-    shortLabel: 'בונה עמודים',
+    name: 'KWB',
+    shortLabel: 'KWB',
     icon: 'Layout',
     color: '#10b981',
   },

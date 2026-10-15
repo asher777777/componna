@@ -1043,6 +1043,25 @@ export const MOCK_CHAT_MESSAGES: CommunityChatMessage[] = [
 
 export const MOCK_COMMUNITIES: SmartGroup[] = [
   {
+    id: 'comm_koshan',
+    name: 'קהילת קושאן',
+    color: '#4f46e5',
+    description: 'קהילת קושאן המרכזית לצמיחה, שיתוף פעולה וחיבור קהילתי',
+    type: 'manual',
+    isCommunity: true,
+    category: 'community',
+    leaderName: 'אשר משולם',
+    logoUrl: '/images/community-default-logo.png',
+    engagementScore: 98,
+    pageSlug: 'koshan',
+    pageUrl: '/to/koshan',
+    vision: 'בניית קהילה מלוכדת וצומחת הפועלת יחד למען מטרות משותפות.',
+    purpose: 'שיתוף ידע, חיבור חברים והגדלת מעגלי ההשפעה.',
+    gallery: ['/images/community-default-logo.png'],
+    feedPosts: [],
+    count: 150,
+  },
+  {
     id: 'comm_subscriptions',
     name: 'לקוחות מינויים ורכיבים',
     color: '#10b981',
@@ -1191,6 +1210,21 @@ export const MOCK_COMMUNITIES: SmartGroup[] = [
 ];
 
 export const MOCK_CONTACTS: ContactRecord[] = [
+  {
+    id: 'cnt_asher_meshulam',
+    conta_name: 'אשר משולם',
+    conta_phone: '0509988776',
+    email: 'asher.meshulam@example.com',
+    mh_crm_city: 'ירושלים',
+    company_name: 'קושאן גרופ',
+    job_title: 'עובד',
+    total_spent: 0,
+    campaign_amount: 0,
+    lead_source: 'מאגר עובדים',
+    status: 'פעיל',
+    tags: ['עובד'],
+    createdAt: '2026-03-01T08:00:00.000Z',
+  },
   {
     id: 'cnt_1',
     conta_name: 'יוסי כהן',

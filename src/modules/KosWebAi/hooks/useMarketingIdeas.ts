@@ -13,7 +13,7 @@ export interface UseMarketingIdeasResult {
   refreshIdeas: (apiKey?: string) => Promise<void>;
 }
 
-export const useMarketingIdeas = (): UseMarketingIdeasResult => {
+export const useMarketingIdeas = (enabled: boolean = false): UseMarketingIdeasResult => {
   const { brandDna } = usePageBuilderContext();
   const { db } = useSystemConnection();
   const [ideas, setIdeas] = useState<MarketingIdea[]>([]);
@@ -39,8 +39,10 @@ export const useMarketingIdeas = (): UseMarketingIdeasResult => {
   );
 
   useEffect(() => {
-    fetchIdeas();
-  }, [fetchIdeas]);
+    if (enabled && ideas.length === 0) {
+      fetchIdeas();
+    }
+  }, [fetchIdeas, enabled, ideas.length]);
 
   const refreshIdeas = useCallback(
     async (apiKey?: string) => {

@@ -11,8 +11,14 @@ import { ROOT_TENANT_ID, resolveCurrentTenantId } from '../tenant/tenantResolver
 export interface TenantTokenUsage {
   subdomain: string;
   totalTokens: number;
-  totalCostUSD: number;
+  totalCostUSD: number; // Actual platform production cost paid to Google
   totalCostILS: number;
+  retailBilledUSD?: number; // Standard retail value billed/charged to client
+  retailBilledILS?: number;
+  grossProfitUSD?: number;  // Platform margin (retailBilled - actualCost)
+  grossProfitILS?: number;
+  cachedTokens?: number;    // Tokens served from Context Caching (90% cheaper)
+  cacheHitRatio?: number;   // Percentage of cached tokens over total tokens
   galleryTokens: number;
   videoTokens: number;
   contentTokens: number;
@@ -56,6 +62,12 @@ export function getDefaultTokenUsage(subdomain: string): TenantTokenUsage {
     totalTokens: 0,
     totalCostUSD: 0,
     totalCostILS: 0,
+    retailBilledUSD: 0,
+    retailBilledILS: 0,
+    grossProfitUSD: 0,
+    grossProfitILS: 0,
+    cachedTokens: 0,
+    cacheHitRatio: 0,
     galleryTokens: 0,
     videoTokens: 0,
     contentTokens: 0,
@@ -78,6 +90,8 @@ export class TenantTokenTracker {
     tokenCount: number,
     additional?: {
       costUSD?: number;
+      retailBilledUSD?: number;
+      cachedTokens?: number;
       heygenSeconds?: number;
       images?: number;
       db?: Firestore;
@@ -89,19 +103,41 @@ export class TenantTokenTracker {
       : ((activeFromResolver && activeFromResolver !== ROOT_TENANT_ID) ? activeFromResolver : (tenantId || ROOT_TENANT_ID));
     const cleanId = resolvedTenant.trim().toLowerCase();
     const tokens = Math.max(0, Math.round(tokenCount));
-    const costUSD = Number((additional?.costUSD || (tokens * 0.00000035)).toFixed(6));
+    const cached = Math.max(0, Math.round(additional?.cachedTokens || 0));
+
+    // Real cost paid to Google (with Context Caching discount if applicable)
+    const costUSD = Number((additional?.costUSD ?? (tokens * 0.00000075)).toFixed(6));
     const costILS = Number((costUSD * 3.70).toFixed(6));
+
+    // Retail standard price charged to customer (always market rate)
+    const retailBilledUSD = Number((additional?.retailBilledUSD ?? (tokens * 0.0000015)).toFixed(6));
+    const retailBilledILS = Number((retailBilledUSD * 3.70).toFixed(6));
+
+    // Platform gross profit
+    const grossProfitUSD = Math.max(0, Number((retailBilledUSD - costUSD).toFixed(6)));
+    const grossProfitILS = Number((grossProfitUSD * 3.70).toFixed(6));
+
     const images = additional?.images || (category === 'gallery' ? 1 : 0);
     const seconds = additional?.heygenSeconds || (category === 'video' ? 10 : 0);
     const now = new Date().toISOString();
 
     // 1. Update in-memory cache immediately
     const existing = inMemoryTokenCache.get(cleanId) || getDefaultTokenUsage(cleanId);
+    const newTotalTokens = existing.totalTokens + tokens;
+    const newCachedTokens = (existing.cachedTokens || 0) + cached;
+    const cacheHitRatio = newTotalTokens > 0 ? Number(((newCachedTokens / newTotalTokens) * 100).toFixed(1)) : 0;
+
     const updated: TenantTokenUsage = {
       ...existing,
-      totalTokens: existing.totalTokens + tokens,
+      totalTokens: newTotalTokens,
       totalCostUSD: Number((existing.totalCostUSD + costUSD).toFixed(6)),
       totalCostILS: Number((existing.totalCostILS + costILS).toFixed(6)),
+      retailBilledUSD: Number(((existing.retailBilledUSD || 0) + retailBilledUSD).toFixed(6)),
+      retailBilledILS: Number(((existing.retailBilledILS || 0) + retailBilledILS).toFixed(6)),
+      grossProfitUSD: Number(((existing.grossProfitUSD || 0) + grossProfitUSD).toFixed(6)),
+      grossProfitILS: Number(((existing.grossProfitILS || 0) + grossProfitILS).toFixed(6)),
+      cachedTokens: newCachedTokens,
+      cacheHitRatio,
       galleryTokens: existing.galleryTokens + (category === 'gallery' ? tokens : 0),
       videoTokens: existing.videoTokens + (category === 'video' ? tokens : 0),
       contentTokens: existing.contentTokens + (category === 'content' ? tokens : 0),
@@ -134,6 +170,11 @@ export class TenantTokenTracker {
             totalTokens: increment(tokens),
             totalCostUSD: increment(costUSD),
             totalCostILS: increment(costILS),
+            retailBilledUSD: increment(retailBilledUSD),
+            retailBilledILS: increment(retailBilledILS),
+            grossProfitUSD: increment(grossProfitUSD),
+            grossProfitILS: increment(grossProfitILS),
+            cachedTokens: increment(cached),
             [`${category}Tokens`]: increment(tokens),
             imageGenerationsCount: increment(images),
             heygenVideoSeconds: increment(seconds),
@@ -154,6 +195,11 @@ export class TenantTokenTracker {
               totalTokens: increment(tokens),
               totalCostUSD: increment(costUSD),
               totalCostILS: increment(costILS),
+              retailBilledUSD: increment(retailBilledUSD),
+              retailBilledILS: increment(retailBilledILS),
+              grossProfitUSD: increment(grossProfitUSD),
+              grossProfitILS: increment(grossProfitILS),
+              cachedTokens: increment(cached),
               [`${category}Tokens`]: increment(tokens),
               imageGenerationsCount: increment(images),
               heygenVideoSeconds: increment(seconds),
@@ -186,15 +232,20 @@ export class TenantTokenTracker {
         if (cleanId === ROOT_TENANT_ID) {
           try {
             const tenantsSnap = await getDocs(collection(effectiveDb, 'tenants'));
-            let aggTotalTokens = Number(directData?.totalTokens) || 0;
-            let aggCostUSD = Number(directData?.totalCostUSD) || 0;
-            let aggCostILS = Number(directData?.totalCostILS) || 0;
-            let aggGallery = Number(directData?.galleryTokens) || 0;
-            let aggVideo = Number(directData?.videoTokens) || 0;
-            let aggContent = Number(directData?.contentTokens) || 0;
-            let aggChatbot = Number(directData?.chatbotTokens) || 0;
-            let aggImages = Number(directData?.imageGenerationsCount) || 0;
-            let aggHeygen = Number(directData?.heygenVideoSeconds) || 0;
+            let aggTotalTokens = 0;
+            let aggCostUSD = 0;
+            let aggCostILS = 0;
+            let aggRetailUSD = 0;
+            let aggRetailILS = 0;
+            let aggProfitUSD = 0;
+            let aggProfitILS = 0;
+            let aggCachedTokens = 0;
+            let aggGallery = 0;
+            let aggVideo = 0;
+            let aggContent = 0;
+            let aggChatbot = 0;
+            let aggImages = 0;
+            let aggHeygen = 0;
 
             for (const tDoc of tenantsSnap.docs) {
               const subId = tDoc.id.toLowerCase();
@@ -206,6 +257,11 @@ export class TenantTokenTracker {
                   aggTotalTokens += Number(ud.totalTokens) || 0;
                   aggCostUSD += Number(ud.totalCostUSD) || 0;
                   aggCostILS += Number(ud.totalCostILS) || 0;
+                  aggRetailUSD += Number(ud.retailBilledUSD) || 0;
+                  aggRetailILS += Number(ud.retailBilledILS) || 0;
+                  aggProfitUSD += Number(ud.grossProfitUSD) || 0;
+                  aggProfitILS += Number(ud.grossProfitILS) || 0;
+                  aggCachedTokens += Number(ud.cachedTokens) || 0;
                   aggGallery += Number(ud.galleryTokens) || 0;
                   aggVideo += Number(ud.videoTokens) || 0;
                   aggContent += Number(ud.contentTokens) || 0;
@@ -216,11 +272,19 @@ export class TenantTokenTracker {
               } catch {}
             }
 
+            const aggHitRatio = aggTotalTokens > 0 ? Number(((aggCachedTokens / aggTotalTokens) * 100).toFixed(1)) : 0;
+
             const aggregated: TenantTokenUsage = {
               subdomain: ROOT_TENANT_ID,
               totalTokens: aggTotalTokens,
               totalCostUSD: Number(aggCostUSD.toFixed(6)),
               totalCostILS: Number(aggCostILS.toFixed(6)),
+              retailBilledUSD: Number(aggRetailUSD.toFixed(6)),
+              retailBilledILS: Number(aggRetailILS.toFixed(6)),
+              grossProfitUSD: Number(aggProfitUSD.toFixed(6)),
+              grossProfitILS: Number(aggProfitILS.toFixed(6)),
+              cachedTokens: aggCachedTokens,
+              cacheHitRatio: aggHitRatio,
               galleryTokens: aggGallery,
               videoTokens: aggVideo,
               contentTokens: aggContent,
@@ -242,11 +306,21 @@ export class TenantTokenTracker {
 
         if (snap.exists()) {
           const data = snap.data();
+          const totalT = Number(data.totalTokens) || 0;
+          const cachedT = Number(data.cachedTokens) || 0;
+          const hitRatio = totalT > 0 ? Number(((cachedT / totalT) * 100).toFixed(1)) : 0;
+
           const parsed: TenantTokenUsage = {
             subdomain: cleanId,
-            totalTokens: Number(data.totalTokens) || 0,
+            totalTokens: totalT,
             totalCostUSD: Number(data.totalCostUSD) || 0,
             totalCostILS: Number(data.totalCostILS) || 0,
+            retailBilledUSD: Number(data.retailBilledUSD) || Number((totalT * 0.0000015).toFixed(6)),
+            retailBilledILS: Number(data.retailBilledILS) || Number((totalT * 0.0000015 * 3.70).toFixed(6)),
+            grossProfitUSD: Number(data.grossProfitUSD) || 0,
+            grossProfitILS: Number(data.grossProfitILS) || 0,
+            cachedTokens: cachedT,
+            cacheHitRatio: hitRatio,
             galleryTokens: Number(data.galleryTokens) || 0,
             videoTokens: Number(data.videoTokens) || 0,
             contentTokens: Number(data.contentTokens) || 0,

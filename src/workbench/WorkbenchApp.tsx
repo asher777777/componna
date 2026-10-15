@@ -122,6 +122,15 @@ export const WorkbenchApp: React.FC = () => {
     }
   }, [theme]);
 
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      const newTheme = e?.detail?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      setTheme(newTheme);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
+
   const toggleTheme = () => {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
@@ -185,6 +194,7 @@ export const WorkbenchApp: React.FC = () => {
     hebrewName: string;
     englishPrefix: string;
     englishRest: string;
+    slogan?: string;
     icon: React.ComponentType<{ className?: string }>;
   }> = {
     'kosun-board-composer': {
@@ -272,9 +282,10 @@ export const WorkbenchApp: React.FC = () => {
       icon: BarChart3,
     },
     'KosWebAi': {
-      hebrewName: 'בונה עמודים ודפי נחיתה',
+      hebrewName: 'KosWebBulider',
       englishPrefix: 'KOS',
-      englishRest: 'Page Builder',
+      englishRest: 'WebBulider',
+      slogan: 'Building Your Digital Interaction',
       icon: Layout,
     },
     'auth-portal': {
@@ -356,7 +367,7 @@ export const WorkbenchApp: React.FC = () => {
 
   if (isStandalone) {
     return (
-      <div className="w-screen min-h-screen bg-[#09090b] flex items-center justify-center p-0 m-0 text-white font-sans" dir="rtl">
+      <div className="w-screen min-h-screen bg-slate-50 dark:bg-[#09090b] flex items-center justify-center p-0 m-0 text-slate-900 dark:text-white font-sans transition-colors duration-300" dir="rtl">
         <main className="w-full min-h-screen">
           <Routes>
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

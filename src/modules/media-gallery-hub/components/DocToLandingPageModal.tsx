@@ -155,7 +155,7 @@ export const DocToLandingPageModal: React.FC<DocToLandingPageModalProps> = ({
                 </div>
                 <div className="font-bold flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span>שידור ישיר לבונה הדפים (Page Builder) דרך EventBus</span>
+                  <span>שידור ישיר ל-KWB דרך EventBus</span>
                 </div>
               </div>
 

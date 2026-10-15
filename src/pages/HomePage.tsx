@@ -320,7 +320,7 @@ export const HomePage: React.FC = () => {
                 isLight ? 'text-slate-700 hover:text-indigo-600 hover:bg-white' : 'text-slate-300 hover:text-white hover:bg-slate-800'
               }`}
             >
-              בונה העמודים
+              KWB
             </button>
             <button
               onClick={() => scrollToSection('fundraising')}
@@ -485,7 +485,7 @@ export const HomePage: React.FC = () => {
               <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-500 flex items-center justify-center mx-auto mb-2 font-bold">
                 <Layers className="w-4 h-4" />
               </div>
-              <h3 className="font-bold text-xs">בונה עמודים ואתרים</h3>
+              <h3 className="font-bold text-xs">KWB</h3>
               <p className="text-[11px] text-slate-400 mt-1">10 מעלות מובילות</p>
             </div>
 
@@ -733,7 +733,7 @@ export const HomePage: React.FC = () => {
                     <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-blue-500 text-slate-950">
                       DRAG & DROP EDITOR
                     </span>
-                    <h4 className="text-white font-bold text-base mt-2">בונה עמודים ואתרים רספונסיבי</h4>
+                    <h4 className="text-white font-bold text-base mt-2">KWB</h4>
                     <p className="text-xs text-slate-300">התאמה מלאה למובייל • אפס קוד</p>
                   </div>
                 </div>
@@ -744,7 +744,7 @@ export const HomePage: React.FC = () => {
             <div className="lg:col-span-7 space-y-4">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-xl text-xs font-bold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                 <Layers className="w-3.5 h-3.5" />
-                <span>רכיב בונה העמודים והאתרים</span>
+                <span>רכיב KWB</span>
               </div>
               <h2 className={`text-2xl sm:text-4xl font-black ${isLight ? 'text-slate-900' : 'text-white'}`}>
                 יצירת דפי נחיתה ואתרים ממירים במהירות הבזק
@@ -757,7 +757,7 @@ export const HomePage: React.FC = () => {
                   onClick={() => navigate('/KosWebAi')}
                   className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-md shadow-blue-600/20 transition cursor-pointer"
                 >
-                  <span>כניסה לבונה העמודים</span>
+                  <span>כניסה ל-KWB</span>
                   <ArrowLeft className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -769,7 +769,7 @@ export const HomePage: React.FC = () => {
           <div className="space-y-4">
             <h3 className={`text-lg font-black flex items-center gap-2 ${isLight ? 'text-slate-900' : 'text-white'}`}>
               <CheckCircle2 className="w-5 h-5 text-blue-500" />
-              <span>10 המעלות המובילות של בונה העמודים:</span>
+              <span>10 המעלות המובילות של KWB:</span>
             </h3>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3.5">

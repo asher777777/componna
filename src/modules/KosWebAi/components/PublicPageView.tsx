@@ -50,6 +50,15 @@ export const PublicPageView: React.FC = () => {
   const isPreviewMode = searchParams.get('preview') === 'true';
   const [isEditing, setIsEditing] = useState<boolean>(() => searchParams.get('edit') === 'true');
   const [isSaving, setIsSaving] = useState(false);
+  const [, setThemeVersion] = useState(0);
+
+  useEffect(() => {
+    const handleThemeChange = () => {
+      setThemeVersion((v) => v + 1);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
 
   // Notify KOSAI AI agent and system of edit mode toggle
   const toggleEditMode = async () => {
@@ -521,14 +530,14 @@ export const PublicPageView: React.FC = () => {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#0a0a0c]">
+    <div className="w-full min-h-screen bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-white transition-colors duration-300">
       {/* If in preview mode of an unpublished draft, show top subtle banner */}
       {!page.published && isPreviewMode && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/90 backdrop-blur text-slate-950 px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-lg">
           <AlertTriangle className="w-4 h-4" />
           <span>מצב תצוגה מקדימה (העמוד טרם פורסם לאוויר)</span>
           <Link to="/KosWebAi" className="underline mr-2 text-black hover:text-slate-800">
-            ערוך ופרסם בעורך
+            ערוך ופרסם ב-KWB
           </Link>
         </div>
       )}

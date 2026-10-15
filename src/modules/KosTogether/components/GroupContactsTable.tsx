@@ -47,8 +47,8 @@ interface GroupContactsTableProps {
   isRadarOpen?: boolean;
   onToggleRadar?: () => void;
   interactionsCount?: number;
-  currentTab?: 'contacts' | 'interactions';
-  onTabChange?: (tab: 'contacts' | 'interactions') => void;
+  currentTab?: 'grow' | 'contacts' | 'interactions';
+  onTabChange?: (tab: 'grow' | 'contacts' | 'interactions') => void;
 }
 
 export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
@@ -111,6 +111,20 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Right Section: Compact Icon Tabs & Metric Toggles with Data Only (Tooltips on Hover) */}
         <div className="flex items-center gap-2 flex-wrap">
+          {/* Sub-tab 1: מגדלים את הקהילה */}
+          <button
+            type="button"
+            onClick={() => onTabChange && onTabChange('grow')}
+            className={`h-9 px-3 rounded-xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-bold ${
+              currentTab === 'grow'
+                ? 'bg-indigo-600 text-white shadow-2xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+            title="מגדלים את הקהילה (הוספת אנשי קשר בגרירה)"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+          </button>
+
           {/* Sub-tabs: Contacts count (hover reveals 'אנשי קשר') */}
           <button
             type="button"

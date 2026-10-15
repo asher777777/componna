@@ -56,7 +56,7 @@ export class TenantWelcomeNotificationService {
     const planText = tenant.billingPlan === 'annual' ? 'מנוי שנתי (כולל 20% הנחה)' : 'מנוי חודשי ללא התחייבות';
     const modulesText = tenant.activeModules.length > 0 
       ? tenant.activeModules.map(m => `  • ${m}`).join('\n')
-      : '  • עורך דפי נחיתה ואתרים (Page Builder)';
+      : '  • KWB';
 
     return `🎉 *ברוכים הבאים לפלטפורמת Kosun! סביבת העבודה שלך שוגרה בהצלחה* 🚀
 

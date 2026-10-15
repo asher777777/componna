@@ -309,40 +309,15 @@ export const GroupHeaderStatsBar: React.FC<GroupHeaderStatsBarProps> = ({
       {isCustomGroup && activeGroup.isCommunity && (
         <div className="bg-slate-50/80 border border-slate-200/60 rounded-2xl p-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
           <div className="flex items-center gap-4 flex-wrap">
-            {targetGoal > 0 && (
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
-                  <Target className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
-                    <span>יעד גיוס: ₪{targetGoal.toLocaleString()}</span>
-                    <span className="text-[10px] font-mono text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200">
-                      {percentReached}% הושלמו
-                    </span>
-                  </div>
-                  {/* Small progress bar */}
-                  <div className="w-36 h-2 bg-slate-200 rounded-full mt-1 overflow-hidden">
-                    <div
-                      className="h-full bg-amber-500 rounded-full transition-all"
-                      style={{ width: `${percentReached}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            )}
+            <div className="text-xs text-indigo-700 bg-indigo-50 px-3 py-1.5 rounded-xl border border-indigo-200 font-bold flex items-center gap-1.5">
+              <Users className="w-3.5 h-3.5" />
+              <span>{filteredContacts.length} חברי קהילה</span>
+            </div>
 
             {activeGroup.leaderName && (
               <div className="text-xs text-slate-600 bg-white px-3 py-1.5 rounded-xl border border-slate-200/70">
                 <span className="text-slate-400">מוביל הקהילה:</span>{' '}
                 <span className="font-bold text-slate-800">{activeGroup.leaderName}</span>
-              </div>
-            )}
-
-            {activeGroup.campaignTitle && (
-              <div className="text-xs text-rose-700 bg-rose-50 px-3 py-1.5 rounded-xl border border-rose-200 font-semibold flex items-center gap-1">
-                <HeartHandshake className="w-3.5 h-3.5 text-rose-500" />
-                <span>קמפיין: {activeGroup.campaignTitle}</span>
               </div>
             )}
           </div>

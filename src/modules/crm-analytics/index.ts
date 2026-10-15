@@ -25,4 +25,5 @@ export * from './services/vcardService';
 export * from './routes/CrmAnalyticsRoutes';
 export * from './services/kosunCrmMigrationService';
 export * from './services/tenantContactSyncService';
+export * from './components/CrmAnalyticsHostBridge';
 export * from './StandaloneView';

@@ -25,14 +25,17 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
 
   const effectiveLogoUrl = !logoLoadFailed ? (globalSettings.siteLogoUrl || brandLogoUrl || '') : '';
 
-  const isDefaultDarkBg = !globalSettings.backgroundColor || ['#0a0a0c', '#090a0f', '#09090b', '#041017', '#0c0714', '#0f0728'].includes(globalSettings.backgroundColor.toLowerCase());
+  const defaultDarkBgList = [
+    '#0a0a0c', '#090a0f', '#09090b', '#041017', '#0c0714', '#0f0728', 
+    '#07090e', '#08080a', '#060608', '#000000', '#050505', '#111827', '#0f172a'
+  ];
+  const isDefaultDarkBg = !globalSettings.backgroundColor || defaultDarkBgList.includes(globalSettings.backgroundColor.toLowerCase());
   const customBgColor = !isDefaultDarkBg ? globalSettings.backgroundColor : undefined;
 
   const customStyle: React.CSSProperties = {
     ['--primary' as any]: globalSettings.primaryColor || '#4f46e5',
     ['--secondary' as any]: globalSettings.secondaryColor || '#ec4899',
-    ['--background' as any]: globalSettings.backgroundColor || (isDarkMode ? '#0a0a0c' : '#ffffff'),
-    ['--foreground' as any]: globalSettings.textColor || (isDarkMode ? '#f8fafc' : '#0f172a'),
+    fontFamily: globalSettings.fontFamily || 'Heebo, sans-serif',
   };
 
   const viewportWidths: Record<ViewportMode, string> = {
@@ -48,7 +51,8 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
       <div
         className={clsx(
           'transition-all duration-300 bg-white dark:bg-[#0a0a0c] text-slate-900 dark:text-white flex flex-col min-h-full overflow-hidden relative shadow-2xl',
-          viewportWidths[viewportMode]
+          viewportWidths[viewportMode],
+          isDarkMode ? 'dark' : ''
         )}
         style={{
           ...customStyle,
@@ -86,7 +90,7 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
               </span>
               {globalSettings.slogan && <p className="text-slate-600 dark:text-slate-500">{globalSettings.slogan}</p>}
               <p className="text-slate-500 dark:text-slate-600">
-                © {new Date().getFullYear()} כל הזכויות שמורות. נבנה באמצעות Kosun Web.
+                © {new Date().getFullYear()} כל הזכויות שמורות. נבנה באמצעות KWB.
               </p>
             </div>
           </footer>

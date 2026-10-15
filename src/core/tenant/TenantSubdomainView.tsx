@@ -164,7 +164,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         companyName: tenantRecord.clientName || `עסק ${tenantRecord.subdomain}`,
         slogan: 'פתרונות דיגיטליים מתקדמים ומותאמים אישית',
         theme: 'modern',
-        headerLayout: 'floating-glass',
+        headerLayout: 'capsule-floating',
         headerSticky: true,
         isHeaderVisible: true,
         isFooterVisible: true,
@@ -304,15 +304,31 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     };
   }, []);
   const [tenantTheme, setTenantTheme] = useState<'light' | 'dark'>(() => {
-    return (localStorage.getItem(`kosun_theme_${tenantRecord.subdomain}`) as 'light' | 'dark') || 'light';
+    const saved = localStorage.getItem('kosun_theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   });
+
+  useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      const newTheme = e?.detail?.theme || (document.documentElement.classList.contains('dark') ? 'dark' : 'light');
+      setTenantTheme(newTheme);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
 
   const toggleTenantTheme = () => {
     const next = tenantTheme === 'dark' ? 'light' : 'dark';
     setTenantTheme(next);
-    try {
-      localStorage.setItem(`kosun_theme_${tenantRecord.subdomain}`, next);
-    } catch {}
+    localStorage.setItem('kosun_theme', next);
+    localStorage.setItem('kosun_home_theme', next);
+    if (next === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: { theme: next } }));
   };
 
   const toggleEditMode = useCallback(async () => {

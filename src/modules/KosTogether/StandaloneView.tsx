@@ -21,22 +21,13 @@ try {
 }
 
 export const CrmGroupsHubStandaloneView: React.FC<{ ownerId?: string; customCollections?: any }> = ({ ownerId, customCollections }) => {
-  let systemFirebaseApp = standaloneApp;
-  let greenApiConfig = undefined;
-
-  try {
-    const sys = useSystemConnection();
-    if (sys?.firebaseApp) {
-      systemFirebaseApp = sys.firebaseApp;
-    }
-    if (sys?.apiKeys) {
-      greenApiConfig = {
-        idInstance: sys.apiKeys.greenApiInstanceId || (sys.apiKeys as any).greenApiIdInstance || '',
-        apiTokenInstance: sys.apiKeys.greenApiToken || (sys.apiKeys as any).greenApiTokenInstance || '',
-        apiUrl: (sys.apiKeys as any).greenApiUrl || 'https://api.green-api.com',
-      };
-    }
-  } catch (e) {}
+  const sys = useSystemConnection();
+  const systemFirebaseApp = sys?.firebaseApp || standaloneApp;
+  const greenApiConfig = sys?.apiKeys ? {
+    idInstance: sys.apiKeys.greenApiInstanceId || (sys.apiKeys as any).greenApiIdInstance || '',
+    apiTokenInstance: sys.apiKeys.greenApiToken || (sys.apiKeys as any).greenApiTokenInstance || '',
+    apiUrl: (sys.apiKeys as any).greenApiUrl || 'https://api.green-api.com',
+  } : undefined;
 
   return (
     <CrmGroupsProvider

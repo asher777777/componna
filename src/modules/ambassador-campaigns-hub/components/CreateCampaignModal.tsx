@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 import { useCampaignModule } from '../context/CampaignModuleContext';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { MediaPickerContract, BrandDnaContract } from '../../../core/contracts';
+import { MediaPickerContract, BrandDnaContract, PageBuilderContract } from '../../../core/contracts';
 import { useTenantScope } from '../../../core/tenant';
 import {
   fetchBrandProfile,
@@ -253,10 +253,14 @@ export const CreateCampaignModal: React.FC = () => {
     setLoading(true);
     setError('');
 
-    const cleanSlug = (slug || title)
+    const rawCleanSlug = (slug || title)
       .trim()
       .replace(/[^a-zA-Z0-9\u0590-\u05FF-]/g, '-')
       .replace(/^-+|-+$/g, '') || `camp-${Date.now().toString().slice(-4)}`;
+
+    const cleanSlug = rawCleanSlug.startsWith('kosfunrise')
+      ? rawCleanSlug
+      : `kosfunrise-${rawCleanSlug}`;
 
     // Prepare connected CRM groups payload
     const connectedGroups = crmGroups
@@ -300,6 +304,21 @@ export const CreateCampaignModal: React.FC = () => {
     setLoading(false);
 
     if (res.success) {
+      try {
+        const pageBuilder = getCapability<PageBuilderContract>('page-builder');
+        if (pageBuilder?.createPageFromCampaign) {
+          await pageBuilder.createPageFromCampaign({
+            campaignId: cleanSlug,
+            title: title.trim(),
+            targetGoal: Number(targetGoal),
+            description: description.trim(),
+            featuredImageUrl,
+            tiers: customTiers.length > 0 ? customTiers.map(t => ({ id: t.id, title: t.title || 'מדרגת תרומה', amount: t.amount, description: t.description })) : undefined,
+          });
+        }
+      } catch (pbErr) {
+        console.warn('[CreateCampaignModal] pageBuilder sync warning:', pbErr);
+      }
       handleClose();
     } else {
       setError(res.error || 'שגיאה ביצירת הקמפיין');

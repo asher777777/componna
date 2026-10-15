@@ -42,6 +42,18 @@ export interface LeadCaptureContract {
   captureLead: (lead: LeadPayload) => Promise<string | boolean>;
 }
 
+export interface CrmFieldOption {
+  value: string;
+  label: string;
+  group?: string;
+}
+
+export interface CrmMetadataContract {
+  getMappingFields: () => Promise<CrmFieldOption[]> | CrmFieldOption[];
+  captureLead?: (lead: LeadPayload) => Promise<string | boolean>;
+  createCustomField?: (field: { label: string; key?: string; type?: string }) => Promise<{ success: boolean; field?: CrmFieldOption; error?: string }>;
+}
+
 export interface NotificationContract {
   notify: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
 }
@@ -64,7 +76,7 @@ export interface DefaultFormsStatus {
 
 export interface FormFieldContract {
   label: string;
-  type: string; // text, tel, email, textarea, select, number, fixed_amount, hidden, step, payment_summary, payment_cc
+  type: string; // text, tel, email, textarea, select, number, fixed_amount, hidden, calculated, rich_text_display, image_display, step, payment_summary, payment_cc, donation_widget
   map_to: string;
   map_to_2?: string;
   required: boolean;
@@ -77,15 +89,30 @@ export interface FormFieldContract {
   cond_operator?: string;
   cond_value?: string;
   step?: number;
-  payment_doc_type?: string; // 320 = מס/קבלה, 400 = קבלה, 405 = תרומה
-  payment_methods?: string[]; // 'one-time', 'installments', 'recurring', 'bit'
-  payment_recurring_limit?: string; // 'user-choice', 'unlimited', '12', '24'
-  payment_require_id?: boolean;
+  calc_formula?: string;
+  icon?: string;
   widthPercentage?: number;
+  height?: string | number;
+  fontSize?: number;
+  textAlign?: 'left' | 'center' | 'right';
+  textColor?: string;
   bgColor?: string;
   borderColor?: string;
   focusColor?: string;
   placeholder?: string;
+  autocomplete?: string;
+  payment_doc_type?: string; // 320 = מס/קבלה, 400 = קבלה, 405 = תרומה
+  payment_methods?: string[]; // 'one-time', 'installments', 'recurring', 'bit'
+  payment_recurring_limit?: string; // 'user-choice', 'unlimited', '12', '24'
+  payment_require_id?: boolean;
+  submitOnNext?: boolean;
+  step_button_text?: string;
+  step_button_icon?: string;
+  step_button_bg_color?: string;
+  step_button_text_color?: string;
+  step_back_button_text?: string;
+  step_back_button_bg_color?: string;
+  step_back_button_text_color?: string;
 }
 
 export interface FormConfigContract {
@@ -278,6 +305,13 @@ export interface RecruitmentContract {
   getAmbassadorDetails?: (ambassadorId: string) => Promise<AmbassadorSummary | null>;
   renderAmbassadorBadge?: (props: { ambassadorId?: string; campaignTitle?: string; totalRaised?: number }) => React.ReactNode;
   openAmbassadorDrawer?: (campaignId?: string, contactId?: string) => void;
+  createCampaignLandingPage?: (campaignId: string, options?: Partial<CreateCampaignPageOptions>) => Promise<{
+    success: boolean;
+    pageId: string;
+    slug: string;
+    publicUrl: string;
+    error?: string;
+  }>;
 }
 
 // ========================
@@ -557,6 +591,8 @@ export interface CoreEventMap {
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
   'brand:logo_updated': { logoUrl: string; updatedAt: string };
   'brand:vibe_image_added': { imageUrl: string; updatedAt: string };
+  'brand:service_slug_updated': { serviceName: string; slug: string; pageId?: string };
+  'campaign:page_created': { campaignId: string; slug: string; publicUrl: string };
   'whatsapp:status:viewed': { phone: string; statusId: string };
   'whatsapp:message:sent': { phone: string; text?: string; message?: string; source?: string };
   'whatsapp:send': { phone: string; text?: string; message?: string; mediaUrl?: string };
@@ -779,6 +815,7 @@ export interface BrandDna {
   ecosystem?: BrandEcosystem;
   designTokens: BrandDesignTokens;
   trust: BrandTrustAndCheckout;
+  serviceSlugs?: Record<string, string>;
   updatedAt?: string;
 }
 
@@ -790,6 +827,8 @@ export interface BrandDnaContract {
   setLogoUrl?: (url: string) => Promise<boolean>;
   addVibeImage?: (url: string) => Promise<boolean>;
   removeVibeImage?: (url: string) => Promise<boolean>;
+  registerServicePageSlug?: (serviceName: string, slug: string) => Promise<boolean>;
+  getServicePageSlugs?: () => Record<string, string>;
 }
 
 // ========================
@@ -868,6 +907,18 @@ export interface CreateVideoSeoPageOptions {
   aiData?: Partial<KosTubeSeoPage>;
 }
 
+export interface CreateCampaignPageOptions {
+  campaignId: string;
+  title: string;
+  targetGoal: number;
+  description?: string;
+  deadlineDate?: string;
+  featuredImageUrl?: string;
+  brandDna?: BrandDna | null;
+  tiers?: Array<{ id: string; title: string; amount: number; description?: string }>;
+  onStep?: (step: { statusText: string; percent?: number }) => void;
+}
+
 export interface PageBuilderContract {
   createPageFromProduct: (options: CreatePageFromProductOptions) => Promise<{
     success: boolean;
@@ -884,6 +935,20 @@ export interface PageBuilderContract {
     error?: string;
     config?: any;
   }>;
+  createPageFromCampaign?: (options: CreateCampaignPageOptions) => Promise<{
+    success: boolean;
+    pageId: string;
+    slug: string;
+    publicUrl: string;
+    error?: string;
+    config?: any;
+  }>;
+  notifyServicePageCreated?: (options: {
+    pageId: string;
+    slug: string;
+    title: string;
+    serviceName?: string;
+  }) => Promise<void>;
   openPageBuilder: (pageId?: string) => void;
 }
 

@@ -63,6 +63,10 @@ export const PublicVideoSeoPageView: React.FC = () => {
   const [commentAuthorInput, setCommentAuthorInput] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
 
+  // Tags & Comments collapse states (folded/collapsed by default)
+  const [isTagsExpanded, setIsTagsExpanded] = useState<boolean>(false);
+  const [isCommentsExpanded, setIsCommentsExpanded] = useState<boolean>(false);
+
   useEffect(() => {
     let isMounted = true;
     async function loadPageAndBrand() {
@@ -118,6 +122,13 @@ export const PublicVideoSeoPageView: React.FC = () => {
       isMounted = false;
     };
   }, [db, tenantId, slug]);
+
+  const [, setThemeVersion] = useState(0);
+  useEffect(() => {
+    const handleThemeChange = () => setThemeVersion((v) => v + 1);
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
+    return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
 
   // Inject Schema.org JSON-LD into Document Head for search engines
   useEffect(() => {
@@ -226,9 +237,9 @@ export const PublicVideoSeoPageView: React.FC = () => {
   const displayTags = page.tags && page.tags.length > 0 ? page.tags : (page.focusKeywords || ['וידאו', 'יוטיוב', 'SEO', 'AISEO']);
 
   return (
-    <div className="min-h-screen bg-[#07090e] text-slate-100 font-sans selection:bg-red-600 selection:text-white" dir="rtl">
+    <div className="min-h-screen bg-slate-50 dark:bg-[#07090e] text-slate-900 dark:text-slate-100 font-sans selection:bg-red-600 selection:text-white transition-colors duration-300" dir="rtl">
       {/* Top Banner Navigation with Tenant Branding */}
-      <header className="sticky top-0 z-40 backdrop-blur-xl bg-[#090b14]/85 border-b border-slate-800/80 shadow-md">
+      <header className="sticky top-0 z-40 backdrop-blur-xl bg-white/90 dark:bg-[#090b14]/85 border-b border-slate-200 dark:border-slate-800/80 shadow-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
             {brandDna?.identity?.logoUrl ? (
@@ -422,13 +433,20 @@ export const PublicVideoSeoPageView: React.FC = () => {
               </div>
 
               {/* Comments Jump Pill */}
-              <a
-                href="#kosvidio-comments"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium transition-colors shadow-sm"
+              <button
+                type="button"
+                onClick={() => {
+                  setIsCommentsExpanded(true);
+                  setTimeout(() => {
+                    document.getElementById('kosvidio-comments')?.scrollIntoView({ behavior: 'smooth' });
+                  }, 50);
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900 hover:bg-slate-800 border border-slate-800 text-slate-300 font-medium transition-colors shadow-sm cursor-pointer"
+                title="קפיצה לאזור התגובות"
               >
                 <MessageSquare className="w-4 h-4 text-red-500" />
                 <span>{commentsList.length} תגובות</span>
-              </a>
+              </button>
 
               {/* SEO Score Badge */}
               <div className="hidden sm:flex items-center gap-1 px-2 text-slate-400 text-xs">
@@ -455,212 +473,263 @@ export const PublicVideoSeoPageView: React.FC = () => {
         {/* ============================================================== */}
         {/* 3. תחתיו תוויות בעיצוב עדין ואיקונים לשיתוף ברשתות             */}
         {/* ============================================================== */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 p-3.5 sm:p-4 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm">
-          {/* Delicate Tags */}
-          <div className="flex flex-wrap items-center gap-2">
-            {displayTags.map((tag, idx) => (
-              <span
-                key={idx}
-                className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/50 transition-colors shadow-sm"
-              >
-                #{tag.replace(/^#/, '')}
-              </span>
-            ))}
-          </div>
-
-          {/* Social Share Icons */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
-              <Share2 className="w-3.5 h-3.5" />
-              שיתוף:
-            </span>
-
-            <a
-              href={`https://wa.me/?text=${shareText}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all hover:scale-105"
-              title="שיתוף בוואטסאפ"
-            >
-              <span className="text-xs font-bold px-1">WhatsApp</span>
-            </a>
-
-            <a
-              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all hover:scale-105"
-              title="שיתוף בפייסבוק"
-            >
-              <span className="text-xs font-bold px-1">Facebook</span>
-            </a>
-
-            <a
-              href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all hover:scale-105"
-              title="שיתוף ב-LinkedIn"
-            >
-              <span className="text-xs font-bold px-1">LinkedIn</span>
-            </a>
-
+        <div className="mb-8 rounded-2xl bg-slate-900/40 border border-slate-800/60 backdrop-blur-sm overflow-hidden transition-all">
+          <div className="p-3.5 sm:p-4 flex flex-wrap items-center justify-between gap-4">
+            {/* Delicate Tags Toggle Button (Collapsed by default) */}
             <button
               type="button"
-              onClick={handleCopyLink}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all text-xs font-medium"
-              title="העתק קישור"
+              onClick={() => setIsTagsExpanded(!isTagsExpanded)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/60 hover:bg-slate-800 border border-slate-700/60 text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer shadow-xs"
+              title={isTagsExpanded ? 'קפל אזור תוויות' : 'הצג תוויות ונושאים'}
             >
-              {copiedLink ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">הועתק!</span>
-                </>
+              <span className="w-5 h-5 rounded-md bg-slate-700/80 flex items-center justify-center text-red-400 font-mono text-xs">#</span>
+              <span>תוויות ונושאי הסרטון ({displayTags.length})</span>
+              {isTagsExpanded ? (
+                <ChevronUp className="w-3.5 h-3.5 text-slate-400" />
               ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>העתק קישור</span>
-                </>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
               )}
             </button>
-          </div>
-        </div>
 
-        {/* ============================================================== */}
-        {/* 4. תחתיו אזור לתגובות מעוצב כמו ביוטיוב (YouTube Comments)     */}
-        {/* ============================================================== */}
-        <div className="mb-10 p-5 sm:p-6 rounded-2xl bg-slate-900/50 border border-slate-800/80 shadow-lg">
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-red-500" />
-              <span>{commentsList.length} תגובות</span>
-            </h2>
-            <div className="text-xs text-slate-400">מסודר לפי: מובילות</div>
-          </div>
+            {/* Social Share Icons */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-400 font-medium ml-1 flex items-center gap-1">
+                <Share2 className="w-3.5 h-3.5" />
+                שיתוף:
+              </span>
 
-          {/* Add Comment Form */}
-          <form onSubmit={handleAddComment} className="mb-6">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0 mt-0.5">
-                👤
-              </div>
+              <a
+                href={`https://wa.me/?text=${shareText}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 transition-all hover:scale-105"
+                title="שיתוף בוואטסאפ"
+              >
+                <span className="text-xs font-bold px-1">WhatsApp</span>
+              </a>
 
-              <div className="flex-1">
-                {isInputFocused && (
-                  <input
-                    type="text"
-                    placeholder="שמך (אופציונלי)"
-                    value={commentAuthorInput}
-                    onChange={(e) => setCommentAuthorInput(e.target.value)}
-                    className="w-full mb-2 px-3 py-1.5 bg-slate-800/90 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500 transition-all"
-                  />
+              <a
+                href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(currentUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 border border-blue-500/20 transition-all hover:scale-105"
+                title="שיתוף בפייסבוק"
+              >
+                <span className="text-xs font-bold px-1">Facebook</span>
+              </a>
+
+              <a
+                href={`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(currentUrl)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 transition-all hover:scale-105"
+                title="שיתוף ב-LinkedIn"
+              >
+                <span className="text-xs font-bold px-1">LinkedIn</span>
+              </a>
+
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition-all text-xs font-medium cursor-pointer"
+                title="העתק קישור"
+              >
+                {copiedLink ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-400" />
+                    <span className="text-emerald-400">הועתק!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>העתק קישור</span>
+                  </>
                 )}
-
-                <textarea
-                  rows={isInputFocused ? 3 : 1}
-                  placeholder="הוסף תגובה ציבורית..."
-                  value={newCommentText}
-                  onFocus={() => setIsInputFocused(true)}
-                  onChange={(e) => setNewCommentText(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800/80 border-b-2 border-slate-700 focus:border-red-500 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none transition-all resize-none"
-                />
-
-                {isInputFocused && (
-                  <div className="flex items-center justify-end gap-2 mt-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsInputFocused(false);
-                        setNewCommentText('');
-                      }}
-                      className="px-3 py-1.5 rounded-full hover:bg-slate-800 text-xs text-slate-400 hover:text-white transition-colors"
-                    >
-                      ביטול
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!newCommentText.trim()}
-                      className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold text-white transition-all shadow-md shadow-red-600/20"
-                    >
-                      <Send className="w-3 h-3" />
-                      תגובה
-                    </button>
-                  </div>
-                )}
-              </div>
+              </button>
             </div>
-          </form>
+          </div>
 
-          {/* Comments List */}
-          {commentsList.length === 0 ? (
-            <div className="p-6 text-center rounded-xl bg-slate-800/30 border border-dashed border-slate-800 text-slate-400 text-xs sm:text-sm">
-              <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-50" />
-              <p className="font-semibold text-slate-300">עדיין אין תגובות בעמוד זה.</p>
-              <p className="text-slate-500 text-xs mt-1">היו הראשונים להגיב ולשתף את דעתכם על הסרטון!</p>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {commentsList.map((comment) => (
-                <div key={comment.id} className="flex items-start gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm">
-                    {comment.authorName.slice(0, 1)}
-                  </div>
-
-                  <div className="flex-1 text-sm">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-slate-200 text-xs">
-                        {comment.authorName}
-                      </span>
-                      <span className="text-[11px] text-slate-400">{comment.publishedAt}</span>
-                    </div>
-
-                    <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-1.5">
-                      {comment.content}
-                    </p>
-
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <button
-                        type="button"
-                        onClick={() => handleToggleLike(comment.id)}
-                        className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors ${
-                          comment.userLiked ? 'text-red-400 font-bold' : 'hover:text-slate-200'
-                        }`}
-                      >
-                        <ThumbsUp className={`w-3.5 h-3.5 ${comment.userLiked ? 'fill-red-400' : ''}`} />
-                        <span>{comment.likesCount}</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        className="p-1 rounded hover:bg-slate-800 hover:text-slate-200 transition-colors"
-                        title="לא אהבתי"
-                      >
-                        <ThumbsDown className="w-3.5 h-3.5" />
-                      </button>
-
-                      <button
-                        type="button"
-                        className="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 font-semibold text-[11px] transition-colors"
-                      >
-                        השב
-                      </button>
-                    </div>
-                  </div>
-                </div>
+          {/* Collapsible Tags Area - Folded by default! */}
+          {isTagsExpanded && displayTags && displayTags.length > 0 && (
+            <div className="px-4 pb-4 pt-1 border-t border-slate-800/40 flex flex-wrap items-center gap-2 animate-in fade-in slide-in-from-top-1 duration-200">
+              {displayTags.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700/50 transition-colors shadow-sm"
+                >
+                  #{tag.replace(/^#/, '')}
+                </span>
               ))}
             </div>
           )}
         </div>
 
         {/* ============================================================== */}
-        {/* 5. תחתיו תיאור קצר (Short Description / Executive Summary)     */}
+        {/* 4. תחתיו אזור לתגובות מעוצב כמו ביוטיוב (YouTube Comments)     */}
+        {/* ============================================================== */}
+        <div id="kosvidio-comments" className="mb-10 rounded-2xl bg-slate-900/50 border border-slate-800/80 shadow-lg overflow-hidden transition-all">
+          {/* Comments Header (Interactive Toggle - Folded by default) */}
+          <button
+            type="button"
+            onClick={() => setIsCommentsExpanded(!isCommentsExpanded)}
+            className="w-full p-4 sm:p-5 flex items-center justify-between text-right hover:bg-slate-800/30 transition-colors cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                <MessageSquare className="w-5 h-5" />
+              </div>
+              <div>
+                <h2 className="text-base sm:text-lg font-bold text-white flex items-center gap-2">
+                  <span>{commentsList.length} תגובות</span>
+                </h2>
+                <span className="text-[11px] text-slate-400 block font-normal">
+                  {isCommentsExpanded ? 'לחץ לקיפול אזור התגובות' : 'לחץ להצגת תגובות וכתיבת תגובה'}
+                </span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-xs font-semibold text-slate-300 bg-slate-800/80 hover:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-700/60 shadow-xs">
+              <span>{isCommentsExpanded ? 'קפל תגובות' : 'הצג תגובות'}</span>
+              {isCommentsExpanded ? (
+                <ChevronUp className="w-4 h-4 text-slate-400" />
+              ) : (
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              )}
+            </div>
+          </button>
+
+          {/* Collapsible Comments Content - Folded by default! */}
+          {isCommentsExpanded && (
+            <div className="p-5 sm:p-6 pt-0 border-t border-slate-800/60 space-y-6 animate-in fade-in duration-200">
+              <div className="flex justify-end pt-3">
+                <div className="text-xs text-slate-400">מסודר לפי: מובילות</div>
+              </div>
+
+              {/* Add Comment Form */}
+              <form onSubmit={handleAddComment} className="mb-6">
+                <div className="flex items-start gap-3">
+                  <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-slate-300 shrink-0 mt-0.5">
+                    👤
+                  </div>
+
+                  <div className="flex-1">
+                    {isInputFocused && (
+                      <input
+                        type="text"
+                        placeholder="שמך (אופציונלי)"
+                        value={commentAuthorInput}
+                        onChange={(e) => setCommentAuthorInput(e.target.value)}
+                        className="w-full mb-2 px-3 py-1.5 bg-slate-800/90 border border-slate-700 rounded-lg text-xs text-white placeholder-slate-400 focus:outline-none focus:border-red-500 transition-all"
+                      />
+                    )}
+
+                    <textarea
+                      rows={isInputFocused ? 3 : 1}
+                      placeholder="הוסף תגובה ציבורית..."
+                      value={newCommentText}
+                      onFocus={() => setIsInputFocused(true)}
+                      onChange={(e) => setNewCommentText(e.target.value)}
+                      className="w-full px-3 py-2 bg-slate-800/80 border-b-2 border-slate-700 focus:border-red-500 rounded-lg text-sm text-white placeholder-slate-400 focus:outline-none transition-all resize-none"
+                    />
+
+                    {isInputFocused && (
+                      <div className="flex items-center justify-end gap-2 mt-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsInputFocused(false);
+                            setNewCommentText('');
+                          }}
+                          className="px-3 py-1.5 rounded-full hover:bg-slate-800 text-xs text-slate-400 hover:text-white transition-colors"
+                        >
+                          ביטול
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={!newCommentText.trim()}
+                          className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-red-600 hover:bg-red-500 disabled:opacity-40 text-xs font-bold text-white transition-all shadow-md shadow-red-600/20"
+                        >
+                          <Send className="w-3 h-3" />
+                          תגובה
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </form>
+
+              {/* Comments List */}
+              {commentsList.length === 0 ? (
+                <div className="p-6 text-center rounded-xl bg-slate-800/30 border border-dashed border-slate-800 text-slate-400 text-xs sm:text-sm">
+                  <MessageSquare className="w-8 h-8 text-slate-600 mx-auto mb-2 opacity-50" />
+                  <p className="font-semibold text-slate-300">עדיין אין תגובות בעמוד זה.</p>
+                  <p className="text-slate-500 text-xs mt-1">היו הראשונים להגיב ולשתף את דעתכם על הסרטון!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {commentsList.map((comment) => (
+                    <div key={comment.id} className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-slate-700 to-slate-600 border border-slate-600 flex items-center justify-center text-xs font-bold text-white shrink-0 shadow-sm">
+                        {comment.authorName.slice(0, 1)}
+                      </div>
+
+                      <div className="flex-1 text-sm">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-slate-200 text-xs">
+                            {comment.authorName}
+                          </span>
+                          <span className="text-[11px] text-slate-400">{comment.publishedAt}</span>
+                        </div>
+
+                        <p className="text-slate-300 text-xs sm:text-sm leading-relaxed mb-1.5">
+                          {comment.content}
+                        </p>
+
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleLike(comment.id)}
+                            className={`flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-slate-800 transition-colors ${
+                              comment.userLiked ? 'text-red-400 font-bold' : 'hover:text-slate-200'
+                            }`}
+                          >
+                            <ThumbsUp className={`w-3.5 h-3.5 ${comment.userLiked ? 'fill-red-400' : ''}`} />
+                            <span>{comment.likesCount}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            className="p-1 rounded hover:bg-slate-800 hover:text-slate-200 transition-colors"
+                            title="לא אהבתי"
+                          >
+                            <ThumbsDown className="w-3.5 h-3.5" />
+                          </button>
+
+                          <button
+                            type="button"
+                            className="px-2 py-0.5 rounded hover:bg-slate-800 hover:text-slate-200 font-semibold text-[11px] transition-colors"
+                          >
+                            השב
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ============================================================== */}
+        {/* 5. על הסרטון בכמה מילים (Short Description)                   */}
         {/* ============================================================== */}
         {page.executiveSummary && (
           <div className="mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-red-950/30 via-slate-900/60 to-purple-950/30 border border-red-900/40 shadow-xl backdrop-blur-md">
             <div className="flex items-center gap-2 mb-3">
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-500/20 text-red-400 border border-red-500/30 text-xs font-bold">
                 <Sparkles className="w-3.5 h-3.5" />
-                תקציר מנהלים • AI
+                על הסרטון בכמה מילים
               </span>
             </div>
 

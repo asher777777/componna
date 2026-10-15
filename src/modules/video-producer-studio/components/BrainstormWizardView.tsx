@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { 
   Sparkles, Wand2, Film, Clock, Users, Target, Volume2, 
   Image as ImageIcon, CheckCircle2, Globe, Palette, FileText, 
@@ -607,7 +607,7 @@ export const BrainstormWizardView: React.FC = () => {
                 <Layout className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-white block">יוצר העמודים (Page Builder)</span>
+                <span className="text-xs font-bold text-white block">KWB</span>
                 <span className="text-[10px] text-purple-300">בחר עמוד להמרת תוכן לעץ וידאו</span>
               </div>
             </div>

@@ -488,8 +488,28 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                     {visibleFields
                       .filter((f) => (f.step || 1) === currentStep)
                       .map((field, idx) => {
-                        const isFullWidth = field.widthPercentage === 100 || field.type === 'textarea' || field.type === 'payment_summary' || field.type === 'payment_cc';
+                        const isFullWidth = field.widthPercentage === 100 || field.type === 'textarea' || field.type === 'payment_summary' || field.type === 'payment_cc' || field.type === 'step';
                         const hasError = errors[field.label];
+
+                        if (field.type === 'hidden') {
+                          return (
+                            <input
+                              key={idx}
+                              type="hidden"
+                              value={formData[field.label] || field.default_value || ''}
+                            />
+                          );
+                        }
+
+                        if (field.type === 'step') {
+                          return (
+                            <div key={idx} className="sm:col-span-2 pt-2 pb-1" style={{ textAlign: field.textAlign || 'right' }}>
+                              <h4 className="text-sm font-bold text-slate-800 dark:text-white" style={{ color: field.textColor || undefined }}>
+                                {field.label}
+                              </h4>
+                            </div>
+                          );
+                        }
 
                         if (field.type === 'payment_summary') {
                           return (
@@ -509,9 +529,35 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                           );
                         }
 
+                        const inputStyle: React.CSSProperties = {
+                          textAlign: field.textAlign,
+                          color: field.textColor,
+                          backgroundColor: field.bgColor,
+                          borderColor: hasError ? undefined : field.borderColor,
+                          height: field.height || undefined,
+                          fontSize: field.fontSize ? `${field.fontSize}px` : undefined,
+                        };
+
+                        if (field.type === 'calculated') {
+                          return (
+                            <div key={idx} className={isFullWidth ? 'sm:col-span-2' : ''}>
+                              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" style={{ textAlign: field.textAlign || 'right' }}>
+                                {field.label}
+                              </label>
+                              <input
+                                type="text"
+                                readOnly
+                                value={formData[field.label] || ''}
+                                style={inputStyle}
+                                className="w-full bg-slate-100 dark:bg-slate-900 border border-slate-300 dark:border-slate-800 text-slate-900 dark:text-white rounded-xl px-4 py-2.5 text-sm font-mono opacity-90 cursor-not-allowed"
+                              />
+                            </div>
+                          );
+                        }
+
                         return (
                           <div key={idx} className={isFullWidth ? 'sm:col-span-2' : ''}>
-                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1" style={{ textAlign: field.textAlign || 'right' }}>
                               {field.label} {field.required && <span className="text-rose-500">*</span>}
                             </label>
 
@@ -521,6 +567,8 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                                 value={formData[field.label] || ''}
                                 onChange={(e) => handleInputChange(field.label, e.target.value)}
                                 placeholder={field.placeholder || ''}
+                                style={inputStyle}
+                                autoComplete={field.autocomplete || undefined}
                                 className={`w-full bg-slate-50 dark:bg-slate-950 border ${
                                   hasError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-800'
                                 } text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500 resize-none`}
@@ -529,6 +577,7 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                               <select
                                 value={formData[field.label] || ''}
                                 onChange={(e) => handleInputChange(field.label, e.target.value)}
+                                style={inputStyle}
                                 className={`w-full bg-slate-50 dark:bg-slate-950 border ${
                                   hasError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-800'
                                 } text-slate-900 dark:text-white rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500`}
@@ -546,10 +595,12 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
                                 value={formData[field.label] || ''}
                                 onChange={(e) => handleInputChange(field.label, e.target.value)}
                                 placeholder={field.placeholder || ''}
+                                style={inputStyle}
+                                autoComplete={field.autocomplete || undefined}
                                 className={`w-full bg-slate-50 dark:bg-slate-950 border ${
                                   hasError ? 'border-rose-500' : 'border-slate-200 dark:border-slate-800'
                                 } text-slate-900 dark:text-white placeholder-slate-400 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-indigo-500`}
-                                dir={field.type === 'email' || field.type === 'tel' ? 'ltr' : 'rtl'}
+                                dir={field.type === 'email' || field.type === 'tel' ? 'ltr' : (field.textAlign === 'left' ? 'ltr' : 'rtl')}
                               />
                             )}
 
@@ -561,31 +612,45 @@ export const ContactSection: React.FC<{ config: ContactSectionConfig }> = ({ con
 
                   {/* Navigation & Submit Buttons */}
                   <div className="flex gap-2 pt-2">
-                    {currentStep > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
-                        className="px-5 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 cursor-pointer"
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                        <span>{activeForm.back_button_text || 'חזור'}</span>
-                      </button>
-                    )}
+                    {currentStep > 1 && (() => {
+                      const curStepField = visibleFields.find((f) => f.type === 'step' && (f.step || 1) === currentStep);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setCurrentStep((prev) => Math.max(1, prev - 1))}
+                          style={{
+                            backgroundColor: curStepField?.step_back_button_bg_color || undefined,
+                            color: curStepField?.step_back_button_text_color || undefined,
+                          }}
+                          className="px-5 py-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1 cursor-pointer"
+                        >
+                          <ChevronRight className="w-4 h-4" />
+                          <span>{curStepField?.step_back_button_text || activeForm.back_button_text || 'חזור'}</span>
+                        </button>
+                      );
+                    })()}
 
-                    {currentStep < totalSteps ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (validateStep(currentStep)) {
-                            setCurrentStep((prev) => Math.min(totalSteps, prev + 1));
-                          }
-                        }}
-                        className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/30"
-                      >
-                        <span>{activeForm.continue_button_text || 'המשך'}</span>
-                        <ChevronLeft className="w-4 h-4" />
-                      </button>
-                    ) : (
+                    {currentStep < totalSteps ? (() => {
+                      const curStepField = visibleFields.find((f) => f.type === 'step' && (f.step || 1) === currentStep);
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (validateStep(currentStep)) {
+                              setCurrentStep((prev) => Math.min(totalSteps, prev + 1));
+                            }
+                          }}
+                          style={{
+                            backgroundColor: curStepField?.step_button_bg_color || undefined,
+                            color: curStepField?.step_button_text_color || undefined,
+                          }}
+                          className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm flex items-center justify-center gap-1.5 cursor-pointer shadow-lg shadow-indigo-600/30"
+                        >
+                          <span>{curStepField?.step_button_text || activeForm.continue_button_text || 'המשך'}</span>
+                          <ChevronLeft className="w-4 h-4" />
+                        </button>
+                      );
+                    })() : (
                       <button
                         type="submit"
                         disabled={isSubmitting}

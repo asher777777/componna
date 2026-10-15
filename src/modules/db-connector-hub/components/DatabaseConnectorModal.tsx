@@ -456,7 +456,7 @@ export const DatabaseConnectorModal: React.FC = () => {
                 </span>
               </h2>
               <p className="text-xs text-slate-400 mt-0.5">
-                מסנכרן את כלל המודולים (סליקה, CRM, וואטסאפ, גלריית מדיה, נגן, בונה דפים)
+                מסנכרן את כלל המודולים (סליקה, CRM, וואטסאפ, גלריית מדיה, נגן, KWB)
               </p>
             </div>
           </div>

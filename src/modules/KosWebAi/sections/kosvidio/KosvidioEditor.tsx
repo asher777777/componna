@@ -223,7 +223,7 @@ export const KosvidioEditor: React.FC<{
         <div className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-300 mb-1">
-              תיאור קצר (תקציר מנהלים מהיר)
+              על הסרטון בכמה מילים (תיאור קצר)
             </label>
             <textarea
               rows={3}

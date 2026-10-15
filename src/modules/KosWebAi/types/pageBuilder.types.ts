@@ -34,7 +34,7 @@ export interface GlobalPageSettings {
   companyName?: string;
   slogan?: string;
   theme?: 'navy' | 'modern' | 'dark' | 'emerald' | 'purple' | 'sunset' | 'light-minimal' | 'cyber-neon';
-  headerLayout?: 'classic' | 'centered' | 'minimal' | 'transparent' | 'floating-glass';
+  headerLayout?: 'capsule-floating' | 'classic' | 'centered' | 'minimal' | 'transparent' | 'floating-glass';
   headerSticky?: boolean;
   isHeaderVisible?: boolean;
   isFooterVisible?: boolean;
@@ -132,10 +132,106 @@ export interface BaseSectionConfig {
   customClasses?: string;
 }
 
+export type PageCategory =
+  | 'service_product'
+  | 'info_content'
+  | 'event'
+  | 'fundraising'
+  | 'youtube_post'
+  | 'general';
+
+export interface PageCategoryConfig {
+  key: PageCategory;
+  slugPrefix: string;
+  slugPrefixLower: string;
+  label: string;
+  shortLabel: string;
+  description: string;
+  badgeStyle: string;
+  filterBadgeStyle: string;
+}
+
+export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
+  service_product: {
+    key: 'service_product',
+    slugPrefix: 'KOSASS',
+    slugPrefixLower: 'kosass',
+    label: 'עמודי שירות / מוצר',
+    shortLabel: 'שירות / מוצר',
+    description: 'הצעות ערך, מכירת מוצרים, חבילות שירותים, מחירונים וטפסי תשלום',
+    badgeStyle: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    filterBadgeStyle: 'bg-blue-600 text-white',
+  },
+  info_content: {
+    key: 'info_content',
+    slugPrefix: 'KOSINFO',
+    slugPrefixLower: 'kosinfo',
+    label: 'עמוד מידע ותוכן',
+    shortLabel: 'מידע ותוכן',
+    description: 'מאמרים, מרכז ידע, מדריכים, תוכן מקצועי ומידע כללי',
+    badgeStyle: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    filterBadgeStyle: 'bg-emerald-600 text-white',
+  },
+  event: {
+    key: 'event',
+    slugPrefix: 'KOSEVENT',
+    slugPrefixLower: 'kosevent',
+    label: 'עמודי אירועים',
+    shortLabel: 'אירועים',
+    description: 'כנסים, השקות, הרשמות RSVP, חיבור CRM, תשלום, יומן ודרכי הגעה',
+    badgeStyle: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    filterBadgeStyle: 'bg-amber-600 text-white',
+  },
+  fundraising: {
+    key: 'fundraising',
+    slugPrefix: 'KOSFUNRISE',
+    slugPrefixLower: 'kosfunrise',
+    label: 'קמפיין וגיוס כספים',
+    shortLabel: 'גיוס כספים',
+    description: 'קמפיינים לגיוס תרומות, מדרגות נתינה, קיר תורמים ומד התקדמות',
+    badgeStyle: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
+    filterBadgeStyle: 'bg-rose-600 text-white',
+  },
+  youtube_post: {
+    key: 'youtube_post',
+    slugPrefix: 'KOSTUBE',
+    slugPrefixLower: 'kostube',
+    label: 'פוסט וידאו יוטיוב',
+    shortLabel: 'וידאו יוטיוב',
+    description: 'עמודי וידאו מיוטיוב, מאמרי SEO מבוססי AI ונגן אינטראקטיבי',
+    badgeStyle: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
+    filterBadgeStyle: 'bg-red-600 text-white',
+  },
+  general: {
+    key: 'general',
+    slugPrefix: 'P',
+    slugPrefixLower: 'p',
+    label: 'עמוד כללי',
+    shortLabel: 'כללי',
+    description: 'עמוד נחיתה חופשי בעיצוב אישי',
+    badgeStyle: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
+    filterBadgeStyle: 'bg-slate-600 text-white',
+  },
+};
+
+export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string } | null): PageCategory | null {
+  if (!page) return null;
+  if (page.pageCategory && PAGE_CATEGORIES[page.pageCategory]) return page.pageCategory;
+  const s = (page.slug || '').toLowerCase();
+  if (s.startsWith('kosass')) return 'service_product';
+  if (s.startsWith('kosinfo')) return 'info_content';
+  if (s.startsWith('kosevent')) return 'event';
+  if (s.startsWith('kosfunrise')) return 'fundraising';
+  if (s.startsWith('kostube') || s.startsWith('kosvidio')) return 'youtube_post';
+  if (s.startsWith('p-') || s === 'home') return 'general';
+  return 'general';
+}
+
 export interface PageBuilderConfig {
   pageId: string;
   pageTitle: string;
   slug: string;
+  pageCategory?: PageCategory;
   published?: boolean;
   publishedAt?: string;
   publishedUrl?: string;

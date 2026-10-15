@@ -224,7 +224,7 @@ export const aiPageGenerator = {
         slogan,
         siteLogoUrl: logoUrl,
         theme: 'modern',
-        headerLayout: 'floating-glass',
+        headerLayout: 'capsule-floating',
         headerSticky: true,
         isHeaderVisible: true,
         isFooterVisible: true,

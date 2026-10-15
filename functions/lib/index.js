@@ -10,6 +10,7 @@ admin.initializeApp();
 const db = admin.firestore();
 // Fire-and-forget contact extraction
 async function extractAndSaveContact(geminiKey, phone, messages) {
+    var _a, _b;
     try {
         const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
         const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
@@ -28,6 +29,21 @@ async function extractAndSaveContact(geminiKey, phone, messages) {
     ${chatText}
     `;
         const result = await model.generateContent(prompt);
+        // Track token usage to platform meter
+        try {
+            const pTokens = ((_a = result.response.usageMetadata) === null || _a === void 0 ? void 0 : _a.promptTokenCount) || 200;
+            const cTokens = ((_b = result.response.usageMetadata) === null || _b === void 0 ? void 0 : _b.candidatesTokenCount) || 80;
+            const tTokens = pTokens + cTokens;
+            const costUSD = Number(((pTokens * 0.75 + cTokens * 3.75) / 1000000).toFixed(6));
+            await db.doc('tenants/_master/settings/token_usage').set({
+                totalTokens: admin.firestore.FieldValue.increment(tTokens),
+                contentTokens: admin.firestore.FieldValue.increment(tTokens),
+                totalCostUSD: admin.firestore.FieldValue.increment(costUSD),
+                totalCostILS: admin.firestore.FieldValue.increment(Number((costUSD * 3.7).toFixed(6))),
+                updatedAt: new Date().toISOString()
+            }, { merge: true });
+        }
+        catch (_c) { }
         const text = result.response.text().trim().replace(/```json/g, '').replace(/```/g, '');
         const data = JSON.parse(text);
         if (data.name || data.email || data.businessType) {
@@ -312,17 +328,12 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 }
             }
             catch (e) { }
-            // 5. Append strict logic to System Prompt
+            // 5. Append static, stabilized logic to System Prompt (enables Gemini Implicit Context Caching)
             let strictPrompt = (triggeredBot.systemPrompt || 'אתה נציג שירות ומכירות אינטליגנטי.') + brandContext + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
             strictPrompt += '1. התשובות שלך חייבות להיות **קצרות מאוד ותמציתיות** (עד 2-3 משפטים בלבד).\n';
             strictPrompt += '2. אם הלקוח מבקש מידע ארוך (כמו חבילות), תן לו אותו מתומצת מאוד בנקודות קצרות.\n';
             strictPrompt += '3. סיים כל הודעה שלך ב**שאלה ממוקדת** כדי להוביל את השיחה.\n';
-            if (!contactName) {
-                strictPrompt += '4. הלקוח הזה חדש ואין לנו את השם שלו! הדבר הראשון שעליך לעשות עכשיו זה לשאול לשמו (בצורה טבעית וקצרה). אל תציע שום חבילה או מידע לפני שהוא מוסר את השם.\n';
-            }
-            else {
-                strictPrompt += `4. שם הלקוח הוא "${contactName}". השתמש בו לפעמים בשיחה.\n`;
-            }
+            strictPrompt += '4. אם שם הלקוח מצוין בנתוני השיחה, פנה אליו לפעמים בשמו. אם מדובר בלקוח חדש ללא שם, שאל לשמו בעדינות ובקצרה בפתח השיחה.\n';
             strictPrompt += '5. אם אין לך תשובה טובה, תגיד שאתה מעביר את הפנייה לנציג אנושי.\n';
             // Loop Guard 1: Anti-Duplication via Message ID
             const messageId = body.idMessage;
@@ -353,7 +364,11 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 role: msg.role === 'model' ? 'model' : 'user',
                 parts: [{ text: msg.text }]
             }));
-            contents.push({ role: 'user', parts: [{ text: messageText }] });
+            // Pass dynamic contact info into conversation turn rather than altering static systemPrompt
+            const currentMessageWithContext = contactName
+                ? `[נתוני לקוח: ${contactName}]\n${messageText}`
+                : messageText;
+            contents.push({ role: 'user', parts: [{ text: currentMessageWithContext }] });
             const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
             let replyText = '';
             try {
@@ -368,6 +383,35 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     }
                 });
                 replyText = ((_3 = result.response.text()) === null || _3 === void 0 ? void 0 : _3.trim()) || '';
+                // Track token usage to platform meter with Context Caching discounts
+                try {
+                    const metadata = result.response.usageMetadata;
+                    const pTokens = (metadata === null || metadata === void 0 ? void 0 : metadata.promptTokenCount) || 250;
+                    const cTokens = (metadata === null || metadata === void 0 ? void 0 : metadata.candidatesTokenCount) || 100;
+                    const cachedTokens = (metadata === null || metadata === void 0 ? void 0 : metadata.cachedContentTokenCount) || 0;
+                    const tTokens = pTokens + cTokens;
+                    // Retail value (market rate)
+                    const retailBilledUSD = Number(((pTokens * 0.75 + cTokens * 3.75) / 1000000).toFixed(6));
+                    // Actual cost to platform (90% discount on cached input tokens!)
+                    const uncachedInput = Math.max(0, pTokens - cachedTokens);
+                    const actualCostUSD = Number(((uncachedInput * 0.75 + cachedTokens * 0.075 + cTokens * 3.75) / 1000000).toFixed(6));
+                    const profitUSD = Math.max(0, Number((retailBilledUSD - actualCostUSD).toFixed(6)));
+                    await db.doc('tenants/_master/settings/token_usage').set({
+                        totalTokens: admin.firestore.FieldValue.increment(tTokens),
+                        chatbotTokens: admin.firestore.FieldValue.increment(tTokens),
+                        cachedTokens: admin.firestore.FieldValue.increment(cachedTokens),
+                        totalCostUSD: admin.firestore.FieldValue.increment(actualCostUSD),
+                        totalCostILS: admin.firestore.FieldValue.increment(Number((actualCostUSD * 3.7).toFixed(6))),
+                        retailBilledUSD: admin.firestore.FieldValue.increment(retailBilledUSD),
+                        retailBilledILS: admin.firestore.FieldValue.increment(Number((retailBilledUSD * 3.7).toFixed(6))),
+                        grossProfitUSD: admin.firestore.FieldValue.increment(profitUSD),
+                        grossProfitILS: admin.firestore.FieldValue.increment(Number((profitUSD * 3.7).toFixed(6))),
+                        updatedAt: new Date().toISOString()
+                    }, { merge: true });
+                }
+                catch (trackErr) {
+                    console.warn('[whatsappWebhook] Token tracking error:', trackErr);
+                }
             }
             catch (err) {
                 console.error(`[whatsappWebhook] Gemini model ${targetModel} generation failed:`, (err === null || err === void 0 ? void 0 : err.message) || err);

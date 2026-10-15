@@ -8,14 +8,17 @@ import {
   PageBuilderContract,
   CreatePageFromProductOptions,
   CreateVideoSeoPageOptions,
+  CreateCampaignPageOptions,
+  BrandDnaContract,
 } from '../../../core/contracts';
+import { eventBus } from '../../../core/bridge/EventBus';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { aiPageGenerator } from '../services/aiPageGenerator';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 
 export const KosWebAiHostBridge: React.FC = () => {
-  const { registerCapability, unregisterCapability } = useHostCapabilities();
+  const { registerCapability, unregisterCapability, getCapability } = useHostCapabilities();
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
 
@@ -209,8 +212,32 @@ export const KosWebAiHostBridge: React.FC = () => {
             }
           }
 
+          // Ensure product/service page has KOSASS slug prefix and pageCategory
+          const rawGeneratedSlug = (generatedConfig.slug || 'product').toLowerCase().replace(/[^a-z0-9-]/g, '');
+          const cleanSlug = rawGeneratedSlug.startsWith('kosass')
+            ? rawGeneratedSlug
+            : `kosass-${rawGeneratedSlug.replace(/^(page-|product-)?/, '') || Date.now().toString().slice(-4)}`;
+
+          generatedConfig.slug = cleanSlug;
+          generatedConfig.pageCategory = 'service_product';
+
           // Save page through pageBuilderFirestore
           await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+
+          // Update Brand DNA Contract with new service page slug & notify event bus
+          try {
+            const brandContract = getCapability<BrandDnaContract>('brand-dna');
+            if (brandContract?.registerServicePageSlug) {
+              await brandContract.registerServicePageSlug(product.nameAndSlogan, cleanSlug);
+            }
+            eventBus.publish('brand:service_slug_updated', {
+              serviceName: product.nameAndSlogan,
+              slug: cleanSlug,
+              pageId: generatedConfig.pageId,
+            });
+          } catch (brandErr) {
+            console.warn('[KosWebAiHostBridge] Brand slug registration warning:', brandErr);
+          }
 
           return {
             success: true,
@@ -227,6 +254,119 @@ export const KosWebAiHostBridge: React.FC = () => {
             publicUrl: '',
             error: err?.message || 'שגיאה ביצירת עמוד הנחיתה עם AI.',
           };
+        }
+      },
+
+      createPageFromCampaign: async (options: CreateCampaignPageOptions) => {
+        try {
+          const campaignId = options.campaignId || `camp_${Date.now()}`;
+          const rawTitle = options.title || 'קמפיין גיוס';
+          const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
+          const cleanSlug = `kosfunrise-${campaignId.toLowerCase().replace(/[^a-z0-9-]/g, '') || randomSuffix}`;
+          const pageId = `page_campaign_${randomSuffix}`;
+
+          const brandCompanyName = options.brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים';
+          const brandLogo = options.brandDna?.identity?.logoUrl || '';
+          const brandSlogan = options.brandDna?.identity?.slogan || 'שגרירים וגיוס כספים';
+          const primaryColor = options.brandDna?.designTokens?.primaryColor || '#e11d48';
+
+          const campaignPageConfig: PageBuilderConfig = {
+            pageId,
+            pageTitle: `${rawTitle} - KOSFUNRISE`,
+            slug: cleanSlug,
+            pageCategory: 'fundraising',
+            published: true,
+            isHomePage: false,
+            viewsCount: 0,
+            leadsCount: 0,
+            globalSettings: {
+              siteTitle: `${rawTitle} | ${brandCompanyName}`,
+              companyName: brandCompanyName,
+              slogan: brandSlogan,
+              siteLogoUrl: brandLogo,
+              primaryColor,
+              theme: 'sunset',
+              headerLayout: 'floating-glass',
+              headerSticky: true,
+              isHeaderVisible: true,
+              isFooterVisible: true,
+            },
+            seoSettings: {
+              title: `${rawTitle} | קמפיין גיוס`,
+              description: options.description || `קמפיין גיוס כספים ותרומות עבור ${rawTitle}`,
+              keywords: ['קמפיין', 'גיוס', 'תרומות', 'KOSFUNRISE'],
+            },
+            sectionOrder: ['campaignHeader', 'campaignTiers', 'campaignDonors', 'contact'],
+            sections: {
+              campaignHeader: {
+                ...SECTION_REGISTRY.campaignHeader?.defaultConfig,
+                id: 'campaignHeader',
+                title: rawTitle,
+                subtitle: options.description || 'היו שותפים להצלחת הקמפיין',
+                targetGoal: options.targetGoal || 100000,
+              },
+              campaignTiers: {
+                ...SECTION_REGISTRY.campaignTiers?.defaultConfig,
+                id: 'campaignTiers',
+                title: 'מדרגות תרומה ושותפות',
+                tiers: options.tiers || SECTION_REGISTRY.campaignTiers?.defaultConfig?.tiers,
+              },
+              campaignDonors: {
+                ...SECTION_REGISTRY.campaignDonors?.defaultConfig,
+                id: 'campaignDonors',
+                title: 'קיר התורמים והשגרירים',
+              },
+              contact: {
+                ...SECTION_REGISTRY.contact?.defaultConfig,
+                id: 'contact',
+              },
+            },
+          };
+
+          await pageBuilderFirestore.savePage(campaignPageConfig, db, tenantId);
+          eventBus.publish('campaign:page_created', {
+            campaignId,
+            slug: cleanSlug,
+            publicUrl: `/p/${cleanSlug}`,
+          });
+
+          return {
+            success: true,
+            pageId,
+            slug: cleanSlug,
+            publicUrl: `/p/${cleanSlug}`,
+            config: campaignPageConfig,
+          };
+        } catch (err: any) {
+          console.error('[KosWebAiHostBridge] Error creating campaign page:', err);
+          return {
+            success: false,
+            pageId: '',
+            slug: '',
+            publicUrl: '',
+            error: err?.message || 'שגיאה ביצירת עמוד הקמפיין.',
+          };
+        }
+      },
+
+      notifyServicePageCreated: async (options: {
+        pageId: string;
+        slug: string;
+        title: string;
+        serviceName?: string;
+      }) => {
+        try {
+          const brandContract = getCapability<BrandDnaContract>('brand-dna');
+          if (brandContract?.registerServicePageSlug) {
+            await brandContract.registerServicePageSlug(options.serviceName || options.title, options.slug);
+          }
+          eventBus.publish('brand:service_slug_updated', {
+            serviceName: options.serviceName || options.title,
+            slug: options.slug,
+            pageId: options.pageId,
+          });
+        } catch (e) {
+          console.warn('[KosWebAiHostBridge] notifyServicePageCreated warning:', e);
         }
       },
 
@@ -261,7 +401,7 @@ export const KosWebAiHostBridge: React.FC = () => {
               companyName: brandCompanyName,
               slogan: brandSlogan,
               theme: 'dark',
-              headerLayout: 'floating-glass',
+              headerLayout: 'capsule-floating',
               headerSticky: true,
               isHeaderVisible: true,
               isFooterVisible: true,

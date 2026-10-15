@@ -211,7 +211,7 @@ export const PREDEFINED_COLLECTIONS: CollectionMetadata[] = [
   // 8. Page Builder Collections
   {
     id: 'mod_pagebuilder_pages',
-    name: 'דפים ואתרים (Page Builder Pages)',
+    name: 'KWB (דפים ואתרים)',
     description: 'דפי נחיתה ואתרים מעוצבים, מבנה בלוקים והגדרות SEO',
     category: 'page_builder',
     icon: 'Layout',

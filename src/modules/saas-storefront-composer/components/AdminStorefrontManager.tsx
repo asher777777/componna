@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Eye, EyeOff, Tag, DollarSign, Globe, CheckCircle2, 
   Settings, Sparkles, Shield, Save, ArrowRight, RefreshCw,
-  Plus, Layers, ExternalLink, HelpCircle
+  Plus, Layers, ExternalLink, HelpCircle, TrendingUp, PiggyBank,
+  Zap, BarChart3, ShieldCheck, ArrowUpRight
 } from 'lucide-react';
 import { useStorefront } from '../context/StorefrontContext';
 import { ModulePricingConfig } from '../types';
+import { TenantTokenTracker, TenantTokenUsage } from '../../../core/ai';
 
 export const AdminStorefrontManager: React.FC = () => {
   const { 
@@ -19,6 +21,15 @@ export const AdminStorefrontManager: React.FC = () => {
   const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
   const [tempSettings, setTempSettings] = useState(settings);
   const [saveToast, setSaveToast] = useState(false);
+  const [tokenUsage, setTokenUsage] = useState<TenantTokenUsage | null>(null);
+
+  useEffect(() => {
+    TenantTokenTracker.getTenantTokenUsage(undefined, '_master').then(setTokenUsage);
+    const unsub = TenantTokenTracker.subscribe(undefined, '_master', (usage) => {
+      setTokenUsage(usage);
+    });
+    return () => unsub();
+  }, []);
 
   const activeEditingModule = catalog.find(m => m.id === editingModuleId);
 
@@ -72,6 +83,107 @@ export const AdminStorefrontManager: React.FC = () => {
           <span>ההגדרות נשמרו בהצלחה ומסונכרנות בזמן אמת!</span>
         </div>
       )}
+
+      {/* AI Profit & Unit Economics (Cost vs. Profit) Section */}
+      <div className="bg-white dark:bg-gray-900 border border-indigo-100 dark:border-indigo-950/60 rounded-2xl p-6 shadow-sm">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 mb-5 border-b border-gray-100 dark:border-gray-800 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-xl">
+              <TrendingUp className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                <span>רווחיות AI סאב-דומיינים: עלות מול רווח (Unit Economics)</span>
+                <span className="text-[10px] bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-full">
+                  מטמון 3.8 פעיל (90% הנחה)
+                </span>
+              </h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                השוואה שקופה בין מחיר המדף המוצג ללקוח לבין עלות הייצור האמיתית של הפלטפורמה מול Google Gemini
+              </p>
+            </div>
+          </div>
+          <div className="text-left text-xs bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/60 rounded-xl px-3 py-1.5 flex items-center gap-2">
+            <Zap className="w-4 h-4 text-amber-500" />
+            <span className="text-gray-600 dark:text-gray-300">מודל ברירת מחדל:</span>
+            <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400">gemini-3.8-flash</span>
+          </div>
+        </div>
+
+        {/* 4 Financial Metric Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
+          {/* 1. Retail Billed */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs mb-1">
+              <span>שווי צריכה ללקוחות (מחיר מלא):</span>
+              <DollarSign className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="text-xl font-bold text-gray-900 dark:text-white">
+              ₪ {(tokenUsage?.retailBilledILS ?? 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-1 font-mono">
+              ${(tokenUsage?.retailBilledUSD ?? 0).toFixed(4)} USD (תעריף מדף)
+            </div>
+          </div>
+
+          {/* 2. Actual Production Cost */}
+          <div className="p-4 rounded-xl border border-gray-200 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+            <div className="flex items-center justify-between text-gray-500 dark:text-gray-400 text-xs mb-1">
+              <span>עלות ייצור בפועל לגוגל:</span>
+              <PiggyBank className="w-4 h-4 text-amber-500" />
+            </div>
+            <div className="text-xl font-bold text-amber-600 dark:text-amber-400">
+              ₪ {(tokenUsage?.totalCostILS ?? 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-1 font-mono">
+              ${(tokenUsage?.totalCostUSD ?? 0).toFixed(4)} USD (כולל הנחת קאש)
+            </div>
+          </div>
+
+          {/* 3. Platform Gross Profit */}
+          <div className="p-4 rounded-xl border border-emerald-200 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20">
+            <div className="flex items-center justify-between text-emerald-800 dark:text-emerald-300 text-xs mb-1 font-semibold">
+              <span>רווח גולמי לפלטפורמה:</span>
+              <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="text-xl font-bold text-emerald-700 dark:text-emerald-400">
+              ₪ {(tokenUsage?.grossProfitILS ?? 0).toFixed(2)}
+            </div>
+            <div className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 mt-1 font-bold">
+              מרווח רווח: {tokenUsage && (tokenUsage.retailBilledILS || 0) > 0 
+                ? (((tokenUsage.grossProfitILS || 0) / (tokenUsage.retailBilledILS || 1)) * 100).toFixed(1) 
+                : '89.5'}%
+            </div>
+          </div>
+
+          {/* 4. Cache Savings */}
+          <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/40 dark:bg-indigo-950/20">
+            <div className="flex items-center justify-between text-indigo-800 dark:text-indigo-300 text-xs mb-1 font-semibold">
+              <span>טוקנים שנחסכו במטמון:</span>
+              <Zap className="w-4 h-4 text-indigo-600" />
+            </div>
+            <div className="text-xl font-bold text-indigo-700 dark:text-indigo-400">
+              {(tokenUsage?.cachedTokens ?? 0).toLocaleString()}
+            </div>
+            <div className="text-[10px] text-indigo-600/80 dark:text-indigo-400/80 mt-1">
+              שיעור פגיעה במטמון: {tokenUsage?.cacheHitRatio ?? 0}%
+            </div>
+          </div>
+        </div>
+
+        {/* Zero-Loss Guardrails Explanation Banner */}
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200 dark:border-slate-800 text-xs text-slate-700 dark:text-slate-300 flex items-start gap-3">
+          <ShieldCheck className="w-5 h-5 text-indigo-600 dark:text-indigo-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <span className="font-bold text-gray-900 dark:text-white block">
+              פרוטוקול אפס סיכון כלכלי (Zero-Loss Guarantee):
+            </span>
+            <p className="text-[11px] leading-relaxed text-gray-600 dark:text-gray-400">
+              הלקוח בסאב-דומיין מחויב תמיד במחיר המדף המלא ($0.75 למיליון טוקנים). מנגנון ה-Context Caching מייצר קידומת סטטית של ה-Brand DNA ומוריד את עלות הייצור ל-$0.075 בלבד. כל חיסכון של 90% מנותב ישירות לשורת הרווח של קושאן. גם במקרה של Cache Miss הלקוח עדיין משלם מחיר מלא, כך שהפלטפורמה לעולם לא נמצאת בהפסד!
+            </p>
+          </div>
+        </div>
+      </div>
 
       {/* Domain & DNS Settings Section */}
       <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-6 shadow-lg border border-indigo-900/50">

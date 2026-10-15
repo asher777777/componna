@@ -39,7 +39,7 @@ import {
   CommunityWebPageContract,
 } from '../../../core/contracts';
 
-export type CommunityTab = 'identity' | 'services' | 'design' | 'page' | 'campaign' | 'rules';
+export type CommunityTab = 'identity' | 'services' | 'design' | 'page' | 'rules';
 
 interface GroupEditModalProps {
   isOpen: boolean;
@@ -216,8 +216,6 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
     return contacts.filter((c) => isContactInGroup(c, tempGroup)).length;
   }, [contacts, type, rules, matchType, name, color]);
 
-  if (!isOpen) return null;
-
   // Media Picker Trigger
   const handlePickLogo = async () => {
     if (mediaPicker) {
@@ -313,8 +311,8 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
         pageSlug: effectiveSlug,
         pageUrl: effectiveSlug ? `/to/${effectiveSlug}` : '',
         createPage,
-        isCommunity: createPage,
-        category: createPage ? 'community' : 'group',
+        isCommunity: initialMode === 'community' || createPage || Boolean(editingGroup?.isCommunity),
+        category: (initialMode === 'community' || createPage || Boolean(editingGroup?.isCommunity)) ? 'community' : 'group',
         type,
         matchType,
         rules: type === 'smart' ? rules : [],
@@ -397,9 +395,10 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
     { id: 'services', label: '2. שירותים ופעילויות', icon: Layers },
     { id: 'design', label: '3. שפה חזותית וצבעים', icon: Palette },
     { id: 'page', label: '4. עמוד אינטרנט (/to/)', icon: Globe },
-    { id: 'campaign', label: '5. קמפיין גיוס', icon: Target },
-    { id: 'rules', label: '6. סגמנטציה חכמה', icon: Sliders },
+    { id: 'rules', label: '5. סגמנטציה חכמה', icon: Sliders },
   ];
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 w-screen h-screen bg-slate-950/80 backdrop-blur-md overflow-y-auto flex flex-col items-center justify-start p-2 sm:p-6" dir="rtl">
@@ -421,7 +420,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                ניהול זהות, מיתוג עצמאי, שירותים, עמוד אינטרנט תחת /to/ וקמפיין גיוס
+                ניהול זהות, מיתוג עצמאי, שירותים ועמוד אינטרנט תחת /to/
               </p>
             </div>
           </div>
@@ -816,7 +815,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                 <div>
                   <span className="text-xs font-bold text-indigo-950 dark:text-indigo-100 block">עמוד אינטרנט רשמי לקהילה</span>
                   <span className="text-[11px] text-indigo-700 dark:text-indigo-300">
-                    מוקם ומנוהל עצמאית תחת בונה העמודים KosWebAi בסלאג /to/
+                    מוקם ומנוהל עצמאית תחת KWB בסלאג /to/
                   </span>
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
@@ -874,7 +873,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                       className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <Edit3 className="w-3.5 h-3.5" />
-                      <span>עריכה מלאה בבונה העמודים (KosWebAi)</span>
+                      <span>עריכה מלאה ב-KWB</span>
                     </button>
                   </div>
                 </div>
@@ -882,46 +881,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
             </div>
           )}
 
-          {/* TAB 5: קמפיין גיוס */}
-          {activeTab === 'campaign' && (
-            <div className="space-y-4 animate-in fade-in">
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  יעד גיוס כספי של הקהילה (₪)
-                </label>
-                <input
-                  type="number"
-                  value={targetGoal}
-                  onChange={(e) => setTargetGoal(e.target.value === '' ? '' : Number(e.target.value))}
-                  placeholder="5000"
-                  className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-mono focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                  שיוך לקמפיין גיוס מרכזי
-                </label>
-                <select
-                  value={mainCampaignId}
-                  onChange={(e) => setMainCampaignId(e.target.value)}
-                  className="w-full h-10 px-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
-                >
-                  <option value="">ללא שיוך לקמפיין חיצוני</option>
-                  {campaigns.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.title}
-                    </option>
-                  ))}
-                </select>
-                <span className="text-[11px] text-slate-400 block mt-1">
-                  חיבור הקהילה לקמפיין מאפשר הצגת סרגל התקדמות תרומות ומטרות משותפות
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* TAB 6: סגמנטציה חכמה */}
+          {/* TAB 5: סגמנטציה חכמה */}
           {activeTab === 'rules' && (
             <div className="space-y-4 animate-in fade-in">
               <div className="flex items-center justify-between p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60">

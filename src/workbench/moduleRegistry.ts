@@ -235,8 +235,8 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'KosWebAi',
-    name: 'קשואן Builder - בונה עמודים ודפי נחיתה',
-    description: 'מערכת ויזואלית חכמה לבניית דפים יוקרתיים, להצגת המומחיות והאיכות הבלתי מתפשרת שלכם מול קהל הלקוחות.',
+    name: 'KWB',
+    description: 'KosWebBulider - Building Your Digital Interaction (בונה לך אינטראקציה דיגיטלית)',
     component: PageBuilderStandaloneView,
     route: '/KosWebAi',
     collectionPrefix: 'mod_pagebuilder_',
