@@ -307,6 +307,7 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'futureContent2027': {
+      cloned.source = cloned.source || 'tenant_pages';
       cloned.title = `העתיד של ${companyName}: תוכן ועשייה`;
       cloned.subtitle = slogan;
       if (services.length > 0 && Array.isArray(cloned.items)) {

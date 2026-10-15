@@ -763,6 +763,7 @@ export interface FutureContentItem {
 
 export interface FutureContentSectionConfig extends BaseSectionConfig {
   type: 'futureContent2027';
+  source?: 'tenant_pages' | 'brand_services' | 'custom';
   activeMode: FutureContentMode;
   allowVisitorSwitching?: boolean;
   badge?: string;

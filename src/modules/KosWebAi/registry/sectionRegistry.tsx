@@ -1012,6 +1012,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       type: 'futureContent2027',
       visible: true,
       anchorId: 'future-content',
+      source: 'tenant_pages',
       activeMode: 'prism-bento',
       allowVisitorSwitching: true,
       badge: 'חוויית תוכן 2027',

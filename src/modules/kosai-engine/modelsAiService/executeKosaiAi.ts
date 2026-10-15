@@ -38,12 +38,24 @@ function resolveEffectiveApiKey(customApiKey?: string, moduleName: string = 'kos
   return null;
 }
 
+export function normalizeModelName(rawModel?: string): string {
+  if (!rawModel) return 'gemini-flash-lite-latest';
+  const clean = rawModel.replace(/^models\//, '').trim();
+  if (clean === 'gemini-3.8-flash-lite' || clean.includes('3.8-flash-lite') || clean === 'flash-lite') {
+    return 'gemini-flash-lite-latest';
+  }
+  if (clean === 'gemini-2.5-flash' || clean === 'gemini-1.5-flash') {
+    return 'gemini-3.8-flash';
+  }
+  return clean;
+}
+
 export async function executeKosaiAi<T = any>(
   moduleName: string,
   prompt: string,
   options: KosaiExecutionOptions = {}
 ): Promise<KosaiContractResult<T>> {
-  const model = options.model || 'gemini-3.8-flash-lite';
+  const model = normalizeModelName(options.model || 'gemini-flash-lite-latest');
   const tenantId = options.tenantId || (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
   const category = options.category || 'content';
 

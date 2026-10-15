@@ -23,6 +23,7 @@ import {
   Volume2,
   TrendingUp,
   Sliders,
+  Database,
 } from 'lucide-react';
 
 interface FutureContentEditorProps {
@@ -81,6 +82,26 @@ export const FutureContentEditor: React.FC<FutureContentEditorProps> = ({ config
 
   return (
     <div className="space-y-4" dir="rtl">
+      {/* 0. Content Source (Dynamic Tenant Pages vs Brand Services vs Custom) */}
+      <PageBuilderAccordion title="מקור התוכן (דינמי מול ידני)" icon={<Database className="w-4 h-4 text-sky-400" />} defaultOpen={true}>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-xs font-semibold text-slate-300">בחר מקור להזנת הליסטינג</label>
+          <select
+            value={config.source || 'tenant_pages'}
+            onChange={(e) => update('source', e.target.value as any)}
+            className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs outline-none focus:ring-2 focus:ring-sky-500"
+          >
+            <option value="tenant_pages">עמודי תוכן של הדומיין / טננט (דינמי - ברירת מחדל)</option>
+            <option value="brand_services">שירותי העסק מתוך רכיב המיתוג (Brand Services)</option>
+            <option value="custom">ניהול פריטים ידני בעורך</option>
+          </select>
+        </div>
+
+        <div className="p-3 mt-3 rounded-xl bg-sky-950/40 border border-sky-800/60 text-[11px] text-sky-200 leading-relaxed">
+          💡 <strong>סנכרון חכם:</strong> כאשר נבחר &quot;עמודי תוכן של הדומיין&quot;, הליסטינג מושך אוטומטית את עמודי התוכן והפעילות של הטננט. במידה ומאגר העמודים דל, המערכת משלימה אוטומטית פריטים מתוך טאב השירותים ברכיב המיתוג.
+        </div>
+      </PageBuilderAccordion>
+
       {/* 1. Mode & Switching Capabilities */}
       <PageBuilderAccordion title="סגנון תצוגה עתידני 2027 (Multi-Mode)" icon={<Sparkles className="w-4 h-4 text-cyan-400" />} defaultOpen={true}>
         <div className="flex flex-col gap-2">

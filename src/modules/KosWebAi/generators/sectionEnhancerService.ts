@@ -259,6 +259,36 @@ export const sectionEnhancerService = {
           prompt: 'הגדר את פריסת הליסטינג ל-editorial-list עם טיפוגרפיה גדולה ואפקט תמונה מרחפת.',
         }
       );
+    } else if (sectionType === 'futureContent2027') {
+      layoutSuggestions.push(
+        {
+          id: 'future-bento-switch',
+          tab: 'layout',
+          title: 'מעבר לפריסת בנטו מרחבי (Prism Bento)',
+          description: 'שדרוג למבנה בנטו עתיר עומק עם אריח ראווה, מדדים חיים וקרן אור פריזמטית.',
+          badge: 'מומלץ 2027',
+          iconName: 'Sparkles',
+          prompt: 'הגדר את פריסת האזור ל-prism-bento, חזק את תאורת ה-Mesh Glow והוסף מדדי צמיחה.',
+        },
+        {
+          id: 'future-kinetic-switch',
+          tab: 'layout',
+          title: 'מעבר לפריסת מגזין קינטי (Kinetic Editorial)',
+          description: 'טיפוגרפיה מונומנטלית, מסלול גלילה אופקי אינרציאלי ותקציר קולי מבוסס AI.',
+          badge: 'מגזין יוקרה',
+          iconName: 'Layers',
+          prompt: 'הגדר את פריסת האזור ל-kinetic-editorial עם גלילה אופקית חלקה, מספור מונוספייס ותקציר שמע.',
+        },
+        {
+          id: 'future-islands-switch',
+          tab: 'layout',
+          title: 'מעבר לפריסת איים צפים (Floating Islands)',
+          description: 'כרטיסים מרחפים בעלי פיזיקת קפיצים עם מגירת חשיפה מהירה (Peek Sheet).',
+          badge: 'מרחבי וגמיש',
+          iconName: 'Compass',
+          prompt: 'הגדר את פריסת האזור ל-floating-islands עם כרטיסים צפים ומודאל הרחבה עשיר.',
+        }
+      );
     } else {
       layoutSuggestions.push(
         {
@@ -358,79 +388,75 @@ INSTRUCTIONS:
 4. Preserve "id" and "type".
 Return ONLY the raw updated JSON object.`;
 
-    if (!apiKey) {
-      return {
-        success: false,
-        updatedConfig: currentConfig,
-        summaryOfChanges: [],
-        isFromAi: false,
-        message: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
-      };
-    }
+    if (apiKey) {
+      try {
+        const rawData = await dispatchSectionEnhancementToKosai(
+          {
+            sectionType,
+            userPrompt: promptText,
+            companyName: brandDna?.identity?.companyName || 'העסק',
+            currentConfig,
+          },
+          { apiKey }
+        );
 
-    try {
-      const rawData = await dispatchSectionEnhancementToKosai(
-        {
-          sectionType,
-          userPrompt: promptText,
-          companyName: brandDna?.identity?.companyName || 'העסק',
-          currentConfig,
-        },
-        { apiKey }
-      );
+        if (rawData) {
+          // Flatten if wrapped in data or section
+          const unwrapped = rawData.data || rawData.section || rawData;
 
-      if (rawData) {
-        // Flatten if wrapped in data or section
-        const unwrapped = rawData.data || rawData.section || rawData;
+          const merged = {
+            ...currentConfig,
+            ...unwrapped,
+            id: currentConfig?.id || `${sectionType}_${Date.now()}`,
+            type: sectionType,
+            anchorId: currentConfig?.anchorId || unwrapped.anchorId,
+          };
 
-        const merged = {
-          ...currentConfig,
-          ...unwrapped,
-          id: currentConfig?.id || `${sectionType}_${Date.now()}`,
-          type: sectionType,
-          anchorId: currentConfig?.anchorId || unwrapped.anchorId,
-        };
+          const summary: string[] = [];
+          if (merged.title && merged.title !== currentConfig?.title) {
+            summary.push(`כותרת שודרגה: "${merged.title}"`);
+          }
+          if (merged.subtitle && merged.subtitle !== currentConfig?.subtitle) {
+            summary.push(`תת-כותרת הותאמה ל-DNA המותג`);
+          }
+          if (merged.layout && merged.layout !== currentConfig?.layout) {
+            summary.push(`סגנון פריסה עודכן ל-${merged.layout}`);
+          }
+          if (merged.activeMode && merged.activeMode !== currentConfig?.activeMode) {
+            summary.push(`תצורת תצוגה עתידנית עודכנה ל-${merged.activeMode}`);
+          }
+          if (summary.length === 0) {
+            summary.push(`שדרוג מקיף בתוכן ובמסרים של האזור`);
+          }
 
-        const summary: string[] = [];
-        if (merged.title && merged.title !== currentConfig?.title) {
-          summary.push(`כותרת שודרגה: "${merged.title}"`);
+          return {
+            success: true,
+            updatedConfig: merged,
+            summaryOfChanges: summary,
+            isFromAi: true,
+            message: 'השדרוג הופק בהצלחה על ידי KOSUN AI (מודל gemini-3.8-flash-lite)',
+          };
         }
-        if (merged.subtitle && merged.subtitle !== currentConfig?.subtitle) {
-          summary.push(`תת-כותרת הותאמה ל-DNA המותג`);
-        }
-        if (merged.layout && merged.layout !== currentConfig?.layout) {
-          summary.push(`סגנון פריסה עודכן ל-${merged.layout}`);
-        }
-        if (summary.length === 0) {
-          summary.push(`שדרוג מקיף בתוכן ובמסרים של האזור`);
-        }
-
-        return {
-          success: true,
-          updatedConfig: merged,
-          summaryOfChanges: summary,
-          isFromAi: true,
-          message: 'השדרוג הופק בהצלחה על ידי KOSUN AI',
-        };
+      } catch (err: any) {
+        console.warn('[sectionEnhancerService] kosai call warning, engaging zero-token brand heuristic fallback:', err);
       }
-
-      return {
-        success: false,
-        updatedConfig: currentConfig,
-        summaryOfChanges: [],
-        isFromAi: false,
-        message: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
-      };
-    } catch (err: any) {
-      console.warn('[sectionEnhancerService] kosai call error:', err);
-      return {
-        success: false,
-        updatedConfig: currentConfig,
-        summaryOfChanges: [],
-        isFromAi: false,
-        message: err?.message || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
-      };
     }
+
+    // Zero-token offline / fallback heuristic derived from Brand DNA
+    const fallback = this.applySmartBrandHeuristic(
+      sectionType,
+      currentConfig,
+      instructionPrompt,
+      brandDna || null
+    );
+
+    return {
+      success: true,
+      updatedConfig: fallback.config,
+      summaryOfChanges: fallback.changes.length > 0 ? fallback.changes : ['האזור שודרג בהצלחה בהתאם ל-DNA של המותג'],
+      isFromAi: false,
+      message: 'האזור שודרג בהצלחה באמצעות אלגוריתם ה-DNA של המותג',
+    };
   },
 
   /**
@@ -545,6 +571,41 @@ Return ONLY the raw updated JSON object.`;
         changes.push('שודרג לפריסת Editorial Magazine יוקרתית');
       }
       changes.push(`סונכרנו כותרות הליסטינג עם המותג ${company}`);
+    } else if (sectionType === 'futureContent2027') {
+      updated.title = `העתיד של ${company}: תוכן וחדשנות`;
+      updated.subtitle = uvp || slogan || 'שילוב רב-ממדי של עומק מרחבי, טיפוגרפיה קינטית וזכוכית פריזמטית';
+      if (prompt.includes('bento') || prompt.includes('בנטו')) {
+        updated.activeMode = 'prism-bento';
+        changes.push('מעבר לפריסת בנטו מרחבי (Prism Bento) עם תאורה סביבתית');
+      } else if (prompt.includes('kinetic') || prompt.includes('קינטי') || prompt.includes('מגזין')) {
+        updated.activeMode = 'kinetic-editorial';
+        changes.push('מעבר לפריסת מגזין קינטי (Kinetic Editorial) עם סאונד AI');
+      } else if (prompt.includes('islands') || prompt.includes('איים')) {
+        updated.activeMode = 'floating-islands';
+        changes.push('מעבר לפריסת איים צפים (Floating Islands) עם מודאל חשיפה');
+      } else {
+        changes.push(`סנכרון תכני המותג, צבעי ה-DNA ותקצירי ה-AI של ${company}`);
+      }
+
+      // Populate items from services if sparse or requested
+      const services = dna?.ecosystem?.services || [];
+      if (services.length > 0) {
+        updated.items = services.slice(0, 5).map((srv: any, idx: number) => ({
+          id: `future-srv-${idx + 1}`,
+          title: srv.name || `פעילות ${idx + 1}`,
+          subtitle: srv.description || slogan,
+          description: srv.description || `${company} מעניקה מענה מקצועי ואיכותי בסטנדרט בלתי מתפשר.`,
+          imageUrl: srv.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+          category: srv.category || 'שירותים',
+          tag: '• שירות מוביל •',
+          readTime: '3 דק׳ קריאה',
+          audioDuration: '01:30',
+          ctaText: 'לפרטים והזמנה',
+          ctaUrl: `https://wa.me/${(whatsapp || '0526968008').replace(/\D/g, '')}?text=${encodeURIComponent(`שלום, אשמח לקבל פרטים על ${srv.name}`)}`,
+          metrics: srv.price ? [{ label: 'מחיר', value: `₪${srv.price}` }] : undefined,
+        }));
+        changes.push('רענון פריטי התוכן והשירותים מתוך טאב השירותים במיתוג');
+      }
     } else {
       updated.title = `${updated.title || 'שדרוג אזור'} – ${company}`;
       updated.subtitle = uvp;

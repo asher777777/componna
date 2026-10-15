@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import clsx from 'clsx';
 import {
   Sparkles,
@@ -24,6 +24,10 @@ import {
   FutureContentItem,
   FutureContentMode,
 } from '../../types/sectionConfigs';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
+import { PAGE_CATEGORIES } from '../../types/pageBuilder.types';
 
 export interface FutureContentSectionProps {
   config: FutureContentSectionConfig;
@@ -36,6 +40,7 @@ export const FutureContentSection: React.FC<FutureContentSectionProps> = ({ conf
     title = 'העתיד כבר כאן: תוכן פורץ דרך',
     subtitle = 'שילוב רב-ממדי של עומק מרחבי, טיפוגרפיה קינטית וזכוכית פריזמטית',
     badge = 'חוויית תוכן 2027',
+    source = 'tenant_pages',
     items = [],
     activeMode: initialMode = 'prism-bento',
     allowVisitorSwitching = true,
@@ -61,23 +66,119 @@ export const FutureContentSection: React.FC<FutureContentSectionProps> = ({ conf
   // Active item in Peek Sheet Modal (Floating Islands)
   const [peekItem, setPeekItem] = useState<FutureContentItem | null>(null);
 
+  // Dynamic items resolved from tenant pages or brand services
+  const [effectiveItems, setEffectiveItems] = useState<FutureContentItem[]>(items && items.length > 0 ? items : []);
+
   // Horizontal scroll ref for Kinetic Editorial mode
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic resolution from tenant pages / brand services
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadDynamicItems() {
+      // If user explicitly chose custom items and provided them
+      if (source === 'custom') {
+        if (isMounted) setEffectiveItems(items || []);
+        return;
+      }
+
+      const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+      const brand = resolveLiveBrandDna(null, effTenant);
+      const services = brand.ecosystem?.services || [];
+
+      // Map brand services as FutureContentItems
+      const serviceItems: FutureContentItem[] = services.map((srv: any, idx: number) => ({
+        id: `srv-${idx + 1}`,
+        title: srv.name || `שירות ${idx + 1}`,
+        subtitle: srv.description || brand.identity?.slogan || 'שירות מקצועי מוביל מבית המותג',
+        description: srv.description || `${brand.identity?.companyName || 'החברה'} מעניקה מענה מקצועי ואיכותי בסטנדרט בלתי מתפשר.`,
+        imageUrl: srv.imageUrl || 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=800&q=80',
+        category: srv.category || 'שירותים',
+        tag: '• שירות מוביל •',
+        badge: srv.price ? `₪${srv.price}` : 'מומלץ',
+        readTime: '2 דק׳ קריאה',
+        audioDuration: '01:15',
+        ctaText: 'לפרטים והזמנה',
+        ctaUrl: `https://wa.me/${(brand.trust?.whatsappSupportNumber || '0526968008').replace(/\D/g, '')}?text=${encodeURIComponent(`שלום, אשמח לקבל פרטים על ${srv.name}`)}`,
+        metrics: srv.price ? [{ label: 'מחיר', value: `₪${srv.price}` }] : [{ label: 'דירוג', value: '4.9/5' }],
+      }));
+
+      if (source === 'brand_services') {
+        if (isMounted) {
+          setEffectiveItems(serviceItems.length > 0 ? serviceItems : (items || []));
+        }
+        return;
+      }
+
+      // Default: 'tenant_pages' (עמודי תוכן תחת הטננט)
+      try {
+        const pages = await pageBuilderFirestore.getAllPages(null, effTenant);
+        const validPages = pages.filter((p) => p && p.pageTitle && !p.isHomePage);
+
+        const pageItems: FutureContentItem[] = validPages.map((p) => {
+          const heroSec = Object.values(p.sections || {}).find((s: any) => s && s.type === 'hero') as any;
+          const catConfig = p.pageCategory ? PAGE_CATEGORIES[p.pageCategory] : null;
+          return {
+            id: p.pageId,
+            title: p.pageTitle,
+            subtitle: heroSec?.subtitle || p.globalSettings?.slogan || 'עמוד תוכן ופעילות רשמי',
+            description: heroSec?.description || p.globalSettings?.companyName || '',
+            imageUrl: heroSec?.imageSrc || heroSec?.imageUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80',
+            category: catConfig?.shortLabel || 'תוכן',
+            tag: `• ${catConfig?.shortLabel || 'עמוד פעילות'} •`,
+            readTime: '3 דק׳ קריאה',
+            audioDuration: '01:30',
+            ctaText: 'צפייה בעמוד',
+            ctaUrl: p.publishedUrl || p.shortUrl || (p.slug ? `/${p.slug}` : '#'),
+            metrics: [{ label: 'צפיות', value: `${p.viewsCount || 140}` }],
+          };
+        });
+
+        // Sparse Collection Rule: אם קולקציית התוכן דלה (פחות מ-3 עמודים), יוצרים/משלימים לפי טאב השירותים במיתוג
+        if (pageItems.length === 0) {
+          if (isMounted) {
+            setEffectiveItems(serviceItems.length > 0 ? serviceItems : (items || []));
+          }
+        } else if (pageItems.length < 3) {
+          const combined = [...pageItems, ...serviceItems].slice(0, 6);
+          if (isMounted) {
+            setEffectiveItems(combined);
+          }
+        } else {
+          if (isMounted) {
+            setEffectiveItems(pageItems);
+          }
+        }
+      } catch (err) {
+        console.warn('[FutureContentSection] Failed to load tenant pages, falling back to brand services:', err);
+        if (isMounted) {
+          setEffectiveItems(serviceItems.length > 0 ? serviceItems : (items || []));
+        }
+      }
+    }
+
+    loadDynamicItems();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [source, items]);
 
   // Available unique categories
   const categories = useMemo(() => {
     const set = new Set<string>();
-    items.forEach((item) => {
+    effectiveItems.forEach((item) => {
       if (item.category) set.add(item.category);
     });
     return ['הכל', ...Array.from(set)];
-  }, [items]);
+  }, [effectiveItems]);
 
   // Filtered items
   const filteredItems = useMemo(() => {
-    if (selectedCategory === 'הכל') return items;
-    return items.filter((item) => item.category === selectedCategory);
-  }, [items, selectedCategory]);
+    if (selectedCategory === 'הכל') return effectiveItems;
+    return effectiveItems.filter((item) => item.category === selectedCategory);
+  }, [effectiveItems, selectedCategory]);
 
   const toggleAudio = (itemId: string) => {
     if (playingAudioId === itemId) {
@@ -200,7 +301,7 @@ export const FutureContentSection: React.FC<FutureContentSectionProps> = ({ conf
         ========================================================================= */}
         {currentMode === 'prism-bento' && (
           <div className="w-full grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 auto-rows-[220px] sm:auto-rows-[260px] animate-fadeIn">
-            {items.map((item, index) => {
+            {effectiveItems.map((item, index) => {
               // Layout assignment: 1st item is hero (2x2), 2nd is vertical or audio, others are compact tiles
               const isHero = index === 0;
               const isMetric = !!item.metrics && item.metrics.length > 0;
@@ -386,7 +487,7 @@ export const FutureContentSection: React.FC<FutureContentSectionProps> = ({ conf
               className="w-full flex gap-6 overflow-x-auto pb-6 scrollbar-none snap-x snap-mandatory"
               style={{ scrollbarWidth: 'none' }}
             >
-              {items.map((item, index) => {
+              {effectiveItems.map((item, index) => {
                 const indexFormatted = String(index + 1).padStart(2, '0');
 
                 return (

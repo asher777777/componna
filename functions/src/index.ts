@@ -8,6 +8,18 @@ const cors = corsLib({ origin: true });
 admin.initializeApp();
 const db = admin.firestore();
 
+function normalizeModelName(rawModel?: string): string {
+  if (!rawModel) return 'gemini-3.8-flash';
+  const clean = rawModel.replace(/^models\//, '').trim();
+  if (clean === 'gemini-3.8-flash-lite' || clean.includes('3.8-flash-lite') || clean === 'flash-lite') {
+    return 'gemini-flash-lite-latest';
+  }
+  if (clean === 'gemini-2.5-flash' || clean === 'gemini-1.5-flash') {
+    return 'gemini-3.8-flash';
+  }
+  return clean;
+}
+
 // Fire-and-forget contact extraction
 async function extractAndSaveContact(
   geminiKey: string, 
@@ -71,7 +83,7 @@ async function extractAndSaveContact(
 
       const genAI = new GoogleGenerativeAI(geminiKey);
       const model = genAI.getGenerativeModel({
-        model: 'gemini-3.8-flash-lite',
+        model: normalizeModelName('gemini-flash-lite-latest'),
         generationConfig: {
           maxOutputTokens: 60,
           temperature: 0.1,
@@ -534,7 +546,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     }
 
     // 6. Generate AI Response strictly using valid 2026 model per google-ai-studio-gemini skill
-    const targetModel = triggeredBot.model || 'gemini-3.8-flash-lite';
+    const targetModel = normalizeModelName(triggeredBot.model || 'gemini-3.8-flash');
 
     // SLIDING WINDOW CONTEXT: Send at most the last 8 messages (4 turns) to prevent token explosion over long chats!
     const recentHistory = chatHistory.length > 8 ? chatHistory.slice(-8) : chatHistory;
