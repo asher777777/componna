@@ -31,6 +31,7 @@ import { useCrmGroups } from '../context/CrmGroupsContext';
 import { SmartGroup, GroupRule, GroupRuleField, GroupRuleOperator } from '../types';
 import { PRESET_COLORS, RULE_FIELD_OPTIONS, RULE_OPERATOR_OPTIONS } from '../config';
 import { isContactInGroup } from '../services/groupsUtils';
+import { generateCommunityVision } from '../services/togetherCopilotService';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import {
   MediaPickerContract,
@@ -98,6 +99,28 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
   const [type, setType] = useState<'manual' | 'smart'>('manual');
   const [matchType, setMatchType] = useState<'all' | 'any'>('all');
   const [rules, setRules] = useState<GroupRule[]>([]);
+  const [isGeneratingVision, setIsGeneratingVision] = useState(false);
+
+  const handleGenerateVisionWithAi = async () => {
+    if (!name.trim()) {
+      alert('נא להזין קודם את שם הקהילה או הקבוצה');
+      return;
+    }
+    try {
+      setIsGeneratingVision(true);
+      const res = await generateCommunityVision({
+        communityName: name.trim(),
+        theme: purpose.trim() || undefined,
+        targetGoal: targetGoal ? Number(targetGoal) : undefined,
+      });
+      if (res.vision) setVision(res.vision);
+      if (res.purpose && !purpose.trim()) setPurpose(res.purpose);
+    } catch (err) {
+      console.error('Failed to generate community vision:', err);
+    } finally {
+      setIsGeneratingVision(false);
+    }
+  };
 
   // Load Initial Data + Remote Community Brand Contract Data
   useEffect(() => {
