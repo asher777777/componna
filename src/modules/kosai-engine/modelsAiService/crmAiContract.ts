@@ -15,6 +15,7 @@ export const kosaiCrmContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('crm-analytics', prompt, {
+      model: 'gemini-3.8-flash-lite',
       responseMimeType: 'application/json',
       temperature: 0.5,
       customApiKey: options?.apiKey,
@@ -31,6 +32,7 @@ export const kosaiCrmContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('crm-analytics', prompt, {
+      model: 'gemini-3.8-flash-lite',
       responseMimeType: 'application/json',
       temperature: 0.7,
       customApiKey: options?.apiKey,
@@ -47,6 +49,7 @@ export const kosaiCrmContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('crm-analytics', prompt, {
+      model: 'gemini-3.8-flash-lite',
       responseMimeType: 'application/json',
       temperature: 0.3,
       customApiKey: options?.apiKey,

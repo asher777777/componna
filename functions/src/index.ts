@@ -21,7 +21,7 @@ async function extractAndSaveContact(
     const normPhone = rawDigits.startsWith('972') ? '0' + rawDigits.slice(3) : rawDigits;
 
     const genAI = new GoogleGenerativeAI(geminiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash-lite' });
     const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
     
     const prompt = `
@@ -397,7 +397,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
                 id: `kosai_${doc.id}`,
                 name: trigger.botDisplayName || rule.name,
                 systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                model: 'gemini-1.5-flash',
+                model: 'gemini-3.8-flash-lite',
                 temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
               };
               break;
@@ -409,7 +409,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
                   id: `kosai_${doc.id}`,
                   name: trigger.botDisplayName || rule.name,
                   systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                  model: 'gemini-1.5-flash',
+                  model: 'gemini-3.8-flash-lite',
                   temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
                 };
                 break;
@@ -508,7 +508,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     }
 
     // 6. Generate AI Response strictly using valid 2026 model per google-ai-studio-gemini skill
-    const targetModel = triggeredBot.model || 'gemini-3.8-flash';
+    const targetModel = triggeredBot.model || 'gemini-3.8-flash-lite';
     const contents = chatHistory.map(msg => ({
       role: msg.role === 'model' ? 'model' : 'user',
       parts: [{ text: msg.text }]

@@ -74,7 +74,7 @@ export const callGeminiApi = async ({
     ? customApiKey.trim()
     : getModuleGeminiKey('kosai-engine') || getModuleGeminiKey('KosWebAi') || defaultResolveApiKey();
   
-  const model = 'gemini-3.8-flash';
+  const model = 'gemini-3.8-flash-lite';
 
   if (!apiKey) {
     return {

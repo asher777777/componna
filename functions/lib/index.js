@@ -9,11 +9,13 @@ const cors = corsLib({ origin: true });
 admin.initializeApp();
 const db = admin.firestore();
 // Fire-and-forget contact extraction
-async function extractAndSaveContact(geminiKey, phone, messages) {
+async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderName, contactIdHint) {
     var _a, _b;
     try {
+        const rawDigits = phone.replace(/\D/g, '');
+        const normPhone = rawDigits.startsWith('972') ? '0' + rawDigits.slice(3) : rawDigits;
         const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
-        const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-3.8-flash-lite' });
         const chatText = messages.map(m => `${m.role}: ${m.text}`).join('\n');
         const prompt = `
     Extract contact information from the following chat log.
@@ -45,32 +47,130 @@ async function extractAndSaveContact(geminiKey, phone, messages) {
         }
         catch (_c) { }
         const text = result.response.text().trim().replace(/```json/g, '').replace(/```/g, '');
-        const data = JSON.parse(text);
-        if (data.name || data.email || data.businessType) {
-            // Find existing contact
-            const contactSnap = await db.collection('contacts').where('phone', '==', phone).get();
-            if (contactSnap.empty) {
-                // Create new
-                await db.collection('contacts').add({
-                    phone: phone,
-                    name: data.name || phone,
-                    email: data.email || '',
-                    businessType: data.businessType || '',
-                    source: 'WhatsApp AI Bot',
-                    createdAt: admin.firestore.FieldValue.serverTimestamp()
-                });
+        let data = {};
+        try {
+            data = JSON.parse(text);
+        }
+        catch (_d) {
+            data = {};
+        }
+        // Smart lookup existing contact
+        let matchedDocId = contactIdHint || null;
+        let existingData = null;
+        if (!matchedDocId) {
+            const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).get();
+            if (!qSnap.empty) {
+                matchedDocId = qSnap.docs[0].id;
+                existingData = qSnap.docs[0].data();
             }
             else {
-                // Update existing
-                const docId = contactSnap.docs[0].id;
-                const existing = contactSnap.docs[0].data();
-                await db.collection('contacts').doc(docId).set({
-                    name: data.name || existing.name,
-                    email: data.email || existing.email,
-                    businessType: data.businessType || existing.businessType,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp()
+                const qSnap2 = await db.collection('contacts').where('phone', '==', phone).get();
+                if (!qSnap2.empty) {
+                    matchedDocId = qSnap2.docs[0].id;
+                    existingData = qSnap2.docs[0].data();
+                }
+                else {
+                    const qSnap3 = await db.collection('contacts').where('conta_phone', '==', normPhone).get();
+                    if (!qSnap3.empty) {
+                        matchedDocId = qSnap3.docs[0].id;
+                        existingData = qSnap3.docs[0].data();
+                    }
+                }
+            }
+        }
+        else {
+            const docSnap = await db.collection('contacts').doc(matchedDocId).get();
+            if (docSnap.exists) {
+                existingData = docSnap.data();
+            }
+        }
+        const resolvedName = data.name || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.conta_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.name) || fallbackSenderName || `לקוח ${normPhone.slice(-4)}`;
+        const nowIso = new Date().toISOString();
+        const lastMsgText = messages.length > 0 ? messages[messages.length - 1].text : '';
+        if (!matchedDocId) {
+            // Create new contact in canonical KOSUN CRM schema
+            const newContactDoc = {
+                name: resolvedName,
+                fullName: resolvedName,
+                conta_name: resolvedName,
+                kosun_crm_name: resolvedName,
+                phone: phone,
+                conta_phone: normPhone,
+                kosun_crm_phone: normPhone,
+                normalizedPhone: normPhone,
+                email: data.email || '',
+                kosun_crm_email: data.email || '',
+                company_name: data.businessType || '',
+                kosun_crm_company: data.businessType || '',
+                status: 'active',
+                kosun_crm_status: 'active',
+                is_lead: true,
+                contact_type: 'lead',
+                kosun_crm_type: 'lead',
+                lead_source: 'בוט וואטסאפ (WhatsApp AI Bot)',
+                kosun_crm_source: 'בוט וואטסאפ (WhatsApp AI Bot)',
+                tags: ['ליד חדש', 'WhatsApp AI Bot'],
+                kosun_crm_tags: ['ליד חדש', 'WhatsApp AI Bot'],
+                last_message: lastMsgText,
+                last_channel: 'whatsapp',
+                last_conversation_date: nowIso,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+            };
+            const addedRef = await db.collection('contacts').add(newContactDoc);
+            matchedDocId = addedRef.id;
+            try {
+                await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).set(newContactDoc, { merge: true });
+            }
+            catch (_e) { }
+        }
+        else {
+            // Update existing contact
+            const updates = {
+                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                last_message: lastMsgText,
+                last_channel: 'whatsapp',
+                last_conversation_date: nowIso,
+            };
+            if (data.name && (!(existingData === null || existingData === void 0 ? void 0 : existingData.name) || (existingData === null || existingData === void 0 ? void 0 : existingData.name) === phone || (existingData === null || existingData === void 0 ? void 0 : existingData.name) === normPhone)) {
+                updates.name = data.name;
+                updates.conta_name = data.name;
+                updates.kosun_crm_name = data.name;
+            }
+            if (data.email && !(existingData === null || existingData === void 0 ? void 0 : existingData.email)) {
+                updates.email = data.email;
+                updates.kosun_crm_email = data.email;
+            }
+            if (data.businessType && !(existingData === null || existingData === void 0 ? void 0 : existingData.company_name)) {
+                updates.company_name = data.businessType;
+                updates.kosun_crm_company = data.businessType;
+            }
+            await db.collection('contacts').doc(matchedDocId).set(updates, { merge: true });
+            try {
+                await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).set(updates, { merge: true });
+            }
+            catch (_f) { }
+        }
+        // Persist full conversation history into contact's subcollection
+        if (matchedDocId) {
+            const convSubRef = db.collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`);
+            await convSubRef.set({
+                id: `conv_${normPhone}`,
+                contactId: matchedDocId,
+                channel: 'whatsapp',
+                lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                messages: messages,
+            }, { merge: true });
+            try {
+                await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`).set({
+                    id: `conv_${normPhone}`,
+                    contactId: matchedDocId,
+                    channel: 'whatsapp',
+                    lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    messages: messages,
                 }, { merge: true });
             }
+            catch (_g) { }
         }
     }
     catch (err) {
@@ -139,7 +239,7 @@ function matchKeywords(messageText, keywords = [], matchMode = 'contains') {
 // Webhook for Green API
 exports.whatsappWebhook = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5;
         if (req.method !== 'POST' && req.method !== 'GET') {
             res.status(405).send('Method Not Allowed');
             return;
@@ -161,11 +261,14 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             '';
         const sender = (_l = body.senderData) === null || _l === void 0 ? void 0 : _l.sender;
         const targetChatId = ((_m = body.senderData) === null || _m === void 0 ? void 0 : _m.chatId) || sender;
+        const senderName = ((_o = body.senderData) === null || _o === void 0 ? void 0 : _o.senderName) || ((_p = body.senderData) === null || _p === void 0 ? void 0 : _p.senderContactName) || '';
         if (!messageText || !targetChatId) {
             res.status(200).send('No text or targetChatId');
             return;
         }
-        const phone = targetChatId.split('@')[0];
+        const cleanDigits = targetChatId.split('@')[0].replace(/\D/g, '');
+        const phone = cleanDigits;
+        const normPhone = cleanDigits.startsWith('972') ? '0' + cleanDigits.slice(3) : cleanDigits;
         try {
             // 1. Fetch API Keys with Multi-Tenant and Root Fallbacks
             let apiKeys = {};
@@ -190,12 +293,12 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 try {
                     const globalDoc = await db.collection('system_settings').doc('global').get();
                     if (globalDoc.exists)
-                        Object.assign(apiKeys, ((_o = globalDoc.data()) === null || _o === void 0 ? void 0 : _o.apiKeys) || {});
+                        Object.assign(apiKeys, ((_q = globalDoc.data()) === null || _q === void 0 ? void 0 : _q.apiKeys) || {});
                 }
                 catch (e) { }
             }
             const geminiKey = apiKeys.googleAiApiKey || apiKeys.geminiApiKey;
-            const greenApiInstanceId = apiKeys.greenApiInstanceId || ((_p = body.instanceData) === null || _p === void 0 ? void 0 : _p.idInstance);
+            const greenApiInstanceId = apiKeys.greenApiInstanceId || ((_r = body.instanceData) === null || _r === void 0 ? void 0 : _r.idInstance);
             const greenApiToken = apiKeys.greenApiToken;
             if (!geminiKey || !greenApiInstanceId || !greenApiToken) {
                 console.warn('Missing keys for WhatsApp AI Bot:', {
@@ -212,11 +315,11 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             const chatDoc = await chatDocRef.get();
             let chatHistory = [];
             if (chatDoc.exists) {
-                chatHistory = ((_q = chatDoc.data()) === null || _q === void 0 ? void 0 : _q.messages) || [];
+                chatHistory = ((_s = chatDoc.data()) === null || _s === void 0 ? void 0 : _s.messages) || [];
             }
             // 3. Detect Bot Trigger (only if it's the start of a conversation, or if the bot is already engaged)
             let triggeredBot = null;
-            let activeBotId = (_r = chatDoc.data()) === null || _r === void 0 ? void 0 : _r.botId;
+            let activeBotId = (_t = chatDoc.data()) === null || _t === void 0 ? void 0 : _t.botId;
             // Load active bots from master tenant, root and collectionGroup (without where clause to avoid missing index errors)
             const botDocsList = [];
             try {
@@ -270,15 +373,15 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').get();
                     for (const doc of kosaiRulesSnap.docs) {
                         const rule = doc.data();
-                        if ((rule === null || rule === void 0 ? void 0 : rule.isActive) !== false && ((_s = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _s === void 0 ? void 0 : _s.enabled)) {
+                        if ((rule === null || rule === void 0 ? void 0 : rule.isActive) !== false && ((_u = rule === null || rule === void 0 ? void 0 : rule.whatsappTrigger) === null || _u === void 0 ? void 0 : _u.enabled)) {
                             const trigger = rule.whatsappTrigger;
                             if (trigger.triggerType === 'all') {
                                 triggeredBot = {
                                     id: `kosai_${doc.id}`,
                                     name: trigger.botDisplayName || rule.name,
                                     systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                                    model: 'gemini-1.5-flash',
-                                    temperature: ((_u = (_t = rule.toneOfVoice) === null || _t === void 0 ? void 0 : _t.creativity) !== null && _u !== void 0 ? _u : 50) / 100
+                                    model: 'gemini-3.8-flash-lite',
+                                    temperature: ((_w = (_v = rule.toneOfVoice) === null || _v === void 0 ? void 0 : _v.creativity) !== null && _w !== void 0 ? _w : 50) / 100
                                 };
                                 break;
                             }
@@ -290,8 +393,8 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                                         id: `kosai_${doc.id}`,
                                         name: trigger.botDisplayName || rule.name,
                                         systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                                        model: 'gemini-1.5-flash',
-                                        temperature: ((_w = (_v = rule.toneOfVoice) === null || _v === void 0 ? void 0 : _v.creativity) !== null && _w !== void 0 ? _w : 50) / 100
+                                        model: 'gemini-3.8-flash-lite',
+                                        temperature: ((_y = (_x = rule.toneOfVoice) === null || _x === void 0 ? void 0 : _x.creativity) !== null && _y !== void 0 ? _y : 50) / 100
                                     };
                                     break;
                                 }
@@ -308,8 +411,38 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 return;
             }
             // 4. CRM Contact Check
-            const contactSnap = await db.collection('contacts').where('phone', '==', phone).get();
-            const contactName = contactSnap.empty ? null : (contactSnap.docs[0].data().name || null);
+            let contactDocId = null;
+            let contactName = null;
+            try {
+                const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).get();
+                if (!qSnap.empty) {
+                    contactDocId = qSnap.docs[0].id;
+                    const d = qSnap.docs[0].data();
+                    contactName = d.kosun_crm_name || d.conta_name || d.name || null;
+                }
+                else {
+                    const qSnap2 = await db.collection('contacts').where('phone', '==', phone).get();
+                    if (!qSnap2.empty) {
+                        contactDocId = qSnap2.docs[0].id;
+                        const d = qSnap2.docs[0].data();
+                        contactName = d.kosun_crm_name || d.conta_name || d.name || null;
+                    }
+                    else {
+                        const qSnap3 = await db.collection('contacts').where('conta_phone', '==', normPhone).get();
+                        if (!qSnap3.empty) {
+                            contactDocId = qSnap3.docs[0].id;
+                            const d = qSnap3.docs[0].data();
+                            contactName = d.kosun_crm_name || d.conta_name || d.name || null;
+                        }
+                    }
+                }
+            }
+            catch (cErr) {
+                console.warn('[whatsappWebhook] Contact query error:', cErr);
+            }
+            if (!contactName && senderName) {
+                contactName = senderName;
+            }
             // 4.5 Fetch Brand DNA
             let brandContext = '';
             try {
@@ -317,13 +450,13 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 if (brandDnaSnap.exists) {
                     const dna = brandDnaSnap.data();
                     brandContext = `\n\n=== רקע על המותג (Brand DNA) ===\n`;
-                    if ((_x = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _x === void 0 ? void 0 : _x.name)
+                    if ((_z = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _z === void 0 ? void 0 : _z.name)
                         brandContext += `שם המותג: ${dna.identity.name}\n`;
-                    if ((_y = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _y === void 0 ? void 0 : _y.description)
+                    if ((_0 = dna === null || dna === void 0 ? void 0 : dna.identity) === null || _0 === void 0 ? void 0 : _0.description)
                         brandContext += `תיאור קצר: ${dna.identity.description}\n`;
-                    if ((_z = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _z === void 0 ? void 0 : _z.toneOfVoice)
+                    if ((_1 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _1 === void 0 ? void 0 : _1.toneOfVoice)
                         brandContext += `סגנון דיבור: ${dna.voice.toneOfVoice}\n`;
-                    if ((_1 = (_0 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _0 === void 0 ? void 0 : _0.brandValues) === null || _1 === void 0 ? void 0 : _1.length)
+                    if ((_3 = (_2 = dna === null || dna === void 0 ? void 0 : dna.voice) === null || _2 === void 0 ? void 0 : _2.brandValues) === null || _3 === void 0 ? void 0 : _3.length)
                         brandContext += `ערכי מותג: ${dna.voice.brandValues.join(', ')}\n`;
                 }
             }
@@ -351,7 +484,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             const chatThrottleRef = db.collection('wa_chat_throttles').doc(targetChatId);
             const throttleSnap = await chatThrottleRef.get();
             if (throttleSnap.exists) {
-                const lastReplyTime = ((_2 = throttleSnap.data()) === null || _2 === void 0 ? void 0 : _2.lastReplyTime) || 0;
+                const lastReplyTime = ((_4 = throttleSnap.data()) === null || _4 === void 0 ? void 0 : _4.lastReplyTime) || 0;
                 if (Date.now() - lastReplyTime < 15000) {
                     console.warn(`[whatsappWebhook] Throttling reply to ${targetChatId} to break loop (last reply < 15s ago).`);
                     res.status(200).send('Throttled');
@@ -359,7 +492,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 }
             }
             // 6. Generate AI Response strictly using valid 2026 model per google-ai-studio-gemini skill
-            const targetModel = triggeredBot.model || 'gemini-3.8-flash';
+            const targetModel = triggeredBot.model || 'gemini-3.8-flash-lite';
             const contents = chatHistory.map(msg => ({
                 role: msg.role === 'model' ? 'model' : 'user',
                 parts: [{ text: msg.text }]
@@ -382,7 +515,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         temperature: triggeredBot.temperature || 0.7,
                     }
                 });
-                replyText = ((_3 = result.response.text()) === null || _3 === void 0 ? void 0 : _3.trim()) || '';
+                replyText = ((_5 = result.response.text()) === null || _5 === void 0 ? void 0 : _5.trim()) || '';
                 // Track token usage to platform meter with Context Caching discounts
                 try {
                     const metadata = result.response.usageMetadata;
@@ -427,18 +560,55 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             // Mark throttle timestamp
             await chatThrottleRef.set({ lastReplyTime: Date.now() });
             // 7. Update Chat History
-            chatHistory.push({ role: 'user', text: messageText, timestamp: Date.now() });
-            chatHistory.push({ role: 'model', text: replyText, timestamp: Date.now() });
+            const nowTimestamp = Date.now();
+            chatHistory.push({ role: 'user', text: messageText, timestamp: nowTimestamp });
+            chatHistory.push({ role: 'model', text: replyText, timestamp: nowTimestamp + 50 });
             await chatDocRef.set({
-                phone,
-                contactName: contactName || phone,
+                id: targetChatId,
+                phone: normPhone,
+                contactName: contactName || senderName || normPhone,
+                contactId: contactDocId || null,
                 botId: triggeredBot.id,
                 botName: triggeredBot.name,
                 lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 messages: chatHistory
             }, { merge: true });
+            // Also mirror conversation to contact's subcollection if contact exists
+            if (contactDocId) {
+                try {
+                    await db.collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set({
+                        id: `conv_${normPhone}`,
+                        contactId: contactDocId,
+                        channel: 'whatsapp',
+                        botName: triggeredBot.name,
+                        lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        messages: chatHistory
+                    }, { merge: true });
+                    await db.collection('contacts').doc(contactDocId).set({
+                        last_message: messageText,
+                        last_channel: 'whatsapp',
+                        last_conversation_date: new Date().toISOString(),
+                        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                    }, { merge: true });
+                    // Also mirror to master tenant contacts if available
+                    try {
+                        await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set({
+                            id: `conv_${normPhone}`,
+                            contactId: contactDocId,
+                            channel: 'whatsapp',
+                            botName: triggeredBot.name,
+                            lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                            messages: chatHistory
+                        }, { merge: true });
+                    }
+                    catch (_6) { }
+                }
+                catch (subErr) {
+                    console.warn('[whatsappWebhook] Error updating contact conversation subcollection:', subErr);
+                }
+            }
             // 8. Trigger Async Info Extraction
-            extractAndSaveContact(geminiKey, phone, chatHistory);
+            extractAndSaveContact(geminiKey, phone, chatHistory, senderName, contactDocId || undefined);
             // 9. Send message back via Green API using direct cluster host
             const instStr = String(greenApiInstanceId || '').trim();
             let host = 'https://api.green-api.com';

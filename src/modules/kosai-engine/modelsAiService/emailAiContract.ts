@@ -15,6 +15,7 @@ export const kosaiEmailContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('kosun-am', prompt, {
+      model: 'gemini-3.8-flash-lite',
       responseMimeType: 'application/json',
       temperature: 0.75,
       customApiKey: options?.apiKey,
@@ -31,6 +32,7 @@ export const kosaiEmailContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<string>> {
     const res = await executeKosaiAi<any>('kosun-am', prompt, {
+      model: 'gemini-3.8-flash-lite',
       temperature: 0.6,
       customApiKey: options?.apiKey,
       tenantId: options?.tenantId,
