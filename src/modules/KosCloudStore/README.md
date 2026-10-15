@@ -1,10 +1,10 @@
-﻿# 🗄️ Media Gallery Hub & AI Drive Vault (Universal Cloud Drive & AI Studio)
+# KosCloudStore (Universal Cloud Drive & AI Studio)
 
-רכיב **`media-gallery-hub`** הינו כספת קבצים חכמה מודולרית (Universal Cloud Drive & AI Studio) המאפשרת ניהול, אחסון, עריכה, המרה ויצירה של כל סוגי הקבצים והמדיה בענן.
+רכיב **`KosCloudStore`** (לשעבר `media-gallery-hub`) הינו כספת קבצים חכמה מודולרית (Universal Cloud Drive & AI Studio) המאפשרת ניהול, אחסון, עריכה, המרה ויצירה של כל סוגי הקבצים והמדיה בענן.
 
 ---
 
-## 🏗️ ארכיטקטורת 10 השכבות (10-Layer Anatomy)
+## ארכיטקטורת 10 השכבות (10-Layer Anatomy)
 1. **`types/`**: הגדרות טיפוסים קפדניות עבור `MediaItem`, `MediaType` (תמונות, וידאו, מסמכים, PDF, טבלאות, שמע, ארכיונים, קוד), ופילטרים.
 2. **`config/`**: קונפיגורציית קולקציות מבודדת ב-Firestore (`sdo_media_items`, `sdo_media_folders`).
 3. **`context/`**: ניהול State גלובלי עם תמיכה בהפרדת משתמשים (`userId`), עבודה היברידית עם IndexedDB (תגובה מיידית ב-0ms), וסנכרון ענן מלא ל-Firebase Storage & Firestore.
@@ -33,7 +33,7 @@
 
 ---
 
-## 🔌 חוזים ו-Capabilities (Host Contracts)
+## חוזים ו-Capabilities (Host Contracts)
 הרכיב צורך ומספק את החוזים הבאים דרך `src/core/contracts/index.ts`:
 
 ### Contracts מסופקים:
@@ -48,7 +48,7 @@
 
 ---
 
-## 📡 אירועי EventBus
+## אירועי EventBus
 1. **`media:uploaded`**:
    משודר בעת השלמת העלאת קובץ ל-Firebase Storage.
 2. **`landing_page:generated_from_doc`**:
@@ -66,7 +66,7 @@
 
 ---
 
-## 🛡️ חוקי אבטחה ב-Firestore (Security Rules)
+## חוקי אבטחה ב-Firestore (Security Rules)
 ```javascript
 match /sdo_media_items/{itemId} {
   allow read: if request.auth != null;

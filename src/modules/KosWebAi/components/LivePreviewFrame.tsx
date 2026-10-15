@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PageBuilderConfig, ViewportMode } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
+import { isSectionVisibleInViewport } from '../utils/resolutionVisibility';
 import { Sparkles, MessageCircle, Phone, LogIn } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../../KosBranding/hooks/useBrandDna';
@@ -66,7 +67,7 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
             const sectionData = sections[sectionId];
             if (!sectionData) return null;
             if (sectionData.visible === false) return null;
-            if (isMobile && sectionData.mobileHidden === true) return null;
+            if (!isSectionVisibleInViewport(sectionData, viewportMode)) return null;
 
             const regDef = SECTION_REGISTRY[sectionData.type as keyof typeof SECTION_REGISTRY];
             if (!regDef) return null;

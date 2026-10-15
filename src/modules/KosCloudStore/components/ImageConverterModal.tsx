@@ -242,7 +242,7 @@ export const ImageConverterModal: React.FC = () => {
     setTargetFormat('image/png');
     const baseName = converterItem.name.replace(/\.[^/.]+$/, '');
     setTargetFileName(`${baseName}_ערוך.png`);
-    setStatusMessage('🔄 שוחזרה התמונה המקורית.');
+    setStatusMessage('שוחזרה התמונה המקורית.');
     setTimeout(() => setStatusMessage(null), 3000);
   };
 

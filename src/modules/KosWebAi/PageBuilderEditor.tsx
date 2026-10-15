@@ -352,10 +352,12 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                       title={sectionData.adminTitle || regDef?.name || sectionId}
                       isOpen={isOpen}
                       onToggleOpen={() => setOpenSectionId(isOpen ? null : sectionId)}
+                      sectionData={sectionData}
                       visible={sectionData.visible !== false}
                       mobileHidden={sectionData.mobileHidden}
                       onToggleVisibility={() => handleToggleVisibility(sectionId)}
                       onToggleMobileHidden={() => handleToggleMobileHidden(sectionId)}
+                      onUpdateSection={(id, data) => handleUpdateSectionData(id, data)}
                       onDuplicate={() => handleDuplicateSection(sectionId)}
                       onDelete={() => handleDeleteSection(sectionId)}
                       onMoveUp={() => handleMoveUp(index)}
@@ -421,10 +423,12 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                     title={sectionData.adminTitle || regDef?.name || sectionId}
                     isOpen={isOpen}
                     onToggleOpen={() => setOpenSectionId(isOpen ? null : sectionId)}
+                    sectionData={sectionData}
                     visible={sectionData.visible !== false}
                     mobileHidden={sectionData.mobileHidden}
                     onToggleVisibility={() => handleToggleVisibility(sectionId)}
                     onToggleMobileHidden={() => handleToggleMobileHidden(sectionId)}
+                    onUpdateSection={(id, data) => handleUpdateSectionData(id, data)}
                     onDuplicate={() => handleDuplicateSection(sectionId)}
                     onDelete={() => handleDeleteSection(sectionId)}
                     onMoveUp={() => handleMoveUp(index)}

@@ -41,6 +41,7 @@ import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryCo
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { MediaItem, MediaType, MediaFolder, MediaCategoryFilter } from '../types';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 
 /**
  * Helper to render filenames cleanly in Hebrew RTL without bidi punctuation flips
@@ -117,15 +118,18 @@ const OptimizedMediaThumbnail: React.FC<{
 }> = React.memo(({ item, viewMode, isLight }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState<string>(item.thumbnailUrl || item.url);
+  const [currentSrc, setCurrentSrc] = useState<string>(() =>
+    resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)
+  );
   const [isVideoHovered, setIsVideoHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    setCurrentSrc(item.thumbnailUrl || item.url);
+    const safe = resolveSafeMediaUrl(item.thumbnailUrl || item.url, item);
+    setCurrentSrc(safe);
     setHasError(false);
     setIsLoaded(false);
-  }, [item.url, item.thumbnailUrl]);
+  }, [item.url, item.thumbnailUrl, item.storagePath, item.name]);
 
   const handleMediaError = async () => {
     // 1. Try to recover from local IndexedDB binary blob
@@ -205,8 +209,8 @@ const OptimizedMediaThumbnail: React.FC<{
       >
         <video
           ref={videoRef}
-          src={item.url}
-          poster={item.thumbnailUrl}
+          src={resolveSafeMediaUrl(item.url, item)}
+          poster={resolveSafeMediaUrl(item.thumbnailUrl, item)}
           muted
           playsInline
           loop
@@ -591,7 +595,7 @@ const MediaListRow: React.FC<{
           }`}
         >
           {item.type === 'image' ? (
-            <img src={item.thumbnailUrl || item.url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            <img src={resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
           ) : (
             renderFileTypeIcon(item.type, 'w-4 h-4')
           )}
@@ -825,7 +829,7 @@ export const MediaGalleryGrid: React.FC = () => {
 
   const handleDownloadSingle = (e: React.MouseEvent, item: MediaItem) => {
     e.stopPropagation();
-    FileCompressionService.downloadMedia(item.url, item.name);
+    FileCompressionService.downloadMedia(resolveSafeMediaUrl(item.url, item), item.name);
   };
 
   const handleDeleteSingle = async (e: React.MouseEvent, item: MediaItem) => {
@@ -1050,10 +1054,10 @@ export const MediaGalleryGrid: React.FC = () => {
                 : 'bg-slate-950 border border-slate-700/80 text-white focus:border-yellow-500'
             }`}
           >
-            <option value="date_desc">📅 החדשים</option>
-            <option value="date_asc">📅 הישנים</option>
-            <option value="size_desc">💾 הגדולים</option>
-            <option value="name_asc">🔤 לפי שם</option>
+            <option value="date_desc">החדשים תחילה</option>
+            <option value="date_asc">הישנים תחילה</option>
+            <option value="size_desc">לפי גודל קובץ</option>
+            <option value="name_asc">לפי שם א-ת</option>
           </select>
 
           {/* View Mode Toggle */}

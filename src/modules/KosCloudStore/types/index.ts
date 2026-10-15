@@ -41,6 +41,7 @@ export interface MediaItem {
   extractedText?: string;
   createdAt: number;
   updatedAt?: number;
+  storagePath?: string;
   tags?: string[];
   description?: string;
   folderId?: string | null;

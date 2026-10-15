@@ -19,6 +19,8 @@ import {
   Info,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { SectionResolutionVisibilityMenu } from './SectionResolutionVisibilityMenu';
+import { getResolutionBadgeInfo } from '../utils/resolutionVisibility';
 
 export interface SectionContainerProps {
   sectionId: string;
@@ -33,6 +35,7 @@ export interface SectionContainerProps {
   onMoveDown?: () => void;
   onToggleVisibility?: () => void;
   onToggleMobileHidden?: () => void;
+  onUpdateSection?: (sectionId: string, updatedData: any) => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
   onAiDesign?: () => void;
@@ -58,6 +61,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
   onMoveDown,
   onToggleVisibility,
   onToggleMobileHidden,
+  onUpdateSection,
   onDelete,
   onDuplicate,
   onAiDesign,
@@ -103,6 +107,15 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hidden sm:inline">
                 {effectiveType}
               </span>
+              {(() => {
+                const resBadge = getResolutionBadgeInfo(sectionData || { mobileHidden });
+                if (!resBadge.isRestricted) return null;
+                return (
+                  <span className={clsx("text-[10px] px-2 py-0.5 rounded-full border hidden sm:inline font-bold", resBadge.colorClass)}>
+                    {resBadge.label}
+                  </span>
+                );
+              })()}
               {regDef?.description && (
                 <div
                   className="relative group/info"
@@ -142,7 +155,14 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
             </button>
           )}
 
-          {onToggleMobileHidden && (
+          {onUpdateSection ? (
+            <SectionResolutionVisibilityMenu
+              sectionId={sectionId}
+              sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
+              onUpdateSection={onUpdateSection}
+              compact
+            />
+          ) : onToggleMobileHidden ? (
             <button
               type="button"
               onClick={onToggleMobileHidden}
@@ -156,7 +176,7 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
             >
               <Smartphone className="w-4 h-4" />
             </button>
-          )}
+          ) : null}
 
           {onMoveUp && (
             <button

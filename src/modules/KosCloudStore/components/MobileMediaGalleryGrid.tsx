@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { MediaItem } from '../types';
 import { FileCompressionService } from '../services/fileCompressionService';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 
 interface MobileMediaGalleryGridProps {
   items: MediaItem[];
@@ -118,14 +119,21 @@ export const MobileMediaGalleryGrid: React.FC<MobileMediaGalleryGridProps> = ({
                 <div className="w-11 h-11 rounded-xl bg-slate-800/80 border border-slate-700/60 flex items-center justify-center overflow-hidden flex-shrink-0 relative">
                   {isImage ? (
                     <img
-                      src={item.thumbnailUrl || item.url}
+                      src={resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)}
                       alt={item.name}
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
                   ) : item.type === 'video' ? (
                     <div className="relative w-full h-full flex items-center justify-center bg-black">
-                      <video src={item.url} poster={item.thumbnailUrl} muted playsInline preload="metadata" className="w-full h-full object-cover" />
+                      <video
+                        src={resolveSafeMediaUrl(item.url, item)}
+                        poster={resolveSafeMediaUrl(item.thumbnailUrl, item)}
+                        muted
+                        playsInline
+                        preload="metadata"
+                        className="w-full h-full object-cover"
+                      />
                       <div className="absolute inset-0 flex items-center justify-center bg-black/40">
                         <Play className="w-3.5 h-3.5 fill-amber-400 text-amber-400 ml-0.5" />
                       </div>
@@ -218,7 +226,7 @@ export const MobileMediaGalleryGrid: React.FC<MobileMediaGalleryGridProps> = ({
             <div className="aspect-square bg-slate-950/40 relative flex items-center justify-center overflow-hidden">
               {isImage ? (
                 <img
-                  src={item.thumbnailUrl || item.url}
+                  src={resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)}
                   alt={item.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                   loading="lazy"
@@ -226,8 +234,8 @@ export const MobileMediaGalleryGrid: React.FC<MobileMediaGalleryGridProps> = ({
               ) : isVideo ? (
                 <div className="relative w-full h-full flex items-center justify-center bg-black overflow-hidden">
                   <video
-                    src={item.url}
-                    poster={item.thumbnailUrl}
+                    src={resolveSafeMediaUrl(item.url, item)}
+                    poster={resolveSafeMediaUrl(item.thumbnailUrl, item)}
                     muted
                     playsInline
                     preload="metadata"

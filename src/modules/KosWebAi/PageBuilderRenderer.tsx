@@ -15,6 +15,8 @@ import { SectionType } from './types/pageBuilder.types';
 import { FloatingWeAreHereWidget } from './components/FloatingWeAreHereWidget';
 import { FloatingWidgetSettingsModal } from './components/FloatingWidgetSettingsModal';
 import { Check } from 'lucide-react';
+import { SectionResolutionVisibilityMenu } from './components/SectionResolutionVisibilityMenu';
+import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
 
 export interface PageBuilderRendererProps {
   config: PageBuilderConfig;
@@ -178,7 +180,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               id={sectionData.anchorId || sectionId}
               className={clsx(
                 'w-full relative group/section transition-all',
-                sectionData.mobileHidden && !isEditing && 'hidden md:block',
+                getResolutionVisibilityClasses(sectionData, isEditing),
                 isEditing && 'border-y border-dashed border-slate-700/60 hover:border-indigo-500/80 my-1 py-1',
                 isHidden && 'opacity-60 bg-slate-950/40'
               )}
@@ -205,6 +207,15 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                           מוסתר מגולשים
                         </span>
                       )}
+                      {(() => {
+                        const resBadge = getResolutionBadgeInfo(sectionData);
+                        if (!resBadge.isRestricted) return null;
+                        return (
+                          <span className={clsx("text-[10px] px-2 py-0.5 rounded-md border font-bold", resBadge.colorClass)}>
+                            {resBadge.label}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Right: Actions */}
@@ -267,6 +278,15 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         >
                           {!isHidden ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
                         </button>
+                      )}
+
+                      {/* Screen Resolution Visibility (גילוי והצגה לפי רזולוציית מסך) */}
+                      {onUpdateSection && (
+                        <SectionResolutionVisibilityMenu
+                          sectionId={sectionId}
+                          sectionData={sectionData}
+                          onUpdateSection={onUpdateSection}
+                        />
                       )}
 
                       {/* Move Up (Not applicable to permanent top Header) */}

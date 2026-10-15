@@ -122,11 +122,27 @@ export interface SeoSettings {
   geo?: GeoSeoSettings;
 }
 
+export type DeviceVisibilityMode =
+  | 'all'
+  | 'desktop_only'
+  | 'tablet_only'
+  | 'mobile_only'
+  | 'desktop_tablet'
+  | 'mobile_tablet';
+
+export interface ScreenVisibilityConfig {
+  desktop?: boolean;
+  tablet?: boolean;
+  mobile?: boolean;
+}
+
 export interface BaseSectionConfig {
   id: string;
   type: SectionType;
   visible: boolean;
   mobileHidden?: boolean;
+  deviceVisibility?: DeviceVisibilityMode;
+  screenVisibility?: ScreenVisibilityConfig;
   anchorId?: string;
   backgroundColor?: string;
   customClasses?: string;

@@ -31,8 +31,10 @@ import {
   PenTool,
   Flame,
   Crop,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { useMediaGallery } from '../context/MediaGalleryContext';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaItem } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -210,6 +212,8 @@ export const MediaPreviewModal: React.FC = () => {
 
   if (!previewItem) return null;
 
+  const safeUrl = resolveSafeMediaUrl(previewItem.url, previewItem);
+
   const isVideo =
     previewItem.type === 'video' ||
     previewItem.mimeType?.startsWith('video/') ||
@@ -231,13 +235,13 @@ export const MediaPreviewModal: React.FC = () => {
     previewItem.name.toLowerCase().endsWith('.pdf');
 
   const handleCopyUrl = () => {
-    navigator.clipboard.writeText(previewItem.url);
+    navigator.clipboard.writeText(safeUrl || previewItem.url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleDownload = () => {
-    FileCompressionService.downloadMedia(previewItem.url, previewItem.name);
+    FileCompressionService.downloadMedia(safeUrl || previewItem.url, previewItem.name);
   };
 
   const handleDelete = async () => {
@@ -305,22 +309,22 @@ export const MediaPreviewModal: React.FC = () => {
         >
           {/* File details & Bidi Title */}
           <div className="flex items-center space-x-3 rtl:space-x-reverse min-w-0 flex-1">
-            <span className="text-2xl flex-shrink-0">
-              {isVideo
-                ? '🎬'
-                : isImage
-                ? '🖼️'
-                : isAudio
-                ? '🎙️'
-                : isPdf
-                ? '📄'
-                : previewItem.type === 'document'
-                ? '📝'
-                : previewItem.type === 'archive'
-                ? '📦'
-                : previewItem.type === 'code'
-                ? '💻'
-                : '📁'}
+            <span className="p-2 rounded-xl bg-slate-800 text-amber-400 flex-shrink-0 flex items-center justify-center">
+              {isVideo ? (
+                <FileVideo className="w-5 h-5" />
+              ) : isImage ? (
+                <ImageIcon className="w-5 h-5" />
+              ) : isAudio ? (
+                <Music className="w-5 h-5" />
+              ) : isPdf ? (
+                <FileText className="w-5 h-5" />
+              ) : previewItem.type === 'archive' ? (
+                <Archive className="w-5 h-5" />
+              ) : previewItem.type === 'code' ? (
+                <Code2 className="w-5 h-5" />
+              ) : (
+                <Folder className="w-5 h-5" />
+              )}
             </span>
 
             <div className="min-w-0 flex-1">
@@ -389,7 +393,9 @@ export const MediaPreviewModal: React.FC = () => {
                 {previewItem.folderName && (
                   <>
                     <span>•</span>
-                    <span className="text-indigo-400 font-semibold">📁 {previewItem.folderName}</span>
+                    <span className="text-indigo-400 font-semibold inline-flex items-center gap-1">
+                      <Folder className="w-3.5 h-3.5 inline" /> {previewItem.folderName}
+                    </span>
                   </>
                 )}
               </div>
@@ -477,8 +483,8 @@ export const MediaPreviewModal: React.FC = () => {
             <div className="relative w-full h-full flex flex-col items-center justify-center">
               <video
                 ref={videoRef}
-                key={previewItem.url}
-                src={previewItem.url}
+                key={safeUrl}
+                src={safeUrl}
                 controls
                 autoPlay
                 playsInline
@@ -498,7 +504,7 @@ export const MediaPreviewModal: React.FC = () => {
                   {playbackSpeed}x
                 </button>
                 <a
-                  href={previewItem.url}
+                  href={safeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1.5 rounded-xl hover:bg-white/20 text-slate-300 hover:text-white transition-colors"
@@ -519,7 +525,7 @@ export const MediaPreviewModal: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3">
                     <a
-                      href={previewItem.url}
+                      href={safeUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="px-5 py-2.5 rounded-xl bg-amber-500 text-black font-bold text-xs shadow-lg"
@@ -580,7 +586,7 @@ export const MediaPreviewModal: React.FC = () => {
                   <RotateCw className="w-4 h-4" />
                 </button>
                 <a
-                  href={previewItem.url}
+                  href={safeUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-1.5 rounded-xl hover:bg-white/20 text-slate-200 hover:text-white"
@@ -591,8 +597,8 @@ export const MediaPreviewModal: React.FC = () => {
               </div>
 
               <img
-                key={previewItem.url}
-                src={previewItem.url}
+                key={safeUrl}
+                src={safeUrl}
                 alt={previewItem.name}
                 style={{
                   transform: `scale(${zoomLevel}) rotate(${rotation}deg)`,
@@ -604,10 +610,10 @@ export const MediaPreviewModal: React.FC = () => {
 
               {mediaError && (
                 <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center space-y-3 z-30">
-                  <div className="text-4xl">🖼️</div>
+                  <ImageIcon className="w-12 h-12 text-slate-500 opacity-60" />
                   <h4 className="text-sm font-bold text-white">לא ניתן לטעון את התמונה</h4>
                   <a
-                    href={previewItem.url}
+                    href={safeUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="px-4 py-2 rounded-xl bg-amber-500 text-black font-bold text-xs"
@@ -635,7 +641,7 @@ export const MediaPreviewModal: React.FC = () => {
                 previewItem.description) && (
                 <div className="w-full bg-slate-950/80 border border-yellow-500/30 rounded-2xl p-4 text-right shadow-inner" dir="rtl">
                   <div className="text-[11px] font-bold text-yellow-400 uppercase tracking-wider mb-1.5 flex items-center gap-1.5">
-                    <span>💬</span>
+                    <MessageSquare className="w-3.5 h-3.5" />
                     <span>כתוביות ותמליל הקריינות:</span>
                   </div>
                   <p className="text-sm text-slate-200 leading-relaxed font-medium select-text whitespace-pre-wrap">
@@ -646,7 +652,7 @@ export const MediaPreviewModal: React.FC = () => {
                 </div>
               )}
 
-              <audio src={previewItem.url} controls autoPlay className="w-full" />
+              <audio src={safeUrl} controls autoPlay className="w-full" />
             </div>
           )}
 
@@ -654,7 +660,7 @@ export const MediaPreviewModal: React.FC = () => {
           {isPdf && (
             <div className="w-full h-full min-h-[400px] rounded-2xl overflow-hidden bg-slate-950 flex flex-col items-center justify-center">
               <iframe
-                src={`${previewItem.url}#toolbar=1`}
+                src={`${safeUrl}#toolbar=1`}
                 className="w-full h-full min-h-[400px] rounded-2xl border border-slate-800"
                 title={previewItem.name}
               />
@@ -940,7 +946,7 @@ export const MediaPreviewModal: React.FC = () => {
             {/* Share WhatsApp */}
             <button
               onClick={() => {
-                const text = encodeURIComponent(`מצורף קובץ: ${previewItem.name}\n${previewItem.url}`);
+                const text = encodeURIComponent(`מצורף קובץ: ${previewItem.name}\n${safeUrl || previewItem.url}`);
                 window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
               }}
               className={`px-3 py-2 rounded-xl font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer border ${

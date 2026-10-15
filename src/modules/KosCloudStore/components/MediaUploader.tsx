@@ -233,10 +233,10 @@ export const MediaUploader: React.FC = () => {
                 onChange={(e) => setTargetFolderId(e.target.value)}
                 className="flex-1 bg-transparent text-white font-medium focus:outline-none truncate cursor-pointer text-xs"
               >
-                <option value="" className="bg-slate-900">📁 מאגר ראשי (Root)</option>
+                <option value="" className="bg-slate-900">מאגר ראשי (Root)</option>
                 {folders.map((f) => (
                   <option key={f.id} value={f.id} className="bg-slate-900">
-                    📂 {f.name}
+                    {f.name}
                   </option>
                 ))}
               </select>
