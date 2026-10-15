@@ -1,6 +1,7 @@
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { PageTemplateBlueprint } from '../types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
+import { hydrateSectionWithBrandDna } from '../services/brandSectionHydrator';
 
 /**
  * 5 Premium Built-in Page Blueprints (תבניות פרימיום מובנות)
@@ -586,28 +587,10 @@ export function hydrateBlueprintWithBrandDna(
   cloned.globalSettings.address = address;
   cloned.globalSettings.brandDnaSynced = true;
 
-  // Sync sections contact info
+  // Sync all sections with live Brand DNA dynamically
   Object.keys(cloned.sections).forEach((secKey) => {
     const sec = cloned.sections[secKey];
-    if (sec.type === 'contact') {
-      sec.phone = phone;
-      sec.email = email;
-      sec.whatsapp = whatsapp;
-      sec.address = address;
-    } else if (sec.type === 'geoLocal') {
-      sec.phone = phone;
-      sec.email = email;
-      sec.whatsapp = whatsapp;
-      sec.address = address;
-      sec.businessName = companyName;
-    } else if (sec.type === 'hero') {
-      if (companyName && !sec.title.includes(companyName)) {
-        sec.title = `${companyName} - ${sec.title}`;
-      }
-      if (slogan && !sec.subtitle) {
-        sec.subtitle = slogan;
-      }
-    }
+    cloned.sections[secKey] = hydrateSectionWithBrandDna(sec, brandDna, sec.type);
   });
 
   return cloned;

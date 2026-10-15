@@ -100,7 +100,7 @@ export const DEFAULT_SYSTEM_COLLECTIONS: SystemCollectionsConfig = {
   users: 'users',
 };
 
-const SystemConnectionContext = createContext<SystemConnectionContextValue | null>(null);
+export const SystemConnectionContext = createContext<SystemConnectionContextValue | null>(null);
 
 /**
  * Legacy keys that used to live in localStorage. Read ONCE at module load (only to migrate them
@@ -711,3 +711,8 @@ export const useSystemConnection = () => {
   }
   return ctx;
 };
+
+export const useOptionalSystemConnection = () => {
+  return useContext(SystemConnectionContext);
+};
+

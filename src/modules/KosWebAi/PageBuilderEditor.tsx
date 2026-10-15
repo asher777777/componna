@@ -23,6 +23,8 @@ import { PageBuilderButton } from './ui/PageBuilderButton';
 import { useTenantScope } from '../../core/tenant/TenantScopeContext';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { loadBrandDna } from '../KosBranding/services/brandDnaFirestore';
+import { BrandDna } from '../../core/contracts';
+import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
 import { ArrowUp, ArrowDown, Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -71,13 +73,17 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   const { tenantId } = useTenantScope();
   const { db } = useSystemConnection();
   const [brandColor, setBrandColor] = useState<string>('#6366f1');
+  const [loadedBrandDna, setLoadedBrandDna] = useState<BrandDna | null>(null);
 
   useEffect(() => {
     let isMounted = true;
     loadBrandDna(db, tenantId)
       .then((dna) => {
-        if (isMounted && dna?.designTokens?.primaryColor) {
-          setBrandColor(dna.designTokens.primaryColor);
+        if (isMounted && dna) {
+          setLoadedBrandDna(dna);
+          if (dna?.designTokens?.primaryColor) {
+            setBrandColor(dna.designTokens.primaryColor);
+          }
         }
       })
       .catch(() => {});
@@ -256,11 +262,10 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
     if (!regDef) return;
 
     const newId = `${type}_${Date.now()}`;
-    const newSectionConfig = {
-      ...JSON.parse(JSON.stringify(regDef.defaultConfig)),
-      id: newId,
-      anchorId: `${type}_${config.sectionOrder.length + 1}`,
-    };
+    const liveDna = resolveLiveBrandDna(loadedBrandDna, tenantId);
+    const newSectionConfig = hydrateSectionWithBrandDna(regDef.defaultConfig, liveDna, type);
+    newSectionConfig.id = newId;
+    newSectionConfig.anchorId = `${type}_${config.sectionOrder.length + 1}`;
 
     setConfig({
       ...config,

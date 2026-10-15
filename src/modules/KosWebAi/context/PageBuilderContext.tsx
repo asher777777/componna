@@ -13,6 +13,7 @@ import { eventBus } from '../../../core/bridge/EventBus';
 import { PAGE_BUILDER_MODULE_CONFIG } from '../config';
 import { useTenantScope } from '../../../core/tenant';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from '../services/brandSectionHydrator';
 
 export interface PageBuilderContextValue {
   // Page Configuration
@@ -189,13 +190,16 @@ export const PageBuilderProvider: React.FC<{
         const id = `${type}_${Date.now()}`;
         createdId = id;
         const definition = SECTION_REGISTRY[type];
-        const initialData = definition
+        const rawInitial = definition
           ? JSON.parse(JSON.stringify(definition.defaultConfig))
           : { id, type, visible: true };
 
+        const currentLiveDna = resolveLiveBrandDna(brandDna || brandDnaContract?.getBrandDna(), tenantId);
+        const hydratedData = hydrateSectionWithBrandDna(rawInitial, currentLiveDna, type);
+
         const newSections = {
           ...prev.sections,
-          [id]: { ...initialData, id, type, visible: true },
+          [id]: { ...hydratedData, id, type, visible: true },
         };
 
         const newOrder = [...prev.sectionOrder];
@@ -214,7 +218,7 @@ export const PageBuilderProvider: React.FC<{
       setSelectedSectionId(createdId);
       return createdId;
     },
-    [updatePageConfig]
+    [updatePageConfig, brandDna, brandDnaContract, tenantId]
   );
 
   const removeSection = useCallback(

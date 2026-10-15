@@ -271,6 +271,26 @@ export class FirebaseStorageMediaService {
           );
         }
       });
+
+      // Also load from root sdo_media_vault if scoped collection was used
+      if (vaultColl !== 'sdo_media_vault') {
+        try {
+          const rootSnap = await getDocs(collection(db, 'sdo_media_vault'));
+          rootSnap.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data && data.url) {
+              registerItem(
+                data.name || data.fullName || docSnap.id,
+                data.url,
+                data.sizeBytes || 1992294,
+                data.createdAt || Date.now(),
+                data.id || docSnap.id,
+                data as Partial<MediaItem>
+              );
+            }
+          });
+        } catch {}
+      }
     } catch (firestoreErr) {
       console.warn('[FirebaseStorageMediaService] Firestore vault read notice:', firestoreErr);
     }

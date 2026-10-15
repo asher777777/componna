@@ -193,27 +193,47 @@ export class FirestoreMediaService {
     const collNames = resolveMediaCollections(undefined, collections);
     try {
       const collRef = collection(db, collNames.mediaItems);
-      const q = query(collRef, orderBy('createdAt', 'desc'));
-      return onSnapshot(
-        q,
-        (snapshot) => {
-          const items: MediaItem[] = [];
-          snapshot.forEach((docSnap) => {
-            const raw = { ...(docSnap.data() as MediaItem), id: docSnap.id };
-            const safeUrl = resolveSafeMediaUrl(raw.url, raw);
-            const safeThumb = resolveSafeMediaUrl(raw.thumbnailUrl, raw);
-            items.push({
-              ...raw,
-              url: safeUrl || raw.url,
-              thumbnailUrl: safeThumb || raw.thumbnailUrl,
-            });
+
+      const processSnapshot = (snapshot: any) => {
+        const items: MediaItem[] = [];
+        snapshot.forEach((docSnap: any) => {
+          const raw = { ...(docSnap.data() as MediaItem), id: docSnap.id };
+          const safeUrl = resolveSafeMediaUrl(raw.url, raw);
+          const safeThumb = resolveSafeMediaUrl(raw.thumbnailUrl, raw);
+          items.push({
+            ...raw,
+            url: safeUrl || raw.url,
+            thumbnailUrl: safeThumb || raw.thumbnailUrl,
           });
-          onData(items);
-        },
+        });
+        onData(items);
+      };
+
+      let unsubSecondary = () => {};
+      let isUnsubscribed = false;
+
+      // Try ordered query first
+      const q = query(collRef, orderBy('createdAt', 'desc'));
+      const unsubPrimary = onSnapshot(
+        q,
+        processSnapshot,
         (err) => {
-          console.warn('[FirestoreMediaService] Real-time media listener notice:', err);
+          console.warn('[FirestoreMediaService] Real-time ordered listener fallback to unordered:', err?.message || err);
+          if (!isUnsubscribed) {
+            unsubSecondary = onSnapshot(
+              collRef,
+              processSnapshot,
+              (e2) => console.warn('[FirestoreMediaService] Real-time media unordered listener error:', e2?.message || e2)
+            );
+          }
         }
       );
+
+      return () => {
+        isUnsubscribed = true;
+        unsubPrimary();
+        unsubSecondary();
+      };
     } catch {
       return () => {};
     }

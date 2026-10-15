@@ -40,38 +40,8 @@ function getSmartPlaceholderImage(category: string, index: number = 0): string {
   return pool[index % pool.length];
 }
 
-/**
- * Resolves the real-time Brand DNA from context, LocalStorage, or populated defaults
- */
-export function resolveLiveBrandDna(provided?: BrandDna | null): BrandDna | null {
-  if (provided && (provided.identity?.companyName || provided.trust?.contactPhone)) {
-    // If provided has contact details, still check if localStorage has more specific ones
-    try {
-      const raw = localStorage.getItem('kosun_brand_dna_settings');
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.trust?.contactPhone || parsed?.trust?.whatsappSupportNumber) {
-          return {
-            ...provided,
-            ...parsed,
-            trust: { ...provided.trust, ...parsed.trust },
-            identity: { ...provided.identity, ...parsed.identity },
-            designTokens: { ...provided.designTokens, ...parsed.designTokens },
-          };
-        }
-      }
-    } catch {}
-    return provided;
-  }
-  try {
-    const raw = localStorage.getItem('kosun_brand_dna_settings');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed) return parsed;
-    }
-  } catch {}
-  return provided || null;
-}
+import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
+export { resolveLiveBrandDna };
 
 // In-memory cache and in-flight deduplication for marketing ideas
 const marketingIdeasMemoryCache = new Map<string, { timestamp: number; ideas: MarketingIdea[] }>();

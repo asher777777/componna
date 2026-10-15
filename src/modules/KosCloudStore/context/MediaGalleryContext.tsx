@@ -244,11 +244,13 @@ export const MediaGalleryProvider: React.FC<{
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('viewer');
 
   // Track authenticated user for strict media isolation
   useEffect(() => {
     const unsub = subscribeToAuth(firebaseApp, (authState) => {
       setCurrentUserUid(authState.uid || null);
+      setCurrentUserRole(authState.role || 'viewer');
     });
     return () => unsub();
   }, [firebaseApp]);
@@ -325,21 +327,23 @@ export const MediaGalleryProvider: React.FC<{
   // User Isolation: items visible to the current authenticated user
   const userVisibleItems = useMemo(() => {
     return mediaItems.filter((item) => {
-      if (currentUserUid) {
-        const itemOwner =
-          item.userId ||
-          item.createdBy ||
-          item.metadata?.ownerUid ||
-          item.metadata?.userId;
+      // Platform admins, master tenant, or guests see all public/shared files
+      if (!currentUserUid || currentUserRole === 'admin' || tenantId === '_master') {
+        return true;
+      }
+      const itemOwner =
+        item.userId ||
+        item.createdBy ||
+        item.metadata?.ownerUid ||
+        item.metadata?.userId;
 
-        // If explicitly owned by a different user, isolate and hide
-        if (itemOwner && itemOwner !== currentUserUid) {
-          return false;
-        }
+      // If explicitly owned by a different user, isolate and hide
+      if (itemOwner && itemOwner !== currentUserUid) {
+        return false;
       }
       return true;
     });
-  }, [mediaItems, currentUserUid]);
+  }, [mediaItems, currentUserUid, currentUserRole, tenantId]);
 
   const totalStorageBytes = useMemo(() => {
     return userVisibleItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
@@ -595,8 +599,39 @@ export const MediaGalleryProvider: React.FC<{
             if (item.url) addDeduplicated(item);
           });
 
+          // If scoped collection is not sdo_media_items, also fetch root collection items
+          if (collections.mediaItems !== 'sdo_media_items') {
+            try {
+              const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
+                mediaItems: 'sdo_media_items',
+                folders: 'sdo_media_folders',
+              });
+              defaultItems.forEach((item) => {
+                if (item.url) addDeduplicated(item);
+              });
+            } catch (rootErr) {
+              console.warn('[MediaGallery] Root collection items fallback notice:', rootErr);
+            }
+          }
+
           const remoteFolders = await FirestoreMediaService.fetchFolders(db, collections);
-          if (isMounted && remoteFolders.length > 0) {
+          if (collections.folders !== 'sdo_media_folders') {
+            try {
+              const defaultFolders = await FirestoreMediaService.fetchFolders(db, {
+                mediaItems: 'sdo_media_items',
+                folders: 'sdo_media_folders',
+              });
+              const combinedFolders = [...remoteFolders];
+              defaultFolders.forEach((df) => {
+                if (!combinedFolders.some((f) => f.id === df.id)) {
+                  combinedFolders.push(df);
+                }
+              });
+              if (isMounted && combinedFolders.length > 0) {
+                setFolders(combinedFolders);
+              }
+            } catch {}
+          } else if (isMounted && remoteFolders.length > 0) {
             setFolders(remoteFolders);
           }
         }
@@ -648,62 +683,80 @@ export const MediaGalleryProvider: React.FC<{
     }
 
     let unsubMedia = () => {};
+    let unsubDefaultMedia = () => {};
     let unsubFolders = () => {};
+    let unsubDefaultFolders = () => {};
+
     if (db) {
-      unsubMedia = FirestoreMediaService.subscribeMediaItems(
-        db,
-        (cloudItems) => {
-          if (!isMounted) return;
-          if (cloudItems && cloudItems.length > 0) {
-            setMediaItems((prev) => {
-              const nameMap = new Map<string, MediaItem>();
-              const idMap = new Map<string, MediaItem>();
+      const applyIncomingItems = (cloudItems: MediaItem[]) => {
+        if (!isMounted || !cloudItems || cloudItems.length === 0) return;
+        setMediaItems((prev) => {
+          const nameMap = new Map<string, MediaItem>();
+          const idMap = new Map<string, MediaItem>();
 
-              const addItem = (it: MediaItem) => {
-                const nameKey = (it.name || '').toLowerCase().trim();
-                const idKey = (it.id || '').toLowerCase().trim();
-                const existing = (nameKey ? nameMap.get(nameKey) : undefined) || (idKey ? idMap.get(idKey) : undefined);
-                if (!existing) {
-                  if (nameKey) nameMap.set(nameKey, it);
-                  if (idKey) idMap.set(idKey, it);
-                } else {
-                  const isExistingBlob = existing.url?.startsWith('blob:');
-                  const isNewBlob = it.url?.startsWith('blob:');
-                  const bestUrl = isExistingBlob && !isNewBlob ? it.url : existing.url || it.url;
-                  const merged = { ...existing, ...it, url: bestUrl, thumbnailUrl: bestUrl };
-                  if (nameKey) nameMap.set(nameKey, merged);
-                  if (idKey) idMap.set(idKey, merged);
-                }
-              };
+          const addItem = (it: MediaItem) => {
+            const nameKey = (it.name || '').toLowerCase().trim();
+            const idKey = (it.id || '').toLowerCase().trim();
+            const existing = (nameKey ? nameMap.get(nameKey) : undefined) || (idKey ? idMap.get(idKey) : undefined);
+            if (!existing) {
+              if (nameKey) nameMap.set(nameKey, it);
+              if (idKey) idMap.set(idKey, it);
+            } else {
+              const isExistingBlob = existing.url?.startsWith('blob:');
+              const isNewBlob = it.url?.startsWith('blob:');
+              const bestUrl = isExistingBlob && !isNewBlob ? it.url : existing.url || it.url;
+              const merged = { ...existing, ...it, url: bestUrl, thumbnailUrl: bestUrl };
+              if (nameKey) nameMap.set(nameKey, merged);
+              if (idKey) idMap.set(idKey, merged);
+            }
+          };
 
-              prev.forEach(addItem);
-              cloudItems.forEach(addItem);
+          prev.forEach(addItem);
+          cloudItems.forEach(addItem);
 
-              return Array.from(new Set([...nameMap.values(), ...idMap.values()])).sort(
-                (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
-              );
-            });
-          }
-        },
-        collections
-      );
+          return Array.from(new Set([...nameMap.values(), ...idMap.values()])).sort(
+            (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+          );
+        });
+      };
 
-      unsubFolders = FirestoreMediaService.subscribeFolders(
-        db,
-        (cloudFolders) => {
-          if (!isMounted) return;
-          if (cloudFolders && cloudFolders.length > 0) {
-            setFolders(cloudFolders);
-          }
-        },
-        collections
-      );
+      unsubMedia = FirestoreMediaService.subscribeMediaItems(db, applyIncomingItems, collections);
+
+      if (collections.mediaItems !== 'sdo_media_items') {
+        unsubDefaultMedia = FirestoreMediaService.subscribeMediaItems(
+          db,
+          applyIncomingItems,
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+      }
+
+      const applyIncomingFolders = (cloudFolders: MediaFolder[]) => {
+        if (!isMounted || !cloudFolders || cloudFolders.length === 0) return;
+        setFolders((prev) => {
+          const map = new Map<string, MediaFolder>();
+          prev.forEach((f) => map.set(f.id, f));
+          cloudFolders.forEach((f) => map.set(f.id, f));
+          return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        });
+      };
+
+      unsubFolders = FirestoreMediaService.subscribeFolders(db, applyIncomingFolders, collections);
+
+      if (collections.folders !== 'sdo_media_folders') {
+        unsubDefaultFolders = FirestoreMediaService.subscribeFolders(
+          db,
+          applyIncomingFolders,
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+      }
     }
 
     return () => {
       isMounted = false;
       unsubMedia();
+      unsubDefaultMedia();
       unsubFolders();
+      unsubDefaultFolders();
       if (typeof window !== 'undefined') {
         window.removeEventListener('sdo_media_updated', handleMediaUpdated);
         window.removeEventListener('sdo_media_deleted', handleMediaDeleted);

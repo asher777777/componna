@@ -11,6 +11,10 @@ import { useKosai } from '../../kosai-engine';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { SECTION_REGISTRY } from '../registry/sectionRegistry';
+import { createDynamicSectionConfig } from '../services/brandSectionHydrator';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { BrandDnaContract } from '../../../core/contracts';
 
 export const PublicPageView: React.FC = () => {
   const { slug } = useParams<{ slug?: string }>();
@@ -19,6 +23,7 @@ export const PublicPageView: React.FC = () => {
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { setPageSections } = useKosai();
+  const { getCapability } = useHostCapabilities();
 
   const [page, setPage] = useState<PageBuilderConfig | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -190,8 +195,15 @@ export const PublicPageView: React.FC = () => {
   const handleAddSection = (type: any, insertIndex?: number) => {
     setPage((prev) => {
       if (!prev) return prev;
-      const newId = `${type}_${Date.now()}`;
-      const defaultData = { id: newId, type, visible: true, title: type };
+      const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna();
+      const regDef = SECTION_REGISTRY[type as keyof typeof SECTION_REGISTRY];
+      const defaultData = createDynamicSectionConfig(
+        type,
+        rawBrandDna,
+        regDef?.defaultConfig,
+        tenantId
+      );
+      const newId = defaultData.id;
       const nextOrder = [...prev.sectionOrder];
       if (typeof insertIndex === 'number' && insertIndex >= 0) {
         nextOrder.splice(insertIndex, 0, newId);

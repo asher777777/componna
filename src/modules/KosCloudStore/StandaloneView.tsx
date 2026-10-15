@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useRef } from 'react';
 import { initializeApp, getApps } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { useOptionalSystemConnection } from '../../core/connection/SystemConnectionContext';
 import {
   Layers,
   UploadCloud,
@@ -373,7 +374,12 @@ const KosCloudStoreContent: React.FC = () => {
 };
 
 export const KosCloudStoreStandaloneView: React.FC = () => {
+  const systemConn = useOptionalSystemConnection();
+
   const firebaseApp = useMemo(() => {
+    if (systemConn?.firebaseApp) {
+      return systemConn.firebaseApp;
+    }
     const existingApps = getApps();
     if (existingApps.length > 0) {
       return existingApps[0];
@@ -395,9 +401,12 @@ export const KosCloudStoreStandaloneView: React.FC = () => {
       console.warn('[KosCloudStore] Firebase init fallback:', e);
       return undefined;
     }
-  }, []);
+  }, [systemConn?.firebaseApp]);
 
   const db = useMemo(() => {
+    if (systemConn?.db) {
+      return systemConn.db;
+    }
     if (!firebaseApp) return undefined;
     try {
       const databaseId = import.meta.env.VITE_FIREBASE_DATABASE_ID;
@@ -408,7 +417,7 @@ export const KosCloudStoreStandaloneView: React.FC = () => {
       console.warn('[KosCloudStore] Firestore init fallback:', e);
       return undefined;
     }
-  }, [firebaseApp]);
+  }, [systemConn?.db, firebaseApp]);
 
   return (
     <MediaGalleryProvider
