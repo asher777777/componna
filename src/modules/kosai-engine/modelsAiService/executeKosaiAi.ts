@@ -43,7 +43,7 @@ export async function executeKosaiAi<T = any>(
   prompt: string,
   options: KosaiExecutionOptions = {}
 ): Promise<KosaiContractResult<T>> {
-  const model = options.model || 'gemini-3.8-flash';
+  const model = options.model || 'gemini-3.8-flash-lite';
   const tenantId = options.tenantId || (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
   const category = options.category || 'content';
 

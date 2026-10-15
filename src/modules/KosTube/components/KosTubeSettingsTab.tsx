@@ -17,7 +17,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 
 export const KosTubeSettingsTab: React.FC = () => {
-  const { channel, syncChannel, isSyncing, refreshData } = useKosTube();
+  const { channel, syncChannel, isSyncing, refreshData, isRootTenant } = useKosTube();
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
 
@@ -36,13 +36,32 @@ export const KosTubeSettingsTab: React.FC = () => {
       if (channel) {
         const updated = {
           ...channel,
-          apiKey,
+          apiKey: isRootTenant ? apiKey : (channel.apiKey || ''),
           autoGeneratePages: autoGenerate,
         };
         await kosTubeFirestore.saveChannel(db, tenantId, updated);
+
+        if (isRootTenant && apiKey && db) {
+          try {
+            const { setDoc, doc } = await import('firebase/firestore');
+            await setDoc(
+              doc(db, 'tenants', '_master', 'settings', 'api_keys'),
+              { youtubeApiKey: apiKey.trim() },
+              { merge: true }
+            );
+            await setDoc(
+              doc(db, 'tenants', '_master', 'settings', 'kostube'),
+              { apiKey: apiKey.trim() },
+              { merge: true }
+            );
+          } catch (e) {
+            console.warn('[KosTubeSettings] Could not save master keys:', e);
+          }
+        }
+
         await refreshData();
       } else if (channelQuery.trim()) {
-        await syncChannel(channelQuery, apiKey);
+        await syncChannel(channelQuery, isRootTenant ? apiKey : undefined);
       }
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
@@ -85,52 +104,66 @@ export const KosTubeSettingsTab: React.FC = () => {
             </p>
           </div>
 
-          {/* YouTube API Key */}
-          <div className="space-y-2">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              מפתח YouTube Data API v3 (נדרש לסנכרון אוטומטי של כל סרטוני הערוץ)
-            </label>
-            <div className="relative">
-              <Key className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <input
-                type="password"
-                placeholder="AIzaSy..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                className="w-full pr-10 pl-4 py-2.5 text-sm font-mono rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
-              />
-            </div>
-            <p className="text-[11px] text-slate-400">
-              לסנכרון רשימת כל הסרטונים מהערוץ נדרש מפתח של Google. אם אין ברשותך מפתח, ניתן תמיד להוסיף סרטונים אמיתיים בודדים באמצעות כפתור "הוסף סרטון בקישור".
-            </p>
-          </div>
+          {/* YouTube API Key - Root Tenant vs Subdomain */}
+          {isRootTenant ? (
+            <>
+              <div className="space-y-2">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  מפתח YouTube Data API v3 (נדרש לסנכרון אוטומטי של כל סרטוני הערוץ)
+                </label>
+                <div className="relative">
+                  <Key className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input
+                    type="password"
+                    placeholder="AIzaSy..."
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    className="w-full pr-10 pl-4 py-2.5 text-sm font-mono rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                  />
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  לסנכרון רשימת כל הסרטונים מהערוץ נדרש מפתח של Google. אם אין ברשותך מפתח, ניתן תמיד להוסיף סרטונים אמיתיים בודדים באמצעות כפתור "הוסף סרטון בקישור".
+                </p>
+              </div>
 
-          {/* Guide Card on how to get the key */}
-          <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-xs space-y-2.5">
-            <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
-              <Key className="w-4 h-4 text-amber-500" />
-              <span>מדריך מהיר: איך להשיג מפתח YouTube Data API v3 בחינם (תוך 2 דקות)</span>
+              {/* Guide Card on how to get the key */}
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/80 text-xs space-y-2.5">
+                <div className="font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
+                  <Key className="w-4 h-4 text-amber-500" />
+                  <span>מדריך מהיר: איך להשיג מפתח YouTube Data API v3 בחינם (תוך 2 דקות)</span>
+                </div>
+                <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 leading-relaxed pr-1">
+                  <li>
+                    היכנס ל-Google Cloud Console בכתובת{' '}
+                    <a
+                      href="https://console.cloud.google.com"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-red-500 hover:underline font-semibold"
+                    >
+                      console.cloud.google.com
+                    </a>
+                    .
+                  </li>
+                  <li>פתח פרויקט חדש (או בחר פרויקט קיים).</li>
+                  <li>בתפריט הראשי נווט ל-<strong>APIs & Services</strong> &gt; <strong>Library</strong> (ספרייה).</li>
+                  <li>חפש <strong>YouTube Data API v3</strong> ולחץ על <strong>Enable (הפעל)</strong>.</li>
+                  <li>עבור ל-<strong>Credentials (אישורים)</strong> &gt; לחץ על <strong>+ Create Credentials</strong> &gt; בחר ב-<strong>API Key</strong>.</li>
+                  <li>העתק את המפתח שנוצר (מתחיל ב-<code>AIzaSy...</code>) והדבק אותו כאן בשדה למעלה.</li>
+                </ol>
+              </div>
+            </>
+          ) : (
+            <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-xs space-y-1">
+              <div className="font-bold text-emerald-800 dark:text-emerald-300 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <span>מפתח YouTube Data API מוגדר אוטומטית ברמת המערכת (Master)</span>
+              </div>
+              <p className="text-emerald-700/80 dark:text-emerald-400/80 leading-relaxed">
+                סנכרון ערוצי יוטיוב מתבצע באמצעות מפתח המאסטר המרכזי של המערכת. אין צורך בהזנת מפתח API בסאב-דומיין זה.
+              </p>
             </div>
-            <ol className="list-decimal list-inside space-y-1 text-slate-600 dark:text-slate-300 leading-relaxed pr-1">
-              <li>
-                היכנס ל-Google Cloud Console בכתובת{' '}
-                <a
-                  href="https://console.cloud.google.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-red-500 hover:underline font-semibold"
-                >
-                  console.cloud.google.com
-                </a>
-                .
-              </li>
-              <li>פתח פרויקט חדש (או בחר פרויקט קיים).</li>
-              <li>בתפריט הראשי נווט ל-<strong>APIs & Services</strong> &gt; <strong>Library</strong> (ספרייה).</li>
-              <li>חפש <strong>YouTube Data API v3</strong> ולחץ על <strong>Enable (הפעל)</strong>.</li>
-              <li>עבור ל-<strong>Credentials (אישורים)</strong> &gt; לחץ על <strong>+ Create Credentials</strong> &gt; בחר ב-<strong>API Key</strong>.</li>
-              <li>העתק את המפתח שנוצר (מתחיל ב-<code>AIzaSy...</code>) והדבק אותו כאן בשדה למעלה.</li>
-            </ol>
-          </div>
+          )}
 
           {/* Auto generation toggle */}
           <div className="pt-2">

@@ -3,6 +3,8 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { PageBuilderContract, BrandDnaContract, SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { ROOT_TENANT_ID } from '../../../core/tenant';
+import { getModuleYoutubeKey } from '../../../core/connection/tenantApiKeys';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
@@ -29,6 +31,7 @@ export interface KosTubeContextValue {
   isGenerating: boolean;
   generatingVideoId: string | null;
   generationMode: KosTubeAiMode;
+  isRootTenant: boolean;
   error: string | null;
   clearError: () => void;
   syncChannel: (query: string, apiKey?: string) => Promise<boolean>;
@@ -52,7 +55,7 @@ const KosTubeContext = createContext<KosTubeContextValue | null>(null);
 
 export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
-  const { tenantId } = useTenantScope();
+  const { tenantId, isRootTenant } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const pageBuilder = getCapability<PageBuilderContract>('page-builder');
 
@@ -114,13 +117,68 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsSyncing(true);
       setError(null);
       try {
+        // Resolve YouTube Data API v3 key:
+        // For subdomains, automatically inherit the Master tenant key!
+        let effectiveApiKey = apiKey?.trim() || channel?.apiKey;
+
+        if (!effectiveApiKey || effectiveApiKey.length < 10) {
+          // 1. Try in-memory module key inherited from master
+          effectiveApiKey = getModuleYoutubeKey('KosTube');
+        }
+
+        if ((!effectiveApiKey || effectiveApiKey.length < 10) && db) {
+          // 2. Fetch directly from Master collection: tenants/_master/settings/api_keys
+          try {
+            const masterSnap = await getDoc(
+              doc(db, 'tenants', ROOT_TENANT_ID, SYSTEM_COLLECTIONS.SETTINGS, 'api_keys')
+            );
+            if (masterSnap.exists()) {
+              const mData = masterSnap.data();
+              effectiveApiKey = mData.youtubeApiKey || mData.googleAiApiKey || '';
+            }
+          } catch (e) {
+            console.warn('[KosTube] Could not read master api_keys:', e);
+          }
+        }
+
+        if ((!effectiveApiKey || effectiveApiKey.length < 10) && db) {
+          // 3. Fallback to master kostube doc
+          try {
+            const masterTubeSnap = await getDoc(
+              doc(db, 'tenants', ROOT_TENANT_ID, SYSTEM_COLLECTIONS.SETTINGS, 'kostube')
+            );
+            if (masterTubeSnap.exists()) {
+              const tData = masterTubeSnap.data();
+              effectiveApiKey = tData.apiKey || '';
+            }
+          } catch (e) {}
+        }
+
         const { channel: syncedChannel, videos: syncedVideos } = await fetchYoutubeChannelData({
           query,
-          apiKey: apiKey || channel?.apiKey,
+          apiKey: effectiveApiKey,
         });
 
         await kosTubeFirestore.saveChannel(db, tenantId, syncedChannel);
         await kosTubeFirestore.saveVideos(db, tenantId, syncedVideos);
+
+        // If master tenant saved a key, persist it to Master settings so all subdomains inherit it!
+        if (isRootTenant && effectiveApiKey && db) {
+          try {
+            await setDoc(
+              doc(db, 'tenants', ROOT_TENANT_ID, SYSTEM_COLLECTIONS.SETTINGS, 'api_keys'),
+              { youtubeApiKey: effectiveApiKey },
+              { merge: true }
+            );
+            await setDoc(
+              doc(db, 'tenants', ROOT_TENANT_ID, SYSTEM_COLLECTIONS.SETTINGS, 'kostube'),
+              { apiKey: effectiveApiKey },
+              { merge: true }
+            );
+          } catch (e) {
+            console.warn('[KosTube] Could not persist key to master settings:', e);
+          }
+        }
 
         setChannel(syncedChannel);
         setVideos(syncedVideos);
@@ -134,7 +192,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setIsSyncing(false);
       }
     },
-    [db, tenantId, channel?.apiKey]
+    [db, tenantId, isRootTenant, channel?.apiKey]
   );
 
   const addVideoByUrl = useCallback(
@@ -478,6 +536,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     isGenerating,
     generatingVideoId,
     generationMode,
+    isRootTenant,
     error,
     clearError,
     syncChannel,

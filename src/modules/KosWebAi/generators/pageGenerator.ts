@@ -69,7 +69,7 @@ export const pageGenerator = {
     // Cache key based on brand identity and existing pages count
     const cacheKey = `kos_ideas_${encodeURIComponent(companyName)}_${pagesCount}_${targetAudiences.length}`;
 
-    // 1. In-memory & SessionStorage Cache check (skip if forceRefresh)
+    // 1. In-memory & LocalStorage Cache check (skip if forceRefresh)
     if (!forceRefresh) {
       const memoryCached = marketingIdeasMemoryCache.get(cacheKey);
       if (memoryCached && Array.isArray(memoryCached.ideas) && memoryCached.ideas.length >= 3) {
@@ -77,10 +77,18 @@ export const pageGenerator = {
       }
 
       try {
-        if (typeof window !== 'undefined' && window.sessionStorage) {
-          const stored = window.sessionStorage.getItem(cacheKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
+        if (typeof window !== 'undefined') {
+          const storedLocal = window.localStorage?.getItem(cacheKey);
+          if (storedLocal) {
+            const parsed = JSON.parse(storedLocal);
+            if (Array.isArray(parsed) && parsed.length >= 3) {
+              marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas: parsed });
+              return parsed;
+            }
+          }
+          const storedSession = window.sessionStorage?.getItem(cacheKey);
+          if (storedSession) {
+            const parsed = JSON.parse(storedSession);
             if (Array.isArray(parsed) && parsed.length >= 3) {
               marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas: parsed });
               return parsed;
@@ -161,6 +169,18 @@ export const pageGenerator = {
       },
     ];
 
+    // CRITICAL ZERO-TOKEN RULE: If this is NOT an explicit user forceRefresh action,
+    // return instant, personalized fallbackIdeas with ZERO tokens and ZERO latency!
+    if (!forceRefresh) {
+      marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas: fallbackIdeas });
+      try {
+        if (typeof window !== 'undefined' && window.localStorage) {
+          window.localStorage.setItem(cacheKey, JSON.stringify(fallbackIdeas));
+        }
+      } catch {}
+      return fallbackIdeas;
+    }
+
     const apiKey = resolveApiKey(providedApiKey);
     if (!apiKey) {
       return fallbackIdeas;
@@ -186,6 +206,12 @@ export const pageGenerator = {
         );
 
         if (Array.isArray(ideas) && ideas.length >= 3) {
+          marketingIdeasMemoryCache.set(cacheKey, { timestamp: Date.now(), ideas });
+          try {
+            if (typeof window !== 'undefined' && window.localStorage) {
+              window.localStorage.setItem(cacheKey, JSON.stringify(ideas));
+            }
+          } catch {}
           return ideas;
         }
 

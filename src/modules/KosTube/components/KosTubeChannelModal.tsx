@@ -4,7 +4,7 @@ import { KosTubeFullscreenModal } from './KosTubeFullscreenModal';
 import { useKosTube } from '../context/KosTubeContext';
 
 export const KosTubeChannelModal: React.FC = () => {
-  const { isModalOpen, setIsModalOpen, modalMode, setModalMode, syncChannel, isSyncing, error } = useKosTube();
+  const { isModalOpen, setIsModalOpen, modalMode, setModalMode, syncChannel, isSyncing, error, isRootTenant } = useKosTube();
   const [channelQuery, setChannelQuery] = useState('');
   const [apiKey, setApiKey] = useState('');
 
@@ -15,7 +15,7 @@ export const KosTubeChannelModal: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!channelQuery.trim()) return;
-    await syncChannel(channelQuery, apiKey);
+    await syncChannel(channelQuery, isRootTenant ? apiKey : undefined);
   };
 
   return (
@@ -55,30 +55,46 @@ export const KosTubeChannelModal: React.FC = () => {
             </div>
           </div>
 
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
-                מפתח YouTube Data API v3 (נדרש לסנכרון ערוץ מלא)
-              </label>
-              <button
-                type="button"
-                onClick={() => setModalMode('add_video')}
-                className="text-xs text-red-500 hover:underline font-semibold cursor-pointer"
-              >
-                רוצה להוסיף סרטון בקישור ללא מפתח? לחץ כאן
-              </button>
+          {!isRootTenant ? (
+            <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-xs flex items-center gap-3.5">
+              <div className="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center flex-shrink-0">
+                <CheckCircle2 className="w-5 h-5" />
+              </div>
+              <div className="text-right">
+                <span className="font-bold text-slate-900 dark:text-white block text-xs">
+                  סנכרון ערוץ אוטומטי מבוסס Master Key
+                </span>
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 block leading-relaxed">
+                  מפתח ה-API מסופק ומאומת אוטומטית ברמת שרת המערכת הראשית. אין צורך בהזנת מפתח API בסאב-דומיין.
+                </span>
+              </div>
             </div>
-            <input
-              type="password"
-              placeholder="AIzaSy..."
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              className="w-full px-4 py-3 text-sm font-mono rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
-            />
-            <p className="text-[11px] text-slate-400">
-              לסנכרון רשימת סרטוני הערוץ נדרש מפתח של Google. ניתן להשיג מפתח בחינם מ-Google Cloud Console תוך 2 דקות.
-            </p>
-          </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                  מפתח YouTube Data API v3 (הגדרת מפתח Master לכלל הטננטים)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setModalMode('add_video')}
+                  className="text-xs text-red-500 hover:underline font-semibold cursor-pointer"
+                >
+                  רוצה להוסיף סרטון בקישור ללא מפתח? לחץ כאן
+                </button>
+              </div>
+              <input
+                type="password"
+                placeholder="AIzaSy... (הזן כאן מפתח Master ראשי)"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="w-full px-4 py-3 text-sm font-mono rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500/40"
+              />
+              <p className="text-[11px] text-slate-400">
+                המפתח יישמר ברמת ה-Master וישמש אוטומטית את כל הסאב-דומיינים במערכת.
+              </p>
+            </div>
+          )}
 
           {error && (
             <div className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800/60 text-rose-700 dark:text-rose-300 text-xs flex items-center gap-2">

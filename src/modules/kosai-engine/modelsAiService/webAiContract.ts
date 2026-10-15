@@ -27,8 +27,10 @@ export const kosaiWebAiContract = {
     options?: { skipCache?: boolean; apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<KosaiMarketingIdea[]>> {
     return executeKosaiAi<KosaiMarketingIdea[]>('KosWebAi', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      maxOutputTokens: 1000,
       responseMimeType: 'application/json',
-      temperature: 0.85,
+      temperature: 0.7,
       cacheKey: cacheKey || 'marketing_ideas_default',
       skipCache: options?.skipCache,
       customApiKey: options?.apiKey,
@@ -46,9 +48,11 @@ export const kosaiWebAiContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('KosWebAi', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      maxOutputTokens: 2500,
       systemInstruction,
       responseMimeType: 'application/json',
-      temperature: 0.75,
+      temperature: 0.7,
       customApiKey: options?.apiKey,
       tenantId: options?.tenantId,
       category: 'content',
@@ -63,6 +67,8 @@ export const kosaiWebAiContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('KosWebAi', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      maxOutputTokens: 1500,
       responseMimeType: 'application/json',
       temperature: 0.7,
       customApiKey: options?.apiKey,
@@ -80,6 +86,8 @@ export const kosaiWebAiContract = {
     options?: { apiKey?: string; tenantId?: string }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('KosWebAi', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      maxOutputTokens: 600,
       responseMimeType: 'application/json',
       temperature: 0.7,
       cacheKey: cacheKey ? `seo_${cacheKey}` : undefined,

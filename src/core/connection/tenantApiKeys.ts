@@ -22,6 +22,7 @@ import { SYSTEM_COLLECTIONS } from '../contracts/collections';
 
 export interface SystemApiKeysConfig {
   googleAiApiKey?: string;
+  youtubeApiKey?: string;
   geminiModel?: string;
   geminiImageModel?: string;
   geminiVideoModel?: string;
@@ -43,6 +44,7 @@ export interface SystemApiKeysConfig {
 /** Non-secret defaults (model names etc.). Secrets are always empty by default. */
 export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   googleAiApiKey: '',
+  youtubeApiKey: '',
   geminiModel: 'gemini-3.8-flash',
   geminiImageModel: 'gemini-3.1-flash-image',
   geminiVideoModel: 'veo-3.1-generate-preview',
@@ -263,6 +265,14 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
     ''
   ).trim();
 
+  const masterYoutubeKey = (
+    input.masterKeys?.youtubeApiKey ||
+    input.masterKeys?.googleAiApiKey ||
+    (input.isRootTenant ? input.tenantKeys.youtubeApiKey : '') ||
+    input.tenantKeys.youtubeApiKey ||
+    ''
+  ).trim();
+
   if (!isModuleEntitledFor(input, moduleId)) {
     // Not entitled → secrets stripped, only non-secret model defaults kept
     return {
@@ -278,6 +288,8 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
     ...input.tenantKeys,
     // Clause ה: AI key is always taken through master collection if available
     googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || localFallbackKey || envFallbackKey || '',
+    // YouTube Data API v3 key: always inherited from Master collection for subdomains
+    youtubeApiKey: masterYoutubeKey || input.tenantKeys.youtubeApiKey || '',
   };
 }
 
@@ -300,6 +312,12 @@ export function getModuleGeminiKey(moduleId?: string): string {
   return (getModuleApiKeys(moduleId).googleAiApiKey || '').trim();
 }
 
+/** Convenience: resolved YouTube Data API v3 key for a module (always inherited from Master) */
+export function getModuleYoutubeKey(moduleId?: string): string {
+  const keys = getModuleApiKeys(moduleId);
+  return (keys.youtubeApiKey || keys.googleAiApiKey || '').trim();
+}
+
 /** Convenience: resolved GREEN-API credentials for a module */
 export function getModuleGreenApiCredentials(moduleId?: string): { instanceId: string; token: string } {
   const keys = getModuleApiKeys(moduleId);
@@ -308,3 +326,4 @@ export function getModuleGreenApiCredentials(moduleId?: string): { instanceId: s
     token: (keys.greenApiToken || '').trim(),
   };
 }
+
