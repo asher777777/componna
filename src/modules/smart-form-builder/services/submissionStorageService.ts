@@ -238,41 +238,193 @@ export async function submitFormResponse(
   const cleanSubmissionPayload = JSON.parse(JSON.stringify(submissionData));
   await setDoc(subDocRef, cleanSubmissionPayload);
 
-  // 3. Optional: Sync directly to CRM contacts collection if lead data exists and is enabled
-
-  if (form.isCrmSyncEnabled && leadPayload && (conta_phone || email)) {
+  // 3. Sync directly to CRM contacts collection and link WhatsApp conversation
+  if ((form.isCrmSyncEnabled && leadPayload && (conta_phone || email)) || (whatsappDeliveries && whatsappDeliveries.some((d: any) => d.status === 'sent'))) {
     try {
-      const contactDocId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
-      const contactsPath = collectionName.startsWith('tenants/') ? collectionName.split('/').slice(0, 2).join('/') + '/contacts' : 'contacts';
+      const contactsPath = collectionName.startsWith('tenants/') 
+        ? collectionName.split('/').slice(0, 2).join('/') + '/contacts' 
+        : 'contacts';
+
+      const rawSubmitterPhone = String(conta_phone || '').replace(/\D/g, '');
+      const cleanNormPhone = rawSubmitterPhone.startsWith('972') 
+        ? '0' + rawSubmitterPhone.slice(3) 
+        : rawSubmitterPhone;
+      const cleanIntlPhone = rawSubmitterPhone.startsWith('0') 
+        ? '972' + rawSubmitterPhone.slice(1) 
+        : rawSubmitterPhone;
+
+      let contactDocId = `lead_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+      let existingContactData: any = null;
+
+      // Smart lookup by phone or email across existing contacts
+      try {
+        const contactsSnap = await getDocs(collection(targetDb, contactsPath));
+        contactsSnap.forEach((d) => {
+          const cd = d.data();
+          const cdPhone = String(cd.kosun_crm_phone || cd.conta_phone || cd.phone || '').replace(/\D/g, '');
+          const cdNorm = cdPhone.startsWith('972') ? '0' + cdPhone.slice(3) : cdPhone;
+          if (cleanNormPhone && cdNorm && cdNorm === cleanNormPhone) {
+            contactDocId = d.id;
+            existingContactData = cd;
+          } else if (email && cd.email && cd.email.trim().toLowerCase() === String(email).trim().toLowerCase()) {
+            contactDocId = d.id;
+            existingContactData = cd;
+          }
+        });
+      } catch (lookupErr) {
+        console.warn('[smart-form-builder submissionStorageService] Contact lookup notice:', lookupErr);
+      }
+
+      // Merge form submissions array
+      const existingSubs = Array.isArray(existingContactData?.form_submissions)
+        ? existingContactData.form_submissions
+        : [];
+      const updatedSubs = [
+        ...existingSubs,
+        {
+          name: form.title,
+          page: form.id,
+          date: now,
+          payload: rawAnswers,
+        },
+      ];
+
+      // Merge tags
+      const currentTags = Array.isArray(existingContactData?.tags) 
+        ? existingContactData.tags 
+        : Array.isArray(existingContactData?.kosun_crm_tags) 
+          ? existingContactData.kosun_crm_tags 
+          : [];
+      const mergedTags = Array.from(new Set([
+        ...currentTags,
+        ...(leadPayload?.tags || []),
+        'ליד מטופס',
+        `טופס: ${form.title}`,
+      ]));
+
+      const contactName = leadPayload?.conta_name || existingContactData?.kosun_crm_name || existingContactData?.conta_name || `ליד ${cleanNormPhone.slice(-4)}`;
+
       const contactRef = doc(targetDb, contactsPath, contactDocId);
-      const contactPayload = JSON.parse(JSON.stringify({
+      const contactPayload: Record<string, any> = {
         id: contactDocId,
-        conta_name: leadPayload.conta_name,
-        conta_phone: leadPayload.conta_phone,
-        email: leadPayload.email,
-        lead_source: leadPayload.source,
-        tags: Array.from(new Set([...(leadPayload.tags || []), 'ליד מטופס', `טופס: ${form.title}`])),
-        community: leadPayload.community,
+        // Canonical KOSUN CRM Schema
+        kosun_crm_name: contactName,
+        kosun_crm_phone: cleanNormPhone || existingContactData?.kosun_crm_phone || '',
+        kosun_crm_email: leadPayload?.email || existingContactData?.kosun_crm_email || '',
+        kosun_crm_tags: mergedTags,
+        kosun_crm_source: leadPayload?.source || 'טופס חכם KSF',
+        kosun_crm_status: 'active',
+        kosun_crm_type: 'lead',
+
+        // Legacy compatibility aliases
+        conta_name: contactName,
+        conta_phone: cleanNormPhone || existingContactData?.conta_phone || '',
+        phone: cleanNormPhone || existingContactData?.phone || '',
+        normalizedPhone: cleanNormPhone || existingContactData?.normalizedPhone || '',
+        email: leadPayload?.email || existingContactData?.email || '',
+        lead_source: leadPayload?.source || 'טופס חכם KSF',
+        tags: mergedTags,
+        community: leadPayload?.community || existingContactData?.community || '',
         last_form_name: form.title,
         last_form_submission_date: now,
         status: 'active',
         is_lead: true,
         contact_type: 'lead',
-        form_submissions: [
-          {
-            name: form.title,
-            page: form.id,
-            date: now,
-            payload: rawAnswers,
-          }
-        ],
-        createdAt: now,
+        form_submissions: updatedSubs,
         updatedAt: now,
-        notes: `התקבל מטופס "${form.title}" בתאריך ${new Date().toLocaleDateString('he-IL')}`,
-      }));
+      };
+
+      if (!existingContactData) {
+        contactPayload.createdAt = now;
+        contactPayload.notes = `התקבל מטופס "${form.title}" בתאריך ${new Date().toLocaleDateString('he-IL')}`;
+      }
+
+      // Check if WhatsApp messages were sent as part of this submission
+      const sentWhatsappLogs = (whatsappDeliveries || []).filter((d: any) => d.status === 'sent');
+      if (sentWhatsappLogs.length > 0) {
+        const lastSent = sentWhatsappLogs[sentWhatsappLogs.length - 1];
+        contactPayload.last_message = lastSent.renderedMessage;
+        contactPayload.last_channel = 'whatsapp';
+        contactPayload.last_conversation_date = now;
+      }
+
       await setDoc(contactRef, contactPayload, { merge: true });
+
+      // If running under a tenant other than root, also mirror contact to root if needed
+      if (contactsPath.startsWith('tenants/_master/')) {
+        try {
+          await setDoc(doc(targetDb, 'contacts', contactDocId), contactPayload, { merge: true });
+        } catch {}
+      }
+
+      // 4. Log Sent WhatsApp Messages into Conversation Subcollections and wa_bot_chats
+      for (const delivery of sentWhatsappLogs) {
+        const recDigits = String(delivery.recipientPhone || '').replace(/\D/g, '');
+        const recNorm = recDigits.startsWith('972') ? '0' + recDigits.slice(3) : recDigits;
+        const recIntl = recDigits.startsWith('0') ? '972' + recDigits.slice(1) : recDigits;
+        const recChatId = `${recIntl}@c.us`;
+
+        const newMsgItem = {
+          role: 'model',
+          text: delivery.renderedMessage,
+          timestamp: Date.now(),
+          source: 'ksf_form',
+          formTitle: form.title,
+          formId: form.id,
+          ruleName: delivery.ruleName,
+        };
+
+        // A. Save in contact's subcollection: contacts/{contactDocId}/conversations/conv_{normPhone}
+        try {
+          const convDocRef = doc(targetDb, `${contactsPath}/${contactDocId}/conversations`, `conv_${cleanNormPhone || recNorm}`);
+          const convSnap = await getDoc(convDocRef);
+          const currentMsgs = convSnap.exists() && Array.isArray(convSnap.data()?.messages) 
+            ? convSnap.data()?.messages 
+            : [];
+          
+          await setDoc(
+            convDocRef,
+            {
+              id: `conv_${cleanNormPhone || recNorm}`,
+              contactId: contactDocId,
+              channel: 'whatsapp',
+              botName: `טופס KSF: ${form.title}`,
+              lastUpdatedAt: Date.now(),
+              messages: [...currentMsgs, newMsgItem],
+            },
+            { merge: true }
+          );
+        } catch (subErr) {
+          console.warn('[smart-form-builder submissionStorageService] Error logging to contact conversations subcollection:', subErr);
+        }
+
+        // B. Save in wa_bot_chats for seamless continuous chat when recipient replies
+        try {
+          const botChatRef = doc(targetDb, 'wa_bot_chats', recChatId);
+          const botSnap = await getDoc(botChatRef);
+          const existingBotMsgs = botSnap.exists() && Array.isArray(botSnap.data()?.messages)
+            ? botSnap.data()?.messages
+            : [];
+
+          await setDoc(
+            botChatRef,
+            {
+              id: recChatId,
+              phone: recNorm,
+              contactName: contactName,
+              contactId: contactDocId,
+              botName: `טופס KSF: ${form.title}`,
+              lastUpdatedAt: Date.now(),
+              messages: [...existingBotMsgs, newMsgItem],
+            },
+            { merge: true }
+          );
+        } catch (botErr) {
+          console.warn('[smart-form-builder submissionStorageService] Error logging to wa_bot_chats:', botErr);
+        }
+      }
     } catch (crmErr) {
-      console.warn('Direct CRM contact sync failed (may be offline or restricted):', crmErr);
+      console.warn('Direct CRM contact sync and WhatsApp conversation logging failed:', crmErr);
     }
   }
 
