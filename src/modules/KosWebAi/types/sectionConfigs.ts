@@ -610,3 +610,58 @@ export interface TiktokHeroSectionConfig extends BaseSectionConfig {
   form?: FormConfigContract;
 }
 
+export type DynamicListingLayout =
+  | 'bento-showcase'
+  | 'floating-grid'
+  | 'snap-carousel'
+  | 'editorial-list'
+  | 'masonry';
+
+export type DynamicListingSource =
+  | 'custom'
+  | 'pages'
+  | 'kos_tube'
+  | 'campaigns'
+  | 'media';
+
+export interface DynamicListingItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  excerpt?: string;
+  imageUrl: string;
+  badge?: string;
+  date?: string;
+  category?: string;
+  author?: string;
+  linkUrl?: string;
+  actionType?: 'link' | 'modal';
+  modalContent?: string;
+  featured?: boolean;
+  price?: string;
+}
+
+export interface DynamicListingSectionConfig extends BaseSectionConfig {
+  type: 'dynamicListing';
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  source: DynamicListingSource;
+  layout: DynamicListingLayout;
+  gridColumns?: 2 | 3 | 4;
+  aspectRatio?: '16:9' | '4:3' | '1:1' | '9:16';
+  showCategoryFilter?: boolean;
+  categories?: string[];
+  showSearchBar?: boolean;
+  searchPlaceholder?: string;
+  effectStyle?: 'border-beam' | 'glow-hover' | 'tilt-3d' | 'subtle';
+  collectionLimit?: number;
+  items: DynamicListingItem[];
+  primaryButton?: {
+    text: string;
+    url: string;
+  };
+  cardBgColor?: string;
+  titleColor?: string;
+}
+

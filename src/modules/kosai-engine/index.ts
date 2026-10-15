@@ -5,4 +5,5 @@ export * from './components/KosaiChatDrawer';
 export * from './components/KosaiSettingsBackoffice';
 export * from './components/FloatingKosaiButton';
 export * from './services/kosaiImageAgentService';
+export * from './modelsAiService';
 export * from './StandaloneView';

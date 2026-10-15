@@ -25,7 +25,8 @@ export type SectionType =
   | 'customHtml'
   | 'eventRsvp'
   | 'kosvidio'
-  | 'tiktokHero';
+  | 'tiktokHero'
+  | 'dynamicListing';
 
 export interface GlobalPageSettings {
   siteTitle?: string;
