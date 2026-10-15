@@ -321,7 +321,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
 
   const mappingOptions = useMemo(() => {
     const opts: { value: string; label: string; group?: string }[] = [...crmMappingOptions];
-    opts.push({ value: '__other__', label: '➕ אחר (הוסף שדה מותאם אישית ב-CRM)...', group: 'פעולות' });
+    opts.push({ value: '__other__', label: 'אחר (הוסף שדה מותאם אישית ב-CRM)...', group: 'פעולות' });
     return opts;
   }, [crmMappingOptions]);
 
@@ -492,7 +492,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
               <option value="">טופס מותאם אישית (הגדרות עורך למטה)</option>
               {availableForms.map((f) => (
                 <option key={f.id} value={f.id}>
-                  {f.title} ({f.submissionsCount || 0} הגשות) {f.hasPaymentStep ? '💳 כולל סליקה' : ''}
+                  {f.title} ({f.submissionsCount || 0} הגשות) {f.hasPaymentStep ? 'כולל סליקה' : ''}
                 </option>
               ))}
             </select>
@@ -1725,7 +1725,7 @@ export const ContactFormConfigEditor: React.FC<ContactFormConfigEditorProps> = (
           <div className="bg-slate-900 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                <span>➕</span>
+                <Plus className="w-4 h-4 text-emerald-400" />
                 <span>הוספת שדה מותאם אישית חדש ב-CRM</span>
               </h4>
               <button

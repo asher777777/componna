@@ -62,7 +62,7 @@ export const PricingEditor: React.FC<{
           </label>
           <PageBuilderInput
             label="תגית הנחה שנתית (Badge)"
-            value={config.yearlyDiscountBadge || 'חיסכון של 20% 🎉'}
+            value={config.yearlyDiscountBadge || 'חיסכון של 20%'}
             onChange={(val) => onChange({ ...config, yearlyDiscountBadge: val })}
           />
         </div>
@@ -143,9 +143,9 @@ export const PricingEditor: React.FC<{
                   onChange={(e) => handlePackageChange(idx, 'actionType', e.target.value)}
                   className="w-full bg-slate-950 border border-slate-800 text-white rounded-xl p-2 text-xs focus:outline-none focus:border-indigo-500 font-bold"
                 >
-                  <option value="kesher_checkout">💳 סליקת קשר ישירה (אשראי, ביט, חשבונית/קבלה)</option>
-                  <option value="smart_form">📝 פתיחת טופס חכם רב-שלבי (Smart Form)</option>
-                  <option value="external_url">🔗 קישור חיצוני / גלילה בעמוד</option>
+                  <option value="kesher_checkout">סליקת קשר ישירה (אשראי, ביט, חשבונית/קבלה)</option>
+                  <option value="smart_form">פתיחת טופס חכם רב-שלבי (Smart Form)</option>
+                  <option value="external_url">קישור חיצוני / גלילה בעמוד</option>
                 </select>
               </div>
 
@@ -157,11 +157,11 @@ export const PricingEditor: React.FC<{
                     onChange={(e) => handlePackageChange(idx, 'formTemplateId', e.target.value)}
                     className="w-full bg-slate-950 border border-indigo-500/40 text-indigo-200 rounded-xl p-2 text-xs focus:outline-none focus:border-indigo-500 font-bold"
                   >
-                    <option value="template_pricing_quote">✨ התאמת חבילה והצעת מחיר אישית</option>
-                    <option value="template_course_registration">🎓 הרשמה לקורס / הכשרה יוקרתית</option>
-                    <option value="template_vip_discovery_call">📅 תיאום שיחת ייעוץ אסטרטגית VIP</option>
-                    <option value="template_ambassador_onboarding">🌟 הצטרפות לשגרירי קהילה ומובילים</option>
-                    <option value="template_donation_pledge">🙏 טופס תרומה והוראת קבע לחסד</option>
+                    <option value="template_pricing_quote">התאמת חבילה והצעת מחיר אישית</option>
+                    <option value="template_course_registration">הרשמה לקורס / הכשרה יוקרתית</option>
+                    <option value="template_vip_discovery_call">תיאום שיחת ייעוץ אסטרטגית VIP</option>
+                    <option value="template_ambassador_onboarding">הצטרפות לשגרירי קהילה ומובילים</option>
+                    <option value="template_donation_pledge">טופס תרומה והוראת קבע לחסד</option>
                   </select>
                 </div>
               ) : pkg.actionType === 'external_url' ? (

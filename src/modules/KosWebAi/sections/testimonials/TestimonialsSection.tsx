@@ -33,7 +33,6 @@ export const TestimonialsSection: React.FC<{ config: TestimonialsSectionConfig }
         <div className="text-center max-w-3xl mx-auto flex flex-col items-center gap-4">
           {subtitle && (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
               <span>{subtitle}</span>
             </div>
           )}

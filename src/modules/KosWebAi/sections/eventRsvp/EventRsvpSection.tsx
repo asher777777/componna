@@ -253,7 +253,6 @@ export const EventRsvpSection: React.FC<EventRsvpSectionProps> = ({ config }) =>
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-xs font-bold mb-4">
-            <Sparkles className="w-3.5 h-3.5" />
             <span>אירוע מבית {companyName}</span>
           </div>
 

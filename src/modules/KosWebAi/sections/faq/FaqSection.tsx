@@ -39,7 +39,6 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
         <div className="text-center max-w-2xl mx-auto flex flex-col items-center gap-3">
           {subtitle && (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
               <span>{subtitle}</span>
             </div>
           )}

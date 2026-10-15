@@ -146,7 +146,6 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto gap-3">
           {badge && (
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold mb-1 shadow-sm">
-              <Sparkles className="w-3.5 h-3.5" />
               <span>{badge}</span>
             </div>
           )}

@@ -29,7 +29,6 @@ export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> 
         <div className="text-center max-w-2xl mx-auto flex flex-col items-center gap-3">
           {subtitle && (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
               <span>{subtitle}</span>
             </div>
           )}
@@ -93,7 +92,7 @@ export const BeforeAfterSection: React.FC<{ config: BeforeAfterSectionConfig }> 
         </div>
 
         <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-          <span>💡 גררו את הסליידר ימינה ושמאלה לצפייה בשינוי</span>
+          <span>גררו את הסליידר ימינה ושמאלה לצפייה בשינוי</span>
         </span>
       </div>
     </section>

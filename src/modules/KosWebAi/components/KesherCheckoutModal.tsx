@@ -285,7 +285,7 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
 
             <div>
               <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-500/30">
-                התשלום אושר ונרשם בהצלחה 🎉
+                התשלום אושר ונרשם בהצלחה
               </span>
               <h3 className="text-2xl font-black text-white mt-3">תודה רבה, {clientName}!</h3>
               <p className="text-xs sm:text-sm text-slate-400 mt-1 max-w-md">
@@ -634,7 +634,7 @@ export const KesherCheckoutModal: React.FC<KesherCheckoutModalProps> = ({
                 ) : (
                   <>
                     <ShieldCheck className="w-5 h-5 text-emerald-300" />
-                    <span>בצע תשלום מאובטח של ₪{numericPrice.toLocaleString()} 🚀</span>
+                    <span>בצע תשלום מאובטח של ₪{numericPrice.toLocaleString()}</span>
                   </>
                 )}
               </button>

@@ -143,7 +143,6 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
             )}
             {showAiTrafficBadge && (
               <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-700/60 text-xs font-bold text-indigo-700 dark:text-indigo-200 shadow-sm">
-                <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
                 <span>ניטור מנועי AI (ChatGPT / Perplexity)</span>
               </div>
             )}
@@ -264,7 +263,7 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
               <div className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-slate-950/50 border border-indigo-200/60 dark:border-indigo-800/40">
                 <div className="flex items-center justify-between text-xs text-indigo-900 dark:text-indigo-200 mb-1.5">
                   <span className="flex items-center gap-1.5 font-bold">
-                    <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" /> מנועי AI (ChatGPT/Perplexity)
+                    מנועי חיפוש ו-AI (ChatGPT/Perplexity)
                   </span>
                   <span className="font-mono text-indigo-950 dark:text-white">{aiSearchCount}</span>
                 </div>

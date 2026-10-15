@@ -121,7 +121,7 @@ export const ContinuousMarketingIdeasDrawer: React.FC<ContinuousMarketingIdeasDr
             </span>
           </div>
           <div className="mr-auto text-[11px] text-slate-500">
-            לחיצה על כרטיס תייצר עמוד שלם בלחיצה אחת ⚡
+            לחיצה על כרטיס תייצר עמוד שלם בלחיצה אחת
           </div>
         </div>
 

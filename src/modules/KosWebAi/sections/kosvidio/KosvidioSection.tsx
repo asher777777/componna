@@ -489,7 +489,7 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
                 <form onSubmit={handleAddComment} className="mb-6">
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-xs font-bold text-slate-700 dark:text-slate-300 shrink-0 mt-0.5">
-                      👤
+                      
                     </div>
 
                     <div className="flex-1">
@@ -615,8 +615,8 @@ export const KosvidioSection: React.FC<{ config: KosvidioSectionConfig }> = ({ c
         <div className="mb-8 p-5 sm:p-6 rounded-2xl bg-gradient-to-r from-red-500/10 via-slate-100 to-purple-500/10 dark:from-red-950/30 dark:via-slate-900/60 dark:to-purple-950/30 border border-red-500/20 dark:border-red-900/40 shadow-xs dark:shadow-xl backdrop-blur-md">
           <div className="flex items-center gap-2 mb-3">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border border-red-500/20 dark:border-red-500/30 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
-              {(!shortDescriptionBadge || shortDescriptionBadge === 'תקציר מנהלים • AI') ? 'על הסרטון בכמה מילים' : shortDescriptionBadge}
+              
+              {(!shortDescriptionBadge || shortDescriptionBadge === 'תקציר מנהלים') ? 'על הסרטון בכמה מילים' : shortDescriptionBadge}
             </span>
           </div>
 

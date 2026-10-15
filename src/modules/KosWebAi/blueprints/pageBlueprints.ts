@@ -18,7 +18,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     title: 'משפך מכירה והשקה פרימיום',
     category: 'sales',
     description: 'Hero מפוצל עם תמונה/וידאו, באנר לוגואים, כרטיסי יתרונות, מחירון חבילות, ביקורות לקוחות, טיימר דחיפות וטופס רכישה.',
-    badge: 'הכי ממיר 🔥',
+    badge: 'הכי ממיר',
     icon: 'Zap',
     sectionTypes: ['hero', 'logoMarquee', 'pricing', 'testimonials', 'timer', 'contact'],
     config: {
@@ -113,7 +113,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     title: 'דף שירות מקומי ו-SEO (Local GEO)',
     category: 'geo',
     description: 'כותרת ממוקדת עיר/אזור, מפת פעילות וזמני הגעה, שירותים אזוריים, ביקורות מאומתות וכפתור חיוג מהיר ו-WhatsApp צף.',
-    badge: 'דירוג מקומי 📍',
+    badge: 'דירוג מקומי',
     icon: 'MapPin',
     sectionTypes: ['hero', 'geoLocal', 'statsBento', 'testimonials', 'faq', 'contact'],
     config: {
@@ -217,7 +217,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     title: 'עמוד מאמר ידע וסמכות (Authority Lead Hub)',
     category: 'authority',
     description: 'Hero אלגנטי, תוכן עשיר עם טיפוגרפיה מושלמת, בלוקי ציטוטים והדגשה, פרופיל מומחה, ומגנט לידים להורדת המדריך המלא.',
-    badge: 'סמכות מקצועית 📚',
+    badge: 'סמכות מקצועית',
     icon: 'GraduationCap',
     sectionTypes: ['hero', 'richContent', 'statsBento', 'faq', 'contact'],
     config: {
@@ -301,7 +301,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     title: 'עמוד קהילה והרשמה (Community & VIP Hub)',
     category: 'community',
     description: 'תמונת קאבר קהילתית, מונה חברים חי, הטבות בלעדיות לחברים, לוח אירועים ופעילויות, וטופס הצטרפות מהיר.',
-    badge: 'חוויית שייכות 👥',
+    badge: 'חוויית שייכות',
     icon: 'Users',
     sectionTypes: ['hero', 'community', 'statsBento', 'testimonials', 'contact'],
     config: {
@@ -386,7 +386,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     title: 'עמוד קמפיין וגיוס תרומות (Crowdfunding & Impact)',
     category: 'campaign',
     description: 'כותרת קמפיין מרגשת, סרגל יעד כספי דינמי (% גיוס), מסלולי תרומה עם אפשרות לסעיף 46, רשימת תורמים ותעודת הוקרה.',
-    badge: 'השפעה ונתינה ❤️',
+    badge: 'השפעה ונתינה',
     icon: 'Heart',
     sectionTypes: ['campaignHeader', 'campaignTiers', 'statsBento', 'campaignDonors', 'faq', 'contact'],
     config: {
@@ -473,7 +473,7 @@ export function getPageBlueprints(): PageTemplateBlueprint[] {
     title: 'דף וידאו ומאמר AI SEO (Kosvidio)',
     category: 'video',
     description: 'נגן וידאו חדשני, כותרת, תוויות עדינות, שיתוף חברתי, תגובות בעיצוב יוטיוב, תיאור קצר ומאמר עומק מותאם SEO & AI-SEO.',
-    badge: 'Kosvidio AI 🎥',
+    badge: 'Kosvidio AI',
     icon: 'Video',
     sectionTypes: ['header', 'kosvidio', 'contact'],
     config: {

@@ -86,7 +86,7 @@ export const GeoLocalSection: React.FC<{ config: GeoLocalSectionConfig }> = ({ c
                         key={idx}
                         className="px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-300"
                       >
-                        📍 {area}
+                        {area}
                       </span>
                     ))}
                   </div>

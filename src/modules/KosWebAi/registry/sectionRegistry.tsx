@@ -156,7 +156,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       buttonsVisible: true,
       primaryButton: { text: 'התחל עכשיו בחינם', url: '#pricing', target: '_self' },
       secondaryButton: { text: 'צפה בהדגמה חיה', url: '#testimonials', target: '_self' },
-      announcementBadge: { text: '🚀 שחרור רשמי של גרסת 2026 זמין כעת', url: '#about' },
+      announcementBadge: { text: 'שחרור רשמי של גרסת 2026 זמין כעת', url: '#about' },
       socialProofAvatars: {
         visible: true,
         ratingText: 'מדורג 4.9/5 על ידי יותר מ-1,200+ לקוחות',
@@ -360,7 +360,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       title: 'תוכניות ומחירים שקופים ומותאמים',
       subtitle: 'בחרו את המסלול המתאים ביותר עבורכם',
       showBillingToggle: true,
-      yearlyDiscountBadge: 'חיסכון של 20% 🎉',
+      yearlyDiscountBadge: 'חיסכון של 20%',
       backgroundColor: 'transparent',
       packages: [
         { id: '1', name: 'בסיסי (Starter)', priceMonthly: '₪99', priceYearly: '₪79', period: '/ חודש', description: 'למשתמשים יחידים ומתחילים', features: ['עד 5 דפים מעוצבים', 'חיבור דומיין מותאם', 'טפסי לידים בסיסיים', 'תמיכה באימייל'], buttonText: 'התחל בחינם', buttonUrl: '#contact' },
@@ -948,7 +948,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
           excerpt: 'כנס החדשנות השנתי לשנת 2026 כלל עשרות הרצאות מרתקות, סדנאות מעשיות והכרזות על שיתופי פעולה פורצי דרך. המשתתפים נהנו מחיבור ישיר למובילי דעה בתעשייה וחשיפה לכלים העדכניים ביותר.',
           imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=1200&q=80',
           category: 'אירועים',
-          badge: 'מומלץ ★',
+          badge: 'מומלץ',
           date: '15 באוגוסט 2026',
           actionType: 'modal',
           price: 'כניסה חופשית',

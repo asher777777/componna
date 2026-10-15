@@ -103,7 +103,7 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
         <div className="px-6 py-3 border-b border-slate-800/60 bg-slate-900/20 flex items-center gap-2 overflow-x-auto">
           {[
             { id: 'all', label: `כל התבניות (${PAGE_BLUEPRINTS.length})` },
-            { id: 'video', label: 'וידאו ויוטיוב (Kosvidio) 🎥' },
+            { id: 'video', label: 'וידאו ויוטיוב (Kosvidio)' },
             { id: 'sales', label: 'מכירה והשקה' },
             { id: 'geo', label: 'שירות מקומי ו-SEO' },
             { id: 'authority', label: 'מאמר ידע וסמכות' },

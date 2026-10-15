@@ -185,7 +185,7 @@ export const sectionEnhancerService = {
           tab: 'layout',
           title: 'הוק ויראלי וכותרת קצבית בסגנון טיקטוק',
           description: 'ניסוח כותרת קצרה, מסקרנת ובועטת שגורמת לעצור את הגלילה באופן מיידי.',
-          badge: 'ויראלי במיוחד 🔥',
+          badge: 'ויראלי במיוחד',
           iconName: 'Sparkles',
           prompt: 'נסח כותרת הוק קצרה, מסקרנת וממגנטת בסגנון טיקטוק/רילס (2-4 מילים) שמעוררת סקרנות בלתי נשלטת, והתאם את תגית הוידאו.',
         },
@@ -492,7 +492,7 @@ Return ONLY the raw updated JSON object.`;
         updated.packages = updated.packages.map((pkg: any, idx: number) => ({
           ...pkg,
           isFeatured: idx === 1,
-          badge: idx === 1 ? 'הכי פופולרי 🔥' : pkg.badge,
+          badge: idx === 1 ? 'הכי פופולרי' : pkg.badge,
         }));
         changes.push('החבילה המרכזית סומנה כחבילת VIP מומלצת');
       }

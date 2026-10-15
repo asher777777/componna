@@ -15,7 +15,7 @@ export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({
     buttonText = 'הצטרפות מהירה לקבוצת הוואטסאפ',
     whatsappNumber = '972545947701',
     showLiveChatPreview = true,
-    chatBubbleMessage = 'שלום לכולם! שמחים לעדכן שההדרכה המיוחדת של השבוע עלתה כעת לקהילה 🎉',
+    chatBubbleMessage = 'שלום לכולם! שמחים לעדכן שההדרכה המיוחדת של השבוע עלתה כעת לקהילה',
     backgroundColor = 'transparent',
     buttonVisible = true,
     badgeVisible = true,
@@ -82,7 +82,7 @@ export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-bold text-white block">קהילת הוואטסאפ הרשמית</span>
-                    <span className="text-[10px] text-emerald-400">🟢 148 חברים מחוברים כעת</span>
+                    <span className="text-[10px] text-emerald-400 flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" /><span>148 חברים מחוברים כעת</span></span>
                   </div>
                 </div>
               </div>
@@ -100,7 +100,7 @@ export const CommunitySection: React.FC<{ config: CommunitySectionConfig }> = ({
             {badgeVisible && (
               <div className="absolute -bottom-4 right-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 shadow-2xl flex items-center gap-3 backdrop-blur-xl">
                 <div className="w-10 h-10 rounded-xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center font-bold">
-                  <Sparkles className="w-5 h-5" />
+                  
                 </div>
                 <div className="text-right">
                   <span className="text-sm font-black text-slate-900 dark:text-white block">{badgeTitle}</span>

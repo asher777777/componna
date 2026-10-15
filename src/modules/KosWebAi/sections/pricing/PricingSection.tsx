@@ -13,7 +13,7 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
     subtitle = 'בחרו את החבילה המתאימה ביותר עבורכם',
     description,
     showBillingToggle = true,
-    yearlyDiscountBadge = 'חיסכון של 20% 🎉',
+    yearlyDiscountBadge = 'חיסכון של 20%',
     backgroundColor = 'transparent',
     packages = [],
   } = config;
@@ -50,7 +50,6 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
         <div className="text-center max-w-3xl mx-auto flex flex-col items-center gap-4">
           {subtitle && (
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 text-xs font-bold">
-              <Sparkles className="w-3.5 h-3.5" />
               <span>{subtitle}</span>
             </div>
           )}
@@ -331,7 +330,7 @@ export const PricingSection: React.FC<{ config: PricingSectionConfig }> = ({ con
                   type="submit"
                   className="w-full py-3.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black text-sm shadow-xl shadow-indigo-600/30 hover:opacity-90 transition-all cursor-pointer mt-4"
                 >
-                  שליחת פרטים והמשך 🚀
+                  שליחת פרטים והמשך
                 </button>
               </form>
             )}
