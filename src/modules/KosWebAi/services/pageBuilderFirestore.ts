@@ -413,6 +413,27 @@ export const pageBuilderFirestore = {
   },
 
   // Synchronously get active designated homepage from LocalStorage without waiting for network
+  // Synchronously get a page by ID from LocalStorage without waiting for network
+  getPageSync(pageId: string, tenantId?: string): PageBuilderConfig | null {
+    if (typeof window === 'undefined') return null;
+    const eff = resolveEffectiveTenant(tenantId);
+    const storeKey = getStorageKey(eff);
+
+    try {
+      const rawPages = localStorage.getItem(storeKey) || (eff === ROOT_TENANT_ID ? localStorage.getItem(LEGACY_STORAGE_KEY_PAGES) : null);
+      if (rawPages) {
+        const pages = JSON.parse(rawPages);
+        if (Array.isArray(pages)) {
+          const found = pages.find((p) => p.pageId === pageId);
+          if (found) return ensureHeaderSection(found);
+        }
+      }
+    } catch (err) {
+      console.warn('[PageBuilder] getPageSync error:', err);
+    }
+    return null;
+  },
+
   getHomePageSync(tenantId?: string): PageBuilderConfig | null {
     if (typeof window === 'undefined') return null;
     const eff = resolveEffectiveTenant(tenantId);
