@@ -592,6 +592,19 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
 
               {/* Purpose & Vision */}
               <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-500">הגדרת תוכן הקהילה</span>
+                  <button
+                    type="button"
+                    onClick={handleGenerateVisionWithAi}
+                    disabled={isGeneratingVision}
+                    className="px-3 py-1 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 text-xs font-bold flex items-center gap-1.5 border border-indigo-200/60 dark:border-indigo-800/60 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${isGeneratingVision ? 'animate-spin' : ''}`} />
+                    <span>{isGeneratingVision ? 'KOSAI מנסח חזון ומטרות...' : 'נסח חזון ומטרה עם KOSAI'}</span>
+                  </button>
+                </div>
+
                 <div>
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     מטרת הקהילה (Purpose) <span className="text-rose-500">*</span>

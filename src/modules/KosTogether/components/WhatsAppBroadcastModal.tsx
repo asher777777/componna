@@ -14,6 +14,7 @@ import {
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { sendWhatsAppMessage, sendWhatsAppPoll } from '../services/whatsappService';
 import { addCommunityInteractionRecord } from '../services/firestoreService';
+import { draftCommunityBroadcastMessage } from '../services/togetherCopilotService';
 
 interface WhatsAppBroadcastModalProps {
   isOpen: boolean;
@@ -43,6 +44,28 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
     'מעוניין במידע נוסף',
   ]);
   const [multipleAnswers, setMultipleAnswers] = useState(false);
+  const [isDraftingWithAi, setIsDraftingWithAi] = useState(false);
+
+  const handleDraftWithAi = async () => {
+    try {
+      setIsDraftingWithAi(true);
+      const res = await draftCommunityBroadcastMessage({
+        groupName: activeGroup.name || 'קהילת קושאן',
+        topic: mode === 'poll' ? (pollQuestion.trim() || 'פעילות הקהילה') : (message.trim() || 'עדכון קהילתי'),
+        isPoll: mode === 'poll',
+      });
+      if (mode === 'text' && res.messageText) {
+        setMessage(res.messageText);
+      } else if (mode === 'poll') {
+        if (res.pollQuestion) setPollQuestion(res.pollQuestion);
+        if (res.pollOptions && res.pollOptions.length > 0) setPollOptions(res.pollOptions);
+      }
+    } catch (err) {
+      console.error('Failed to draft broadcast with KOSAI:', err);
+    } finally {
+      setIsDraftingWithAi(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -229,7 +252,18 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
 
           {mode === 'text' ? (
             <div className="space-y-2">
-              <label className="font-bold text-slate-700 block">תוכן ההודעה:</label>
+              <div className="flex items-center justify-between">
+                <label className="font-bold text-slate-700 block">תוכן ההודעה:</label>
+                <button
+                  type="button"
+                  onClick={handleDraftWithAi}
+                  disabled={isDraftingWithAi}
+                  className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-[11px] font-bold flex items-center gap-1 border border-emerald-200 transition cursor-pointer disabled:opacity-50"
+                >
+                  <Sparkles className={`w-3 h-3 ${isDraftingWithAi ? 'animate-spin' : ''}`} />
+                  <span>{isDraftingWithAi ? 'KOSAI מנסח...' : 'נסח עם KOSAI'}</span>
+                </button>
+              </div>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
@@ -265,7 +299,18 @@ export const WhatsAppBroadcastModal: React.FC<WhatsAppBroadcastModalProps> = ({
           ) : (
             <div className="space-y-3">
               <div>
-                <label className="font-bold text-slate-700 block mb-1">שאלת הסקר:</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-bold text-slate-700 block">שאלת הסקר:</label>
+                  <button
+                    type="button"
+                    onClick={handleDraftWithAi}
+                    disabled={isDraftingWithAi}
+                    className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 text-[11px] font-bold flex items-center gap-1 border border-emerald-200 transition cursor-pointer disabled:opacity-50"
+                  >
+                    <Sparkles className={`w-3 h-3 ${isDraftingWithAi ? 'animate-spin' : ''}`} />
+                    <span>{isDraftingWithAi ? 'KOSAI מנסח סקר...' : 'נסח סקר עם KOSAI'}</span>
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={pollQuestion}

@@ -13,6 +13,7 @@ import {
   Trash2
 } from 'lucide-react';
 import { ContactRecord, SmartGroup, GroupRule } from '../types';
+import { generateSmartGroupRules } from '../services/togetherCopilotService';
 
 interface SmartCommunityRulesModalProps {
   isOpen: boolean;
@@ -36,6 +37,40 @@ export const SmartCommunityRulesModal: React.FC<SmartCommunityRulesModalProps> =
   const [value, setValue] = useState('');
   const [isApplying, setIsApplying] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
+  const [nlpQuery, setNlpQuery] = useState('');
+  const [isParsingNlp, setIsParsingNlp] = useState(false);
+
+  const handleParseNlpWithAi = async () => {
+    if (!nlpQuery.trim()) return;
+    try {
+      setIsParsingNlp(true);
+      const res = await generateSmartGroupRules({
+        naturalLanguageQuery: nlpQuery.trim(),
+        availableCities,
+      });
+      if (res.rules && res.rules.length > 0) {
+        const firstRule = res.rules[0];
+        const validField = FIELD_OPTIONS.some((f) => f.id === firstRule.field)
+          ? (firstRule.field as any)
+          : 'mh_crm_city';
+        setSelectedField(validField);
+        if (firstRule.operator === 'exists') {
+          setOperator('is_not_empty');
+          setValue('');
+        } else if (firstRule.operator === 'contains') {
+          setOperator('contains');
+          setValue(String(firstRule.value || ''));
+        } else {
+          setOperator('eq');
+          setValue(String(firstRule.value || ''));
+        }
+      }
+    } catch (err) {
+      console.error('Failed to parse NLP rules:', err);
+    } finally {
+      setIsParsingNlp(false);
+    }
+  };
 
   // Field options in friendly, everyday Hebrew
   const FIELD_OPTIONS = [
@@ -166,13 +201,34 @@ export const SmartCommunityRulesModal: React.FC<SmartCommunityRulesModalProps> =
             <>
               {/* Natural Hebrew Condition Sentence */}
               <div className="bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 rounded-2xl p-4 space-y-3">
-                <div className="flex items-center gap-2 text-xs font-black text-indigo-950 dark:text-indigo-200">
-                  <Lightbulb className="w-4 h-4 text-amber-500" />
-                  <span>הגדרת הכלל בשפה פשוטה:</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-black text-indigo-950 dark:text-indigo-200">
+                    <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                    <span>ניסוח חכם עם KOSAI בלשון חופשית:</span>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold">
+                    Gemini 3.8 Flash-Lite
+                  </span>
                 </div>
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed font-medium">
-                  "צרף אוטומטית לקהילת <strong>{activeGroup.name}</strong> כל איש קשר אשר:"
-                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={nlpQuery}
+                    onChange={(e) => setNlpQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleParseNlpWithAi(); } }}
+                    placeholder="לדוגמה: כל מי שגר בירושלים ותרם מעל 1000 שח ויש לו טלפון..."
+                    className="flex-1 h-9 px-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleParseNlpWithAi}
+                    disabled={isParsingNlp || !nlpQuery.trim()}
+                    className="h-9 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0 shadow-sm"
+                  >
+                    <Sparkles className={`w-3.5 h-3.5 ${isParsingNlp ? 'animate-spin' : ''}`} />
+                    <span>{isParsingNlp ? 'מנתח...' : 'צור חוק'}</span>
+                  </button>
+                </div>
               </div>
 
               {/* Step 1: Choose Field */}

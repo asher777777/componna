@@ -176,6 +176,26 @@ assert(crmServiceContent.includes('dispatchContactSummaryToKosai'), 'crmCopilotS
 assert(crmServiceContent.includes('fallback:'), 'crmCopilotService contains zero-token offline fallbacks');
 
 // ---------------------------------------------------------------------------
+// TEST 8C: Verify KosTogether Separation of Concerns, Prompts & Gemini 3.8 Contract
+// ---------------------------------------------------------------------------
+console.log('\n🔍 TEST 8C: Verifying KosTogether AI Contract & Prompt Governance');
+const togetherContractContent = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/togetherAiContract.ts'), 'utf-8');
+const togetherPromptsContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/prompts/togetherPrompts.ts'), 'utf-8');
+const togetherDispatcherContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/kosai/promptToKosai.ts'), 'utf-8');
+const togetherCopilotContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/services/togetherCopilotService.ts'), 'utf-8');
+const togetherApiContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/api/functionsApi.ts'), 'utf-8');
+
+assert(togetherContractContent.includes("model: 'gemini-3.8-flash-lite'"), 'togetherAiContract uses gemini-3.8-flash-lite');
+assert(togetherContractContent.includes("maxOutputTokens: 450"), 'togetherAiContract caps smart rules output tokens to 450');
+assert(togetherContractContent.includes("executeKosaiAi<TogetherSmartRulesResult>('KosTogether'"), 'togetherAiContract routes to KosTogether monopoly');
+assert(togetherPromptsContent.includes('BUILD_SMART_RULES_PROMPT'), 'togetherPrompts.ts exports BUILD_SMART_RULES_PROMPT');
+assert(togetherPromptsContent.includes('BUILD_COMMUNITY_VISION_PROMPT'), 'togetherPrompts.ts exports BUILD_COMMUNITY_VISION_PROMPT');
+assert(togetherDispatcherContent.includes('dispatchSmartRulesToKosai'), 'promptToKosai.ts exports dispatchSmartRulesToKosai');
+assert(togetherDispatcherContent.includes('kosaiTogetherContract'), 'KosTogether dispatcher routes strictly through kosaiTogetherContract');
+assert(togetherCopilotContent.includes('offlineSmartRulesHeuristic'), 'togetherCopilotService provides zero-token offline heuristic fallbacks');
+assert(togetherApiContent.includes('togetherCopilotService'), 'functionsApi delegates to clean togetherCopilotService');
+
+// ---------------------------------------------------------------------------
 // TEST 9: Functional Simulation of Fallback Ideas (Pure JavaScript)
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 9: Simulating Modal Opening without Network');
