@@ -180,7 +180,7 @@ Respond ONLY with valid JSON in this exact structure:
         apiKey,
       }
     );
-    const apiRes = { success: !!seoData, data: seoData };
+    const apiRes = { success: !!seoData, data: seoData, error: undefined as string | undefined };
 
     if (apiRes.success && apiRes.data) {
       const parsed = typeof apiRes.data === 'string' ? JSON.parse(apiRes.data) : apiRes.data;
@@ -194,7 +194,7 @@ Respond ONLY with valid JSON in this exact structure:
     return {
       success: false,
       data: buildFallbackData(),
-      error: apiRes.error || 'לא התקבלה תשובה משרת ה-AI. הוגדרו ערכי ברירת מחדל איכותיים עבורך.',
+      error: 'לא התקבלה תשובה משרת ה-AI. הוגדרו ערכי ברירת מחדל איכותיים עבורך.',
       isFallback: true,
     };
   } catch (err: any) {

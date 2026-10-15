@@ -419,7 +419,7 @@ Return ONLY the raw updated JSON object.`;
         updatedConfig: currentConfig,
         summaryOfChanges: [],
         isFromAi: false,
-        message: response.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
+        message: 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.',
       };
     } catch (err: any) {
       console.warn('[aiSectionEnhancerService] Gemini API call error:', err);
@@ -531,6 +531,20 @@ Return ONLY the raw updated JSON object.`;
       updated.yesButtonText = 'מגיע/ה בשמחה';
       updated.noButtonText = 'לא מתאפשר לי הפעם';
       changes.push(`סנכרון פרטי האירוע, המיקום והניווט עם כתובת המותג של ${company}`);
+    } else if (sectionType === 'dynamicListing') {
+      updated.title = `הפעילות והשירותים המובילים של ${company}`;
+      updated.subtitle = uvp || 'סקירה מעמיקה של כל העדכונים, הפרויקטים והשירותים המובילים';
+      if (prompt.includes('bento') || prompt.includes('Bento')) {
+        updated.layout = 'bento-showcase';
+        changes.push('שודרג לפריסת Bento Showcase עם כרטיס Spotlight');
+      } else if (prompt.includes('carousel') || prompt.includes('סליידר') || prompt.includes('קרוסלה')) {
+        updated.layout = 'snap-carousel';
+        changes.push('שודרג לפריסת Snap Carousel אופקית וחלקה');
+      } else if (prompt.includes('editorial') || prompt.includes('מגזין')) {
+        updated.layout = 'editorial-list';
+        changes.push('שודרג לפריסת Editorial Magazine יוקרתית');
+      }
+      changes.push(`סונכרנו כותרות הליסטינג עם המותג ${company}`);
     } else {
       updated.title = `${updated.title || 'שדרוג אזור'} – ${company}`;
       updated.subtitle = uvp;

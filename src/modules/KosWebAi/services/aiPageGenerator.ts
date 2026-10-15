@@ -570,7 +570,7 @@ export const aiPageGenerator = {
       return updated;
     }
 
-    throw new Error(response.error || 'אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
+    throw new Error('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
   },
 
   /**

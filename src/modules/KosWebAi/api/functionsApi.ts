@@ -66,7 +66,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
     };
   }
 
-  const model = options.model || AUTHORIZED_WEB_AI_MODEL;
+  const model = (options.model as any) || AUTHORIZED_WEB_AI_MODEL;
 
   try {
     const aiRes = await executeKosaiAi<T>('KosWebAi', options.prompt, {
@@ -80,23 +80,13 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
     });
 
     if (aiRes.success) {
-      let data = aiRes.data;
-      if (!data && typeof aiRes.text === 'string') {
-        const trimmed = aiRes.text.trim();
-        if (trimmed.startsWith('{') || trimmed.startsWith('[') || trimmed.startsWith('```')) {
-          try {
-            const cleaned = trimmed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
-            data = JSON.parse(cleaned);
-          } catch {
-            data = undefined;
-          }
-        }
-      }
-
       return {
         success: true,
-        data: (data || aiRes.text) as unknown as T,
-        usageMetadata: { promptTokenCount: 250, candidatesTokenCount: 200 },
+        data: aiRes.data,
+        usageMetadata: {
+          promptTokenCount: aiRes.costReport?.promptTokens || 250,
+          candidatesTokenCount: aiRes.costReport?.candidatesTokens || 200,
+        },
       };
     }
 
@@ -108,7 +98,7 @@ export async function callGeminiApi<T = any>(options: GeminiApiOptions): Promise
   } catch (err: any) {
     return {
       success: false,
-      error: PLEASANT_AI_ERROR_HEBREW,
+      error: err?.message || PLEASANT_AI_ERROR_HEBREW,
       isFallback: true,
     };
   }
