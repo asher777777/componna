@@ -17,6 +17,7 @@ import { FloatingWidgetSettingsModal } from './components/FloatingWidgetSettings
 import { Check } from 'lucide-react';
 import { SectionResolutionVisibilityMenu } from './components/SectionResolutionVisibilityMenu';
 import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
+import { CookieConsentBanner } from './components/CookieConsentBanner';
 
 export interface PageBuilderRendererProps {
   config: PageBuilderConfig;
@@ -638,6 +639,25 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 <span>מאובטח ומוגן בתקן SSL 256-bit</span>
               </div>
+              <div className="flex items-center gap-3 text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                <a
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-colors"
+                >
+                  תנאי שימוש
+                </a>
+                <span>•</span>
+                <a
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 hover:underline transition-colors"
+                >
+                  מדיניות פרטיות
+                </a>
+              </div>
               <p className="text-slate-500 text-[11px]">
                 © {new Date().getFullYear()} {globalSettings.companyName || 'כל הזכויות שמורות'}. נבנה באמצעות KWB.
               </p>
@@ -645,6 +665,13 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           </div>
         </footer>
       )}
+
+      {/* Guest Cookie Consent Modal / Banner */}
+      <CookieConsentBanner
+        settings={globalSettings?.cookieConsent}
+        brandDna={brandContext?.brandDna}
+        previewMode={false}
+      />
     </div>
   );
 };

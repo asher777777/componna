@@ -18,6 +18,8 @@ import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketing
 import { PageBuilderProvider } from './context/PageBuilderContext';
 import { KosaiProvider } from '../kosai-engine';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
+import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
+import { eventBus } from '../../core/bridge/EventBus';
 
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';
@@ -111,6 +113,13 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   // Load all pages from Firestore / LocalStorage
   useEffect(() => {
     const loadData = async () => {
+      // Automatically ensure Terms of Use and Privacy Policy default pages exist for this tenant
+      try {
+        await ensureDefaultLegalPages(db, tenantId, brandDna);
+      } catch (err) {
+        console.warn('[PageBuilder] Auto-ensure default legal pages warning:', err);
+      }
+
       const all = await pageBuilderFirestore.getAllPages(db, tenantId);
       // Clean up any historical dummy values if present in stored pages
       const sanitized = all.map((p) => {
@@ -147,6 +156,22 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
     };
     loadData();
   }, [db, tenantId, brandDna]);
+
+  // Two-way synchronization: when Brand DNA updates anywhere in the system, refresh legal pages
+  useEffect(() => {
+    const unsub = eventBus.subscribe('brand:updated', async (data: any) => {
+      try {
+        if (data?.brandDna) {
+          await syncLegalPagesWithBrandDna(db, tenantId, data.brandDna);
+          const refreshed = await pageBuilderFirestore.getAllPages(db, tenantId);
+          setPages(refreshed);
+        }
+      } catch (err) {
+        console.warn('[PageBuilder] Two-way legal pages sync on brand update error:', err);
+      }
+    });
+    return () => unsub();
+  }, [db, tenantId]);
 
   // Save current page handler
   const handleSavePage = async (updated: PageBuilderConfig) => {
@@ -462,6 +487,15 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
             setIsShortenerModalOpen(true);
           }}
           onConvertToVideo={handleConvertToVideo}
+          onEnsureLegalPages={async () => {
+            try {
+              await ensureDefaultLegalPages(db, tenantId, brandDna);
+              const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+              setPages(all);
+            } catch (err) {
+              console.warn('[PageBuilder] Manual legal pages creation error:', err);
+            }
+          }}
         />
       ) : (
         <PageBuilderEditor

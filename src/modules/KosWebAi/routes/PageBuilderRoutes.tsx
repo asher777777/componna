@@ -6,6 +6,7 @@ import { PageBuilderEditor } from '../PageBuilderEditor';
 import { PagesDashboardTab } from '../components/PagesDashboardTab';
 import { PublicPageView } from '../components/PublicPageView';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
+import { ensureDefaultLegalPages } from '../generators/legalPagesGenerator';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
@@ -94,9 +95,14 @@ const DashboardRouteWrapper: React.FC = () => {
   const { currentPageConfig, setCurrentPageConfig } = usePageBuilderContext();
 
   const loadPages = React.useCallback(async () => {
+    try {
+      await ensureDefaultLegalPages(db, tenantId);
+    } catch (err) {
+      console.warn('[PageBuilderRoutes] ensureDefaultLegalPages error:', err);
+    }
     const list = await pageBuilderFirestore.getAllPages(db, tenantId);
     setPages(list);
-  }, [db]);
+  }, [db, tenantId]);
 
   React.useEffect(() => {
     loadPages();
@@ -149,6 +155,7 @@ const DashboardRouteWrapper: React.FC = () => {
         onOpenShortener={(page) => {
           window.open(`/#/p/${page.slug}`, '_blank');
         }}
+        onEnsureLegalPages={loadPages}
       />
     </div>
   );

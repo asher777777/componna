@@ -22,10 +22,15 @@ import {
   Activity, 
   Layers,
   Layout,
-  ExternalLink
+  ExternalLink,
+  Cookie
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { generateCompliantSeo } from '../generators/seoService';
+import { CookieConsentBanner } from './CookieConsentBanner';
+import { syncBrandDnaFromLegalSettings } from '../generators/legalPagesGenerator';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 
 interface PageSettingsDrawerProps {
   isOpen: boolean;
@@ -39,7 +44,7 @@ interface PageSettingsDrawerProps {
   pageSections?: any[];
 }
 
-export type SettingsAccordionSection = 'general' | 'design' | 'seo' | 'analytics' | 'contact';
+export type SettingsAccordionSection = 'general' | 'design' | 'seo' | 'analytics' | 'contact' | 'cookies';
 
 export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   isOpen,
@@ -52,6 +57,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   pageTitle = 'עמוד',
   pageSections = [],
 }) => {
+  const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
@@ -134,7 +141,24 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       onUpdateSeoSettings(formDataSeo);
       setInitialGlobalData({ ...formDataGlobal });
       setInitialSeoData({ ...formDataSeo });
-      showNotification('ההגדרות נשמרו בהצלחה');
+
+      // Bidirectional sync: sync back to Brand DNA if details were modified
+      try {
+        await syncBrandDnaFromLegalSettings(db, tenantId, {
+          companyName: formDataGlobal.companyName,
+          legalEntityId: formDataGlobal.legalEntityId,
+          contactPhone: formDataGlobal.contactPhone,
+          contactEmail: formDataGlobal.contactEmail,
+          officeAddress: formDataGlobal.address,
+          whatsappSupportNumber: formDataGlobal.contactWhatsApp,
+          primaryColor: formDataGlobal.primaryColor,
+          secondaryColor: formDataGlobal.secondaryColor,
+        });
+      } catch (syncErr) {
+        console.warn('[PageSettingsDrawer] Two-way sync to Brand DNA warning:', syncErr);
+      }
+
+      showNotification('ההגדרות נשמרו וסונכרנו בהצלחה עם שפת המותג');
     } catch (e: any) {
       showNotification(e?.message || 'שגיאה בשמירת הגדרות העמוד');
     } finally {
@@ -161,6 +185,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     const updatedGlobal: GlobalPageSettings = {
       ...formDataGlobal,
       companyName: brandDna.identity.companyName || formDataGlobal.companyName,
+      legalEntityId: brandDna.trust?.legalEntityId || formDataGlobal.legalEntityId,
       siteTitle: `${brandDna.identity.companyName} | האתר הרשמי`,
       slogan: brandDna.identity.slogan || formDataGlobal.slogan,
       siteLogoUrl: brandDna.identity.logoUrl || formDataGlobal.siteLogoUrl,
@@ -1071,6 +1096,257 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                     }`}
                   />
                 </div>
+
+                <div className="space-y-0.5">
+                  <label className="text-[10px] font-bold text-amber-500 block">מספר תאגיד / ח.פ / ע.מ (לצרכים משפטיים)</label>
+                  <input
+                    type="text"
+                    value={formDataGlobal.legalEntityId || ''}
+                    onChange={(e) => handleGlobalChange('legalEntityId', e.target.value)}
+                    placeholder="512345678"
+                    dir="ltr"
+                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                      isDarkMode ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500' : 'bg-white border-amber-500/60 text-slate-900'
+                    }`}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* SECTION: Cookies & Privacy Consent Modal */}
+          <div className={`border rounded-2xl overflow-hidden transition-all ${
+            isDarkMode ? 'border-white/5 bg-[#141414]' : 'border-slate-200/80 bg-slate-50'
+          }`}>
+            <button
+              type="button"
+              onClick={() => toggleSection('cookies')}
+              className={`w-full h-10 px-3 flex items-center justify-between font-bold text-xs cursor-pointer transition-all ${
+                isDarkMode ? 'text-white hover:bg-[#1a1a1a]' : 'text-slate-800 hover:bg-slate-100'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
+                  isDarkMode ? 'bg-white/5 text-indigo-400' : 'bg-white text-indigo-600 shadow-sm'
+                }`}>
+                  <Cookie className="w-3.5 h-3.5" />
+                </div>
+                <span>אישור עוגיות (Cookie Consent) ומדיניות פרטיות</span>
+              </div>
+              <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${openSections['cookies'] ? 'rotate-180' : ''}`} />
+            </button>
+
+            {openSections['cookies'] && (
+              <div className={`p-3 border-t space-y-3 text-xs animate-fadeIn ${
+                isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
+              }`}>
+                {/* Active switch */}
+                <div className="flex items-center justify-between p-2.5 rounded-xl bg-indigo-500/10 border border-indigo-500/20">
+                  <div>
+                    <span className="font-extrabold text-slate-900 dark:text-white block">באנר / מודאל עוגיות לאורחים</span>
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">הצגת הודעת אישור עוגיות ועמידה בדרישות החוק למבקרים חדשים</span>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formDataGlobal.cookieConsent?.enabled !== false}
+                      onChange={(e) => {
+                        handleGlobalChange('cookieConsent', {
+                          ...(formDataGlobal.cookieConsent || {}),
+                          enabled: e.target.checked,
+                        });
+                      }}
+                      className="sr-only peer"
+                    />
+                    <div className="w-9 h-5 bg-slate-300 peer-focus:outline-none rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
+                {formDataGlobal.cookieConsent?.enabled !== false && (
+                  <>
+                    {/* Position selector */}
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 block">מיקום ומבנה התצוגה</label>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[
+                          { id: 'bottom-banner', label: 'פס תחתון רוחבי' },
+                          { id: 'floating-box', label: 'חלונית צפה בפינה' },
+                          { id: 'center-modal', label: 'מודאל מרכזי' },
+                        ].map((pos) => {
+                          const isSelected = (formDataGlobal.cookieConsent?.position || 'bottom-banner') === pos.id;
+                          return (
+                            <button
+                              key={pos.id}
+                              type="button"
+                              onClick={() => {
+                                handleGlobalChange('cookieConsent', {
+                                  ...(formDataGlobal.cookieConsent || {}),
+                                  position: pos.id as any,
+                                });
+                              }}
+                              className={`py-1.5 px-2 rounded-xl text-[11px] font-bold border transition cursor-pointer text-center ${
+                                isSelected
+                                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                                  : isDarkMode
+                                  ? 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10'
+                                  : 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
+                              }`}
+                            >
+                              {pos.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Title */}
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-bold text-slate-400 block">כותרת ההודעה</label>
+                      <input
+                        type="text"
+                        value={formDataGlobal.cookieConsent?.title || ''}
+                        onChange={(e) => {
+                          handleGlobalChange('cookieConsent', {
+                            ...(formDataGlobal.cookieConsent || {}),
+                            title: e.target.value,
+                          });
+                        }}
+                        placeholder="הודעת פרטיות ושימוש בקובצי עוגיות (Cookies)"
+                        className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                          isDarkMode ? 'bg-transparent border-white/10 text-white placeholder-zinc-500' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Message text */}
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-bold text-slate-400 block">תוכן ההסבר</label>
+                      <textarea
+                        rows={3}
+                        value={formDataGlobal.cookieConsent?.message || ''}
+                        onChange={(e) => {
+                          handleGlobalChange('cookieConsent', {
+                            ...(formDataGlobal.cookieConsent || {}),
+                            message: e.target.value,
+                          });
+                        }}
+                        placeholder="הסבר על השימוש בעוגיות לצורך תפעול תקין, אבטחה ושיפור חוויית הגלישה..."
+                        className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-normal leading-relaxed focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                          isDarkMode ? 'bg-transparent border-white/10 text-white placeholder-zinc-500' : 'bg-white border-slate-300 text-slate-900'
+                        }`}
+                      />
+                    </div>
+
+                    {/* Buttons text */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-bold text-slate-400 block">טקסט כפתור אישור</label>
+                        <input
+                          type="text"
+                          value={formDataGlobal.cookieConsent?.acceptButtonText || ''}
+                          onChange={(e) => {
+                            handleGlobalChange('cookieConsent', {
+                              ...(formDataGlobal.cookieConsent || {}),
+                              acceptButtonText: e.target.value,
+                            });
+                          }}
+                          placeholder="מאשר/ת וממשיך/ה"
+                          className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            isDarkMode ? 'bg-transparent border-white/10 text-white placeholder-zinc-500' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-bold text-slate-400 block">טקסט כפתור דחייה / הכרחיות</label>
+                        <input
+                          type="text"
+                          value={formDataGlobal.cookieConsent?.declineButtonText || ''}
+                          onChange={(e) => {
+                            handleGlobalChange('cookieConsent', {
+                              ...(formDataGlobal.cookieConsent || {}),
+                              declineButtonText: e.target.value,
+                            });
+                          }}
+                          placeholder="רק הכרחיות"
+                          className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            isDarkMode ? 'bg-transparent border-white/10 text-white placeholder-zinc-500' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Links */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-bold text-slate-400 block">קישור למדיניות פרטיות</label>
+                        <input
+                          type="text"
+                          value={formDataGlobal.cookieConsent?.privacyPolicyUrl || ''}
+                          onChange={(e) => {
+                            handleGlobalChange('cookieConsent', {
+                              ...(formDataGlobal.cookieConsent || {}),
+                              privacyPolicyUrl: e.target.value,
+                            });
+                          }}
+                          placeholder="/privacy"
+                          dir="ltr"
+                          className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            isDarkMode ? 'bg-transparent border-white/10 text-white placeholder-zinc-500' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                      <div className="space-y-0.5">
+                        <label className="text-[10px] font-bold text-slate-400 block">קישור לתנאי שימוש</label>
+                        <input
+                          type="text"
+                          value={formDataGlobal.cookieConsent?.termsUrl || ''}
+                          onChange={(e) => {
+                            handleGlobalChange('cookieConsent', {
+                              ...(formDataGlobal.cookieConsent || {}),
+                              termsUrl: e.target.value,
+                            });
+                          }}
+                          placeholder="/terms"
+                          dir="ltr"
+                          className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-indigo-500 ${
+                            isDarkMode ? 'bg-transparent border-white/10 text-white placeholder-zinc-500' : 'bg-white border-slate-300 text-slate-900'
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Interactive Live Preview Box */}
+                    <div className="pt-2 border-t border-dashed border-slate-200 dark:border-white/10">
+                      <span className="text-[10px] font-bold text-indigo-400 mb-1.5 block">
+                        תצוגה מקדימה חיה של המודאל:
+                      </span>
+                      <div className="rounded-2xl border border-slate-200 dark:border-white/10 p-2 bg-slate-900/40 overflow-hidden">
+                        <CookieConsentBanner
+                          settings={formDataGlobal.cookieConsent}
+                          brandDna={brandDna}
+                          previewMode={true}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Testing Action Button */}
+                    <div className="pt-1 flex items-center justify-between">
+                      <span className="text-[10px] text-slate-400">רוצה לבדוק שוב את הבאנר כאורח חדש?</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          try {
+                            localStorage.removeItem(`kosun_cookie_consent_${tenantId}`);
+                            showNotification('בחירת העוגיות אופסה בדפדפן לבדיקה מחדש');
+                          } catch {}
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-white/10 hover:bg-slate-300 dark:hover:bg-white/20 text-slate-800 dark:text-white text-[11px] font-bold transition cursor-pointer"
+                      >
+                        אפס בחירה בדפדפן
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>

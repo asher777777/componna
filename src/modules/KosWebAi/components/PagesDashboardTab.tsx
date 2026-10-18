@@ -29,6 +29,7 @@ import {
   X,
   HeartHandshake,
   Youtube,
+  ShieldCheck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { CreatePageWizardModal, PageCreationOptions } from './CreatePageWizardModal';
@@ -46,6 +47,7 @@ interface PagesDashboardTabProps {
   onTogglePublish: (page: PageBuilderConfig) => void;
   onOpenShortener: (page: PageBuilderConfig) => void;
   onConvertToVideo?: (page: PageBuilderConfig) => void;
+  onEnsureLegalPages?: () => Promise<void>;
 }
 
 export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
@@ -58,6 +60,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onDeletePage,
   onSetHomePage,
   onUnsetHomePage,
+  onEnsureLegalPages,
   onTogglePublish,
   onOpenShortener,
   onConvertToVideo,
@@ -302,6 +305,19 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
             >
               <Sparkles className="w-4 h-4" />
             </button>
+
+            {onEnsureLegalPages && (
+              <button
+                type="button"
+                onClick={onEnsureLegalPages}
+                className="px-3 py-2 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                title="סנכרון והקמת עמודי תנאי שימוש ופרטיות"
+                aria-label="סנכרון והקמת עמודי תנאי שימוש ופרטיות"
+              >
+                <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                <span className="hidden sm:inline">תנאי שימוש ופרטיות</span>
+              </button>
+            )}
 
             <button
               type="button"

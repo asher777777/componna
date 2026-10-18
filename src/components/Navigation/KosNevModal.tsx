@@ -20,6 +20,7 @@ import {
   LayoutGrid,
   Youtube,
   HardDrive,
+  Accessibility,
 } from 'lucide-react';
 import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegistry';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
@@ -34,6 +35,13 @@ export const MODULE_META_CONFIG: Record<string, {
   slogan?: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = {
+  'KosAccess': {
+    hebrewName: 'נגישות ת"י 5568 ומשרד התקשורת',
+    englishPrefix: 'KOS',
+    englishRest: 'Access',
+    slogan: 'התאמת נגישות WCAG 2.2 AA וניהול הצהרות',
+    icon: Accessibility,
+  },
   'KosSubscribed': {
     hebrewName: 'מנויי תוכן, חבילות ומבחנים',
     englishPrefix: 'KOS',

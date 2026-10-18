@@ -89,6 +89,13 @@ const KosDesBuilderStandaloneView = React.lazy(() =>
   import('../modules/KosDesBuilder').then((m) => ({ default: m.KosDesBuilderStandaloneView }))
 );
 
+// Register KosAccess UI capabilities eagerly for universal accessibility toolbar
+import '../modules/KosAccess';
+
+const KosAccessStandaloneView = React.lazy(() =>
+  import('../modules/KosAccess').then((m) => ({ default: m.KosAccessStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -100,6 +107,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosAccess',
+    name: 'קושאן Access - נגישות אתרים וחוקי משרד התקשורת',
+    description: 'מערכת נגישות מלאה לפי תקן ת"י 5568, תקנות שוויון זכויות ו-WCAG 2.2 AA. כולל סרגל נגישות צף לכל סוגי המסכים, הקראה קולית, סרגל קריאה, ניהול הצהרת נגישות וטיפול בפניות גולשים.',
+    component: KosAccessStandaloneView,
+    route: '/KosAccess',
+    collectionPrefix: 'mod_kos_access_',
+  },
   {
     id: 'KosSubscribed',
     name: 'קושאן Subscribed - ניהול מנויי תוכן, חבילות ומבחנים',

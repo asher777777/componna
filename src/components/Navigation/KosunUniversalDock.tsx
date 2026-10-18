@@ -336,7 +336,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
 
   const isAuthorized = Boolean(
     propIsAuthorized !== undefined
-      ? propIsAuthorized
+      ? (propIsAuthorized || isAdminOrEditor || isTenantAuthed || isEditing)
       : (
           isAdminOrEditor ||
           isTenantAuthed ||

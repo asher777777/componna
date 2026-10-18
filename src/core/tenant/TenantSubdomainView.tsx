@@ -142,6 +142,10 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     sessionStorage.setItem(`tenant_view_mode_${tenantRecord.subdomain}`, mode);
     if (mode === 'admin') {
       sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+      try {
+        localStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+        localStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
+      } catch {}
     }
   }, [mode, tenantRecord.subdomain]);
 
@@ -153,6 +157,10 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       setMode('admin');
       sessionStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
       sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+      try {
+        localStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
+        localStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+      } catch {}
     } else if (isKnownModuleOrAdminRoute(location.pathname)) {
       setMode('admin');
     } else if (isPublicContentPath(location.pathname) && !params.get('admin') && !params.get('mode')) {
@@ -878,9 +886,13 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       (typeof window !== 'undefined' && (
         sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
         sessionStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
+        localStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
+        localStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
         new URLSearchParams(window.location.search).get('edit') === 'true' ||
         new URLSearchParams(window.location.search).get('admin') === 'true' ||
-        new URLSearchParams(window.location.search).get('mode') === 'admin'
+        new URLSearchParams(window.location.search).get('mode') === 'admin' ||
+        window.location.hash.includes('edit') ||
+        window.location.hash.includes('admin')
       ))
     )
   );

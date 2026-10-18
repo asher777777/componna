@@ -12,6 +12,7 @@ import { AiDiscoveryWizardModal } from './components/AiDiscoveryWizardModal';
 import { AiStepWizardView } from './components/AiStepWizardView';
 import { ContentStrategyModal } from './components/ContentStrategyModal';
 import { BrandDnaUrlScraperModal } from './components/BrandDnaUrlScraperModal';
+import { CapabilitySlot } from '../../core/bridge/CapabilitySlot';
 import {
   Fingerprint,
   Building2,
@@ -121,6 +122,141 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   useEffect(() => {
     window.dispatchEvent(new CustomEvent('brand_dna_active_tab_changed', { detail: { tab: activeTab } }));
   }, [activeTab]);
+
+  // In-Place Dashboard Live Edit listener (Tenant Manager Only)
+  const [isEditingMode, setIsEditingMode] = useState(false);
+
+  useEffect(() => {
+    const handleToggleEdit = (e: any) => {
+      const next = e?.detail?.isEditMode !== undefined ? Boolean(e.detail.isEditMode) : !isEditingMode;
+      setIsEditingMode(next);
+      if (next) {
+        setViewMode('dashboard');
+      }
+    };
+    window.addEventListener('kos_des_builder_toggle_edit', handleToggleEdit);
+    return () => window.removeEventListener('kos_des_builder_toggle_edit', handleToggleEdit);
+  }, [isEditingMode]);
+
+  const defaultBrandingSections = [
+    {
+      id: 'sec-header-branding',
+      type: 'header',
+      title: 'זהות מותג ו-Brand DNA',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        greetingPrefix: brandDna.identity.companyName ? `מותג: ${brandDna.identity.companyName}` : 'זהות מותג עסקית',
+        subtitle: brandDna.identity.slogan || 'הגדרת ערכי ליבה, שפת מותג, צבעים ובידול עסקי מבוסס AI',
+        showDateRange: true,
+        showTenantBadge: true,
+        primaryActionText: 'הפעל אשף גילוי AI',
+        primaryActionUrl: '#wizard',
+      },
+    },
+    {
+      id: 'sec-stats-branding',
+      type: 'stats',
+      title: 'מדדי שלמות ואפיון מותג',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        columns: 4,
+        stats: [
+          {
+            id: 'stat-br-1',
+            label: 'שלמות ה-Brand DNA',
+            value: `${completenessScore}%`,
+            change: completenessScore >= 80 ? 'מצוין' : 'דורש השלמה',
+            isPositive: completenessScore >= 80,
+            icon: 'Sparkles',
+            color: 'indigo',
+          },
+          {
+            id: 'stat-br-2',
+            label: 'שפת מותג וטון דיבור',
+            value: brandDna.voice.genderAddressing || 'פנייה ישירה',
+            change: 'מוגדר',
+            isPositive: true,
+            icon: 'Sliders',
+            color: 'purple',
+          },
+          {
+            id: 'stat-br-3',
+            label: 'שירותי ליבה במערכת',
+            value: String(brandDna.ecosystem?.services?.length || 0),
+            change: '+1',
+            isPositive: true,
+            icon: 'Layers',
+            color: 'blue',
+          },
+          {
+            id: 'stat-br-4',
+            label: 'צבע מותג ראשי',
+            value: brandDna.designTokens?.primaryColor || '#4f46e5',
+            change: 'מעוצב',
+            isPositive: true,
+            icon: 'Palette',
+            color: 'emerald',
+          },
+        ],
+      },
+    },
+    {
+      id: 'sec-actions-branding',
+      type: 'quickActions',
+      title: 'פעולות ואשפי מיתוג מהירים',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        title: 'כלי AI ואשפי מיתוג בלחיצה אחת',
+        layout: 'row',
+        buttons: [
+          {
+            id: 'btn-br-1',
+            label: 'אשף גילוי AI מלא',
+            icon: 'Wand2',
+            variant: 'primary',
+            actionType: 'navigate',
+            target: '#wizard',
+          },
+          {
+            id: 'btn-br-2',
+            label: 'סריקת מותג מ-URL',
+            icon: 'Globe',
+            variant: 'secondary',
+            actionType: 'navigate',
+            target: '#scraper',
+          },
+          {
+            id: 'btn-br-3',
+            label: 'מחקר שוק ומתחרים',
+            icon: 'Target',
+            variant: 'outline',
+            actionType: 'navigate',
+            target: '#market',
+          },
+        ],
+      },
+    },
+    {
+      id: 'sec-table-branding',
+      type: 'table',
+      title: 'מבנה שירותי המותג והצעות הערך',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        title: 'שירותים, חבילות ומסרים שיווקיים',
+        streamType: 'contacts',
+        pageSize: 5,
+        columns: ['שם שירות', 'הצעת ערך', 'קהל יעד', 'סטטוס'],
+      },
+    },
+  ];
 
   if (isLoading) {
     return (
@@ -337,28 +473,38 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
 
               {/* Tabbed Content */}
 
-          {/* 3. Dashboard Mode View */}
-          {viewMode === 'dashboard' && (
-            <BrandDashboardSection 
-              onOpenWizard={() => setIsWizardOpen(true)}
-              onOpenScraper={() => setIsScraperModalOpen(true)}
-              onOpenStrategy={() => setIsStrategyModalOpen(true)}
-              onSwitchToTab={(tabId) => {
-                setActiveTab(tabId as TabType);
-                setViewMode('tabs');
+          {/* 3. Dashboard Mode View or In-Place Dashboard Editing */}
+          {(viewMode === 'dashboard' || isEditingMode) && (
+            <CapabilitySlot
+              name="dashboard-renderer"
+              props={{
+                moduleId: 'KosBranding',
+                isEditing: isEditingMode,
+                initialSections: defaultBrandingSections,
               }}
+              fallback={
+                <BrandDashboardSection 
+                  onOpenWizard={() => setIsWizardOpen(true)}
+                  onOpenScraper={() => setIsScraperModalOpen(true)}
+                  onOpenStrategy={() => setIsStrategyModalOpen(true)}
+                  onSwitchToTab={(tabId) => {
+                    setActiveTab(tabId as TabType);
+                    setViewMode('tabs');
+                  }}
+                />
+              }
             />
           )}
 
           {/* 4. Stepper Mode View - Full Width without 360 preview */}
-          {viewMode === 'stepper' && (
+          {viewMode === 'stepper' && !isEditingMode && (
             <div className="w-full space-y-6">
               <AiStepWizardView onSwitchToTabs={() => setViewMode('tabs')} />
             </div>
           )}
 
           {/* 4. Full Tabbed Editor View - Full Width without 360 preview */}
-          {viewMode === 'tabs' && (
+          {viewMode === 'tabs' && !isEditingMode && (
             <div className="space-y-6 animate-in fade-in">
               {/* Tabbed Content */}
               <div className="w-full space-y-6">

@@ -31,10 +31,26 @@ export type SectionType =
   | 'dynamicListing'
   | 'futureContent2027';
 
+export interface CookieConsentSettings {
+  enabled?: boolean;
+  position?: 'bottom-banner' | 'floating-box' | 'center-modal';
+  title?: string;
+  message?: string;
+  acceptButtonText?: string;
+  declineButtonText?: string;
+  privacyPolicyLinkText?: string;
+  privacyPolicyUrl?: string;
+  termsLinkText?: string;
+  termsUrl?: string;
+  badgeText?: string;
+  primaryColor?: string;
+}
+
 export interface GlobalPageSettings {
   siteTitle?: string;
   siteLogoUrl?: string;
   companyName?: string;
+  legalEntityId?: string; // ח.פ / ע.מ / מספר תאגיד
   slogan?: string;
   theme?: 'navy' | 'modern' | 'dark' | 'emerald' | 'purple' | 'sunset' | 'light-minimal' | 'cyber-neon';
   headerLayout?: 'capsule-floating' | 'classic' | 'centered' | 'minimal' | 'transparent' | 'floating-glass';
@@ -78,6 +94,7 @@ export interface GlobalPageSettings {
       waze?: string;
     };
   };
+  cookieConsent?: CookieConsentSettings;
   navLinks?: Array<{ label: string; url: string; isButton?: boolean }>;
   footerText?: string;
   customCss?: string;

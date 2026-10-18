@@ -7,6 +7,7 @@ import { ROOT_TENANT_ID } from '../core/tenant/tenantResolver';
 import { pageBuilderFirestore, ensureHeaderSection } from '../modules/KosWebAi/services/pageBuilderFirestore';
 import { SECTION_REGISTRY } from '../modules/KosWebAi/registry/sectionRegistry';
 import { eventBus } from '../core/bridge/EventBus';
+import { CapabilitySlot } from '../core/bridge/CapabilitySlot';
 
 import { useKosai } from '../modules/kosai-engine';
 

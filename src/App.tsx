@@ -12,6 +12,7 @@ import { KosaiProvider, FloatingKosaiButton, KosaiChatDrawer } from './modules/k
 import { SmartFormProvider } from './modules/KSF';
 import { KesherPaymentsProvider } from './modules/kesher-payments-hub';
 import { WhatsAppProvider } from './modules/KosWhatsUp';
+import { KosAccessWidget } from './modules/KosAccess';
 
 export const App: React.FC = () => {
   return (
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
                       <CrmAnalyticsHostBridge />
                       <FloatingKosaiButton />
                       <KosaiChatDrawer />
+                      <KosAccessWidget position="center-left" />
                     </KosaiProvider>
                   </BrandDnaProvider>
                 </SmartFormProvider>

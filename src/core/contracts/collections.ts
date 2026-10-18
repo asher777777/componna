@@ -96,6 +96,11 @@ export const SYSTEM_COLLECTIONS = {
   // 13. KosDesBuilder ("קושאן דשבורד בילדר" - Dashboard UI Builder Monopoly)
   DASHBOARD_PAGES: 'mod_kos_des_dashboards',
   DASHBOARD_TEMPLATES: 'mod_kos_des_templates',
+
+  // 14. KosAccess ("קושאן נגישות" - Accessibility Toolbar & Compliance)
+  KOS_ACCESS_SETTINGS: 'mod_kos_access_settings',
+  KOS_ACCESS_DECLARATIONS: 'mod_kos_access_declarations',
+  KOS_ACCESS_FEEDBACK: 'mod_kos_access_feedback',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;

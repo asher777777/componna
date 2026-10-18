@@ -14,6 +14,7 @@ import { tenantContactSyncService } from '../../crm-analytics/services/tenantCon
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
 import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
+import { ensureDefaultLegalPages } from '../../KosWebAi/generators/legalPagesGenerator';
 
 export const AVAILABLE_MODULES_CATALOG: AvailableModuleOption[] = [
   {
@@ -359,6 +360,13 @@ export class TenantProvisionerService {
           newRecord.ownerEmail
         );
         await setDoc(brandRef, initialBrandDna, { merge: true });
+
+        // Auto-provision default legal pages (Terms of Use and Privacy Policy) for this subdomain
+        try {
+          await ensureDefaultLegalPages(db, cleanSub, initialBrandDna);
+        } catch (legalErr) {
+          console.warn('[TenantProvisionerService] Failed to auto-provision legal pages:', legalErr);
+        }
 
         // Initialize isolated API keys doc under subdomain
         const keysRef = doc(db, 'tenants', cleanSub, 'settings', 'api_keys');

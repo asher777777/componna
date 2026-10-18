@@ -33,3 +33,4 @@ export * from './components/PublishPageModal';
 export * from './components/GeoSeoDrawer';
 export * from './components/KosWebAiHostBridge';
 export * from './components/KosWebAiFrontDock';
+export * from './components/CookieConsentBanner';

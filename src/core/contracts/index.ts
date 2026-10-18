@@ -1803,7 +1803,75 @@ export interface KosDesBuilderContract {
   deleteDashboard: (tenantId: string, dashboardId: string) => Promise<boolean>;
 }
 
+// -----------------------------------------------------------------------------
+// KosAccess Accessibility Monopoly Contracts (תקן נגישות ת"י 5568 & WCAG 2.1/2.2 AA)
+// -----------------------------------------------------------------------------
+
+export type AccessibilityContrastMode = 'normal' | 'dark' | 'light' | 'monochrome' | 'inverted';
+export type AccessibilityFontSize = 'normal' | 'large' | 'larger' | 'huge'; // 100%, 125%, 150%, 200%
+export type AccessibilityCursorMode = 'normal' | 'large-black' | 'large-white';
+
+export interface AccessibilityUserPreferences {
+  fontSize: AccessibilityFontSize;
+  contrast: AccessibilityContrastMode;
+  dyslexicFont: boolean;
+  textSpacing: boolean; // increased letter & line spacing (WCAG 1.4.12)
+  highlightLinks: boolean; // underline & highlight links (WCAG 1.4.1)
+  highlightHeadings: boolean;
+  pauseAnimations: boolean; // pause animations & flashing (WCAG 2.2.2 & 2.3.1)
+  largeCursor: AccessibilityCursorMode;
+  readingRuler: boolean; // horizontal tracking guide
+  readingMask: boolean; // dim background reading spotlight
+  hideImages: boolean; // distraction-free mode
+  screenReaderHelper: boolean; // audio assistance & ARIA aids
+  textAlign?: 'inherit' | 'right' | 'center' | 'left';
+}
+
+export interface AccessibilityDeclarationDocument {
+  id?: string;
+  tenantId: string;
+  organizationName: string;
+  websiteUrl: string;
+  accessibilityLevel: 'A' | 'AA' | 'AAA';
+  standard: 'IS5568' | 'WCAG21_AA' | 'WCAG22_AA';
+  statementDate: string;
+  lastAuditDate: string;
+  coordinatorName: string;
+  coordinatorEmail: string;
+  coordinatorPhone: string;
+  coordinatorHours?: string;
+  receptionAccessibility?: string;
+  accessibleAccommodations: string[];
+  exemptionsRationale?: string;
+  feedbackEmail: string;
+  feedbackPhone?: string;
+  isActive: boolean;
+  updatedAt: string;
+}
+
+export interface AccessibilityFeedbackSubmission {
+  id: string;
+  tenantId: string;
+  pageUrl: string;
+  reporterName: string;
+  reporterEmail?: string;
+  reporterPhone?: string;
+  deviceType: 'mobile' | 'desktop' | 'tablet';
+  assistiveTechUsed?: string; // NVDA, JAWS, VoiceOver, ZoomText, Keyboard only, etc.
+  description: string;
+  status: 'new' | 'investigating' | 'resolved';
+  createdAt: string;
+}
+
+export interface KosAccessContract {
+  getDeclaration: (tenantId: string) => Promise<AccessibilityDeclarationDocument | null>;
+  saveDeclaration: (tenantId: string, declaration: Partial<AccessibilityDeclarationDocument>) => Promise<AccessibilityDeclarationDocument>;
+  submitFeedback: (tenantId: string, feedback: Omit<AccessibilityFeedbackSubmission, 'id' | 'createdAt' | 'status' | 'tenantId'>) => Promise<string>;
+  getFeedbackSubmissions: (tenantId: string) => Promise<AccessibilityFeedbackSubmission[]>;
+}
+
 export * from './collections';
+
 
 
 
