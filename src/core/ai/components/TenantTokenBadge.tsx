@@ -72,7 +72,7 @@ export const TenantTokenBadge: React.FC<TenantTokenBadgeProps> = ({
               ? 'bg-amber-50 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-100'
               : 'bg-indigo-50/80 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-900/60 hover:bg-indigo-100'
           }`}
-          title={`יתרת טוקנים: ${remaining.toLocaleString()} מתוך ${quota.toLocaleString()} (נוצלו: ${used.toLocaleString()} | עלות ממשית: ${(tokenUsage?.totalCostUSD || 0).toFixed(4)} | ${percent}% נותרו). לחץ להטענה.`}
+          title={`יתרת טוקנים: ${remaining.toLocaleString()} מתוך ${quota.toLocaleString()} (קלט: ${(tokenUsage?.inputTokens || tokenUsage?.promptTokens || 0).toLocaleString()} | פלט: ${(tokenUsage?.outputTokens || tokenUsage?.candidatesTokens || 0).toLocaleString()} | סה"כ נוצלו: ${used.toLocaleString()} | עלות ממשית: $${(tokenUsage?.totalCostUSD || 0).toFixed(4)} | ${percent}% נותרו). לחץ להטענה.`}
         >
           <Zap className={`w-3.5 h-3.5 shrink-0 ${isLow ? 'text-rose-500' : 'text-amber-500'}`} />
           <span>{formatTokens(remaining)}</span>

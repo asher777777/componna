@@ -139,6 +139,10 @@ export async function executeKosaiAi<T = any>(
         const estimatedTokens = Math.max(10, Math.round(prompt.length / 3.5));
         TenantTokenTracker.recordTokenUsage(tenantId, category, estimatedTokens, {
           costUSD: estimatedTokens * 0.00000075,
+          inputTokens: estimatedTokens,
+          outputTokens: 0,
+          promptTokens: estimatedTokens,
+          candidatesTokens: 0,
         }).catch(() => {});
 
         throw new Error(errMsg);
@@ -157,11 +161,15 @@ export async function executeKosaiAi<T = any>(
         cachedTokens,
       });
 
-      // Record live token consumption
+      // Record live token consumption (input / prompt and output / candidate)
       TenantTokenTracker.recordTokenUsage(tenantId, category, costReport.totalTokens, {
         costUSD: costReport.estimatedCostUSD,
         retailBilledUSD: costReport.retailBilledUSD,
         cachedTokens: costReport.cachedTokens,
+        inputTokens: promptTokens,
+        outputTokens: candidatesTokens,
+        promptTokens,
+        candidatesTokens,
       }).catch(() => {});
 
       // Parse JSON if requested

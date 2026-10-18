@@ -3,9 +3,11 @@ export type BrandingActionType =
   | 'open_scraper'
   | 'open_strategy'
   | 'trigger_market_agent'
+  | 'run_market_agent'
   | 'save_brand_dna'
   | 'edit_core_services'
   | 'switch_branding_tab'
+  | 'switch_tab'
   | 'navigate'
   | 'custom_event';
 

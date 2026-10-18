@@ -76,6 +76,7 @@ export class KosTubePageSyncService {
         ? takeawaysSec.items.map((i: any) => ({
             title: i.title || '',
             text: i.description || i.text || i.title || '',
+            icon: i.icon || 'CheckCircle2',
           })).filter((i: any) => i.title || i.text)
         : [];
 
@@ -243,7 +244,7 @@ export class KosTubePageSyncService {
             title,
             text,
             description: text,
-            icon: 'CheckCircle2',
+            icon: point.icon || 'CheckCircle2',
           };
         });
       }

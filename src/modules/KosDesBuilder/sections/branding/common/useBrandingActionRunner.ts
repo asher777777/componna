@@ -20,6 +20,7 @@ export function useBrandingActionRunner() {
         break;
 
       case 'trigger_market_agent':
+      case 'run_market_agent':
         window.dispatchEvent(new CustomEvent('brand_dna_trigger_market_agent'));
         break;
 
@@ -32,6 +33,7 @@ export function useBrandingActionRunner() {
         break;
 
       case 'switch_branding_tab':
+      case 'switch_tab':
         window.dispatchEvent(new CustomEvent('brand_dna_switch_tab', { detail: { tab: payload || 'identity' } }));
         break;
 

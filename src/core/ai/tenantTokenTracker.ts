@@ -117,6 +117,9 @@ export class TenantTokenTracker {
     const tokens = Math.max(0, Math.round(tokenCount));
     const cached = Math.max(0, Math.round(additional?.cachedTokens || 0));
 
+    const inTokens = Math.max(0, Math.round(additional?.inputTokens ?? additional?.promptTokens ?? Math.round(tokens * 0.4)));
+    const outTokens = Math.max(0, Math.round(additional?.outputTokens ?? additional?.candidatesTokens ?? Math.max(0, tokens - inTokens)));
+
     // Real cost paid to Google (with Context Caching discount if applicable)
     const costUSD = Number((additional?.costUSD ?? (tokens * 0.00000075)).toFixed(6));
     const costILS = Number((costUSD * 3.70).toFixed(6));
@@ -136,12 +139,18 @@ export class TenantTokenTracker {
     // 1. Update in-memory cache immediately
     const existing = inMemoryTokenCache.get(cleanId) || getDefaultTokenUsage(cleanId);
     const newTotalTokens = existing.totalTokens + tokens;
+    const newInputTokens = (existing.inputTokens || 0) + inTokens;
+    const newOutputTokens = (existing.outputTokens || 0) + outTokens;
     const newCachedTokens = (existing.cachedTokens || 0) + cached;
     const cacheHitRatio = newTotalTokens > 0 ? Number(((newCachedTokens / newTotalTokens) * 100).toFixed(1)) : 0;
 
     const updated: TenantTokenUsage = {
       ...existing,
       totalTokens: newTotalTokens,
+      inputTokens: newInputTokens,
+      outputTokens: newOutputTokens,
+      promptTokens: newInputTokens,
+      candidatesTokens: newOutputTokens,
       totalCostUSD: Number((existing.totalCostUSD + costUSD).toFixed(6)),
       totalCostILS: Number((existing.totalCostILS + costILS).toFixed(6)),
       retailBilledUSD: Number(((existing.retailBilledUSD || 0) + retailBilledUSD).toFixed(6)),
@@ -165,7 +174,7 @@ export class TenantTokenTracker {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(
         new CustomEvent('kosun_tenant_tokens_updated', {
-          detail: { tenantId: cleanId, usage: updated, category, deltaTokens: tokens },
+          detail: { tenantId: cleanId, usage: updated, category, deltaTokens: tokens, inputTokens: inTokens, outputTokens: outTokens },
         })
       );
     }
@@ -180,6 +189,10 @@ export class TenantTokenTracker {
           {
             subdomain: cleanId,
             totalTokens: increment(tokens),
+            inputTokens: increment(inTokens),
+            outputTokens: increment(outTokens),
+            promptTokens: increment(inTokens),
+            candidatesTokens: increment(outTokens),
             totalCostUSD: increment(costUSD),
             totalCostILS: increment(costILS),
             retailBilledUSD: increment(retailBilledUSD),
@@ -210,6 +223,10 @@ export class TenantTokenTracker {
             {
               subdomain: ROOT_TENANT_ID,
               totalTokens: increment(tokens),
+              inputTokens: increment(inTokens),
+              outputTokens: increment(outTokens),
+              promptTokens: increment(inTokens),
+              candidatesTokens: increment(outTokens),
               totalCostUSD: increment(costUSD),
               totalCostILS: increment(costILS),
               retailBilledUSD: increment(retailBilledUSD),

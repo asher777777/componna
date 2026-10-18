@@ -178,6 +178,10 @@ export async function executeCloudAi<T = any>(
             {
               costUSD: estimatedPromptTokens * 0.00000075,
               retailBilledUSD: estimatedPromptTokens * 0.0000015,
+              inputTokens: estimatedPromptTokens,
+              outputTokens: 0,
+              promptTokens: estimatedPromptTokens,
+              candidatesTokens: 0,
             }
           ).catch(() => {});
         }
@@ -239,6 +243,10 @@ export async function executeCloudAi<T = any>(
           costUSD: costReport.estimatedCostUSD,
           retailBilledUSD: costReport.retailBilledUSD,
           cachedTokens: costReport.cachedTokens,
+          inputTokens: promptTokens,
+          outputTokens: candidatesTokens,
+          promptTokens,
+          candidatesTokens,
         }
       ).catch(() => {});
     }

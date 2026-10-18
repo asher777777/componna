@@ -1,15 +1,19 @@
 import React, { useState } from 'react';
 import { 
   Plus, Trash2, Edit3, Film, Sparkles, Volume2, Mic, Play, 
-  ChevronDown, ChevronUp, CheckCircle2, Video, MessageSquare
+  ChevronDown, ChevronUp, CheckCircle2, Video, MessageSquare, HardDrive, Image as ImageIcon
 } from 'lucide-react';
 import { useKosLive } from '../context/KosLiveContext';
 import { LivingScene, SceneRoleType, LivingOverlayAction } from '../types';
 import { KOS_LIVE_AVATARS, HEBREW_TTS_VOICES } from '../config';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { MediaPickerContract } from '../../../core/contracts';
 
 export const LivingTimelineEditor: React.FC = () => {
   const { activeProject, setActiveProject, setTab } = useKosLive();
   const [selectedSceneIndex, setSelectedSceneIndex] = useState<number>(0);
+  const { getCapability } = useHostCapabilities();
+  const mediaPicker = getCapability<MediaPickerContract>('media-picker');
 
   if (!activeProject) {
     return (
@@ -76,6 +80,54 @@ export const LivingTimelineEditor: React.FC = () => {
       updatedAt: new Date().toISOString()
     });
     setSelectedSceneIndex(Math.max(0, index - 1));
+  };
+
+  const handlePickCloudVideo = async () => {
+    if (!mediaPicker) {
+      alert('שירות כספת המדיה KosCloudStore אינו זמין כרגע.');
+      return;
+    }
+    try {
+      const selected = await mediaPicker.openPicker({
+        accept: 'video/*',
+        multiple: false
+      });
+      if (selected) {
+        const url = Array.isArray(selected) ? selected[0] : selected;
+        if (typeof url === 'string') {
+          updateScene({
+            renderedVideoUrl: url,
+            videoProvider: 'custom',
+            avatarId: undefined
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[LivingTimelineEditor] Error picking video from media-picker:', err);
+    }
+  };
+
+  const handlePickCloudBackground = async () => {
+    if (!mediaPicker) {
+      alert('שירות כספת המדיה KosCloudStore אינו זמין כרגע.');
+      return;
+    }
+    try {
+      const selected = await mediaPicker.openPicker({
+        accept: 'image/*',
+        multiple: false
+      });
+      if (selected) {
+        const url = Array.isArray(selected) ? selected[0] : selected;
+        if (typeof url === 'string') {
+          updateScene({
+            backgroundMediaUrl: url
+          });
+        }
+      }
+    } catch (err) {
+      console.error('[LivingTimelineEditor] Error picking image from media-picker:', err);
+    }
   };
 
   return (
@@ -196,32 +248,78 @@ export const LivingTimelineEditor: React.FC = () => {
               />
             </div>
 
-            {/* Avatar & Voice Selector */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-300 mb-2">פרזנטור AI:</label>
-                <div className="grid grid-cols-2 gap-2">
-                  {KOS_LIVE_AVATARS.map(av => (
-                    <div
-                      key={av.id}
-                      onClick={() => updateScene({
-                        avatarId: av.id,
-                        renderedVideoUrl: av.previewVideoUrl,
-                        backgroundMediaUrl: av.previewImageUrl,
-                        voiceId: av.voiceId
-                      })}
-                      className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
-                        currentScene.avatarId === av.id
-                          ? 'bg-amber-500/20 border-amber-500 text-white'
-                          : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
-                      }`}
-                    >
-                      <img src={av.previewImageUrl} alt={av.name} className="w-8 h-8 rounded-lg object-cover" />
-                      <span className="text-[11px] font-bold truncate">{av.name.split('-')[0]}</span>
-                    </div>
-                  ))}
+            {/* Video & Media Source: KosCloudStore Media Vault & AI Presenters */}
+            <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-slate-800/80">
+                <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+                  <HardDrive className="w-3.5 h-3.5 text-amber-400" />
+                  <span>מדיה ווידאו לסצנה (כספת המדיה של הטננט - KosCloudStore)</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handlePickCloudVideo}
+                    className="px-3 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md transition cursor-pointer"
+                  >
+                    <Film className="w-3.5 h-3.5" />
+                    <span>בחר וידאו/סרט מכספת המדיה</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePickCloudBackground}
+                    className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                  >
+                    <ImageIcon className="w-3.5 h-3.5 text-amber-400" />
+                    <span>בחר רקע מהכספת</span>
+                  </button>
                 </div>
               </div>
+
+              {/* Status bar if custom cloud video is chosen */}
+              {currentScene.renderedVideoUrl && (
+                <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 animate-pulse" />
+                    <span className="text-slate-400">קובץ וידאו מקושר:</span>
+                    <span className="text-slate-200 font-mono truncate max-w-[280px]" dir="ltr">
+                      {currentScene.renderedVideoUrl}
+                    </span>
+                  </div>
+                  {currentScene.videoProvider === 'custom' && (
+                    <span className="text-[10px] bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-bold shrink-0">
+                      וידאו מכספת הטננט
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Avatar & Voice Selector */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-xs font-bold text-slate-300 mb-2">או פרזנטור AI מהקטלוג:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {KOS_LIVE_AVATARS.map(av => (
+                      <div
+                        key={av.id}
+                        onClick={() => updateScene({
+                          avatarId: av.id,
+                          renderedVideoUrl: av.previewVideoUrl,
+                          backgroundMediaUrl: av.previewImageUrl,
+                          voiceId: av.voiceId,
+                          videoProvider: 'heygen'
+                        })}
+                        className={`p-2 rounded-xl border flex items-center gap-2 cursor-pointer transition ${
+                          currentScene.avatarId === av.id
+                            ? 'bg-amber-500/20 border-amber-500 text-white'
+                            : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                        }`}
+                      >
+                        <img src={av.previewImageUrl} alt={av.name} className="w-8 h-8 rounded-lg object-cover" />
+                        <span className="text-[11px] font-bold truncate">{av.name.split('-')[0]}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-300 mb-2">קול דיבור (TTS בעברית):</label>
@@ -247,6 +345,8 @@ export const LivingTimelineEditor: React.FC = () => {
                   </label>
                 </div>
               </div>
+            </div>
+
             </div>
 
             {/* Quick Overlay Preview & Config */}

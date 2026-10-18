@@ -14,6 +14,7 @@ export interface VideoSeoPromptParams {
   customText?: string;
   mode?: KosTubeAiMode;
   includeBrand?: boolean;
+  tenantId?: string;
 }
 
 /**
@@ -186,6 +187,9 @@ export async function generateAiSeoContent(
       mode,
       includeBrand,
       brandDna,
+      options: {
+        tenantId: params.tenantId,
+      },
     });
 
     let aiData: any = null;
@@ -604,38 +608,47 @@ export function normalizeKeyTakeaways(
   raw: any,
   brandName: string = 'קושאן',
   includeBrand: boolean = true
-): Array<{ title: string; text: string }> {
+): Array<{ title: string; text: string; icon?: string }> {
+  const defaultIcons = ['Lightbulb', 'Target', 'Compass', 'Sparkles', 'Award', 'CheckCircle2'];
+
   if (!Array.isArray(raw) || raw.length === 0) {
     return [
       {
         title: includeBrand ? `עקרון הליבה של ${brandName}` : 'הבנה מעמיקה ומיקוד',
         text: 'הבנה יסודית של הנושא המרכזי המוצג בסרטון ומשמעותו המעשית לצמיחה אישית ועסקית.',
+        icon: 'Lightbulb',
       },
       {
         title: 'כלים מעשיים לשליטה ויישום',
         text: 'צעדים מדויקים וכלים קונקרטיים ליישום מיידי של העקרונות שנלמדו.',
+        icon: 'Target',
       },
       {
         title: 'דיוק ומיקוד בעבודת הנפש',
         text: 'התמודדות עם חסמים טבעיים תוך השגת תוצאות מוכחות בעקביות.',
+        icon: 'Compass',
       },
       {
         title: includeBrand ? `מעטפת מקצועית וחיבור ל-${brandName}` : 'המשכיות והשגת תוצאות מוכחות',
         text: includeBrand
           ? `שילוב איכות ומעטפת קהילתית מחבקת ומקצועית מבית ${brandName}.`
           : 'עקרונות להמשך צמיחה, ליווי ומעקב אחר תוצאות.',
+        icon: 'Award',
       },
     ];
   }
 
   return raw.map((item: any, idx: number) => {
+    const fallbackIcon = defaultIcons[idx % defaultIcons.length];
+
     if (typeof item === 'object' && item !== null) {
       const rawTitle = (item.title || '').trim();
       const rawText = (item.text || item.description || item.body || '').trim();
+      const rawIcon = (item.icon || '').trim() || fallbackIcon;
       const isGeneric = !rawTitle || rawTitle.startsWith('תובנה מרכזית') || rawTitle.startsWith('תובנה ') || rawTitle.startsWith('נקודה ');
       const finalTitle = isGeneric ? extractCompellingTitle(rawText || rawTitle, idx + 1, brandName) : rawTitle;
       const finalText = rawText || rawTitle || '';
-      return { title: finalTitle, text: finalText };
+      return { title: finalTitle, text: finalText, icon: rawIcon };
     }
 
     if (typeof item === 'string') {
@@ -645,18 +658,20 @@ export function normalizeKeyTakeaways(
         const head = parts[0].trim();
         const tail = parts.slice(1).join(':').trim();
         if (head.length >= 3 && head.length <= 40 && !head.startsWith('תובנה מרכזית') && !head.startsWith('תובנה ')) {
-          return { title: head, text: tail || head };
+          return { title: head, text: tail || head, icon: fallbackIcon };
         }
       }
       return {
         title: extractCompellingTitle(cleanStr, idx + 1, brandName),
         text: cleanStr,
+        icon: fallbackIcon,
       };
     }
 
     return {
       title: extractCompellingTitle(String(item), idx + 1, brandName),
       text: String(item),
+      icon: fallbackIcon,
     };
   });
 }

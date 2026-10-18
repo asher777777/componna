@@ -312,6 +312,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           mode: effMode,
           includeBrand: effIncludeBrand,
           customText,
+          tenantId: tenantId || '_master',
         });
 
         if (!res.success || !res.data) {
@@ -758,6 +759,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           mode: effMode,
           includeBrand: effIncludeBrand,
           customText,
+          tenantId: tenantId || '_master',
         });
 
         if (!res.success || !res.data) {

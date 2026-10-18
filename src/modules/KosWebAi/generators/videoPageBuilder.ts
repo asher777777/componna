@@ -117,7 +117,7 @@ export function buildPageConfigFromVideo(options: CreateVideoPageOptions): PageB
       title,
       text,
       description: text,
-      icon: 'CheckCircle2',
+      icon: point.icon || 'CheckCircle2',
     };
   });
 
