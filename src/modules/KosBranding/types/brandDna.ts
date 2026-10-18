@@ -15,6 +15,9 @@ export type {
   BrandDnaContract,
   BrandEcosystem,
   FlagshipProduct,
+  FlagshipRepeaterItem,
+  FlagshipFaqItem,
+  FlagshipSeoData,
   BusinessPackage,
 } from '../../../core/contracts';
 

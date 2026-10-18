@@ -11,6 +11,7 @@ import {
 } from '../../../core/contracts';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { createContact } from '../services/crmAnalyticsService';
+import { createCrmSubscriptionsContract } from '../services/crmSubscriptionsContractService';
 
 const CORE_CRM_MAPPING_FIELDS: CrmFieldOption[] = [
   { value: 'conta_name', label: 'שם / שם מלא', group: 'שדות מערכת' },
