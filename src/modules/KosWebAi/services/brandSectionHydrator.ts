@@ -214,6 +214,57 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'mainContent': {
+      cloned.title = companyName ? `הצטרפו לתכנית ההכשרה והמומחיות מבית ${companyName}` : cloned.title;
+      cloned.subtitle = slogan || 'הרשמה מוקדמת בתנאים מועדפים';
+      cloned.badge = companyName ? `• ${companyName} ACADEMY •` : '• תכנית הדגל •';
+      
+      const featuresList: string[] = [];
+      if (services.length > 0) {
+        featuresList.push(`מומחיות ופרקטיקה ב-${typeof services[0] === 'string' ? services[0] : (services[0] as any).title}`);
+        if (services.length > 1) {
+          featuresList.push(`כלים יישומיים מתקדמים ב-${typeof services[1] === 'string' ? services[1] : (services[1] as any).title}`);
+        }
+      } else {
+        featuresList.push(`ליווי אישי של מנטור צמוד מבית ${companyName}`);
+        featuresList.push('פרויקטים מעשיים מהעולם האמיתי');
+      }
+      featuresList.push(`תעודת הסמכה וליווי לתוצאות מוכחות מבית ${companyName}`);
+      featuresList.push(`גישה בלעדית לקהילת הבוגרים ומאגרי המידע`);
+      cloned.features = featuresList;
+
+      if (brand.identity?.vibeImages && brand.identity.vibeImages.length > 0) {
+        cloned.imageSrc = brand.identity.vibeImages[0];
+      } else if (brand.identity?.logoUrl) {
+        cloned.imageSrc = brand.identity.logoUrl;
+      }
+
+      cloned.primaryButton = {
+        text: 'שריינו מקום עכשיו',
+        url: buildWhatsAppUrl(whatsapp, `שלום, אני מעוניין להירשם לתכנית של ${companyName}`),
+      };
+      if (primaryColor) {
+        cloned.bottomStripeColor = primaryColor;
+      }
+      break;
+    }
+
+    case 'imageListing': {
+      cloned.title = companyName ? `גלריית ${companyName}` : cloned.title;
+      cloned.subtitle = slogan || 'הצצה לעולם העשיר, ליצירה ולפרויקטים המובילים שלנו';
+      cloned.badge = companyName ? `• ${companyName} SHOWCASE •` : '• גלריית מדיה •';
+      if (brand.identity?.vibeImages && brand.identity.vibeImages.length > 0) {
+        cloned.images = brand.identity.vibeImages.map((url, idx) => ({
+          id: `brand-vibe-${idx + 1}`,
+          imageUrl: url,
+          title: `פרויקט ${idx + 1} • ${companyName}`,
+          subtitle: slogan || 'תיעוד בלעדי מהשטח',
+          tag: 'פרויקט נבחר',
+        }));
+      }
+      break;
+    }
+
     case 'faq': {
       cloned.subtitle = `כל מה שחשוב לדעת על ${companyName}`;
       if (commonObjections.length > 0) {

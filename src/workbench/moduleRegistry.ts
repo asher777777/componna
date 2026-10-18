@@ -34,9 +34,10 @@ const CrmAnalyticsStandaloneView = React.lazy(() =>
 const PageBuilderStandaloneView = React.lazy(() =>
   import('../modules/KosWebAi').then((m) => ({ default: m.PageBuilderStandaloneView }))
 );
-const GoogleAnalyticsConsoleHubView = React.lazy(() =>
-  import('../modules/KosWebAi').then((m) => ({ default: m.GoogleAnalyticsConsoleHub }))
+const KoSeoPowerEnginStandaloneView = React.lazy(() =>
+  import('../modules/KoSeoPowerEngin').then((m) => ({ default: m.KoSeoPowerEnginStandaloneView }))
 );
+const GoogleAnalyticsConsoleHubView = KoSeoPowerEnginStandaloneView;
 const AuthPortalStandaloneView = React.lazy(() =>
   import('../modules/auth-portal').then((m) => ({ default: m.AuthPortalStandaloneView }))
 );
@@ -366,6 +367,14 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: AmbassadorCampaignsStandaloneView,
     route: '/ambassador-campaigns',
     collectionPrefix: 'mod_campaigns_',
+  },
+  {
+    id: 'KoSeoPowerEngin',
+    name: 'KoSeoPowerEngin - מנוע SEO, גוגל קונסול ואנליטיקס לדומיין וסאב-דומיינים',
+    description: 'מפתח אב אחוד לכל הדומיין והסאב-דומיינים, מעקב ביצועי חיפוש אורגני (GSC), גוגל אנליטיקס 4 (GA4), אימות DNS ודפדפן בזמן אמת.',
+    component: KoSeoPowerEnginStandaloneView,
+    route: '/KoSeoPowerEngin',
+    collectionPrefix: 'sys_koseo_',
   },
   {
     id: 'google-analytics-console-hub',

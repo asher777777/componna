@@ -206,18 +206,55 @@ export interface GeoLocalSectionConfig extends BaseSectionConfig {
   directionsUrl?: string;
 }
 
+export type CourseBannerLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical';
+
 export interface CourseBannerSectionConfig extends BaseSectionConfig {
   type: 'mainContent';
   title: string;
   subtitle?: string;
+  badge?: string;
+  titleColor?: string;
+  subtitleColor?: string;
+  badgeColor?: string;
+  cardBackgroundColor?: string;
   imageSrc?: string;
+  imageAlt?: string;
+  imagePosition?: 'left' | 'right' | 'top' | 'background' | 'auto';
   features?: string[];
+  featureIcon?: string;
   buttonsVisible?: boolean;
   primaryButton?: {
     text: string;
     url: string;
+    color?: string;
+  };
+  secondaryButton?: {
+    text: string;
+    url: string;
+    color?: string;
   };
   bottomStripeColor?: string;
+
+  // Layout & Styling Controls
+  layout?: CourseBannerLayoutPreset;
+  objectScale?: 'compact' | 'normal' | 'large' | 'massive' | 'auto';
+  buttonShape?: 'round' | 'square' | 'sharp' | 'pill' | 'auto';
+  buttonSize?: 'compact' | 'normal' | 'large' | 'auto';
+
+  // Text Background Overlay & 5 Hover Effects
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: 'zoom-glow' | 'shimmer-sweep' | 'float-parallax' | 'blur-reveal' | 'gradient-shift';
+  textBgScope?: 'card' | 'section';
 }
 
 export interface CampaignHeaderSectionConfig extends BaseSectionConfig {
@@ -273,10 +310,38 @@ export interface CampaignDonorsSectionConfig extends BaseSectionConfig {
   donors?: CampaignDonorItem[];
 }
 
+export type VideoGalleryLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'spotlight'
+  | 'grid';
+
+export interface VideoGalleryItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  youtubeVideoId?: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  duration?: string;
+  viewsCount?: number;
+  publishedAt?: string;
+  category?: string;
+  tags?: string[];
+}
+
 export interface VideoGallerySectionConfig extends BaseSectionConfig {
   type: 'videoGallery';
   title?: string;
   subtitle?: string;
+  titleColor?: string;
+  subtitleColor?: string;
   videoUrl?: string;
   videoType?: 'youtube' | 'vimeo' | 'mp4';
   images?: string[];
@@ -285,6 +350,30 @@ export interface VideoGallerySectionConfig extends BaseSectionConfig {
   objectFit?: 'cover' | 'contain';
   titleEffect?: 'fade' | 'slide-up';
   textPosition?: 'center' | 'bottom-right' | 'top-right';
+
+  // Tenant YouTube integration & items
+  source?: 'tenant_youtube' | 'custom';
+  items?: VideoGalleryItem[];
+  maxVideos?: number;
+  selectedVideoId?: string;
+  showThumbnails?: boolean;
+  ctaButtonText?: string;
+  ctaButtonUrl?: string;
+
+  // Layout & visual controls matching Hero, RichContent, FAQ & Contact
+  layout?: VideoGalleryLayoutPreset;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  cardBackgroundColor?: string;
+
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 }
 
 export interface ImageListingItem {
@@ -292,17 +381,69 @@ export interface ImageListingItem {
   imageUrl: string;
   title?: string;
   subtitle?: string;
+  tag?: string;
+  description?: string;
   linkUrl?: string;
+  aspectRatio?: string;
 }
+
+export type ImageListingLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'grid'
+  | 'carousel'
+  | 'masonry';
 
 export interface ImageListingSectionConfig extends BaseSectionConfig {
   type: 'imageListing';
   title?: string;
+  subtitle?: string;
+  badge?: string;
   titleColor?: string;
+  subtitleColor?: string;
+  badgeColor?: string;
+  cardBackgroundColor?: string;
   imagesPerRow?: number;
   imagesPerRowMobile?: number;
   images?: ImageListingItem[];
   form?: boolean;
+
+  // Layout & Styling Presets
+  layout?: ImageListingLayoutPreset;
+  displayMode?: 'grid' | 'carousel' | 'marquee' | 'masonry';
+  objectScale?: 'compact' | 'normal' | 'large' | 'massive' | 'auto';
+  buttonShape?: 'round' | 'square' | 'sharp' | 'pill' | 'auto';
+  buttonSize?: 'compact' | 'normal' | 'large' | 'auto';
+  cardAspectRatio?: 'square' | 'video' | 'portrait' | 'wide' | 'auto';
+  showLightbox?: boolean;
+
+  // Moving display / Carousel controls
+  carouselAutoplay?: boolean;
+  autoplayInterval?: number;
+  showCarouselArrows?: boolean;
+  showCarouselDots?: boolean;
+
+  // Rotating & Dynamic Backgrounds
+  backgroundMode?: 'static' | 'dynamic-gradient' | 'image-sync' | 'rotating-images';
+  backgroundRotateInterval?: number;
+
+  // Text Background Overlay & Effects
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: 'zoom-glow' | 'shimmer-sweep' | 'float-parallax' | 'blur-reveal' | 'gradient-shift';
+  textBgScope?: 'header' | 'section';
+
+  // Action / CTA button
+  showCtaButton?: boolean;
+  ctaText?: string;
+  ctaUrl?: string;
 }
 
 export interface FaqItem {
@@ -312,6 +453,17 @@ export interface FaqItem {
   category?: string;
   icon?: string;
 }
+
+export type FaqLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'two-columns'
+  | 'compact-cards';
 
 export interface FaqSectionConfig extends BaseSectionConfig {
   type: 'faq';
@@ -323,6 +475,18 @@ export interface FaqSectionConfig extends BaseSectionConfig {
   showContactCard?: boolean;
   whatsappContact?: string;
   items: FaqItem[];
+  layout?: FaqLayoutPreset;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  cardBackgroundColor?: string;
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 }
 
 export interface TimerSectionConfig extends BaseSectionConfig {
@@ -485,10 +649,23 @@ export interface LandingSectionConfig extends BaseSectionConfig {
   fields?: LandingFormField[];
 }
 
+export type ContactLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'split-cards'
+  | 'minimal';
+
 export interface ContactSectionConfig extends BaseSectionConfig {
   type: 'contact';
   title: string;
   subtitle?: string;
+  titleColor?: string;
+  subtitleColor?: string;
   phone?: string;
   email?: string;
   address?: string;
@@ -500,6 +677,18 @@ export interface ContactSectionConfig extends BaseSectionConfig {
   directWhatsappChat?: boolean;
   formId?: string;
   form?: FormConfigContract;
+  layout?: ContactLayoutPreset;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  cardBackgroundColor?: string;
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 }
 
 

@@ -326,12 +326,12 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
               <button
                 type="button"
                 onClick={onOpenAnalyticsHub}
-                className="px-3 py-2 rounded-2xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-bold"
-                title="מרכז Google Analytics 4 ו-Search Console לדומיין"
-                aria-label="מרכז Google Analytics 4 ו-Search Console לדומיין"
+                className="px-3 py-2 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/40 dark:to-indigo-950/40 hover:from-blue-100 hover:to-indigo-100 dark:hover:from-blue-900/50 dark:hover:to-indigo-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                title="KoSeoPowerEngin - מנוע SEO, גוגל קונסול ואנליטיקס לדומיין וסאב-דומיינים"
+                aria-label="KoSeoPowerEngin - מנוע SEO, גוגל קונסול ואנליטיקס לדומיין וסאב-דומיינים"
               >
                 <BarChart3 className="w-4 h-4 text-amber-500" />
-                <span className="hidden sm:inline">אנליטיקס וקונסול לדומיין</span>
+                <span className="hidden sm:inline">KoSeoPowerEngin</span>
               </button>
             )}
 

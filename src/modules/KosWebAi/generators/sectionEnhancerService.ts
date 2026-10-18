@@ -137,7 +137,7 @@ export const sectionEnhancerService = {
     // 3. LAYOUT & BENTO SUGGESTIONS
     const layoutSuggestions: SectionAiSuggestion[] = [];
 
-    if (sectionType === 'hero' || sectionType === 'richContent') {
+    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'mainContent') {
       layoutSuggestions.push(
         {
           id: `${sectionType}-layout-feminine`,
@@ -613,6 +613,34 @@ Return ONLY the raw updated JSON object.`;
         url: '#contact',
       };
       changes.push(`סונכרנו כותרות ותוכן האזור עם מיתוג ${company}`);
+    } else if (sectionType === 'faq') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת שאלות ותשובות נשית (אלגנטית ורכה)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת שאלות ותשובות גברית (חזקה ודומיננטית)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת שאלות ותשובות רוחנית (הרמונית ומרגיעה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת שאלות ותשובות חדה (הייטק ומינימליזם)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת שאלות ותשובות אנליטית (מבוססת סדר ודיוק)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת שאלות ותשובות עכשווית');
+      }
+
+      updated.title = `שאלות ותשובות נפוצות על ${company}`;
+      updated.subtitle = `כל מה שחשוב לדעת על הפתרונות והשירותים המובילים של ${company}`;
+      if (whatsapp || phone) {
+        updated.showContactCTA = true;
+        updated.contactPhone = whatsapp || phone;
+      }
+      changes.push(`סונכרנו כותרות השאלות והתשובות ופרטי הוואטסאפ של ${company}`);
     } else if (sectionType === 'pricing') {
       updated.title = `מסלולי הצטרפות מותאמים עבורכם`;
       updated.subtitle = `שקיפות מלאה ללא אותיות קטנות – בחרו את החבילה המתאימה`;
@@ -625,11 +653,93 @@ Return ONLY the raw updated JSON object.`;
         changes.push('החבילה המרכזית סומנה כחבילת VIP מומלצת');
       }
     } else if (sectionType === 'contact') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת צור קשר נשית (אלגנטית ורכה)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת צור קשר גברית (חזקה ודומיננטית)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת צור קשר רוחנית (הרמונית ומרגיעה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת צור קשר חדה (ברוטליסטית וחדה)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת צור קשר אנליטית (מבוססת טלמטריה ונתונים)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת צור קשר עכשווית');
+      }
+
       updated.title = `בואו נדבר – הצוות של ${company} כאן לרשותכם`;
       updated.subtitle = `מענה אנושי מהיר וליווי צמוד לכל שאלה`;
-      updated.phone = phone;
-      updated.whatsapp = whatsapp;
+      updated.phone = phone || updated.phone;
+      updated.whatsapp = whatsapp || updated.whatsapp;
       updated.directWhatsappChat = true;
+      changes.push(`סונכרנו פרטי ההתקשרות והוואטסאפ של ${company}`);
+    } else if (sectionType === 'imageListing') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת גלריה נשית (רכה ורוז-גולד עם קשתות)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת גלריה גברית (פחם, זהב פליז ומסגרת פלדה)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת גלריה רוחנית (מרווה, מנטה ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת גלריה חדה (הייטק, ציאן ניאון ו-90 מעלות)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת גלריה אנליטית (אינדקס נתונים #01 וסדר קטלוגי)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת גלריה עכשווית');
+      }
+
+      if (prompt.includes('זזה') || prompt.includes('קרוסלה') || prompt.includes('carousel')) {
+        updated.displayMode = 'carousel';
+        updated.carouselAutoplay = true;
+        changes.push('הופעלה תצוגה זזה (Carousel אוטומטי עם חיצים וגלילה)');
+      }
+
+      if (prompt.includes('מתחלף') || prompt.includes('רקע')) {
+        updated.backgroundMode = 'image-sync';
+        changes.push('הופעל רקע דינמי מתחלף התואם לתמונה האקטיבית');
+      }
+
+      updated.title = `גלריית ${company}`;
+      updated.subtitle = slogan || 'הצצה לעולם העשיר, ליצירה ולפרויקטים המובילים שלנו';
+      updated.badge = `• ${company} SHOWCASE •`;
+      changes.push(`סונכרנו כותרות הגלריה והמיתוג של ${company}`);
+    } else if (sectionType === 'videoGallery') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת גלריית וידאו נשית (רכה ורוז-גולד עם קשתות)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת גלריית וידאו גברית (פחם, זהב פליז ומסגרת פלדה)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת גלריית וידאו רוחנית (מרווה, מנטה ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת גלריית וידאו חדה (הייטק, ציאן ניאון ו-90 מעלות)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת גלריית וידאו אנליטית (אינדקס נתונים #01 וסדר קטלוגי)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת גלריית וידאו עכשווית');
+      }
+
+      updated.title = `ספריית הוידאו והתוכן של ${company}`;
+      updated.subtitle = slogan || 'סרטונים, הדרכות ותוכן בלעדי';
+      updated.source = 'tenant_youtube';
+      changes.push(`סונכרנו כותרות גלריית הוידאו וחיבור ברירת מחדל לנתוני YouTube של ${company}`);
     } else if (sectionType === 'tiktokHero') {
       updated.headline = prompt.includes('הוק') || prompt.includes('קצר') ? `${slogan || 'ההזדמנות שלך מתחילה כאן'}` : `${company} – כל אדם זה נכס`;
       updated.card = {

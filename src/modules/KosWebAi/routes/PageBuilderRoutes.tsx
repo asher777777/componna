@@ -176,6 +176,8 @@ export const PageBuilderRoutes: React.FC = () => {
         <Route path="/" element={<DashboardRouteWrapper />} />
         <Route path="/analytics" element={<AnalyticsRouteWrapper />} />
         <Route path="/google-analytics" element={<AnalyticsRouteWrapper />} />
+        <Route path="/koseo-power-engin" element={<AnalyticsRouteWrapper />} />
+        <Route path="/koseo" element={<AnalyticsRouteWrapper />} />
         <Route path="/edit/:pageId" element={<PageEditorRouteWrapper />} />
         <Route path="/preview/:pageId" element={<PagePreviewRouteWrapper />} />
       </Routes>

@@ -669,6 +669,31 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
                 document.head.appendChild(gaInit);
               }
 
+              // Inject Google Tag Manager (GTM) - Page override or Domain-wide Master Key
+              const gtmId = (
+                pageWithHeader.globalSettings?.googleTagManagerId?.trim() ||
+                domainGoogleConfig.googleTagManagerId ||
+                'GTM-WDDMHZJQ'
+              ).trim();
+              if (gtmId && !document.getElementById('gtm-tracking-script')) {
+                const gtmScript = document.createElement('script');
+                gtmScript.id = 'gtm-tracking-script';
+                gtmScript.innerHTML = `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','${gtmId}');`;
+                document.head.appendChild(gtmScript);
+              }
+
+              // Inject Google Tag Manager (noscript) to body if not already present
+              if (gtmId && !document.getElementById('gtm-noscript-tag')) {
+                const noscriptEl = document.createElement('noscript');
+                noscriptEl.id = 'gtm-noscript-tag';
+                noscriptEl.innerHTML = `<iframe src="https://www.googletagmanager.com/ns.html?id=${gtmId}" height="0" width="0" style="display:none;visibility:hidden"></iframe>`;
+                document.body.insertBefore(noscriptEl, document.body.firstChild);
+              }
+
               // Inject Google Search Console verification meta tag - Page override or Domain-wide Master Key
               const gscToken = (
                 pageWithHeader.globalSettings?.googleSearchConsoleVerification?.trim() ||
@@ -866,6 +891,16 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
 
   return (
     <div className="w-full min-h-screen bg-slate-50 dark:bg-[#0a0a0c] text-slate-900 dark:text-white transition-colors duration-300">
+      {/* Google Tag Manager (noscript) */}
+      <noscript>
+        <iframe
+          src="https://www.googletagmanager.com/ns.html?id=GTM-WDDMHZJQ"
+          height="0"
+          width="0"
+          style={{ display: 'none', visibility: 'hidden' }}
+        />
+      </noscript>
+
       {/* If in preview mode of an unpublished draft, show top subtle banner */}
       {!page.published && isPreviewMode && (
         <div className="fixed top-0 left-0 right-0 z-50 bg-amber-500/90 backdrop-blur text-slate-950 px-4 py-2 text-xs font-bold text-center flex items-center justify-center gap-2 shadow-lg">

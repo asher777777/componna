@@ -58,6 +58,7 @@ export interface GlobalPageSettings {
   isHeaderVisible?: boolean;
   isFooterVisible?: boolean;
   googleAnalyticsId?: string; // GA4 Measurement ID e.g. G-XXXXXXXXXX
+  googleTagManagerId?: string; // GTM Container ID e.g. GTM-WDDMHZJQ
   googleSearchConsoleVerification?: string; // Google Search Console verification code / meta tag
   googleSearchConsolePropertyUrl?: string; // Property URL or sc-domain in Google Search Console
   googleSearchConsoleConnected?: boolean;

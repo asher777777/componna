@@ -555,6 +555,7 @@ export const pageAnalyticsService = {
           if (parsed.googleAnalyticsId || parsed.googleSearchConsoleVerification) {
             return {
               googleAnalyticsId: parsed.googleAnalyticsId || '',
+              googleTagManagerId: parsed.googleTagManagerId || 'GTM-WDDMHZJQ',
               googleSearchConsoleVerification: parsed.googleSearchConsoleVerification || '',
               googleSearchConsolePropertyUrl: parsed.googleSearchConsolePropertyUrl || '',
               applyToAllSubdomains: parsed.applyToAllSubdomains !== false,
@@ -569,6 +570,7 @@ export const pageAnalyticsService = {
 
     return {
       googleAnalyticsId: '',
+      googleTagManagerId: 'GTM-WDDMHZJQ',
       googleSearchConsoleVerification: '',
       googleSearchConsolePropertyUrl: typeof window !== 'undefined' ? window.location.origin : 'https://kosun.pro',
       applyToAllSubdomains: true,
@@ -591,6 +593,7 @@ export const pageAnalyticsService = {
     const cleanConfig: DomainGoogleIntegrationsConfig = {
       ...config,
       googleAnalyticsId: (config.googleAnalyticsId || '').trim(),
+      googleTagManagerId: (config.googleTagManagerId || 'GTM-WDDMHZJQ').trim(),
       googleSearchConsoleVerification: extractGscVerificationToken(config.googleSearchConsoleVerification),
       googleSearchConsolePropertyUrl: (config.googleSearchConsolePropertyUrl || '').trim(),
       applyToAllSubdomains: config.applyToAllSubdomains !== false,
@@ -635,6 +638,7 @@ export const pageAnalyticsService = {
 
 export interface DomainGoogleIntegrationsConfig {
   googleAnalyticsId: string;
+  googleTagManagerId?: string;
   googleSearchConsoleVerification: string;
   googleSearchConsolePropertyUrl: string;
   applyToAllSubdomains: boolean;
