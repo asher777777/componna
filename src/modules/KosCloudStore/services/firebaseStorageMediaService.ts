@@ -4,6 +4,7 @@ import { getFirestore, collection, getDocs, doc, setDoc, deleteDoc } from 'fireb
 import { MediaItem, MediaType } from '../types';
 import { MediaIndexedDbService } from './mediaIndexedDbService';
 import { FileCompressionService } from './fileCompressionService';
+import { getTenantPublicMediaUrl } from '../utils/mediaUrlSanitizer';
 
 export class FirebaseStorageMediaService {
   public static getStorageInstance(app: FirebaseApp) {
@@ -168,7 +169,12 @@ export class FirebaseStorageMediaService {
             clearTimeout(safetyTimeout);
             try {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              finish(downloadUrl);
+              const customTenantUrl = getTenantPublicMediaUrl({
+                ...localMediaItem,
+                storagePath,
+                tenantId,
+              });
+              finish(customTenantUrl || downloadUrl);
             } catch {
               finish(workingLocalUrl);
             }

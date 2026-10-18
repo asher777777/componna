@@ -48,6 +48,42 @@ export function sanitizeVaultPath(path: string, tenantId?: string): string {
 }
 
 /**
+ * Returns the customized public URL for media under https://kosun.pro or the tenant's custom subdomain.
+ * E.g. https://kosun.pro/media/sdo_media_vault/123_file.jpg or https://mlea.kosun.pro/media/123_file.jpg
+ */
+export function getTenantPublicMediaUrl(item?: Partial<MediaItem>, preferredHost?: string): string {
+  if (!item) return '';
+
+  const tenantId = item.tenantId && item.tenantId !== '_master' ? item.tenantId : '';
+  const currentHost = preferredHost || (typeof window !== 'undefined' ? window.location.host : 'kosun.pro');
+  
+  // Decide domain origin
+  let domain = 'https://kosun.pro';
+  if (currentHost.includes('localhost') || currentHost.includes('127.0.0.1')) {
+    domain = `http://${currentHost}`;
+  } else if (tenantId && !currentHost.startsWith(`${tenantId}.`)) {
+    domain = `https://${tenantId}.kosun.pro`;
+  } else if (!currentHost.includes('localhost')) {
+    domain = `https://${currentHost}`;
+  }
+
+  let mediaPath = '';
+  if (item.storagePath) {
+    mediaPath = sanitizeVaultPath(item.storagePath, item.tenantId);
+  } else if (item.name) {
+    const safeName = item.name.replace(/[\\/:*?"<>|]/g, '_').trim();
+    const timeStamp = item.createdAt;
+    const folderPrefix = tenantId ? `tenants/${tenantId}/media` : 'sdo_media_vault';
+    mediaPath = timeStamp && !safeName.startsWith(`${timeStamp}_`)
+      ? `${folderPrefix}/${timeStamp}_${safeName}`
+      : `${folderPrefix}/${safeName}`;
+  }
+
+  if (!mediaPath) return '';
+  return `${domain}/media/${encodeURIComponent(mediaPath)}`;
+}
+
+/**
  * Computes the permanent Firebase Storage direct URL for a media item.
  */
 export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string = SYSTEM_MAIN_STORAGE_BUCKET): string {
@@ -95,7 +131,15 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     }
   }
 
-  // 2. Canonical permanent system storage URL
+  // 2. Custom Domain Media Proxy (https://kosun.pro/media/... or https://[tenant].kosun.pro/media/...)
+  if (item) {
+    const customPublicUrl = getTenantPublicMediaUrl(item);
+    if (customPublicUrl) {
+      add(customPublicUrl);
+    }
+  }
+
+  // 3. Canonical permanent system storage URL
   if (item) {
     const isLegacy = (item.url && item.url.includes(LEGACY_VAULT_BUCKET)) || (item.storagePath && item.storagePath.includes(LEGACY_VAULT_BUCKET));
     if (isLegacy) {

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.kesherProxy = exports.whatsappWebhook = void 0;
+exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.kesherProxy = exports.whatsappWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
@@ -1141,4 +1141,93 @@ exports.tiktokWebhook = functions.https.onRequest((req, res) => {
         }
     });
 });
+/**
+ * Media Proxy Cloud Function (Tenant-Aware CDN Proxy for kosun.pro/media/*)
+ * Serves media files directly under https://kosun.pro/media/... or https://[tenant].kosun.pro/media/...
+ * Automatically resolves tenant isolation and caches assets with aggressive HTTP Cache-Control.
+ */
+exports.mediaProxy = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        if (req.method !== 'GET' && req.method !== 'HEAD') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
+        try {
+            // 1. Determine tenant from Host header or query param
+            const host = req.hostname || (req.headers.host || '').split(':')[0].toLowerCase();
+            let tenantId = req.query.tenant || '';
+            if (!tenantId && host.endsWith('.kosun.pro')) {
+                const sub = host.replace('.kosun.pro', '').trim();
+                if (sub && sub !== 'www' && sub !== 'admin' && sub !== 'app') {
+                    tenantId = sub;
+                }
+            }
+            // 2. Extract requested path
+            let rawPath = req.path || '';
+            rawPath = rawPath.replace(/^\/api\/media-proxy\/?/, '').replace(/^\/media\/?/, '');
+            rawPath = decodeURIComponent(rawPath).trim();
+            if (!rawPath) {
+                res.status(400).send('Missing media file path');
+                return;
+            }
+            // 3. Resolve bucket storage path
+            let storagePath = rawPath;
+            if (tenantId && tenantId !== '_master') {
+                if (!storagePath.startsWith(`tenants/${tenantId}/`)) {
+                    storagePath = `tenants/${tenantId}/media/${storagePath.replace(/^sdo_media_vault\//, '')}`;
+                }
+            }
+            else {
+                if (!storagePath.startsWith('sdo_media_vault/') && !storagePath.startsWith('tenants/')) {
+                    storagePath = `sdo_media_vault/${storagePath}`;
+                }
+            }
+            const bucket = admin.storage().bucket('glowmanage.firebasestorage.app');
+            const file = bucket.file(storagePath);
+            const [exists] = await file.exists();
+            if (!exists) {
+                // Fallback: check legacy vault path
+                const legacyFile = bucket.file(`sdo_media_vault/${rawPath.replace(/^.*[\\/]/, '')}`);
+                const [legacyExists] = await legacyFile.exists();
+                if (legacyExists) {
+                    serveStorageFile(legacyFile, req, res);
+                    return;
+                }
+                res.status(404).send('Media not found');
+                return;
+            }
+            serveStorageFile(file, req, res);
+        }
+        catch (err) {
+            console.error('[mediaProxy] Error serving media:', err);
+            res.status(500).send('Internal Media Proxy Error');
+        }
+    });
+});
+async function serveStorageFile(file, req, res) {
+    try {
+        const [metadata] = await file.getMetadata();
+        const contentType = metadata.contentType || 'application/octet-stream';
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('X-Kosun-Tenant-Media', 'true');
+        if (req.method === 'HEAD') {
+            res.status(200).end();
+            return;
+        }
+        const readStream = file.createReadStream();
+        readStream.on('error', (streamErr) => {
+            console.error('[mediaProxy] Stream error:', streamErr);
+            if (!res.headersSent) {
+                res.status(500).send('Stream error');
+            }
+        });
+        readStream.pipe(res);
+    }
+    catch (metaErr) {
+        console.error('[mediaProxy] Metadata fetch error:', metaErr);
+        res.status(500).send('Could not fetch media');
+    }
+}
 //# sourceMappingURL=index.js.map
