@@ -204,16 +204,32 @@ export function resolveCurrentTenantId(): string {
     try {
       const searchParams = new URLSearchParams(window.location.search);
       const queryTenant = searchParams.get('tenant');
-      if (queryTenant && queryTenant.trim() && !RESERVED_TENANT_SUBDOMAINS.includes(queryTenant.trim().toLowerCase())) {
-        const sub = queryTenant.trim().toLowerCase();
-        try {
-          sessionStorage.setItem('kosun_active_tenant_id', sub);
-          localStorage.setItem('kosun_active_tenant_id', sub);
-        } catch {}
-        return sub;
+      if (queryTenant !== null) {
+        const cleanQuery = queryTenant.trim().toLowerCase();
+        if (cleanQuery && cleanQuery !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(cleanQuery)) {
+          try {
+            sessionStorage.setItem('kosun_active_tenant_id', cleanQuery);
+            localStorage.setItem('kosun_active_tenant_id', cleanQuery);
+          } catch {}
+          return cleanQuery;
+        } else if (cleanQuery === ROOT_TENANT_ID || cleanQuery === '') {
+          try {
+            sessionStorage.removeItem('kosun_active_tenant_id');
+            localStorage.removeItem('kosun_active_tenant_id');
+          } catch {}
+          return ROOT_TENANT_ID;
+        }
       }
 
-      // If no explicit tenant query param on localhost, it is strictly ROOT_TENANT_ID (_master)
+      // Check stored active tenant on localhost across inner route navigations
+      try {
+        const stored = sessionStorage.getItem('kosun_active_tenant_id') || localStorage.getItem('kosun_active_tenant_id');
+        if (stored && stored.trim() && stored !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(stored.trim().toLowerCase())) {
+          return stored.trim().toLowerCase();
+        }
+      } catch {}
+
+      // If no explicit tenant on localhost, default to ROOT_TENANT_ID (_master)
       return ROOT_TENANT_ID;
     } catch {}
   }

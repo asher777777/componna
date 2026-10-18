@@ -275,6 +275,17 @@ export class TenantProvisionerService {
       map.set('demo', demo);
     }
 
+    // Enrich all tenants with their token usage from Firestore / cache
+    const tokenUsagePromises = Array.from(map.entries()).map(async ([sub, tenant]) => {
+      try {
+        const usage = await TenantTokenTracker.getTenantTokenUsage(db, sub);
+        tenant.tokenUsage = usage;
+      } catch (err) {
+        console.warn(`[TenantProvisionerService] Error loading token usage for ${sub}:`, err);
+      }
+    });
+    await Promise.all(tokenUsagePromises);
+
     const result = Array.from(map.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );

@@ -18,25 +18,38 @@ export function BUILD_BRAND_SUMMARY_PARAGRAPH_PROMPT(brand: BrandDna): string {
 
   // שאיבת כל האקוסיסטם המלא של הטננט (שירותים, מוצרי דגל, קהילות, אמון)
   const services = (brand.ecosystem?.services || [])
-    .map(s => `${s.nameAndSlogan}: ${s.shortDescription || ''} (מענה: ${s.painPointSolved || ''}, בידול: ${s.competitiveAdvantage || ''})`)
+    .map((s: any) =>
+      typeof s === 'string'
+        ? s
+        : `${s?.nameAndSlogan || ''}: ${s?.shortDescription || ''} (מענה: ${s?.painPointSolved || ''}, בידול: ${s?.competitiveAdvantage || ''})`
+    )
+    .filter(Boolean)
     .join(' | ');
 
   const products = (brand.ecosystem?.products || [])
-    .map(p => `${p.name}: ${p.shortDescription || ''} (מחיר: ${p.price || ''})`)
+    .map((p: any) =>
+      typeof p === 'string'
+        ? p
+        : `${p?.name || ''}: ${p?.shortDescription || ''} (מחיר: ${p?.price || ''})`
+    )
+    .filter(Boolean)
     .join(' | ');
 
   const communities = (brand.ecosystem?.communities || [])
-    .map(c => `${c.name}: ${c.description || ''}`)
+    .map((c: any) => (typeof c === 'string' ? c : c?.name || ''))
+    .filter(Boolean)
     .join(' | ');
 
   const events = (brand.ecosystem?.annualEvents || [])
-    .map(e => `${e.name}: ${e.description || ''}`)
+    .map((e: any) => (typeof e === 'string' ? e : e?.name || ''))
+    .filter(Boolean)
     .join(' | ');
 
   const trust = [
-    brand.trust?.guaranteePolicy ? `אחריות: ${brand.trust.guaranteePolicy}` : '',
-    brand.trust?.supportHours ? `שירות: ${brand.trust.supportHours}` : '',
+    brand.trust?.refundPolicySummary ? `מדיניות החזר: ${brand.trust.refundPolicySummary}` : '',
+    brand.trust?.securityBadgeText ? `אבטחה: ${brand.trust.securityBadgeText}` : '',
     brand.trust?.officeAddress ? `כתובת: ${brand.trust.officeAddress}` : '',
+    brand.trust?.contactPhone ? `טלפון: ${brand.trust.contactPhone}` : '',
   ].filter(Boolean).join('; ');
 
   return `חבר פסקת תמצית מותג (Brand Essence) דחוסה, עמוקה ומנוסחת ברמת קופירייטינג עילית.

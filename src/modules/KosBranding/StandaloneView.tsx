@@ -294,10 +294,41 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setIsWizardOpen(true)}
-                className="text-[11px] underline font-bold hover:text-amber-900 dark:hover:text-amber-200 shrink-0"
+                onClick={() => {
+                  const missingText = missingRecommendations.join(' ');
+                  setViewMode('tabs');
+                  if (
+                    missingText.includes('פרסונ') ||
+                    missingText.includes('התנגדות') ||
+                    missingText.includes('UVP') ||
+                    missingText.includes('ערך ייחודי') ||
+                    missingText.includes('קהל')
+                  ) {
+                    setActiveTab('audience');
+                  } else if (
+                    missingText.includes('קול') ||
+                    missingText.includes('מילות כוח') ||
+                    missingText.includes('אסורות') ||
+                    missingText.includes('פנייה')
+                  ) {
+                    setActiveTab('voice');
+                  } else if (missingText.includes('שירות') || missingText.includes('מוצר')) {
+                    setActiveTab('ecosystem');
+                  } else if (
+                    missingText.includes('אמינות') ||
+                    missingText.includes('סליקה') ||
+                    missingText.includes('אחריות') ||
+                    missingText.includes('ח.פ') ||
+                    missingText.includes('טלפון')
+                  ) {
+                    setActiveTab('trust');
+                  } else {
+                    setActiveTab('identity');
+                  }
+                }}
+                className="text-[11px] underline font-bold hover:text-amber-900 dark:hover:text-amber-200 shrink-0 cursor-pointer"
               >
-                השלם באמצעות ראיון AI
+                עבור להשלמה בטאב הרלוונטי ←
               </button>
             </div>
           )}

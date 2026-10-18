@@ -74,6 +74,24 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
     refreshTenants();
   }, [refreshTenants]);
 
+  // Real-time listener for tenant AI token usage broadcasts
+  useEffect(() => {
+    const handleTokensUpdated = (e: any) => {
+      const { tenantId, usage } = e.detail || {};
+      if (!tenantId || !usage) return;
+      const cleanId = tenantId.toLowerCase().trim();
+      setTenants((prev) =>
+        prev.map((t) => (t.subdomain.toLowerCase() === cleanId ? { ...t, tokenUsage: usage } : t))
+      );
+      if (cleanId === '_master') {
+        setMasterTenant((prev) => (prev ? { ...prev, tokenUsage: usage } : null));
+      }
+    };
+
+    window.addEventListener('kosun_tenant_tokens_updated', handleTokensUpdated);
+    return () => window.removeEventListener('kosun_tenant_tokens_updated', handleTokensUpdated);
+  }, []);
+
   const createTenant = useCallback(
     async (form: TenantProvisionFormState): Promise<TenantAccount> => {
       const created = await TenantProvisionerService.createTenant(db, form);

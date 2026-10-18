@@ -14,6 +14,7 @@ import {
   dispatchPersonaToKosai,
   dispatchObjectionToKosai,
   dispatchMarketResearchToKosai,
+  dispatchAudienceAndPersonasFromEssenceToKosai,
 } from '../kosai/promptToKosai';
 import { buildBrandSystemContext } from '../prompts';
 
@@ -1209,3 +1210,97 @@ export function generateSmartFallbackSuggestions(
       };
   }
 }
+
+/**
+ * מייצר וממלא קהלי יעד, הצעת ערך (UVP), פרסונות לקוח והתנגדויות מתוך פסקת תמצית המותג (Brand Essence)
+ */
+export async function generateAudienceAndPersonasFromBrandEssence(
+  brand: BrandDna,
+  apiKey?: string
+): Promise<{
+  success: boolean;
+  mainUvp: string;
+  targetAudiences: string[];
+  personas: Array<{ id: string; name: string; roleOrProfile: string; mainPain: string; dreamOutcome: string }>;
+  commonObjections: Array<{ id: string; objection: string; rebuttal: string }>;
+  error?: string;
+}> {
+  const activeKey = resolveGeminiApiKey(apiKey);
+  try {
+    const res = await dispatchAudienceAndPersonasFromEssenceToKosai(brand, { apiKey: activeKey });
+    if (res && typeof res === 'object') {
+      const mainUvp = String(res.mainUvp || brand.audience?.mainUvp || '').trim();
+      const targetAudiences = Array.isArray(res.targetAudiences) && res.targetAudiences.length > 0
+        ? res.targetAudiences.map((t: any) => String(t).trim()).filter(Boolean)
+        : brand.audience?.targetAudiences || [];
+
+      const personas = Array.isArray(res.personas) && res.personas.length > 0
+        ? res.personas.map((p: any, idx: number) => ({
+            id: `p_${Date.now()}_${idx}`,
+            name: String(p.name || `פרסונה ${idx + 1}`).trim(),
+            roleOrProfile: String(p.roleOrProfile || p.role || 'קהל יעד מוביל').trim(),
+            mainPain: String(p.mainPain || p.pain || '').trim(),
+            dreamOutcome: String(p.dreamOutcome || p.dream || '').trim(),
+          }))
+        : [];
+
+      const commonObjections = Array.isArray(res.commonObjections) && res.commonObjections.length > 0
+        ? res.commonObjections.map((o: any, idx: number) => ({
+            id: `o_${Date.now()}_${idx}`,
+            objection: String(o.objection || '').trim(),
+            rebuttal: String(o.rebuttal || '').trim(),
+          }))
+        : [];
+
+      return {
+        success: true,
+        mainUvp,
+        targetAudiences,
+        personas,
+        commonObjections,
+      };
+    }
+  } catch (err: any) {
+    console.warn('[brandCopilotService] generateAudienceAndPersonasFromBrandEssence live error:', err);
+  }
+
+  // Heuristic Fallback
+  const company = brand.identity?.companyName || 'המותג';
+  const purpose = brand.identity?.organizationPurpose || 'שירות מקצועי';
+  return {
+    success: true,
+    mainUvp: brand.audience?.mainUvp || `המומחיות הבלעדית של ${company} במתן מעטפת שלמה, מהירה ואישית עבור ${purpose}.`,
+    targetAudiences: (brand.audience?.targetAudiences?.length || 0) > 0
+      ? brand.audience.targetAudiences
+      : ['עסקים וארגונים בצמיחה', 'לקוחות פרטיים המחפשים איכות', 'יזמים ומנהלי קהילות'],
+    personas: [
+      {
+        id: `p_${Date.now()}_1`,
+        name: `לקוח/ה מוביל/ה ב-${company}`,
+        roleOrProfile: 'מנהל/ת פעילות המחפש/ת פתרון אמין',
+        mainPain: 'עומס משימות, חוסר ודאות ורצון לחסוך זמן ומשאבים',
+        dreamOutcome: 'שקט נפשי מלא, ביצוע מקצועי ללא פשרות ותוצאות מוחשיות',
+      },
+      {
+        id: `p_${Date.now()}_2`,
+        name: 'לקוח קצה / צרכן פרטי',
+        roleOrProfile: 'מחפש שירות חם, אמין וליווי בגובה העיניים',
+        mainPain: 'חשש מאכזבה ואי-עמידה בציפיות',
+        dreamOutcome: 'חוויית שירות מעצימה ופתרון מדויק המותאם לצרכיו',
+      },
+    ],
+    commonObjections: [
+      {
+        id: `o_${Date.now()}_1`,
+        objection: 'האם התהליך מורכב או דורש מאמץ מיוחד מצידי?',
+        rebuttal: `ממש לא. אנו ב-${company} מנהלים את כל התהליך מא' ועד ת' ומעניקים הדרכה פשוטה וברורה.`,
+      },
+      {
+        id: `o_${Date.now()}_2`,
+        objection: 'כיצד אני יודע שהפתרון אכן יתאים לצרכים הייחודיים שלי?',
+        rebuttal: `אנו מתחילים באפיון אישי מעמיק ומתאימים את השירות במדויק ליעדים שלכם, עם אחריות ושקיפות מלאה.`,
+      },
+    ],
+  };
+}
+

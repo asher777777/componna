@@ -185,6 +185,11 @@ export class TenantTokenTracker {
           { merge: true }
         );
 
+        // Also mirror tokenUsage onto tenant root doc for instant availability in tenant collections
+        if (cleanId !== ROOT_TENANT_ID) {
+          setDoc(doc(db, 'tenants', cleanId), { tokenUsage: updated, updatedAt: now }, { merge: true }).catch(() => {});
+        }
+
         // If recording for a subdomain, also increment master platform counter
         if (cleanId !== ROOT_TENANT_ID) {
           const masterUsageRef = doc(db, 'tenants', ROOT_TENANT_ID, 'settings', 'token_usage');

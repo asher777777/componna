@@ -17,6 +17,7 @@ import {
   BUILD_PERSONA_PROMPT,
   BUILD_OBJECTION_PROMPT,
   BUILD_MARKET_RESEARCH_PROMPT,
+  BUILD_AUDIENCE_AND_PERSONAS_FROM_ESSENCE_PROMPT,
 } from '../prompts/brandPrompts';
 import { kosaiBrandContract } from '../../kosai-engine/modelsAiService/brandAiContract';
 import { BrandDna } from '../types/brandDna';
@@ -253,4 +254,23 @@ export async function dispatchMarketResearchToKosai(
   });
   return result.data;
 }
+
+/**
+ * מייצר קהלים, פרסונות והתנגדויות מתוך תמצית המותג (Brand Essence)
+ */
+export async function dispatchAudienceAndPersonasFromEssenceToKosai(
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_AUDIENCE_AND_PERSONAS_FROM_ESSENCE_PROMPT(brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    responseMimeType: 'application/json',
+    maxOutputTokens: 2500,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
 
