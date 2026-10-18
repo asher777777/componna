@@ -81,6 +81,9 @@ export const isPublicContentPath = (path: string): boolean => {
     p === '/kosvidio' ||
     p.startsWith('/kosvidio/') ||
     p.startsWith('/kosvidio-') ||
+    p === '/kosass' ||
+    p.startsWith('/kosass/') ||
+    p.startsWith('/kosass-') ||
     p.startsWith('/p/') ||
     p.startsWith('/page/') ||
     p.startsWith('/preview/') ||
@@ -176,7 +179,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       const cleanUrl = `${window.location.pathname}${cleanSearch}${window.location.hash}`;
       window.history.replaceState(null, '', cleanUrl);
     }
-  }, [location.search, tenantRecord.subdomain]);
+  }, [location.pathname, location.search, tenantRecord.subdomain]);
 
   useEffect(() => {
     const handleGoToPublicHome = () => {
@@ -441,6 +444,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   }, [db, tenantRecord.subdomain]);
 
   const [authVersion, setAuthVersion] = useState(0);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isKosNevOpen, setIsKosNevOpen] = useState(false);
   useEffect(() => {
     const handleOpen = () => setIsKosNevOpen(true);
@@ -674,9 +678,18 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     return ensureHeaderSection(currentPageConfig);
   }, [currentPageConfig, homePageConfig]);
 
+  // 1. PUBLIC CONTENT PATHS: Render PublicPageView immediately for public content URLs (e.g. /kosass/*, /kosvidio/*, /p/*)
+  if (isPublicContentPath(location.pathname)) {
+    return (
+      <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
+        <PublicPageView />
+      </div>
+    );
+  }
+
   const isAuthenticated = TenantAuthService.isTenantAuthenticated(tenantRecord.subdomain);
 
-  // 1. ADMIN LOGIN GUARD: Check tenant admin authentication
+  // 2. ADMIN LOGIN GUARD: Check tenant admin authentication
   if (mode === 'admin' && !isAuthenticated) {
     return (
       <TenantAdminLoginView
@@ -686,8 +699,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       />
     );
   }
-
-  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   // System modules that should NEVER appear on a subdomain
   // System modules reserved exclusively for master platform administrator
@@ -843,6 +854,20 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               <Route path="/KosWebBulider/*" element={<Navigate to="/KosWebAi" replace />} />
               <Route path="/page-builder/*" element={<Navigate to="/KosWebAi" replace />} />
               <Route path="/builder/*" element={<Navigate to="/KosWebAi" replace />} />
+
+              {/* Public content routes inside admin router for smooth pass-through */}
+              <Route path="/kosass" element={<PublicPageView />} />
+              <Route path="/kosass/:slug" element={<PublicPageView />} />
+              <Route path="/kosass/*" element={<PublicPageView />} />
+              <Route path="/kosvidio" element={<PublicPageView />} />
+              <Route path="/kosvidio/:slug" element={<PublicPageView />} />
+              <Route path="/kosvidio/*" element={<PublicPageView />} />
+              <Route path="/p/:slug" element={<PublicPageView />} />
+              <Route path="/page/:slug" element={<PublicPageView />} />
+              <Route path="/preview/:slug" element={<PublicPageView />} />
+              <Route path="/tube/:slug" element={<PublicPageView />} />
+              <Route path="/to/:slug" element={<PublicPageView />} />
+
               <Route path="*" element={<Navigate to={defaultRoute} replace />} />
             </Routes>
           </main>
