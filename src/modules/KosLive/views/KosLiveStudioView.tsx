@@ -12,7 +12,7 @@ import { LivingCampaignContract, LivingSceneContract } from '../types';
 import { DEFAULT_LIVING_CAMPAIGN } from '../config';
 
 export const KosLiveStudioView: React.FC = () => {
-  const { tab, activeProject, activeCampaign } = useKosLive();
+  const { tab, activeProject, setActiveProject, activeCampaign, setActiveCampaign } = useKosLive();
 
   // Convert activeProject to campaign for preview if activeProject exists
   const previewCampaign = useMemo<LivingCampaignContract>(() => {
@@ -22,7 +22,11 @@ export const KosLiveStudioView: React.FC = () => {
 
     const scenesMap: Record<string, LivingSceneContract> = {};
     activeProject.scenes.forEach(s => {
-      scenesMap[s.id] = s;
+      scenesMap[s.id] = {
+        ...s,
+        videoUrl: s.renderedVideoUrl || s.videoUrl || '',
+        fallbackImageUrl: s.backgroundMediaUrl || s.fallbackImageUrl || ''
+      };
     });
 
     const initialId = activeProject.scenes[0]?.id || 'scene_1';
@@ -47,6 +51,30 @@ export const KosLiveStudioView: React.FC = () => {
     };
   }, [activeProject, activeCampaign]);
 
+  const handleCampaignUpdatedFromPlayer = (updatedCamp: LivingCampaignContract) => {
+    setActiveCampaign(updatedCamp);
+    if (activeProject) {
+      const updatedScenes = Object.values(updatedCamp.scenes || {}).map((scn, idx) => ({
+        ...(activeProject.scenes.find(s => s.id === scn.id) || {}),
+        ...scn,
+        sceneNumber: idx + 1,
+        dialogueScript: scn.scriptText || '',
+        scriptText: scn.scriptText || '',
+        renderedVideoUrl: scn.videoUrl || '',
+        videoUrl: scn.videoUrl || '',
+        backgroundMediaUrl: scn.fallbackImageUrl || '',
+        fallbackImageUrl: scn.fallbackImageUrl || ''
+      }));
+      setActiveProject({
+        ...activeProject,
+        title: updatedCamp.name || activeProject.title,
+        campaignSlug: updatedCamp.slug || activeProject.campaignSlug,
+        scenes: updatedScenes as any,
+        updatedAt: new Date().toISOString()
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none" dir="rtl">
       {/* Top Header */}
@@ -58,17 +86,20 @@ export const KosLiveStudioView: React.FC = () => {
         {tab === 'converter' && <OneClickPageConverterModal />}
         {tab === 'timeline' && <LivingTimelineEditor />}
         {tab === 'preview' && (
-          <div className="w-full max-w-4xl mx-auto flex flex-col items-center">
-            <div className="mb-4 text-center">
-              <h2 className="text-lg font-black text-white">סימולטור בדיקה חיה של העמוד החי</h2>
+          <div className="w-full max-w-6xl mx-auto flex flex-col items-center">
+            <div className="mb-3 text-center">
+              <h2 className="text-lg font-black text-white">
+                הנגן האינטראקטיבי וסטודיו סצנות, וידאו ותמונות
+              </h2>
               <p className="text-xs text-slate-400">
-                התנסו בקרוסלת הכרטיסים, מילוי טופס הלידים החכם, כפתורי ההסתעפות או שיחה קולית עם הפרזנטור
+                צרו וערכו סצנות, העלו או בחרו וידאו ותמונות מגלריית המדיה, הגדירו קרוסלת כרטיסים וטפסים בזמן אמת
               </p>
             </div>
             <LivingPlayerContainer
               initialCampaign={previewCampaign}
               aspectRatio="9:16"
               className="w-full"
+              onCampaignUpdated={handleCampaignUpdatedFromPlayer}
             />
           </div>
         )}

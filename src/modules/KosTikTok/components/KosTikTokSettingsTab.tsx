@@ -1,10 +1,17 @@
 import React from 'react';
-import { Settings2, Plus, Trash2, Key, Link2, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Settings2, Plus, Trash2, Key, Link2, ShieldCheck, CheckCircle2, AlertCircle, ExternalLink } from 'lucide-react';
 import { useTikTok } from '../context/TikTokContext';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { KOS_TIKTOK_CONFIG } from '../config';
 
 export const KosTikTokSettingsTab: React.FC = () => {
   const { accounts, activeAccount, setActiveAccount, disconnectAccount, setIsModalOpen, setModalMode } = useTikTok();
+  const { apiKeys, openConnectorModal } = useSystemConnection();
+
+  const isMasterKeyConfigured = Boolean(apiKeys.tiktokClientKey && apiKeys.tiktokClientKey.trim());
+  const maskedClientKey = isMasterKeyConfigured
+    ? `${apiKeys.tiktokClientKey!.slice(0, 4)}••••${apiKeys.tiktokClientKey!.slice(-4)}`
+    : 'לא הוגדר עדיין';
 
   return (
     <div className="space-y-6">
@@ -27,6 +34,70 @@ export const KosTikTokSettingsTab: React.FC = () => {
           <Plus className="w-4 h-4" />
           חבר חשבון TikTok נוסף
         </button>
+      </div>
+
+      {/* Master Platform TikTok Keys Status */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 space-y-4 shadow-sm">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${
+              isMasterKeyConfigured
+                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
+            }`}>
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>מפתחות מאסטר פלטפורמה (Master Platform Keys)</span>
+                {isMasterKeyConfigured ? (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                    מוגדר ומסונכרן
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20">
+                    ממתין להגדרה במאסטר
+                  </span>
+                )}
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                כלל הבקשות, החיבורים וה-Webhooks בכל הסאב-דומיינים עוברים דרך מפתח המאסטר של המערכת.
+              </p>
+            </div>
+          </div>
+
+          <button
+            onClick={() => openConnectorModal?.('api_keys')}
+            className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold text-slate-700 dark:text-slate-200 transition-colors flex items-center gap-2"
+          >
+            <Key className="w-3.5 h-3.5 text-pink-500" />
+            ערוך מפתחות בהגדרות מערכת (Master)
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">TikTok Client Key</span>
+            <div className="font-mono text-xs text-slate-900 dark:text-white">
+              {maskedClientKey}
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">TikTok Client Secret</span>
+            <div className="font-mono text-xs text-slate-900 dark:text-white">
+              {apiKeys.tiktokClientSecret ? '••••••••••••••••' : 'לא הוגדר'}
+            </div>
+          </div>
+
+          <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">סנכרון סאב-דומיינים</span>
+            <div className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>ירושה אוטומטית מ-Master</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Connected Accounts List */}

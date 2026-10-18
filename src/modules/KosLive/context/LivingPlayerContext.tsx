@@ -20,6 +20,7 @@ interface LivingPlayerContextValue {
   currentScene: LivingSceneContract | undefined;
   isPlaying: boolean;
   isMuted: boolean;
+  playerMode: 'edit' | 'live';
   isVoiceActive: boolean;
   isProcessingIntent: boolean;
   sessionId: string;
@@ -27,10 +28,12 @@ interface LivingPlayerContextValue {
   telemetryEvents: LivingTelemetryEvent[];
   togglePlay: () => void;
   toggleMute: () => void;
+  setPlayerMode: (mode: 'edit' | 'live') => void;
   setIsVoiceActive: (active: boolean) => void;
   setIsProcessingIntent: (processing: boolean) => void;
   transitionTo: (targetSceneId: string, trigger?: string) => void;
   resetSession: () => void;
+  updateCampaign: (updatedCampaign: LivingCampaignContract, targetSceneId?: string) => void;
   submitLead: (
     formData: Record<string, string>,
     options?: { smartFormId?: string; webhookUrl?: string }
@@ -43,8 +46,9 @@ const LivingPlayerContext = createContext<LivingPlayerContextValue | null>(null)
 export const LivingPlayerProvider: React.FC<{
   initialCampaign?: LivingCampaignContract;
   campaignIdOrSlug?: string;
+  onCampaignUpdated?: (updatedCampaign: LivingCampaignContract) => void;
   children: React.ReactNode;
-}> = ({ initialCampaign, campaignIdOrSlug, children }) => {
+}> = ({ initialCampaign, campaignIdOrSlug, onCampaignUpdated, children }) => {
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
 
@@ -54,6 +58,7 @@ export const LivingPlayerProvider: React.FC<{
   });
   const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [playerMode, setPlayerMode] = useState<'edit' | 'live'>('edit');
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
   const [isProcessingIntent, setIsProcessingIntent] = useState<boolean>(false);
   const [history, setHistory] = useState<string[]>([currentSceneId]);
@@ -131,6 +136,24 @@ export const LivingPlayerProvider: React.FC<{
     logTelemetry('scene_enter', 'אתחול סשן מחדש');
   }, [campaign, logTelemetry]);
 
+  const updateCampaign = useCallback((updatedCampaign: LivingCampaignContract, targetSceneId?: string) => {
+    setCampaign(updatedCampaign);
+    const nextId =
+      (targetSceneId && updatedCampaign.scenes[targetSceneId] ? targetSceneId : undefined) ||
+      (updatedCampaign.scenes[currentSceneId] ? currentSceneId : undefined) ||
+      updatedCampaign.initialSceneId ||
+      Object.keys(updatedCampaign.scenes)[0] ||
+      '';
+    if (nextId) {
+      setCurrentSceneId(nextId);
+    }
+    setIsPlaying(true);
+    logTelemetry('scene_enter', `עדכון קמפיין וסטודיו סצנות (${Object.keys(updatedCampaign.scenes).length} סצנות)`);
+    if (onCampaignUpdated) {
+      onCampaignUpdated(updatedCampaign);
+    }
+  }, [currentSceneId, logTelemetry, onCampaignUpdated]);
+
   const submitLead = useCallback(async (
     formData: Record<string, string>,
     options?: { smartFormId?: string; webhookUrl?: string }
@@ -152,6 +175,7 @@ export const LivingPlayerProvider: React.FC<{
     currentScene,
     isPlaying,
     isMuted,
+    playerMode,
     isVoiceActive,
     isProcessingIntent,
     sessionId,
@@ -159,10 +183,12 @@ export const LivingPlayerProvider: React.FC<{
     telemetryEvents,
     togglePlay,
     toggleMute,
+    setPlayerMode,
     setIsVoiceActive,
     setIsProcessingIntent,
     transitionTo,
     resetSession,
+    updateCampaign,
     submitLead,
     logTelemetry
   }), [
@@ -171,6 +197,7 @@ export const LivingPlayerProvider: React.FC<{
     currentScene,
     isPlaying,
     isMuted,
+    playerMode,
     isVoiceActive,
     isProcessingIntent,
     sessionId,
@@ -180,6 +207,7 @@ export const LivingPlayerProvider: React.FC<{
     toggleMute,
     transitionTo,
     resetSession,
+    updateCampaign,
     submitLead,
     logTelemetry
   ]);

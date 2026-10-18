@@ -140,33 +140,61 @@ export const sectionEnhancerService = {
     if (sectionType === 'hero') {
       layoutSuggestions.push(
         {
+          id: 'hero-layout-feminine',
+          tab: 'layout',
+          title: 'א. פריסה בסגנון נשי (רכה ואלגנטית)',
+          description: 'קווים מעוגלים, כפתורי קפסולה, גווני רוז-גולד ושמנת ותמונת בוטיק קשתית.',
+          badge: 'סגנון נשי',
+          iconName: 'Sparkles',
+          prompt: 'עצב את האזור בפריסה בסגנון נשי (feminine) רכה ואלגנטית עם כפתורי קפסולה ומסגרת קשתית.',
+        },
+        {
+          id: 'hero-layout-masculine',
+          tab: 'layout',
+          title: 'ב. פריסה בסגנון גברי (עוצמתית ודומיננטית)',
+          description: 'טיפוגרפיית ענק מודגשת, פחם וזהב מתכתי, כפתורים רחבים ומסגרת פלדה.',
+          badge: 'סגנון גברי',
+          iconName: 'ShieldCheck',
+          prompt: 'עצב את האזור בפריסה בסגנון גברי (masculine) עוצמתית עם כותרות ענק וניגודיות כהה.',
+        },
+        {
           id: 'hero-layout-bento',
           tab: 'layout',
-          title: 'פריסת Bento Hero יוקרתית (כרטיסי מידע חכמים)',
-          description: 'עיצוב כרטיסי Bento מודרניים עם תגית הודעה, תמונת ראווה ואווירת Mesh Glow עתידנית.',
+          title: 'ג. פריסה עכשווית (Bento Hero הקיימת)',
+          description: 'עיצוב Bento מודרני עם תגית הכרזה, תמונת ראווה ואווירת Mesh Glow.',
           badge: 'מומלץ KOSUN',
-          iconName: 'Sparkles',
-          prompt: 'הפוך את האזור לפריסת Bento Hero חדשנית עם סגנון mesh-glow, כפתור פעולה מודגש ותגיות אמון.',
-        },
-        {
-          id: 'hero-layout-split',
-          tab: 'layout',
-          title: 'פריסת Spatial Split (תמונה/וידאו לצד טקסט)',
-          description: "חלוקה נקייה של 50/50 המבליטה את המסר הראשי לצד ויז'ואל איכותי.",
-          badge: 'ספליט קלאסי',
           iconName: 'Layers',
-          prompt: 'עצב את האזור בפריסת split מרחבית (spatial), עם דגש על כותרת עוצמתית ותמונת ראווה רחבה.',
+          prompt: 'הפוך את האזור לפריסת Bento Hero עכשווית עם סגנון mesh-glow, כפתור פעולה מודגש ותגיות אמון.',
         },
         {
-          id: 'hero-layout-centered',
+          id: 'hero-layout-spiritual',
           tab: 'layout',
-          title: 'עיצוב Centered Minimal (ממורכז ונקי)',
-          description: 'מיקוד מוחלט בכותרת ובקריאה לפעולה, ללא הסחות דעת.',
-          badge: 'מינימליסטי',
+          title: 'ד. פריסה רוחנית (הרמונית ושלווה)',
+          description: 'מרווחי נשימה, גווני מרווה וזהב הילה, ופורטל תמונה עגול במרכז העליון.',
+          badge: 'סגנון רוחני',
+          iconName: 'Compass',
+          prompt: 'עצב את האזור בפריסה רוחנית (spiritual) הרמונית ושלווה עם פורטל תמונה עגול וטבעות הילה.',
+        },
+        {
+          id: 'hero-layout-sharp',
+          tab: 'layout',
+          title: 'ה. פריסה חדה (ברוטליסטית ומדויקת)',
+          description: 'זוויות 90° ללא עיגול, מסגרות 2px חדות וצללים מוסטים בניגודיות גבוהה.',
+          badge: 'סגנון חד',
+          iconName: 'Zap',
+          prompt: 'עצב את האזור בפריסה חדה (sharp) אדריכלית עם זוויות ישרות וצללים קשים.',
+        },
+        {
+          id: 'hero-layout-analytical',
+          tab: 'layout',
+          title: 'ו. פריסה אנליטית (מבוססת נתונים ודיוק)',
+          description: 'גריד דשבורד טכנולוגי עם כרטיסי מדדים (KPIs), גווני ציאן ומסוף נתונים חי.',
+          badge: 'סגנון אנליטי',
           iconName: 'Target',
-          prompt: 'הפוך את האזור לעיצוב centered אלגנטי ומינימליסטי עם טיפוגרפיה גדולה ומרווחים נושמים.',
+          prompt: 'עצב את האזור בפריסה אנליטית (analytical) מבוססת נתונים עם מדדי KPI ומסוף טלמטריה.',
         }
-      );    } else if (sectionType === 'pricing') {
+      );
+    } else if (sectionType === 'pricing') {
       layoutSuggestions.push(
         {
           id: 'pricing-layout-featured',
@@ -508,10 +536,25 @@ Return ONLY the raw updated JSON object.`;
     const changes: string[] = [];
 
     if (sectionType === 'hero') {
-      if (prompt.includes('bento') || prompt.includes('Bento')) {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסה בסגנון נשי (רכה ואלגנטית)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסה בסגנון גברי (עוצמתית ודומיננטית)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסה רוחנית (הרמונית ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסה חדה (ברוטליסטית ומדויקת)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסה אנליטית (מבוססת נתונים ודיוק)');
+      } else if (prompt.includes('bento') || prompt.includes('Bento')) {
         updated.layout = 'bento-hero';
         updated.heroStyle = 'mesh-glow';
-        changes.push('שודרג לפריסת Bento Hero חכמה עם Mesh Glow');
+        changes.push('שודרג לפריסת Bento Hero עכשווית עם Mesh Glow');
       } else if (prompt.includes('split') || prompt.includes('ספליט')) {
         updated.layout = 'spatial';
         changes.push('שודרג לפריסת Spatial Split מרחבית');

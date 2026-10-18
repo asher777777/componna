@@ -28,6 +28,7 @@ import {
   fetchVideosFromTikTokApi,
   sendConversionEventApi,
   buildTikTokAuthUrl,
+  exchangeOAuthCodeApi,
 } from '../api/functionsApi';
 import { PLEASANT_KOS_TIKTOK_ERROR_HE } from '../config';
 
@@ -58,7 +59,7 @@ export interface TikTokContextValue {
 const TikTokContext = createContext<TikTokContextValue | undefined>(undefined);
 
 export const TikTokProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { db } = useSystemConnection();
+  const { db, apiKeys } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { registerCapability, unregisterCapability } = useHostCapabilities();
 
@@ -101,13 +102,53 @@ export const TikTokProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     loadTenantData();
   }, [loadTenantData]);
 
+  // Handle OAuth code exchange if redirected from TikTok with ?code=...&state=...
+  useEffect(() => {
+    if (typeof window === 'undefined' || !db || !tenantId) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get('code');
+    const state = urlParams.get('state');
+
+    if (code && state) {
+      setIsLoading(true);
+      (async () => {
+        try {
+          const res = await exchangeOAuthCodeApi(code, state);
+          if (res.success && res.account) {
+            await saveTenantTikTokAccount(db, tenantId, res.account);
+            setAccounts(prev => [res.account!, ...prev.filter(a => a.id !== res.account!.id)]);
+            setActiveAccount(res.account);
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+          } else {
+            setError(res.error || 'שגיאה באימות חשבון TikTok מול השרת');
+          }
+        } catch (e: any) {
+          setError(e.message || 'שגיאה בסנכרון OAuth');
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+    }
+  }, [db, tenantId]);
+
   // Connect new TikTok account
   const connectAccount = useCallback(async (clientKey?: string) => {
     if (!db || !tenantId) return;
     setIsLoading(true);
     clearError();
     try {
-      // Create sample connected account or open OAuth flow
+      const activeClientKey = (clientKey || apiKeys.tiktokClientKey || '').trim();
+
+      // If user is running in production with a valid TikTok Client Key, redirect to TikTok OAuth portal
+      if (activeClientKey && typeof window !== 'undefined' && window.location.hostname === 'kosun.pro') {
+        const redirectUri = `${window.location.origin}/KosTikTok`;
+        const authUrl = buildTikTokAuthUrl(activeClientKey, redirectUri, tenantId);
+        window.location.href = authUrl;
+        return;
+      }
+
+      // Default / Connected sandbox account for tenant
       const newAccount: KosTikTokAccount = {
         id: `tt_acc_${Date.now()}`,
         openId: `openid_${Math.random().toString(36).substring(2, 9)}`,
@@ -137,7 +178,7 @@ export const TikTokProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setIsLoading(false);
     }
-  }, [db, tenantId, accounts.length, clearError]);
+  }, [db, tenantId, accounts.length, apiKeys.tiktokClientKey, clearError]);
 
   // Disconnect account
   const disconnectAccount = useCallback(async (accountId: string) => {

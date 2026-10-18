@@ -360,3 +360,13 @@ export function getModuleGreenApiCredentials(moduleId?: string): { instanceId: s
   };
 }
 
+/** Convenience: resolved TikTok Developer Platform credentials (inherited from Master) */
+export function getModuleTiktokCredentials(moduleId?: string): { clientKey: string; clientSecret: string; accessToken: string } {
+  const keys = getModuleApiKeys(moduleId);
+  return {
+    clientKey: (keys.tiktokClientKey || '').trim(),
+    clientSecret: (keys.tiktokClientSecret || '').trim(),
+    accessToken: (keys.tiktokAccessToken || '').trim(),
+  };
+}
+

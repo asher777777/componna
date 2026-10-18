@@ -137,37 +137,164 @@ export class LivingStorageService {
   }
 
   /**
-   * List all LivingProjects for a tenant
+   * Convert a legacy flow-player-engine CampaignConfig into a LivingProject
+   */
+  private static convertLegacyPlayerCampaignToLivingProject(rawCamp: any): LivingProject | null {
+    if (!rawCamp || !rawCamp.id) return null;
+    const statesObj = rawCamp.states || rawCamp.scenes || {};
+    const nodeList = Object.values(statesObj) as any[];
+    if (nodeList.length === 0) return null;
+
+    const scenes = nodeList.map((node: any, idx: number) => {
+      const overlays = (node.overlays || []).map((ov: any) => {
+        const items = ov.cards || ov.carouselItems || [];
+        return {
+          ...ov,
+          cards: items.map((c: any) => ({
+            ...c,
+            subtitle: c.subtitle || c.description || '',
+            description: c.description || c.subtitle || '',
+            targetSceneId: c.targetSceneId || c.targetNodeId || '',
+            actionType: c.actionType || 'transition'
+          }))
+        };
+      });
+
+      return {
+        id: node.id || `scene_${idx + 1}`,
+        sceneNumber: idx + 1,
+        title: node.name || node.title || `סצנה ${idx + 1}`,
+        dialogueScript: node.description || node.scriptText || node.dialogueScript || '',
+        scriptText: node.description || node.scriptText || node.dialogueScript || '',
+        visualDescription: node.visualDescription || node.description || '',
+        characterDescription: node.characterDescription || 'פרזנטור אינטראקטיבי',
+        backgroundPrompt: node.backgroundPrompt || '',
+        durationSeconds: node.durationSeconds || 10,
+        renderedVideoUrl: node.videoUrl || node.renderedVideoUrl || '',
+        videoUrl: node.videoUrl || node.renderedVideoUrl || '',
+        backgroundMediaUrl: node.fallbackImageUrl || node.backgroundMediaUrl || '',
+        fallbackImageUrl: node.fallbackImageUrl || node.backgroundMediaUrl || '',
+        autoPlay: node.autoPlay ?? true,
+        loopUntilTrigger: node.loopUntilTrigger ?? node.loop ?? true,
+        soundEnabled: node.soundEnabled ?? true,
+        autoTransitionOnEnd: node.autoTransitionOnEnd ?? false,
+        autoTransitionDelaySec: node.autoTransitionDelaySec,
+        autoTransitionTargetSceneId: node.autoTransitionTarget || node.autoTransitionTargetSceneId,
+        enableVoiceTrigger: (node.micPosition || 'center') !== 'hidden',
+        micPosition: node.micPosition || 'center',
+        micIcon: node.micIcon || 'mic-luxury',
+        micTargetAction:
+          node.micActionType === 'navigate_to_node' ? 'navigate_to_scene' : (node.micTargetAction || 'open_text_input'),
+        micTargetSceneId: node.clickMicTargetNodeId || node.micTargetSceneId,
+        formsApiEndpoint: node.formsApiEndpoint,
+        overlays
+      };
+    });
+
+    return {
+      id: rawCamp.id,
+      title: rawCamp.name || rawCamp.title || 'קמפיין נגן אינטראקטיבי',
+      description: rawCamp.description || `קמפיין אינטראקטיבי (${scenes.length} סצנות)`,
+      targetAudience: 'לקוחות ומבקרי העמוד',
+      marketingHook: scenes[0]?.dialogueScript || '',
+      visualStyle: 'cinematic_dramatic',
+      productionType: 'interactive_player',
+      aspectRatio: rawCamp.settings?.defaultAspectRatio || rawCamp.aspectRatio || '9:16',
+      status: 'ready',
+      campaignSlug: rawCamp.slug || rawCamp.id,
+      scenes: scenes as any,
+      createdAt: rawCamp.createdAt ? new Date(rawCamp.createdAt).toISOString() : new Date().toISOString(),
+      updatedAt: rawCamp.updatedAt ? new Date(rawCamp.updatedAt).toISOString() : new Date().toISOString()
+    };
+  }
+
+  /**
+   * List all LivingProjects for a tenant (merging KosLive projects + flow-player-engine campaigns + video studio projects)
    */
   static async listProjects(db: Firestore | undefined, tenantId: string): Promise<LivingProject[]> {
-    // Try Firestore first
-    if (db && tenantId) {
-      try {
-        const colRef = collection(db, 'tenants', tenantId, 'modules', 'KosLive', 'projects');
-        const snap = await getDocs(colRef);
-        if (!snap.empty) {
-          const list: LivingProject[] = [];
-          snap.forEach(d => list.push(d.data() as LivingProject));
-          // Update cache
-          try {
-            localStorage.setItem(LOCAL_STORAGE_PROJECTS_KEY, JSON.stringify(list));
-          } catch {}
-          return list;
-        }
-      } catch (err) {
-        console.warn('[LivingStorageService] Firestore listProjects error:', err);
-      }
-    }
+    const mergedMap = new Map<string, LivingProject>();
 
-    // Fallback to localStorage
+    // 1. LocalStorage caches first (KosLive, legacy Flow Player, legacy Video Studio)
     try {
-      const stored = localStorage.getItem(LOCAL_STORAGE_PROJECTS_KEY);
-      if (stored) {
-        return JSON.parse(stored);
+      const storedKosLive = localStorage.getItem(LOCAL_STORAGE_PROJECTS_KEY);
+      if (storedKosLive) {
+        const list: LivingProject[] = JSON.parse(storedKosLive);
+        list.forEach(p => {
+          if (p && p.id) mergedMap.set(p.id, p);
+        });
       }
     } catch {}
 
-    return [];
+    try {
+      const storedLegacyStudio = localStorage.getItem('kosun_video_studio_projects');
+      if (storedLegacyStudio) {
+        const list: any[] = JSON.parse(storedLegacyStudio);
+        list.forEach(p => {
+          if (p && p.id && !mergedMap.has(p.id)) {
+            mergedMap.set(p.id, p as LivingProject);
+          }
+        });
+      }
+    } catch {}
+
+    try {
+      const storedLegacyPlayer = localStorage.getItem('sdo_local_campaigns_backup');
+      if (storedLegacyPlayer) {
+        const parsed = JSON.parse(storedLegacyPlayer);
+        const list = Array.isArray(parsed) ? parsed : Object.values(parsed || {});
+        list.forEach((rawCamp: any) => {
+          const converted = this.convertLegacyPlayerCampaignToLivingProject(rawCamp);
+          if (converted && !mergedMap.has(converted.id)) {
+            mergedMap.set(converted.id, converted);
+          }
+        });
+      }
+    } catch {}
+
+    // 2. Firestore collections (KosLive tenant projects + legacy sdo_player_campaign_configs + sdo_video_projects)
+    if (db) {
+      if (tenantId) {
+        try {
+          const colRef = collection(db, 'tenants', tenantId, 'modules', 'KosLive', 'projects');
+          const snap = await getDocs(colRef);
+          snap.forEach(d => {
+            const data = d.data() as LivingProject;
+            if (data && data.id) mergedMap.set(data.id, data);
+          });
+        } catch (err) {
+          console.warn('[LivingStorageService] Firestore listProjects error:', err);
+        }
+      }
+
+      try {
+        const playerSnap = await getDocs(collection(db, LEGACY_PLAYER_COLLECTION));
+        playerSnap.forEach(d => {
+          const converted = this.convertLegacyPlayerCampaignToLivingProject({ id: d.id, ...d.data() });
+          if (converted && !mergedMap.has(converted.id)) {
+            mergedMap.set(converted.id, converted);
+          }
+        });
+      } catch {}
+
+      try {
+        const videoSnap = await getDocs(collection(db, 'sdo_video_projects'));
+        videoSnap.forEach(d => {
+          const data = { id: d.id, ...(d.data() as any) } as LivingProject;
+          if (data && data.id && !mergedMap.has(data.id)) {
+            mergedMap.set(data.id, data);
+          }
+        });
+      } catch {}
+    }
+
+    const finalList = Array.from(mergedMap.values());
+    if (finalList.length > 0) {
+      try {
+        localStorage.setItem(LOCAL_STORAGE_PROJECTS_KEY, JSON.stringify(finalList));
+      } catch {}
+    }
+
+    return finalList;
   }
 
   /**

@@ -610,13 +610,35 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         } catch {}
       }
 
+      // Immediately sync masterApiKeys in memory if TikTok keys are modified
+      if (
+        newKeys.tiktokClientKey !== undefined ||
+        newKeys.tiktokClientSecret !== undefined ||
+        newKeys.tiktokAccessToken !== undefined
+      ) {
+        setMasterApiKeys((prev) => ({
+          ...prev,
+          ...(newKeys.tiktokClientKey !== undefined ? { tiktokClientKey: (newKeys.tiktokClientKey || '').trim() } : {}),
+          ...(newKeys.tiktokClientSecret !== undefined ? { tiktokClientSecret: (newKeys.tiktokClientSecret || '').trim() } : {}),
+          ...(newKeys.tiktokAccessToken !== undefined ? { tiktokAccessToken: (newKeys.tiktokAccessToken || '').trim() } : {}),
+        }));
+      }
+
       if (!db) {
         console.warn('[SystemConnection] Cannot save API keys – Firestore is not connected');
         return;
       }
       try {
+        // Strip undefined values to prevent Firestore setDoc error
+        const cleanPayload: Record<string, any> = { updatedAt: Date.now() };
+        for (const [k, v] of Object.entries(newKeys)) {
+          if (v !== undefined) {
+            cleanPayload[k] = v;
+          }
+        }
+
         const ref = doc(db, ...getTenantApiKeysDocSegments(targetTenant));
-        await setDoc(ref, { ...newKeys, updatedAt: Date.now() }, { merge: true });
+        await setDoc(ref, cleanPayload, { merge: true });
 
         // Clause ה: AI keys belong to Master. Whenever an AI key is saved, also persist into master
         if (newKeys.googleAiApiKey && newKeys.googleAiApiKey.trim() && targetTenant !== ROOT_TENANT_ID) {
