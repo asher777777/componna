@@ -407,7 +407,17 @@ export function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company:
     return m ? m[1].trim() : '';
   };
 
-  const seoSlug = getSeoVal('SLUG');
+  const rawSeoSlug = getSeoVal('SLUG');
+  const cleanSeoSlug = rawSeoSlug
+    ? rawSeoSlug
+        .toLowerCase()
+        .replace(/^(kosass|kosvidio)[-/]/, '')
+        .replace(/^(kushan|kosun)[-/]/, '')
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '')
+    : '';
+
   const metaTitle = getSeoVal('META_TITLE');
   const metaDescription = getSeoVal('META_DESCRIPTION');
   const keywords = getSeoVal('KEYWORDS');
@@ -426,7 +436,7 @@ export function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company:
     competitiveAdvantages,
     faqs: faqLines,
     seo: {
-      slug: seoSlug || undefined,
+      slug: cleanSeoSlug ? `kosass/${cleanSeoSlug}` : undefined,
       metaTitle,
       metaDescription,
       keywords,

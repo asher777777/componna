@@ -103,15 +103,32 @@ export function buildPageConfigFromFlagshipProduct(
     `product-${Date.now().toString().slice(-4)}`
   )
     .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/[^a-z0-9-/]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const cleanSlug = rawSlugCandidate.startsWith('kosass-')
-    ? rawSlugCandidate
-    : `kosass-${rawSlugCandidate.replace(/^kosass/, '').replace(/^-/, '') || Date.now().toString().slice(-4)}`;
+  const companySlug = (brandDna?.identity?.companyName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
 
-  const pageId = existingPageId || product.linkedPageId || `page_${cleanSlug.replace(/[^a-z0-9_]/g, '_')}`;
+  let baseSlug = rawSlugCandidate
+    .replace(/^kosass[-/]/, '')
+    .replace(/^-+/, '');
+
+  if (companySlug && baseSlug.startsWith(`${companySlug}-`)) {
+    baseSlug = baseSlug.slice(companySlug.length + 1);
+  }
+  if (baseSlug.startsWith('kushan-')) {
+    baseSlug = baseSlug.slice('kushan-'.length);
+  }
+  if (baseSlug.startsWith('kosun-')) {
+    baseSlug = baseSlug.slice('kosun-'.length);
+  }
+
+  baseSlug = baseSlug.replace(/^-+|-+$/g, '') || `product-${Date.now().toString().slice(-4)}`;
+
+  const cleanSlug = `kosass/${baseSlug}`;
+  const pageId = existingPageId || product.linkedPageId || `page_kosass_${baseSlug.replace(/[^a-z0-9_]/g, '_')}`;
 
   // Custom navigation links for visible sections
   const navLinks: Array<{ label: string; url: string; isButton?: boolean }> = [];
@@ -404,9 +421,10 @@ export function buildPageConfigFromFlagshipProduct(
     pageId,
     pageTitle: rawName,
     slug: cleanSlug,
+    shortSlug: baseSlug,
     pageCategory: 'service_product',
     published: true,
-    publishedUrl: `/p/${cleanSlug}`,
+    publishedUrl: `/${cleanSlug}`,
     isHomePage: false,
     createdAt: now,
     updatedAt: now,
@@ -564,7 +582,7 @@ export function buildPageConfigFromCoreService(
     ? service.faqs.filter((f) => f && f.question && f.answer)
     : [];
 
-  // סלאג נקי ללא קידומת /p/ - ישירות מתוך הגדרות ה-SEO או מזהה השירות
+  // סלאג נקי תחת נתיב KOSASS רשמי: kosass/{slug} (לדוגמה: kosass/executive-concierge)
   const rawSlugCandidate = (
     service.seo?.slug ||
     service.linkedPageSlug ||
@@ -572,14 +590,32 @@ export function buildPageConfigFromCoreService(
     `service-${Date.now().toString().slice(-4)}`
   )
     .toLowerCase()
-    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/[^a-z0-9-/]/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const cleanSlug = rawSlugCandidate.startsWith('kosass-')
-    ? rawSlugCandidate
-    : `kosass-${rawSlugCandidate.replace(/^kosass-?/, '').replace(/^-/, '') || Date.now().toString().slice(-4)}`;
-  const pageId = existingPageId || service.linkedPageId || `page_${cleanSlug.replace(/[^a-z0-9_]/g, '_')}`;
+  const companySlug = (brandDna?.identity?.companyName || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+
+  let baseSlug = rawSlugCandidate
+    .replace(/^kosass[-/]/, '')
+    .replace(/^-+/, '');
+
+  if (companySlug && baseSlug.startsWith(`${companySlug}-`)) {
+    baseSlug = baseSlug.slice(companySlug.length + 1);
+  }
+  if (baseSlug.startsWith('kushan-')) {
+    baseSlug = baseSlug.slice('kushan-'.length);
+  }
+  if (baseSlug.startsWith('kosun-')) {
+    baseSlug = baseSlug.slice('kosun-'.length);
+  }
+
+  baseSlug = baseSlug.replace(/^-+|-+$/g, '') || `service-${Date.now().toString().slice(-4)}`;
+
+  const cleanSlug = `kosass/${baseSlug}`;
+  const pageId = existingPageId || service.linkedPageId || `page_kosass_${baseSlug.replace(/[^a-z0-9_]/g, '_')}`;
 
   // קישורי תפריט ניווט עליון
   const navLinks: Array<{ label: string; url: string; isButton?: boolean }> = [];
@@ -865,6 +901,7 @@ export function buildPageConfigFromCoreService(
     pageId,
     pageTitle: rawName,
     slug: cleanSlug,
+    shortSlug: baseSlug,
     pageCategory: 'service_product',
     published: true,
     publishedUrl: `/${cleanSlug}`, // ללא קידומת /p/ לפי דרישת המשתמש

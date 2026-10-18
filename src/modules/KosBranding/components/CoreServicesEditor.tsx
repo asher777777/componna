@@ -441,7 +441,7 @@ export const CoreServicesEditor: React.FC = () => {
             <div className="flex items-center gap-2 shrink-0">
               {srv.linkedPageSlug && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono">
-                  עמוד KOSASS (/{srv.linkedPageSlug})
+                  עמוד KOSASS ({srv.linkedPageSlug.startsWith('kosass/') ? `/${srv.linkedPageSlug}` : `/kosass/${srv.linkedPageSlug.replace(/^kosass[-/]/, '').replace(/^(kushan|kosun)-?/, '')}`})
                 </span>
               )}
               <button
@@ -630,7 +630,8 @@ const CoreServiceDetailModal: React.FC<{
         };
         setDraft(updatedDraft);
         onSave(updatedDraft);
-        setPageSuccessMsg(`העמוד נפרס בהצלחה תחת נתיב KOSASS (/${res.slug}) ללא קריאת AI!`);
+        const finalPath = res.slug.startsWith('/') ? res.slug : (res.slug.startsWith('kosass/') ? `/${res.slug}` : `/kosass/${res.slug.replace(/^kosass[-/]/, '')}`);
+        setPageSuccessMsg(`העמוד נפרס בהצלחה תחת נתיב KOSASS (${finalPath}) ללא קריאת AI!`);
       } else {
         setEntitlementNotice(res.error || 'שגיאה ביצירת עמוד השירות בבונה העמודים.');
       }
@@ -1318,7 +1319,11 @@ const CoreServiceDetailModal: React.FC<{
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 font-mono">
-                  {draft.seo?.slug ? `/${draft.seo.slug.startsWith('kosass-') ? draft.seo.slug : `kosass-${draft.seo.slug}`}` : 'KOSASS'}
+                  {draft.seo?.slug
+                    ? (draft.seo.slug.startsWith('kosass/')
+                        ? `/${draft.seo.slug}`
+                        : `/kosass/${draft.seo.slug.replace(/^kosass[-/]/, '').replace(/^(kushan|kosun)-?/, '')}`)
+                    : 'KOSASS'}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
                   openSection === 'seo' ? 'rotate-180 text-teal-500' : ''
@@ -1333,17 +1338,31 @@ const CoreServiceDetailModal: React.FC<{
                     <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
                       <span>סלאג עמוד השירות (נתיב KOSASS רשמי ללא קידומת /p/)</span>
                       <span className="text-[10px] text-emerald-600 font-bold font-mono">
-                        /{draft.seo?.slug ? (draft.seo.slug.startsWith('kosass-') ? draft.seo.slug : `kosass-${draft.seo.slug}`) : 'kosass-service-slug'}
+                        {draft.seo?.slug
+                          ? (draft.seo.slug.startsWith('kosass/')
+                              ? `/${draft.seo.slug}`
+                              : `/kosass/${draft.seo.slug.replace(/^kosass[-/]/, '').replace(/^(kushan|kosun)-?/, '')}`)
+                          : '/kosass/executive-concierge'}
                       </span>
                     </label>
-                    <input
-                      type="text"
-                      value={draft.seo?.slug || ''}
-                      onChange={(e) => updateSeoField('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                      placeholder="kosass-dog-training"
-                      dir="ltr"
-                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
-                    />
+                    <div className="flex items-center rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 overflow-hidden focus-within:border-indigo-500 font-mono text-xs">
+                      <span className="px-3 py-1.5 bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-400 select-none border-l border-slate-200 dark:border-slate-800 font-bold">
+                        /kosass/
+                      </span>
+                      <input
+                        type="text"
+                        value={(draft.seo?.slug || '')
+                          .replace(/^kosass[-/]/, '')
+                          .replace(/^(kushan|kosun)-?/, '')}
+                        onChange={(e) => {
+                          const val = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^kosass[-/]/, '').replace(/^(kushan|kosun)-?/, '');
+                          updateSeoField('slug', val ? `kosass/${val}` : '');
+                        }}
+                        placeholder="executive-concierge"
+                        dir="ltr"
+                        className="flex-1 bg-transparent px-3 py-1.5 text-slate-900 dark:text-white focus:outline-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="space-y-1">
@@ -1500,7 +1519,21 @@ const CoreServiceDetailModal: React.FC<{
 
             {draft.linkedPageId && (
               <a
-                href={`/${draft.linkedPageSlug || draft.linkedPageId}`}
+                href={
+                  draft.linkedPageSlug
+                    ? (draft.linkedPageSlug.startsWith('/')
+                        ? draft.linkedPageSlug
+                        : (draft.linkedPageSlug.startsWith('kosass/')
+                            ? `/${draft.linkedPageSlug}`
+                            : `/kosass/${draft.linkedPageSlug.replace(/^kosass[-/]/, '').replace(/^(kushan|kosun)-?/, '')}`))
+                    : (draft.seo?.slug
+                        ? (draft.seo.slug.startsWith('/')
+                            ? draft.seo.slug
+                            : (draft.seo.slug.startsWith('kosass/')
+                                ? `/${draft.seo.slug}`
+                                : `/kosass/${draft.seo.slug.replace(/^kosass[-/]/, '').replace(/^(kushan|kosun)-?/, '')}`))
+                        : `/${draft.linkedPageId}`)
+                }
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2 py-1.5"

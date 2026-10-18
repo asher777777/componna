@@ -5,7 +5,7 @@ import { pageBuilderFirestore, ensureHeaderSection } from '../services/pageBuild
 import { PageBuilderRenderer } from '../PageBuilderRenderer';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
-import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home } from 'lucide-react';
+import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home, Lock, X, KeyRound, ShieldCheck, AlertCircle } from 'lucide-react';
 import { KosWebAiFrontDock } from './KosWebAiFrontDock';
 import { useKosai } from '../../kosai-engine';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
@@ -16,14 +16,24 @@ import { createDynamicSectionConfig } from '../services/brandSectionHydrator';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
 import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAuthService';
+import { subscribeToAuth, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../../../services/firebaseAuth';
+import { extractSubdomainFromHost } from '../../../core/tenant/tenantResolver';
 
-export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) => {
+export interface PublicPageViewProps {
+  slug?: string;
+  tenantId?: string;
+  isDev?: boolean;
+}
+
+export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, tenantId: propTenantId }) => {
   const { slug: routeSlug } = useParams<{ slug?: string }>();
   const slug = propSlug || routeSlug;
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { db } = useSystemConnection();
-  const { tenantId } = useTenantScope();
+  const { db, firebaseApp } = useSystemConnection();
+  const { tenantId: scopeTenantId } = useTenantScope();
+  const hostSubdomain = typeof window !== 'undefined' ? extractSubdomainFromHost(window.location.hostname) : null;
+  const tenantId = propTenantId || scopeTenantId || hostSubdomain || '_master';
   const { setPageSections } = useKosai();
   const { getCapability } = useHostCapabilities();
 
@@ -97,22 +107,76 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
     window.location.hostname.endsWith('.local')
   );
 
+  const [firebaseAuthed, setFirebaseAuthed] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const savedRole = localStorage.getItem('sdo_user_role');
+      if (savedRole === 'admin' || savedRole === 'editor') return true;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, async (state) => {
+      if (state.user && state.email) {
+        const isEmailAdmin = isPlatformAdminEmail(state.email);
+        const role = await fetchUserRole(state.uid!, firebaseApp, tenantId);
+        const cachedRole = getCachedUserRole(state.uid!);
+        const isOwner = Boolean(tenantId && state.email.toLowerCase().includes(tenantId.toLowerCase()));
+        const isAuth = Boolean(
+          isEmailAdmin ||
+          role === 'admin' ||
+          role === 'editor' ||
+          cachedRole === 'admin' ||
+          isOwner
+        );
+        if (isAuth) {
+          setFirebaseAuthed(true);
+          if (tenantId) {
+            try {
+              localStorage.setItem(`tenant_admin_${tenantId}`, 'true');
+              localStorage.setItem(`tenant_admin_auth_${tenantId}`, 'true');
+            } catch {}
+          }
+        }
+      }
+    });
+    return () => unsub();
+  }, [firebaseApp, tenantId]);
+
+  const hasAdminQuery = typeof window !== 'undefined' && Boolean(
+    searchParams.get('edit') === 'true' ||
+    searchParams.get('admin') === 'true' ||
+    searchParams.get('mode') === 'admin' ||
+    window.location.hash.includes('edit') ||
+    window.location.hash.includes('admin')
+  );
+
+  useEffect(() => {
+    if (hasAdminQuery && tenantId) {
+      try {
+        localStorage.setItem(`tenant_admin_${tenantId}`, 'true');
+        localStorage.setItem(`tenant_admin_auth_${tenantId}`, 'true');
+        sessionStorage.setItem(`tenant_admin_${tenantId}`, 'true');
+        sessionStorage.setItem(`tenant_admin_auth_${tenantId}`, 'true');
+      } catch {}
+    }
+  }, [hasAdminQuery, tenantId]);
+
   const isTenantAuthed = Boolean(
     isLocal ||
+    firebaseAuthed ||
     (tenantId && TenantAuthService.isTenantAuthenticated(tenantId)) ||
     (typeof window !== 'undefined' && (
       sessionStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
       sessionStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true' ||
       localStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
       localStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true' ||
-      sessionStorage.getItem('kosun_super_admin_bypass') === 'true'
+      sessionStorage.getItem('kosun_super_admin_bypass') === 'true' ||
+      localStorage.getItem('kosun_super_admin_bypass') === 'true' ||
+      sessionStorage.getItem('tenant_admin_auth') === 'true' ||
+      localStorage.getItem('tenant_admin_auth') === 'true'
     ))
-  );
-
-  const hasAdminQuery = typeof window !== 'undefined' && Boolean(
-    searchParams.get('edit') === 'true' ||
-    searchParams.get('admin') === 'true' ||
-    searchParams.get('mode') === 'admin'
   );
 
   const isAuthorized = Boolean(
@@ -121,6 +185,39 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
     isEditing ||
     isLocal
   );
+
+  // Quick Login Modal State for Unauthenticated Page Visitors
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleQuickLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!loginPass) {
+      setLoginError('נא להזין סיסמה');
+      return;
+    }
+    setLoginLoading(true);
+    setLoginError(null);
+    try {
+      const effSub = tenantId && tenantId !== '_master' ? tenantId : 'mlea';
+      const effUser = loginUser.trim() || effSub;
+      const res = await TenantAuthService.verifyTenantLogin(db, effSub, effUser, loginPass);
+      if (res.success) {
+        setIsLoginModalOpen(false);
+        setIsEditing(true);
+        window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
+      } else {
+        setLoginError(res.error || 'סיסמה שגויה');
+      }
+    } catch (err: any) {
+      setLoginError('שגיאה באימות הפרטים');
+    } finally {
+      setLoginLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handleEditChange = (e: any) => {
@@ -363,11 +460,30 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
         if (resolvedSlug) {
           const target = resolvedSlug.toLowerCase().trim();
           const cleanTarget = target.replace(/^(kosvidio|kosass)[-/]/, '');
+
+          const stripBrandAndPrefix = (s: string) =>
+            (s || '')
+              .toLowerCase()
+              .trim()
+              .replace(/^(kosvidio|kosass)[-/]/, '')
+              .replace(/^(kushan|kosun)[-/]/, '')
+              .replace(/^-+|-+$/g, '');
+
+          const normTarget = stripBrandAndPrefix(target);
+
           foundPage = allPages.find((p) => {
             const pSlug = (p.slug || '').toLowerCase().trim();
             const pShort = (p.shortSlug || '').toLowerCase().trim();
             const pId = (p.pageId || '').toLowerCase().trim();
             const vidId = ((p.sections?.['kosvidio-1'] as any)?.youtubeVideoId || '').toLowerCase().trim();
+
+            const normSlug = stripBrandAndPrefix(pSlug);
+            const normShort = stripBrandAndPrefix(pShort);
+            const normId = stripBrandAndPrefix(pId);
+
+            if (normTarget && (normSlug === normTarget || normShort === normTarget || normId === normTarget)) {
+              return true;
+            }
 
             return (
               pSlug === target ||
@@ -380,6 +496,8 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
               pSlug === `kosass/${cleanTarget}` ||
               pShort === `kosass-${target}` ||
               pShort === `kosass-${cleanTarget}` ||
+              pShort === `kosass/${target}` ||
+              pShort === `kosass/${cleanTarget}` ||
               pSlug === `kosvidio/${target}` ||
               pSlug === `kosvidio/${cleanTarget}` ||
               pSlug === `kosvidio-${target}` ||
@@ -716,6 +834,97 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
         pageTitle={page.pageTitle}
         pageSections={Object.values(page.sections || {})}
       />
+
+      {/* Discrete admin portal entry button on public video / content pages */}
+      {!isAuthorized && (
+        <button
+          type="button"
+          onClick={() => {
+            setLoginUser(tenantId && tenantId !== '_master' ? tenantId : '');
+            setLoginPass('');
+            setLoginError(null);
+            setIsLoginModalOpen(true);
+          }}
+          className="fixed bottom-4 left-4 z-40 px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-slate-900 text-slate-300 hover:text-white backdrop-blur-md border border-slate-700/70 shadow-xl transition-all opacity-70 hover:opacity-100 cursor-pointer flex items-center gap-2 text-xs font-medium"
+          title="כניסת מנהל טננט לעריכת עמוד"
+          aria-label="כניסת מנהל"
+        >
+          <Lock className="w-3.5 h-3.5 text-indigo-400" />
+          <span>עריכת תוכן</span>
+        </button>
+      )}
+
+      {/* Quick In-Page Tenant Admin Login Modal */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none" dir="rtl">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-sm shadow-2xl space-y-4 relative">
+            <button
+              type="button"
+              onClick={() => setIsLoginModalOpen(false)}
+              className="absolute top-4 left-4 text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center space-y-1.5 pt-1">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-indigo-500 text-white flex items-center justify-center mx-auto shadow-lg shadow-indigo-600/30">
+                <Lock className="w-6 h-6" />
+              </div>
+              <h2 className="text-lg font-black text-white">כניסת מנהל לעריכת עמוד</h2>
+              <div className="text-xs text-indigo-400 font-mono" dir="ltr">
+                {tenantId}.kosun.pro
+              </div>
+            </div>
+
+            {loginError && (
+              <div className="p-2.5 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleQuickLogin} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  שם משתמש / אימייל:
+                </label>
+                <input
+                  type="text"
+                  value={loginUser}
+                  onChange={(e) => setLoginUser(e.target.value)}
+                  placeholder={tenantId || 'שם משתמש'}
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  dir="ltr"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">
+                  סיסמת מנהל:
+                </label>
+                <input
+                  type="password"
+                  value={loginPass}
+                  onChange={(e) => setLoginPass(e.target.value)}
+                  placeholder="הזן סיסמה..."
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950/70 border border-slate-700/80 text-white text-sm focus:outline-none focus:border-indigo-500"
+                  dir="ltr"
+                  autoFocus
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loginLoading}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 hover:from-indigo-500 hover:to-indigo-600 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {loginLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+                <span>התחבר והפעל עריכה</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

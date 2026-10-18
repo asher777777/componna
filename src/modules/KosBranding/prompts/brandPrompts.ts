@@ -303,7 +303,7 @@ export function BUILD_FLAGSHIP_PRODUCT_PROMPT(
 10. [שאלה נפוצה 10 בנושא צעדים ראשונים?] | [תשובה מפורטת]
 
 ===SEO===
-SLUG: english-seo-slug-for-product
+SLUG: [סלאג קצר ותמציתי באנגלית באותיות קטנות בלבד המייצג את המוצר בלבד כגון smart-crm, ללא שם החברה וללא שום קידומת]
 META_TITLE: כותרת מטא לגוגל (עד 60 תווים)
 META_DESCRIPTION: תיאור מטא שיווקי לגוגל (עד 160 תווים)
 KEYWORDS: מילת מפתח 1, מילת מפתח 2, מילת מפתח 3, מילת מפתח 4
@@ -374,7 +374,7 @@ export function BUILD_CORE_SERVICE_PROMPT(
 10. [שאלה נפוצה 10 בנושא צעדים ראשונים?] | [תשובה מפורטת]
 
 ===SEO===
-SLUG: english-seo-slug-for-service
+SLUG: [סלאג קצר ותמציתי באנגלית באותיות קטנות בלבד המייצג את השירות בלבד כגון executive-concierge, ללא שם החברה וללא שום קידומת]
 META_TITLE: כותרת מטא לגוגל (עד 60 תווים)
 META_DESCRIPTION: תיאור מטא שיווקי לגוגל (עד 160 תווים)
 KEYWORDS: מילת מפתח 1, מילת מפתח 2, מילת מפתח 3, מילת מפתח 4
