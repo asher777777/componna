@@ -489,19 +489,63 @@ export interface FaqSectionConfig extends BaseSectionConfig {
   textBgScope?: 'text-card' | 'full-section';
 }
 
+export type TimerLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'boxed'
+  | 'minimal'
+  | 'cards'
+  | 'floating-bar';
+
+export type TimerBoxShape =
+  | 'auto'
+  | 'flower'
+  | 'heart'
+  | 'shield'
+  | 'lotus'
+  | 'sharp'
+  | 'hud'
+  | 'rounded';
+
+export type TimerUnitsDirection = 'rtl' | 'ltr';
+
 export interface TimerSectionConfig extends BaseSectionConfig {
   type: 'timer';
   title: string;
   subtitle?: string;
   targetDate: string;
-  layout?: 'boxed' | 'minimal' | 'cards' | 'floating-bar';
+  layout?: TimerLayoutPreset;
+  timeUnitsDirection?: TimerUnitsDirection;
+  boxShape?: TimerBoxShape;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  cardBackgroundColor?: string;
+
+  // CTA button
+  showCtaButton?: boolean;
   ctaText?: string;
   ctaUrl?: string;
+
+  // Custom colors
   titleColor?: string;
   subtitleColor?: string;
   boxBackgroundColor?: string;
   numberColor?: string;
   labelColor?: string;
+
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 }
 
 export interface PricingPackageItem {
