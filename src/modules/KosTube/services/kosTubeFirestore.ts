@@ -19,12 +19,25 @@ import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 
 export const kosTubeFirestore = {
   /**
-   * Saves or updates channel info under tenant scope
+   * Saves or updates channel info under tenant scope (keeps only 1 active channel per tenant)
    */
   async saveChannel(db: Firestore | null | undefined, tenantId: string, channel: KosTubeChannel): Promise<void> {
     if (!db) return;
     try {
-      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
+
+      // Clean up previous channel docs for this tenant so there is only one active connected channel
+      try {
+        const existingSnap = await getDocs(colRef);
+        for (const existingDoc of existingSnap.docs) {
+          if (existingDoc.id !== channel.id) {
+            await deleteDoc(existingDoc.ref);
+          }
+        }
+      } catch (cleanErr) {
+        console.warn('[KosTube] Could not clean old channel docs:', cleanErr);
+      }
+
       const docRef = doc(colRef, channel.id);
       await setDoc(
         docRef,
@@ -41,27 +54,15 @@ export const kosTubeFirestore = {
   },
 
   /**
-   * Retrieves the active connected YouTube channel
-   */
-  /**
-   * Retrieves the active connected YouTube channel
+   * Retrieves the active connected YouTube channel for this tenant
    */
   async getChannel(db: Firestore | null | undefined, tenantId: string): Promise<KosTubeChannel | null> {
     if (!db) return null;
     try {
       const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
-      const snapshot = await getDocs(query(colRef, limit(1)));
+      const snapshot = await getDocs(query(colRef, orderBy('updatedAt', 'desc'), limit(1)));
       if (!snapshot.empty) {
         return snapshot.docs[0].data() as KosTubeChannel;
-      }
-
-      // Fallback to Master collection if subdomain has no custom channel yet
-      if (tenantId && tenantId !== '_master') {
-        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_CHANNELS);
-        const masterSnap = await getDocs(query(masterCol, limit(1)));
-        if (!masterSnap.empty) {
-          return masterSnap.docs[0].data() as KosTubeChannel;
-        }
       }
     } catch (err) {
       console.warn('[KosTube] getChannel failed:', err);
@@ -70,12 +71,42 @@ export const kosTubeFirestore = {
   },
 
   /**
+   * Replaces all videos for a channel under tenant scope
+   */
+  async replaceVideos(db: Firestore | null | undefined, tenantId: string, videos: KosTubeVideo[]): Promise<void> {
+    if (!db) return;
+    try {
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
+      // Clean previous videos
+      const existingSnap = await getDocs(colRef);
+      for (const d of existingSnap.docs) {
+        await deleteDoc(d.ref);
+      }
+      // Save new videos
+      for (const vid of videos) {
+        const docRef = doc(colRef, vid.id);
+        await setDoc(
+          docRef,
+          {
+            ...vid,
+            updatedAt: new Date().toISOString(),
+            _serverUpdatedAt: serverTimestamp(),
+          },
+          { merge: true }
+        );
+      }
+    } catch (err) {
+      console.warn('[KosTube] replaceVideos failed:', err);
+    }
+  },
+
+  /**
    * Saves or batches videos under tenant scope
    */
   async saveVideos(db: Firestore | null | undefined, tenantId: string, videos: KosTubeVideo[]): Promise<void> {
     if (!db || videos.length === 0) return;
     try {
-      const colRef = collection(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
+      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
       for (const vid of videos) {
         const docRef = doc(colRef, vid.id);
         await setDoc(
@@ -107,19 +138,6 @@ export const kosTubeFirestore = {
       const snapshot = await getDocs(q);
       if (!snapshot.empty) {
         return snapshot.docs.map((d) => d.data() as KosTubeVideo);
-      }
-
-      // Fallback to Master collection if subdomain has no custom videos yet
-      if (tenantId && tenantId !== '_master') {
-        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
-        let mq = query(masterCol, orderBy('publishedAt', 'desc'), limit(50));
-        if (channelId) {
-          mq = query(masterCol, where('channelId', '==', channelId), orderBy('publishedAt', 'desc'), limit(50));
-        }
-        const masterSnap = await getDocs(mq);
-        if (!masterSnap.empty) {
-          return masterSnap.docs.map((d) => d.data() as KosTubeVideo);
-        }
       }
       return [];
     } catch (err) {
@@ -171,15 +189,6 @@ export const kosTubeFirestore = {
       if (!snapshot.empty) {
         return snapshot.docs.map((d) => d.data() as KosTubeSeoPage);
       }
-
-      // Fallback to Master collection if subdomain has no custom pages yet
-      if (tenantId && tenantId !== '_master') {
-        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
-        const masterSnap = await getDocs(query(masterCol, orderBy('createdAt', 'desc'), limit(100)));
-        if (!masterSnap.empty) {
-          return masterSnap.docs.map((d) => d.data() as KosTubeSeoPage);
-        }
-      }
       return [];
     } catch (err) {
       console.warn('[KosTube] getSeoPages failed:', err);
@@ -214,22 +223,6 @@ export const kosTubeFirestore = {
         snapshot = await getDocs(titleQ);
         if (!snapshot.empty) {
           return snapshot.docs[0].data() as KosTubeSeoPage;
-        }
-      }
-
-      // 4. Fallback to Master collection if not found on subdomain
-      if (tenantId && tenantId !== '_master') {
-        const masterCol = collection(db, 'tenants', '_master', SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
-        const mq = query(masterCol, where('slug', '==', slug), limit(1));
-        let mSnap = await getDocs(mq);
-        if (!mSnap.empty) {
-          return mSnap.docs[0].data() as KosTubeSeoPage;
-        }
-
-        const mLowerQ = query(masterCol, where('slug', '==', slug.toLowerCase()), limit(1));
-        mSnap = await getDocs(mLowerQ);
-        if (!mSnap.empty) {
-          return mSnap.docs[0].data() as KosTubeSeoPage;
         }
       }
     } catch (err) {

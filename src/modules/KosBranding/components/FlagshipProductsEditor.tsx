@@ -114,29 +114,29 @@ export const FlagshipProductsEditor: React.FC = () => {
   
   const handleSaveProduct = (updated: FlagshipProduct) => {
     const isNew = !products.find((p) => p.id === updated.id);
-    let newProducts = [];
-    if (isNew) {
-      newProducts = [...products, updated];
-    } else {
-      newProducts = products.map((p) => (p.id === updated.id ? updated : p));
-    }
-    
-    // Auto-add target audience if not exists
-    if (updated.targetAudience) {
-      const existingTags = brandDna.audience.targetAudiences || [];
-      if (!existingTags.includes(updated.targetAudience)) {
-        updateAudience({ targetAudiences: [...existingTags, updated.targetAudience] });
-      }
-    }
+    const newProducts = isNew
+      ? [...products, updated]
+      : products.map((p) => (p.id === updated.id ? updated : p));
+
+    // Auto-add target audience if not exists (merged atomically so setFullBrandDna never overwrites it)
+    const existingTags = brandDna.audience?.targetAudiences || [];
+    const nextAudiences =
+      updated.targetAudience && !existingTags.includes(updated.targetAudience)
+        ? [...existingTags, updated.targetAudience]
+        : existingTags;
 
     setFullBrandDna({
       ...brandDna,
+      audience: {
+        ...brandDna.audience,
+        targetAudiences: nextAudiences,
+      },
       ecosystem: {
         ...(brandDna.ecosystem || { services: [], products: [], annualEvents: [], communities: [] }),
         products: newProducts,
       },
     });
-    
+
     if (activeProduct && activeProduct.id === updated.id) {
       setActiveProduct(updated);
     }
@@ -271,15 +271,45 @@ const FlagshipProductModal: React.FC<{
   const [draft, setDraft] = useState<FlagshipProduct>(product);
   const { brandDna } = useBrandDna();
   const [isCreatingPage, setIsCreatingPage] = useState(false);
+  const [isFillingAi, setIsFillingAi] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>('');
   const [headlineIdx, setHeadlineIdx] = useState(0);
   const [progressPercent, setProgressPercent] = useState(15);
   const [completedSteps, setCompletedSteps] = useState<number[]>([0]);
   const [entitlementNotice, setEntitlementNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    setDraft(product);
+  }, [product]);
+
   const { getCapability } = useHostCapabilities();
   const pageBuilder = getCapability<PageBuilderContract>('page-builder');
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+
+  const handleAutoFillWithAi = async () => {
+    if (!draft.nameAndSlogan?.trim()) return;
+    setIsFillingAi(true);
+    try {
+      const result = await generateAiFlagshipProduct(draft.nameAndSlogan, brandDna);
+      if (result) {
+        const enriched: FlagshipProduct = {
+          ...draft,
+          nameAndSlogan: result.nameAndSlogan || draft.nameAndSlogan,
+          shortDescription: result.shortDescription || draft.shortDescription,
+          longDescription: result.longDescription || draft.longDescription,
+          painPointSolved: result.painPointSolved || draft.painPointSolved,
+          targetAudience: result.targetAudience || draft.targetAudience,
+          competitiveAdvantage: result.competitiveAdvantage || draft.competitiveAdvantage,
+        };
+        setDraft(enriched);
+        onSave(enriched);
+      } else {
+        setEntitlementNotice('אין לכם את האפשרות הזו בסל. לשדרוג החבילה והפעלת יכולות AI, פנו למנהל המערכת.');
+      }
+    } finally {
+      setIsFillingAi(false);
+    }
+  };
 
   // מחזור כותרות מתחלפות ומעניינות בזמן יצירת העמוד
   useEffect(() => {
@@ -384,9 +414,24 @@ const FlagshipProductModal: React.FC<{
             <Box className="w-5 h-5 text-indigo-500" />
             עריכת מוצר דגל
           </h3>
-          <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleAutoFillWithAi}
+              disabled={isFillingAi || !draft.nameAndSlogan?.trim()}
+              className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+            >
+              {isFillingAi ? (
+                <div className="w-3.5 h-3.5 border-2 border-indigo-400/30 border-t-indigo-500 rounded-full animate-spin" />
+              ) : (
+                <Sparkles className="w-3.5 h-3.5" />
+              )}
+              <span>{isFillingAi ? 'ממלא נתונים...' : 'מלא שדות עם AI'}</span>
+            </button>
+            <button onClick={onClose} className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
         
         <div className="p-6 space-y-4">

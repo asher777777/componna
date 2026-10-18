@@ -111,18 +111,25 @@ export const kosaiBrandContract = {
   },
 
   /**
-   * Generates customer persona, objections, flagship products or ecosystem items.
-   * Capped to 600 output tokens.
+   * Generates customer persona, objections, flagship products, business packages, market research or ecosystem items.
+   * Supports systemInstruction for full Brand DNA context and 1500 maxOutputTokens so JSON is never truncated.
    */
   async generateEntityItem(
     prompt: string,
-    options?: { apiKey?: string; tenantId?: string; responseMimeType?: 'application/json' | 'text/plain' }
+    options?: {
+      apiKey?: string;
+      tenantId?: string;
+      systemInstruction?: string;
+      maxOutputTokens?: number;
+      responseMimeType?: 'application/json' | 'text/plain';
+    }
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('KosBranding', prompt, {
       model: 'gemini-3.8-flash-lite',
+      systemInstruction: options?.systemInstruction,
       responseMimeType: options?.responseMimeType || 'application/json',
-      temperature: 0.5,
-      maxOutputTokens: 600,
+      temperature: 0.65,
+      maxOutputTokens: options?.maxOutputTokens || 1500,
       customApiKey: options?.apiKey,
       tenantId: options?.tenantId,
       category: 'content',

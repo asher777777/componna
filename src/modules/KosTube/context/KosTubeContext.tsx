@@ -181,7 +181,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         });
 
         await kosTubeFirestore.saveChannel(db, tenantId, syncedChannel);
-        await kosTubeFirestore.saveVideos(db, tenantId, syncedVideos);
+        await kosTubeFirestore.replaceVideos(db, tenantId, syncedVideos);
 
         // If master tenant saved a key, persist it to Master settings so all subdomains inherit it!
         if (isRootTenant && effectiveApiKey && db) {
@@ -203,6 +203,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         setChannel(syncedChannel);
         setVideos(syncedVideos);
+        await refreshData();
         setIsModalOpen(false);
         return true;
       } catch (err: any) {

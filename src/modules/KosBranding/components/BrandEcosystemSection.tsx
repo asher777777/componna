@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { Plus, Trash2, Box, Users, Calendar, Layers, Sparkles, Briefcase } from 'lucide-react';
 import { generateAiEcosystemItems, generateAiBusinessPackages } from '../services/geminiBrandPrompt';
@@ -12,6 +12,13 @@ export const BrandEcosystemSection: React.FC = () => {
   const [products, setProducts] = useState<any[]>(eco.products || []);
   const [events, setEvents] = useState<string[]>(eco.annualEvents || []);
   const [communities, setCommunities] = useState<string[]>(eco.communities || []);
+
+  useEffect(() => {
+    setServices(brandDna.ecosystem?.services || []);
+    setProducts(brandDna.ecosystem?.products || []);
+    setEvents(brandDna.ecosystem?.annualEvents || []);
+    setCommunities(brandDna.ecosystem?.communities || []);
+  }, [brandDna.ecosystem]);
 
   const handleSave = (key: 'services' | 'products' | 'annualEvents' | 'communities', val: string[]) => {
     setFullBrandDna({

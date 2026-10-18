@@ -122,6 +122,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                   ...baseDefault,
                   ...remoteData,
                   identity: { ...baseDefault.identity, ...(remoteData.identity || {}) },
+                  ecosystem: { ...(baseDefault.ecosystem || { services: [], products: [], annualEvents: [], communities: [], businessPackages: [] }), ...(remoteData.ecosystem || {}) },
                   voice: { ...baseDefault.voice, ...(remoteData.voice || {}) },
                   audience: { ...baseDefault.audience, ...(remoteData.audience || {}) },
                   designTokens: { ...baseDefault.designTokens, ...(remoteData.designTokens || {}) },
@@ -239,7 +240,17 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const setFullBrandDna = useCallback((newDna: BrandDna) => {
     markLocalEdit();
     setBrandDna(newDna);
-  }, [markLocalEdit]);
+    saveBrandDna(newDna, db, tenantId).then((res) => {
+      if (res.success) {
+        eventBus.publish('brand:updated', {
+          brandDna: newDna,
+          updatedAt: new Date().toISOString(),
+        });
+      }
+    }).catch((err) => {
+      console.warn('[BrandDNA] Immediate save in setFullBrandDna failed:', err);
+    });
+  }, [db, tenantId, markLocalEdit]);
 
   const setLogoUrl = useCallback(async (url: string): Promise<boolean> => {
     markLocalEdit();

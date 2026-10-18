@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Youtube, 
   Key, 
@@ -27,42 +27,60 @@ export const KosTubeSettingsTab: React.FC = () => {
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (channel) {
+      setChannelQuery(channel.customUrl || channel.channelId || '');
+      if (channel.apiKey) setApiKey(channel.apiKey);
+      setAutoGenerate(channel.autoGeneratePages ?? true);
+    }
+  }, [channel]);
+
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSavedSuccess(false);
 
     try {
-      if (channel) {
+      const cleanQuery = channelQuery.trim();
+      const currentIdentifier = (channel?.customUrl || channel?.channelId || '').trim();
+
+      // Check if user changed the channel handle/URL or if no channel was connected yet
+      const isSwitchingChannel = cleanQuery && (!channel || cleanQuery.toLowerCase() !== currentIdentifier.toLowerCase());
+
+      if (isSwitchingChannel) {
+        const ok = await syncChannel(cleanQuery, isRootTenant ? apiKey : undefined);
+        if (!ok) {
+          setSaving(false);
+          return;
+        }
+      } else if (channel) {
         const updated = {
           ...channel,
           apiKey: isRootTenant ? apiKey : (channel.apiKey || ''),
           autoGeneratePages: autoGenerate,
         };
         await kosTubeFirestore.saveChannel(db, tenantId, updated);
-
-        if (isRootTenant && apiKey && db) {
-          try {
-            const { setDoc, doc } = await import('firebase/firestore');
-            await setDoc(
-              doc(db, 'tenants', '_master', 'settings', 'api_keys'),
-              { youtubeApiKey: apiKey.trim() },
-              { merge: true }
-            );
-            await setDoc(
-              doc(db, 'tenants', '_master', 'settings', 'kostube'),
-              { apiKey: apiKey.trim() },
-              { merge: true }
-            );
-          } catch (e) {
-            console.warn('[KosTubeSettings] Could not save master keys:', e);
-          }
-        }
-
-        await refreshData();
-      } else if (channelQuery.trim()) {
-        await syncChannel(channelQuery, isRootTenant ? apiKey : undefined);
       }
+
+      if (isRootTenant && apiKey && db) {
+        try {
+          const { setDoc, doc } = await import('firebase/firestore');
+          await setDoc(
+            doc(db, 'tenants', '_master', 'settings', 'api_keys'),
+            { youtubeApiKey: apiKey.trim() },
+            { merge: true }
+          );
+          await setDoc(
+            doc(db, 'tenants', '_master', 'settings', 'kostube'),
+            { apiKey: apiKey.trim() },
+            { merge: true }
+          );
+        } catch (e) {
+          console.warn('[KosTubeSettings] Could not save master keys:', e);
+        }
+      }
+
+      await refreshData();
       setSavedSuccess(true);
       setTimeout(() => setSavedSuccess(false), 3000);
     } catch (err) {
@@ -89,15 +107,26 @@ export const KosTubeSettingsTab: React.FC = () => {
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               כתובת ערוץ יוטיוב או Handle
             </label>
-            <div className="relative">
-              <Youtube className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
-              <input
-                type="text"
-                placeholder="לדוגמה: @MyChannelName או https://youtube.com/@channel"
-                value={channelQuery}
-                onChange={(e) => setChannelQuery(e.target.value)}
-                className="w-full pr-10 pl-4 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Youtube className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
+                <input
+                  type="text"
+                  placeholder="לדוגמה: @MyChannelName או https://youtube.com/@channel"
+                  value={channelQuery}
+                  onChange={(e) => setChannelQuery(e.target.value)}
+                  className="w-full pr-10 pl-4 py-2.5 text-sm rounded-xl bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-red-500/40"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={() => channelQuery.trim() && syncChannel(channelQuery.trim(), isRootTenant ? apiKey : undefined)}
+                disabled={isSyncing || !channelQuery.trim()}
+                className="px-4 py-2.5 text-xs font-semibold rounded-xl bg-red-600 hover:bg-red-700 text-white transition disabled:opacity-50 flex items-center gap-1.5 flex-shrink-0 cursor-pointer"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                <span>{isSyncing ? 'מסנכרן...' : 'סנכרן ערוץ זה'}</span>
+              </button>
             </div>
             <p className="mt-1 text-[11px] text-slate-400">
               ניתן להזין מזהה ערוץ מלא, Handle הפותח ב-@, או קישור ישיר לעמוד הערוץ.

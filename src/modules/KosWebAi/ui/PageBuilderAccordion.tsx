@@ -1,4 +1,4 @@
-import React, { useState, useContext, createContext } from 'react';
+import React, { useState, useContext, createContext, useRef, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
@@ -62,6 +62,8 @@ export const PageBuilderAccordion: React.FC<PageBuilderAccordionProps> = ({
 }) => {
   const group = useContext(AccordionGroupContext);
   const [internalOpen, setInternalOpen] = useState(defaultOpen);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const prevOpenRef = useRef<boolean>(false);
 
   // Determine whether this accordion is open:
   // 1. If inside an AccordionGroup with an ID, group state controls it.
@@ -76,6 +78,17 @@ export const PageBuilderAccordion: React.FC<PageBuilderAccordionProps> = ({
     ? controlledIsOpen!
     : internalOpen;
 
+  useEffect(() => {
+    if (effectiveOpen && !prevOpenRef.current) {
+      const timer = setTimeout(() => {
+        containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 60);
+      prevOpenRef.current = effectiveOpen;
+      return () => clearTimeout(timer);
+    }
+    prevOpenRef.current = effectiveOpen;
+  }, [effectiveOpen]);
+
   const handleToggle = () => {
     if (isGroupControlled) {
       group!.toggleId(id!);
@@ -88,10 +101,11 @@ export const PageBuilderAccordion: React.FC<PageBuilderAccordionProps> = ({
 
   return (
     <div
+      ref={containerRef}
       className={twMerge(
         clsx(
           'border border-slate-800 bg-slate-900/40 rounded-2xl overflow-hidden transition-all duration-200',
-          effectiveOpen && 'border-slate-700 bg-slate-900/80 shadow-lg',
+          effectiveOpen && 'border-slate-700 bg-slate-900/80 shadow-lg ring-1 ring-amber-500/20',
           className
         )
       )}

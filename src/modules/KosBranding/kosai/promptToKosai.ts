@@ -10,6 +10,12 @@ import {
   BUILD_BRAND_REPHRASE_PROMPT,
   BUILD_STEP_ASSISTANCE_PROMPT,
   BUILD_CONTENT_STRATEGIES_PROMPT,
+  BUILD_FLAGSHIP_PRODUCT_PROMPT,
+  BUILD_BUSINESS_PACKAGES_PROMPT,
+  BUILD_ECOSYSTEM_ITEMS_PROMPT,
+  BUILD_PERSONA_PROMPT,
+  BUILD_OBJECTION_PROMPT,
+  BUILD_MARKET_RESEARCH_PROMPT,
 } from '../prompts/brandPrompts';
 import { kosaiBrandContract } from '../../kosai-engine/modelsAiService/brandAiContract';
 import { BrandDna } from '../types/brandDna';
@@ -102,16 +108,128 @@ export async function dispatchContentStrategiesToKosai(
 }
 
 /**
- * מייצר פריט ישות (פרסונה, מוצר דגל, פריטי אקו-סיסטם)
+ * מייצר פריט ישות כללי (פרסונה, מוצר דגל, פריטי אקו-סיסטם)
  */
 export async function dispatchEntityItemToKosai(
   prompt: string,
-  options?: KosaiBrandDispatchOptions & { responseMimeType?: 'application/json' | 'text/plain' }
+  options?: KosaiBrandDispatchOptions & {
+    systemInstruction?: string;
+    maxOutputTokens?: number;
+    responseMimeType?: 'application/json' | 'text/plain';
+  }
 ): Promise<any> {
   const result = await kosaiBrandContract.generateEntityItem(prompt, {
     apiKey: options?.apiKey,
     tenantId: options?.tenantId,
+    systemInstruction: options?.systemInstruction,
+    maxOutputTokens: options?.maxOutputTokens,
     responseMimeType: options?.responseMimeType,
   });
   return result.data;
 }
+
+/**
+ * מייצר מוצר דגל מלא (Flagship Product) עם כל שדות החוזה עבור קומפוננטת ה-UI והטננט
+ */
+export async function dispatchFlagshipProductToKosai(
+  idea: string,
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_FLAGSHIP_PRODUCT_PROMPT(idea, brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    maxOutputTokens: 1500,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
+/**
+ * מייצר 3 חבילות שירות לעסקים (Business Packages)
+ */
+export async function dispatchBusinessPackagesToKosai(
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_BUSINESS_PACKAGES_PROMPT(brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    maxOutputTokens: 1500,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
+/**
+ * מייצר 3 פריטים חדשים לאקו-סיסטם של המותג (שירותים, אירועים, קהילות)
+ */
+export async function dispatchEcosystemItemsToKosai(
+  brand: BrandDna,
+  category: string,
+  currentItems: string[],
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_ECOSYSTEM_ITEMS_PROMPT(brand, category, currentItems);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    maxOutputTokens: 800,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
+/**
+ * מייצר פרסונת לקוח מותאמת ל-Brand DNA
+ */
+export async function dispatchPersonaToKosai(
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_PERSONA_PROMPT(brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    maxOutputTokens: 800,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
+/**
+ * מייצר התנגדות לקוח ומענה מנצח מותאם ל-Brand DNA
+ */
+export async function dispatchObjectionToKosai(
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_OBJECTION_PROMPT(brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    maxOutputTokens: 800,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
+/**
+ * מריץ סוכן מחקר שוק ומתחרים מלא
+ */
+export async function dispatchMarketResearchToKosai(
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_MARKET_RESEARCH_PROMPT(brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    maxOutputTokens: 1600,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+

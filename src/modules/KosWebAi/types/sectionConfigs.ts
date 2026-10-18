@@ -788,3 +788,67 @@ export interface FutureContentSectionConfig extends BaseSectionConfig {
   textColor?: string;
 }
 
+export type KosvidioGalleryLayout =
+  | 'spotlight-grid'     // פריסה א: וידאו גדול ותחתיו כמה קטנים
+  | 'stacked-list'       // רשימה זה תחת זה
+  | 'horizontal-scroll'; // גלריה עם גלילה אופקית ללא גלישה
+
+export type KosvidioGallerySource =
+  | 'tenant_kosvidio'    // משיכה דינמית מקולקציית הטננט (KOSVIDIO / KosTube / עמודי וידאו)
+  | 'brand_services'     // משיכה דינמית משירותי המותג ב-DNA
+  | 'custom';            // ניהול ידני של רשימת הסרטונים
+
+export type KosvidioGallerySortBy = 'newest' | 'most_views' | 'most_likes' | 'title_asc';
+
+export interface KosvidioGalleryLogicRules {
+  sortBy?: KosvidioGallerySortBy;
+  filterTag?: string;
+  filterKeyword?: string;
+  minViews?: number;
+  onlyPublished?: boolean;
+  maxVideos?: number;
+}
+
+export interface KosvidioGalleryItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  youtubeVideoId?: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  kosvidioSlug?: string;
+  duration?: string;
+  viewsCount?: number;
+  likesCount?: number;
+  publishedAt?: string;
+  category?: string;
+  tags?: string[];
+  featured?: boolean;
+}
+
+export interface KosvidioGallerySectionConfig extends BaseSectionConfig {
+  type: 'kosvidioGallery';
+  badge?: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  layout: KosvidioGalleryLayout;
+  allowVisitorLayoutSwitch?: boolean;
+  source: KosvidioGallerySource;
+  logicRules?: KosvidioGalleryLogicRules;
+  maxVideos?: number;
+  clickBehavior?: 'inline_and_link' | 'navigate_slug' | 'inline_only';
+  channelName?: string;
+  channelSlogan?: string;
+  channelAvatarUrl?: string;
+  titleColor?: string;
+  descriptionColor?: string;
+  accentColor?: string;
+  cardBgColor?: string;
+  items: KosvidioGalleryItem[];
+  ctaButtonText?: string;
+  ctaButtonUrl?: string;
+}
+
+

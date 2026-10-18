@@ -25,6 +25,7 @@ export type SectionType =
   | 'customHtml'
   | 'eventRsvp'
   | 'kosvidio'
+  | 'kosvidioGallery'
   | 'tiktokHero'
   | 'dynamicListing'
   | 'futureContent2027';

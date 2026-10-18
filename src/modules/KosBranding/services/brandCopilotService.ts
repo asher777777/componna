@@ -7,6 +7,12 @@ import {
   dispatchStepAssistanceToKosai,
   dispatchContentStrategiesToKosai,
   dispatchEntityItemToKosai,
+  dispatchFlagshipProductToKosai,
+  dispatchBusinessPackagesToKosai,
+  dispatchEcosystemItemsToKosai,
+  dispatchPersonaToKosai,
+  dispatchObjectionToKosai,
+  dispatchMarketResearchToKosai,
 } from '../kosai/promptToKosai';
 import { buildBrandSystemContext } from '../prompts';
 
@@ -219,25 +225,41 @@ export async function generateBrandContentStrategies(
 }
 
 /**
- * יצירת פרסונה בודדת מותאמת ל-DNA
+ * יצירת פרסונה בודדת מותאמת ל-DNA (תומך גם בשדות הקצרים של TargetAudienceSection וגם בשדות המלאים של PersonaItem)
  */
 export async function generateAiPersona(brand: BrandDna, apiKey?: string): Promise<any> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  const prompt = `צור פרסונת לקוח מדויקת עבור ${brand.identity.companyName} (${brand.identity.organizationPurpose}).
-החזר JSON בלבד:
-{"id":"p_${Date.now()}","name":"שם מלא","roleOrProfile":"תפקיד או רקע","mainPain":"כאב מרכזי","dreamOutcome":"תוצאת חלום"}`;
-
   try {
-    return await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-  } catch {
-    return {
-      id: `p_${Date.now()}`,
-      name: 'דניאל, בעל עסק',
-      roleOrProfile: 'מחפש פתרון אמין ומהיר לחסכון בזמן',
-      mainPain: 'חוסר בזמן ועומס במשימות שגרתיות',
-      dreamOutcome: 'מערכת מסודרת שמעניקה שקט נפשי מלא',
-    };
+    const res = await dispatchPersonaToKosai(brand, { apiKey: activeKey });
+    if (res && typeof res === 'object') {
+      const roleVal = res.role || res.roleOrProfile || 'לקוח יעד מרכזי';
+      const painVal = res.pain || res.mainPain || 'חיפוש אחר מענה מקצועי, אמין ואישי';
+      const dreamVal = res.dream || res.dreamOutcome || 'שקט נפשי, מענה מדויק ותוצאות מוכחות';
+      return {
+        id: res.id || `p_${Date.now()}`,
+        name: res.name || 'לקוח יעד מוביל',
+        role: roleVal,
+        roleOrProfile: roleVal,
+        pain: painVal,
+        mainPain: painVal,
+        dream: dreamVal,
+        dreamOutcome: dreamVal,
+      };
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] generateAiPersona fallback:', err);
   }
+
+  return {
+    id: `p_${Date.now()}`,
+    name: `לקוח/ה של ${brand.identity?.companyName || 'המותג'}`,
+    role: brand.audience?.targetAudiences?.[0] || 'קהל יעד מרכזי המחפש פתרון אמין ואיכותי',
+    roleOrProfile: brand.audience?.targetAudiences?.[0] || 'קהל יעד מרכזי המחפש פתרון אמין ואיכותי',
+    pain: 'עומס, חוסר ודאות וצורך במענה מקצועי בגובה העיניים',
+    mainPain: 'עומס, חוסר ודאות וצורך במענה מקצועי בגובה העיניים',
+    dream: 'חוויה מעצימה, שקט נפשי מלא ופתרון מותאם אישית',
+    dreamOutcome: 'חוויה מעצימה, שקט נפשי מלא ופתרון מותאם אישית',
+  };
 }
 
 /**
@@ -245,70 +267,165 @@ export async function generateAiPersona(brand: BrandDna, apiKey?: string): Promi
  */
 export async function generateAiObjection(brand: BrandDna, apiKey?: string): Promise<any> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  const prompt = `צור התנגדות לקוח נפוצה ומענה משכנע עבור ${brand.identity.companyName}.
-החזר JSON בלבד:
-{"id":"o_${Date.now()}","objection":"החשש או השאלה","rebuttal":"המענה המרגיע והמשכנע של המותג"}`;
-
   try {
-    return await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-  } catch {
-    return {
-      id: `o_${Date.now()}`,
-      objection: 'האם השירות באמת מתאים לעסק בסדר הגודל שלי?',
-      rebuttal: 'המערכת והשירות מודולריים ומותאמים אישית החל מעסקים קטנים ועד חברות גדולות.',
-    };
+    const res = await dispatchObjectionToKosai(brand, { apiKey: activeKey });
+    if (res && typeof res === 'object' && res.objection && res.rebuttal) {
+      return {
+        id: res.id || `o_${Date.now()}`,
+        objection: res.objection,
+        rebuttal: res.rebuttal,
+      };
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] generateAiObjection fallback:', err);
   }
+
+  return {
+    id: `o_${Date.now()}`,
+    objection: 'האם השירות והמענה באמת מותאמים לצרכים האישיים שלי?',
+    rebuttal: `ב-${brand.identity?.companyName || 'ארגוננו'} אנו מעניקים יחס אישי ומעטפת מותאמת במדויק לכל פונה, עם ליווי מקצועי ומסור לכל אורך הדרך.`,
+  };
 }
 
 /**
- * יצירת מוצר דגל מותאם למותג
+ * יצירת מוצר דגל מותאם למותג לפי החוזה המדויק של FlagshipProduct & FlagshipProductsEditor
  */
-export async function generateAiFlagshipProduct(idea: string, brand: BrandDna, apiKey?: string): Promise<any> {
+export async function generateAiFlagshipProduct(
+  idea: string,
+  brand: BrandDna,
+  apiKey?: string
+): Promise<{
+  nameAndSlogan: string;
+  shortDescription: string;
+  longDescription: string;
+  painPointSolved: string;
+  targetAudience: string;
+  competitiveAdvantage: string;
+} | null> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  const prompt = `צור כרטיס מוצר דגל מוביל עבור ${brand.identity.companyName}.
-רעיון בסיסי: ${idea || brand.identity.organizationPurpose}
-החזר JSON בלבד:
-{"title":"שם המוצר","subtitle":"תת כותרת משכנעת","description":"תיאור קצר וממיר","price":990,"benefits":["יתרון 1","יתרון 2","יתרון 3"]}`;
+  const cleanIdea = (idea || brand.identity?.organizationPurpose || 'מוצר דגל מוביל').trim();
+  const company = brand.identity?.companyName || 'המותג';
+  const slogan = brand.identity?.slogan || '';
+  const defaultAudience = brand.audience?.targetAudiences?.[0] || 'קהל היעד המרכזי של הארגון';
+  const uvp = brand.audience?.mainUvp || brand.identity?.companyVision || '';
+
+  if (!activeKey) {
+    return null;
+  }
 
   try {
-    return await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-  } catch {
-    return {
-      title: 'חבילת הדגל המנצחת',
-      subtitle: 'מעטפת שלמה להשגת תוצאות מהירות',
-      description: `המוצר המוביל של ${brand.identity.companyName} הכולל יישום מלא ותמיכה אישית.`,
-      price: 1500,
-      benefits: ['הטמעה מהירה', 'ליווי אישי מומחה', 'תוצאות מובטחות'],
-    };
+    const res = await dispatchFlagshipProductToKosai(cleanIdea, brand, { apiKey: activeKey });
+    if (res && typeof res === 'object') {
+      const nameAndSlogan =
+        res.nameAndSlogan ||
+        (res.title && res.subtitle ? `${res.title} – ${res.subtitle}` : res.title) ||
+        `${cleanIdea}${slogan ? ` – ${slogan}` : ''}`;
+
+      const shortDescription =
+        res.shortDescription ||
+        res.subtitle ||
+        res.description ||
+        `מענה מקצועי, מעצים ומותאם אישית בתחום ${cleanIdea} מבית ${company}.`;
+
+      const longDescription =
+        res.longDescription ||
+        res.description ||
+        `ב-${company} פיתחנו את "${cleanIdea}" כדי להעניק מעטפת שלמה, איכותית ומעצימה לקהל שלנו. התוכנית משלבת מקצועיות ללא פשרות עם יחס אישי, חם ומסור, ונועדה לתת מענה אמיתי ומעמיק לצרכים היומיומיים שלך. ${uvp}`;
+
+      const painPointSolved =
+        res.painPointSolved ||
+        res.painPoint ||
+        `הצורך במענה זמין, מקצועי, אמין ועוטף בתחום ${cleanIdea}, החוסך התמודדות לבד ומעניק שקט נפשי וביטחון מלא.`;
+
+      const targetAudience =
+        res.targetAudience ||
+        defaultAudience;
+
+      const competitiveAdvantage =
+        res.competitiveAdvantage ||
+        (Array.isArray(res.benefits) && res.benefits.length > 0 ? res.benefits.join(' • ') : '') ||
+        uvp ||
+        `שילוב ייחודי של מקצועיות, ניסיון וליווי אישי מכל הלב בסטנדרט האיכות של ${company}.`;
+
+      return {
+        nameAndSlogan: String(nameAndSlogan).trim(),
+        shortDescription: String(shortDescription).trim(),
+        longDescription: String(longDescription).trim(),
+        painPointSolved: String(painPointSolved).trim(),
+        targetAudience: String(targetAudience).trim(),
+        competitiveAdvantage: String(competitiveAdvantage).trim(),
+      };
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] generateAiFlagshipProduct live AI fallback:', err);
   }
+
+  // Fallback עשיר ומלא בכל 6 השדות של FlagshipProduct כדי שהמשתמש לעולם לא יקבל שדות ריקים
+  return {
+    nameAndSlogan: `${cleanIdea} – ${slogan || `המענה המוביל מבית ${company}`}`,
+    shortDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
+    longDescription: `מוצר הדגל "${cleanIdea}" מבית ${company} נבנה מתוך היכרות עמוקה עם הצרכים של הקהילה וקהל היעד שלנו. אנו מעניקים שילוב נדיר של איכות מוקפדת, ליווי אישי בגובה העיניים ומענה שלם שמייצר שקט נפשי, חיבור אמיתי ותוצאות משמעותיות לאורך זמן.`,
+    painPointSolved: `הצורך בפתרון אמין, נגיש ומחבק עבור ${cleanIdea}, המעניק תמיכה מלאה ומונע תחושת עומס או בדידות.`,
+    targetAudience: defaultAudience,
+    competitiveAdvantage: uvp || `ליווי אישי ומסור מכל הלב בשילוב הסטנדרט המקצועי והייחודי של ${company}.`,
+  };
 }
 
 /**
- * יצירת חבילות עסקיות מומלצות
+ * יצירת חבילות עסקיות מומלצות לפי החוזה של BrandEcosystemSection
  */
 export async function generateAiBusinessPackages(brand: BrandDna, apiKey?: string): Promise<any[]> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  const prompt = `צור 3 חבילות שירות (בסיס, מתקדם, VIP) עבור ${brand.identity.companyName}.
-החזר מערך JSON בלבד:
-[
-  {"name":"חבילת פתיחה","price":490,"features":["תכונה 1","תכונה 2"],"recommended":false},
-  {"name":"חבילת צמיחה Pro","price":990,"features":["תכונה 1","תכונה 2","תכונה 3"],"recommended":true},
-  {"name":"מעטפת VIP מלאה","price":1990,"features":["תכונה 1","תכונה 2","תכונה 3","תכונה 4"],"recommended":false}
-]`;
+  const company = brand.identity?.companyName || 'המותג';
+  const defaultAudience = brand.audience?.targetAudiences?.[0] || 'לקוחות המחפשים פתרון מקיף';
 
   try {
-    return await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-  } catch {
-    return [
-      { name: 'בסיס', price: 490, features: ['שירות בסיסי', 'תמיכה באימייל'], recommended: false },
-      { name: 'פרו מומלץ', price: 990, features: ['כל תכונות הבסיס', 'מענה בוואטסאפ', 'עדכונים שוטפים'], recommended: true },
-      { name: 'VIP מותאם', price: 1990, features: ['מעטפת מלאה', 'זמינות גבוהה', 'ליווי אישי מותאם'], recommended: false },
-    ];
+    const res = await dispatchBusinessPackagesToKosai(brand, { apiKey: activeKey });
+    const list = Array.isArray(res) ? res : Array.isArray(res?.packages) ? res.packages : [];
+    if (list.length > 0) {
+      return list.map((pkg: any, idx: number) => ({
+        name: pkg.name || `חבילת פתרון ${idx + 1}`,
+        description: pkg.description || (Array.isArray(pkg.features) ? pkg.features.join(', ') : `חבילת שירות מקיפה מבית ${company}`),
+        painPointsAddressed: pkg.painPointsAddressed || 'חיסכון בזמן, סדר ארגוני ומענה מקצועי שלם',
+        competitiveAdvantage: pkg.competitiveAdvantage || brand.audience?.mainUvp || `ליווי אישי ומעטפת מלאה של ${company}`,
+        targetAudience: pkg.targetAudience || defaultAudience,
+        callToAction: pkg.callToAction || 'לתיאום שיחת התאמה ללא התחייבות',
+      }));
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] generateAiBusinessPackages fallback:', err);
   }
+
+  return [
+    {
+      name: `חבילת יסוד והיכרות – ${company}`,
+      description: 'מעטפת ראשונית ממוקדת המעניקה כניסה חלקה, אבחון מדויק ומענה מיידי לצרכים המרכזיים.',
+      painPointsAddressed: 'חוסר ודאות ראשוני וצורך בפתרון ממוקד, נגיש וברור.',
+      competitiveAdvantage: `יחס אישי וליווי צמוד מצוות ${company} כבר מהצעד הראשון.`,
+      targetAudience: defaultAudience,
+      callToAction: 'התחילו עכשיו בשיחת היכרות קצרה',
+    },
+    {
+      name: `חבילת צמיחה וליווי מלא – ${company}`,
+      description: 'המסלול המרכזי והמומלץ הכולל ליווי שוטף, כלים יישומיים ומעטפת תמיכה מלאה לאורך כל הדרך.',
+      painPointsAddressed: 'עומס מתמשך וצורך בעוגן קבוע המייצר התקדמות עקבית ושקט נפשי.',
+      competitiveAdvantage: brand.audience?.mainUvp || `שילוב מנצח של מקצועיות, זמינות וקהילה תומכת ב-${company}.`,
+      targetAudience: defaultAudience,
+      callToAction: 'הצטרפו למסלול המוביל שלנו',
+    },
+    {
+      name: `מעטפת VIP אישית – ${company}`,
+      description: 'תוכנית פרימיום בהתאמה אישית מלאה (1-על-1) עם זמינות מרבית ופתרון מקצה לקצה.',
+      painPointsAddressed: 'צורך בפתרון ייחודי המותאם אישית ללא פשרות ובליווי צמוד.',
+      competitiveAdvantage: `גישה ישירה וליווי אישי צמוד של מומחי ${company}.`,
+      targetAudience: defaultAudience,
+      callToAction: 'תיאום פגישת VIP אישית',
+    },
+  ];
 }
 
 /**
- * יצירת פריטי אקו-סיסטם
+ * יצירת פריטי אקו-סיסטם (שירותים, אירועים, קהילות)
  */
 export async function generateAiEcosystemItems(
   brand: BrandDna,
@@ -317,40 +434,73 @@ export async function generateAiEcosystemItems(
   apiKey?: string
 ): Promise<string[]> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  const prompt = `הצע 3 פריטים נוספים לקטגוריה "${category}" עבור המותג ${brand.identity.companyName}.
-פריטים קיימים: ${currentItems.join(', ')}
-החזר מערך JSON של מחרוזות בלבד: ["פריט 1", "פריט 2", "פריט 3"]`;
-
   try {
-    const res = await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-    if (Array.isArray(res)) return res;
-  } catch {}
+    const res = await dispatchEcosystemItemsToKosai(brand, category, currentItems, { apiKey: activeKey });
+    if (Array.isArray(res) && res.length > 0) return res.map(String);
+    if (res && Array.isArray(res.items) && res.items.length > 0) return res.items.map(String);
+  } catch (err) {
+    console.warn('[brandCopilotService] generateAiEcosystemItems fallback:', err);
+  }
 
-  return ['פתרון דיגיטלי מתקדם', 'שירות ליווי מותאם אישית', 'מערך הדרכה והכשרה'];
+  return ['ליווי וייעוץ אישי מותאם', 'סדנאות ומפגשי העשרה', 'קהילת תוכן וחיבורים'];
 }
 
 /**
- * הרצת סוכן חקר שוק
+ * הרצת סוכן חקר שוק ומתחרים לפי החוזה של MarketResearchAgentSection
  */
 export async function runMarketResearchAgent(brand: BrandDna, apiKey?: string): Promise<any> {
   const activeKey = resolveGeminiApiKey(apiKey);
-  const prompt = `בצע ניתוח שוק ותחרות תמציתי עבור ${brand.identity.companyName} (${brand.identity.organizationPurpose}).
-החזר JSON בלבד:
-{
-  "marketTrends": ["מגמה 1", "מגמה 2"],
-  "competitorGaps": ["פער 1 בתחרות שניתן לנצל", "פער 2"],
-  "recommendedAction": "ההמלצה החמה ביותר לצמיחה בחודש הקרוב"
-}`;
+  const company = brand.identity?.companyName || 'המותג';
 
   try {
-    return await dispatchEntityItemToKosai(prompt, { apiKey: activeKey });
-  } catch {
-    return {
-      marketTrends: ['עלייה בביקוש לפתרונות מהירים ואוטומטיים', 'חשיבות עליונה לחוויית שירות אישית'],
-      competitorGaps: ['רוב המתחרים אינם מציעים ליווי היברידי (טכנולוגי + אנושי)', 'חוסר בשקיפות ומחירים ברורים'],
-      recommendedAction: 'הדגש את המעטפת השלמה ואת המענה האנושי המהיר כבידול מובהק.',
-    };
+    const res = await dispatchMarketResearchToKosai(brand, { apiKey: activeKey });
+    if (res && typeof res === 'object' && Array.isArray(res.marketTrends)) {
+      return {
+        marketTrends: res.marketTrends,
+        competitors: Array.isArray(res.competitors) ? res.competitors : [],
+        competitiveness: res.competitiveness || res.recommendedAction || '',
+        pricingRecommendations: res.pricingRecommendations || 'מומלץ להציע מודל מדורג המשלב מסלול כניסה נגיש לצד חבילת ליווי מלאה.',
+        designLanguageRecommendations: res.designLanguageRecommendations || 'מומלץ לשמור על שפה ויזואלית נקייה, חמה ומזמינה המשדרת אמון וביטחון.',
+        actionableUpdates: res.actionableUpdates || {
+          slogan: brand.identity?.slogan || '',
+          primaryColor: brand.designTokens?.primaryColor || '#6366f1',
+          newService: '',
+        },
+      };
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] runMarketResearchAgent fallback:', err);
   }
+
+  return {
+    marketTrends: [
+      'עלייה בביקוש למענה אישי וקהילתי המשלב תוכן איכותי וליווי אנושי',
+      'מעבר לחוויות דיגיטליות נגישות, מהירות ומותאמות אישית במובייל',
+      'חשיבות גוברת לאמון, שקיפות וחיבור ערכי למותג',
+    ],
+    competitors: [
+      {
+        name: 'גופים מסורתיים בתחום',
+        strengths: 'ותק והיכרות ראשונית בשוק',
+        weaknesses: 'חוסר בגמישות, דיגיטציה איטית ופחות יחס אישי מותאם',
+        pricingTier: 'בינוני - גבוה',
+      },
+      {
+        name: 'פתרונות דיגיטליים כלליים',
+        strengths: 'זמינות מהירה ברשת',
+        weaknesses: 'היעדר ליווי אנושי חם, קהילה תומכת והתאמה ערכית עמוקה',
+        pricingTier: 'נמוך - בינוני',
+      },
+    ],
+    competitiveness: `היתרון הבולט של ${company} טמון בשילוב שבין עומק ומקצועיות לבין יחס אישי חם וקהילה עוטפת.`,
+    pricingRecommendations: 'מומלץ לבנות תמחור מדורג המאפשר כניסה קלה ונגישה לצד תוכניות דגל מעמיקות בעלות ערך מוסף גבוה.',
+    designLanguageRecommendations: 'שימוש בצבעוניות הרמונית וחמה, טיפוגרפיה ברורה וקריאה, והדגשת אלמנטים של קהילה ואמון.',
+    actionableUpdates: {
+      slogan: brand.identity?.slogan || `${company} – הבית שלך לצמיחה ומשמעות`,
+      primaryColor: brand.designTokens?.primaryColor || '#6366f1',
+      newService: 'תוכנית ליווי וקהילה היברידית מותאמת אישית',
+    },
+  };
 }
 
 /**
