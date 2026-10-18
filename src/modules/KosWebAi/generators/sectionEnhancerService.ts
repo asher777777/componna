@@ -740,6 +740,37 @@ Return ONLY the raw updated JSON object.`;
       updated.subtitle = slogan || 'סרטונים, הדרכות ותוכן בלעדי';
       updated.source = 'tenant_youtube';
       changes.push(`סונכרנו כותרות גלריית הוידאו וחיבור ברירת מחדל לנתוני YouTube של ${company}`);
+    } else if (sectionType === 'mainContent') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת באנר נשית (רכה ורוז-גולד עם קשתות)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת באנר גברית (פחם, זהב פליז ומסגרת פלדה)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת באנר רוחנית (מרווה, מנטה ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת באנר חדה (הייטק, ציאן ניאון ו-90 מעלות)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת באנר אנליטית (אינדקס נתונים #01 וסדר קטלוגי)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת באנר עכשווית');
+      }
+
+      updated.title = `הצטרפו לתכנית ההכשרה והמומחיות של ${company}`;
+      updated.subtitle = slogan || 'הרשמה מוקדמת בתנאים מועדפים';
+      updated.badge = `• ${company} ACADEMY •`;
+      if (whatsapp || phone) {
+        updated.primaryButton = {
+          text: 'שריינו מקום עכשיו',
+          url: `https://wa.me/${(whatsapp || phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום, אני מעוניין להירשם לתכנית של ${company}`)}`,
+        };
+      }
+      changes.push(`סונכרנו פרטי הבאנר, יתרונות ההכשרה והוואטסאפ של ${company}`);
     } else if (sectionType === 'tiktokHero') {
       updated.headline = prompt.includes('הוק') || prompt.includes('קצר') ? `${slogan || 'ההזדמנות שלך מתחילה כאן'}` : `${company} – כל אדם זה נכס`;
       updated.card = {
