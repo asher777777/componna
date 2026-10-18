@@ -317,6 +317,150 @@ export async function generateAiFlagshipProduct(
     aiBotIndexingEnabled?: boolean;
   };
 } | null> {
+/**
+ * מפרסר תשובת טקסט מובנית (Delimited Plain Text) של מוצר דגל מ-Gemini
+ * מגן מפני כפילויות, חוסך טוקנים מסיביים ומחלץ את כל השדות בצורה דטרמיניסטית
+ */
+function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string): Record<string, any> {
+  let text = '';
+  if (typeof raw === 'string') {
+    text = raw.trim();
+  } else if (raw && typeof raw === 'object') {
+    if (raw.painPoints || raw.targetAudiences || raw.nameAndSlogan) {
+      return raw;
+    }
+    text = JSON.stringify(raw);
+  }
+
+  // If text is wrapped in JSON codeblock or braces
+  if (text.startsWith('```json') || text.startsWith('```')) {
+    text = text.replace(/^```[a-z]*\s*/i, '').replace(/```\s*$/, '').trim();
+  }
+  if (text.startsWith('{') && text.endsWith('}')) {
+    try {
+      const obj = JSON.parse(text);
+      if (obj && typeof obj === 'object') return obj;
+    } catch {
+      // Continue to regex delimited parsing
+    }
+  }
+
+  const sections: Record<string, string> = {};
+  const sectionRegex = /===([A-Z_]+)===\s*([\s\S]*?)(?=(?:===[A-Z_]+===|$))/g;
+  let match;
+  while ((match = sectionRegex.exec(text)) !== null) {
+    const key = match[1].trim();
+    const content = match[2].trim();
+    sections[key] = content;
+  }
+
+  const parseLines = (rawBlock: string | undefined) => {
+    if (!rawBlock) return [];
+    return rawBlock
+      .split('\n')
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0 && !l.startsWith('==='))
+      .map((line) => {
+        const cleaned = line.replace(/^\d+[\.\)\-]\s*/, '').trim();
+        if (cleaned.includes('|')) {
+          const parts = cleaned.split('|');
+          return {
+            title: parts[0].trim(),
+            text: parts.slice(1).join('|').trim(),
+          };
+        }
+        if (cleaned.includes(':')) {
+          const parts = cleaned.split(':');
+          return {
+            title: parts[0].trim(),
+            text: parts.slice(1).join(':').trim(),
+          };
+        }
+        return {
+          title: cleaned.slice(0, 35).trim(),
+          text: cleaned,
+        };
+      })
+      .filter((item) => item.title.length > 0 || item.text.length > 0);
+  };
+
+  const painPoints = parseLines(sections.PAIN_POINTS);
+  const targetAudiences = parseLines(sections.TARGET_AUDIENCES);
+  const competitiveAdvantages = parseLines(sections.COMPETITIVE_ADVANTAGES);
+
+  // Parse FAQs
+  const faqLines = (sections.FAQS || '')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0 && !l.startsWith('==='))
+    .map((line) => {
+      const cleaned = line.replace(/^\d+[\.\)\-]\s*/, '').trim();
+      if (cleaned.includes('|')) {
+        const parts = cleaned.split('|');
+        return {
+          question: parts[0].trim(),
+          answer: parts.slice(1).join('|').trim(),
+        };
+      }
+      if (cleaned.includes('?')) {
+        const idx = cleaned.indexOf('?');
+        return {
+          question: cleaned.slice(0, idx + 1).trim(),
+          answer: cleaned.slice(idx + 1).replace(/^[\s:\-]+/, '').trim(),
+        };
+      }
+      if (cleaned.includes(':')) {
+        const parts = cleaned.split(':');
+        return {
+          question: parts[0].trim(),
+          answer: parts.slice(1).join(':').trim(),
+        };
+      }
+      return {
+        question: cleaned,
+        answer: `מענה מקצועי, אישי ומדויק מבית ${company} עבור ${cleanIdea}.`,
+      };
+    })
+    .filter((f) => f.question.length > 0);
+
+  // Parse SEO block
+  const seoBlock = sections.SEO || '';
+  const getSeoVal = (key: string) => {
+    const m = new RegExp(`^${key}:\\s*(.*)$`, 'm').exec(seoBlock);
+    return m ? m[1].trim() : '';
+  };
+
+  const seoSlug = getSeoVal('SLUG');
+  const metaTitle = getSeoVal('META_TITLE');
+  const metaDescription = getSeoVal('META_DESCRIPTION');
+  const keywords = getSeoVal('KEYWORDS');
+  const aiSummary = getSeoVal('AI_SUMMARY');
+  const aiQuestionsRaw = getSeoVal('AI_QUESTIONS');
+  const aiTargetQuestions = aiQuestionsRaw
+    ? aiQuestionsRaw.split('|').map((q) => q.trim()).filter(Boolean)
+    : [];
+
+  return {
+    nameAndSlogan: sections.NAME_AND_SLOGAN || '',
+    shortDescription: sections.SHORT_DESCRIPTION || '',
+    longDescription: sections.LONG_DESCRIPTION || '',
+    painPoints,
+    targetAudiences,
+    competitiveAdvantages,
+    faqs: faqLines,
+    seo: {
+      slug: seoSlug || undefined,
+      metaTitle,
+      metaDescription,
+      keywords,
+      aiKnowledgeSummary: aiSummary,
+      aiTargetQuestions,
+      aiEntitySchemaType: 'Product',
+      aiBotIndexingEnabled: true,
+    },
+  };
+}
+
   const activeKey = resolveGeminiApiKey(apiKey);
   const cleanIdea = (idea || brand.identity?.organizationPurpose || 'מוצר דגל מוביל').trim();
   const company = brand.identity?.companyName || 'המותג';
@@ -325,21 +469,59 @@ export async function generateAiFlagshipProduct(
   const uvp = brand.audience?.mainUvp || brand.identity?.companyVision || '';
 
   const defaultPainIcons = ['AlertCircle', 'Clock', 'HeartHandshake', 'ShieldCheck', 'Compass', 'Sparkles'];
-  const defaultAudienceIcons = ['Users', 'Heart', 'Briefcase'];
+  const defaultAudienceIcons = ['Users', 'Briefcase', 'Heart'];
   const defaultAdvantageIcons = ['Award', 'CheckCircle2', 'Sparkles', 'HeartHandshake', 'Star', 'Shield'];
   const defaultFaqIcons = ['HelpCircle', 'CheckCircle2', 'Info', 'Sparkles', 'Clock', 'Heart', 'Shield', 'Users', 'Phone', 'Star'];
+
+  // Distinct fallback lists (ensuring 0 duplicate copy across repeater items)
+  const defaultPainFallbacks = [
+    { title: 'חוסר בזמן ומשאבים', text: `עומס יומיומי וקושי לפנות זמן להתמקצעות ולהתפתחות עסקית בתחום ${cleanIdea}.` },
+    { title: 'היעדר ליווי והכוונה', text: `תחושת בדידות בקבלת החלטות ללא גורם מקצועי שמלווה יד ביד מבית ${company}.` },
+    { title: 'פיזור ואי-סדר במערכות', text: `עבודה עם כלים מרובים ולא מסונכרנים היוצרת בלבול ואיבוד הזדמנויות.` },
+    { title: 'קושי בסגירת עסקאות', text: `פניות שמגיעות אך אינן מבשילות להכנסה עקב מחסור בתהליך מכירה מסודר.` },
+    { title: 'שחיקה ועומס מנטלי', text: `צורך בעוגן יציב ומערכת אוטומטית שמעניקה שקט נפשי מלא לעסק.` },
+    { title: 'חוסר ודאות לגבי צמיחה', text: `צורך בתוכנית ברורה ומוכחת שמביאה תוצאות מדידות ועקביות לאורך זמן.` },
+  ];
+
+  const defaultAudienceFallbacks = [
+    { title: 'בעלי עסקים ועצמאיים', text: `המחפשים שקט נפשי, סדר וייעול משמעותי בפעילות השוטפת בתחום ${cleanIdea}.` },
+    { title: 'מנהלי קהילות וארגונים', text: `המעוניינים לחזק את הקשר עם החברים ולנהל פעילות צומחת בקלות.` },
+    { title: 'יזמים ומובילי דרך', text: `הרוצים להזניק מוצר או שירות לשוק במהירות ובסטנדרט הגבוה ביותר.` },
+  ];
+
+  const defaultAdvantageFallbacks = [
+    { title: 'מעטפת מקצועית שלמה', text: `פתרון הוליסטי מקצה לקצה המשלב טכנולוגיה עילית עם ליווי אנושי של ${company}.` },
+    { title: 'זמינות ויחס אישי', text: `מענה מהיר, אכפתי ומסור הרואה בכל אדם ולקוח נכס אמיתי.` },
+    { title: 'טכנולוגיית AI מתקדמת', text: `אוטומציות חכמות החוסכות שעות עבודה שבועיות ומייצרות דיוק מקסימלי.` },
+    { title: 'פשטות והטמעה מהירה', text: `מערכת אינטואיטיבית שניתן להתחיל לעבוד איתה מיד ללא עקומת למידה מסורבלת.` },
+    { title: 'ביטחון ואחריות מלאה', text: `התחייבות בלתי מתפשרת לאיכות, שקיפות מלאה ושקט נפשי מתמשך.` },
+    { title: 'קהילה ורשת קשרים', text: `חיבור למעגל לקוחות ועמיתים פורה התומך בהצלחה הדדית וצמיחה משותפת.` },
+  ];
+
+  const defaultFaqFallbacks = [
+    { question: `מה כולל בדיוק המוצר "${cleanIdea}"?`, answer: `המוצר כולל מעטפת מלאה, כלים יישומיים וליווי צמוד של צוות ${company}.` },
+    { question: `למי המוצר מתאים ביותר?`, answer: `התוכנית מותאמת אישית לכל עסק או יזם המעוניין לצמוח בצורה מסודרת ומקצועית.` },
+    { question: `מהם לוחות הזמנים עד לקבלת תוצאות?`, answer: `ניתן לראות תוצאות והתקדמות משמעותית כבר בשבועות הראשונים לעבודה המשותפת.` },
+    { question: `האם נדרש ידע טכני מוקדם?`, answer: `ממש לא! המערכת והתהליך נבנו במיוחד כך שיהיו נגישים, פשוטים ואינטואיטיביים לכל אחד.` },
+    { question: `כיצד מתבצע תהליך הליווי?`, answer: `אנו מספקים ליווי היברידי המשלב הדרכות, מענה בוואטסאפ ופגישות עבודה אישיות.` },
+    { question: `במה המוצר שונה מפתרונות אחרים בשוק?`, answer: uvp || `הבידול שלנו הוא שילוב נדיר בין טכנולוגיית AI מתקדמת ליחס אישי חם ומסור.` },
+    { question: `האם קיימת אחריות על שביעות הרצון?`, answer: `כן, אנו עומדים ב-100% מאחורי איכות השירות ומחויבים להצלחה המשותפת שלך.` },
+    { question: `מהן אפשרויות התשלום והתמחור?`, answer: `אנו מציעים מודל תשלום נוח וגמיש, כולל פריסת תשלומים בהתאמה אישית.` },
+    { question: `האם ניתן לשדרג או להרחיב את החבילה בהמשך?`, answer: `בהחלט, המערכת מודולרית וצומחת יחד עם העסק לפי הצרכים המשתנים.` },
+    { question: `איך מתחילים ויוצאים לדרך?`, answer: `משאירים פרטים כאן בעמוד ונציג מטעמנו יחזור אליכם לתיאום שיחת היכרות קצרה.` },
+  ];
 
   const normalizeRepeater = (
     rawList: any,
     targetCount: number,
     prefix: string,
     defaultIcons: string[],
-    fallbackGenerator: (idx: number) => { title: string; text: string }
+    fallbacks: Array<{ title: string; text: string }>
   ) => {
     const arr = Array.isArray(rawList) ? rawList : [];
     return Array.from({ length: targetCount }, (_, idx) => {
       const item = arr[idx];
-      const fb = fallbackGenerator(idx);
+      const fb = fallbacks[idx % fallbacks.length];
       if (item && typeof item === 'object') {
         return {
           id: String(item.id || `${prefix}_${idx + 1}`),
@@ -369,6 +551,7 @@ export async function generateAiFlagshipProduct(
     const arr = Array.isArray(rawFaqs) ? rawFaqs : [];
     return Array.from({ length: 10 }, (_, idx) => {
       const item = arr[idx];
+      const fb = defaultFaqFallbacks[idx % defaultFaqFallbacks.length];
       if (item && typeof item === 'object' && (item.question || item.q) && (item.answer || item.a)) {
         return {
           id: String(item.id || `faq_${idx + 1}`),
@@ -379,8 +562,8 @@ export async function generateAiFlagshipProduct(
       }
       return {
         id: `faq_${idx + 1}`,
-        question: `שאלה נפוצה ${idx + 1} בנושא ${cleanIdea}`,
-        answer: `ב-${company} אנו מעניקים מענה אישי, מקצועי ומלא סביב ${cleanIdea}, בתיאום מלא לצרכים שלך.`,
+        question: fb.question,
+        answer: fb.answer,
         icon: defaultFaqIcons[idx % defaultFaqIcons.length],
       };
     });
@@ -391,7 +574,9 @@ export async function generateAiFlagshipProduct(
   }
 
   try {
-    const res = await dispatchFlagshipProductToKosai(cleanIdea, brand, { apiKey: activeKey });
+    const rawRes = await dispatchFlagshipProductToKosai(cleanIdea, brand, { apiKey: activeKey });
+    const res = parseDelimitedFlagshipText(rawRes, cleanIdea, company);
+
     if (res && typeof res === 'object') {
       const nameAndSlogan =
         res.nameAndSlogan ||
@@ -409,21 +594,9 @@ export async function generateAiFlagshipProduct(
         res.description ||
         `ב-${company} פיתחנו את "${cleanIdea}" כדי להעניק מעטפת שלמה, איכותית ומעצימה לקהל שלנו. התוכנית משלבת מקצועיות ללא פשרות עם יחס אישי, חם ומסור, ונועדה לתת מענה אמיתי ומעמיק לצרכים היומיומיים שלך. ${uvp}`;
 
-      const painPoints = normalizeRepeater(res.painPoints, 6, 'pain', defaultPainIcons, (idx) => ({
-        title: `אתגר מרכזי ${idx + 1}`,
-        text: `התמודדות יומיומית הדורשת מענה מקצועי, אמין ונגיש בתחום ${cleanIdea} מבית ${company}.`,
-      }));
-
-      const targetAudiences = normalizeRepeater(res.targetAudiences, 3, 'aud', defaultAudienceIcons, (idx) => ({
-        title: brand.audience?.targetAudiences?.[idx] || `קהל יעד ${idx + 1}`,
-        text: `מותאם במיוחד עבור ${brand.audience?.targetAudiences?.[idx] || defaultAudience} המחפשים מעטפת איכותית וליווי אישי.`,
-      }));
-
-      const competitiveAdvantages = normalizeRepeater(res.competitiveAdvantages, 6, 'adv', defaultAdvantageIcons, (idx) => ({
-        title: `יתרון מוביל ${idx + 1}`,
-        text: `סטנדרט שירות גבוה, יחס אישי ומעטפת מקצועית מוכחת של ${company}.`,
-      }));
-
+      const painPoints = normalizeRepeater(res.painPoints, 6, 'pain', defaultPainIcons, defaultPainFallbacks);
+      const targetAudiences = normalizeRepeater(res.targetAudiences, 3, 'aud', defaultAudienceIcons, defaultAudienceFallbacks);
+      const competitiveAdvantages = normalizeRepeater(res.competitiveAdvantages, 6, 'adv', defaultAdvantageIcons, defaultAdvantageFallbacks);
       const faqs = normalizeFaqs(res.faqs);
 
       const painPointSolved =
@@ -475,18 +648,9 @@ export async function generateAiFlagshipProduct(
     console.warn('[brandCopilotService] generateAiFlagshipProduct live AI fallback:', err);
   }
 
-  const fallbackPainPoints = normalizeRepeater([], 6, 'pain', defaultPainIcons, (idx) => ({
-    title: `נקודת כאב ${idx + 1}`,
-    text: `הצורך בפתרון אמין, נגיש ומחבק עבור ${cleanIdea}, המעניק תמיכה מלאה ומונע תחושת עומס או בדידות.`,
-  }));
-  const fallbackTargetAudiences = normalizeRepeater([], 3, 'aud', defaultAudienceIcons, (idx) => ({
-    title: brand.audience?.targetAudiences?.[idx] || `קהל יעד ${idx + 1}`,
-    text: `מענה מדויק ומותאם אישית עבור ${brand.audience?.targetAudiences?.[idx] || defaultAudience}.`,
-  }));
-  const fallbackAdvantages = normalizeRepeater([], 6, 'adv', defaultAdvantageIcons, (idx) => ({
-    title: `יתרון בולט ${idx + 1}`,
-    text: uvp || `ליווי אישי ומסור מכל הלב בשילוב הסטנדרט המקצועי והייחודי של ${company}.`,
-  }));
+  const fallbackPainPoints = normalizeRepeater([], 6, 'pain', defaultPainIcons, defaultPainFallbacks);
+  const fallbackTargetAudiences = normalizeRepeater([], 3, 'aud', defaultAudienceIcons, defaultAudienceFallbacks);
+  const fallbackAdvantages = normalizeRepeater([], 6, 'adv', defaultAdvantageIcons, defaultAdvantageFallbacks);
   const fallbackFaqs = normalizeFaqs([]);
 
   return {

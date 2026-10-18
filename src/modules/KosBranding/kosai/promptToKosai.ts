@@ -139,7 +139,8 @@ export async function dispatchFlagshipProductToKosai(
   const { systemContext, userPrompt } = BUILD_FLAGSHIP_PRODUCT_PROMPT(idea, brand);
   const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
     systemInstruction: systemContext,
-    maxOutputTokens: 4096,
+    responseMimeType: 'text/plain',
+    maxOutputTokens: 2500,
     apiKey: options?.apiKey,
     tenantId: options?.tenantId,
   });

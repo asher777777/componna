@@ -164,13 +164,19 @@ function ensureRepeaterItems(
   defaultIcon: string,
   defaultTitlePrefix: string
 ): FlagshipRepeaterItem[] {
-  if (Array.isArray(items) && items.length > 0) {
-    return items.map((item, idx) => ({
-      id: item.id || `${prefix}_${idx + 1}`,
-      title: item.title || `${defaultTitlePrefix} ${idx + 1}`,
-      text: item.text || '',
-      icon: item.icon || defaultIcon,
-    }));
+  const existing = Array.isArray(items) ? items : [];
+  if (existing.length > 0) {
+    const result: FlagshipRepeaterItem[] = [];
+    for (let idx = 0; idx < Math.max(targetCount, existing.length); idx++) {
+      const item = existing[idx];
+      result.push({
+        id: item?.id || `${prefix}_${idx + 1}`,
+        title: item?.title || `${defaultTitlePrefix} ${idx + 1}`,
+        text: item?.text || '',
+        icon: item?.icon || defaultIcon,
+      });
+    }
+    return result;
   }
   if (legacyString && legacyString.trim()) {
     const parts = legacyString
@@ -197,13 +203,19 @@ function ensureRepeaterItems(
 }
 
 function ensureFaqItems(faqs: FlagshipFaqItem[] | undefined, targetCount = 10): FlagshipFaqItem[] {
-  if (Array.isArray(faqs) && faqs.length > 0) {
-    return faqs.map((f, idx) => ({
-      id: f.id || `faq_${idx + 1}`,
-      question: f.question || '',
-      answer: f.answer || '',
-      icon: f.icon || 'HelpCircle',
-    }));
+  const existing = Array.isArray(faqs) ? faqs : [];
+  if (existing.length > 0) {
+    const result: FlagshipFaqItem[] = [];
+    for (let idx = 0; idx < Math.max(targetCount, existing.length); idx++) {
+      const f = existing[idx];
+      result.push({
+        id: f?.id || `faq_${idx + 1}`,
+        question: f?.question || '',
+        answer: f?.answer || '',
+        icon: f?.icon || 'HelpCircle',
+      });
+    }
+    return result;
   }
   return Array.from({ length: targetCount }, (_, idx) => ({
     id: `faq_${idx + 1}`,

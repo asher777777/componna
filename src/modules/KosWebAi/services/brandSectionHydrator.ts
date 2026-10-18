@@ -1,32 +1,103 @@
 import { SectionType } from '../types/pageBuilder.types';
 import { BrandDna } from '../../../core/contracts';
 import { DEFAULT_BRAND_DNA } from '../../KosBranding/types/brandDna';
+import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
+import { resolveCurrentTenantId } from '../../../core/tenant';
 
 /**
- * Resolves live Brand DNA from active context, local storage, or populated defaults.
- * Guarantees that branding details are NEVER null or empty.
+ * Resolves live Brand DNA from active context, tenant-scoped local storage, or tenant defaults.
+ * Never overwrites a subdomain tenant's Brand DNA with Manager (_master) Brand DNA.
  */
 export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: string): BrandDna {
-  let loadedDna: BrandDna | null = provided && (provided.identity?.companyName || provided.trust?.contactPhone) ? provided : null;
+  const effTenant = tenantId || (typeof window !== 'undefined' ? resolveCurrentTenantId() : '_master') || '_master';
+  const isMaster = effTenant === '_master';
+  const baseDefault = isMaster ? DEFAULT_BRAND_DNA : createTenantInitialBrandDna(effTenant);
+
+  const hasProvidedIdentity = Boolean(
+    provided &&
+      (provided.identity?.companyName ||
+        (provided.identity as any)?.brandName ||
+        provided.identity?.slogan ||
+        provided.audience?.mainUvp ||
+        provided.trust?.contactPhone)
+  );
+
+  if (hasProvidedIdentity && provided) {
+    const cleanIdentity = { ...baseDefault.identity, ...(provided.identity || {}) };
+    if (!isMaster) {
+      if (cleanIdentity.companyName === 'קושאן' || cleanIdentity.companyName === effTenant) {
+        cleanIdentity.companyName = (provided.identity as any)?.brandName || '';
+      }
+      if (cleanIdentity.slogan === 'כל אדם זה נכס') {
+        cleanIdentity.slogan = '';
+      }
+      if (cleanIdentity.logoUrl === '/images/kosun-logo.svg') {
+        cleanIdentity.logoUrl = '';
+      }
+    }
+    return {
+      ...baseDefault,
+      ...provided,
+      identity: cleanIdentity,
+      designTokens: { ...baseDefault.designTokens, ...(provided.designTokens || {}) },
+      trust: { ...baseDefault.trust, ...(provided.trust || {}) },
+      audience: { ...baseDefault.audience, ...(provided.audience || {}) },
+      ecosystem: {
+        services: provided.ecosystem?.services || baseDefault.ecosystem?.services || [],
+        products: provided.ecosystem?.products || baseDefault.ecosystem?.products || [],
+        annualEvents: provided.ecosystem?.annualEvents || baseDefault.ecosystem?.annualEvents || [],
+        communities: provided.ecosystem?.communities || baseDefault.ecosystem?.communities || [],
+        ...(provided.ecosystem || {}),
+      },
+      voice: { ...baseDefault.voice, ...(provided.voice || {}) },
+    };
+  }
+
+  let loadedDna: BrandDna | null = null;
 
   if (typeof window !== 'undefined') {
     try {
-      const tenantKey = tenantId ? `kosun_${tenantId}_brand_dna_settings` : null;
-      const raw = (tenantKey && localStorage.getItem(tenantKey)) ||
-                  localStorage.getItem('kosun_brand_dna_settings') ||
-                  localStorage.getItem('brand_dna_settings');
+      const primaryTenantKey = `kosun_${effTenant}_kos_branding_settings`;
+      const legacyTenantKey = `kosun_${effTenant}_brand_dna_settings`;
+      const raw =
+        localStorage.getItem(primaryTenantKey) ||
+        localStorage.getItem(legacyTenantKey) ||
+        (isMaster
+          ? localStorage.getItem('kos_branding_settings') ||
+            localStorage.getItem('kosun_brand_dna_settings') ||
+            localStorage.getItem('brand_dna_settings')
+          : null);
+
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (parsed?.identity?.companyName || parsed?.trust?.contactPhone) {
+        if (
+          parsed?.identity?.companyName ||
+          parsed?.identity?.brandName ||
+          parsed?.identity?.slogan ||
+          parsed?.audience?.mainUvp ||
+          parsed?.trust?.contactPhone
+        ) {
+          const cleanIdentity = { ...baseDefault.identity, ...(parsed.identity || {}) };
+          if (!isMaster) {
+            if (cleanIdentity.companyName === 'קושאן' || cleanIdentity.companyName === effTenant) {
+              cleanIdentity.companyName = parsed?.identity?.brandName || '';
+            }
+            if (cleanIdentity.slogan === 'כל אדם זה נכס') {
+              cleanIdentity.slogan = '';
+            }
+            if (cleanIdentity.logoUrl === '/images/kosun-logo.svg') {
+              cleanIdentity.logoUrl = '';
+            }
+          }
           loadedDna = {
-            ...(loadedDna || DEFAULT_BRAND_DNA),
+            ...baseDefault,
             ...parsed,
-            identity: { ...(loadedDna?.identity || DEFAULT_BRAND_DNA.identity), ...parsed.identity },
-            designTokens: { ...(loadedDna?.designTokens || DEFAULT_BRAND_DNA.designTokens), ...parsed.designTokens },
-            trust: { ...(loadedDna?.trust || DEFAULT_BRAND_DNA.trust), ...parsed.trust },
-            audience: { ...(loadedDna?.audience || DEFAULT_BRAND_DNA.audience), ...parsed.audience },
-            ecosystem: { ...(loadedDna?.ecosystem || DEFAULT_BRAND_DNA.ecosystem), ...parsed.ecosystem },
-            voice: { ...(loadedDna?.voice || DEFAULT_BRAND_DNA.voice), ...parsed.voice },
+            identity: cleanIdentity,
+            designTokens: { ...baseDefault.designTokens, ...(parsed.designTokens || {}) },
+            trust: { ...baseDefault.trust, ...(parsed.trust || {}) },
+            audience: { ...baseDefault.audience, ...(parsed.audience || {}) },
+            ecosystem: { ...baseDefault.ecosystem, ...(parsed.ecosystem || {}) },
+            voice: { ...baseDefault.voice, ...(parsed.voice || {}) },
           };
         }
       }
@@ -35,7 +106,7 @@ export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: strin
     }
   }
 
-  return loadedDna || DEFAULT_BRAND_DNA;
+  return loadedDna || baseDefault;
 }
 
 /**
@@ -56,20 +127,26 @@ function buildWhatsAppUrl(rawNumber?: string, message?: string): string {
 export function hydrateSectionWithBrandDna(
   baseConfig: any,
   brandDnaInput?: BrandDna | null,
-  sectionType?: SectionType
+  sectionType?: SectionType,
+  tenantId?: string
 ): any {
-  const brand = resolveLiveBrandDna(brandDnaInput);
+  const effTenant = tenantId || (typeof window !== 'undefined' ? resolveCurrentTenantId() : '_master') || '_master';
+  const isMaster = effTenant === '_master';
+  const brand = resolveLiveBrandDna(brandDnaInput, effTenant);
   const type = sectionType || baseConfig?.type;
   const cloned = JSON.parse(JSON.stringify(baseConfig || {}));
 
-  const companyName = brand.identity?.companyName || 'קושאן';
-  const slogan = brand.identity?.slogan || 'כל אדם זה נכס';
-  const logoUrl = brand.identity?.logoUrl || '/images/kosun-logo.svg';
+  const companyName =
+    brand.identity?.companyName ||
+    (brand.identity as any)?.brandName ||
+    (isMaster ? 'קושאן' : '');
+  const slogan = brand.identity?.slogan || (isMaster ? 'כל אדם זה נכס' : '');
+  const logoUrl = brand.identity?.logoUrl || (isMaster ? '/images/kosun-logo.svg' : '');
   const uvp = brand.audience?.mainUvp || brand.identity?.companyVision || slogan;
-  const phone = brand.trust?.contactPhone || '052-6968008';
-  const email = brand.trust?.contactEmail || 'ovt5771@gmail.com';
-  const whatsapp = brand.trust?.whatsappSupportNumber || '0526968008';
-  const address = brand.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב';
+  const phone = brand.trust?.contactPhone || (isMaster ? '052-6968008' : '');
+  const email = brand.trust?.contactEmail || (isMaster ? 'ovt5771@gmail.com' : '');
+  const whatsapp = brand.trust?.whatsappSupportNumber || (isMaster ? '0526968008' : '');
+  const address = brand.trust?.officeAddress || (isMaster ? 'דרך מנחם בגין 144, תל אביב' : '');
   const primaryColor = brand.designTokens?.primaryColor;
   const secondaryColor = brand.designTokens?.secondaryColor;
   const services = brand.ecosystem?.services || [];
@@ -252,37 +329,21 @@ export function hydrateSectionWithBrandDna(
     case 'kosvidioGallery': {
       cloned.source = cloned.source || 'tenant_kosvidio';
       cloned.layout = cloned.layout || 'spotlight-grid';
-      cloned.title = `ספריית הוידאו והתוכן של ${companyName}`;
-      cloned.subtitle = slogan;
+      cloned.title = companyName ? `ספריית הוידאו והתוכן של ${companyName}` : 'ספריית הוידאו והתוכן';
+      cloned.subtitle = slogan || '';
       cloned.description =
         uvp ||
-        `צפו בסרטונים, בהדרכות ובפתרונות של ${companyName} המקושרים ישירות לעמודי ה-KOSVIDIO של המותג.`;
+        (companyName
+          ? `צפו בסרטונים, בהדרכות ובתכנים של ${companyName} המקושרים ישירות לעמודי ה-KOSVIDIO של המותג.`
+          : '');
       cloned.channelName = companyName;
       cloned.channelSlogan = slogan;
       cloned.channelAvatarUrl = logoUrl;
-      if (primaryColor && !cloned.accentColor) {
+      if (primaryColor) {
         cloned.accentColor = primaryColor;
       }
-      const sampleYtIds = ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ', 'jNQXAC9IVRw'];
-      if (services.length > 0) {
-        cloned.items = services.map((srv: any, idx: number) => {
-          const srvName = typeof srv === 'string' ? srv : srv?.name || `שירות מוביל ${idx + 1}`;
-          return {
-            id: `kosvidio-item-${idx + 1}`,
-            title: srvName,
-            subtitle: `${companyName} • ${slogan}`,
-            description: `סרטון הדרכה וסקירה מקצועית עבור ${srvName} מבית ${companyName}. מקושר לסלאג KOSVIDIO.`,
-            youtubeVideoId: sampleYtIds[idx % sampleYtIds.length],
-            kosvidioSlug: 'Kosvidio',
-            duration: `0${3 + (idx % 3)}:${15 + idx * 10}`,
-            viewsCount: 1250 + idx * 320,
-            likesCount: 95 + idx * 24,
-            category: 'שירותים מרכזיים',
-            tags: [srvName, companyName, 'KOSVIDIO'],
-            featured: idx === 0,
-          };
-        });
-      }
+      // Never inject dummy/mock videos; videos are loaded from the tenant's real KOSVIDIO collection
+      cloned.items = [];
       break;
     }
 
@@ -400,5 +461,5 @@ export function createDynamicSectionConfig(
   base.visible = true;
   base.anchorId = base.anchorId || anchorId;
 
-  return hydrateSectionWithBrandDna(base, brand, type);
+  return hydrateSectionWithBrandDna(base, brand, type, tenantId);
 }

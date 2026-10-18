@@ -4,6 +4,7 @@ import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, 
 import { loadBrandDna, saveBrandDna, getCommunityBrand, saveCommunityBrand, createTenantInitialBrandDna } from '../services/brandDnaFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { buildBrandSystemContext } from '../services/geminiBrandPrompt';
+import { generateDeterministicBrandSummary } from '../prompts/brandPrompts';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { BrandDnaContract, CommunityBrandContract, CommunityBrandProfile } from '../../../core/contracts';
@@ -28,6 +29,7 @@ export interface BrandDnaContextValue {
   setLogoUrl: (url: string) => Promise<boolean>;
   addVibeImage: (url: string) => Promise<boolean>;
   removeVibeImage: (url: string) => Promise<boolean>;
+  updateBrandSummaryParagraph: (paragraph: string) => Promise<boolean>;
 }
 
 export const BrandDnaContext = createContext<BrandDnaContextValue | undefined>(undefined);
@@ -310,13 +312,39 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return true;
   }, [markLocalEdit]);
 
+  const updateBrandSummaryParagraph = useCallback(async (paragraph: string): Promise<boolean> => {
+    markLocalEdit();
+    const clean = paragraph.trim();
+    let updatedDna: BrandDna = brandDnaRef.current;
+    setBrandDna((prev) => {
+      const updated = {
+        ...prev,
+        brandSummaryParagraph: clean,
+      };
+      updatedDna = updated;
+      saveBrandDna(updated, db, tenantId).catch(console.warn);
+      return updated;
+    });
+    eventBus.publish('brand:updated', {
+      brandDna: updatedDna,
+      updatedAt: new Date().toISOString(),
+    });
+    return true;
+  }, [db, tenantId, markLocalEdit]);
+
   const saveNow = useCallback(async (): Promise<boolean> => {
     setIsSaving(true);
-    const res = await saveBrandDna(brandDnaRef.current, db, tenantId);
+    const dnaToSave = {
+      ...brandDnaRef.current,
+      brandSummaryParagraph:
+        brandDnaRef.current.brandSummaryParagraph?.trim() ||
+        generateDeterministicBrandSummary(brandDnaRef.current),
+    };
+    const res = await saveBrandDna(dnaToSave, db, tenantId);
     setIsSaving(false);
     if (res.success) {
       eventBus.publish('brand:updated', {
-        brandDna: brandDnaRef.current,
+        brandDna: dnaToSave,
         updatedAt: new Date().toISOString(),
       });
     }
@@ -349,6 +377,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       setLogoUrl,
       addVibeImage,
       removeVibeImage,
+      updateBrandSummaryParagraph,
       registerServicePageSlug: async (serviceName: string, slug: string): Promise<boolean> => {
         markLocalEdit();
         setBrandDna((prev) => {
@@ -450,6 +479,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setLogoUrl,
         addVibeImage,
         removeVibeImage,
+        updateBrandSummaryParagraph,
       }}
     >
       {children}
@@ -475,6 +505,7 @@ const FALLBACK_CONTEXT_VALUE: BrandDnaContextValue = {
   setLogoUrl: async () => true,
   addVibeImage: async () => true,
   removeVibeImage: async () => true,
+  updateBrandSummaryParagraph: async () => true,
 };
 
 export const useBrandDna = (): BrandDnaContextValue => {

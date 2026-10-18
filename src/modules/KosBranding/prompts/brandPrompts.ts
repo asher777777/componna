@@ -168,33 +168,40 @@ UVP: ${brand.audience.mainUvp}
 }
 
 /**
- * בונה הקשר מערכתי אחיד של ה-Brand DNA עבור כל בקשות ה-AI
+ * מייצר פסקת תמצית מותג דטרמיניסטית ואיכותית מתוך נתוני ה-DNA
+ */
+export function generateDeterministicBrandSummary(brand: BrandDna): string {
+  const name = brand.identity?.companyName || 'העסק';
+  const type = brand.identity?.organizationType || 'חברה';
+  const purpose = brand.identity?.organizationPurpose || 'מתן שירותים ופתרונות מקצועיים';
+  const slogan = brand.identity?.slogan ? ` בסימן "${brand.identity.slogan}"` : '';
+  const uvp = brand.audience?.mainUvp ? ` הייחוד המרכזי הינו ${brand.audience.mainUvp}.` : '';
+  const audiences = brand.audience?.targetAudiences?.length
+    ? ` הפעילות מיועדת בראש ובראשונה ל${brand.audience.targetAudiences.join(', ')}.`
+    : '';
+  const vision = brand.identity?.shortVision || brand.identity?.companyVision ? ` חזון המותג: ${brand.identity?.shortVision || brand.identity?.companyVision}.` : '';
+
+  return `${name} הינו ${type} הפועל בתחום ${purpose}${slogan}.${uvp}${audiences}${vision}`.trim();
+}
+
+/**
+ * בונה הקשר מערכתי ממוקד וחסכוני בטוקנים על בסיס פסקת תמצית המותג המסכמת (Brand Essence)
  */
 export function BUILD_BRAND_SYSTEM_CONTEXT(brand: BrandDna, moduleRole: string = 'שיווק, תוכן ומיתוג'): string {
-  const { identity, voice, audience, trust, ecosystem } = brand;
-  const servicesList = (ecosystem?.services || []).join(', ');
-  const communitiesList = (ecosystem?.communities || []).join(', ');
+  const company = brand.identity?.companyName || 'העסק';
+  const summary = brand.brandSummaryParagraph?.trim() || generateDeterministicBrandSummary(brand);
 
   return [
-    `אתה פועל כעת בתפקיד "${moduleRole}" עבור הארגון/המותג "${identity?.companyName || 'העסק'}".`,
-    `סוג התאגדות: ${identity?.organizationType || 'חברה'} | תכלית ויעוד: ${identity?.organizationPurpose || ''}`,
-    `סלוגן רשמי: "${identity?.slogan || ''}"`,
-    `חזון המותג: ${identity?.companyVision || identity?.shortVision || ''}`,
-    `הצעת ערך ייחודית (UVP): ${audience?.mainUvp || ''}`,
-    `קהלי יעד מרכזיים: ${(audience?.targetAudiences || []).join(', ')}`,
-    servicesList ? `שירותי המותג: ${servicesList}` : '',
-    communitiesList ? `קהילות המותג: ${communitiesList}` : '',
-    `טון דיבור (1-5): רשמיות=${voice?.personality?.formality ?? 3}, חמימות=${voice?.personality?.warmth ?? 4}, יוקרה=${voice?.personality?.luxury ?? 3}, אנרגיה=${voice?.personality?.energy ?? 4}`,
-    `פנייה מגדרית: ${voice?.genderAddressing || 'plural'} | רגישות מגזרית: ${voice?.sectorCompliance || 'general'}`,
-    `מילות עוצמה לשילוב: ${(voice?.powerWords || []).join(', ')}`,
-    `מילים אסורות לשימוש: ${(voice?.forbiddenWords || []).join(', ')}`,
-    `טלפון ליצירת קשר: ${trust?.contactPhone || ''} | וואטסאפ: ${trust?.whatsappSupportNumber || ''}`,
-    `כתובת: ${trust?.officeAddress || ''}`,
+    `תפקידך: "${moduleRole}" עבור "${company}".`,
+    `תמצית מותג מסכמת (Brand Essence):`,
+    summary,
+    brand.voice?.powerWords?.length ? `מילות מפתח מנחות: ${brand.voice.powerWords.join(', ')}.` : '',
+    brand.voice?.forbiddenWords?.length ? `מילים אסורות: ${brand.voice.forbiddenWords.join(', ')}.` : '',
   ].filter(Boolean).join('\n');
 }
 
 /**
- * פרומפט ליצירת מוצר דגל מלא (FlagshipProduct) לפי החוזה המורחב של FlagshipProductsEditor
+ * פרומפט ליצירת מוצר דגל מלא (FlagshipProduct) בפורמט טקסט מובנה וחסכוני בטוקנים (ללא בזבוז JSON או אייקונים)
  * כולל: 6 נקודות כאב, 3 קהלי יעד, 6 יתרונות תחרותיים, 10 שאלות ותשובות, ונתוני SEO וקידום AI
  */
 export function BUILD_FLAGSHIP_PRODUCT_PROMPT(
@@ -202,53 +209,64 @@ export function BUILD_FLAGSHIP_PRODUCT_PROMPT(
   brand: BrandDna
 ): { systemContext: string; userPrompt: string } {
   const systemContext = BUILD_BRAND_SYSTEM_CONTEXT(brand, 'אסטרטג מוצרי דגל, מומחה SEO/AIO וקופירייטר בכיר');
-  const userPrompt = `בהתבסס על ה-Brand DNA של המותג "${brand.identity?.companyName || 'המותג'}" ועל הרעיון שהזין המשתמש:
+  const userPrompt = `בהתבסס על תמצית המותג ועל הרעיון שהזין המשתמש:
 "${idea}"
 
-צור פרופיל מוצר דגל (Flagship Product) שלם, עשיר, מעמיק ומשכנע בעברית רהוטה התואמת את רוח המותג, קהל היעד והערכים שלו.
-חובה למלא את כל השדות והמערכים בדיוק לפי המספרים הנדרשים:
-1. "painPoints": בדיוק 6 נקודות כאב שהמוצר פותר (כל פריט כולל כותרת קצרה, טקסט מורחב ב-2-3 משפטים, ושם אייקון מתאים באנגלית מתוך הרשימה).
-2. "targetAudiences": בדיוק 3 קהלי יעד שהמוצר מתאים להם (כל פריט כולל כותרת קצרה של הקהל, טקסט מורחב המסביר למה זה מתאים לו, ושם אייקון מתאים).
-3. "competitiveAdvantages": בדיוק 6 יתרונות ומעלות על פני המתחרים (כל פריט כולל כותרת קצרה, טקסט מורחב ב-2-3 משפטים, ושם אייקון מתאים).
-4. "faqs": בדיוק 10 שאלות ותשובות נפוצות ומקיפות עבור אזור השאלות והתשובות בעמוד המוצר (כולל שם אייקון מתאים לכל שאלה).
-5. "seo": נתוני הגדרות SEO מלאים ונתוני קידום במנועי AI (AIO/GEO).
+צור פרופיל מוצר דגל שלם, עשיר, ייחודי ומעמיק בעברית רהוטה.
+אין צורך לציין אייקונים (המערכת תקצה אייקונים כברירת מחדל).
+חובה לכתוב תוכן מגוון, שונה ומובחן לכל סעיף – חל איסור מוחלט על חזרות, העתקות או כפילויות של תוכן בין השדות!
 
-רשימת אייקונים מותרת לבחירה בשדה "icon":
-["Crown", "Diamond", "Gem", "Sparkles", "Award", "Trophy", "Star", "Medal", "Flame", "Compass", "Anchor", "Coins", "Briefcase", "Building2", "TrendingUp", "BarChart3", "Target", "Scale", "HeartHandshake", "Users", "UserCheck", "Rocket", "ShieldCheck", "BadgeCheck", "CheckCircle2", "Lock", "Zap", "Lightbulb", "Globe", "Layers", "Heart", "Smile", "Gift", "Calendar", "Clock", "BookOpen", "GraduationCap", "MessageCircle", "Phone", "HelpCircle"]
+החזר את התשובה אך ורק בפורמט הטקסט המובנה הבא, עם התגיות המדויקות:
 
-החזר אך ורק אובייקט JSON תקין עם המפתחות המדויקים הבאים בלבד:
-{
-  "nameAndSlogan": "שם המוצר + סלוגן מושך ומדויק",
-  "shortDescription": "תיאור קצר וקולע ב-1-2 משפטים שמסביר את המוצר והתועלת המיידית שלו",
-  "longDescription": "תיאור ארוך, עשיר ומפורט (5-7 משפטים) המותאם ל-SEO ולקידום ב-AI, המספר את סיפור המוצר, החוויה והערך העמוק שהוא מעניק",
-  "painPoints": [
-    { "title": "כותרת נקודת כאב 1", "text": "פירוט מורחב ומעמיק של נקודת הכאב וכיצד המוצר פותר אותה...", "icon": "Target" }
-  ],
-  "targetAudiences": [
-    { "title": "שם קהל יעד 1", "text": "פירוט מורחב של מאפייני הקהל והתועלת הייחודית עבורו...", "icon": "Users" }
-  ],
-  "competitiveAdvantages": [
-    { "title": "כותרת יתרון 1", "text": "פירוט מורחב של המעלה והיתרון על פני כל חלופה אחרת...", "icon": "Crown" }
-  ],
-  "faqs": [
-    { "question": "שאלה נפוצה 1?", "answer": "תשובה מפורטת, ברורה ומשכנעת...", "icon": "HelpCircle" }
-  ],
-  "seo": {
-    "slug": "english-seo-slug-for-product",
-    "metaTitle": "כותרת SEO ממוקדת לגוגל (עד 60 תווים)",
-    "metaDescription": "תיאור מטא שיווקי ומניע לפעולה לגוגל (120-160 תווים)",
-    "keywords": ["מילת מפתח 1", "מילת מפתח 2", "מילת מפתח 3", "מילת מפתח 4", "מילת מפתח 5", "מילת מפתח 6"],
-    "aiKnowledgeSummary": "תמצית ידע עובדתית, עשירה ומדויקת בת 3-4 משפטים שמנועי AI (ChatGPT, Gemini, Perplexity) יצטטו ישירות כאשר גולשים שואלים על המוצר או השירות",
-    "aiTargetQuestions": [
-      "שאלה ישירה 1 שמנועי AI עונים עליה לגבי המוצר?",
-      "שאלה ישירה 2?",
-      "שאלה ישירה 3?",
-      "שאלה ישירה 4?",
-      "שאלה ישירה 5?"
-    ],
-    "aiEntitySchemaType": "Product"
-  }
-}`.trim();
+===NAME_AND_SLOGAN===
+[שם המוצר + סלוגן מושך ומדויק]
+
+===SHORT_DESCRIPTION===
+[תיאור קצר וקולע ב-1-2 משפטים שמסביר את המוצר והתועלת המיידית שלו]
+
+===LONG_DESCRIPTION===
+[תיאור ארוך, עשיר ומפורט (4-6 משפטים) המספר את סיפור המוצר, החוויה והערך העמוק שהוא מעניק]
+
+===PAIN_POINTS===
+1. [כותרת קצרה של נקודת כאב 1] | [פירוט מעמיק ב-2 משפטים כיצד המוצר פותר את הכאב הזה]
+2. [כותרת נקודת כאב שונה 2] | [פירוט מעמיק ב-2 משפטים]
+3. [כותרת נקודת כאב שונה 3] | [פירוט מעמיק ב-2 משפטים]
+4. [כותרת נקודת כאב שונה 4] | [פירוט מעמיק ב-2 משפטים]
+5. [כותרת נקודת כאב שונה 5] | [פירוט מעמיק ב-2 משפטים]
+6. [כותרת נקודת כאב שונה 6] | [פירוט מעמיק ב-2 משפטים]
+
+===TARGET_AUDIENCES===
+1. [קהל יעד ספציפי 1] | [פירוט מעמיק למה המוצר מתאים לו ומה התועלת עבורו]
+2. [קהל יעד שונה 2] | [פירוט מעמיק]
+3. [קהל יעד שונה 3] | [פירוט מעמיק]
+
+===COMPETITIVE_ADVANTAGES===
+1. [יתרון תחרותי ייחודי 1] | [פירוט המעלה על פני כל חלופה אחרת]
+2. [יתרון תחרותי שונה 2] | [פירוט המעלה]
+3. [יתרון תחרותי שונה 3] | [פירוט המעלה]
+4. [יתרון תחרותי שונה 4] | [פירוט המעלה]
+5. [יתרון תחרותי שונה 5] | [פירוט המעלה]
+6. [יתרון תחרותי שונה 6] | [פירוט המעלה]
+
+===FAQS===
+1. [שאלה נפוצה 1 בנושא מהות המוצר?] | [תשובה מפורטת, מרגיעה ומשכנעת]
+2. [שאלה נפוצה 2 בנושא התאמה?] | [תשובה מפורטת]
+3. [שאלה נפוצה 3 בנושא מחיר ועלויות?] | [תשובה מפורטת]
+4. [שאלה נפוצה 4 בנושא לוחות זמנים?] | [תשובה מפורטת]
+5. [שאלה נפוצה 5 בנושא תהליך העבודה?] | [תשובה מפורטת]
+6. [שאלה נפוצה 6 בנושא תמיכה ושירות?] | [תשובה מפורטת]
+7. [שאלה נפוצה 7 בנושא בידול ממתחרים?] | [תשובה מפורטת]
+8. [שאלה נפוצה 8 בנושא אחריות ובטחון?] | [תשובה מפורטת]
+9. [שאלה נפוצה 9 בנושא תוצאות צפויות?] | [תשובה מפורטת]
+10. [שאלה נפוצה 10 בנושא צעדים ראשונים?] | [תשובה מפורטת]
+
+===SEO===
+SLUG: english-seo-slug-for-product
+META_TITLE: כותרת מטא לגוגל (עד 60 תווים)
+META_DESCRIPTION: תיאור מטא שיווקי לגוגל (עד 160 תווים)
+KEYWORDS: מילת מפתח 1, מילת מפתח 2, מילת מפתח 3, מילת מפתח 4
+AI_SUMMARY: תמצית ידע עובדתית ב-3 משפטים שמנועי AI יצטטו ישירות לגבי המוצר
+AI_QUESTIONS: שאלה 1? | שאלה 2? | שאלה 3? | שאלה 4? | שאלה 5?`.trim();
 
   return { systemContext, userPrompt };
 }

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { OrganizationType } from '../types/brandDna';
 import { extractDominantColorsFromImage } from '../services/colorExtractor';
-import { rephraseTextWithBrandAi } from '../services/geminiBrandPrompt';
+import { rephraseTextWithBrandAi, generateBrandSummaryParagraph } from '../services/geminiBrandPrompt';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -46,7 +46,7 @@ const PURPOSE_PRESETS = [
 const Tooltip: React.FC<{ text: string }> = ({ text }) => <SmartTooltip text={text} />;
 
 export const BrandIdentitySection: React.FC = () => {
-  const { brandDna, updateIdentity, updateDesignTokens, setLogoUrl } = useBrandDna();
+  const { brandDna, updateIdentity, updateDesignTokens, setLogoUrl, updateBrandSummaryParagraph } = useBrandDna();
   const { apiKeys } = useSystemConnection();
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
@@ -62,6 +62,16 @@ export const BrandIdentitySection: React.FC = () => {
   const [customAiPrompt, setCustomAiPrompt] = useState('');
   const [showAiModal, setShowAiModal] = useState(false);
   const [aiPreviewResult, setAiPreviewResult] = useState('');
+  const [isGeneratingSummary, setIsGeneratingSummary] = useState(false);
+
+  const handleGenerateSummary = async () => {
+    setIsGeneratingSummary(true);
+    const res = await generateBrandSummaryParagraph(brandDna);
+    setIsGeneratingSummary(false);
+    if (res && res.paragraph) {
+      await updateBrandSummaryParagraph(res.paragraph);
+    }
+  };
 
   const handleProcessLogoUrl = async (url: string) => {
     updateIdentity({ logoUrl: url });
@@ -655,6 +665,57 @@ export const BrandIdentitySection: React.FC = () => {
             placeholder="משפט תמציתי ומנצח עבור כותרות משנה..."
             className="w-full bg-white dark:bg-slate-950/60 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500"
           />
+        </div>
+      </div>
+
+      {/* 5. Brand Essence - פסקת תמצית מותג מסכמת ("מועט המחזיק את המרובה") */}
+      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="flex items-center text-base font-bold text-slate-800 dark:text-white">
+                פסקת תמצית מותג מסכמת (Brand Essence)
+                <Tooltip text="פסקה מרוכזת ומדויקת בת 250-300 מילים המרכזת את כל מיתוג החברה. פסקה זו מוזרקת לכל סוכני ה-AI והקופירייטרים במערכת, וחוסכת אלפי טוקנים בכל קריאה." />
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                מועט המחזיק את המרובה – העוגן המרכזי לקופירייטינג ולכל שאר מוצרי המערכת
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleGenerateSummary}
+            disabled={isGeneratingSummary}
+            className="text-xs px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 dark:bg-indigo-600/20 dark:hover:bg-indigo-600/30 dark:border-indigo-500/30 dark:text-indigo-300 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 shadow-sm"
+          >
+            {isGeneratingSummary ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Wand2 className="w-4 h-4" />
+            )}
+            צור/רענן תמצית ב-AI
+          </button>
+        </div>
+
+        <div>
+          <textarea
+            rows={5}
+            value={brandDna.brandSummaryParagraph || ''}
+            onChange={(e) => updateBrandSummaryParagraph(e.target.value)}
+            placeholder="פסקת תמצית המותג... (לחץ על הכפתור למעלה לייצור אוטומטי ב-AI)"
+            dir="auto"
+            className="w-full bg-slate-50 dark:bg-slate-900/80 border border-slate-200 dark:border-slate-700 rounded-xl p-3.5 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 dark:focus:border-indigo-500 transition-colors placeholder:text-slate-400 dark:placeholder:text-slate-600 leading-relaxed font-sans"
+          />
+          <div className="flex items-center justify-between mt-1 text-[11px] text-slate-500 dark:text-slate-400">
+            <span>מומלץ בין 250 ל-300 מילים</span>
+            <span>
+              {brandDna.brandSummaryParagraph ? `${brandDna.brandSummaryParagraph.trim().split(/\s+/).length} מילים` : '0 מילים'}
+            </span>
+          </div>
         </div>
       </div>
 

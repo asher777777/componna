@@ -119,7 +119,7 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
           }
         }
 
-        return {
+        const merged: BrandDna = {
           ...baseDefault,
           ...data,
           identity: { ...baseDefault.identity, ...(data.identity || {}) },
@@ -129,6 +129,15 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
           designTokens: { ...baseDefault.designTokens, ...(data.designTokens || {}) },
           trust: { ...baseDefault.trust, ...(data.trust || {}) },
         };
+        try {
+          if (typeof window !== 'undefined') {
+            const localStorageKey = getTenantStorageKey(BASE_LOCAL_STORAGE_KEY, tenantId);
+            localStorage.setItem(localStorageKey, JSON.stringify(merged));
+          }
+        } catch {
+          // ignore storage quota errors
+        }
+        return merged;
       }
 
       // Auto-Migration: check legacy doc 'brand_dna' if new 'kos_branding_dna' doesn't exist

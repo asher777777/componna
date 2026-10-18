@@ -924,6 +924,7 @@ export interface BrandDna {
   designTokens: BrandDesignTokens;
   trust: BrandTrustAndCheckout;
   serviceSlugs?: Record<string, string>;
+  brandSummaryParagraph?: string;
   updatedAt?: string;
 }
 
@@ -937,6 +938,7 @@ export interface BrandDnaContract {
   removeVibeImage?: (url: string) => Promise<boolean>;
   registerServicePageSlug?: (serviceName: string, slug: string) => Promise<boolean>;
   getServicePageSlugs?: () => Record<string, string>;
+  updateBrandSummaryParagraph?: (paragraph: string) => Promise<boolean>;
 }
 
 // ========================
@@ -1021,6 +1023,7 @@ export interface CreateVideoSeoPageOptions {
   channelTitle?: string;
   brandDna?: BrandDna | null;
   aiData?: Partial<KosTubeSeoPage>;
+  channelVideos?: KosTubeVideo[];
 }
 
 export interface CreateCampaignPageOptions {
