@@ -194,27 +194,60 @@ export function BUILD_BRAND_SYSTEM_CONTEXT(brand: BrandDna, moduleRole: string =
 }
 
 /**
- * פרומפט ליצירת מוצר דגל מלא (FlagshipProduct) לפי החוזה המדויק של FlagshipProductsEditor
+ * פרומפט ליצירת מוצר דגל מלא (FlagshipProduct) לפי החוזה המורחב של FlagshipProductsEditor
+ * כולל: 6 נקודות כאב, 3 קהלי יעד, 6 יתרונות תחרותיים, 10 שאלות ותשובות, ונתוני SEO וקידום AI
  */
 export function BUILD_FLAGSHIP_PRODUCT_PROMPT(
   idea: string,
   brand: BrandDna
 ): { systemContext: string; userPrompt: string } {
-  const systemContext = BUILD_BRAND_SYSTEM_CONTEXT(brand, 'אסטרטג מוצרי דגל וקופירייטר בכיר');
+  const systemContext = BUILD_BRAND_SYSTEM_CONTEXT(brand, 'אסטרטג מוצרי דגל, מומחה SEO/AIO וקופירייטר בכיר');
   const userPrompt = `בהתבסס על ה-Brand DNA של המותג "${brand.identity?.companyName || 'המותג'}" ועל הרעיון שהזין המשתמש:
 "${idea}"
 
 צור פרופיל מוצר דגל (Flagship Product) שלם, עשיר, מעמיק ומשכנע בעברית רהוטה התואמת את רוח המותג, קהל היעד והערכים שלו.
-חובה למלא את כל 6 השדות בתוכן איכותי ומפורט (אף שדה לא יכול להיות ריק!).
+חובה למלא את כל השדות והמערכים בדיוק לפי המספרים הנדרשים:
+1. "painPoints": בדיוק 6 נקודות כאב שהמוצר פותר (כל פריט כולל כותרת קצרה, טקסט מורחב ב-2-3 משפטים, ושם אייקון מתאים באנגלית מתוך הרשימה).
+2. "targetAudiences": בדיוק 3 קהלי יעד שהמוצר מתאים להם (כל פריט כולל כותרת קצרה של הקהל, טקסט מורחב המסביר למה זה מתאים לו, ושם אייקון מתאים).
+3. "competitiveAdvantages": בדיוק 6 יתרונות ומעלות על פני המתחרים (כל פריט כולל כותרת קצרה, טקסט מורחב ב-2-3 משפטים, ושם אייקון מתאים).
+4. "faqs": בדיוק 10 שאלות ותשובות נפוצות ומקיפות עבור אזור השאלות והתשובות בעמוד המוצר (כולל שם אייקון מתאים לכל שאלה).
+5. "seo": נתוני הגדרות SEO מלאים ונתוני קידום במנועי AI (AIO/GEO).
+
+רשימת אייקונים מותרת לבחירה בשדה "icon":
+["Crown", "Diamond", "Gem", "Sparkles", "Award", "Trophy", "Star", "Medal", "Flame", "Compass", "Anchor", "Coins", "Briefcase", "Building2", "TrendingUp", "BarChart3", "Target", "Scale", "HeartHandshake", "Users", "UserCheck", "Rocket", "ShieldCheck", "BadgeCheck", "CheckCircle2", "Lock", "Zap", "Lightbulb", "Globe", "Layers", "Heart", "Smile", "Gift", "Calendar", "Clock", "BookOpen", "GraduationCap", "MessageCircle", "Phone", "HelpCircle"]
 
 החזר אך ורק אובייקט JSON תקין עם המפתחות המדויקים הבאים בלבד:
 {
   "nameAndSlogan": "שם המוצר + סלוגן מושך ומדויק",
   "shortDescription": "תיאור קצר וקולע ב-1-2 משפטים שמסביר את המוצר והתועלת המיידית שלו",
-  "longDescription": "תיאור ארוך, עשיר ומפורט (4-6 משפטים) המותאם ל-SEO ולקידום ב-AI, המספר את סיפור המוצר, החוויה והערך העמוק שהוא מעניק",
-  "painPointSolved": "נקודת הכאב, החסם או הצורך המרכזי שהמוצר פותר עבור קהל היעד",
-  "targetAudience": "תיאור מדויק של קהל היעד שהמוצר מתאים לו ביותר",
-  "competitiveAdvantage": "המעלה הייחודית והיתרון המובהק של המוצר הזה אצלנו לעומת כל חלופה אחרת"
+  "longDescription": "תיאור ארוך, עשיר ומפורט (5-7 משפטים) המותאם ל-SEO ולקידום ב-AI, המספר את סיפור המוצר, החוויה והערך העמוק שהוא מעניק",
+  "painPoints": [
+    { "title": "כותרת נקודת כאב 1", "text": "פירוט מורחב ומעמיק של נקודת הכאב וכיצד המוצר פותר אותה...", "icon": "Target" }
+  ],
+  "targetAudiences": [
+    { "title": "שם קהל יעד 1", "text": "פירוט מורחב של מאפייני הקהל והתועלת הייחודית עבורו...", "icon": "Users" }
+  ],
+  "competitiveAdvantages": [
+    { "title": "כותרת יתרון 1", "text": "פירוט מורחב של המעלה והיתרון על פני כל חלופה אחרת...", "icon": "Crown" }
+  ],
+  "faqs": [
+    { "question": "שאלה נפוצה 1?", "answer": "תשובה מפורטת, ברורה ומשכנעת...", "icon": "HelpCircle" }
+  ],
+  "seo": {
+    "slug": "english-seo-slug-for-product",
+    "metaTitle": "כותרת SEO ממוקדת לגוגל (עד 60 תווים)",
+    "metaDescription": "תיאור מטא שיווקי ומניע לפעולה לגוגל (120-160 תווים)",
+    "keywords": ["מילת מפתח 1", "מילת מפתח 2", "מילת מפתח 3", "מילת מפתח 4", "מילת מפתח 5", "מילת מפתח 6"],
+    "aiKnowledgeSummary": "תמצית ידע עובדתית, עשירה ומדויקת בת 3-4 משפטים שמנועי AI (ChatGPT, Gemini, Perplexity) יצטטו ישירות כאשר גולשים שואלים על המוצר או השירות",
+    "aiTargetQuestions": [
+      "שאלה ישירה 1 שמנועי AI עונים עליה לגבי המוצר?",
+      "שאלה ישירה 2?",
+      "שאלה ישירה 3?",
+      "שאלה ישירה 4?",
+      "שאלה ישירה 5?"
+    ],
+    "aiEntitySchemaType": "Product"
+  }
 }`.trim();
 
   return { systemContext, userPrompt };

@@ -39,7 +39,7 @@ const CORE_CRM_MAPPING_FIELDS: CrmFieldOption[] = [
 export const CrmAnalyticsHostBridge: React.FC = () => {
   const { registerCapability, unregisterCapability } = useHostCapabilities();
   const { db, firebaseApp } = useSystemConnection();
-  const { getScopedCollectionPath } = useTenantScope();
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
 
   useEffect(() => {
     const crmContract: CrmMetadataContract = {
@@ -108,7 +108,7 @@ export const CrmAnalyticsHostBridge: React.FC = () => {
             type: fieldData.type || 'text',
             createdAt: new Date().toISOString(),
           };
-          const ref = await addDoc(collection(db, customFieldsPath), newDoc);
+          await addDoc(collection(db, customFieldsPath), newDoc);
           const option: CrmFieldOption = {
             value: safeKey,
             label: fieldData.label,
@@ -125,14 +125,23 @@ export const CrmAnalyticsHostBridge: React.FC = () => {
       captureLead: crmContract.captureLead!,
     };
 
+    const crmSubscriptionsContract = createCrmSubscriptionsContract({
+      db,
+      firebaseApp,
+      tenantId,
+      getScopedCollectionPath,
+    });
+
     registerCapability('crm-service', crmContract);
     registerCapability('lead-capture', leadCaptureContract);
+    registerCapability('crm-subscriptions', crmSubscriptionsContract);
 
     return () => {
       unregisterCapability('crm-service');
       unregisterCapability('lead-capture');
+      unregisterCapability('crm-subscriptions');
     };
-  }, [db, firebaseApp, getScopedCollectionPath, registerCapability, unregisterCapability]);
+  }, [db, firebaseApp, tenantId, getScopedCollectionPath, registerCapability, unregisterCapability]);
 
   return null;
 };
