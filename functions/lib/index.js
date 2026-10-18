@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.kesherProxy = exports.whatsappWebhook = void 0;
+exports.sitemapXml = exports.mediaProxy = exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.kesherProxy = exports.whatsappWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
@@ -1230,4 +1230,113 @@ async function serveStorageFile(file, req, res) {
         res.status(500).send('Could not fetch media');
     }
 }
+/**
+ * Dynamic XML Sitemap Generator (Multi-Tenant & SEO Optimized)
+ * Serves standard application/xml sitemaps for Google Search Console and crawlers.
+ * Discovers root pages, published landing pages, and tenant subdomains from Firestore.
+ */
+exports.sitemapXml = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        try {
+            res.set('Content-Type', 'application/xml; charset=utf-8');
+            res.set('Cache-Control', 'public, max-age=3600, s-maxage=86400');
+            const host = (req.hostname || (req.headers.host || '')).split(':')[0].toLowerCase();
+            let tenantId = req.query.tenant || '';
+            if (!tenantId && host.endsWith('.kosun.pro')) {
+                const sub = host.replace('.kosun.pro', '').trim();
+                if (sub && sub !== 'www' && sub !== 'admin' && sub !== 'app') {
+                    tenantId = sub;
+                }
+            }
+            const today = new Date().toISOString().split('T')[0];
+            const urls = [];
+            if (!tenantId || tenantId === '_master') {
+                // Master / Root domain URLs
+                const baseUrl = 'https://kosun.pro';
+                urls.push({ loc: `${baseUrl}/`, lastmod: today, changefreq: 'daily', priority: '1.0' }, { loc: `${baseUrl}/kosass`, lastmod: today, changefreq: 'weekly', priority: '0.8' }, { loc: `${baseUrl}/terms`, lastmod: today, changefreq: 'monthly', priority: '0.5' }, { loc: `${baseUrl}/privacy`, lastmod: today, changefreq: 'monthly', priority: '0.5' }, { loc: `${baseUrl}/accessibility`, lastmod: today, changefreq: 'monthly', priority: '0.5' });
+                // Fetch published custom pages from Firestore
+                try {
+                    const pagesSnap = await db.collection('tenants').doc('_master').collection('pages').get();
+                    pagesSnap.forEach(doc => {
+                        const data = doc.data();
+                        if ((data === null || data === void 0 ? void 0 : data.published) !== false && (data === null || data === void 0 ? void 0 : data.slug)) {
+                            urls.push({
+                                loc: `${baseUrl}/p/${data.slug}`,
+                                lastmod: data.updatedAt ? new Date(data.updatedAt).toISOString().split('T')[0] : today,
+                                changefreq: 'weekly',
+                                priority: '0.7',
+                            });
+                        }
+                    });
+                }
+                catch (err) {
+                    console.warn('[sitemapXml] Error loading master pages:', err);
+                }
+                // Fetch active tenant subdomains from 'tenants' collection
+                try {
+                    const tenantsSnap = await db.collection('tenants').get();
+                    tenantsSnap.forEach(doc => {
+                        const data = doc.data();
+                        const sub = (data === null || data === void 0 ? void 0 : data.subdomain) || doc.id;
+                        if (sub && sub !== '_master' && !sub.startsWith('_') && (data === null || data === void 0 ? void 0 : data.status) !== 'suspended') {
+                            urls.push({
+                                loc: `https://${sub}.kosun.pro/`,
+                                lastmod: (data === null || data === void 0 ? void 0 : data.updatedAt) ? new Date(data.updatedAt).toISOString().split('T')[0] : today,
+                                changefreq: 'weekly',
+                                priority: '0.7',
+                            });
+                        }
+                    });
+                }
+                catch (err) {
+                    console.warn('[sitemapXml] Error loading tenant subdomains:', err);
+                }
+            }
+            else {
+                // Tenant Subdomain URLs
+                const tenantBaseUrl = `https://${tenantId}.kosun.pro`;
+                urls.push({
+                    loc: `${tenantBaseUrl}/`,
+                    lastmod: today,
+                    changefreq: 'daily',
+                    priority: '1.0',
+                });
+                try {
+                    const pagesSnap = await db.collection('tenants').doc(tenantId).collection('pages').get();
+                    pagesSnap.forEach(doc => {
+                        const data = doc.data();
+                        if ((data === null || data === void 0 ? void 0 : data.published) !== false && (data === null || data === void 0 ? void 0 : data.slug)) {
+                            urls.push({
+                                loc: `${tenantBaseUrl}/p/${data.slug}`,
+                                lastmod: data.updatedAt ? new Date(data.updatedAt).toISOString().split('T')[0] : today,
+                                changefreq: 'weekly',
+                                priority: '0.8',
+                            });
+                        }
+                    });
+                }
+                catch (err) {
+                    console.warn(`[sitemapXml] Error loading pages for tenant ${tenantId}:`, err);
+                }
+            }
+            // Generate XML
+            let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+            xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+            for (const u of urls) {
+                xml += `  <url>\n`;
+                xml += `    <loc>${u.loc}</loc>\n`;
+                xml += `    <lastmod>${u.lastmod}</lastmod>\n`;
+                xml += `    <changefreq>${u.changefreq}</changefreq>\n`;
+                xml += `    <priority>${u.priority}</priority>\n`;
+                xml += `  </url>\n`;
+            }
+            xml += '</urlset>\n';
+            res.status(200).send(xml);
+        }
+        catch (error) {
+            console.error('[sitemapXml] Failed generating sitemap:', error);
+            res.status(500).send('Error generating sitemap');
+        }
+    });
+});
 //# sourceMappingURL=index.js.map

@@ -886,6 +886,15 @@ export interface KosvidioFaqItem {
   answer: string;
 }
 
+export type KosvidioLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical';
+
 export interface KosvidioSectionConfig extends BaseSectionConfig {
   type: 'kosvidio';
   // 1. Innovative Video Player
@@ -893,12 +902,30 @@ export interface KosvidioSectionConfig extends BaseSectionConfig {
   videoUrl?: string;
   playerAspect?: '16:9' | '21:9' | '4:3';
   ambientGlow?: boolean;
+  glowColor?: string;
   showTheaterMode?: boolean;
   autoplay?: boolean;
   channelName?: string;
   channelAvatarUrl?: string;
   channelSubscribers?: string;
   verifiedBadge?: boolean;
+
+  // Layout & Presets
+  layout?: KosvidioLayoutPreset;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  titleColor?: string;
+  channelNameColor?: string;
+  channelSubscribersColor?: string;
+
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 
   // 2. Title & Stats
   title: string;

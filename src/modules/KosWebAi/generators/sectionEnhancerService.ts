@@ -137,7 +137,7 @@ export const sectionEnhancerService = {
     // 3. LAYOUT & BENTO SUGGESTIONS
     const layoutSuggestions: SectionAiSuggestion[] = [];
 
-    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'livePosts' || sectionType === 'mainContent' || sectionType === 'videoEngagement') {
+    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'livePosts' || sectionType === 'kosvidio' || sectionType === 'mainContent' || sectionType === 'videoEngagement') {
       layoutSuggestions.push(
         {
           id: `${sectionType}-layout-feminine`,
@@ -837,6 +837,31 @@ Return ONLY the raw updated JSON object.`;
         updated.ctaUrl = `https://wa.me/${(whatsapp || phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום, קראתי על העדכונים של ${company}`)}`;
       }
       changes.push(`סונכרנו כותרות, פרטי האירועים ו-DNA המותג של ${company}`);
+    } else if (sectionType === 'kosvidio') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לנגן Kosvidio בסגנון נשי (קשתות מעוגלות, רוז-גולד והילה עדינה)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לנגן Kosvidio בסגנון גברי (מסגרת פלדה כפולה וזהב ענבר סמכותי)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לנגן Kosvidio רוחני (מרווה, טורקיז והילת לוטוס שלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לנגן Kosvidio חד (ברוטליסטי, 90 מעלות וצל מוסט קשיח)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לנגן Kosvidio אנליטי (מסוף HUD טכנולוגי חתוך זוויות וקווי סריקה)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לנגן Kosvidio עכשווי (Notion SaaS 2026)');
+      }
+
+      updated.title = `${company} – צפו בסיפור שלנו`;
+      updated.channelName = company;
+      updated.channelSubscribers = '25K+ מנויים';
+      changes.push(`סונכרנו פרטי הנגן והערוץ של ${company}`);
     } else if (sectionType === 'mainContent') {
       if (prompt.includes('feminine') || prompt.includes('נשי')) {
         updated.layout = 'feminine';
