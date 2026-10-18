@@ -13,6 +13,10 @@
         "function": "kesherProxy"
       },
       {
+        "source": "/api/tiktok-webhook",
+        "function": "tiktokWebhook"
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

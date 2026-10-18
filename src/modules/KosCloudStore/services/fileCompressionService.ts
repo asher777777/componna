@@ -386,24 +386,91 @@ export class FileCompressionService {
   }
 
   /**
-   * Helper to trigger client-side download of a file/blob
+   * Helper to trigger client-side download of a file/blob.
+   * For remote URLs, it fetches the file as a Blob first so that the browser treats it
+   * as a same-origin Blob download, honoring the exact fileName and preventing navigation to XML/CORS errors!
    */
-  public static downloadMedia(urlOrBlob: string | Blob, fileName: string) {
-    const a = document.createElement('a');
-    let url: string;
+  public static async downloadMedia(urlOrBlob: string | Blob, fileName: string): Promise<void> {
+    // 1. Direct Blob download
     if (urlOrBlob instanceof Blob) {
-      url = URL.createObjectURL(urlOrBlob);
-    } else {
-      url = urlOrBlob;
+      const blobUrl = URL.createObjectURL(urlOrBlob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      return;
     }
-    a.href = url;
+
+    const rawUrl = typeof urlOrBlob === 'string' ? urlOrBlob.trim() : '';
+    if (!rawUrl) return;
+
+    // 2. Data URL or already a Blob URL
+    if (rawUrl.startsWith('data:') || rawUrl.startsWith('blob:')) {
+      const a = document.createElement('a');
+      a.href = rawUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      return;
+    }
+
+    // 3. Remote URL: Fetch as Blob to force a true file download in all modern browsers
+    try {
+      const response = await fetch(rawUrl, { mode: 'cors' });
+      if (response.ok) {
+        const blob = await response.blob();
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = blobUrl;
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        return;
+      }
+    } catch (fetchErr) {
+      console.warn('[FileCompressionService] Direct fetch blob download failed, trying alternate bucket URL:', fetchErr);
+    }
+
+    // 4. Try alternate bucket (e.g. if glowmanage failed, try aioffice-1426f, or vice versa)
+    if (rawUrl.includes('firebasestorage.googleapis.com')) {
+      const altUrl = rawUrl.includes('glowmanage.firebasestorage.app')
+        ? rawUrl.replace('glowmanage.firebasestorage.app', 'aioffice-1426f.firebasestorage.app')
+        : rawUrl.replace('aioffice-1426f.firebasestorage.app', 'glowmanage.firebasestorage.app');
+
+      try {
+        const altResponse = await fetch(altUrl, { mode: 'cors' });
+        if (altResponse.ok) {
+          const blob = await altResponse.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = blobUrl;
+          a.download = fileName;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+          return;
+        }
+      } catch (altErr) {
+        console.warn('[FileCompressionService] Alternate bucket fetch download failed:', altErr);
+      }
+    }
+
+    // 5. Ultimate Fallback: Open in new window with target="_blank" so user doesn't lose current state
+    const a = document.createElement('a');
+    a.href = rawUrl;
     a.download = fileName;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    if (urlOrBlob instanceof Blob) {
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
-    }
   }
 
   /**

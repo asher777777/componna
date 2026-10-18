@@ -102,14 +102,14 @@ export const KosTikTokSettingsTab: React.FC = () => {
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Redirect URI (OAuth Callback)</span>
             <div className="font-mono text-xs text-slate-900 dark:text-white select-all">
-              https://app.comona.com/api/tiktok/callback
+              https://kosun.pro/KosTikTok
             </div>
           </div>
 
           <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 space-y-1">
             <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Webhook Endpoint (Leads & Notifications)</span>
             <div className="font-mono text-xs text-slate-900 dark:text-white select-all">
-              https://app.comona.com/api/tiktok/webhook
+              https://kosun.pro/api/tiktok-webhook
             </div>
           </div>
         </div>

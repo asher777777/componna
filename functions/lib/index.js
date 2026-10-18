@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.kesherProxy = exports.whatsappWebhook = void 0;
+exports.tiktokWebhook = exports.triggerScheduledReminders = exports.dispatchScheduledReminders = exports.kesherProxy = exports.whatsappWebhook = void 0;
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const generative_ai_1 = require("@google/generative-ai");
@@ -1007,6 +1007,138 @@ exports.triggerScheduledReminders = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
         const result = await processPendingReminders();
         res.status(200).json(result);
+    });
+});
+/**
+ * TikTok Official Webhook Handler (Multi-Tenant)
+ * Listens for TikTok events (User authorization, video upload status, lead generation, chat)
+ * Automatically scopes all received data and leads under the matching tenant (default: manager '_master').
+ */
+exports.tiktokWebhook = functions.https.onRequest((req, res) => {
+    cors(req, res, async () => {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k;
+        // 1. Method guard
+        if (req.method !== 'POST' && req.method !== 'GET') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
+        // 2. TikTok Challenge / Ping Verification (e.g. Test URL button in Developer Portal)
+        const challenge = req.query.challenge || ((_a = req.body) === null || _a === void 0 ? void 0 : _a.challenge);
+        if (challenge) {
+            res.status(200).send(challenge);
+            return;
+        }
+        if (req.method === 'GET') {
+            res.status(200).json({ code: 0, status: 'online', message: 'TikTok Webhook Gateway is running' });
+            return;
+        }
+        try {
+            const body = req.body || {};
+            const queryTenant = req.query.tenant || '';
+            // Determine tenant (query param > reverse lookup open_id > manager default '_master')
+            let tenantId = queryTenant.trim().toLowerCase();
+            if (!tenantId || tenantId === 'manager') {
+                tenantId = '_master';
+            }
+            // If payload has user_openid and not explicitly set by query, try reverse lookup
+            const openId = body.user_openid || body.open_id || ((_c = (_b = body.entry) === null || _b === void 0 ? void 0 : _b[0]) === null || _c === void 0 ? void 0 : _c.open_id);
+            if (openId && tenantId === '_master') {
+                try {
+                    const lookupDoc = await db.collection('system_tiktok_lookup').doc(openId).get();
+                    if (lookupDoc.exists && ((_d = lookupDoc.data()) === null || _d === void 0 ? void 0 : _d.tenantId)) {
+                        tenantId = lookupDoc.data().tenantId;
+                    }
+                }
+                catch (lookupErr) {
+                    console.warn('[tiktokWebhook] Lookup error:', lookupErr);
+                }
+            }
+            const eventType = body.event || body.type || 'test_ping';
+            const eventId = `tt_evt_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+            const timestamp = new Date().toISOString();
+            console.log(`[tiktokWebhook] Received event: ${eventType} for tenant: ${tenantId}`, body);
+            // 3. Save raw webhook event under the tenant scope
+            await db
+                .collection('tenants')
+                .doc(tenantId)
+                .collection('mod_kos_tiktok_events')
+                .doc(eventId)
+                .set({
+                eventId,
+                event: eventType,
+                payload: body,
+                receivedAt: timestamp,
+                tenantId,
+                status: 'received',
+                _serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+            }, { merge: true });
+            // 4. Special Handling: TikTok Lead Generation (Instant Forms)
+            // When a lead arrives, extract and sync directly to tenant's CRM contacts
+            const leadData = body.lead_data || ((_e = body.content) === null || _e === void 0 ? void 0 : _e.lead) || ((_j = (_h = (_g = (_f = body.entry) === null || _f === void 0 ? void 0 : _f[0]) === null || _g === void 0 ? void 0 : _g.changes) === null || _h === void 0 ? void 0 : _h[0]) === null || _j === void 0 ? void 0 : _j.value);
+            if (eventType.includes('lead') || leadData) {
+                const leadId = `tt_lead_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+                const formId = body.form_id || ((_k = body.content) === null || _k === void 0 ? void 0 : _k.form_id) || 'general_form';
+                const extractedName = (leadData === null || leadData === void 0 ? void 0 : leadData.full_name) || (leadData === null || leadData === void 0 ? void 0 : leadData.name) || body.name || '';
+                const extractedPhone = (leadData === null || leadData === void 0 ? void 0 : leadData.phone_number) || (leadData === null || leadData === void 0 ? void 0 : leadData.phone) || body.phone || '';
+                const extractedEmail = (leadData === null || leadData === void 0 ? void 0 : leadData.email) || body.email || '';
+                // Save to tenant's TikTok leads collection
+                await db
+                    .collection('tenants')
+                    .doc(tenantId)
+                    .collection('mod_kos_tiktok_leads')
+                    .doc(leadId)
+                    .set({
+                    id: leadId,
+                    formId,
+                    leadData: {
+                        fullName: extractedName,
+                        phone: extractedPhone,
+                        email: extractedEmail,
+                        customAnswers: (leadData === null || leadData === void 0 ? void 0 : leadData.answers) || {},
+                    },
+                    submittedAt: timestamp,
+                    syncedToCrm: true,
+                    _serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+                }, { merge: true });
+                // Sync directly to tenant's CRM contacts
+                if (extractedPhone || extractedEmail || extractedName) {
+                    const contactId = `contact_tt_${Date.now()}`;
+                    await db
+                        .collection('tenants')
+                        .doc(tenantId)
+                        .collection('contacts')
+                        .doc(contactId)
+                        .set({
+                        id: contactId,
+                        kosun_crm_name: extractedName || 'ליד מטיקטוק',
+                        kosun_crm_phone: extractedPhone,
+                        kosun_crm_email: extractedEmail,
+                        kosun_crm_source: 'tiktok_lead_generation',
+                        kosun_crm_tags: ['tiktok_lead', formId],
+                        kosun_crm_notes: `התקבל מטופס טיקטוק בתאריך ${timestamp}`,
+                        createdAt: timestamp,
+                        updatedAt: timestamp,
+                        _serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+                    }, { merge: true });
+                }
+            }
+            // 5. Always respond 200 OK with code 0 to satisfy TikTok Webhook Verification
+            res.status(200).json({
+                code: 0,
+                message: 'success',
+                eventId,
+                tenantId,
+            });
+        }
+        catch (err) {
+            console.error('[tiktokWebhook] Processing error:', err);
+            // TikTok requires 200 OK to prevent retries on processing issues
+            res.status(200).json({
+                code: 0,
+                message: 'acknowledged_with_error',
+                error: err.message,
+            });
+        }
     });
 });
 //# sourceMappingURL=index.js.map

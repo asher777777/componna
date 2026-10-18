@@ -79,25 +79,37 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
 
   // 1. If valid external or direct http(s) URL that's not an alien blob
   if (url && !isAlienBlobUrl(url)) {
+    add(url);
     if (url.includes(LEGACY_VAULT_BUCKET)) {
       add(url.replace(LEGACY_VAULT_BUCKET, SYSTEM_MAIN_STORAGE_BUCKET));
-      add(url);
-    } else {
-      add(url);
+    } else if (url.includes(SYSTEM_MAIN_STORAGE_BUCKET)) {
+      add(url.replace(SYSTEM_MAIN_STORAGE_BUCKET, LEGACY_VAULT_BUCKET));
     }
   }
 
   // 2. Canonical permanent system storage URL
   if (item) {
-    add(getPermanentMediaUrl(item, SYSTEM_MAIN_STORAGE_BUCKET));
-    add(getPermanentMediaUrl(item, LEGACY_VAULT_BUCKET));
+    const isLegacy = (item.url && item.url.includes(LEGACY_VAULT_BUCKET)) || (item.storagePath && item.storagePath.includes(LEGACY_VAULT_BUCKET));
+    if (isLegacy) {
+      add(getPermanentMediaUrl(item, LEGACY_VAULT_BUCKET));
+      add(getPermanentMediaUrl(item, SYSTEM_MAIN_STORAGE_BUCKET));
+    } else {
+      add(getPermanentMediaUrl(item, SYSTEM_MAIN_STORAGE_BUCKET));
+      add(getPermanentMediaUrl(item, LEGACY_VAULT_BUCKET));
+    }
   }
 
   // 3. Fallback without timestamp prefix
   if (item?.name) {
     const cleanName = item.name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\d+_/, '').trim();
-    add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
-    add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+    const isLegacy = (item.url && item.url.includes(LEGACY_VAULT_BUCKET));
+    if (isLegacy) {
+      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+    } else {
+      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+    }
   }
 
   // 4. Data URL fallback
