@@ -1,10 +1,14 @@
 import React, { useState, useRef } from 'react';
-import { Image as ImageIcon, Upload, Link, Sparkles, X, FolderOpen, Edit3, Trash2, Crown, Video as VideoIcon } from 'lucide-react';
+import { Image as ImageIcon, Upload, Link, Sparkles, X, FolderOpen, Edit3, Trash2, Crown, Video as VideoIcon, Loader2 } from 'lucide-react';
 import { PageBuilderButton } from './PageBuilderButton';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
+import { FirebaseStorageMediaService } from '../../KosCloudStore/services/firebaseStorageMediaService';
+import { ImageConverterService } from '../../KosCloudStore/services/imageConverterService';
 
 interface PageBuilderImageUploadProps {
   label?: string;
@@ -17,11 +21,10 @@ interface PageBuilderImageUploadProps {
 
 const isVideoMedia = (url?: string): boolean => {
   if (!url) return false;
-  return (
-    url.match(/\.(mp4|webm|ogg|mov)(\?.*)?$/i) !== null ||
-    url.startsWith('blob:') ||
-    url.startsWith('data:video')
-  );
+  if (url.startsWith('data:video/')) return true;
+  if (url.startsWith('data:image/')) return false;
+  const clean = decodeURIComponent(url.split('?')[0].split('#')[0]).toLowerCase();
+  return /\.(mp4|webm|ogg|mov|mkv|m4v)$/i.test(clean);
 };
 
 const SAMPLE_IMAGES = [
@@ -45,11 +48,15 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const systemConn = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const [tab, setTab] = useState<'media' | 'url' | 'samples' | 'ai'>('media');
   const [urlInput, setUrlInput] = useState(value || '');
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
 
   const isJpgRestricted = allowedMimeTypes?.some((m) => m.includes('jpeg') || m.includes('jpg'));
@@ -81,29 +88,73 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
     fileInputRef.current?.click();
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setValidationError(null);
     const file = e.target.files?.[0];
-    if (file) {
-      if (isJpgRestricted) {
-        const isMimeJpg = file.type === 'image/jpeg' || file.type === 'image/jpg';
-        const isExtJpg = /\.(jpg|jpeg)$/i.test(file.name);
-        if (!isMimeJpg && !isExtJpg) {
-          setValidationError('שגיאה: מותר להעלות קובץ JPG בלבד (.jpg / .jpeg).');
-          e.target.value = '';
-          return;
+    if (!file) return;
+
+    let targetFile: File | Blob = file;
+    let targetFileName = file.name;
+
+    // Auto-convert to JPG if restricted (e.g. for SEO og:image) or if image exceeds maxSizeBytes
+    const isImageFile = file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg|avif)$/i.test(file.name);
+    if (isImageFile && (isJpgRestricted || (maxSizeBytes && file.size > maxSizeBytes))) {
+      try {
+        const converted = await ImageConverterService.convertImage(file, {
+          targetFormat: 'image/jpeg',
+          quality: 0.85,
+          maxWidth: 1200,
+          maxHeight: 630,
+          preserveAspectRatio: true,
+        });
+        targetFile = converted.blob;
+        targetFileName = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+      } catch (convErr) {
+        console.warn('[PageBuilderImageUpload] Auto JPG conversion notice:', convErr);
+      }
+    }
+
+    if (maxSizeBytes && targetFile.size > maxSizeBytes) {
+      const maxKb = Math.round(maxSizeBytes / 1024);
+      const actualKb = Math.round(targetFile.size / 1024);
+      setValidationError(`שגיאה: משקל הקובץ (${actualKb}KB) חורג מהמותר (עד ${maxKb}KB).`);
+      e.target.value = '';
+      return;
+    }
+
+    // Immediate 0ms local preview
+    const localUrl = URL.createObjectURL(targetFile);
+    onChange(localUrl);
+    setUrlInput(localUrl);
+
+    // Asynchronously upload to Firebase Cloud Storage for permanent public URL (SEO / OpenGraph compatible)
+    if (systemConn?.firebaseApp) {
+      setIsUploading(true);
+      setUploadProgress(10);
+      try {
+        const permanentUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+          systemConn.firebaseApp,
+          targetFile,
+          targetFileName,
+          (pct) => setUploadProgress(pct),
+          {
+            sourceModule: 'KosWebAi',
+            sourceModuleLabel: 'בונה דפים ו-SEO',
+            type: targetFile.type?.startsWith('video/') ? 'video' : 'image',
+            mimeType: targetFile.type || (isJpgRestricted ? 'image/jpeg' : undefined),
+          },
+          tenantId
+        );
+        if (permanentUrl) {
+          onChange(permanentUrl);
+          setUrlInput(permanentUrl);
         }
+      } catch (uploadErr) {
+        console.warn('[PageBuilderImageUpload] Firebase Storage upload error:', uploadErr);
+      } finally {
+        setIsUploading(false);
+        setUploadProgress(0);
       }
-      if (maxSizeBytes && file.size > maxSizeBytes) {
-        const maxKb = Math.round(maxSizeBytes / 1024);
-        const actualKb = Math.round(file.size / 1024);
-        setValidationError(`שגיאה: משקל הקובץ (${actualKb}KB) חורג מהמותר (עד ${maxKb}KB).`);
-        e.target.value = '';
-        return;
-      }
-      const localUrl = URL.createObjectURL(file);
-      onChange(localUrl);
-      setUrlInput(localUrl);
     }
   };
 
@@ -174,17 +225,34 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
         <div className="flex flex-col gap-2">
           {/* Active Image/Video Card with Hover Overlay */}
           <div className="relative group rounded-2xl overflow-hidden border border-slate-700 bg-slate-950 aspect-video w-full flex items-center justify-center shadow-lg">
+            {isUploading && (
+              <div className="absolute inset-0 bg-black/75 backdrop-blur-sm z-30 flex flex-col items-center justify-center gap-2">
+                <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+                <span className="text-[11px] font-bold text-amber-300">
+                  מעלה ענן ומייצר קישור קבוע... {uploadProgress > 0 ? `${uploadProgress}%` : ''}
+                </span>
+              </div>
+            )}
             {isVideoMedia(value) ? (
               <video
-                src={value}
+                src={`${value}${value.includes('#') ? '' : '#t=0.001'}`}
                 autoPlay
                 loop
                 muted
                 playsInline
+                preload="metadata"
+                controls
                 className="w-full h-full object-cover"
               />
             ) : (
-              <img src={value} alt="Preview" className="w-full h-full object-contain p-2 max-h-full" />
+              <img
+                src={value}
+                alt="Preview"
+                className="w-full h-full object-contain p-2 max-h-full"
+                onError={(e) => {
+                  console.warn('[PageBuilderImageUpload] Preview load error for:', value);
+                }}
+              />
             )}
 
             {isVideoMedia(value) && (

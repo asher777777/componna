@@ -1,10 +1,21 @@
-import { Firestore, doc, setDoc, getDoc, getDocs, collection, query, orderBy, limit, deleteDoc } from 'firebase/firestore';
-import { LivingProject, LivingCampaignContract } from '../types';
+import { Firestore, doc, setDoc, getDoc, getDocs, collection, deleteDoc } from 'firebase/firestore';
+import { LivingProject, LivingCampaignContract, ConciergePageUiConfig } from '../types';
 import { DEFAULT_LIVING_CAMPAIGN } from '../config';
 
 const LOCAL_STORAGE_PROJECTS_KEY = 'kos_live_projects_store';
 const LOCAL_STORAGE_CAMPAIGNS_KEY = 'kos_live_campaigns_store';
+const LOCAL_STORAGE_PAGE_UI_CONFIG_KEY = 'kos_live_page_ui_config';
 const LEGACY_PLAYER_COLLECTION = 'sdo_player_campaign_configs';
+
+export const DEFAULT_CONCIERGE_PAGE_UI_CONFIG: ConciergePageUiConfig = {
+  isVisibleOnPage: false, // כברירת מחדל: נסתר בעמוד!
+  greetingText: 'שלום! אפשר לעזור לך?',
+  hideTextOnMobile: true, // כברירת מחדל: במובייל הסתר את הטקסט ליד תמונת האווטאר
+  showTextOnDesktop: true,
+  avatarId: 'sarah_warm',
+  position: 'bottom-left',
+  activeCampaignId: 'demo-living-page'
+};
 
 function cleanPayload<T>(obj: T): T {
   if (obj === undefined || obj === null) return obj;
@@ -12,6 +23,84 @@ function cleanPayload<T>(obj: T): T {
 }
 
 export class LivingStorageService {
+  /**
+   * Read local Page UI Config synchronously (used for instant initial state)
+   */
+  static getLocalPageUiConfig(tenantId?: string): ConciergePageUiConfig {
+    try {
+      const key = tenantId ? `${LOCAL_STORAGE_PAGE_UI_CONFIG_KEY}_${tenantId}` : LOCAL_STORAGE_PAGE_UI_CONFIG_KEY;
+      const raw = localStorage.getItem(key) || localStorage.getItem(LOCAL_STORAGE_PAGE_UI_CONFIG_KEY);
+      if (raw) {
+        return {
+          ...DEFAULT_CONCIERGE_PAGE_UI_CONFIG,
+          ...JSON.parse(raw)
+        };
+      }
+    } catch {}
+    return DEFAULT_CONCIERGE_PAGE_UI_CONFIG;
+  }
+
+  /**
+   * Load Page UI Config from Firestore or localStorage
+   */
+  static async loadPageUiConfig(db: Firestore | undefined, tenantId: string): Promise<ConciergePageUiConfig> {
+    if (db && tenantId) {
+      try {
+        const docRef = doc(db, 'tenants', tenantId, 'modules', 'KosLive', 'settings', 'page_ui_config');
+        const snap = await getDoc(docRef);
+        if (snap.exists()) {
+          const merged: ConciergePageUiConfig = {
+            ...DEFAULT_CONCIERGE_PAGE_UI_CONFIG,
+            ...(snap.data() as Partial<ConciergePageUiConfig>)
+          };
+          try {
+            localStorage.setItem(`${LOCAL_STORAGE_PAGE_UI_CONFIG_KEY}_${tenantId}`, JSON.stringify(merged));
+            localStorage.setItem(LOCAL_STORAGE_PAGE_UI_CONFIG_KEY, JSON.stringify(merged));
+          } catch {}
+          return merged;
+        }
+      } catch (err) {
+        console.warn('[LivingStorageService] loadPageUiConfig error:', err);
+      }
+    }
+    return this.getLocalPageUiConfig(tenantId);
+  }
+
+  /**
+   * Save Page UI Config to localStorage, Firestore, and dispatch live window event
+   */
+  static async savePageUiConfig(
+    db: Firestore | undefined,
+    tenantId: string,
+    config: ConciergePageUiConfig
+  ): Promise<void> {
+    const payload = cleanPayload({
+      ...DEFAULT_CONCIERGE_PAGE_UI_CONFIG,
+      ...config
+    });
+
+    try {
+      if (tenantId) {
+        localStorage.setItem(`${LOCAL_STORAGE_PAGE_UI_CONFIG_KEY}_${tenantId}`, JSON.stringify(payload));
+      }
+      localStorage.setItem(LOCAL_STORAGE_PAGE_UI_CONFIG_KEY, JSON.stringify(payload));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('koslive:page-ui-config-updated', { detail: payload }));
+      }
+    } catch (e) {
+      console.warn('[LivingStorageService] Local savePageUiConfig notice:', e);
+    }
+
+    if (db && tenantId) {
+      try {
+        const docRef = doc(db, 'tenants', tenantId, 'modules', 'KosLive', 'settings', 'page_ui_config');
+        await setDoc(docRef, payload, { merge: true });
+      } catch (err) {
+        console.warn('[LivingStorageService] Firestore savePageUiConfig error:', err);
+      }
+    }
+  }
+
   /**
    * Save a LivingProject to Firestore in multi-tenant path and localStorage cache
    */
@@ -184,3 +273,4 @@ export class LivingStorageService {
     }
   }
 }
+

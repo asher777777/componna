@@ -20,8 +20,10 @@ export * from './context/LivingPlayerContext';
 export * from './context/KosLiveContext';
 export * from './components/LivingPlayerContainer';
 export * from './components/FloatingConciergeWidget';
+export * from './components/PageUiSettingsEditor';
 export * from './components/LivingVideoLayer';
 export * from './components/LivingOverlayManager';
 export * from './components/LivingVoiceBubble';
 export * from './views/KosLiveStudioView';
 export * from './views/LivingPagePublicView';
+

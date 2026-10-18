@@ -206,6 +206,11 @@ const OptimizedMediaThumbnail: React.FC<{
   }
 
   if (item.type === 'video') {
+    const videoUrl = resolveSafeMediaUrl(item.url, item);
+    const safeVideoSrc = videoUrl ? `${videoUrl}${videoUrl.includes('#') ? '' : '#t=0.001'}` : '';
+    const isImagePoster = item.thumbnailUrl && !item.thumbnailUrl.match(/\.(mp4|webm|mov|mkv|m4v|3gp|flv)($|\?)/i);
+    const posterUrl = isImagePoster ? resolveSafeMediaUrl(item.thumbnailUrl, item) : undefined;
+
     return (
       <div
         className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950"
@@ -214,8 +219,8 @@ const OptimizedMediaThumbnail: React.FC<{
       >
         <video
           ref={videoRef}
-          src={resolveSafeMediaUrl(item.url, item)}
-          poster={resolveSafeMediaUrl(item.thumbnailUrl, item)}
+          src={safeVideoSrc}
+          poster={posterUrl}
           muted
           playsInline
           loop

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Share2, Copy, CheckCircle2, Globe, Code, Sparkles, ExternalLink } from 'lucide-react';
 import { useKosLive } from '../context/KosLiveContext';
+import { PageUiSettingsEditor } from './PageUiSettingsEditor';
 
 export const EmbedPublishModal: React.FC = () => {
   const { activeProject } = useKosLive();
@@ -32,16 +33,18 @@ export const EmbedPublishModal: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 font-sans select-none" dir="rtl">
+    <div className="w-full max-w-5xl mx-auto p-4 sm:p-6 font-sans select-none" dir="rtl">
       
       <div className="mb-6 text-right">
-        <h2 className="text-xl font-black text-white">הפצה, קישורים והטמעה באתר</h2>
+        <h2 className="text-xl font-black text-white">הפצה, הגדרות תצוגה בעמוד והטמעה</h2>
         <p className="text-xs text-slate-400">
-          הטמיעו את העמוד החי שלכם כעמוד נחיתה עצמאי, כסקשן ב-KosWebAi, או כקונסיירז' וידאו צף בפינת האתר.
+          קבעו אם ה-UI בעמוד גלוי או נסתר (כברירת מחדל: נסתר), ערכו את הטקסט ליד האווטאר והטמיעו את העמוד החי באתר.
         </p>
       </div>
 
       <div className="space-y-6">
+        {/* אזור עריכת תצוגת ה-UI והאווטאר בעמוד */}
+        <PageUiSettingsEditor />
         
         {/* Option 1: Direct Public Link */}
         <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl text-right">

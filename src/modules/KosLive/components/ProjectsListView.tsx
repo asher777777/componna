@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { useKosLive } from '../context/KosLiveContext';
 import { LivingProject } from '../types';
+import { PageUiSettingsEditor } from './PageUiSettingsEditor';
 
 export const ProjectsListView: React.FC = () => {
   const { projects, setActiveProject, setTab, createNewProject, deleteProject, isLoading } = useKosLive();
@@ -19,10 +20,13 @@ export const ProjectsListView: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 font-sans select-none" dir="rtl">
+    <div className="w-full max-w-6xl mx-auto p-4 sm:p-6 font-sans select-none space-y-6" dir="rtl">
       
+      {/* אזור עריכת תצוגת ה-UI והאווטאר בעמוד (גלוי/נסתר + טקסט האווטאר) */}
+      <PageUiSettingsEditor />
+
       {/* Top Banner / Actions */}
-      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-black text-white">פרויקטי עמודים חיים</h2>
           <p className="text-xs text-slate-400">ניהול עמודי וידאו אינטראקטיביים והפקות אווטארים</p>

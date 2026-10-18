@@ -213,3 +213,23 @@ export interface AvatarPreset {
   voiceId: string;
   recommendedFor: string;
 }
+
+export interface ConciergePageUiConfig {
+  /** א. האם ה-UI של האווטאר/העמוד החי גלוי בעמוד או נסתר (כברירת מחדל: false = נסתר) */
+  isVisibleOnPage: boolean;
+  /** ב. הטקסט שמופיע ליד תמונת האווטאר (ניתן לעריכה בתוך אזור העריכה) */
+  greetingText: string;
+  /** הסתרת הטקסט שמופיע ליד תמונת האווטאר במובייל (כברירת מחדל: true) */
+  hideTextOnMobile: boolean;
+  /** הצגת הטקסט ליד תמונת האווטאר במחשב (כברירת מחדל: true) */
+  showTextOnDesktop: boolean;
+  /** מזהה האווטאר שמוצג בבועה */
+  avatarId: string;
+  /** תמונת אווטאר מותאמת אישית (אופציונלי) */
+  customAvatarImageUrl?: string;
+  /** מיקום הבועה בעמוד */
+  position: 'bottom-left' | 'bottom-right';
+  /** קמפיין/פרויקט משויך לניגון בלחיצה */
+  activeCampaignId?: string;
+}
+

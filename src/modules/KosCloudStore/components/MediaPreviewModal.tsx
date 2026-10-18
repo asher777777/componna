@@ -36,6 +36,7 @@ import {
 import { useMediaGallery } from '../context/MediaGalleryContext';
 import { resolveSafeMediaUrl, getMediaUrlCandidates } from '../utils/mediaUrlSanitizer';
 import { FileCompressionService } from '../services/fileCompressionService';
+import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { MediaItem } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
@@ -217,18 +218,36 @@ export const MediaPreviewModal: React.FC = () => {
   }, [previewItem]);
   const [candidateIndex, setCandidateIndex] = useState(0);
 
+  const [activeMediaUrl, setActiveMediaUrl] = useState<string>('');
+
   useEffect(() => {
     setCandidateIndex(0);
-  }, [previewItem?.id]);
+    const initialUrl = candidates[0] || (previewItem ? resolveSafeMediaUrl(previewItem.url, previewItem) : '');
+    setActiveMediaUrl(initialUrl);
+  }, [previewItem?.id, candidates]);
 
-  const safeUrl = candidates[candidateIndex] || (previewItem ? resolveSafeMediaUrl(previewItem.url, previewItem) : '');
+  const safeUrl = activeMediaUrl || candidates[candidateIndex] || (previewItem ? resolveSafeMediaUrl(previewItem.url, previewItem) : '');
 
-  const handleVideoError = () => {
+  const handleMediaCandidateError = async () => {
     if (candidateIndex < candidates.length - 1) {
-      setCandidateIndex((i) => i + 1);
-    } else {
-      setMediaError(true);
+      const nextIndex = candidateIndex + 1;
+      setCandidateIndex(nextIndex);
+      setActiveMediaUrl(candidates[nextIndex]);
+      return;
     }
+    // Attempt local IndexedDB retrieval
+    if (previewItem) {
+      try {
+        const blob = (await MediaIndexedDbService.getBlob(previewItem.id)) || (await MediaIndexedDbService.getBlob(previewItem.name));
+        if (blob) {
+          const blobUrl = URL.createObjectURL(blob);
+          setActiveMediaUrl(blobUrl);
+          setMediaError(false);
+          return;
+        }
+      } catch {}
+    }
+    setMediaError(true);
   };
 
   const isVideo =
@@ -501,13 +520,13 @@ export const MediaPreviewModal: React.FC = () => {
               <video
                 ref={videoRef}
                 key={safeUrl}
-                src={safeUrl}
+                src={safeUrl ? `${safeUrl}${safeUrl.includes('#') ? '' : '#t=0.001'}` : ''}
                 controls
                 autoPlay
                 playsInline
                 preload="auto"
                 className="w-full h-full max-h-full rounded-2xl object-contain shadow-2xl bg-black"
-                onError={handleVideoError}
+                onError={handleMediaCandidateError}
               />
 
               {/* Video Floating Controls Pill */}
@@ -624,7 +643,7 @@ export const MediaPreviewModal: React.FC = () => {
                   transition: 'transform 0.2s ease-out',
                 }}
                 className="w-full h-full max-h-full rounded-2xl object-contain shadow-2xl select-none"
-                onError={() => setMediaError(true)}
+                onError={handleMediaCandidateError}
               />
 
               {mediaError && (

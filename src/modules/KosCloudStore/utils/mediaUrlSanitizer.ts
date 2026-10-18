@@ -32,7 +32,12 @@ export function isAlienBlobUrl(url?: string): boolean {
  * Normalizes and cleans corrupted or scrambled storage paths.
  * E.g. removes double timestamps or double vault prefixes.
  */
-export function sanitizeVaultPath(path: string): string {
+export function sanitizeVaultPath(path: string, tenantId?: string): string {
+  if (tenantId && tenantId !== '_master') {
+    if (path.startsWith(`tenants/${tenantId}/`)) return path;
+    const clean = path.replace(/^(\/?sdo_media_vault\/)+/, '').replace(/^(\/?tenants\/[^/]+\/)+/, '');
+    return `tenants/${tenantId}/media/${clean}`;
+  }
   let clean = path.replace(/^(\/?sdo_media_vault\/)+/, 'sdo_media_vault/');
   if (!clean.startsWith('sdo_media_vault/') && !clean.startsWith('tenants/')) {
     clean = `sdo_media_vault/${clean}`;
@@ -48,8 +53,11 @@ export function sanitizeVaultPath(path: string): string {
 export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string = SYSTEM_MAIN_STORAGE_BUCKET): string {
   if (!item) return '';
 
+  const isTenant = Boolean(item.tenantId && item.tenantId !== '_master');
+  const folderPrefix = isTenant ? `tenants/${item.tenantId}/media` : 'sdo_media_vault';
+
   if (item.storagePath) {
-    const cleanPath = sanitizeVaultPath(item.storagePath);
+    const cleanPath = sanitizeVaultPath(item.storagePath, item.tenantId);
     return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(cleanPath)}?alt=media`;
   }
 
@@ -57,8 +65,8 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
     const safeName = item.name.replace(/[\\/:*?"<>|]/g, '_').trim();
     const timeStamp = item.createdAt;
     const vaultPath = timeStamp && !safeName.startsWith(`${timeStamp}_`)
-      ? `sdo_media_vault/${timeStamp}_${safeName}`
-      : `sdo_media_vault/${safeName}`;
+      ? `${folderPrefix}/${timeStamp}_${safeName}`
+      : `${folderPrefix}/${safeName}`;
     return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(vaultPath)}?alt=media`;
   }
 
@@ -103,12 +111,14 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
   if (item?.name) {
     const cleanName = item.name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\d+_/, '').trim();
     const isLegacy = (item.url && item.url.includes(LEGACY_VAULT_BUCKET));
+    const isTenant = Boolean(item.tenantId && item.tenantId !== '_master');
+    const folderPrefix = isTenant ? `tenants/${item.tenantId}/media` : 'sdo_media_vault';
     if (isLegacy) {
-      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
-      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`${folderPrefix}/${cleanName}`)}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`${folderPrefix}/${cleanName}`)}?alt=media`);
     } else {
-      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
-      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`sdo_media_vault/${cleanName}`)}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encodeURIComponent(`${folderPrefix}/${cleanName}`)}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encodeURIComponent(`${folderPrefix}/${cleanName}`)}?alt=media`);
     }
   }
 

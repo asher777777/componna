@@ -560,6 +560,42 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
                 ? 'index, follow, max-image-preview:large, max-snippet:-1'
                 : 'noindex, nofollow';
 
+              // OpenGraph & Social Sharing Meta Tags (WhatsApp, Facebook, Twitter, iMessage, LinkedIn)
+              const setMetaTag = (attrName: 'name' | 'property', attrValue: string, contentValue?: string) => {
+                if (!contentValue) return;
+                let el: HTMLMetaElement | null = document.querySelector(`meta[${attrName}='${attrValue}']`);
+                if (!el) {
+                  el = document.createElement('meta');
+                  el.setAttribute(attrName, attrValue);
+                  document.head.appendChild(el);
+                }
+                el.content = contentValue;
+              };
+
+              const seo = pageWithHeader.seoSettings;
+              const ogTitle = seo?.title || pageWithHeader.pageTitle || 'Kosun Page';
+              const ogDesc = seo?.description || '';
+              const ogImage = seo?.ogImage || seo?.faviconUrl || '';
+
+              setMetaTag('property', 'og:title', ogTitle);
+              setMetaTag('property', 'og:description', ogDesc);
+              setMetaTag('property', 'og:image', ogImage);
+              setMetaTag('property', 'og:type', 'website');
+              setMetaTag('property', 'og:url', typeof window !== 'undefined' ? window.location.href : '');
+
+              setMetaTag('name', 'twitter:card', 'summary_large_image');
+              setMetaTag('name', 'twitter:title', ogTitle);
+              setMetaTag('name', 'twitter:description', ogDesc);
+              setMetaTag('name', 'twitter:image', ogImage);
+
+              // Standard meta description
+              if (ogDesc) {
+                setMetaTag('name', 'description', ogDesc);
+              }
+              if (seo?.keywords && seo.keywords.length > 0) {
+                setMetaTag('name', 'keywords', seo.keywords.join(', '));
+              }
+
               // Inject GA4 (Google Analytics 4) Measurement Script if ID is configured
               const gaId = pageWithHeader.globalSettings?.googleAnalyticsId?.trim();
               if (gaId && !document.getElementById('ga4-tracking-script')) {
