@@ -13,6 +13,10 @@ export interface TenantTokenUsage {
   totalTokens: number;
   totalCostUSD: number; // Actual platform production cost paid to Google
   totalCostILS: number;
+  inputTokens?: number;   // מונה טוקנים של קלט (Prompt Tokens)
+  outputTokens?: number;  // מונה טוקנים של פלט (Candidates Tokens)
+  promptTokens?: number;
+  candidatesTokens?: number;
   retailBilledUSD?: number; // Standard retail value billed/charged to client
   retailBilledILS?: number;
   grossProfitUSD?: number;  // Platform margin (retailBilled - actualCost)
@@ -60,6 +64,10 @@ export function getDefaultTokenUsage(subdomain: string): TenantTokenUsage {
   return {
     subdomain: subdomain || ROOT_TENANT_ID,
     totalTokens: 0,
+    inputTokens: 0,
+    outputTokens: 0,
+    promptTokens: 0,
+    candidatesTokens: 0,
     totalCostUSD: 0,
     totalCostILS: 0,
     retailBilledUSD: 0,
@@ -92,6 +100,10 @@ export class TenantTokenTracker {
       costUSD?: number;
       retailBilledUSD?: number;
       cachedTokens?: number;
+      inputTokens?: number;
+      outputTokens?: number;
+      promptTokens?: number;
+      candidatesTokens?: number;
       heygenSeconds?: number;
       images?: number;
       db?: Firestore;
