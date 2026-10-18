@@ -651,6 +651,20 @@ export interface CommunitySectionConfig extends BaseSectionConfig {
   chatBubbleMessage?: string;
 }
 
+export type LivePostsLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'grid'
+  | 'carousel'
+  | 'list';
+
+export type LivePostsDisplayMode = 'grid' | 'carousel' | 'spotlight' | 'compact-list';
+
 export interface LivePostItem {
   id: string;
   title: string;
@@ -659,16 +673,54 @@ export interface LivePostItem {
   imageUrl?: string;
   linkUrl?: string;
   tag?: string;
+  tagColor?: string;
+  authorName?: string;
+  authorAvatar?: string;
+  readTimeMinutes?: number;
+  isFeatured?: boolean;
+  ctaButtonText?: string;
 }
 
 export interface LivePostsGridSectionConfig extends BaseSectionConfig {
   type: 'livePosts';
   title: string;
   titleColor?: string;
+  subtitle?: string;
+  subtitleColor?: string;
   description?: string;
   descriptionColor?: string;
-  layout?: 'grid' | 'carousel' | 'list';
+  badge?: string;
+  badgeColor?: string;
+
+  // Layout & Styling Presets
+  layout?: LivePostsLayoutPreset;
+  displayMode?: LivePostsDisplayMode;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  cardBackgroundColor?: string;
+
+  // Content items & Grid controls
   customPages?: LivePostItem[];
+  postsPerRow?: 2 | 3 | 4;
+  showPostExcerpt?: boolean;
+  showPostDate?: boolean;
+  showPostTag?: boolean;
+  showPostAuthor?: boolean;
+  showReadTime?: boolean;
+
+  // Global Call to action button for entire section
+  showCtaButton?: boolean;
+  ctaText?: string;
+  ctaUrl?: string;
+
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 }
 
 export interface LandingFormField {
@@ -895,6 +947,15 @@ export interface VideoEngagementComment {
   userLiked?: boolean;
 }
 
+export type VideoEngagementLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical';
+
 export interface VideoEngagementSectionConfig extends BaseSectionConfig {
   type: 'videoEngagement';
   title?: string;
@@ -911,6 +972,27 @@ export interface VideoEngagementSectionConfig extends BaseSectionConfig {
   shareTitle?: string;
   accentColor?: string;
   publishedDateText?: string;
+
+  // New styling & layout presets
+  layout?: VideoEngagementLayoutPreset;
+  objectScale?: 'compact' | 'normal' | 'large' | 'massive' | 'auto';
+  buttonShape?: 'round' | 'square' | 'sharp' | 'pill' | 'auto';
+  buttonSize?: 'compact' | 'normal' | 'large' | 'auto';
+
+  // Default icons only with tooltips (no text labels)
+  socialButtonsStyle?: 'icons-only' | 'icons-text' | 'compact';
+  showButtonLabels?: boolean; // default: false (icons + tooltip without text)
+
+  // Custom colors
+  cardBackgroundColor?: string;
+
+  // Text Background Overlay & 5 Hover Effects
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: 'zoom-glow' | 'shimmer-sweep' | 'float-parallax' | 'blur-reveal' | 'gradient-shift';
+  textBgScope?: 'bar' | 'section';
 }
 
 export interface TiktokHeroVideoSettings {

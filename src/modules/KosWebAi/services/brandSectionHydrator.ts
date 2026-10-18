@@ -378,6 +378,26 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'videoEngagement': {
+      cloned.title = companyName ? `אינטראקציה, שיתוף ותגובות • ${companyName}` : cloned.title;
+      cloned.videoTitle = companyName ? `הסרטון של ${companyName}` : cloned.videoTitle;
+      cloned.shareTitle = companyName ? `צפו בסרטון מבית ${companyName}` : cloned.shareTitle;
+      
+      const brandTags: string[] = [];
+      if (companyName) brandTags.push(companyName);
+      if (services.length > 0) {
+        services.slice(0, 3).forEach((s: any) => {
+          const name = typeof s === 'string' ? s : s.title;
+          if (name && !brandTags.includes(name)) brandTags.push(name);
+        });
+      }
+      brandTags.push('וידאו', 'KOSUN');
+      cloned.tags = brandTags;
+
+      // Default is icons + tooltip without text label
+      cloned.socialButtonsStyle = 'icons-only';
+      cloned.showButtonLabels = false;
+      cloned.layout = 'standard';
+
       if (primaryColor) {
         cloned.accentColor = primaryColor;
       }

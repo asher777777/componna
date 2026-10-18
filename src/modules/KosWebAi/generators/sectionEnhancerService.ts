@@ -137,7 +137,7 @@ export const sectionEnhancerService = {
     // 3. LAYOUT & BENTO SUGGESTIONS
     const layoutSuggestions: SectionAiSuggestion[] = [];
 
-    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'mainContent') {
+    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'livePosts' || sectionType === 'mainContent' || sectionType === 'videoEngagement') {
       layoutSuggestions.push(
         {
           id: `${sectionType}-layout-feminine`,
@@ -740,6 +740,32 @@ Return ONLY the raw updated JSON object.`;
       updated.subtitle = slogan || 'סרטונים, הדרכות ותוכן בלעדי';
       updated.source = 'tenant_youtube';
       changes.push(`סונכרנו כותרות גלריית הוידאו וחיבור ברירת מחדל לנתוני YouTube של ${company}`);
+    } else if (sectionType === 'videoEngagement') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת אינטראקציה נשית (רכה ורוז-גולד עם קשתות)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת אינטראקציה גברית (פחם, זהב פליז ומסגרת פלדה)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת אינטראקציה רוחנית (מרווה, מנטה ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת אינטראקציה חדה (הייטק, ציאן ניאון ו-90 מעלות)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת אינטראקציה אנליטית (אינדקס נתונים #01 וסדר קטלוגי)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת אינטראקציה עכשווית');
+      }
+
+      updated.title = `אינטראקציה, שיתוף ותגובות • ${company}`;
+      updated.videoTitle = `הסרטון של ${company}`;
+      updated.socialButtonsStyle = 'icons-only';
+      updated.showButtonLabels = false;
+      changes.push(`סונכרנו פרטי האינטראקציה, שיתוף רשתות ומיתוג ${company} (ברירת מחדל: אייקונים וטולטיפ)`);
     } else if (sectionType === 'timer') {
       if (prompt.includes('feminine') || prompt.includes('נשי')) {
         updated.layout = 'feminine';
@@ -774,6 +800,43 @@ Return ONLY the raw updated JSON object.`;
         updated.ctaUrl = `https://wa.me/${(whatsapp || phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום, אני פונה לגבי ההשקה של ${company}`)}`;
       }
       changes.push(`סונכרנו כותרות הטיימר, תאריך היעד וחיבור הנעה לפעולה של ${company}`);
+    } else if (sectionType === 'livePosts') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת עדכונים ואירועים בסגנון נשי (רכה, אלגנטית, קשתות רוז-גולד)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת עדכונים ואירועים בסגנון גברי (עוצמתית, מסגרת פלדה כפולה וזהב ענבר)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת עדכונים ואירועים רוחנית (מרווה, טורקיז, הילה ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת עדכונים ואירועים חדה (ברוטליסטית, 90 מעלות וצל מוסט קשיח)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת עדכונים ואירועים אנליטית (מסוף HUD טכנולוגי, זמני קריאה ומדדים)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת עדכונים ואירועים עכשווית');
+      }
+
+      if (prompt.includes('קרוסלה') || prompt.includes('carousel')) {
+        updated.displayMode = 'carousel';
+        changes.push('הופעלה תצוגת קרוסלה זזה עם חיצים');
+      } else if (prompt.includes('ספוטלייט') || prompt.includes('מוביל') || prompt.includes('spotlight')) {
+        updated.displayMode = 'spotlight';
+        changes.push('הופעלה תצוגת פוסט ראשי מודגש (Spotlight)');
+      }
+
+      updated.title = `עדכונים ואירועים אחרונים של ${company}`;
+      updated.subtitle = slogan || 'כל מה שחדש וקורה בפעילות, בקהילה ובהשקות שלנו';
+      updated.showCtaButton = true;
+      updated.ctaText = 'לכל האירועים והחדשות';
+      if (whatsapp || phone) {
+        updated.ctaUrl = `https://wa.me/${(whatsapp || phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום, קראתי על העדכונים של ${company}`)}`;
+      }
+      changes.push(`סונכרנו כותרות, פרטי האירועים ו-DNA המותג של ${company}`);
     } else if (sectionType === 'mainContent') {
       if (prompt.includes('feminine') || prompt.includes('נשי')) {
         updated.layout = 'feminine';
