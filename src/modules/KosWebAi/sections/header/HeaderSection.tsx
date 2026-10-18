@@ -214,7 +214,7 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
         const labelOverride = (safeConfig.menuTitleOverrides && (safeConfig.menuTitleOverrides[key] || safeConfig.menuTitleOverrides[page.pageId])) || page.pageTitle || 'עמוד';
         return {
           label: labelOverride,
-          url: page.isHomePage ? '/' : `/p/${page.slug || page.shortSlug || page.pageId}`,
+          url: page.isHomePage ? '/' : `/${(page.slug || page.shortSlug || page.pageId).replace(/^\/?p\//i, '')}`,
         };
       })
     : defaultTenantItems;

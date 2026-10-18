@@ -14,6 +14,7 @@ import { PAGE_BUILDER_MODULE_CONFIG } from '../config';
 import { useTenantScope } from '../../../core/tenant';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from '../services/brandSectionHydrator';
+import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 
 export interface PageBuilderContextValue {
   // Page Configuration
@@ -68,6 +69,22 @@ export const PageBuilderProvider: React.FC<{
   const { tenantId } = useTenantScope();
   const brandDnaContract = getCapability<BrandDnaContract>('brand-dna');
   const [brandDna, setBrandDna] = useState<BrandDna | null>(() => brandDnaContract?.getBrandDna() || null);
+
+  // Load tenant Brand DNA from Firestore (tenants/{tenantId}/settings/kos_branding_dna)
+  useEffect(() => {
+    let active = true;
+    const effTenant = tenantId || '_master';
+    loadBrandDna(db, effTenant)
+      .then((loaded) => {
+        if (active && loaded) {
+          setBrandDna(loaded);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [db, tenantId]);
 
   // Active Page State
   const [currentPageConfig, setCurrentPageConfigState] = useState<PageBuilderConfig | null>(initialConfig);
@@ -195,7 +212,7 @@ export const PageBuilderProvider: React.FC<{
           : { id, type, visible: true };
 
         const currentLiveDna = resolveLiveBrandDna(brandDna || brandDnaContract?.getBrandDna(), tenantId);
-        const hydratedData = hydrateSectionWithBrandDna(rawInitial, currentLiveDna, type);
+        const hydratedData = hydrateSectionWithBrandDna(rawInitial, currentLiveDna, type, tenantId);
 
         const newSections = {
           ...prev.sections,

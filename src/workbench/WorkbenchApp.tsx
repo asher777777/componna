@@ -176,9 +176,13 @@ export const WorkbenchApp: React.FC = () => {
     location.pathname.startsWith('/tube/') ||
     location.pathname.startsWith('/page/') ||
     location.pathname.startsWith('/preview/') ||
+    location.pathname === '/kosvidio' ||
+    location.pathname.startsWith('/kosvidio/') ||
+    location.pathname.startsWith('/kosvidio-') ||
     location.hash.startsWith('#/p/') ||
     location.hash.startsWith('#/to/') ||
     location.hash.startsWith('#/tube/') ||
+    location.hash.startsWith('#/kosvidio') ||
     location.hash.startsWith('#/page/');
 
   const isHomePage = location.pathname === '/';
@@ -197,6 +201,12 @@ export const WorkbenchApp: React.FC = () => {
     slogan?: string;
     icon: React.ComponentType<{ className?: string }>;
   }> = {
+    'KosSubscribed': {
+      hebrewName: 'מנויי תוכן, חבילות ומבחנים',
+      englishPrefix: 'KOS',
+      englishRest: 'Subscribed',
+      icon: CreditCard,
+    },
     'kosun-board-composer': {
       hebrewName: 'מחולל מערכות ולוחות בקרה',
       englishPrefix: 'KOS',
@@ -376,6 +386,9 @@ export const WorkbenchApp: React.FC = () => {
       <div className="w-screen min-h-screen bg-slate-50 dark:bg-[#09090b] flex items-center justify-center p-0 m-0 text-slate-900 dark:text-white font-sans transition-colors duration-300" dir="rtl">
         <main className="w-full min-h-screen">
           <Routes>
+            <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -513,6 +526,9 @@ export const WorkbenchApp: React.FC = () => {
             />
             <Route path="/home" element={<Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-500 font-bold">טוען...</div>}><HomePage /></Suspense>} />
             
+            <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

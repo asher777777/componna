@@ -10,24 +10,61 @@ import { useSystemConnection } from '../connection/SystemConnectionContext';
 import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
 import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
 import { BrandDnaHubStandaloneView } from '../../modules/KosBranding';
+import { loadBrandDna } from '../../modules/KosBranding/services/brandDnaFirestore';
+import { createDynamicSectionConfig, resolveLiveBrandDna } from '../../modules/KosWebAi/services/brandSectionHydrator';
+import { BrandDna } from '../contracts';
 import { FloatingSystemDock, CashwanDynamicMenu } from '../../components/Navigation/FloatingSystemDock';
 import { TenantSyncSettingsModal } from '../../components/Navigation/TenantSyncSettingsModal';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from '../../workbench/components/ModuleLoadingFallback';
-import { Globe, Lock, ArrowRight, Eye, LayoutDashboard, Sparkles, LayoutGrid } from 'lucide-react';
+import { Globe, Lock, ArrowRight, Eye, LayoutDashboard, Sparkles, LayoutGrid, BookOpen } from 'lucide-react';
 import { DashboardFirestoreService } from '../../modules/kosun-board-composer/services/dashboardFirestoreService';
 import { DynamicCustomDashboardView } from '../../modules/kosun-board-composer/components/DynamicCustomDashboardView';
 import { GeneratedCustomDashboard } from '../../modules/kosun-board-composer/types';
 import { KosunBoardProvider } from '../../modules/kosun-board-composer/context/ModuleContext';
 import { KosWebAiFrontDock } from '../../modules/KosWebAi';
+import { PublicPageView } from '../../modules/KosWebAi/components/PublicPageView';
 import { TenantAdminLoginView } from './TenantAdminLoginView';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
-import { Grid, Sun, Moon, LogOut, ChevronLeft, Check } from 'lucide-react';
+import { SubscriberPortalView } from '../../modules/KosSubscribed/components/SubscriberPortalView';
+import { subscribeToAuth } from '../../services/firebaseAuth';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
+import { Sun, Moon, LogOut, ChevronLeft, Check } from 'lucide-react';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
 }
+
+export const isPublicContentPath = (path: string): boolean => {
+  const p = path.toLowerCase();
+  if (p === '/' || p === '') return false;
+  if (
+    p === '/kosvidio' ||
+    p.startsWith('/kosvidio/') ||
+    p.startsWith('/kosvidio-') ||
+    p.startsWith('/p/') ||
+    p.startsWith('/page/') ||
+    p.startsWith('/preview/') ||
+    p.startsWith('/tube/') ||
+    p.startsWith('/to/')
+  ) {
+    return true;
+  }
+  const adminRoutes = [
+    '/dashboard',
+    '/brand-dna',
+    '/kosbranding',
+    '/branding',
+    '/overview',
+    '/control-center',
+    '/settings',
+  ];
+  if (adminRoutes.some((ar) => p === ar || p.startsWith(`${ar}/`))) {
+    return false;
+  }
+  return true;
+};
 
 export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenantRecord }) => {
   const { db } = useSystemConnection();
@@ -44,18 +81,14 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
       return 'admin';
     }
-    // Any module or control-center route is inherently admin mode
-    if (pathname !== '/' && !pathname.startsWith('/p/') && !pathname.startsWith('/page/')) {
-      return 'admin';
-    }
-    // If root path '/' without explicit admin query, default to public homepage!
-    if (pathname === '/' || pathname === '') {
+    // Public home or public content pages (e.g. /kosvidio, /p/*) default strictly to public mode
+    if (pathname === '/' || pathname === '' || isPublicContentPath(pathname)) {
       return 'public';
     }
     if (sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true') {
       return 'admin';
     }
-    return 'public';
+    return 'admin';
   });
 
   const [isEditing, setIsEditing] = useState<boolean>(() => {
@@ -83,6 +116,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       setMode('admin');
       sessionStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
       sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+    } else if (isPublicContentPath(location.pathname) && !params.get('admin') && !params.get('mode')) {
+      setMode('public');
     }
 
     // Clean noisy parameters (?mode=, ?admin=, ?tenant=) from the URL bar immediately
@@ -116,6 +151,56 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   }, [tenantRecord.subdomain, mode, isEditing]);
 
   const isControlCenter = location.pathname === '/' || location.pathname.startsWith('/control-center');
+
+  // Subscriber Role & Portal Detection
+  const [currentUserRole, setCurrentUserRole] = useState<string>('viewer');
+  const [isSubscriberPortalOpen, setIsSubscriberPortalOpen] = useState(false);
+  const [subscriberContact, setSubscriberContact] = useState<any | null>(null);
+  const [subscriberPackages, setSubscriberPackages] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!db || !tenantRecord.subdomain) return;
+    const colPath = `tenants/${tenantRecord.subdomain}/subscription_packages`;
+    getDocs(collection(db, colPath))
+      .then((snap) => {
+        const items: any[] = [];
+        snap.forEach((d) => items.push({ id: d.id, ...d.data() }));
+        setSubscriberPackages(items);
+      })
+      .catch(() => {});
+  }, [db, tenantRecord.subdomain]);
+
+  useEffect(() => {
+    const unsub = subscribeToAuth(undefined, (state) => {
+      if (state.role) {
+        setCurrentUserRole(state.role);
+      }
+      if (state.uid && db) {
+        getDoc(doc(db, 'tenants', tenantRecord.subdomain, 'contacts', state.uid))
+          .then((snap) => {
+            if (snap.exists()) {
+              const data = snap.data();
+              setSubscriberContact(data);
+              if (data?.isContentSubscriber || data?.subscriberRole) {
+                setCurrentUserRole('subscriber');
+              }
+            }
+          })
+          .catch(() => {});
+      }
+    });
+    return () => unsub();
+  }, [db, tenantRecord.subdomain]);
+
+  const isContentSubscriber = currentUserRole === 'subscriber';
+
+  // Strict Exclusion: Content subscriber is strictly barred from admin mode!
+  useEffect(() => {
+    if (isContentSubscriber && mode === 'admin') {
+      setMode('public');
+      setIsSubscriberPortalOpen(true);
+    }
+  }, [isContentSubscriber, mode]);
 
   const [homePageConfig, setHomePageConfig] = useState<PageBuilderConfig | null>(() => {
     return pageBuilderFirestore.getHomePageSync(tenantRecord.subdomain);
@@ -289,6 +374,24 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       window.removeEventListener('kosun_homepage_changed', handleHomeChange);
     };
   }, [db, tenantRecord.subdomain, mode]);
+
+  const [tenantBrandDna, setTenantBrandDna] = useState<BrandDna | null>(() =>
+    resolveLiveBrandDna(null, tenantRecord.subdomain)
+  );
+
+  useEffect(() => {
+    let active = true;
+    loadBrandDna(db, tenantRecord.subdomain)
+      .then((dna) => {
+        if (active && dna) {
+          setTenantBrandDna(dna);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [db, tenantRecord.subdomain]);
 
   const [authVersion, setAuthVersion] = useState(0);
   const [isKosNevOpen, setIsKosNevOpen] = useState(false);
@@ -477,10 +580,14 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   const handleAddSection = useCallback((type: SectionType, insertIndex?: number) => {
     const regDef = SECTION_REGISTRY[type];
-    const newId = `${type}_${Date.now()}`;
-    const defaultData = regDef?.defaultConfig
-      ? { ...regDef.defaultConfig, id: newId }
-      : { id: newId, type, visible: true, title: regDef?.name || type };
+    const liveDna = resolveLiveBrandDna(tenantBrandDna, tenantRecord.subdomain);
+    const defaultData = createDynamicSectionConfig(
+      type,
+      liveDna,
+      regDef?.defaultConfig,
+      tenantRecord.subdomain
+    );
+    const newId = defaultData.id;
 
     setCurrentPageConfig((prev) => {
       if (!prev) return prev;
@@ -574,6 +681,9 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
+    if (isContentSubscriber) {
+      return null;
+    }
     const defaultRoute = customDashboard && adminViewType === 'custom_board'
       ? '/dashboard'
       : activeModuleIds.some((id) => id.toLowerCase() === 'kosbranding')
@@ -708,16 +818,26 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   // 2. PUBLIC MODE (Visitor Landing Page / Live On-Page Editor for Owners)
   const isAuthorizedToEdit = Boolean(
-    isAuthenticated ||
-    isEditing ||
-    (typeof window !== 'undefined' && (
-      sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
-      sessionStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
-      new URLSearchParams(window.location.search).get('edit') === 'true' ||
-      new URLSearchParams(window.location.search).get('admin') === 'true' ||
-      new URLSearchParams(window.location.search).get('mode') === 'admin'
-    ))
+    !isContentSubscriber && (
+      isAuthenticated ||
+      isEditing ||
+      (typeof window !== 'undefined' && (
+        sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
+        sessionStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
+        new URLSearchParams(window.location.search).get('edit') === 'true' ||
+        new URLSearchParams(window.location.search).get('admin') === 'true' ||
+        new URLSearchParams(window.location.search).get('mode') === 'admin'
+      ))
+    )
   );
+
+  if (isPublicContentPath(location.pathname)) {
+    return (
+      <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white" dir="rtl">
+        <PublicPageView />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-white dark:bg-[#0a0a0c] font-sans relative selection:bg-indigo-500 selection:text-white pb-20" dir="rtl">
@@ -775,8 +895,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         isAuthorized={isAuthorizedToEdit}
       />
 
-      {/* Discrete admin portal entry button if not currently editing or authorized */}
-      {!isAuthorizedToEdit && (
+      {/* Discrete admin portal entry button if not content subscriber and not authorized */}
+      {!isContentSubscriber && !isAuthorizedToEdit && (
         <button
           type="button"
           onClick={() => setMode('admin')}
@@ -786,6 +906,58 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         >
           <Lock className="w-4 h-4" />
         </button>
+      )}
+
+      {/* Dedicated personal dashboard entry button for content subscriber */}
+      {isContentSubscriber && (
+        <button
+          type="button"
+          onClick={() => setIsSubscriberPortalOpen(true)}
+          className="fixed bottom-4 left-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs shadow-xl shadow-indigo-500/20 transition-all hover:scale-105 cursor-pointer"
+          title="אזור אישי - לוח מנוי ותוכן"
+          aria-label="לוח מנוי"
+        >
+          <BookOpen className="w-4 h-4" />
+          <span>התוכן שלי (לוח מנוי)</span>
+        </button>
+      )}
+
+      {/* Content Subscriber Dedicated Personal Portal Modal */}
+      {isSubscriberPortalOpen && (
+        <SubscriberPortalView
+          isModal={true}
+          tenantSubdomain={tenantRecord.subdomain}
+          contact={
+            subscriberContact || {
+              id: 'current-subscriber',
+              name: 'מנוי תוכן',
+              email: '',
+              isContentSubscriber: true,
+              subscriberRole: 'content_subscriber',
+              permissions: {
+                canAccessLockedContent: true,
+                canTakeQuizzes: true,
+                canViewReceipts: true,
+                canEditPages: false,
+                canUseAiGenerators: false,
+                canAccessAdminPanel: false,
+              },
+              contentSubscriptions: [
+                {
+                  packageId: 'general',
+                  packageName: 'מנוי תוכן',
+                  status: 'active',
+                  startDate: new Date().toISOString(),
+                  billingCycle: 'monthly',
+                  originalPrice: 0,
+                  finalAmount: 0,
+                },
+              ],
+            }
+          }
+          packages={subscriberPackages}
+          onClose={() => setIsSubscriberPortalOpen(false)}
+        />
       )}
 
       {/* Tenant Sync & Settings Modal */}

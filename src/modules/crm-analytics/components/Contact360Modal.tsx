@@ -13,10 +13,13 @@ import {
   Target,
   FileText,
   AlertTriangle,
-  Globe
+  Globe,
+  Package
 } from 'lucide-react';
 import { Contact, CustomField } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { useOptionalSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope, DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant';
 import { 
   WhatsAppContract, 
   KesherPaymentContract, 
@@ -27,6 +30,7 @@ import {
 } from '../../../core/contracts';
 import { ContactSubdomainTab } from './contact-modal/ContactSubdomainTab';
 import { ContactWhatsAppTab } from './contact-modal/ContactWhatsAppTab';
+import { ContactContentSubscriptionsTab } from './contact-modal/ContactContentSubscriptionsTab';
 import { tenantContactSyncService } from '../services/tenantContactSyncService';
 
 interface Props {
@@ -47,6 +51,7 @@ export type HakelAccordionSection =
   | 'forms' 
   | 'whatsapp' 
   | 'email'
+  | 'content_subscriptions'
   | 'subdomain';
 
 export const Contact360Modal: React.FC<Props> = ({
@@ -93,14 +98,27 @@ export const Contact360Modal: React.FC<Props> = ({
     return JSON.stringify(formData) !== JSON.stringify(initialContactData);
   }, [formData, initialContactData]);
 
-  // Access core contracts
+  // Access core contracts & tenant module state
   const { getCapability } = useHostCapabilities();
+  const sysConn = useOptionalSystemConnection();
+  const { isRootTenant } = useTenantScope();
   const whatsappContract = getCapability<WhatsAppContract>('whatsapp');
   const kesherContract = getCapability<KesherPaymentContract>('kesher-payment');
   const recruitmentContract = getCapability<RecruitmentContract>('recruitment');
   const groupsContract = getCapability<CrmGroupsContract>('crm-groups');
   const emailContract = getCapability<EmailContract>('email');
   const formBuilderContract = getCapability<FormBuilderContract>('form-builder');
+
+  const isKosSubscribedActive = useMemo(() => {
+    const purchased = sysConn?.purchasedModules || [];
+    const contactMods = formData.activeModules || [];
+    const combined = [...purchased, ...contactMods, ...(isRootTenant ? DEFAULT_SUBDOMAIN_MODULES : [])];
+    if (combined.length === 0) return DEFAULT_SUBDOMAIN_MODULES.includes('KosSubscribed');
+    return combined.some((m) => {
+      const lower = (m || '').toLowerCase();
+      return lower === 'kossubscribed' || lower === 'kossuncribd';
+    });
+  }, [sysConn?.purchasedModules, formData.activeModules, isRootTenant]);
 
   const showNotification = (msg: string) => {
     setToastMessage(msg);
@@ -920,6 +938,49 @@ export const Contact360Modal: React.FC<Props> = ({
               </div>
             )}
           </div>
+
+          {/* 8.5 מנויי תוכן וחבילות (KosSubscribed) - מופיע כאשר הרכיב נמצא ברכיבי הסאב-דומיין */}
+          {isKosSubscribedActive && (
+            <div className={`w-full flex flex-col rounded-2xl border overflow-hidden transition-all ${
+              isDarkMode ? 'border-white/5 bg-[#141414]' : 'border-slate-200 bg-slate-50/70'
+            }`}>
+              <button
+                type="button"
+                onClick={() => toggleSection('content_subscriptions')}
+                className={`w-full h-12 px-3.5 flex items-center justify-between font-bold text-xs cursor-pointer transition-all ${
+                  isDarkMode ? 'text-white hover:bg-[#1a1a1a]' : 'text-slate-800 hover:bg-slate-100'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
+                    isDarkMode ? 'bg-indigo-500/15 text-indigo-400' : 'bg-indigo-100 text-indigo-700 shadow-sm'
+                  }`}>
+                    <Package className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="font-bold">מנויי תוכן וחבילות (KosSubscribed)</span>
+                  {(formData.kosun_crm_content_subscriptions?.length || formData.content_subscriptions?.length) ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 font-mono font-bold mr-1">
+                      {(formData.kosun_crm_content_subscriptions || formData.content_subscriptions || []).length}
+                    </span>
+                  ) : null}
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${openSections['content_subscriptions'] ? 'rotate-180' : ''}`} />
+              </button>
+
+              {openSections['content_subscriptions'] && (
+                <div className={`p-3.5 sm:p-4 border-t space-y-2.5 text-xs animate-fadeIn ${
+                  isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
+                }`}>
+                  <ContactContentSubscriptionsTab
+                    formData={formData}
+                    onChange={handleFieldChange}
+                    isDarkMode={isDarkMode}
+                    onNotify={showNotification}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 9. סאב-דומיין ומשתמש מערכת (Subdomain & System User) */}
           <div className={`w-full flex flex-col rounded-2xl border overflow-hidden transition-all ${

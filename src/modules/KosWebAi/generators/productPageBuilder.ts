@@ -1,4 +1,4 @@
-import { CreatePageFromProductOptions } from '../../../core/contracts';
+import { CreatePageFromProductOptions, CreatePageFromServiceOptions } from '../../../core/contracts';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 
 /**
@@ -192,6 +192,7 @@ export function buildPageConfigFromFlagshipProduct(
     'sec-about': {
       id: 'sec-about',
       type: 'richContent',
+      adminTitle: 'אודות / תוכן מעוצב',
       visible: Boolean(longDescHtml),
       anchorId: 'sec-about',
       subtitle: 'הכירו לעומק',
@@ -460,6 +461,455 @@ export function buildPageConfigFromFlagshipProduct(
         targetCountry: 'IL',
         localBusinessName: companyName,
         localBusinessType: 'EducationalOrganization',
+        businessAddress: officeAddress,
+        businessPhone: contactPhone,
+        businessEmail: contactEmail,
+        localizedKeywords: keywordsList,
+      },
+    },
+  };
+}
+
+/**
+ * פונקציה דטרמיניסטית מלאה (0 קריאות AI, 0 טוקנים) להפקת PageBuilderConfig מתוך CoreService
+ * - פריסה ישירה של נתוני השירות באזורים המתאימים (Hero, אודות/תוכן, 6 נקודות כאב, 3 קהלים, 6 יתרונות, גלריה, 10 שאלות ותשובות, יצירת קשר).
+ * - פתיחת העמוד בסלאג מתאים ונקי ישירות ללא קידומת /p/ (לדוגמה: /${slug})
+ * - קליטת התוכן העשיר ישירות באזור התוכן/אודות (sec-about) של הבונה (visible: true).
+ * - הסתרת כל האזורים הלא מותאמים (visible: false).
+ * - פריסת הגדרות SEO ונתוני קידום ב-AI (AIO/GEO).
+ */
+export function buildPageConfigFromCoreService(
+  options: CreatePageFromServiceOptions,
+  existingPageId?: string
+): PageBuilderConfig {
+  const { service, brandDna } = options;
+  const now = new Date().toISOString();
+
+  // חילוץ כותרת ראשית וסלוגן
+  const rawName = (service.nameAndSlogan || 'שירות מרכזי').trim();
+  const splitParts = rawName.split(/\s*[–—-]\s*/);
+  const mainTitle = splitParts[0]?.trim() || rawName;
+  const sloganSub = splitParts.slice(1).join(' – ').trim();
+
+  const companyName = brandDna?.identity?.companyName || 'הארגון';
+  const brandSlogan = brandDna?.identity?.slogan || '';
+  const brandLogo = brandDna?.identity?.logoUrl || '';
+  const primaryColor = brandDna?.designTokens?.primaryColor || '#4f46e5';
+  const secondaryColor = brandDna?.designTokens?.secondaryColor || '#818cf8';
+  const backgroundColor = brandDna?.designTokens?.backgroundColor || '#0f172a';
+  const textColor = brandDna?.designTokens?.textColor || '#f8fafc';
+  const buttonBgColor = brandDna?.designTokens?.buttonBgColor || primaryColor;
+  const fontFamily = brandDna?.designTokens?.fontFamily || 'Heebo';
+  const contactPhone = brandDna?.trust?.contactPhone || '';
+  const contactEmail = brandDna?.trust?.contactEmail || '';
+  const contactWhatsApp = brandDna?.trust?.whatsappSupportNumber || contactPhone;
+  const officeAddress = brandDna?.trust?.officeAddress || '';
+
+  // גלריית תמונות
+  const galleryImages: string[] = Array.isArray(service.galleryImages) && service.galleryImages.length > 0
+    ? service.galleryImages.filter((u) => typeof u === 'string' && u.trim().length > 0)
+    : service.imageUrl && service.imageUrl.trim()
+      ? [service.imageUrl.trim()]
+      : [];
+
+  const primaryImage = galleryImages[0] || service.imageUrl || brandLogo || '';
+
+  // 6 נקודות כאב שהשירות פותר
+  const painPoints = Array.isArray(service.painPoints) && service.painPoints.length > 0
+    ? service.painPoints.filter((p) => p && (p.title || p.text))
+    : service.painPointSolved
+      ? service.painPointSolved.split('|').map((chunk, idx) => {
+          const [t, ...rest] = chunk.split(':');
+          return {
+            id: `pain_${idx + 1}`,
+            title: rest.length > 0 ? t.trim() : `אתגר ${idx + 1}`,
+            text: (rest.length > 0 ? rest.join(':') : t).trim(),
+            icon: 'AlertCircle',
+          };
+        })
+      : [];
+
+  // 3 קהלי יעד של השירות
+  const targetAudiences = Array.isArray(service.targetAudiences) && service.targetAudiences.length > 0
+    ? service.targetAudiences.filter((a) => a && (a.title || a.text))
+    : service.targetAudience
+      ? service.targetAudience.split('|').map((chunk, idx) => {
+          const [t, ...rest] = chunk.split(':');
+          return {
+            id: `aud_${idx + 1}`,
+            title: rest.length > 0 ? t.trim() : chunk.trim(),
+            text: (rest.length > 0 ? rest.join(':') : `מענה מותאם אישית עבור ${chunk.trim()}`).trim(),
+            icon: 'Users',
+          };
+        })
+      : [];
+
+  // 6 יתרונות תחרותיים
+  const competitiveAdvantages = Array.isArray(service.competitiveAdvantages) && service.competitiveAdvantages.length > 0
+    ? service.competitiveAdvantages.filter((c) => c && (c.title || c.text))
+    : service.competitiveAdvantage
+      ? service.competitiveAdvantage.split('|').map((chunk, idx) => {
+          const [t, ...rest] = chunk.split(':');
+          return {
+            id: `adv_${idx + 1}`,
+            title: rest.length > 0 ? t.trim() : `יתרון מרכזי ${idx + 1}`,
+            text: (rest.length > 0 ? rest.join(':') : t).trim(),
+            icon: 'Award',
+          };
+        })
+      : [];
+
+  // 10 שאלות ותשובות נפוצות
+  const faqs = Array.isArray(service.faqs) && service.faqs.length > 0
+    ? service.faqs.filter((f) => f && f.question && f.answer)
+    : [];
+
+  // סלאג נקי ללא קידומת /p/ - ישירות מתוך הגדרות ה-SEO או מזהה השירות
+  const rawSlugCandidate = (
+    service.seo?.slug ||
+    service.linkedPageSlug ||
+    service.id ||
+    `service-${Date.now().toString().slice(-4)}`
+  )
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const cleanSlug = rawSlugCandidate || `service-${Date.now().toString().slice(-4)}`;
+  const pageId = existingPageId || service.linkedPageId || `page_${cleanSlug.replace(/[^a-z0-9_]/g, '_')}`;
+
+  // קישורי תפריט ניווט עליון
+  const navLinks: Array<{ label: string; url: string; isButton?: boolean }> = [];
+  if (service.longDescription?.trim() || service.shortDescription?.trim()) {
+    navLinks.push({ label: 'אודות השירות', url: '#sec-about' });
+  }
+  if (painPoints.length > 0) {
+    navLinks.push({ label: 'האתגרים והמענה', url: '#sec-pain-points' });
+  }
+  if (targetAudiences.length > 0) {
+    navLinks.push({ label: 'קהלי יעד', url: '#sec-target-audiences' });
+  }
+  if (competitiveAdvantages.length > 0) {
+    navLinks.push({ label: 'יתרונות השירות', url: '#sec-advantages' });
+  }
+  if (galleryImages.length > 0) {
+    navLinks.push({ label: 'גלריה', url: '#sec-gallery' });
+  }
+  if (faqs.length > 0) {
+    navLinks.push({ label: 'שאלות ותשובות', url: '#sec-faq' });
+  }
+  navLinks.push({ label: 'יצירת קשר', url: '#sec-contact', isButton: true });
+
+  const longDescHtml = service.longDescription?.trim()
+    ? service.longDescription
+        .trim()
+        .split(/\n+/)
+        .map((p) => `<p>${p.trim()}</p>`)
+        .join('')
+    : service.shortDescription?.trim()
+      ? `<p>${service.shortDescription.trim()}</p>`
+      : '';
+
+  const sections: Record<string, any> = {
+    header: {
+      id: 'header',
+      type: 'header',
+      visible: true,
+      layout: 'floating-glass',
+      sticky: true,
+      useBrandLogo: true,
+      customLogoUrl: brandLogo,
+      logoText: companyName,
+      showLogoText: true,
+      menuMode: 'custom',
+      customLinks: navLinks,
+      showCtaButton: true,
+      ctaButtonText: 'לתיאום וייעוץ',
+      ctaButtonUrl: '#sec-contact',
+      showPhone: Boolean(contactPhone),
+      phone: contactPhone,
+      showWhatsApp: Boolean(contactWhatsApp),
+      whatsApp: contactWhatsApp,
+    },
+    hero: {
+      id: 'hero',
+      type: 'hero',
+      visible: true,
+      anchorId: 'hero',
+      title: mainTitle,
+      subtitle: sloganSub || brandSlogan || companyName,
+      description: service.shortDescription || '',
+      imageSrc: primaryImage,
+      layout: primaryImage ? 'split' : 'centered',
+      heroStyle: 'modern',
+      buttonsVisible: true,
+      primaryButton: {
+        text: 'לתיאום פגישה וייעוץ',
+        url: '#sec-contact',
+      },
+      secondaryButton: {
+        text: 'גלו את היתרונות',
+        url: '#sec-advantages',
+      },
+      announcementBadge: {
+        text: `${companyName} • שירות מרכזי`,
+        icon: 'Sparkles',
+      },
+    },
+    // אזור תוכן / אודות (sec-about) - קליטה ישירה של התוכן המפורט של השירות
+    'sec-about': {
+      id: 'sec-about',
+      type: 'richContent',
+      adminTitle: 'אודות / תוכן מעוצב',
+      visible: Boolean(longDescHtml),
+      anchorId: 'sec-about',
+      subtitle: 'הכירו את השירות מקרוב',
+      heading: `אודות ${mainTitle}`,
+      body: longDescHtml,
+      layout: 'highlight-box',
+    },
+    'sec-pain-points': {
+      id: 'sec-pain-points',
+      type: 'richContent',
+      visible: painPoints.length > 0,
+      anchorId: 'sec-pain-points',
+      subtitle: 'האתגרים שאנו פותרים',
+      heading: 'נקודות הכאב שהשירות פותר עבורכם',
+      body: '',
+      layout: 'cards-grid-3',
+      items: painPoints.map((p, idx) => ({
+        id: p.id || `pain_${idx + 1}`,
+        title: p.title,
+        text: p.text,
+        description: p.text,
+        icon: p.icon || 'AlertCircle',
+      })),
+    },
+    'sec-target-audiences': {
+      id: 'sec-target-audiences',
+      type: 'richContent',
+      visible: targetAudiences.length > 0,
+      anchorId: 'sec-target-audiences',
+      subtitle: 'למי השירות מתאים?',
+      heading: 'קהלי היעד שלנו',
+      body: '',
+      layout: 'cards-grid-3',
+      items: targetAudiences.map((a, idx) => ({
+        id: a.id || `aud_${idx + 1}`,
+        title: a.title,
+        text: a.text,
+        description: a.text,
+        icon: a.icon || 'Users',
+      })),
+    },
+    'sec-advantages': {
+      id: 'sec-advantages',
+      type: 'richContent',
+      visible: competitiveAdvantages.length > 0,
+      anchorId: 'sec-advantages',
+      subtitle: 'למה לבחור בנו?',
+      heading: 'היתרונות והמעלות של השירות',
+      body: '',
+      layout: 'cards-grid-3',
+      items: competitiveAdvantages.map((c, idx) => ({
+        id: c.id || `adv_${idx + 1}`,
+        title: c.title,
+        text: c.text,
+        description: c.text,
+        icon: c.icon || 'Award',
+      })),
+    },
+    'sec-gallery': {
+      id: 'sec-gallery',
+      type: 'imageListing',
+      visible: galleryImages.length > 0,
+      anchorId: 'sec-gallery',
+      title: `גלריית ${mainTitle}`,
+      imagesPerRow: 3,
+      imagesPerRowMobile: 1,
+      images: galleryImages.map((imgUrl, idx) => ({
+        id: `gal_${idx + 1}`,
+        imageUrl: imgUrl,
+        title: `${mainTitle} - תמונה ${idx + 1}`,
+      })),
+    },
+    'sec-faq': {
+      id: 'sec-faq',
+      type: 'faq',
+      visible: faqs.length > 0,
+      anchorId: 'sec-faq',
+      title: 'שאלות ותשובות נפוצות',
+      subtitle: `כל מה שחשוב לדעת על ${mainTitle}`,
+      showSearchBar: true,
+      showContactCard: true,
+      whatsappContact: contactWhatsApp,
+      items: faqs.map((f, idx) => ({
+        id: f.id || `faq_${idx + 1}`,
+        question: f.question,
+        answer: f.answer,
+        icon: f.icon || 'HelpCircle',
+      })),
+    },
+    'sec-contact': {
+      id: 'sec-contact',
+      type: 'contact',
+      visible: true,
+      anchorId: 'sec-contact',
+      title: `מעוניינים ב-${mainTitle}?`,
+      subtitle: service.shortDescription || 'השאירו פרטים ונחזור אליכם לשיחת ייעוץ והתאמה אישית',
+      phone: contactPhone,
+      email: contactEmail,
+      address: officeAddress,
+      whatsapp: contactWhatsApp,
+      showForm: true,
+      directWhatsappChat: Boolean(contactWhatsApp),
+    },
+    // הסתרת כל האזורים הלא מותאמים
+    pricing: {
+      id: 'pricing',
+      type: 'pricing',
+      visible: false,
+      title: 'חבילות ומסלולים',
+      packages: [],
+    },
+    testimonials: {
+      id: 'testimonials',
+      type: 'testimonials',
+      visible: false,
+      title: 'המלצות',
+      items: [],
+    },
+    statsBento: {
+      id: 'statsBento',
+      type: 'statsBento',
+      visible: false,
+      stats: [],
+    },
+    beforeAfter: {
+      id: 'beforeAfter',
+      type: 'beforeAfter',
+      visible: false,
+      title: 'לפני ואחרי',
+      beforeImage: '',
+      afterImage: '',
+    },
+    videoGallery: {
+      id: 'videoGallery',
+      type: 'videoGallery',
+      visible: false,
+    },
+    timer: {
+      id: 'timer',
+      type: 'timer',
+      visible: false,
+      title: '',
+      targetDate: now,
+    },
+  };
+
+  const sectionOrder = [
+    'header',
+    'hero',
+    'sec-about',
+    'sec-pain-points',
+    'sec-target-audiences',
+    'sec-advantages',
+    'sec-gallery',
+    'sec-faq',
+    'sec-contact',
+    'pricing',
+    'testimonials',
+    'statsBento',
+    'beforeAfter',
+    'videoGallery',
+    'timer',
+  ];
+
+  // הגדרות SEO וקידום ב-AI (AIO / GEO)
+  const seoTitle = service.seo?.metaTitle?.trim() || `${mainTitle} | ${companyName}`;
+  const seoDescription =
+    service.seo?.metaDescription?.trim() ||
+    service.shortDescription?.trim() ||
+    (service.longDescription ? service.longDescription.trim().slice(0, 155) : `${mainTitle} מבית ${companyName}`);
+
+  const keywordsList: string[] = service.seo?.keywords
+    ? (Array.isArray(service.seo.keywords)
+        ? service.seo.keywords
+        : String(service.seo.keywords).split(',')
+      )
+        .map((k: string) => String(k || '').trim())
+        .filter((k): k is string => Boolean(k))
+    : [mainTitle, companyName, ...targetAudiences.map((a) => String(a.title || '').trim())].filter(
+        (k): k is string => Boolean(k)
+      );
+
+  const aiKnowledgeSummary =
+    service.seo?.aiKnowledgeSummary?.trim() ||
+    `${rawName} מבית ${companyName}: ${service.shortDescription || ''}. ${
+      competitiveAdvantages.length > 0
+        ? 'יתרונות מרכזיים: ' + competitiveAdvantages.map((c) => c.title).join(', ') + '.'
+        : ''
+    }`.trim();
+
+  const aiTargetQuestions =
+    Array.isArray(service.seo?.aiTargetQuestions) && service.seo!.aiTargetQuestions!.length > 0
+      ? service.seo!.aiTargetQuestions!
+      : faqs.slice(0, 6).map((f) => f.question);
+
+  const ogImage = service.seo?.ogImage?.trim() || primaryImage || '';
+
+  return {
+    pageId,
+    pageTitle: rawName,
+    slug: cleanSlug,
+    pageCategory: 'core_service',
+    published: true,
+    publishedUrl: `/${cleanSlug}`, // ללא קידומת /p/ לפי דרישת המשתמש
+    isHomePage: false,
+    createdAt: now,
+    updatedAt: now,
+    viewsCount: 0,
+    leadsCount: 0,
+    sectionOrder,
+    sections,
+    globalSettings: {
+      primaryColor,
+      secondaryColor,
+      backgroundColor,
+      textColor,
+      buttonBgColor,
+      fontFamily,
+      companyName,
+      contactPhone,
+      contactEmail,
+      siteTitle: `${rawName} | ${companyName}`,
+      isRTL: true,
+    },
+    seoSettings: {
+      title: seoTitle,
+      description: seoDescription,
+      keywords: keywordsList,
+      faviconUrl: brandLogo,
+      ogImage,
+      ogType: 'website',
+      twitterCard: 'summary_large_image',
+      author: companyName,
+      googleAuditScore: 98,
+      googleAuditRecommendations: [
+        'תגיות Meta Title ו-Meta Description הוזרקו מנתוני השירות המרכזי',
+        'נתוני קידום ב-AI (AIO/GEO) ושאלות נפוצות הוגדרו במלואם',
+      ],
+      aiKnowledgeSummary,
+      aiTargetQuestions,
+      aiBotIndexingEnabled: service.seo?.aiBotIndexingEnabled !== false,
+      aiEntitySchemaType: 'ProfessionalService',
+      geo: {
+        enabled: true,
+        targetCity: officeAddress || 'ישראל',
+        targetCountry: 'IL',
+        localBusinessName: companyName,
+        localBusinessType: 'ProfessionalService',
         businessAddress: officeAddress,
         businessPhone: contactPhone,
         businessEmail: contactEmail,

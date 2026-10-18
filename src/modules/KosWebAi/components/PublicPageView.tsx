@@ -16,8 +16,9 @@ import { createDynamicSectionConfig } from '../services/brandSectionHydrator';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
 
-export const PublicPageView: React.FC = () => {
-  const { slug } = useParams<{ slug?: string }>();
+export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) => {
+  const { slug: routeSlug } = useParams<{ slug?: string }>();
+  const slug = propSlug || routeSlug;
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const { db } = useSystemConnection();
@@ -30,23 +31,35 @@ export const PublicPageView: React.FC = () => {
   const [notFound, setNotFound] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
 
-  // Extract slug from URL path, params, or hash (supports both /p/slug and /#/p/slug)
+  // Extract slug from URL path, params, or hash (supports /kosvidio, /kosvidio/:slug, direct /:slug, /p/slug, and /#/...)
   const resolvedSlug = (() => {
     if (slug) return slug;
 
-    // Check pathname like /p/my-slug, /to/my-slug
-    const pathParts = location.pathname.split('/').filter(Boolean);
-    if (pathParts.length >= 2 && (pathParts[0] === 'p' || pathParts[0] === 'page' || pathParts[0] === 'to')) {
-      return pathParts.slice(1).join('/');
-    }
+    const extractFromParts = (parts: string[]): string => {
+      if (parts.length === 0) return '';
+      if (parts.length >= 2 && (parts[0] === 'p' || parts[0] === 'page' || parts[0] === 'to')) {
+        return parts.slice(1).join('/');
+      }
+      if (parts[0] === 'kosvidio') {
+        if (parts.length >= 2) {
+          return parts.slice(1).join('/');
+        }
+        return 'kosvidio';
+      }
+      return parts.join('/');
+    };
 
-    // Check hash like #/p/my-slug, #/to/my-slug
+    // Check pathname
+    const pathParts = location.pathname.split('/').filter(Boolean);
+    const fromPath = extractFromParts(pathParts);
+    if (fromPath) return fromPath;
+
+    // Check hash
     if (location.hash) {
       const cleanHash = location.hash.replace(/^#\/?/, '');
       const hashParts = cleanHash.split('/').filter(Boolean);
-      if (hashParts.length >= 2 && (hashParts[0] === 'p' || hashParts[0] === 'page' || hashParts[0] === 'to')) {
-        return hashParts.slice(1).join('/');
-      }
+      const fromHash = extractFromParts(hashParts);
+      if (fromHash) return fromHash;
     }
 
     return '';
@@ -299,7 +312,11 @@ export const PublicPageView: React.FC = () => {
             (p) =>
               (p.slug && p.slug.toLowerCase().trim() === target) ||
               (p.shortSlug && p.shortSlug.toLowerCase().trim() === target) ||
-              p.pageId === target
+              (p.slug && p.slug.toLowerCase().trim() === `kosvidio-${target}`) ||
+              (p.shortSlug && p.shortSlug.toLowerCase().trim() === `kosvidio-${target}`) ||
+              p.pageId === target ||
+              p.pageId === `page_kosvidio_${target}` ||
+              p.pageId === `page_${target}`
           );
         } else {
           // If no slug provided, load the designated homepage
@@ -499,7 +516,7 @@ export const PublicPageView: React.FC = () => {
 
           <div className="flex flex-col gap-3">
             <Link
-              to={`/p/${resolvedSlug}?preview=true`}
+              to={`/${resolvedSlug}?preview=true`}
               className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl text-xs font-bold transition-all flex items-center justify-center gap-2"
             >
               <Eye className="w-4 h-4" />

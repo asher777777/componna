@@ -78,6 +78,14 @@ const KosTikTokStandaloneView = React.lazy(() =>
   import('../modules/KosTikTok').then((m) => ({ default: m.StandaloneView }))
 );
 
+const KosSubscribedStandaloneView = React.lazy(() =>
+  import('../modules/KosSubscribed').then((m) => ({ default: m.KosSubscribedStandaloneView }))
+);
+
+const KosDesBuilderStandaloneView = React.lazy(() =>
+  import('../modules/KosDesBuilder').then((m) => ({ default: m.KosDesBuilderStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -89,6 +97,14 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosSubscribed',
+    name: 'קושאן Subscribed - ניהול מנויי תוכן, חבילות ומבחנים',
+    description: 'מכירת מנויים לתצוגת תוכן, יצירת חבילות חודשיות והנחות, שידוך אנשי קשר, עמודי תשלום וטפסי מבחנים המחוברים בחוזה ל-CRM.',
+    component: KosSubscribedStandaloneView,
+    route: '/KosSubscribed',
+    collectionPrefix: 'crm_subscription_',
+  },
   {
     id: 'KosTikTok',
     name: 'קושאן TikTok - פרסום סרטונים, לידים ומעקב המרות',
@@ -112,6 +128,15 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: KosTenantProvisionerStandaloneView,
     route: '/tenant-provisioner',
     collectionPrefix: 'sys_tenants_',
+    isSystemModule: true,
+  },
+  {
+    id: 'KosDesBuilder',
+    name: 'KosDesBuilder - מעצב לוחות בקרה ועמודי מנהל',
+    description: 'עיצוב והגדרת לוחות בקרה דינמיים, טבלאות נתונים, מדדי KPI ותפריטים צפים תחת טננט מנג׳ר בלבד.',
+    component: KosDesBuilderStandaloneView,
+    route: '/KosDesBuilder',
+    collectionPrefix: 'mod_kos_des_',
     isSystemModule: true,
   },
   {

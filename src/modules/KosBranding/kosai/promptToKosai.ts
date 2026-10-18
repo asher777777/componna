@@ -11,6 +11,7 @@ import {
   BUILD_STEP_ASSISTANCE_PROMPT,
   BUILD_CONTENT_STRATEGIES_PROMPT,
   BUILD_FLAGSHIP_PRODUCT_PROMPT,
+  BUILD_CORE_SERVICE_PROMPT,
   BUILD_BUSINESS_PACKAGES_PROMPT,
   BUILD_ECOSYSTEM_ITEMS_PROMPT,
   BUILD_PERSONA_PROMPT,
@@ -137,6 +138,25 @@ export async function dispatchFlagshipProductToKosai(
   options?: KosaiBrandDispatchOptions
 ): Promise<any> {
   const { systemContext, userPrompt } = BUILD_FLAGSHIP_PRODUCT_PROMPT(idea, brand);
+  const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
+    systemInstruction: systemContext,
+    responseMimeType: 'text/plain',
+    maxOutputTokens: 2500,
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+  });
+  return result.data;
+}
+
+/**
+ * מייצר שירות מרכזי מלא (Core Service) עם כל שדות החוזה עבור קומפוננטת ה-UI והטננט
+ */
+export async function dispatchCoreServiceToKosai(
+  idea: string,
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_CORE_SERVICE_PROMPT(idea, brand);
   const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
     systemInstruction: systemContext,
     responseMimeType: 'text/plain',

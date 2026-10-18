@@ -637,12 +637,14 @@ Return ONLY the raw updated JSON object.`;
         changes.push('רענון פריטי התוכן והשירותים מתוך טאב השירותים במיתוג');
       }
     } else if (sectionType === 'kosvidioGallery') {
-      updated.title = `ספריית הוידאו והתוכן של ${company}`;
+      updated.title = company ? `ספריית הוידאו והתוכן של ${company}` : 'ספריית הוידאו והתוכן';
       updated.subtitle = slogan;
       updated.description =
-        uvp || `צפו בסרטונים המובילים של ${company} המקושרים ישירות לעמודי ה-KOSVIDIO של העסק.`;
+        uvp || (company ? `צפו בסרטונים המובילים של ${company} המקושרים ישירות לעמודי ה-KOSVIDIO של העסק.` : '');
       updated.channelName = company;
       updated.channelSlogan = slogan;
+      updated.source = 'tenant_kosvidio';
+      updated.items = [];
       if (prompt.includes('spotlight-grid') || prompt.includes('גדול')) {
         updated.layout = 'spotlight-grid';
         changes.push('מעבר לפריסה א׳: וידאו גדול ותחתיו כמה קטנים');
@@ -653,28 +655,7 @@ Return ONLY the raw updated JSON object.`;
         updated.layout = 'horizontal-scroll';
         changes.push('מעבר לפריסת גלריה עם גלילה אופקית ללא גלישה');
       }
-      const services = dna?.ecosystem?.services || [];
-      const sampleYtIds = ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ', 'jNQXAC9IVRw'];
-      if (services.length > 0) {
-        updated.items = services.map((srv: any, idx: number) => {
-          const srvName = typeof srv === 'string' ? srv : srv?.name || `שירות ${idx + 1}`;
-          return {
-            id: `kosvidio-srv-${idx + 1}`,
-            title: srvName,
-            subtitle: `${company} • ${slogan}`,
-            description: `סרטון הדרכה וסקירה מקצועית עבור ${srvName} מבית ${company}. מקושר לסלאג KOSVIDIO.`,
-            youtubeVideoId: sampleYtIds[idx % sampleYtIds.length],
-            kosvidioSlug: 'Kosvidio',
-            duration: '03:45',
-            viewsCount: 1300 + idx * 250,
-            likesCount: 110 + idx * 20,
-            category: 'שירותים מרכזיים',
-            tags: [srvName, company, 'KOSVIDIO'],
-            featured: idx === 0,
-          };
-        });
-        changes.push('סנכרון סרטוני הגלריה מתוך שירותי המותג ב-DNA וקישור לסלאג KOSVIDIO');
-      }
+      changes.push(`סנכרון כותרות הגלריה מתוך מיתוג הטננט (${company}) וחיבור לקולקציית ה-KOSVIDIO`);
     } else {
       updated.title = `${updated.title || 'שדרוג אזור'} – ${company}`;
       updated.subtitle = uvp;

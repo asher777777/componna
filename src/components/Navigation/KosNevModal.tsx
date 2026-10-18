@@ -34,6 +34,12 @@ export const MODULE_META_CONFIG: Record<string, {
   slogan?: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = {
+  'KosSubscribed': {
+    hebrewName: 'מנויי תוכן, חבילות ומבחנים',
+    englishPrefix: 'KOS',
+    englishRest: 'Subscribed',
+    icon: CreditCard,
+  },
   'KosTube': {
     hebrewName: 'יוטיוב וקידום SEO מבוסס AI',
     englishPrefix: 'KOS',

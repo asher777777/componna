@@ -94,7 +94,7 @@ export const KosTubePagesTab: React.FC = () => {
                   </span>
 
                   <span className="text-xs font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                    /tube/{page.slug}
+                    /{page.slug}
                   </span>
 
                   <span className="text-xs text-slate-400">
@@ -167,7 +167,7 @@ export const KosTubePagesTab: React.FC = () => {
                 </button>
 
                 <a
-                  href={`/tube/${page.slug}`}
+                  href={page.publicUrl || `/${page.slug}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition"

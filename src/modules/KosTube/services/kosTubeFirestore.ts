@@ -71,24 +71,60 @@ export const kosTubeFirestore = {
   },
 
   /**
-   * Replaces all videos for a channel under tenant scope
+   * Replaces all videos for a channel under tenant scope while preserving processed status
    */
   async replaceVideos(db: Firestore | null | undefined, tenantId: string, videos: KosTubeVideo[]): Promise<void> {
     if (!db) return;
     try {
-      const colRef = collection(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
-      // Clean previous videos
+      const effTenant = tenantId || '_master';
+      const colRef = collection(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS);
+      const pagesColRef = collection(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.KOS_TUBE_PAGES);
+
+      const processedMap = new Map<string, { seoPageId?: string; seoPageSlug?: string }>();
+
+      // Check existing videos and SEO pages to preserve 'processed' status
       const existingSnap = await getDocs(colRef);
       for (const d of existingSnap.docs) {
+        const data = d.data() as any;
+        if (data?.status === 'processed' && data?.youtubeVideoId) {
+          processedMap.set(data.youtubeVideoId, {
+            seoPageId: data.seoPageId,
+            seoPageSlug: data.seoPageSlug,
+          });
+        }
         await deleteDoc(d.ref);
       }
-      // Save new videos
+
+      try {
+        const pagesSnap = await getDocs(pagesColRef);
+        for (const p of pagesSnap.docs) {
+          const pData = p.data() as any;
+          if (pData?.youtubeVideoId) {
+            processedMap.set(pData.youtubeVideoId, {
+              seoPageId: p.id,
+              seoPageSlug: pData.slug,
+            });
+          }
+        }
+      } catch {
+        // ignore
+      }
+
+      // Save new videos with preserved processed status
       for (const vid of videos) {
         const docRef = doc(colRef, vid.id);
+        const existingProcessed = processedMap.get(vid.youtubeVideoId);
         await setDoc(
           docRef,
           {
             ...vid,
+            ...(existingProcessed
+              ? {
+                  status: 'processed',
+                  seoPageId: existingProcessed.seoPageId || `page_${vid.youtubeVideoId}`,
+                  seoPageSlug: existingProcessed.seoPageSlug || `kosvidio-${vid.youtubeVideoId}`,
+                }
+              : {}),
             updatedAt: new Date().toISOString(),
             _serverUpdatedAt: serverTimestamp(),
           },

@@ -44,7 +44,7 @@ export const KosTubePagePreviewModal: React.FC = () => {
   };
 
   const handleWhatsAppShare = () => {
-    const text = encodeURIComponent(`צפו במאמר המלא ובסרטון: ${selectedPage.h1 || selectedPage.metaTitle}\n${window.location.origin}/tube/${selectedPage.slug}`);
+    const text = encodeURIComponent(`צפו במאמר המלא ובסרטון: ${selectedPage.h1 || selectedPage.metaTitle}\n${window.location.origin}/${selectedPage.slug}`);
     window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
@@ -118,7 +118,7 @@ export const KosTubePagePreviewModal: React.FC = () => {
             </a>
 
             <a
-              href={`/p/${selectedPage.slug}`}
+              href={`/${selectedPage.slug}`}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-medium transition"
@@ -141,7 +141,7 @@ export const KosTubePagePreviewModal: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 text-slate-500">
                   <span className="font-semibold text-slate-700 dark:text-slate-300">קישור ציבורי ישיר:</span>
-                  <code className="text-red-500 font-mono">/p/{selectedPage.slug}</code>
+                  <code className="text-red-500 font-mono">/{selectedPage.slug}</code>
                 </div>
               </div>
 
@@ -202,7 +202,7 @@ export const KosTubePagePreviewModal: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(window.location.origin + '/p/' + selectedPage.slug);
+                        navigator.clipboard.writeText(window.location.origin + '/' + selectedPage.slug);
                         alert('הקישור הועתק ללוח!');
                       }}
                       className="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium transition"

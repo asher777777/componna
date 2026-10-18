@@ -421,7 +421,7 @@ export interface AuthSessionContract {
   uid: string;
   email: string;
   displayName: string;
-  role: 'admin' | 'editor' | 'viewer';
+  role: 'admin' | 'editor' | 'viewer' | 'subscriber';
   isAuthenticated: boolean;
 }
 
@@ -908,8 +908,10 @@ export interface BusinessPackage {
   callToAction: string;
 }
 
+export type CoreService = FlagshipProduct;
+
 export interface BrandEcosystem {
-  services: string[];
+  services: (string | CoreService)[];
   products: (string | FlagshipProduct)[];
   annualEvents: string[];
   communities: string[];
@@ -1038,8 +1040,21 @@ export interface CreateCampaignPageOptions {
   onStep?: (step: { statusText: string; percent?: number }) => void;
 }
 
+export interface CreatePageFromServiceOptions {
+  service: CoreService;
+  brandDna: BrandDna;
+  onStep?: (step: { statusText: string; percent?: number }) => void;
+}
+
 export interface PageBuilderContract {
   createPageFromProduct: (options: CreatePageFromProductOptions) => Promise<{
+    success: boolean;
+    pageId: string;
+    slug: string;
+    publicUrl: string;
+    error?: string;
+  }>;
+  createPageFromService?: (options: CreatePageFromServiceOptions) => Promise<{
     success: boolean;
     pageId: string;
     slug: string;
@@ -1379,9 +1394,11 @@ export type ContentSubscriptionStatus = 'active' | 'trial' | 'paused' | 'past_du
 export interface SubscriptionContentItem {
   id: string;
   title: string;
-  type: 'video' | 'article' | 'course' | 'download' | 'quiz';
+  type?: 'video' | 'article' | 'course' | 'download' | 'quiz';
+  contentType?: 'video' | 'article' | 'course' | 'download' | 'quiz';
   description?: string;
   contentUrl?: string;
+  videoEmbedUrl?: string;
   previewText?: string;
   lockedBodyText?: string;
   requiredMinQuizScore?: number;
@@ -1460,6 +1477,17 @@ export interface ContactQuizSubmission {
   answers?: Record<string, string | number>;
 }
 
+export interface SubscriberPermissions {
+  canAccessLockedContent: boolean;     // צפייה וגישה לתכנים של החבילה
+  canTakeQuizzes: boolean;              // ביצוע מבחנים ושאלונים
+  canViewReceipts: boolean;             // צפייה בקבלות ופירוט תשלומים
+  canEditPages: false;                  // חסימה מוחלטת לעריכת עמודים (תמיד false למנוי)
+  canUseAiGenerators: false;            // חסימה מוחלטת ליצירת תוכן ב-AI (תמיד false למנוי)
+  canAccessAdminPanel: false;           // החרגה מוחלטת מלוח הניהול הראשי (תמיד false למנוי)
+}
+
+export type SubscriberUserRole = 'content_subscriber' | 'trial_subscriber' | 'vip_subscriber';
+
 export interface ContactContentSubscription {
   id: string;
   contactId: string;
@@ -1485,6 +1513,8 @@ export interface ContactContentSubscription {
   quizPassed?: boolean;
   quizScore?: number;
   notes?: string;
+  subscriberRole?: SubscriberUserRole;
+  permissions?: SubscriberPermissions;
   createdAt: string;
   updatedAt: string;
 }
@@ -1498,6 +1528,9 @@ export interface CrmSubscriberContactRecord {
   city?: string;
   tags: string[];
   totalSpent: number;
+  subscriberRole?: SubscriberUserRole;
+  permissions?: SubscriberPermissions;
+  userUid?: string;
   contentSubscriptions: ContactContentSubscription[];
   quizResults: ContactQuizSubmission[];
   lastPaymentDate?: string;
@@ -1547,6 +1580,11 @@ export interface CrmSubscriptionsContract {
     updates: Partial<ContactContentSubscription>
   ) => Promise<boolean>;
   removeContactSubscription: (contactId: string, subscriptionId: string) => Promise<boolean>;
+  updateSubscriberPermissions?: (
+    contactId: string,
+    permissions: Partial<SubscriberPermissions>,
+    subscriberRole?: SubscriberUserRole
+  ) => Promise<boolean>;
   recordContactSubscriptionPayment: (params: {
     contactId: string;
     subscriptionId: string;
@@ -1585,8 +1623,164 @@ export interface CrmSubscriptionsContract {
   saveQuiz: (quiz: Partial<SubscriptionQuizItem> & { title: string }) => Promise<SubscriptionQuizItem>;
   deleteQuiz: (quizId: string) => Promise<boolean>;
 
-  // Analytics Summary
+// Analytics Summary
   getAnalyticsSummary: () => Promise<SubscriptionAnalyticsSummary>;
+}
+
+// =============================================================================
+// KOSDESBUILDER (קושאן דשבורד בילדר - לוחות בקרה ועמודי מנהל)
+// =============================================================================
+
+export type DashboardSectionType =
+  | 'header'
+  | 'stats'
+  | 'table'
+  | 'quickActions'
+  | 'floatingDock'
+  | 'commandMatrix'
+  | 'slotWidget';
+
+export interface DashboardStatItem {
+  id: string;
+  label: string;
+  value: string | number;
+  change?: string;
+  isPositive?: boolean;
+  icon?: string;
+  color?: 'indigo' | 'emerald' | 'amber' | 'rose' | 'purple' | 'blue';
+  linkUrl?: string;
+}
+
+export interface DashboardHeaderConfig {
+  greetingPrefix?: string;
+  showDateRange?: boolean;
+  showTenantBadge?: boolean;
+  primaryActionText?: string;
+  primaryActionUrl?: string;
+  secondaryActionText?: string;
+  secondaryActionUrl?: string;
+  subtitle?: string;
+}
+
+export interface DashboardStatsConfig {
+  columns?: 2 | 3 | 4;
+  stats: DashboardStatItem[];
+}
+
+export interface DashboardTableColumn {
+  key: string;
+  label: string;
+  sortable?: boolean;
+  type?: 'text' | 'badge' | 'date' | 'currency' | 'action';
+}
+
+export interface DashboardTableConfig {
+  title: string;
+  subtitle?: string;
+  collectionName?: string;
+  sourceModule?: string;
+  columns: DashboardTableColumn[];
+  pageSize?: number;
+  showSearch?: boolean;
+  showExport?: boolean;
+  emptyStateText?: string;
+}
+
+export interface DashboardActionButtonItem {
+  id: string;
+  label: string;
+  icon?: string;
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger';
+  actionType: 'navigate' | 'modal' | 'capability' | 'external';
+  target: string;
+}
+
+export interface DashboardQuickActionsConfig {
+  title?: string;
+  layout?: 'grid' | 'row';
+  buttons: DashboardActionButtonItem[];
+}
+
+export interface DashboardFloatingDockItem {
+  id: string;
+  label: string;
+  icon?: string;
+  targetUrl: string;
+  badgeCount?: number;
+}
+
+export interface DashboardFloatingDockConfig {
+  dockPosition?: 'bottom' | 'side';
+  showLabels?: boolean;
+  items: DashboardFloatingDockItem[];
+}
+
+export interface DashboardCommandMatrixItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  icon?: string;
+  moduleId: string;
+  targetUrl: string;
+  badge?: string;
+  status?: 'active' | 'beta' | 'coming_soon';
+}
+
+export interface DashboardCommandMatrixConfig {
+  title?: string;
+  subtitle?: string;
+  columns?: 2 | 3 | 4;
+  items: DashboardCommandMatrixItem[];
+}
+
+export interface DashboardSlotWidgetConfig {
+  slotName: string;
+  title?: string;
+  props?: Record<string, any>;
+  height?: string;
+}
+
+export type DashboardSectionConfig =
+  | DashboardHeaderConfig
+  | DashboardStatsConfig
+  | DashboardTableConfig
+  | DashboardQuickActionsConfig
+  | DashboardFloatingDockConfig
+  | DashboardCommandMatrixConfig
+  | DashboardSlotWidgetConfig;
+
+export interface DashboardSection {
+  id: string;
+  type: DashboardSectionType;
+  title: string;
+  visible: boolean;
+  mobileHidden?: boolean;
+  gridCols?: 1 | 2 | 3 | 4;
+  config: DashboardSectionConfig;
+}
+
+export interface DashboardPageDocument {
+  id: string;
+  title: string;
+  slug: string;
+  description?: string;
+  isDefault?: boolean;
+  theme?: 'modern' | 'dark' | 'navy' | 'light';
+  sections: DashboardSection[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DashboardDataFeedContract {
+  getStats: (tenantId: string) => Promise<DashboardStatItem[]>;
+  getRecentItems?: (tenantId: string, limit?: number) => Promise<any[]>;
+}
+
+export interface KosDesBuilderContract {
+  getDashboards: (tenantId: string) => Promise<DashboardPageDocument[]>;
+  getDashboardById: (tenantId: string, dashboardId: string) => Promise<DashboardPageDocument | null>;
+  saveDashboard: (tenantId: string, dashboard: Partial<DashboardPageDocument>) => Promise<DashboardPageDocument>;
+  deleteDashboard: (tenantId: string, dashboardId: string) => Promise<boolean>;
 }
 
 export * from './collections';

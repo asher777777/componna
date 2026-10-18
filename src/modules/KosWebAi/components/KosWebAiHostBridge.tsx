@@ -7,6 +7,7 @@ import {
   CommunityWebPageOptions,
   PageBuilderContract,
   CreatePageFromProductOptions,
+  CreatePageFromServiceOptions,
   CreateVideoSeoPageOptions,
   CreateCampaignPageOptions,
   BrandDnaContract,
@@ -14,9 +15,11 @@ import {
 import { eventBus } from '../../../core/bridge/EventBus';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { pageGenerator } from '../generators/pageGenerator';
-import { buildPageConfigFromFlagshipProduct } from '../generators/productPageBuilder';
+import { buildPageConfigFromFlagshipProduct, buildPageConfigFromCoreService } from '../generators/productPageBuilder';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
+import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
+import { KosvidioGalleryItem } from '../types/sectionConfigs';
 
 export const KosWebAiHostBridge: React.FC = () => {
   const { registerCapability, unregisterCapability, getCapability } = useHostCapabilities();
@@ -237,6 +240,65 @@ export const KosWebAiHostBridge: React.FC = () => {
         }
       },
 
+      createPageFromService: async (options: CreatePageFromServiceOptions) => {
+        try {
+          const service = options.service;
+          options.onStep?.({
+            statusText: 'פורס את נתוני השירות באזורים המותאמים ומגדיר SEO ו-AIO...',
+            percent: 45,
+          });
+
+          const generatedConfig = buildPageConfigFromCoreService(
+            options,
+            service.linkedPageId
+          );
+
+          options.onStep?.({
+            statusText: 'שומר עמוד שירות ומסתיר אזורים שאינם מותאמים...',
+            percent: 85,
+          });
+
+          // Save page through pageBuilderFirestore
+          await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
+
+          // Update Brand DNA Contract with new service page slug & notify event bus
+          try {
+            const brandContract = getCapability<BrandDnaContract>('brand-dna');
+            if (brandContract?.registerServicePageSlug) {
+              await brandContract.registerServicePageSlug(service.nameAndSlogan, generatedConfig.slug);
+            }
+            eventBus.publish('brand:service_slug_updated', {
+              serviceName: service.nameAndSlogan,
+              slug: generatedConfig.slug,
+              pageId: generatedConfig.pageId,
+            });
+          } catch (brandErr) {
+            console.warn('[KosWebAiHostBridge] Brand slug registration warning:', brandErr);
+          }
+
+          options.onStep?.({
+            statusText: 'עמוד השירות נוצר בהצלחה!',
+            percent: 100,
+          });
+
+          return {
+            success: true,
+            pageId: generatedConfig.pageId,
+            slug: generatedConfig.slug,
+            publicUrl: `/${generatedConfig.slug}`, // ללא קידומת /p/ לפי דרישת המשתמש
+          };
+        } catch (err: any) {
+          console.error('[KosWebAiHostBridge] Error creating service page:', err);
+          return {
+            success: false,
+            pageId: '',
+            slug: '',
+            publicUrl: '',
+            error: err?.message || 'שגיאה בפריסת עמוד השירות מנתוני השירות.',
+          };
+        }
+      },
+
       createPageFromCampaign: async (options: CreateCampaignPageOptions) => {
         try {
           const campaignId = options.campaignId || `camp_${Date.now()}`;
@@ -354,19 +416,82 @@ export const KosWebAiHostBridge: React.FC = () => {
         try {
           const video = options.video;
           const aiData = options.aiData;
-          const rawSlug = aiData?.slug?.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'kosvidio';
-          const cleanSlug = rawSlug.startsWith('kosvidio') ? rawSlug : 'kosvidio';
+          const cleanVideoId = (video.youtubeVideoId || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+          const rawSlug = aiData?.slug || `kosvidio-${cleanVideoId}`;
+          const cleanSlug = rawSlug.trim().replace(/^\/?p\//i, '').replace(/^[#/]+/, '');
           const pageId = `page_kosvidio_${video.youtubeVideoId}`;
           const title = aiData?.h1 || video.title || 'וידאו ומאמר AI SEO';
 
-          const brandCompanyName = options.brandDna?.identity?.companyName || 'קושאן';
-          const brandLogo = options.brandDna?.identity?.logoUrl || '';
-          const brandSlogan = options.brandDna?.identity?.slogan || 'וידאו חכם ומאמרי SEO מעמיקים';
-          const primaryColor = options.brandDna?.designTokens?.primaryColor || '#ef4444';
-          const secondaryColor = options.brandDna?.designTokens?.secondaryColor || '#8b5cf6';
-          const whatsapp = options.brandDna?.trust?.whatsappSupportNumber || '';
-          const phone = options.brandDna?.trust?.contactPhone || '';
-          const email = options.brandDna?.trust?.contactEmail || '';
+          // Resolve live Brand DNA for tenant
+          const liveBrand = resolveLiveBrandDna(options.brandDna, tenantId);
+          const brandCompanyName = liveBrand?.identity?.companyName || 'קושאן';
+          const brandLogo = liveBrand?.identity?.logoUrl || '';
+          const brandSlogan = liveBrand?.identity?.slogan || 'וידאו חכם ומאמרי SEO מעמיקים';
+          const primaryColor = liveBrand?.designTokens?.primaryColor || '#ef4444';
+          const secondaryColor = liveBrand?.designTokens?.secondaryColor || '#8b5cf6';
+          const whatsapp = liveBrand?.trust?.whatsappSupportNumber || '';
+          const phone = liveBrand?.trust?.contactPhone || '';
+          const email = liveBrand?.trust?.contactEmail || '';
+
+          // Format executive summary and article content as rich HTML for about-1 section
+          const execSummaryHtml = aiData?.executiveSummary
+            ? `<div class="p-5 mb-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-slate-800 dark:text-slate-200 font-medium leading-relaxed shadow-sm">
+                 <div class="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1">תמצית התוכן והסרטון:</div>
+                 ${aiData.executiveSummary}
+               </div>`
+            : '';
+
+          const formattedArticle = (aiData?.articleContent || '')
+            .split('\n\n')
+            .map((block: string) => {
+              const trimmed = block.trim();
+              if (!trimmed) return '';
+              if (trimmed.startsWith('### ')) {
+                return `<h3 class="text-xl font-bold text-slate-900 dark:text-white mt-6 mb-3">${trimmed.replace(/^###\s*/, '')}</h3>`;
+              }
+              if (trimmed.startsWith('## ')) {
+                return `<h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-8 mb-4">${trimmed.replace(/^##\s*/, '')}</h2>`;
+              }
+              if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+                const listItems = trimmed
+                  .split('\n')
+                  .map((item) => `<li class="mr-4 list-disc text-slate-700 dark:text-slate-300 my-1">${item.replace(/^[\*\-]\s*/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>`)
+                  .join('');
+                return `<ul class="my-3 space-y-1">${listItems}</ul>`;
+              }
+              const withBold = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+              return `<p class="text-base sm:text-lg leading-relaxed text-slate-700 dark:text-slate-300 mb-4">${withBold}</p>`;
+            })
+            .join('');
+
+          const aboutBodyHtml = `<div class="kosvidio-rich-content space-y-4 font-normal leading-relaxed text-slate-800 dark:text-slate-200">${execSummaryHtml}${formattedArticle}</div>`;
+
+          // Format FAQ items
+          const faqItems = Array.isArray(aiData?.faqs) && aiData.faqs.length > 0
+            ? aiData.faqs.map((f: any, idx: number) => ({
+                id: String(idx + 1),
+                question: f.question || '',
+                answer: f.answer || '',
+              }))
+            : SECTION_REGISTRY.faq?.defaultConfig?.items || [];
+
+          // Format Channel Video Gallery items
+          const rawVideos = options.channelVideos || [];
+          const galleryItems: KosvidioGalleryItem[] = rawVideos.map((v, i) => ({
+            id: v.id || `vid-${i}`,
+            title: v.title,
+            subtitle: options.channelTitle || brandCompanyName,
+            description: v.description?.slice(0, 140) || '',
+            youtubeVideoId: v.youtubeVideoId,
+            thumbnailUrl: v.thumbnailUrl,
+            kosvidioSlug: 'kosvidio',
+            duration: v.duration || '',
+            viewsCount: Number(v.viewCount || 0),
+            likesCount: Number(v.likeCount || 0),
+            category: 'סרטוני הערוץ',
+            tags: ['וידאו', 'יוטיוב'],
+            featured: i === 0,
+          }));
 
           const pageConfig: PageBuilderConfig = {
             pageId,
@@ -395,26 +520,35 @@ export const KosWebAiHostBridge: React.FC = () => {
               contactWhatsApp: whatsapp,
               contactPhone: phone,
               contactEmail: email,
+              siteLogoUrl: brandLogo,
             },
             seoSettings: {
               title: aiData?.metaTitle || title,
               description: aiData?.metaDescription || video.description.slice(0, 160),
               keywords: aiData?.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
             },
-            sectionOrder: ['header-1', 'kosvidio-1', 'contact-1'],
+            // Order strictly: Header -> Kosvidio Video -> About / RichContent -> FAQ -> KosvidioGallery
+            sectionOrder: ['header-1', 'kosvidio-1', 'about-1', 'faq-1', 'kosvidioGallery-1'],
             sections: {
               'header-1': {
                 ...SECTION_REGISTRY.header.defaultConfig,
                 id: 'header-1',
+                type: 'header',
+                visible: true,
                 title: brandCompanyName,
                 showLogoText: true,
                 logoText: brandCompanyName,
-                useBrandLogo: true,
+                useBrandLogo: Boolean(brandLogo),
                 customLogoUrl: brandLogo,
+                layout: 'capsule-floating',
+                sticky: true,
               },
               'kosvidio-1': {
                 ...SECTION_REGISTRY.kosvidio.defaultConfig,
                 id: 'kosvidio-1',
+                type: 'kosvidio',
+                visible: true,
+                anchorId: 'kosvidio',
                 youtubeVideoId: video.youtubeVideoId,
                 title,
                 viewsCount: Number(video.viewCount || 0),
@@ -435,15 +569,54 @@ export const KosWebAiHostBridge: React.FC = () => {
                   buttonText: 'צרו קשר עכשיו',
                   buttonLink: '#contact',
                 },
+                ambientGlow: true,
+                showTheaterMode: true,
+                enableSocialShare: true,
               },
+              'about-1': {
+                ...SECTION_REGISTRY.richContent.defaultConfig,
+                id: 'about-1',
+                type: 'richContent',
+                visible: true,
+                anchorId: 'about',
+                heading: aiData?.h1 || 'אודות וניתוח תוכן מעמיק',
+                subtitle: brandCompanyName,
+                body: aboutBodyHtml,
+                layout: 'highlight-box',
+              },
+              'faq-1': {
+                ...SECTION_REGISTRY.faq.defaultConfig,
+                id: 'faq-1',
+                type: 'faq',
+                visible: true,
+                anchorId: 'faq',
+                title: 'שאלות ותשובות נפוצות',
+                subtitle: 'תובנות מעמיקות ובירורים מתוך הסרטון',
+                showSearchBar: true,
+                showContactCard: false,
+                items: faqItems,
+              },
+              'kosvidioGallery-1': {
+                ...SECTION_REGISTRY.kosvidioGallery.defaultConfig,
+                id: 'kosvidioGallery-1',
+                type: 'kosvidioGallery',
+                visible: true,
+                anchorId: 'kosvidio-gallery',
+                badge: 'KOSVIDIO • גלריית סרטונים',
+                title: 'ספריית סרטוני הערוץ',
+                subtitle: options.channelTitle || brandCompanyName,
+                description: `צפו במבחר סרטוני וידאו מתוך ${options.channelTitle || brandCompanyName}`,
+                layout: 'horizontal-scroll',
+                source: 'tenant_kosvidio',
+                items: galleryItems.length > 0 ? galleryItems : SECTION_REGISTRY.kosvidioGallery.defaultConfig.items,
+                allowVisitorLayoutSwitch: false,
+              },
+              // Any other sections explicitly hidden
               'contact-1': {
                 ...SECTION_REGISTRY.contact.defaultConfig,
                 id: 'contact-1',
-                title: `צרו קשר עם ${brandCompanyName}`,
-                subtitle: 'יש לכם שאלות או מעוניינים בפרטים נוספים? נשמח לסייע',
-                phone,
-                email,
-                whatsApp: whatsapp,
+                type: 'contact',
+                visible: false,
               },
             },
           };
@@ -454,7 +627,7 @@ export const KosWebAiHostBridge: React.FC = () => {
             success: true,
             pageId: pageConfig.pageId,
             slug: pageConfig.slug,
-            publicUrl: `/p/${pageConfig.slug}`,
+            publicUrl: `/${pageConfig.slug}`,
             config: pageConfig,
           };
         } catch (err: any) {

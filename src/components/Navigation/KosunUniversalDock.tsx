@@ -284,6 +284,22 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
     window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: next } }));
   };
 
+  // Check if current user is Tenant Manager / Admin (Strict Multi-Tenant Control)
+  const isTenantManager = Boolean(isAdminOrEditor || isRootTenant || isLocal);
+
+  // Toggle Dashboard Live Edit (Tenant Manager Only)
+  const handleToggleDashboardEdit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (location.pathname === '/KosDesBuilder') {
+      window.dispatchEvent(new CustomEvent('kos_des_builder_toggle_edit'));
+      return;
+    }
+    const targetUrl = effectiveTenantId && !isRootTenant
+      ? `/KosDesBuilder?tenant=${effectiveTenantId}`
+      : '/KosDesBuilder';
+    navigate(targetUrl);
+  };
+
   // Open SEO & Page Settings
   const handleOpenSeoSettings = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -414,6 +430,26 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
                 <Edit3 className={`w-3.5 h-3.5 ${isEditing ? 'text-slate-950' : 'text-indigo-600 dark:text-indigo-400'}`} />
                 <span className="hidden sm:inline">
                   {isSaving ? 'שומר...' : isEditing ? 'סיום עריכה' : 'ערוך עמוד'}
+                </span>
+              </button>
+            )}
+
+            {/* 3.1 MODE BACKOFFICE: Tenant Manager Dashboard Edit Button (Pencil Icon) */}
+            {detectedMode !== 'front' && isTenantManager && (
+              <button
+                type="button"
+                onClick={handleToggleDashboardEdit}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl transition cursor-pointer text-xs font-bold ${
+                  location.pathname === '/KosDesBuilder'
+                    ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 font-black shadow-md ring-2 ring-amber-400/50'
+                    : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300'
+                }`}
+                title="עריכת לוח הבקרה (טננט מנג׳ר בלבד - KosDesBuilder)"
+                aria-label="ערוך לוח בקרה"
+              >
+                <Edit3 className={`w-3.5 h-3.5 ${location.pathname === '/KosDesBuilder' ? 'text-slate-950' : 'text-indigo-600 dark:text-indigo-400'}`} />
+                <span className="hidden sm:inline">
+                  {location.pathname === '/KosDesBuilder' ? 'עריכה פעילה' : 'ערוך עמוד'}
                 </span>
               </button>
             )}

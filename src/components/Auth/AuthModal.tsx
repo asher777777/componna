@@ -33,9 +33,10 @@ import {
   resetUserPassword,
   formatAuthError,
   subscribeToAuth,
+  syncUserToAdminCrm,
 } from '../../services/firebaseAuth';
 import { getFirestore } from 'firebase/firestore';
-import { extractSubdomainFromHost } from '../../core/tenant/tenantResolver';
+import { extractSubdomainFromHost, resolveCurrentTenantId } from '../../core/tenant/tenantResolver';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 
 interface AuthModalProps {
@@ -45,6 +46,8 @@ interface AuthModalProps {
   onSuccess?: (user: User) => void;
   title?: string;
   subtitle?: string;
+  tenantId?: string;
+  defaultRole?: UserRole;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -54,6 +57,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSuccess,
   title,
   subtitle,
+  tenantId,
+  defaultRole,
 }) => {
   const [tab, setTab] = useState<'login' | 'register' | 'forgot' | 'profile'>('login');
   const [email, setEmail] = useState('');
@@ -183,7 +188,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setSuccessMsg(null);
 
     try {
-      const regUser = await registerWithEmail(email, password, displayName, firebaseApp);
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      const activeSub = tenantId || extractSubdomainFromHost(currentHost) || resolveCurrentTenantId();
+      const targetRole = defaultRole || (activeSub && activeSub !== '_master' ? 'subscriber' : 'viewer');
+
+      const regUser = await registerWithEmail(email, password, displayName, firebaseApp, activeSub, targetRole);
       setSuccessMsg('נרשמת בהצלחה והתחברת למערכת!');
       if (onSuccess && regUser) onSuccess(regUser);
       setTimeout(() => {
@@ -203,6 +212,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       const gUser = await loginWithGoogle(firebaseApp);
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      const activeSub = tenantId || extractSubdomainFromHost(currentHost) || resolveCurrentTenantId();
+      if (gUser && activeSub && activeSub !== '_master') {
+        await syncUserToAdminCrm(gUser, firebaseApp, activeSub, true);
+      }
       setSuccessMsg('התחברת בהצלחה באמצעות Google!');
       if (onSuccess && gUser) onSuccess(gUser);
       setTimeout(() => {
@@ -222,6 +236,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     try {
       const aUser = await loginAnonymously(firebaseApp);
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
+      const activeSub = tenantId || extractSubdomainFromHost(currentHost) || resolveCurrentTenantId();
+      if (aUser && activeSub && activeSub !== '_master') {
+        await syncUserToAdminCrm(aUser, firebaseApp, activeSub, true);
+      }
       setSuccessMsg('התחברת בהצלחה במצב מהיר (אנונימי)!');
       if (onSuccess && aUser) onSuccess(aUser);
       setTimeout(() => {

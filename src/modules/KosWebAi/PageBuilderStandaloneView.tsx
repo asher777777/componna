@@ -17,6 +17,7 @@ import { Layers, Edit3, Sparkles } from 'lucide-react';
 import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderProvider } from './context/PageBuilderContext';
 import { KosaiProvider } from '../kosai-engine';
+import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
 
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';
@@ -245,10 +246,16 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       finalSlug = `${cleanPrefix}-${randomSuffix}`;
     }
 
+    const liveBrandDna = resolveLiveBrandDna(brandDna, tenantId);
     const builtSections: Record<string, any> = {};
     targetTemplate.sections.forEach((secType) => {
       if (SECTION_REGISTRY[secType]) {
-        builtSections[secType] = { ...SECTION_REGISTRY[secType].defaultConfig, id: secType };
+        builtSections[secType] = hydrateSectionWithBrandDna(
+          { ...SECTION_REGISTRY[secType].defaultConfig, id: secType },
+          liveBrandDna,
+          secType,
+          tenantId
+        );
       }
     });
 

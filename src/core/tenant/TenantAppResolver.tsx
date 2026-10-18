@@ -68,7 +68,7 @@ export const TenantAppResolver: React.FC = () => {
       return false;
     }
     const pathname = window.location.pathname;
-    const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/page/') || pathname.startsWith('/preview/') || pathname.startsWith('/tube/') || pathname.startsWith('/to/');
+    const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/page/') || pathname.startsWith('/preview/') || pathname.startsWith('/tube/') || pathname.startsWith('/to/') || pathname === '/kosvidio' || pathname.startsWith('/kosvidio/');
     if (isPublicPage) {
       return true;
     }

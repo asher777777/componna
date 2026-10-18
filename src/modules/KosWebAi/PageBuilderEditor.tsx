@@ -73,7 +73,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   const { tenantId } = useTenantScope();
   const { db } = useSystemConnection();
   const [brandColor, setBrandColor] = useState<string>('#6366f1');
-  const [loadedBrandDna, setLoadedBrandDna] = useState<BrandDna | null>(null);
+  const [loadedBrandDna, setLoadedBrandDna] = useState<BrandDna | null>(() => resolveLiveBrandDna(null, tenantId));
 
   useEffect(() => {
     let isMounted = true;
@@ -263,7 +263,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
 
     const newId = `${type}_${Date.now()}`;
     const liveDna = resolveLiveBrandDna(loadedBrandDna, tenantId);
-    const newSectionConfig = hydrateSectionWithBrandDna(regDef.defaultConfig, liveDna, type);
+    const newSectionConfig = hydrateSectionWithBrandDna(regDef.defaultConfig, liveDna, type, tenantId);
     newSectionConfig.id = newId;
     newSectionConfig.anchorId = `${type}_${config.sectionOrder.length + 1}`;
 

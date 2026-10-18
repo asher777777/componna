@@ -14,6 +14,7 @@ export const RESERVED_TENANT_SUBDOMAINS = [
 
 /** Standard provisioned modules enabled by default for subdomain tenants */
 export const DEFAULT_SUBDOMAIN_MODULES: string[] = [
+  'KosSubscribed',
   'KosTube',
   'kosun-board-composer',
   'kosun-am',

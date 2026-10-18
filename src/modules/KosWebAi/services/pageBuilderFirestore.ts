@@ -621,7 +621,7 @@ export const pageBuilderFirestore = {
     const now = new Date().toISOString();
     const publicSlug = config.slug || config.pageId;
     const currentOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-    const publishedUrl = `${currentOrigin}/p/${publicSlug}`;
+    const publishedUrl = `${currentOrigin}/${publicSlug.replace(/^\/?p\//i, '')}`;
 
     const updated: PageBuilderConfig = {
       ...config,

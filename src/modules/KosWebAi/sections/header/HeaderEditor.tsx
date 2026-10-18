@@ -146,7 +146,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
     } else {
       // Check if it's a tenant page
       const matchedPage = tenantPages.find((p) => {
-        const pageUrl = p.isHomePage ? '/' : `/p/${p.slug || p.pageId}`;
+        const pageUrl = p.isHomePage ? '/' : `/${(p.slug || p.pageId).replace(/^\/?p\//i, '')}`;
         return pageUrl === selectedValue;
       });
       if (matchedPage) {
@@ -576,7 +576,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                           )}
                         </div>
                         <span className="text-[10px] font-mono text-slate-500" dir="ltr">
-                          {page.isHomePage ? '/' : `/p/${page.slug || page.pageId}`}
+                          {page.isHomePage ? '/' : `/${(page.slug || page.pageId).replace(/^\/?p\//i, '')}`}
                         </span>
                       </div>
 
@@ -637,7 +637,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                 // Determine if link.url matches a page or an anchor
                 const isAnchor = link.url.startsWith('#');
                 const isTenantPage = tenantPages.some((p) => {
-                  const u = p.isHomePage ? '/' : `/p/${p.slug || p.pageId}`;
+                  const u = p.isHomePage ? '/' : `/${(p.slug || p.pageId).replace(/^\/?p\//i, '')}`;
                   return u === link.url;
                 });
                 const isKnownTarget = isAnchor || isTenantPage;
@@ -687,7 +687,7 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                         >
                           <optgroup label="עמודי האתר (Tenant)">
                             {tenantPages.map((p) => {
-                              const pageUrl = p.isHomePage ? '/' : `/p/${p.slug || p.pageId}`;
+                              const pageUrl = p.isHomePage ? '/' : `/${(p.slug || p.pageId).replace(/^\/?p\//i, '')}`;
                               return (
                                 <option key={p.pageId} value={pageUrl}>
                                   עמוד: {p.pageTitle || 'עמוד'} {p.isHomePage ? '(ראשי)' : ''}

@@ -290,9 +290,10 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         }
 
         const pageId = `page_${video.youtubeVideoId}`;
-        const rawSlug = res.data.slug?.toLowerCase().replace(/[^a-z0-9-]/g, '') || 'kosvidio';
-        const slug = rawSlug.startsWith('kosvidio') ? rawSlug : 'kosvidio';
-        let publicUrl = `/tube/${slug}`;
+        const cleanVidId = (video.youtubeVideoId || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+        const rawSlug = res.data?.slug || `kosvidio-${cleanVidId}`;
+        const slug = rawSlug.trim().replace(/^\/?p\//i, '').replace(/^[#/]+/, '');
+        let publicUrl = `/${slug}`;
         let pbPageId = `page_kosvidio_${video.youtubeVideoId}`;
 
         const brandCompanyName = (effIncludeBrand && brandDna?.identity?.companyName) ? brandDna.identity.companyName : 'קושאן';
@@ -312,6 +313,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
               channelTitle: channel?.title || 'ערוץ יוטיוב',
               brandDna,
               aiData: res.data,
+              channelVideos: videos,
             });
             if (pbRes.success) {
               pbPageId = pbRes.pageId;
@@ -331,12 +333,42 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const articleHtml = (res.data.articleContent || '')
               .split('\n\n')
               .map((p: string) => {
-                if (p.startsWith('### ')) return `<h3 class="text-xl font-bold text-slate-900 dark:text-white mt-6 mb-3">${p.replace('### ', '')}</h3>`;
-                if (p.startsWith('## ')) return `<h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-8 mb-4">${p.replace('## ', '')}</h2>`;
-                if (p.trim()) return `<p class="text-base sm:text-lg leading-relaxed text-slate-700 dark:text-slate-300 mb-4">${p}</p>`;
-                return '';
+                const trimmed = p.trim();
+                if (!trimmed) return '';
+                if (trimmed.startsWith('### ')) return `<h3 class="text-xl font-bold text-slate-900 dark:text-white mt-6 mb-3">${trimmed.replace(/^###\s*/, '')}</h3>`;
+                if (trimmed.startsWith('## ')) return `<h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-8 mb-4">${trimmed.replace(/^##\s*/, '')}</h2>`;
+                if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+                  const items = trimmed.split('\n').map(li => `<li class="mr-4 list-disc text-slate-700 dark:text-slate-300 my-1">${li.replace(/^[\*\-]\s*/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>`).join('');
+                  return `<ul class="my-3 space-y-1">${items}</ul>`;
+                }
+                const withBold = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                return `<p class="text-base sm:text-lg leading-relaxed text-slate-700 dark:text-slate-300 mb-4">${withBold}</p>`;
               })
               .join('');
+
+            const fallbackFaqItems = Array.isArray(res.data.faqs) && res.data.faqs.length > 0
+              ? res.data.faqs.map((f: any, idx: number) => ({
+                  id: String(idx + 1),
+                  question: f.question || '',
+                  answer: f.answer || '',
+                }))
+              : [];
+
+            const fallbackGalleryItems = videos.map((v, i) => ({
+              id: v.id || `vid-${i}`,
+              title: v.title,
+              subtitle: channel?.title || brandCompanyName,
+              description: v.description?.slice(0, 140) || '',
+              youtubeVideoId: v.youtubeVideoId,
+              thumbnailUrl: v.thumbnailUrl,
+              kosvidioSlug: 'kosvidio',
+              duration: v.duration || '',
+              viewsCount: Number(v.viewCount || 0),
+              likesCount: Number(v.likeCount || 0),
+              category: 'סרטוני הערוץ',
+              tags: ['וידאו', 'יוטיוב'],
+              featured: i === 0,
+            }));
 
             const pageConfig = {
               pageId: pbPageId,
@@ -351,7 +383,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 companyName: brandCompanyName,
                 slogan: brandSlogan,
                 theme: 'dark',
-                headerLayout: 'floating-glass',
+                headerLayout: 'capsule-floating',
                 headerSticky: true,
                 isHeaderVisible: true,
                 isFooterVisible: true,
@@ -365,29 +397,32 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 contactWhatsApp: whatsapp,
                 contactPhone: phone,
                 contactEmail: email,
+                siteLogoUrl: brandLogo,
               },
               seoSettings: {
                 title: res.data.metaTitle || video.title,
                 description: res.data.metaDescription || video.description.slice(0, 160),
                 keywords: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
               },
-              sectionOrder: ['header-1', 'kosvidio-1', 'about-1', 'contact-1'],
+              sectionOrder: ['header-1', 'kosvidio-1', 'about-1', 'faq-1', 'kosvidioGallery-1'],
               sections: {
                 'header-1': {
                   type: 'header',
                   id: 'header-1',
                   visible: true,
-                  layout: 'floating-glass',
+                  layout: 'capsule-floating',
                   title: brandCompanyName,
                   showLogoText: true,
                   logoText: brandCompanyName,
                   useBrandLogo: Boolean(brandLogo),
                   customLogoUrl: brandLogo,
+                  sticky: true,
                 },
                 'kosvidio-1': {
                   type: 'kosvidio',
                   id: 'kosvidio-1',
                   visible: true,
+                  anchorId: 'kosvidio',
                   youtubeVideoId: video.youtubeVideoId,
                   title: res.data.h1 || video.title,
                   channelName: channel?.title || 'ערוץ יוטיוב',
@@ -411,19 +446,44 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   type: 'richContent',
                   id: 'about-1',
                   visible: true,
-                  heading: `אודות וניתוח תוכן מקצועי${effIncludeBrand ? ` - ${brandCompanyName}` : ''}`,
-                  body: `<div class="kosvidio-about-article space-y-4 font-normal leading-relaxed text-slate-800 dark:text-slate-200">${articleHtml}</div>`,
+                  anchorId: 'about',
+                  heading: res.data.h1 || 'אודות וניתוח תוכן מקצועי',
+                  subtitle: brandCompanyName,
+                  body: `<div class="kosvidio-rich-content space-y-4 font-normal leading-relaxed text-slate-800 dark:text-slate-200">
+                    ${res.data.executiveSummary ? `<div class="p-5 mb-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-slate-800 dark:text-slate-200 font-medium leading-relaxed shadow-sm"><div class="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1">תמצית התוכן והסרטון:</div>${res.data.executiveSummary}</div>` : ''}
+                    ${articleHtml}
+                  </div>`,
                   layout: 'highlight-box',
+                },
+                'faq-1': {
+                  type: 'faq',
+                  id: 'faq-1',
+                  visible: true,
+                  anchorId: 'faq',
+                  title: 'שאלות ותשובות נפוצות',
+                  subtitle: 'תובנות מעמיקות ובירורים מתוך הסרטון',
+                  showSearchBar: true,
+                  showContactCard: false,
+                  items: fallbackFaqItems,
+                },
+                'kosvidioGallery-1': {
+                  type: 'kosvidioGallery',
+                  id: 'kosvidioGallery-1',
+                  visible: true,
+                  anchorId: 'kosvidio-gallery',
+                  badge: 'KOSVIDIO • גלריית סרטונים',
+                  title: 'ספריית סרטוני הערוץ',
+                  subtitle: channel?.title || brandCompanyName,
+                  description: `צפו במבחר סרטוני וידאו מתוך ${channel?.title || brandCompanyName}`,
+                  layout: 'horizontal-scroll',
+                  source: 'tenant_kosvidio',
+                  items: fallbackGalleryItems,
+                  allowVisitorLayoutSwitch: false,
                 },
                 'contact-1': {
                   type: 'contact',
                   id: 'contact-1',
-                  visible: true,
-                  title: `צרו קשר עם ${brandCompanyName}`,
-                  subtitle: 'יש לכם שאלות או מעוניינים בפרטים נוספים? נשמח לסייע',
-                  phone,
-                  email,
-                  whatsApp: whatsapp,
+                  visible: false,
                 },
               },
               createdAt: new Date().toISOString(),
@@ -431,7 +491,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             };
 
             await setDoc(doc(db, collPath, pbPageId), pageConfig, { merge: true });
-            publicUrl = `/p/${slug}`;
+            publicUrl = `/${slug}`;
 
           } catch (e) {
             console.warn('[KosTube] Direct save to PAGES collection warning:', e);
@@ -501,8 +561,15 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         );
 
         setSelectedPage(newPage);
-        setModalMode('page_preview');
-        setIsModalOpen(true);
+        setIsModalOpen(false);
+
+        // Direct navigation to the published live page at /p/kosvidio
+        if (typeof window !== 'undefined') {
+          const targetUrl = publicUrl || `/${slug}`;
+          setTimeout(() => {
+            window.location.href = targetUrl;
+          }, 350);
+        }
         return newPage;
       } catch (err: any) {
         console.error('[KosTube] generateSeoPage failed:', err);

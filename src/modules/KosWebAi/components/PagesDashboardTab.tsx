@@ -531,7 +531,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                     </button>
 
                     <a
-                      href={`/p/${page.slug || page.pageId}${!page.published ? '?preview=true' : ''}`}
+                      href={`/${(page.slug || page.pageId).replace(/^\/?p\//i, '')}${!page.published ? '?preview=true' : ''}`}
                       target="_blank"
                       rel="noreferrer"
                       className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-colors"

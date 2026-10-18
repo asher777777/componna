@@ -15,6 +15,8 @@ export type {
   BrandDnaContract,
   BrandEcosystem,
   FlagshipProduct,
+  CoreService,
+  CreatePageFromServiceOptions,
   FlagshipRepeaterItem,
   FlagshipFaqItem,
   FlagshipSeoData,

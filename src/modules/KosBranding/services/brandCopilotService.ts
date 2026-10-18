@@ -8,6 +8,7 @@ import {
   dispatchContentStrategiesToKosai,
   dispatchEntityItemToKosai,
   dispatchFlagshipProductToKosai,
+  dispatchCoreServiceToKosai,
   dispatchBusinessPackagesToKosai,
   dispatchEcosystemItemsToKosai,
   dispatchPersonaToKosai,
@@ -287,41 +288,16 @@ export async function generateAiObjection(brand: BrandDna, apiKey?: string): Pro
   };
 }
 
+const DEFAULT_PAIN_ICONS = ['AlertCircle', 'Clock', 'HeartHandshake', 'ShieldCheck', 'Compass', 'Sparkles'];
+const DEFAULT_AUDIENCE_ICONS = ['Users', 'Briefcase', 'Heart'];
+const DEFAULT_ADVANTAGE_ICONS = ['Award', 'CheckCircle2', 'Sparkles', 'HeartHandshake', 'Star', 'Shield'];
+const DEFAULT_FAQ_ICONS = ['HelpCircle', 'CheckCircle2', 'Info', 'Sparkles', 'Clock', 'Heart', 'Shield', 'Users', 'Phone', 'Star'];
+
 /**
- * יצירת מוצר דגל מותאם למותג לפי החוזה המדויק של FlagshipProduct & FlagshipProductsEditor
- */
-export async function generateAiFlagshipProduct(
-  idea: string,
-  brand: BrandDna,
-  apiKey?: string
-): Promise<{
-  nameAndSlogan: string;
-  shortDescription: string;
-  longDescription: string;
-  painPointSolved: string;
-  targetAudience: string;
-  competitiveAdvantage: string;
-  painPoints: Array<{ id: string; title: string; text: string; icon?: string }>;
-  targetAudiences: Array<{ id: string; title: string; text: string; icon?: string }>;
-  competitiveAdvantages: Array<{ id: string; title: string; text: string; icon?: string }>;
-  faqs: Array<{ id: string; question: string; answer: string; icon?: string }>;
-  seo: {
-    slug?: string;
-    metaTitle?: string;
-    metaDescription?: string;
-    keywords?: string;
-    ogImage?: string;
-    aiKnowledgeSummary?: string;
-    aiTargetQuestions?: string[];
-    aiEntitySchemaType?: 'Organization' | 'LocalBusiness' | 'Product' | 'Service' | 'Course' | 'FAQPage';
-    aiBotIndexingEnabled?: boolean;
-  };
-} | null> {
-/**
- * מפרסר תשובת טקסט מובנית (Delimited Plain Text) של מוצר דגל מ-Gemini
+ * מפרסר תשובת טקסט מובנית (Delimited Plain Text) של מוצר או שירות מ-Gemini
  * מגן מפני כפילויות, חוסך טוקנים מסיביים ומחלץ את כל השדות בצורה דטרמיניסטית
  */
-function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string): Record<string, any> {
+export function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string): Record<string, any> {
   let text = '';
   if (typeof raw === 'string') {
     text = raw.trim();
@@ -461,19 +437,104 @@ function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string
   };
 }
 
+function normalizeRepeaterHelper(
+  rawList: any,
+  targetCount: number,
+  prefix: string,
+  defaultIcons: string[],
+  fallbacks: Array<{ title: string; text: string }>
+) {
+  const arr = Array.isArray(rawList) ? rawList : [];
+  return Array.from({ length: targetCount }, (_, idx) => {
+    const item = arr[idx];
+    const fb = fallbacks[idx % fallbacks.length];
+    if (item && typeof item === 'object') {
+      return {
+        id: String(item.id || `${prefix}_${idx + 1}`),
+        title: String(item.title || item.heading || fb.title).trim(),
+        text: String(item.text || item.description || item.content || fb.text).trim(),
+        icon: String(item.icon || defaultIcons[idx % defaultIcons.length]).trim(),
+      };
+    }
+    if (typeof item === 'string' && item.trim()) {
+      return {
+        id: `${prefix}_${idx + 1}`,
+        title: fb.title,
+        text: item.trim(),
+        icon: defaultIcons[idx % defaultIcons.length],
+      };
+    }
+    return {
+      id: `${prefix}_${idx + 1}`,
+      title: fb.title,
+      text: fb.text,
+      icon: defaultIcons[idx % defaultIcons.length],
+    };
+  });
+}
+
+function normalizeFaqsHelper(
+  rawFaqs: any,
+  defaultFaqIcons: string[],
+  defaultFaqFallbacks: Array<{ question: string; answer: string }>
+) {
+  const arr = Array.isArray(rawFaqs) ? rawFaqs : [];
+  return Array.from({ length: 10 }, (_, idx) => {
+    const item = arr[idx];
+    const fb = defaultFaqFallbacks[idx % defaultFaqFallbacks.length];
+    if (item && typeof item === 'object' && (item.question || item.q) && (item.answer || item.a)) {
+      return {
+        id: String(item.id || `faq_${idx + 1}`),
+        question: String(item.question || item.q).trim(),
+        answer: String(item.answer || item.a).trim(),
+        icon: String(item.icon || defaultFaqIcons[idx % defaultFaqIcons.length]).trim(),
+      };
+    }
+    return {
+      id: `faq_${idx + 1}`,
+      question: fb.question,
+      answer: fb.answer,
+      icon: defaultFaqIcons[idx % defaultFaqIcons.length],
+    };
+  });
+}
+
+/**
+ * יצירת מוצר דגל מותאם למותג לפי החוזה המדויק של FlagshipProduct & FlagshipProductsEditor
+ */
+export async function generateAiFlagshipProduct(
+  idea: string,
+  brand: BrandDna,
+  apiKey?: string
+): Promise<{
+  nameAndSlogan: string;
+  shortDescription: string;
+  longDescription: string;
+  painPointSolved: string;
+  targetAudience: string;
+  competitiveAdvantage: string;
+  painPoints: Array<{ id: string; title: string; text: string; icon?: string }>;
+  targetAudiences: Array<{ id: string; title: string; text: string; icon?: string }>;
+  competitiveAdvantages: Array<{ id: string; title: string; text: string; icon?: string }>;
+  faqs: Array<{ id: string; question: string; answer: string; icon?: string }>;
+  seo: {
+    slug?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    keywords?: string;
+    ogImage?: string;
+    aiKnowledgeSummary?: string;
+    aiTargetQuestions?: string[];
+    aiEntitySchemaType?: 'Organization' | 'LocalBusiness' | 'Product' | 'Service' | 'Course' | 'FAQPage';
+    aiBotIndexingEnabled?: boolean;
+  };
+} | null> {
   const activeKey = resolveGeminiApiKey(apiKey);
   const cleanIdea = (idea || brand.identity?.organizationPurpose || 'מוצר דגל מוביל').trim();
   const company = brand.identity?.companyName || 'המותג';
   const slogan = brand.identity?.slogan || '';
-  const defaultAudience = brand.audience?.targetAudiences?.[0] || 'קהל היעד המרכזי של הארגון';
   const uvp = brand.audience?.mainUvp || brand.identity?.companyVision || '';
 
-  const defaultPainIcons = ['AlertCircle', 'Clock', 'HeartHandshake', 'ShieldCheck', 'Compass', 'Sparkles'];
-  const defaultAudienceIcons = ['Users', 'Briefcase', 'Heart'];
-  const defaultAdvantageIcons = ['Award', 'CheckCircle2', 'Sparkles', 'HeartHandshake', 'Star', 'Shield'];
-  const defaultFaqIcons = ['HelpCircle', 'CheckCircle2', 'Info', 'Sparkles', 'Clock', 'Heart', 'Shield', 'Users', 'Phone', 'Star'];
-
-  // Distinct fallback lists (ensuring 0 duplicate copy across repeater items)
   const defaultPainFallbacks = [
     { title: 'חוסר בזמן ומשאבים', text: `עומס יומיומי וקושי לפנות זמן להתמקצעות ולהתפתחות עסקית בתחום ${cleanIdea}.` },
     { title: 'היעדר ליווי והכוונה', text: `תחושת בדידות בקבלת החלטות ללא גורם מקצועי שמלווה יד ביד מבית ${company}.` },
@@ -511,64 +572,6 @@ function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string
     { question: `איך מתחילים ויוצאים לדרך?`, answer: `משאירים פרטים כאן בעמוד ונציג מטעמנו יחזור אליכם לתיאום שיחת היכרות קצרה.` },
   ];
 
-  const normalizeRepeater = (
-    rawList: any,
-    targetCount: number,
-    prefix: string,
-    defaultIcons: string[],
-    fallbacks: Array<{ title: string; text: string }>
-  ) => {
-    const arr = Array.isArray(rawList) ? rawList : [];
-    return Array.from({ length: targetCount }, (_, idx) => {
-      const item = arr[idx];
-      const fb = fallbacks[idx % fallbacks.length];
-      if (item && typeof item === 'object') {
-        return {
-          id: String(item.id || `${prefix}_${idx + 1}`),
-          title: String(item.title || item.heading || fb.title).trim(),
-          text: String(item.text || item.description || item.content || fb.text).trim(),
-          icon: String(item.icon || defaultIcons[idx % defaultIcons.length]).trim(),
-        };
-      }
-      if (typeof item === 'string' && item.trim()) {
-        return {
-          id: `${prefix}_${idx + 1}`,
-          title: fb.title,
-          text: item.trim(),
-          icon: defaultIcons[idx % defaultIcons.length],
-        };
-      }
-      return {
-        id: `${prefix}_${idx + 1}`,
-        title: fb.title,
-        text: fb.text,
-        icon: defaultIcons[idx % defaultIcons.length],
-      };
-    });
-  };
-
-  const normalizeFaqs = (rawFaqs: any) => {
-    const arr = Array.isArray(rawFaqs) ? rawFaqs : [];
-    return Array.from({ length: 10 }, (_, idx) => {
-      const item = arr[idx];
-      const fb = defaultFaqFallbacks[idx % defaultFaqFallbacks.length];
-      if (item && typeof item === 'object' && (item.question || item.q) && (item.answer || item.a)) {
-        return {
-          id: String(item.id || `faq_${idx + 1}`),
-          question: String(item.question || item.q).trim(),
-          answer: String(item.answer || item.a).trim(),
-          icon: String(item.icon || defaultFaqIcons[idx % defaultFaqIcons.length]).trim(),
-        };
-      }
-      return {
-        id: `faq_${idx + 1}`,
-        question: fb.question,
-        answer: fb.answer,
-        icon: defaultFaqIcons[idx % defaultFaqIcons.length],
-      };
-    });
-  };
-
   if (!activeKey) {
     return null;
   }
@@ -594,10 +597,10 @@ function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string
         res.description ||
         `ב-${company} פיתחנו את "${cleanIdea}" כדי להעניק מעטפת שלמה, איכותית ומעצימה לקהל שלנו. התוכנית משלבת מקצועיות ללא פשרות עם יחס אישי, חם ומסור, ונועדה לתת מענה אמיתי ומעמיק לצרכים היומיומיים שלך. ${uvp}`;
 
-      const painPoints = normalizeRepeater(res.painPoints, 6, 'pain', defaultPainIcons, defaultPainFallbacks);
-      const targetAudiences = normalizeRepeater(res.targetAudiences, 3, 'aud', defaultAudienceIcons, defaultAudienceFallbacks);
-      const competitiveAdvantages = normalizeRepeater(res.competitiveAdvantages, 6, 'adv', defaultAdvantageIcons, defaultAdvantageFallbacks);
-      const faqs = normalizeFaqs(res.faqs);
+      const painPoints = normalizeRepeaterHelper(res.painPoints, 6, 'pain', DEFAULT_PAIN_ICONS, defaultPainFallbacks);
+      const targetAudiences = normalizeRepeaterHelper(res.targetAudiences, 3, 'aud', DEFAULT_AUDIENCE_ICONS, defaultAudienceFallbacks);
+      const competitiveAdvantages = normalizeRepeaterHelper(res.competitiveAdvantages, 6, 'adv', DEFAULT_ADVANTAGE_ICONS, defaultAdvantageFallbacks);
+      const faqs = normalizeFaqsHelper(res.faqs, DEFAULT_FAQ_ICONS, defaultFaqFallbacks);
 
       const painPointSolved =
         res.painPointSolved ||
@@ -648,10 +651,10 @@ function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string
     console.warn('[brandCopilotService] generateAiFlagshipProduct live AI fallback:', err);
   }
 
-  const fallbackPainPoints = normalizeRepeater([], 6, 'pain', defaultPainIcons, defaultPainFallbacks);
-  const fallbackTargetAudiences = normalizeRepeater([], 3, 'aud', defaultAudienceIcons, defaultAudienceFallbacks);
-  const fallbackAdvantages = normalizeRepeater([], 6, 'adv', defaultAdvantageIcons, defaultAdvantageFallbacks);
-  const fallbackFaqs = normalizeFaqs([]);
+  const fallbackPainPoints = normalizeRepeaterHelper([], 6, 'pain', DEFAULT_PAIN_ICONS, defaultPainFallbacks);
+  const fallbackTargetAudiences = normalizeRepeaterHelper([], 3, 'aud', DEFAULT_AUDIENCE_ICONS, defaultAudienceFallbacks);
+  const fallbackAdvantages = normalizeRepeaterHelper([], 6, 'adv', DEFAULT_ADVANTAGE_ICONS, defaultAdvantageFallbacks);
+  const fallbackFaqs = normalizeFaqsHelper([], DEFAULT_FAQ_ICONS, defaultFaqFallbacks);
 
   return {
     nameAndSlogan: `${cleanIdea} – ${slogan || `המענה המוביל מבית ${company}`}`,
@@ -669,6 +672,185 @@ function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company: string
       metaDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
       keywords: `${cleanIdea}, ${company}`,
       aiKnowledgeSummary: `${cleanIdea} מבית ${company} מעניק מענה שלם ומקצועי לקהל היעד של הארגון.`,
+      aiTargetQuestions: fallbackFaqs.slice(0, 5).map((f) => f.question),
+      aiEntitySchemaType: 'Product',
+      aiBotIndexingEnabled: true,
+    },
+  };
+}
+
+/**
+ * יצירת שירות מרכזי מותאם למותג (CoreService) לפי החוזה המדויק של CoreServicesEditor
+ * מפיק 6 נקודות כאב, 3 קהלי יעד, 6 יתרונות, 10 שאלות ותשובות ונתוני SEO/AIO בפורמט טקסט מובנה חסכוני
+ */
+export async function generateAiCoreService(
+  idea: string,
+  brand: BrandDna,
+  apiKey?: string
+): Promise<{
+  nameAndSlogan: string;
+  shortDescription: string;
+  longDescription: string;
+  painPointSolved: string;
+  targetAudience: string;
+  competitiveAdvantage: string;
+  painPoints: Array<{ id: string; title: string; text: string; icon?: string }>;
+  targetAudiences: Array<{ id: string; title: string; text: string; icon?: string }>;
+  competitiveAdvantages: Array<{ id: string; title: string; text: string; icon?: string }>;
+  faqs: Array<{ id: string; question: string; answer: string; icon?: string }>;
+  seo: {
+    slug?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    keywords?: string;
+    ogImage?: string;
+    aiKnowledgeSummary?: string;
+    aiTargetQuestions?: string[];
+    aiEntitySchemaType?: 'Organization' | 'LocalBusiness' | 'Product' | 'Service' | 'Course' | 'FAQPage';
+    aiBotIndexingEnabled?: boolean;
+  };
+} | null> {
+  const activeKey = resolveGeminiApiKey(apiKey);
+  const cleanIdea = (idea || brand.identity?.organizationPurpose || 'שירות מקצועי מוביל').trim();
+  const company = brand.identity?.companyName || 'הארגון';
+  const slogan = brand.identity?.slogan || '';
+  const uvp = brand.audience?.mainUvp || brand.identity?.companyVision || '';
+
+  const defaultPainFallbacks = [
+    { title: 'קושי במציאת מענה מקצועי ואמין', text: `התמודדות עם פתרונות חלקיים וחוסר שקט נפשי בכל הנוגע ל-${cleanIdea}.` },
+    { title: 'בזבוז זמן יקר ומאמצים מיותרים', text: `ניסיונות חוזרים להסתדר לבד ללא ליווי מומחה מבית ${company}.` },
+    { title: 'עלויות נסתרות והיעדר שקיפות', text: `חוסר בהירות לגבי התוצאות הסופיות וחשש מהוצאות בלתי צפויות בשוק.` },
+    { title: 'עומס מנטלי וחוסר ודאות', text: `צורך בעוגן מקצועי יציב שיודע להוביל את התהליך בביטחון וברוגע מלא.` },
+    { title: 'שירות מנוכר וללא מענה אישי', text: `תחושת אכזבה מנותני שירות שאינם קשובים באמת לצרכים הייחודיים של הלקוח.` },
+    { title: 'פער בין הבטחות למציאות', text: `צורך בתוצאות מוכחות בשטח ובמעטפת שלמה שמעניקה ביטחון מקצה לקצה.` },
+  ];
+
+  const defaultAudienceFallbacks = [
+    { title: 'לקוחות פרטיים ומשפחות', text: `המחפשים מענה אישי, מסור ואיכותי בתחום ${cleanIdea} עם ליווי מקצועי מלא.` },
+    { title: 'בעלי עסקים ומנהלים', text: `הרוצים לייעל תהליכים, לחסוך זמן ולקבל תוצאות מדויקות ושקט נפשי מתמיד.` },
+    { title: 'קהילות ומוסדות', text: `הזקוקים לפתרון הוליסטי מקיף המשלב ידע מעמיק, סטנדרט ביצוע גבוה ויחס חם.` },
+  ];
+
+  const defaultAdvantageFallbacks = [
+    { title: 'ליווי אישי מקצה לקצה', text: `מענה אנושי ומסור הרואה בכם שותפים אמיתיים מבית ${company}.` },
+    { title: 'מקצועיות וניסיון מוכח', text: `ידע מעמיק, שיטות עבודה מתקדמות ומחויבות בלתי מתפשרת להצלחה.` },
+    { title: 'טכנולוגיה מתקדמת ודיוק', text: `שימוש בכלי AI ואוטומציות מתקדמות המבטיחים מהירות, דיוק ואיכות עילאית.` },
+    { title: 'שקיפות מלאה ושקט נפשי', text: `הסבר ברור על כל שלב בתהליך, ללא אותיות קטנות או הפתעות.` },
+    { title: 'זמינות ומענה מהיר', text: `ערוצי תקשורת פתוחים וישירים בוואטסאפ ובטלפון לכל שאלה ועניין.` },
+    { title: 'התאמה אישית מלאה', text: `שירות שנתפר בדיוק לפי המידות והמטרות הספציפיות שלכם.` },
+  ];
+
+  const defaultFaqFallbacks = [
+    { question: `מה כולל בדיוק שירות "${cleanIdea}"?`, answer: `השירות כולל מעטפת מלאה, אבחון הצרכים וליווי צמוד של צוות ${company}.` },
+    { question: `למי השירות מתאים ביותר?`, answer: `השירות מותאם אישית לכל מי שמחפש פתרון אמין, איכותי ושקט נפשי מלא.` },
+    { question: `מהם שלבי העבודה וההתקדמות?`, answer: `אנו מתחילים בשיחת היכרות ואפיון, מגדירים יעדים ויוצאים לדרך צעד אחר צעד.` },
+    { question: `כמה זמן אורך התהליך?`, answer: `לוחות הזמנים מותאמים לצרכים שלכם, תוך שמירה על יעילות ומהירות מקסימלית.` },
+    { question: `האם נדרשת הכנה מוקדמת מצידי?`, answer: `לא, אנו מנחים אתכם בכל פרט ומספקים מענה שלם ומודרך לכל אורך הדרך.` },
+    { question: `במה השירות שונה מפתרונות אחרים?`, answer: uvp || `הייחוד שלנו הוא שילוב נדיר בין טכנולוגיה חדשנית ליחס אישי חם ומסור.` },
+    { question: `כיצד ניתן ליצור קשר במהלך השירות?`, answer: `אנו זמינים בוואטסאפ, במייל ובטלפון למענה מהיר ורציף.` },
+    { question: `מהם תנאי התשלום והאפשרויות הקיימות?`, answer: `אנו מציעים מגוון מסלולים גמישים ונוחים בהתאמה לצרכים שלכם.` },
+    { question: `האם קיימת אחריות על שביעות הרצון?`, answer: `כן, אנו מחויבים ב-100% לאיכות השירות ולהצלחה המשותפת שלכם.` },
+    { question: `איך עושים את הצעד הראשון?`, answer: `משאירים פרטים בטופס ונציג מטעמנו יחזור אליכם לתיאום שיחת ייעוץ קצרה.` },
+  ];
+
+  if (!activeKey) {
+    return null;
+  }
+
+  try {
+    const rawRes = await dispatchCoreServiceToKosai(cleanIdea, brand, { apiKey: activeKey });
+    const res = parseDelimitedFlagshipText(rawRes, cleanIdea, company);
+
+    if (res && typeof res === 'object') {
+      const nameAndSlogan =
+        res.nameAndSlogan ||
+        (res.title && res.subtitle ? `${res.title} – ${res.subtitle}` : res.title) ||
+        `${cleanIdea}${slogan ? ` – ${slogan}` : ''}`;
+
+      const shortDescription =
+        res.shortDescription ||
+        res.subtitle ||
+        res.description ||
+        `מענה מקצועי, מעצים ומותאם אישית בתחום ${cleanIdea} מבית ${company}.`;
+
+      const longDescription =
+        res.longDescription ||
+        res.description ||
+        `ב-${company} פיתחנו את שירות "${cleanIdea}" כדי להעניק מעטפת שלמה, איכותית ומעצימה ללקוחותינו. השירות משלב מקצועיות ללא פשרות עם יחס אישי, חם ומסור, ונועד לתת מענה אמיתי ומעמיק לצרכים שלכם. ${uvp}`;
+
+      const painPoints = normalizeRepeaterHelper(res.painPoints, 6, 'pain', DEFAULT_PAIN_ICONS, defaultPainFallbacks);
+      const targetAudiences = normalizeRepeaterHelper(res.targetAudiences, 3, 'aud', DEFAULT_AUDIENCE_ICONS, defaultAudienceFallbacks);
+      const competitiveAdvantages = normalizeRepeaterHelper(res.competitiveAdvantages, 6, 'adv', DEFAULT_ADVANTAGE_ICONS, defaultAdvantageFallbacks);
+      const faqs = normalizeFaqsHelper(res.faqs, DEFAULT_FAQ_ICONS, defaultFaqFallbacks);
+
+      const painPointSolved =
+        res.painPointSolved ||
+        painPoints.map((p) => `${p.title}: ${p.text}`).join(' | ');
+
+      const targetAudience =
+        res.targetAudience ||
+        targetAudiences.map((a) => `${a.title}: ${a.text}`).join(' | ');
+
+      const competitiveAdvantage =
+        res.competitiveAdvantage ||
+        competitiveAdvantages.map((c) => `${c.title}: ${c.text}`).join(' | ');
+
+      const rawSeo = res.seo && typeof res.seo === 'object' ? res.seo : {};
+      const seo = {
+        slug: String(rawSeo.slug || '').trim() || undefined,
+        metaTitle: String(rawSeo.metaTitle || `${nameAndSlogan} | ${company}`).trim(),
+        metaDescription: String(rawSeo.metaDescription || shortDescription).trim().slice(0, 160),
+        keywords: String(rawSeo.keywords || `${cleanIdea}, ${company}`).trim(),
+        aiKnowledgeSummary: String(
+          rawSeo.aiKnowledgeSummary ||
+            `${nameAndSlogan} מבית ${company}: ${shortDescription} מעניק מענה ל-${targetAudiences.map((t) => t.title).join(', ')}.`
+        ).trim(),
+        aiTargetQuestions: Array.isArray(rawSeo.aiTargetQuestions) && rawSeo.aiTargetQuestions.length > 0
+          ? rawSeo.aiTargetQuestions.map((q: any) => String(q).trim()).filter(Boolean)
+          : faqs.slice(0, 5).map((f) => f.question),
+        aiEntitySchemaType: 'Service' as const,
+        aiBotIndexingEnabled: rawSeo.aiBotIndexingEnabled !== false,
+      };
+
+      return {
+        nameAndSlogan: String(nameAndSlogan).trim(),
+        shortDescription: String(shortDescription).trim(),
+        longDescription: String(longDescription).trim(),
+        painPointSolved: String(painPointSolved).trim(),
+        targetAudience: String(targetAudience).trim(),
+        competitiveAdvantage: String(competitiveAdvantage).trim(),
+        painPoints,
+        targetAudiences,
+        competitiveAdvantages,
+        faqs,
+        seo,
+      };
+    }
+  } catch (err) {
+    console.warn('[brandCopilotService] generateAiCoreService live AI fallback:', err);
+  }
+
+  const fallbackPainPoints = normalizeRepeaterHelper([], 6, 'pain', DEFAULT_PAIN_ICONS, defaultPainFallbacks);
+  const fallbackTargetAudiences = normalizeRepeaterHelper([], 3, 'aud', DEFAULT_AUDIENCE_ICONS, defaultAudienceFallbacks);
+  const fallbackAdvantages = normalizeRepeaterHelper([], 6, 'adv', DEFAULT_ADVANTAGE_ICONS, defaultAdvantageFallbacks);
+  const fallbackFaqs = normalizeFaqsHelper([], DEFAULT_FAQ_ICONS, defaultFaqFallbacks);
+
+  return {
+    nameAndSlogan: `${cleanIdea} – ${slogan || `השירות המוביל מבית ${company}`}`,
+    shortDescription: `מעטפת שירות מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
+    longDescription: `שירות "${cleanIdea}" מבית ${company} נבנה מתוך היכרות עמוקה עם הצרכים של לקוחותינו. אנו מעניקים שילוב נדיר של איכות מוקפדת, ליווי אישי בגובה העיניים ומענה שלם שמייצר שקט נפשי, חיבור אמיתי ותוצאות משמעותיות לאורך זמן.`,
+    painPointSolved: fallbackPainPoints.map((p) => `${p.title}: ${p.text}`).join(' | '),
+    targetAudience: fallbackTargetAudiences.map((a) => `${a.title}: ${a.text}`).join(' | '),
+    competitiveAdvantage: fallbackAdvantages.map((c) => `${c.title}: ${c.text}`).join(' | '),
+    painPoints: fallbackPainPoints,
+    targetAudiences: fallbackTargetAudiences,
+    competitiveAdvantages: fallbackAdvantages,
+    faqs: fallbackFaqs,
+    seo: {
+      metaTitle: `${cleanIdea} | ${company}`,
+      metaDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
+      keywords: `${cleanIdea}, ${company}`,
+      aiKnowledgeSummary: `${cleanIdea} מבית ${company} מעניק מענה שלם ומקצועי ללקוחות הארגון.`,
       aiTargetQuestions: fallbackFaqs.slice(0, 5).map((f) => f.question),
       aiEntitySchemaType: 'Service',
       aiBotIndexingEnabled: true,

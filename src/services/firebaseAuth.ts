@@ -14,8 +14,9 @@ import {
   Auth,
 } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { resolveCurrentTenantId } from '../core/tenant/tenantResolver';
 
-export type UserRole = 'admin' | 'editor' | 'viewer';
+export type UserRole = 'admin' | 'editor' | 'viewer' | 'subscriber';
 
 export interface AuthState {
   user: User | null;
@@ -38,14 +39,18 @@ export const RolePermissions = {
   canManageCredentials: (role: UserRole) => role === 'admin',
   canManageUsers: (role: UserRole) => role === 'admin',
   canUploadMedia: (role: UserRole) => role === 'admin' || role === 'editor',
+  canEditPages: (role: UserRole) => role === 'admin' || role === 'editor',
+  canUseAiGenerators: (role: UserRole) => role === 'admin' || role === 'editor',
+  canAccessAdminPanel: (role: UserRole) => role === 'admin',
+  isContentSubscriber: (role: UserRole) => role === 'subscriber',
 };
 
 export function getCachedUserRole(uid?: string | null): UserRole {
   if (!uid) return 'viewer';
   try {
     const saved = localStorage.getItem(`sdo_user_role_${uid}`);
-    if (saved === 'admin' || saved === 'editor' || saved === 'viewer') {
-      return saved;
+    if (saved === 'admin' || saved === 'editor' || saved === 'viewer' || saved === 'subscriber') {
+      return saved as UserRole;
     }
   } catch {}
   return 'viewer'; // Default to viewer for safe least-privilege security
@@ -66,7 +71,7 @@ export function setCachedUserRole(uid: string, role: UserRole): void {
   } catch {}
 }
 
-export async function fetchUserRole(uid: string, app?: FirebaseApp): Promise<UserRole> {
+export async function fetchUserRole(uid: string, app?: FirebaseApp, tenantId?: string): Promise<UserRole> {
   const cached = getCachedUserRole(uid);
   try {
     const targetApp = app || ensureDefaultFirebaseApp();
@@ -79,6 +84,32 @@ export async function fetchUserRole(uid: string, app?: FirebaseApp): Promise<Use
     }
 
     const db = getFirestore(targetApp);
+    const effectiveTenant = (tenantId && tenantId !== '_master') ? tenantId.trim().toLowerCase() : null;
+
+    // 1. If in a specific tenant scope, check tenant-specific user doc first
+    if (effectiveTenant) {
+      try {
+        const tenantUserRef = doc(db, 'tenants', effectiveTenant, 'users', uid);
+        const tenantSnap = await getDoc(tenantUserRef);
+        if (tenantSnap.exists()) {
+          const tRole = tenantSnap.data()?.role;
+          if (tRole && (tRole === 'admin' || tRole === 'editor' || tRole === 'viewer' || tRole === 'subscriber')) {
+            setCachedUserRole(uid, tRole);
+            return tRole;
+          }
+        }
+
+        // Also check if user is a content subscriber in tenant's contacts
+        const contactRef = doc(db, 'tenants', effectiveTenant, 'contacts', uid);
+        const contactSnap = await getDoc(contactRef);
+        if (contactSnap.exists() && contactSnap.data()?.isContentSubscriber) {
+          setCachedUserRole(uid, 'subscriber');
+          return 'subscriber';
+        }
+      } catch {}
+    }
+
+    // 2. Global Users collection check
     const userDocRef = doc(db, 'users', uid);
     const snap = await getDoc(userDocRef);
     if (snap.exists()) {
@@ -88,20 +119,29 @@ export async function fetchUserRole(uid: string, app?: FirebaseApp): Promise<Use
         setCachedUserRole(uid, 'admin');
         return 'admin';
       }
-      if (data?.role && (data.role === 'admin' || data.role === 'editor' || data.role === 'viewer')) {
+      if (data?.role && (data.role === 'admin' || data.role === 'editor' || data.role === 'viewer' || data.role === 'subscriber')) {
         setCachedUserRole(uid, data.role);
         return data.role;
       }
     } else {
-      // New user doc creation: safe default 'viewer' unless cached or identified as admin
-      const initialRole: UserRole = isEmailAdmin || cached === 'admin' ? 'admin' : (cached === 'editor' ? 'editor' : 'viewer');
-      await setDoc(userDocRef, {
+      // New user doc creation
+      const initialRole: UserRole = isEmailAdmin || cached === 'admin' ? 'admin' : (cached === 'editor' ? 'editor' : (cached === 'subscriber' ? 'subscriber' : 'viewer'));
+      const userData = {
         uid,
         email: currentUser?.email || '',
         displayName: currentUser?.displayName || '',
         role: initialRole,
+        tenantId: effectiveTenant || '_master',
         updatedAt: Date.now(),
-      }, { merge: true });
+      };
+
+      await setDoc(userDocRef, userData, { merge: true });
+
+      // If tenant scoped, mirror under the tenant's users subcollection
+      if (effectiveTenant) {
+        await setDoc(doc(db, 'tenants', effectiveTenant, 'users', uid), userData, { merge: true });
+      }
+
       setCachedUserRole(uid, initialRole);
       return initialRole;
     }
@@ -111,17 +151,28 @@ export async function fetchUserRole(uid: string, app?: FirebaseApp): Promise<Use
   return cached || 'viewer';
 }
 
-export async function updateUserRole(uid: string, role: UserRole, app?: FirebaseApp): Promise<void> {
+export async function updateUserRole(uid: string, role: UserRole, app?: FirebaseApp, tenantId?: string): Promise<void> {
   setCachedUserRole(uid, role);
   try {
     const targetApp = app || ensureDefaultFirebaseApp();
     const db = getFirestore(targetApp);
-    const userDocRef = doc(db, 'users', uid);
-    await setDoc(userDocRef, {
+    const effectiveTenant = (tenantId && tenantId !== '_master') ? tenantId.trim().toLowerCase() : null;
+
+    await setDoc(doc(db, 'users', uid), {
       uid,
       role,
+      tenantId: effectiveTenant || '_master',
       updatedAt: Date.now(),
     }, { merge: true });
+
+    if (effectiveTenant) {
+      await setDoc(doc(db, 'tenants', effectiveTenant, 'users', uid), {
+        uid,
+        role,
+        tenantId: effectiveTenant,
+        updatedAt: Date.now(),
+      }, { merge: true });
+    }
   } catch (err) {
     console.warn('[FirebaseAuth] updateUserRole notice:', err);
   }
@@ -130,33 +181,67 @@ export async function updateUserRole(uid: string, role: UserRole, app?: Firebase
 /**
  * Automatically creates or updates a contact in the Admin CRM when a user logs in.
  * Guarantees that every active user is reflected in the Admin's CRM contacts list.
+ * Supports scoping directly to a subdomain tenant (tenants/{subdomain}/contacts/{uid}).
  */
-export async function syncUserToAdminCrm(user: User, app?: FirebaseApp): Promise<void> {
+export async function syncUserToAdminCrm(
+  user: User,
+  app?: FirebaseApp,
+  tenantId?: string,
+  isSubscriber?: boolean,
+  subscriptionDetails?: Record<string, any>
+): Promise<void> {
   if (!user || user.isAnonymous) return;
   try {
     const targetApp = app || ensureDefaultFirebaseApp();
     const db = getFirestore(targetApp);
-    const contactDocRef = doc(db, 'contacts', user.uid);
+    const effectiveTenant = (tenantId && tenantId !== '_master') ? tenantId.trim().toLowerCase() : null;
 
     const displayName = user.displayName || user.email?.split('@')[0] || 'משתמש רשום';
     const email = user.email || '';
     const phone = user.phoneNumber || '';
     const nowIso = new Date().toISOString();
 
-    await setDoc(contactDocRef, {
+    const contactPayload = {
       id: user.uid,
       conta_name: displayName,
       email: email,
       conta_phone: phone,
       status: 'active',
       is_lead: false,
-      contact_type: 'contact',
-      lead_source: 'התחברות למערכת (Auth)',
+      contact_type: isSubscriber ? 'subscriber' : 'contact',
+      isContentSubscriber: Boolean(isSubscriber),
+      subscriberRole: isSubscriber ? 'content_subscriber' : undefined,
+      tenantId: effectiveTenant || '_master',
+      registeredSubdomain: effectiveTenant || '_master',
+      lead_source: isSubscriber ? 'הרשמה למנוי תוכן (KosSubscribed)' : (effectiveTenant ? `סאב-דומיין (${effectiveTenant})` : 'התחברות למערכת (Auth)'),
       last_login: nowIso,
       updatedAt: nowIso,
       createdAt: nowIso,
-      tags: ['משתמש רשום', 'Kosun Platform'],
-    }, { merge: true });
+      tags: isSubscriber
+        ? ['מנוי תוכן', effectiveTenant || 'Master', 'KosSubscribed']
+        : ['משתמש רשום', effectiveTenant || 'Kosun Platform'],
+      ...(subscriptionDetails || {}),
+    };
+
+    // 1. Write to tenant-scoped contacts collection if inside a subdomain tenant!
+    if (effectiveTenant) {
+      const tenantContactRef = doc(db, 'tenants', effectiveTenant, 'contacts', user.uid);
+      await setDoc(tenantContactRef, contactPayload, { merge: true });
+
+      // Also ensure tenant-scoped user doc has role
+      await setDoc(doc(db, 'tenants', effectiveTenant, 'users', user.uid), {
+        uid: user.uid,
+        email,
+        displayName,
+        role: isSubscriber ? 'subscriber' : 'viewer',
+        tenantId: effectiveTenant,
+        updatedAt: Date.now(),
+      }, { merge: true });
+    }
+
+    // 2. Global / Master mirror (so master platform has audit pointer with tenant tag)
+    const contactDocRef = doc(db, 'contacts', user.uid);
+    await setDoc(contactDocRef, contactPayload, { merge: true });
 
     // Also notify central eventBus if loaded in browser
     try {
@@ -167,6 +252,8 @@ export async function syncUserToAdminCrm(user: User, app?: FirebaseApp): Promise
         email,
         conta_phone: phone,
         last_login: nowIso,
+        tenantId: effectiveTenant,
+        isContentSubscriber: Boolean(isSubscriber),
       });
     } catch {
       // EventBus optional
@@ -290,7 +377,14 @@ export async function loginWithEmail(email: string, pass: string, app?: Firebase
 /**
  * Email & Password Registration
  */
-export async function registerWithEmail(email: string, pass: string, displayName?: string, app?: FirebaseApp): Promise<User> {
+export async function registerWithEmail(
+  email: string,
+  pass: string,
+  displayName?: string,
+  app?: FirebaseApp,
+  tenantId?: string,
+  role?: UserRole
+): Promise<User> {
   const auth = getOrCreateAuth(app);
   const cred = await createUserWithEmailAndPassword(auth, email.trim(), pass);
   if (displayName && displayName.trim()) {
@@ -300,6 +394,21 @@ export async function registerWithEmail(email: string, pass: string, displayName
       console.warn('[FirebaseAuth] updateProfile notice:', e);
     }
   }
+
+  // Automatic tenant scoping for the newly registered user
+  const effectiveTenant = tenantId || resolveCurrentTenantId();
+  if (cred.user) {
+    await syncUserToAdminCrm(
+      cred.user,
+      app,
+      effectiveTenant,
+      role === 'subscriber'
+    );
+    if (role) {
+      await updateUserRole(cred.user.uid, role, app, effectiveTenant);
+    }
+  }
+
   return cred.user;
 }
 
@@ -348,6 +457,7 @@ export function subscribeToAuth(
 ): () => void {
   try {
     const auth = getOrCreateAuth(app);
+    const activeTenant = resolveCurrentTenantId();
 
     // Immediately notify with current user if already initialized
     if (onState && auth.currentUser) {
@@ -365,8 +475,8 @@ export function subscribeToAuth(
         error: null,
       });
 
-      // Async sync from Firestore
-      fetchUserRole(auth.currentUser.uid, app).then((syncedRole) => {
+      // Async sync from Firestore scoped to tenant
+      fetchUserRole(auth.currentUser.uid, app, activeTenant).then((syncedRole) => {
         if (onState && auth.currentUser && syncedRole !== initialRole) {
           onState({
             user: auth.currentUser,
@@ -403,14 +513,14 @@ export function subscribeToAuth(
           });
 
           if (user) {
-            // Synchronize authenticated user to Admin CRM contacts
+            // Synchronize authenticated user to Admin CRM contacts directly under current tenant
             if (!user.isAnonymous) {
-              syncUserToAdminCrm(user, app).catch(err => {
+              syncUserToAdminCrm(user, app, activeTenant).catch(err => {
                 console.warn('[FirebaseAuth] syncUserToAdminCrm background notice:', err);
               });
             }
 
-            fetchUserRole(user.uid, app).then((syncedRole) => {
+            fetchUserRole(user.uid, app, activeTenant).then((syncedRole) => {
               if (onState && syncedRole !== userRole) {
                 onState({
                   user,

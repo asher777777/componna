@@ -92,6 +92,10 @@ export const SYSTEM_COLLECTIONS = {
   KOS_TIKTOK_VIDEOS: 'mod_kos_tiktok_videos',
   KOS_TIKTOK_LEADS: 'mod_kos_tiktok_leads',
   KOS_TIKTOK_EVENTS: 'mod_kos_tiktok_events',
+
+  // 13. KosDesBuilder ("קושאן דשבורד בילדר" - Dashboard UI Builder Monopoly)
+  DASHBOARD_PAGES: 'mod_kos_des_dashboards',
+  DASHBOARD_TEMPLATES: 'mod_kos_des_templates',
 } as const;
 
 export type SystemCollectionKey = keyof typeof SYSTEM_COLLECTIONS;

@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { collection, getDocs } from 'firebase/firestore';
 import {
   KosvidioGallerySectionConfig,
   KosvidioGalleryItem,
@@ -6,11 +7,17 @@ import {
   KosvidioGallerySource,
   KosvidioGallerySortBy,
 } from '../../types/sectionConfigs';
+import { getCategoryFromPage } from '../../types/pageBuilder.types';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { PageBuilderAccordion, PageBuilderAccordionGroup } from '../../ui/PageBuilderAccordion';
 import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
+import { BrandDna } from '../../../../core/contracts';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { SYSTEM_COLLECTIONS } from '../../../../core/contracts/collections';
 import {
   Video,
   LayoutGrid,
@@ -28,6 +35,38 @@ import {
   ChevronDown,
 } from 'lucide-react';
 
+const DUMMY_YOUTUBE_IDS = new Set([
+  'M7lc1UVf-VE',
+  'dQw4w9WgXcQ',
+  'aqz-KE-bpKQ',
+  'jNQXAC9IVRw',
+  'L_LUpnjgPso',
+]);
+
+function extractYouTubeId(input?: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (/^[a-zA-Z0-9_-]{11}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const match = trimmed.match(
+    /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?/\s]{11})/i
+  );
+  return match ? match[1] : null;
+}
+
+function isDummyVideoItem(item?: Partial<KosvidioGalleryItem> | null): boolean {
+  if (!item) return true;
+  const ytId = extractYouTubeId(item.youtubeVideoId || item.videoUrl);
+  if (ytId && DUMMY_YOUTUBE_IDS.has(ytId)) return true;
+  const itemId = String(item.id || '');
+  return (
+    itemId.startsWith('kosvidio-default-') ||
+    itemId.startsWith('kosvidio-item-') ||
+    itemId.startsWith('brand-srv-vid-')
+  );
+}
+
 export interface KosvidioGalleryEditorProps {
   config: KosvidioGallerySectionConfig;
   onChange: (updated: KosvidioGallerySectionConfig) => void;
@@ -37,11 +76,145 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
   config,
   onChange,
 }) => {
+  const { db } = useSystemConnection();
+  const effTenant = useMemo(
+    () => (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || '_master',
+    []
+  );
+  const isMaster = effTenant === '_master' || effTenant === ROOT_TENANT_ID;
+
+  const [firestoreBrand, setFirestoreBrand] = useState<BrandDna | null>(null);
+  const [tenantVideos, setTenantVideos] = useState<KosvidioGalleryItem[]>([]);
+
   // Default all items closed; only one item open at a time, centered on open
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [newQuickTitle, setNewQuickTitle] = useState('');
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const activeItemRef = useRef<HTMLDivElement | null>(null);
+
+  const liveBrand = useMemo(
+    () => resolveLiveBrandDna(firestoreBrand, effTenant),
+    [firestoreBrand, effTenant]
+  );
+
+  const brandCompanyName =
+    liveBrand?.identity?.companyName ||
+    (liveBrand?.identity as any)?.brandName ||
+    (isMaster ? 'קושאן' : '');
+  const brandSlogan = liveBrand?.identity?.slogan || (isMaster ? 'כל אדם זה נכס' : '');
+  const brandUvp = liveBrand?.audience?.mainUvp || liveBrand?.identity?.companyVision || '';
+  const brandLogoUrl =
+    liveBrand?.identity?.logoUrl || (isMaster ? '/images/kosun-official-logo.png' : '');
+  const brandPrimaryColor = liveBrand?.designTokens?.primaryColor;
+
+  // Load Tenant Brand DNA & Tenant Real KOSVIDIO Videos from Firestore
+  useEffect(() => {
+    let active = true;
+
+    async function loadTenantBrandingAndVideos() {
+      try {
+        const dna = await loadBrandDna(db, effTenant);
+        if (active && dna) {
+          setFirestoreBrand(dna);
+        }
+      } catch {
+        // ignore
+      }
+
+      if (!db) return;
+      const collected: KosvidioGalleryItem[] = [];
+      const seenYoutubeIds = new Set<string>();
+      const tenantPrefix = isMaster ? 'tenants/_master' : `tenants/${effTenant}`;
+
+      try {
+        const tubePagesRef = collection(db, `${tenantPrefix}/${SYSTEM_COLLECTIONS.KOS_TUBE_PAGES}`);
+        const tubePagesSnap = await getDocs(tubePagesRef);
+        tubePagesSnap.forEach((docSnap) => {
+          const d = docSnap.data() as any;
+          if (!d) return;
+          const ytId = extractYouTubeId(d.youtubeVideoId);
+          if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) return;
+          seenYoutubeIds.add(ytId);
+          collected.push({
+            id: `tube_page_${docSnap.id}`,
+            title: d.seoTitle || d.title || 'סרטון KOSVIDIO',
+            subtitle: brandCompanyName,
+            description: d.summary || d.metaDescription || '',
+            youtubeVideoId: ytId,
+            thumbnailUrl: d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+            kosvidioSlug: d.slug || `kosvidio-${ytId}`,
+            viewsCount: Number(d.viewsCount || 150),
+            likesCount: Number(d.likesCount || 30),
+            publishedAt: d.publishedAt || d.createdAt || '',
+            category: d.category || 'KOSVIDIO',
+            tags: Array.isArray(d.tags) ? d.tags : ['KOSVIDIO'],
+            featured: collected.length === 0,
+          });
+        });
+      } catch {
+        // ignore
+      }
+
+      try {
+        const allPages = await pageBuilderFirestore.getAllPages(db, effTenant);
+        const videoPages = (allPages || []).filter((p) => {
+          if (!p || p.isHomePage) return false;
+          const pageId = String(p.pageId || '');
+          const slugLower = String(p.slug || '').toLowerCase();
+          if (pageId.startsWith('home_')) return false;
+          const cat = getCategoryFromPage(p);
+          return (
+            pageId.startsWith('page_kosvidio_') ||
+            cat === 'youtube_post' ||
+            slugLower.startsWith('kosvidio-') ||
+            slugLower.startsWith('kostube-')
+          );
+        });
+
+        for (const p of videoPages) {
+          const kosvidioSec = Object.values(p.sections || {}).find(
+            (s: any) => s && s.type === 'kosvidio'
+          ) as any;
+          const pageIdSuffix = String(p.pageId || '').replace(/^page_kosvidio_/, '');
+          const ytId =
+            extractYouTubeId(kosvidioSec?.youtubeVideoId) ||
+            extractYouTubeId(kosvidioSec?.videoUrl) ||
+            extractYouTubeId(pageIdSuffix);
+          if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) continue;
+          seenYoutubeIds.add(ytId);
+
+          collected.push({
+            id: p.pageId || `page_${p.slug}`,
+            title: kosvidioSec?.title || p.pageTitle || 'סרטון KOSVIDIO',
+            subtitle: brandCompanyName,
+            description: kosvidioSec?.shortDescription || p.seoSettings?.description || '',
+            youtubeVideoId: ytId,
+            videoUrl: kosvidioSec?.videoUrl,
+            thumbnailUrl:
+              p.seoSettings?.ogImage || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+            kosvidioSlug: p.slug || `kosvidio-${ytId}`,
+            viewsCount: Number(kosvidioSec?.viewsCount || p.viewsCount || 120),
+            likesCount: Number(kosvidioSec?.likesCount || 24),
+            publishedAt: kosvidioSec?.publishedDateText || p.updatedAt || '',
+            category: 'KOSVIDIO',
+            tags: ['KOSVIDIO'],
+            featured: collected.length === 0,
+          });
+        }
+      } catch {
+        // ignore
+      }
+
+      if (active) {
+        setTenantVideos(collected);
+      }
+    }
+
+    loadTenantBrandingAndVideos();
+    return () => {
+      active = false;
+    };
+  }, [db, effTenant, isMaster, brandCompanyName]);
 
   useEffect(() => {
     if (activeItemId && activeItemRef.current) {
@@ -79,148 +252,93 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
     });
   };
 
-  const handleSyncFromBrandDna = () => {
-    const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
-    const brand = resolveLiveBrandDna(null, effTenant);
-    const companyName = brand.identity?.companyName || 'קושאן';
-    const slogan = brand.identity?.slogan || 'כל אדם זה נכס';
-    const uvp = brand.audience?.mainUvp || '';
-    const logoUrl = brand.identity?.logoUrl || '/images/kosun-official-logo.png';
-    const rawServices = brand.ecosystem?.services || [];
-
-    const sampleYtIds = ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ', 'jNQXAC9IVRw'];
-    const syncedItems: KosvidioGalleryItem[] =
-      rawServices.length > 0
-        ? rawServices.map((srv: any, idx: number) => {
-            const srvName = typeof srv === 'string' ? srv : srv?.name || `שירות ${idx + 1}`;
-            return {
-              id: `kosvidio-item-${Date.now()}-${idx}`,
-              title: srvName,
-              subtitle: `${companyName} • ${slogan}`,
-              description: `סרטון הדרכה והצגת ערך עבור ${srvName} מבית ${companyName}. מקושר לעמוד KOSVIDIO.`,
-              youtubeVideoId: sampleYtIds[idx % sampleYtIds.length],
-              kosvidioSlug: 'Kosvidio',
-              duration: '03:45',
-              viewsCount: 1200 + idx * 350,
-              likesCount: 95 + idx * 25,
-              category: 'שירותים מרכזיים',
-              tags: [srvName, companyName, 'KOSVIDIO'],
-              featured: idx === 0,
-            };
-          })
-        : config.items || [];
+  const handleSyncFromBrandDna = async () => {
+    const freshBrand = await loadBrandDna(db, effTenant);
+    setFirestoreBrand(freshBrand);
+    const companyName =
+      freshBrand.identity?.companyName ||
+      (freshBrand.identity as any)?.brandName ||
+      (isMaster ? 'קושאן' : '');
+    const slogan = freshBrand.identity?.slogan || (isMaster ? 'כל אדם זה נכס' : '');
+    const uvp = freshBrand.audience?.mainUvp || freshBrand.identity?.companyVision || '';
+    const logoUrl =
+      freshBrand.identity?.logoUrl || (isMaster ? '/images/kosun-official-logo.png' : '');
+    const primaryColor = freshBrand.designTokens?.primaryColor;
 
     onChange({
       ...config,
-      title: `ספריית הוידאו והפתרונות של ${companyName}`,
+      title: companyName ? `ספריית הוידאו והתוכן של ${companyName}` : 'ספריית הוידאו והתוכן',
       subtitle: slogan,
       description:
         uvp ||
-        `צפו בסרטונים המובילים של ${companyName} המקושרים ישירות לעמודי ה-KOSVIDIO של הטננט.`,
+        (companyName
+          ? `צפו בסרטונים המובילים של ${companyName} המקושרים ישירות לעמודי ה-KOSVIDIO של הטננט.`
+          : ''),
       channelName: companyName,
       channelSlogan: slogan,
       channelAvatarUrl: logoUrl,
-      items: syncedItems,
+      ...(primaryColor ? { accentColor: primaryColor } : {}),
+      items: [],
     });
   };
+
+  const cleanCustomItems = useMemo(
+    () => (Array.isArray(config.items) ? config.items.filter((i) => !isDummyVideoItem(i)) : []),
+    [config.items]
+  );
+
+  // Videos displayed in editor list: custom items if present, otherwise live tenant KOSVIDIO videos
+  const editorVideoList = useMemo(
+    () => (cleanCustomItems.length > 0 ? cleanCustomItems : tenantVideos),
+    [cleanCustomItems, tenantVideos]
+  );
 
   const handleAiSuggestVideos = () => {
     setIsGeneratingAi(true);
     setTimeout(() => {
-      const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
-      const brand = resolveLiveBrandDna(null, effTenant);
-      const companyName = brand.identity?.companyName || 'קושאן';
-      const slogan = brand.identity?.slogan || 'כל אדם זה נכס';
-      const rawServices = brand.ecosystem?.services || [];
-
-      const existingTitles = new Set((config.items || []).map((i) => i.title));
-      const candidates: string[] = [
-        ...rawServices.map((s: any) => (typeof s === 'string' ? s : s?.name || '')),
-        `הסיפור של ${companyName} – ${slogan}`,
-        `איך ${companyName} מייצרת תוצאות מוכחות ללקוחות`,
-        `מדריך מעשי וסיור מאחורי הקלעים של ${companyName}`,
-      ].filter(Boolean);
-
-      const newSuggestions: KosvidioGalleryItem[] = [];
-      const sampleYtIds = ['M7lc1UVf-VE', 'aqz-KE-bpKQ', 'dQw4w9WgXcQ', 'jNQXAC9IVRw'];
-
-      for (let i = 0; i < candidates.length; i++) {
-        const titleCandidate = candidates[i];
-        if (!existingTitles.has(titleCandidate)) {
-          newSuggestions.push({
-            id: `ai-vid-${Date.now()}-${i}`,
-            title: titleCandidate,
-            subtitle: `${companyName} • KOSVIDIO`,
-            description: `סרטון תוכן ו-SEO מעמיק בנושא ${titleCandidate} מבית ${companyName}.`,
-            youtubeVideoId: sampleYtIds[i % sampleYtIds.length],
-            kosvidioSlug: 'Kosvidio',
-            duration: '04:10',
-            viewsCount: 1450,
-            likesCount: 130,
-            category: 'KOSVIDIO',
-            tags: [titleCandidate, companyName, 'KOSVIDIO'],
-          });
-        }
-        if (newSuggestions.length >= 2) break;
+      if (tenantVideos.length > 0) {
+        update('items', tenantVideos);
       }
-
-      if (newSuggestions.length === 0) {
-        newSuggestions.push({
-          id: `ai-vid-${Date.now()}`,
-          title: `סרטון מומחים חדש מבית ${companyName}`,
-          subtitle: slogan,
-          description: `סקירה מקצועית מבית ${companyName} המקושרת לסלאג KOSVIDIO.`,
-          youtubeVideoId: 'M7lc1UVf-VE',
-          kosvidioSlug: 'Kosvidio',
-          duration: '03:50',
-          viewsCount: 1100,
-          likesCount: 98,
-          category: 'KOSVIDIO',
-          tags: [companyName, 'KOSVIDIO'],
-        });
-      }
-
-      update('items', [...(config.items || []), ...newSuggestions]);
       setIsGeneratingAi(false);
-    }, 350);
+    }, 250);
   };
 
   const handleQuickAddItem = () => {
     const clean = newQuickTitle.trim();
     if (!clean) return;
-    const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
-    const brand = resolveLiveBrandDna(null, effTenant);
-    const companyName = brand.identity?.companyName || 'קושאן';
 
     const newItem: KosvidioGalleryItem = {
       id: `vid-${Date.now()}`,
       title: clean,
-      subtitle: companyName,
+      subtitle: brandCompanyName,
       description: `סרטון וידאו בנושא ${clean} המקושר לעמוד ה-KOSVIDIO.`,
-      youtubeVideoId: 'M7lc1UVf-VE',
-      kosvidioSlug: 'Kosvidio',
+      youtubeVideoId: '',
+      kosvidioSlug: '/kosvidio',
       duration: '03:30',
-      viewsCount: 850,
-      likesCount: 72,
+      viewsCount: 100,
+      likesCount: 20,
       category: 'KOSVIDIO',
       tags: [clean, 'KOSVIDIO'],
     };
 
-    const next = [...(config.items || []), newItem];
+    const baseList = cleanCustomItems.length > 0 ? cleanCustomItems : tenantVideos;
+    const next = [...baseList, newItem];
     update('items', next);
     setNewQuickTitle('');
     setActiveItemId(newItem.id);
   };
 
   const handleUpdateItem = (id: string, patch: Partial<KosvidioGalleryItem>) => {
-    const next = (config.items || []).map((item) =>
+    const baseList = cleanCustomItems.length > 0 ? cleanCustomItems : tenantVideos;
+    const next = baseList.map((item) =>
       item.id === id ? { ...item, ...patch } : item
     );
     update('items', next);
   };
 
   const handleRemoveItem = (id: string) => {
-    const next = (config.items || []).filter((item) => item.id !== id);
+    const baseList = cleanCustomItems.length > 0 ? cleanCustomItems : tenantVideos;
+    const next = baseList.filter((item) => item.id !== id);
     update('items', next);
     if (activeItemId === id) {
       setActiveItemId(null);
@@ -491,7 +609,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         {/* TAB 3: ניהול רשימת הסרטונים בעיצוב כרטיס המיתוג (סעיף ג + ד + צילום המסך) */}
         <PageBuilderAccordion
           id="tab-videos-list"
-          title={`ג. סרטונים ושירותים מרכזיים (${(config.items || []).length})`}
+          title={`ג. סרטונים בגלריה מתוך קולקציית הטננט (${editorVideoList.length})`}
           subtitle="ניהול סרטונים המקושרים ל-KOSVIDIO • כל פריט נפתח בנפרד וממורכז"
           icon={<Briefcase className="w-4 h-4 text-indigo-400" />}
         >
@@ -500,7 +618,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Briefcase className="w-4 h-4 text-indigo-400" />
-                <span>סרטונים ושירותים מרכזיים</span>
+                <span>סרטוני הטננט ({editorVideoList.length})</span>
               </h3>
               <button
                 type="button"
@@ -509,13 +627,13 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                 className="flex items-center gap-1.5 text-xs text-indigo-300 bg-indigo-500/15 hover:bg-indigo-500/25 border border-indigo-500/30 px-3 py-1.5 rounded-xl font-bold transition-colors cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{isGeneratingAi ? 'מייצר...' : 'הצע רעיונות עם AI'}</span>
+                <span>{isGeneratingAi ? 'טוען...' : 'משוך סרטוני KOSVIDIO מהטננט'}</span>
               </button>
             </div>
 
             {/* Rounded rows list - Default all closed, clicking opens ONE centered */}
             <div className="space-y-2.5">
-              {(config.items || []).map((item) => {
+              {editorVideoList.map((item) => {
                 const isOpen = activeItemId === item.id;
                 return (
                   <div
@@ -577,17 +695,17 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                                 handleUpdateItem(item.id, { youtubeVideoId: val });
                               }
                             }}
-                            placeholder="M7lc1UVf-VE או קישור מלא"
+                            placeholder="מזהה סרטון YouTube או קישור מלא"
                             dir="ltr"
                           />
 
                           <PageBuilderInput
                             label="סלאג עמוד יעד (KOSVIDIO Slug)"
-                            value={item.kosvidioSlug || 'Kosvidio'}
+                            value={item.kosvidioSlug || '/kosvidio'}
                             onChange={(e) =>
                               handleUpdateItem(item.id, { kosvidioSlug: e.target.value })
                             }
-                            placeholder="Kosvidio"
+                            placeholder="/kosvidio"
                             dir="ltr"
                           />
                         </div>
@@ -621,7 +739,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                           <PageBuilderInput
                             label="צפיות"
                             type="number"
-                            value={String(item.viewsCount ?? 1200)}
+                            value={String(item.viewsCount ?? 120)}
                             onChange={(e) =>
                               handleUpdateItem(item.id, {
                                 viewsCount: Number(e.target.value) || 0,
@@ -646,9 +764,9 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                 );
               })}
 
-              {(config.items || []).length === 0 && (
+              {editorVideoList.length === 0 && (
                 <div className="text-xs text-slate-400 text-center py-4 bg-slate-950/40 rounded-xl border border-dashed border-slate-800">
-                  טרם נוספו סרטונים. לחצו על &quot;הצע רעיונות עם AI&quot; או הוסיפו למטה.
+                  לא נמצאו סרטוני KOSVIDIO בקולקציית הטננט. הוסיפו סרטון למטה או דרך מודול KOSVIDIO.
                 </div>
               )}
             </div>
@@ -660,7 +778,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                 value={newQuickTitle}
                 onChange={(e) => setNewQuickTitle(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleQuickAddItem()}
-                placeholder="הוסף סרטון או שירות לקישור ל-KOSVIDIO..."
+                placeholder="הוסף סרטון לקישור ל-KOSVIDIO..."
                 className="flex-1 bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
               />
               <button
@@ -679,7 +797,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         <PageBuilderAccordion
           id="tab-colors-titles"
           title="ד-ה. צבע רקע, כותרת, תיאור ומיתוג האזור"
-          subtitle="קביעת צבע רקע, כותרת, תיאור ופרטי ערוץ מתוך רכיב המיתוג"
+          subtitle="קביעת צבע רקע, כותרת, תיאור ופרטי ערוץ מתוך קולקציית המיתוג של הטננט"
           icon={<Palette className="w-4 h-4 text-emerald-400" />}
         >
           <div className="space-y-4">
@@ -691,24 +809,31 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
             />
 
             <PageBuilderInput
-              label="כותרת האזור"
-              value={config.title || ''}
+              label="כותרת האזור (ברירת מחדל מתוך מיתוג הטננט)"
+              value={
+                config.title ||
+                (brandCompanyName ? `ספריית הוידאו והתוכן של ${brandCompanyName}` : '')
+              }
               onChange={(e) => update('title', e.target.value)}
-              placeholder="ספריית הוידאו והתוכן שלנו"
+              placeholder={
+                brandCompanyName
+                  ? `ספריית הוידאו והתוכן של ${brandCompanyName}`
+                  : 'ספריית הוידאו והתוכן'
+              }
             />
 
             <PageBuilderInput
-              label="תת-כותרת (סלוגן מהמיתוג)"
-              value={config.subtitle || ''}
+              label="תת-כותרת (סלוגן מתוך מיתוג הטננט)"
+              value={config.subtitle || brandSlogan || ''}
               onChange={(e) => update('subtitle', e.target.value)}
-              placeholder="כל אדם זה נכס"
+              placeholder={brandSlogan || 'סלוגן הערוץ'}
             />
 
             <PageBuilderTextarea
-              label="תיאור האזור"
-              value={config.description || ''}
+              label="תיאור האזור (ברירת מחדל מתוך מיתוג הטננט)"
+              value={config.description || brandUvp || ''}
               onChange={(e) => update('description', e.target.value)}
-              placeholder="תיאור קצר המופיע מתחת לכותרת האזור..."
+              placeholder={brandUvp || 'תיאור קצר המופיע מתחת לכותרת האזור...'}
               rows={3}
             />
 
@@ -734,7 +859,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
 
               <PageBuilderColorPicker
                 label="צבע הדגשה וכפתור ניגון (Accent)"
-                value={config.accentColor || '#ef4444'}
+                value={config.accentColor || brandPrimaryColor || '#ef4444'}
                 onChange={(color) => update('accentColor', color)}
               />
 
@@ -749,21 +874,21 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
             <div className="pt-3 border-t border-slate-800 space-y-3">
               <div className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
                 <Link2 className="w-3.5 h-3.5 text-sky-400" />
-                <span>חיבור לערוץ המותג ולסלאג KOSVIDIO</span>
+                <span>חיבור לערוץ הטננט ולסלאג KOSVIDIO</span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 <PageBuilderInput
-                  label="שם הערוץ (ברירת מחדל מהמיתוג)"
-                  value={config.channelName || ''}
+                  label="שם הערוץ (ברירת מחדל ממיתוג הטננט)"
+                  value={config.channelName || brandCompanyName || ''}
                   onChange={(e) => update('channelName', e.target.value)}
-                  placeholder="קושאן"
+                  placeholder={brandCompanyName || 'שם הערוץ'}
                 />
                 <PageBuilderInput
                   label="סלוגן הערוץ"
-                  value={config.channelSlogan || ''}
+                  value={config.channelSlogan || brandSlogan || ''}
                   onChange={(e) => update('channelSlogan', e.target.value)}
-                  placeholder="כל אדם זה נכס"
+                  placeholder={brandSlogan || 'סלוגן הערוץ'}
                 />
               </div>
 
@@ -776,9 +901,9 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                 />
                 <PageBuilderInput
                   label="כתובת / סלאג יעד (KOSVIDIO)"
-                  value={config.ctaButtonUrl || '/p/Kosvidio'}
+                  value={config.ctaButtonUrl || '/kosvidio'}
                   onChange={(e) => update('ctaButtonUrl', e.target.value)}
-                  placeholder="/p/Kosvidio"
+                  placeholder="/kosvidio"
                   dir="ltr"
                 />
               </div>
