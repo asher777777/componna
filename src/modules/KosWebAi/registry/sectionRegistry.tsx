@@ -109,7 +109,7 @@ export interface SectionDefinition {
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   viewComponent: React.ComponentType<{ config: any; [key: string]: any }>;
-  editorComponent: React.ComponentType<{ config: any; onChange: (updated: any) => void }>;
+  editorComponent: React.ComponentType<{ config: any; onChange: (updated: any) => void; onClose?: () => void }>;
   defaultConfig: any;
 }
 
@@ -179,9 +179,9 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
 
   liveAnalytics: {
     type: 'liveAnalytics',
-    name: 'אנליטיקס וביצועי דף חיים (Live Analytics)',
+    name: 'אנליטיקס, Google Analytics ו-Search Console (Live Analytics)',
     category: 'marketing',
-    description: 'הצגת מדדי צפיות, מבקרים, המרות ותנועה ממנועי AI ומגוגל בזמן אמת',
+    description: 'הצגת מדדי צפיות, מבקרים, המרות, חיבור Google Analytics 4, Google Search Console ותנועה ממנועי AI בזמן אמת',
     icon: Activity,
     viewComponent: LiveAnalyticsSection as any,
     editorComponent: LiveAnalyticsEditor as any,
@@ -190,7 +190,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       visible: true,
       anchorId: 'analytics',
       title: 'מדדי ביצועים ואנליטיקס בזמן אמת',
-      subtitle: 'נתוני צפייה, אינטראקציה ותנועה ממנועי AI ומגוגל',
+      subtitle: 'נתוני צפייה, אינטראקציה, חיפוש אורגני מ-Google Search Console ותנועה ממנועי AI',
       adminOnly: false,
       displayStyle: 'bento',
       showViews: true,
@@ -199,8 +199,10 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       showLeads: true,
       showConversionRate: true,
       showTrafficSources: true,
+      showSearchConsoleCard: true,
       showAiTrafficBadge: true,
       showGa4StatusBadge: true,
+      showGscStatusBadge: true,
       customBadgeText: 'Live Telemetry Active',
     },
   },

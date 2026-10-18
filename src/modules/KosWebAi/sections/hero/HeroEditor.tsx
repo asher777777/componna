@@ -6,6 +6,7 @@ import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesCon
 import { BrandDnaContract } from '../../../../core/contracts';
 import {
   Save,
+  X,
   ChevronDown,
   Sparkles,
   Palette,
@@ -131,7 +132,8 @@ export const HERO_LAYOUT_DEFINITIONS: HeroLayoutDefinition[] = [
 export const HeroEditor: React.FC<{
   config: HeroSectionConfig;
   onChange: (updated: HeroSectionConfig) => void;
-}> = ({ config, onChange }) => {
+  onClose?: () => void;
+}> = ({ config, onChange, onClose }) => {
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
 
@@ -144,6 +146,7 @@ export const HeroEditor: React.FC<{
   const [hoveredLayoutId, setHoveredLayoutId] = useState<HeroLayoutPreset | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
 
@@ -204,14 +207,27 @@ export const HeroEditor: React.FC<{
     showNotification(`הוחלה ${layoutDef.title}`);
   };
 
-  const handleSave = () => {
+  const handleSave = (closeAfter = false) => {
     setIsSaving(true);
     try {
       onChange(formData);
       setInitialData({ ...formData });
+      setShowUnsavedConfirm(false);
       showNotification('הגדרות אזור ההירו נשמרו בהצלחה');
+      if (closeAfter && onClose) {
+        onClose();
+      }
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleRequestClose = () => {
+    if (!onClose) return;
+    if (isDirty) {
+      setShowUnsavedConfirm(true);
+    } else {
+      onClose();
     }
   };
 
@@ -294,7 +310,7 @@ export const HeroEditor: React.FC<{
           </div>
         </div>
 
-        {/* Left: Quick Actions (Brand DNA Sync, Save Icon in Header) */}
+        {/* Left: Quick Actions (Brand DNA Sync, Save Icon in Header, Optional Close X) */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
@@ -313,7 +329,7 @@ export const HeroEditor: React.FC<{
 
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => handleSave(false)}
             disabled={isSaving}
             className={`p-1.5 rounded-full transition shadow-sm cursor-pointer disabled:opacity-50 ${
               isDirty
@@ -326,8 +342,66 @@ export const HeroEditor: React.FC<{
           >
             <Save className="w-3.5 h-3.5" />
           </button>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={handleRequestClose}
+              className={`p-1.5 rounded-full transition cursor-pointer ${
+                isDarkMode
+                  ? 'bg-white/10 hover:bg-white/20 text-white'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+              title="סגור"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Unsaved Changes Confirmation Banner */}
+      {showUnsavedConfirm && (
+        <div
+          className={`mb-2.5 p-3 rounded-2xl border flex flex-col gap-2 animate-fadeIn ${
+            isDarkMode
+              ? 'bg-amber-950/40 border-amber-500/40 text-amber-200'
+              : 'bg-amber-50 border-amber-300 text-amber-900'
+          }`}
+        >
+          <div className="text-xs font-bold">יש שינויים שלא נשמרו. מה ברצונך לעשות?</div>
+          <div className="flex items-center gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => handleSave(true)}
+              className="px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition cursor-pointer"
+            >
+              שמור וסגור
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowUnsavedConfirm(false);
+                if (onClose) onClose();
+              }}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer ${
+                isDarkMode
+                  ? 'bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-800/50'
+                  : 'bg-red-100 hover:bg-red-200 text-red-700'
+              }`}
+            >
+              צא ללא שמירה
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUnsavedConfirm(false)}
+              className="px-2.5 py-1 rounded-xl text-xs opacity-70 hover:opacity-100 transition cursor-pointer"
+            >
+              ביטול
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* 2. Icon Menu with Rich Tooltip for the 6 Hero Layouts ("תפריט אייקון עם טולטיפ") */}
       <div
@@ -1208,9 +1282,22 @@ export const HeroEditor: React.FC<{
         </div>
 
         <div className="flex items-center gap-2">
+          {onClose && (
+            <button
+              type="button"
+              onClick={handleRequestClose}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                isDarkMode
+                  ? 'bg-white/5 hover:bg-white/10 text-zinc-300'
+                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+              }`}
+            >
+              סגור
+            </button>
+          )}
           <button
             type="button"
-            onClick={handleSave}
+            onClick={() => handleSave(Boolean(onClose))}
             disabled={isSaving}
             className={`px-4 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50 ${
               isDirty

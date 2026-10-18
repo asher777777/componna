@@ -531,13 +531,39 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
         )}
       </main>
 
-      {/* 100% Full-Screen Section Content Editor Modal */}
+      {/* Section Content Editor Modal (Contact360Modal / PageSettingsDrawer style for Hero & RichContent, PageBuilderModal for others) */}
       {editingSectionId && sections[editingSectionId] && (
         (() => {
           const sec = sections[editingSectionId];
           const reg = SECTION_REGISTRY[sec.type as keyof typeof SECTION_REGISTRY];
           if (!reg || !reg.editorComponent) return null;
           const EditorComponent = reg.editorComponent;
+
+          if (sec.type === 'hero' || sec.type === 'richContent') {
+            return (
+              <div
+                className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-300 font-sans"
+                style={{ fontFamily: "'Heebo', sans-serif" }}
+                dir="rtl"
+                onClick={() => setEditingSectionId(null)}
+              >
+                <div
+                  className="w-full max-w-[500px] max-h-[92vh] overflow-y-auto no-scrollbar"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <EditorComponent
+                    config={sec}
+                    onChange={(updated) => {
+                      if (onUpdateSection) {
+                        onUpdateSection(editingSectionId, updated);
+                      }
+                    }}
+                    onClose={() => setEditingSectionId(null)}
+                  />
+                </div>
+              </div>
+            );
+          }
 
           return (
             <PageBuilderModal

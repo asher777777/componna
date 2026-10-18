@@ -433,6 +433,17 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'liveAnalytics': {
+      cloned.title = cloned.title || `מדדי ביצועים ואנליטיקס בזמן אמת • ${companyName}`;
+      cloned.subtitle =
+        cloned.subtitle ||
+        'נתוני צפייה, אינטראקציה, חיפוש אורגני מ-Google Search Console ותנועה ממנועי AI';
+      cloned.showGa4StatusBadge = cloned.showGa4StatusBadge !== false;
+      cloned.showGscStatusBadge = cloned.showGscStatusBadge !== false;
+      cloned.showSearchConsoleCard = cloned.showSearchConsoleCard !== false;
+      break;
+    }
+
     default: {
       // General fallbacks for common fields across any section type
       if ('companyName' in cloned && !cloned.companyName) cloned.companyName = companyName;

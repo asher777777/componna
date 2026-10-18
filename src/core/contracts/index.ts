@@ -1908,6 +1908,7 @@ export interface LivingCarouselCardItem {
   price?: string;
   ctaText?: string;
   actionLabel?: string;
+  actionType?: string;
   externalUrl?: string;
 }
 
@@ -1930,6 +1931,7 @@ export interface LivingOverlayItem {
   price?: string;
   actions?: LivingOverlayAction[];
   cards?: LivingCarouselCardItem[];
+  carouselItems?: LivingCarouselCardItem[];
   formFields?: LivingFormFieldConfig[];
   smartFormId?: string;
   webhookUrl?: string;
@@ -1954,6 +1956,8 @@ export interface LivingSceneContract {
   cameraAngle?: string;
   avatarId?: string;
   voiceId?: string;
+  mediaId?: string;
+  mediaName?: string;
   backgroundMediaUrl?: string;
   fallbackImageUrl?: string;
   generatedImageUrl?: string;
@@ -1961,6 +1965,8 @@ export interface LivingSceneContract {
   renderedVideoUrl?: string;
   videoUrl?: string;
   renderedAudioUrl?: string;
+  audioUrl?: string;
+  formsApiEndpoint?: string;
   durationSeconds?: number;
   transitionEffect?: 'cut' | 'fade' | 'zoom' | 'slide' | 'whip_pan' | 'glitch';
   heygenStatus?: 'pending' | 'processing' | 'completed' | 'failed' | string;
@@ -1978,14 +1984,15 @@ export interface LivingSceneContract {
   micPosition?: 'center' | 'bottom' | 'screen_center_trigger' | 'hidden';
   micIcon?: string;
   micPromptText?: string;
-  micActionType?: 'open_text_input' | 'navigate_to_node';
-  micTargetAction?: 'open_text_input' | 'navigate_to_node';
+  micActionType?: 'open_text_input' | 'navigate_to_node' | 'navigate_to_scene';
+  micTargetAction?: 'open_text_input' | 'navigate_to_node' | 'navigate_to_scene';
   clickMicTargetSceneId?: string;
   micTargetSceneId?: string;
   autoTransitionOnEnd?: boolean;
   autoTransitionDelaySec?: number;
   autoTransitionAfterSeconds?: number;
   autoTransitionTarget?: string;
+  autoTransitionTargetSceneId?: string;
   nextSceneId?: string;
   enableVoiceTrigger?: boolean;
   subtitleEnabled?: boolean;
@@ -2008,6 +2015,7 @@ export interface LivingCampaignContract {
   scenes: Record<string, LivingSceneContract>;
   sourcePageId?: string;
   sourceProductId?: string;
+  formsApiEndpoint?: string;
   isPublished: boolean;
   publishedAt?: number;
   aspectRatio: '16:9' | '9:16' | '1:1' | 'auto';

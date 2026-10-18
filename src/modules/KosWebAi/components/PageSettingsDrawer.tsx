@@ -981,6 +981,72 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                   </p>
                 </div>
 
+                {/* Google Search Console Connection */}
+                <div className="space-y-1.5 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between pb-0.5">
+                    <label className="text-[10px] font-bold text-blue-400 flex items-center gap-1">
+                      <Search className="w-3 h-3" />
+                      <span>חיבור Google Search Console</span>
+                    </label>
+                    {formDataGlobal.googleSearchConsoleVerification || formDataGlobal.googleSearchConsolePropertyUrl ? (
+                      <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[9px] font-bold">
+                        מחובר ומאומת
+                      </span>
+                    ) : (
+                      <span className="px-1.5 py-0.2 rounded-md bg-white/5 text-zinc-400 text-[9px]">
+                        טרם הוגדר
+                      </span>
+                    )}
+                  </div>
+
+                  <input
+                    type="text"
+                    value={formDataGlobal.googleSearchConsoleVerification || ''}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const metaMatch = raw.match(/content=["']([^"']+)["']/i);
+                      const cleaned = metaMatch?.[1] ? metaMatch[1].trim() : raw.replace(/^google-site-verification=/i, '').trim();
+                      handleGlobalChange('googleSearchConsoleVerification', cleaned);
+                      handleGlobalChange('googleSearchConsoleConnected', Boolean(cleaned || formDataGlobal.googleSearchConsolePropertyUrl));
+                    }}
+                    placeholder='קוד אימות או תגית <meta name="google-site-verification" ... />'
+                    dir="ltr"
+                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      isDarkMode ? 'bg-transparent border-blue-500/60 text-white placeholder-zinc-500' : 'bg-white border-blue-500/60 text-slate-900'
+                    }`}
+                  />
+
+                  <input
+                    type="text"
+                    value={formDataGlobal.googleSearchConsolePropertyUrl || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.trim();
+                      handleGlobalChange('googleSearchConsolePropertyUrl', val);
+                      handleGlobalChange('googleSearchConsoleConnected', Boolean(val || formDataGlobal.googleSearchConsoleVerification));
+                    }}
+                    placeholder="כתובת נכס / דומיין ב-Search Console (https://...)"
+                    dir="ltr"
+                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      isDarkMode ? 'bg-transparent border-blue-500/40 text-white placeholder-zinc-500' : 'bg-white border-blue-500/40 text-slate-900'
+                    }`}
+                  />
+
+                  <div className="flex items-center justify-between pt-0.5">
+                    <p className="text-[10px] text-zinc-400 leading-tight">
+                      מזריק אוטומטית תגית אימות <code>google-site-verification</code> לדף הציבורי.
+                    </p>
+                    <a
+                      href="https://search.google.com/search-console"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-400 hover:text-blue-300 shrink-0"
+                    >
+                      <span>Search Console</span>
+                      <ExternalLink className="w-2.5 h-2.5" />
+                    </a>
+                  </div>
+                </div>
+
                 {/* Tenant Isolation Info */}
                 <div className="p-2.5 rounded-xl bg-white/5 border border-white/5 space-y-1 mt-1">
                   <div className="flex items-center gap-1.5 text-[11px] font-bold text-amber-400">

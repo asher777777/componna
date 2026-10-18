@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Play, Pause, RotateCcw, Mic, MicOff } from 'lucide-react';
+import { X, Play, Pause, RotateCcw, Mic, MicOff, FolderOpen } from 'lucide-react';
 import { useKosLive } from '../context/KosLiveContext';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { pickMediaFromGallery, uploadFileAndSyncToGallery } from '../services/livingMediaGalleryBridge';
 
 export const TeleprompterModal: React.FC = () => {
   const {
@@ -11,11 +15,16 @@ export const TeleprompterModal: React.FC = () => {
     updateCurrentScene
   } = useKosLive();
 
+  const { db, storage } = useSystemConnection();
+  const { tenantId } = useTenantScope();
+  const { getCapability } = useHostCapabilities();
+
   const targetScene = activeProject?.scenes.find(s => s.id === modalTargetSceneId);
   const [scrollSpeed, setScrollSpeed] = useState(2);
   const [isScrolling, setIsScrolling] = useState(false);
   const [fontSize, setFontSize] = useState(24);
   const [isRecording, setIsRecording] = useState(false);
+  const [isSavingToGallery, setIsSavingToGallery] = useState(false);
   const [recordedAudioUrl, setRecordedAudioUrl] = useState<string | null>(targetScene?.renderedAudioUrl || null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -46,6 +55,14 @@ export const TeleprompterModal: React.FC = () => {
     setIsScrolling(false);
   };
 
+  const handlePickAudioFromGallery = async () => {
+    const url = await pickMediaFromGallery(getCapability as any, 'audio');
+    if (url) {
+      setRecordedAudioUrl(url);
+      updateCurrentScene(modalTargetSceneId, { renderedAudioUrl: url });
+    }
+  };
+
   const handleStartRecording = async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -59,11 +76,25 @@ export const TeleprompterModal: React.FC = () => {
         }
       };
 
-      mediaRecorder.onstop = () => {
+      mediaRecorder.onstop = async () => {
         const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        const url = URL.createObjectURL(audioBlob);
-        setRecordedAudioUrl(url);
-        updateCurrentScene(modalTargetSceneId, { renderedAudioUrl: url });
+        const localUrl = URL.createObjectURL(audioBlob);
+        setRecordedAudioUrl(localUrl);
+        updateCurrentScene(modalTargetSceneId, { renderedAudioUrl: localUrl });
+
+        setIsSavingToGallery(true);
+        try {
+          const fileName = `teleprompter_${targetScene?.id || 'scene'}_${Date.now()}.webm`;
+          const { url } = await uploadFileAndSyncToGallery(audioBlob, fileName, 'audio', {
+            storage: storage as any,
+            db: db as any,
+            tenantId
+          });
+          setRecordedAudioUrl(url);
+          updateCurrentScene(modalTargetSceneId, { renderedAudioUrl: url });
+        } finally {
+          setIsSavingToGallery(false);
+        }
       };
 
       mediaRecorder.start();
@@ -90,7 +121,7 @@ export const TeleprompterModal: React.FC = () => {
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <h2 className="text-sm font-bold text-white">
-              טלפרומפטר והקלטת קול עצמית - {targetScene?.title}
+              טלפרומפטר והקלטת קול עצמית (מסונכרן לגלריה) - {targetScene?.title}
             </h2>
           </div>
 
@@ -146,7 +177,7 @@ export const TeleprompterModal: React.FC = () => {
           <div className="h-48" />
         </div>
 
-        <div className="p-4 bg-slate-950 border-t border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-slate-950 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsScrolling(!isScrolling)}
@@ -165,18 +196,28 @@ export const TeleprompterModal: React.FC = () => {
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             {recordedAudioUrl && (
-              <audio src={recordedAudioUrl} controls className="h-8 max-w-[200px]" />
+              <audio src={recordedAudioUrl} controls className="h-8 max-w-[180px]" />
             )}
+
+            <button
+              type="button"
+              onClick={handlePickAudioFromGallery}
+              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+              <span>בחר שמע מהגלריה</span>
+            </button>
 
             {!isRecording ? (
               <button
                 onClick={handleStartRecording}
-                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition cursor-pointer"
+                disabled={isSavingToGallery}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 shadow-lg shadow-rose-600/30 transition cursor-pointer disabled:opacity-50"
               >
                 <Mic className="w-4 h-4" />
-                <span>התחל הקלטה קולית</span>
+                <span>{isSavingToGallery ? 'שומר בגלריה...' : 'התחל הקלטה קולית'}</span>
               </button>
             ) : (
               <button
@@ -184,7 +225,7 @@ export const TeleprompterModal: React.FC = () => {
                 className="px-5 py-2 bg-slate-800 border border-rose-500 text-rose-400 font-bold rounded-xl text-xs flex items-center gap-1.5 animate-pulse cursor-pointer"
               >
                 <MicOff className="w-4 h-4" />
-                <span>עצור ושמור הקלטה</span>
+                <span>עצור ושמור בגלריה</span>
               </button>
             )}
           </div>

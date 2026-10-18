@@ -367,12 +367,26 @@ export interface PricingSectionConfig extends BaseSectionConfig {
   packages: PricingPackageItem[];
 }
 
+export type RichContentLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'current'
+  | 'standard'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'two-columns'
+  | 'highlight-box'
+  | 'cards-grid-3'
+  | 'cards-grid-2';
+
 export interface RichContentItem {
   id: string;
   title: string;
   description?: string;
   text?: string;
   icon?: string;
+  metricValue?: string;
 }
 
 export interface RichContentSectionConfig extends BaseSectionConfig {
@@ -380,7 +394,34 @@ export interface RichContentSectionConfig extends BaseSectionConfig {
   heading: string;
   subtitle?: string;
   body: string;
-  layout?: 'standard' | 'two-columns' | 'highlight-box' | 'cards-grid-3' | 'cards-grid-2';
+  imageSrc?: string;
+  layout?: RichContentLayoutPreset;
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  imagePosition?: 'auto' | 'bottom' | 'top' | 'left' | 'right';
+  buttonsVisible?: boolean;
+  primaryButton?: {
+    text: string;
+    url: string;
+    target?: string;
+  };
+  secondaryButton?: {
+    text: string;
+    url: string;
+    target?: string;
+  };
+  headingColor?: string;
+  bodyColor?: string;
+  primaryButtonColor?: string;
+  secondaryButtonColor?: string;
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
   items?: RichContentItem[];
 }
 
@@ -478,20 +519,33 @@ export interface FlowPlayerSectionConfig extends BaseSectionConfig {
   mode?: 'live' | 'edit';
 }
 
+export interface SearchConsoleQueryMetric {
+  query: string;
+  clicks: number;
+  impressions: number;
+  position: number;
+}
+
 export interface LiveAnalyticsSectionConfig extends BaseSectionConfig {
   type: 'liveAnalytics';
   title?: string;
   subtitle?: string;
   adminOnly?: boolean; // When true, only visible when editing or logged in as admin
   displayStyle?: 'bento' | 'glass-cards' | 'ticker' | 'minimal';
+  googleAnalyticsId?: string; // Optional direct GA4 Measurement ID (G-XXXXXXXXXX)
+  googleSearchConsoleVerification?: string; // Google Search Console verification code / meta tag
+  googleSearchConsolePropertyUrl?: string; // Google Search Console property URL / domain
   showViews?: boolean;
   showUniqueVisitors?: boolean;
   showCtaClicks?: boolean;
   showLeads?: boolean;
   showConversionRate?: boolean;
   showTrafficSources?: boolean;
+  showSearchConsoleCard?: boolean;
   showAiTrafficBadge?: boolean;
   showGa4StatusBadge?: boolean;
+  showGscStatusBadge?: boolean;
+  topSearchQueries?: SearchConsoleQueryMetric[];
   customBadgeText?: string;
   accentColor?: string;
 }

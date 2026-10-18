@@ -5,7 +5,7 @@ import {
   Play, Layers, X, Upload, ShieldCheck,
   Link as LinkIcon, MessageSquare, ArrowLeft,
   Lightbulb, Check, Edit3, Plus, RefreshCw, Eye, ListOrdered, BookOpen,
-  Layout, HelpCircle as HelpIcon, Send, ExternalLink, CreditCard, PhoneCall, Trash2, Loader2
+  Layout, HelpCircle as HelpIcon, Send, ExternalLink, CreditCard, PhoneCall, Trash2, Loader2, FolderOpen
 } from 'lucide-react';
 import { useKosLive } from '../context/KosLiveContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -33,9 +33,10 @@ import {
   buildFormFieldsFromPageSummary
 } from '../services/pageToLivingConverter';
 import { LivingStorageService } from '../services/livingStorageService';
+import { pickMediaFromGallery, uploadFileAndSyncToGallery } from '../services/livingMediaGalleryBridge';
 
 export const OneClickPageConverterModal: React.FC = () => {
-  const { db } = useSystemConnection();
+  const { db, storage } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const formBuilderCap = getCapability<FormBuilderContract>('smart-form-builder');
@@ -186,7 +187,7 @@ export const OneClickPageConverterModal: React.FC = () => {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 5 * 1024 * 1024) {
@@ -199,9 +200,25 @@ export const OneClickPageConverterModal: React.FC = () => {
       setReferenceImageName(file.name);
     };
     reader.readAsDataURL(file);
+
+    try {
+      await uploadFileAndSyncToGallery(file, file.name, 'image', {
+        storage: storage as any,
+        db: db as any,
+        tenantId
+      });
+    } catch {}
   };
 
-  const handlePdfUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePickReferenceImageFromGallery = async () => {
+    const url = await pickMediaFromGallery(getCapability as any, 'image');
+    if (url) {
+      setReferenceImageBase64(url);
+      setReferenceImageName('תמונה מגלריית המדיה');
+    }
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > 10 * 1024 * 1024) {
@@ -214,6 +231,14 @@ export const OneClickPageConverterModal: React.FC = () => {
       setReferencePdfName(file.name);
     };
     reader.readAsDataURL(file);
+
+    try {
+      await uploadFileAndSyncToGallery(file, file.name, 'document', {
+        storage: storage as any,
+        db: db as any,
+        tenantId
+      });
+    } catch {}
   };
 
   // Instant 1-Click Page Conversion (No AI wait required, uses 100% of extracted page data + selected card count & forms)
@@ -1093,22 +1118,32 @@ export const OneClickPageConverterModal: React.FC = () => {
               <span>חומרי עזר מולטי-מודאליים ל-AI (תמונת רפרנס, מצגת PDF, קישור חיצוני)</span>
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Image upload */}
-              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between">
+              {/* Image upload + Gallery Picker */}
+              <div className="p-3 rounded-2xl bg-slate-950 border border-slate-800 flex items-center justify-between gap-2">
                 <div className="truncate">
                   <span className="text-xs font-bold text-slate-200 block">תמונת פרזנטור / מוצר</span>
                   <span className="text-[10px] text-slate-500 truncate block">
-                    {referenceImageName || 'JPG/PNG עד 5MB'}
+                    {referenceImageName || 'העלה (נשמר בגלריה) או בחר מהגלריה'}
                   </span>
                 </div>
                 <input ref={imageFileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-                <button
-                  type="button"
-                  onClick={() => imageFileInputRef.current?.click()}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold cursor-pointer shrink-0"
-                >
-                  {referenceImageBase64 ? 'החלף' : 'העלה תמונה'}
-                </button>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => imageFileInputRef.current?.click()}
+                    className="px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-cyan-300 text-xs font-bold cursor-pointer"
+                  >
+                    {referenceImageBase64 ? 'החלף' : 'העלה'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePickReferenceImageFromGallery}
+                    className="px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <FolderOpen className="w-3.5 h-3.5" />
+                    <span>מהגלריה</span>
+                  </button>
+                </div>
               </div>
 
               {/* PDF upload */}

@@ -132,7 +132,9 @@ export const InteractiveSceneStudioModal: React.FC<InteractiveSceneStudioModalPr
     const firstSceneId = editingCampaign.initialSceneId || Object.keys(scenesMap)[0] || newSceneId;
     const newScene: LivingSceneContract = {
       id: newSceneId,
+      sceneNumber: sceneList.length + 1,
       title: `סצנה חדשה ${sceneList.length + 1}`,
+      dialogueScript: 'שלום! בחרו מתוך הכרטיסיות שלפניכם או לחצו על המיקרופון לשיחה חיה.',
       scriptText: 'שלום! בחרו מתוך הכרטיסיות שלפניכם או לחצו על המיקרופון לשיחה חיה.',
       videoUrl: '',
       fallbackImageUrl: '',

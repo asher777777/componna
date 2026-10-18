@@ -4,11 +4,11 @@ import {
   ChevronDown, ChevronUp, CheckCircle2, Video, MessageSquare, HardDrive,
   Image as ImageIcon, Wand2, Copy, Camera, Subtitles, Sliders,
   LayoutGrid, FileText, Download, Upload, RefreshCw, ExternalLink,
-  ArrowUp, ArrowDown, Layers, PhoneCall, Eye, Globe, Webhook
+  ArrowUp, ArrowDown, Layers, PhoneCall, Eye, Globe, Webhook, Loader2, FolderOpen
 } from 'lucide-react';
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useKosLive } from '../context/KosLiveContext';
 import {
+  LivingProject,
   LivingScene,
   SceneRoleType,
   LivingOverlayItem,
@@ -17,7 +17,9 @@ import {
   LivingFormFieldConfig,
   SubtitleStylePreset,
   SubtitleAnimationType,
-  TransitionEffectType
+  TransitionEffectType,
+  LivingCampaignContract,
+  LivingSceneContract
 } from '../types';
 import { KOS_LIVE_AVATARS } from '../config';
 import {
@@ -38,19 +40,26 @@ import {
   buildCardsFromPageSummary,
   buildFormFieldsFromPageSummary
 } from '../services/pageToLivingConverter';
+import { LivingStorageService } from '../services/livingStorageService';
 import { PremiumVectorIcon } from '../utils/premiumIcons';
 import { IconPickerModal } from './IconPickerModal';
+import { InteractiveSceneStudioModal } from './InteractiveSceneStudioModal';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
-import { MediaPickerContract } from '../../../core/contracts';
+import {
+  pickMediaFromGallery,
+  uploadFileAndSyncToGallery
+} from '../services/livingMediaGalleryBridge';
 
 type StudioSceneTab = 'script' | 'video' | 'audio' | 'subtitles' | 'interactive';
 
 export const LivingTimelineEditor: React.FC = () => {
   const {
     activeProject,
+    activeCampaign,
     setActiveProject,
+    setActiveCampaign,
     setTab,
     availablePages,
     selectedPageForWizard,
@@ -118,10 +127,9 @@ export const LivingTimelineEditor: React.FC = () => {
     downloadSubtitleFile(`${scene.id}_subtitles.vtt`, vtt, 'text/vtt;charset=utf-8');
   };
 
-  const { storage } = useSystemConnection();
+  const { db, storage } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
-  const mediaPicker = getCapability<MediaPickerContract>('media-picker');
 
   const [selectedSceneIndex, setSelectedSceneIndex] = useState<number>(0);
   const [activeSceneTab, setActiveSceneTab] = useState<StudioSceneTab>('script');
@@ -129,6 +137,10 @@ export const LivingTimelineEditor: React.FC = () => {
   const [isPreviewPlaying, setIsPreviewPlaying] = useState<boolean>(false);
   const [showPreviewCc, setShowPreviewCc] = useState<boolean>(true);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  const [uploadingCardId, setUploadingCardId] = useState<string | null>(null);
+  const [isUploadingAudio, setIsUploadingAudio] = useState<boolean>(false);
+  const [isInteractiveStudioModalOpen, setIsInteractiveStudioModalOpen] = useState<boolean>(false);
 
   // Icon picker modal state
   const [iconPickerState, setIconPickerState] = useState<{
@@ -141,6 +153,7 @@ export const LivingTimelineEditor: React.FC = () => {
   const previewVideoRef = useRef<HTMLVideoElement | null>(null);
   const fileVideoInputRef = useRef<HTMLInputElement | null>(null);
   const fileImageInputRef = useRef<HTMLInputElement | null>(null);
+  const fileAudioInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!activeProject) {
     return (
@@ -291,53 +304,35 @@ export const LivingTimelineEditor: React.FC = () => {
     setSelectedSceneIndex(Math.max(0, index - 1));
   };
 
-  // --- Media Vault & Direct Firebase Upload ---
+  // --- Media Vault (Gallery) & Direct Upload Synced to Gallery ---
   const handlePickCloudVideo = async () => {
-    if (!mediaPicker) {
-      alert('שירות כספת המדיה KosCloudStore אינו זמין כרגע.');
-      return;
-    }
-    try {
-      const selected = await mediaPicker.openPicker({
-        accept: 'video/*',
-        multiple: false
+    const pickedUrl = await pickMediaFromGallery(getCapability, 'video');
+    if (pickedUrl) {
+      updateScene({
+        renderedVideoUrl: pickedUrl,
+        videoUrl: pickedUrl,
+        videoProvider: 'custom'
       });
-      if (selected) {
-        const url = Array.isArray(selected) ? selected[0] : selected;
-        if (typeof url === 'string') {
-          updateScene({
-            renderedVideoUrl: url,
-            videoUrl: url,
-            videoProvider: 'custom'
-          });
-        }
-      }
-    } catch (err) {
-      console.error('[LivingTimelineEditor] Error picking video from media-picker:', err);
     }
   };
 
   const handlePickCloudBackground = async () => {
-    if (!mediaPicker) {
-      alert('שירות כספת המדיה KosCloudStore אינו זמין כרגע.');
-      return;
-    }
-    try {
-      const selected = await mediaPicker.openPicker({
-        accept: 'image/*',
-        multiple: false
+    const pickedUrl = await pickMediaFromGallery(getCapability, 'image');
+    if (pickedUrl) {
+      updateScene({
+        backgroundMediaUrl: pickedUrl,
+        fallbackImageUrl: pickedUrl
       });
-      if (selected) {
-        const url = Array.isArray(selected) ? selected[0] : selected;
-        if (typeof url === 'string') {
-          updateScene({
-            backgroundMediaUrl: url,
-            fallbackImageUrl: url
-          });
-        }
-      }
-    } catch (err) {
-      console.error('[LivingTimelineEditor] Error picking image from media-picker:', err);
+    }
+  };
+
+  const handlePickCloudAudio = async () => {
+    const pickedUrl = await pickMediaFromGallery(getCapability, 'audio');
+    if (pickedUrl) {
+      updateScene({
+        renderedAudioUrl: pickedUrl,
+        audioUrl: pickedUrl
+      });
     }
   };
 
@@ -345,61 +340,91 @@ export const LivingTimelineEditor: React.FC = () => {
     const file = e.target.files?.[0];
     if (!file || !currentScene) return;
 
-    if (!storage) {
-      // Fallback to object URL if storage is offline
-      const localUrl = URL.createObjectURL(file);
-      updateScene({ renderedVideoUrl: localUrl, videoUrl: localUrl, videoProvider: 'custom' });
-      return;
-    }
+    const localUrl = URL.createObjectURL(file);
+    updateScene({ renderedVideoUrl: localUrl, videoUrl: localUrl, videoProvider: 'custom' });
 
+    setUploadProgress(10);
     try {
-      setUploadProgress(1);
-      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const storagePath = `tenants/${tenantId}/kos_live_videos/${activeProject.id}/${currentScene.id}_${Date.now()}_${safeName}`;
-      const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on(
-        'state_changed',
-        snapshot => {
-          const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          setUploadProgress(pct);
-        },
-        err => {
-          console.error('[LivingTimelineEditor] Video upload error:', err);
-          setUploadProgress(null);
-          const localUrl = URL.createObjectURL(file);
-          updateScene({ renderedVideoUrl: localUrl, videoUrl: localUrl, videoProvider: 'custom' });
-        },
-        async () => {
-          const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-          updateScene({
-            renderedVideoUrl: downloadUrl,
-            videoUrl: downloadUrl,
-            videoProvider: 'custom'
-          });
-          setUploadProgress(null);
-        }
-      );
+      const { url, mediaId } = await uploadFileAndSyncToGallery(file, file.name, 'video', {
+        storage: storage as any,
+        db: db as any,
+        tenantId,
+        tags: ['סצנה', activeProject.title || ''],
+        onProgress: pct => setUploadProgress(pct)
+      });
+      updateScene({
+        renderedVideoUrl: url,
+        videoUrl: url,
+        mediaId,
+        mediaName: file.name,
+        videoProvider: 'custom'
+      });
     } catch (err) {
-      console.error('[LivingTimelineEditor] Direct upload exception:', err);
-      setUploadProgress(null);
+      console.error('[LivingTimelineEditor] Video upload notice:', err);
+    } finally {
+      setTimeout(() => setUploadProgress(null), 500);
+      e.target.value = '';
     }
   };
 
-  const handleDirectImageFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDirectImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        updateScene({
-          backgroundMediaUrl: reader.result,
-          fallbackImageUrl: reader.result
-        });
-      }
-    };
-    reader.readAsDataURL(file);
+    if (!file || !currentScene) return;
+
+    const localUrl = URL.createObjectURL(file);
+    updateScene({
+      backgroundMediaUrl: localUrl,
+      fallbackImageUrl: localUrl
+    });
+
+    setIsUploadingImage(true);
+    try {
+      const { url } = await uploadFileAndSyncToGallery(file, file.name, 'image', {
+        storage: storage as any,
+        db: db as any,
+        tenantId,
+        tags: ['רקע_סצנה', activeProject.title || '']
+      });
+      updateScene({
+        backgroundMediaUrl: url,
+        fallbackImageUrl: url
+      });
+    } catch (err) {
+      console.warn('[LivingTimelineEditor] Image upload notice:', err);
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDirectAudioFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !currentScene) return;
+
+    const localUrl = URL.createObjectURL(file);
+    updateScene({
+      renderedAudioUrl: localUrl,
+      audioUrl: localUrl
+    });
+
+    setIsUploadingAudio(true);
+    try {
+      const { url } = await uploadFileAndSyncToGallery(file, file.name, 'audio', {
+        storage: storage as any,
+        db: db as any,
+        tenantId,
+        tags: ['קריינות', activeProject.title || '']
+      });
+      updateScene({
+        renderedAudioUrl: url,
+        audioUrl: url
+      });
+    } catch (err) {
+      console.warn('[LivingTimelineEditor] Audio upload notice:', err);
+    } finally {
+      setIsUploadingAudio(false);
+      e.target.value = '';
+    }
   };
 
   // --- Overlays Helpers (Carousel Cards, Lead Form, Quick Replies) ---
@@ -424,7 +449,7 @@ export const LivingTimelineEditor: React.FC = () => {
   };
 
   // --- Carousel Cards Management & Card Count Generator ---
-  const currentCards: LivingCarouselCardItem[] = carouselOverlay?.cards || [];
+  const currentCards: LivingCarouselCardItem[] = carouselOverlay?.cards || carouselOverlay?.carouselItems || [];
 
   const updateCarouselCards = (newCards: LivingCarouselCardItem[], title?: string) => {
     if (newCards.length === 0) {
@@ -432,15 +457,17 @@ export const LivingTimelineEditor: React.FC = () => {
       return;
     }
     const nextSceneId = scenes[safeIndex + 1]?.id || scenes[0]?.id;
+    const mappedCards = newCards.map(c => ({
+      ...c,
+      targetSceneId: c.targetSceneId || nextSceneId
+    }));
     const updatedCarousel: LivingOverlayItem = {
       id: carouselOverlay?.id || `ov_carousel_${currentScene?.id || Date.now()}`,
       type: 'carousel',
       title: title !== undefined ? title : (carouselOverlay?.title || 'בחרו מהקטלוג לפרטים נוספים:'),
       position: 'center',
-      cards: newCards.map(c => ({
-        ...c,
-        targetSceneId: c.targetSceneId || nextSceneId
-      }))
+      cards: mappedCards,
+      carouselItems: mappedCards
     };
     upsertOverlay(updatedCarousel);
   };
@@ -492,17 +519,33 @@ export const LivingTimelineEditor: React.FC = () => {
   };
 
   const handlePickCardImage = async (cardId: string) => {
-    if (!mediaPicker) return;
+    const pickedUrl = await pickMediaFromGallery(getCapability, 'image');
+    if (pickedUrl) {
+      updateCarouselCards(currentCards.map(c => (c.id === cardId ? { ...c, imageUrl: pickedUrl } : c)));
+    }
+  };
+
+  const handleCardImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, cardId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const localUrl = URL.createObjectURL(file);
+    updateCarouselCards(currentCards.map(c => (c.id === cardId ? { ...c, imageUrl: localUrl } : c)));
+
+    setUploadingCardId(cardId);
     try {
-      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: false });
-      if (selected) {
-        const url = Array.isArray(selected) ? selected[0] : selected;
-        if (typeof url === 'string') {
-          updateCarouselCards(currentCards.map(c => (c.id === cardId ? { ...c, imageUrl: url } : c)));
-        }
-      }
-    } catch (e) {
-      console.warn('[LivingTimelineEditor] Card image picker error:', e);
+      const { url } = await uploadFileAndSyncToGallery(file, file.name, 'image', {
+        storage: storage as any,
+        db: db as any,
+        tenantId,
+        tags: ['כרטיסייה', activeProject.title || '']
+      });
+      updateCarouselCards(currentCards.map(c => (c.id === cardId ? { ...c, imageUrl: url } : c)));
+    } catch (err) {
+      console.warn('[LivingTimelineEditor] Card image upload notice:', err);
+    } finally {
+      setUploadingCardId(null);
+      e.target.value = '';
     }
   };
 
@@ -610,6 +653,13 @@ export const LivingTimelineEditor: React.FC = () => {
         className="hidden"
         onChange={handleDirectImageFileUpload}
       />
+      <input
+        ref={fileAudioInputRef}
+        type="file"
+        accept="audio/*"
+        className="hidden"
+        onChange={handleDirectAudioFileUpload}
+      />
 
       {/* Top Bar: Connected Page Data Sync & Quick Info */}
       <div className="mb-5 bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 flex flex-wrap items-center justify-between gap-3 shadow-lg">
@@ -632,7 +682,7 @@ export const LivingTimelineEditor: React.FC = () => {
           </div>
         </div>
 
-        {/* Page Data Connection Selector right inside Studio */}
+        {/* Page Data Connection Selector & Quick Studio Modal Button */}
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={extractedPageSummary?.pageId || ''}
@@ -650,11 +700,21 @@ export const LivingTimelineEditor: React.FC = () => {
           </select>
 
           <button
+            type="button"
+            onClick={() => setIsInteractiveStudioModalOpen(true)}
+            className="px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer"
+            title="פתח את סטודיו הנגן האינטראקטיבי המלא (וידאו, תמונות, כרטיסיות וטריגרים במסך אחד)"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>סטודיו וידאו, תמונות וכרטיסיות (מסך אחד)</span>
+          </button>
+
+          <button
             onClick={() => setTab('preview')}
             className="px-3.5 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-black flex items-center gap-1.5 transition cursor-pointer"
           >
             <Play className="w-3.5 h-3.5" />
-            <span>סימולטור מלא</span>
+            <span>נגן אינטראקטיבי חי</span>
           </button>
         </div>
       </div>
@@ -959,6 +1019,85 @@ export const LivingTimelineEditor: React.FC = () => {
                     <option value="whip_pan">תנועת מצלמה (Whip Pan)</option>
                     <option value="glitch">אפקט דיגיטלי (Glitch)</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Always-Visible Scene Video & Image Bar (Connected to Media Gallery + Direct Upload) */}
+            <div className="bg-slate-950/90 border border-amber-500/35 rounded-2xl p-3.5 grid grid-cols-1 md:grid-cols-2 gap-3 shadow-md">
+              {/* Quick Scene Video Box */}
+              <div className="p-2.5 bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                    <Video className="w-3.5 h-3.5" />
+                    <span>וידאו הסצנה:</span>
+                  </span>
+                  {uploadProgress !== null ? (
+                    <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>מעלה לגלריה ({uploadProgress}%)</span>
+                    </span>
+                  ) : currentScene.renderedVideoUrl ? (
+                    <span className="text-[10px] text-emerald-400 font-bold">סרטון מחובר</span>
+                  ) : (
+                    <span className="text-[10px] text-slate-500">ללא סרטון</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => fileVideoInputRef.current?.click()}
+                    className="flex-1 py-1.5 px-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>העלה וידאו (לגלריה)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePickCloudVideo}
+                    className="flex-1 py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-bold text-[11px] rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                  >
+                    <HardDrive className="w-3.5 h-3.5" />
+                    <span>בחר מגלריית המדיה</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Scene Image Box */}
+              <div className="p-2.5 bg-slate-900/90 border border-slate-800 rounded-xl flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-amber-400 flex items-center gap-1.5">
+                    <ImageIcon className="w-3.5 h-3.5" />
+                    <span>תמונת רקע / פוסטר לסצנה:</span>
+                  </span>
+                  {isUploadingImage ? (
+                    <span className="text-[10px] font-bold text-amber-300 flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>שומר בגלריה...</span>
+                    </span>
+                  ) : currentScene.backgroundMediaUrl || currentScene.fallbackImageUrl ? (
+                    <span className="text-[10px] text-emerald-400 font-bold">תמונה מחוברת</span>
+                  ) : (
+                    <span className="text-[10px] text-slate-500">ללא תמונה</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => fileImageInputRef.current?.click()}
+                    className="flex-1 py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-white border border-slate-700 font-bold text-[11px] rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-amber-400" />
+                    <span>העלה תמונה (לגלריה)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handlePickCloudBackground}
+                    className="flex-1 py-1.5 px-2.5 bg-indigo-950/90 hover:bg-indigo-900 text-indigo-200 border border-indigo-500/40 font-bold text-[11px] rounded-lg flex items-center justify-center gap-1 transition cursor-pointer"
+                  >
+                    <HardDrive className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>בחר מגלריית המדיה</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -1403,15 +1542,36 @@ export const LivingTimelineEditor: React.FC = () => {
                       </p>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => synthesizeSceneSpeech(currentScene.id)}
-                      disabled={isGeneratingTts}
-                      className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer disabled:opacity-50"
-                    >
-                      <Volume2 className="w-3.5 h-3.5" />
-                      <span>{isGeneratingTts ? 'מסנתז קריינות...' : 'סנתז קריינות לסצנה כעת'}</span>
-                    </button>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => fileAudioInputRef.current?.click()}
+                        disabled={isUploadingAudio}
+                        className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>{isUploadingAudio ? 'מעלה לגלריה...' : 'העלה שמע (לגלריה)'}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handlePickCloudAudio}
+                        className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                        <span>בחר שמע מהגלריה</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => synthesizeSceneSpeech(currentScene.id)}
+                        disabled={isGeneratingTts}
+                        className="px-4 py-2 bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 rounded-xl text-xs font-black flex items-center gap-1.5 shadow transition cursor-pointer disabled:opacity-50"
+                      >
+                        <Volume2 className="w-3.5 h-3.5" />
+                        <span>{isGeneratingTts ? 'מסנתז קריינות...' : 'סנתז קריינות לסצנה כעת'}</span>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Language Filter & Voice Selector */}
@@ -1775,14 +1935,28 @@ export const LivingTimelineEditor: React.FC = () => {
                               </div>
 
                               <div className="flex items-center gap-1">
+                                <label
+                                  className="px-2 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-[10px] font-bold text-amber-300 rounded-lg flex items-center gap-1 cursor-pointer"
+                                  title="העלה תמונה לכרטיס מהמחשב (יישמר אוטומטית בגלריה)"
+                                >
+                                  <Upload className="w-3 h-3" />
+                                  <span>{uploadingCardId === card.id ? 'מעלה...' : 'העלה תמונה'}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    disabled={uploadingCardId === card.id}
+                                    onChange={e => handleCardImageFileUpload(e, card.id)}
+                                    className="hidden"
+                                  />
+                                </label>
                                 <button
                                   type="button"
                                   onClick={() => handlePickCardImage(card.id)}
                                   className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-[10px] text-slate-200 rounded-lg flex items-center gap-1 cursor-pointer"
-                                  title="בחר תמונה לכרטיס מכספת המדיה"
+                                  title="בחר תמונה לכרטיס מגלריית המדיה"
                                 >
-                                  <ImageIcon className="w-3 h-3 text-amber-400" />
-                                  <span>תמונה</span>
+                                  <FolderOpen className="w-3 h-3 text-amber-400" />
+                                  <span>מהגלריה</span>
                                 </button>
                                 <button
                                   type="button"
@@ -1796,6 +1970,39 @@ export const LivingTimelineEditor: React.FC = () => {
                                 </button>
                               </div>
                             </div>
+
+                            {card.imageUrl && (
+                              <div className="flex items-center justify-between gap-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+                                <img
+                                  src={card.imageUrl}
+                                  alt={card.title}
+                                  className="w-12 h-10 object-cover rounded-lg border border-slate-700"
+                                />
+                                <input
+                                  type="text"
+                                  dir="ltr"
+                                  value={card.imageUrl}
+                                  onChange={e =>
+                                    updateCarouselCards(
+                                      currentCards.map(c => (c.id === card.id ? { ...c, imageUrl: e.target.value } : c))
+                                    )
+                                  }
+                                  className="flex-1 px-2 py-1 bg-slate-900 border border-slate-800 rounded text-[10px] text-slate-300 font-mono"
+                                  placeholder="https://..."
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    updateCarouselCards(
+                                      currentCards.map(c => (c.id === card.id ? { ...c, imageUrl: undefined } : c))
+                                    )
+                                  }
+                                  className="text-[10px] text-rose-400 hover:underline px-1.5 cursor-pointer"
+                                >
+                                  הסר
+                                </button>
+                              </div>
+                            )}
 
                             <div className="grid grid-cols-3 gap-2">
                               <div className="col-span-2">
@@ -2280,6 +2487,35 @@ export const LivingTimelineEditor: React.FC = () => {
           setIconPickerState({ ...iconPickerState, isOpen: false });
         }}
       />
+
+      {/* Full 1-Screen Interactive Player Scene & Media Studio Modal */}
+      {isInteractiveStudioModalOpen && activeCampaign && (
+        <InteractiveSceneStudioModal
+          isOpen={isInteractiveStudioModalOpen}
+          campaign={activeCampaign}
+          initialSceneId={currentScene?.id}
+          onClose={() => setIsInteractiveStudioModalOpen(false)}
+          onApplyCampaign={async (updatedCampaign: LivingCampaignContract, targetSceneId?: string) => {
+            await LivingStorageService.saveCampaign(db as any, tenantId, updatedCampaign);
+            setActiveCampaign(updatedCampaign);
+            const updatedScenes = Object.values(updatedCampaign.scenes) as LivingScene[];
+            const updatedProject: LivingProject = {
+              ...activeProject,
+              title: updatedCampaign.name || activeProject.title,
+              campaignSlug: updatedCampaign.slug || activeProject.campaignSlug,
+              formsApiEndpoint: updatedCampaign.formsApiEndpoint || activeProject.formsApiEndpoint,
+              scenes: updatedScenes,
+              updatedAt: new Date().toISOString()
+            };
+            await LivingStorageService.saveProject(db as any, tenantId, updatedProject);
+            setActiveProject(updatedProject);
+            if (targetSceneId) {
+              const foundIdx = updatedScenes.findIndex(s => s.id === targetSceneId);
+              if (foundIdx >= 0) setSelectedSceneIndex(foundIdx);
+            }
+          }}
+        />
+      )}
     </div>
   );
 };

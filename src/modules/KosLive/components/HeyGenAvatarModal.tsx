@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
-import { X, Check, User, Mic } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Check, User, Mic, Upload, FolderOpen, Image as ImageIcon } from 'lucide-react';
 import { useKosLive } from '../context/KosLiveContext';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
+import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { pickMediaFromGallery, uploadFileAndSyncToGallery } from '../services/livingMediaGalleryBridge';
 
 export const HeyGenAvatarModal: React.FC = () => {
   const {
@@ -13,10 +17,19 @@ export const HeyGenAvatarModal: React.FC = () => {
     voices
   } = useKosLive();
 
+  const { db, storage } = useSystemConnection();
+  const { tenantId } = useTenantScope();
+  const { getCapability } = useHostCapabilities();
+
   const targetScene = activeProject?.scenes.find(s => s.id === modalTargetSceneId);
   const [selectedAvatarId, setSelectedAvatarId] = useState(targetScene?.avatarId || 'Wayne_20240711');
   const [selectedVoiceId, setSelectedVoiceId] = useState(targetScene?.voiceId || '1bd001e7e50f421d891986aad5158bc8');
   const [filterGender, setFilterGender] = useState<'all' | 'male' | 'female'>('all');
+  const [customPhotoUrl, setCustomPhotoUrl] = useState<string>(
+    targetScene?.isPhotoAvatar ? targetScene?.avatarId || '' : ''
+  );
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement | null>(null);
 
   if (!isAvatarModalOpen || !modalTargetSceneId || !activeProject) return null;
 
@@ -25,11 +38,39 @@ export const HeyGenAvatarModal: React.FC = () => {
     return a.gender?.toLowerCase() === filterGender;
   });
 
+  const handleUploadCustomPresenterPhoto = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    try {
+      const { url } = await uploadFileAndSyncToGallery(file, file.name, 'image', {
+        storage: storage as any,
+        db: db as any,
+        tenantId
+      });
+      setCustomPhotoUrl(url);
+      setSelectedAvatarId(url);
+    } finally {
+      setIsUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
+
+  const handlePickPresenterPhotoFromGallery = async () => {
+    const url = await pickMediaFromGallery(getCapability as any, 'image');
+    if (url) {
+      setCustomPhotoUrl(url);
+      setSelectedAvatarId(url);
+    }
+  };
+
   const handleApply = () => {
+    const isCustomPhoto = !!customPhotoUrl && selectedAvatarId === customPhotoUrl;
     updateCurrentScene(modalTargetSceneId, {
       avatarId: selectedAvatarId,
       voiceId: selectedVoiceId,
-      isPhotoAvatar: false
+      isPhotoAvatar: isCustomPhoto,
+      ...(isCustomPhoto ? { backgroundImageUrl: customPhotoUrl } : {})
     });
     closeAvatarModal();
   };
@@ -45,10 +86,10 @@ export const HeyGenAvatarModal: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base font-bold text-white">
-                בחירת אווטאר וקול קריינות (HeyGen AI Avatars)
+                בחירת אווטאר, תמונת פרזנטור וקול קריינות (HeyGen AI)
               </h2>
               <p className="text-xs text-slate-400">
-                בחר את הדמות והקול עבור סצנה {targetScene?.sceneNumber || 1}
+                בחר אווטאר מוכן או העלה/בחר תמונת פרזנטור מהגלריה עבור סצנה {targetScene?.sceneNumber || 1}
               </p>
             </div>
           </div>
@@ -61,7 +102,56 @@ export const HeyGenAvatarModal: React.FC = () => {
         </div>
 
         <div className="p-4 sm:p-6 overflow-y-auto flex-1 space-y-5 text-xs">
-          
+          {/* Custom Talking Photo Upload + Gallery Picker */}
+          <div className="p-3.5 rounded-2xl bg-slate-950 border border-amber-500/30 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              {customPhotoUrl ? (
+                <img
+                  src={customPhotoUrl}
+                  alt="Custom Presenter"
+                  className="w-12 h-12 rounded-xl object-cover border-2 border-amber-500"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400">
+                  <ImageIcon className="w-5 h-5" />
+                </div>
+              )}
+              <div>
+                <h4 className="font-black text-amber-400 text-xs">תמונת פרזנטור מותאמת אישית (Talking Photo)</h4>
+                <p className="text-[11px] text-slate-400">
+                  העלו תמונה מהמחשב (נשמרת אוטומטית בגלריה) או בחרו תמונה מגלריית המדיה
+                </p>
+              </div>
+            </div>
+
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleUploadCustomPresenterPhoto}
+              className="hidden"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={isUploadingPhoto}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <Upload className="w-3.5 h-3.5" />
+                <span>{isUploadingPhoto ? 'מעלה לגלריה...' : 'העלה תמונה'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePickPresenterPhotoFromGallery}
+                className="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-amber-300 font-bold text-xs flex items-center gap-1.5 cursor-pointer"
+              >
+                <FolderOpen className="w-3.5 h-3.5" />
+                <span>בחר מהגלריה</span>
+              </button>
+            </div>
+          </div>
+
           <div className="flex items-center justify-between gap-2 border-b border-slate-800 pb-3">
             <span className="font-bold text-slate-300">אווטארים זמינים ({filteredAvatars.length})</span>
             <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800">

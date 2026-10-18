@@ -19,7 +19,7 @@ export interface UploadToGalleryOptions {
  * via HostCapabilities contract with an EventBus fallback.
  */
 export async function pickMediaFromGallery(
-  getCapability: <T>(key: string) => T | undefined,
+  getCapability: <T = any>(key: string) => T | null | undefined,
   mediaType: GalleryMediaType = 'image'
 ): Promise<string | null> {
   const acceptMap: Record<GalleryMediaType, string> = {

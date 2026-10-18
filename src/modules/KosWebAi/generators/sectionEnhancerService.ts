@@ -137,10 +137,10 @@ export const sectionEnhancerService = {
     // 3. LAYOUT & BENTO SUGGESTIONS
     const layoutSuggestions: SectionAiSuggestion[] = [];
 
-    if (sectionType === 'hero') {
+    if (sectionType === 'hero' || sectionType === 'richContent') {
       layoutSuggestions.push(
         {
-          id: 'hero-layout-feminine',
+          id: `${sectionType}-layout-feminine`,
           tab: 'layout',
           title: 'א. פריסה בסגנון נשי (רכה ואלגנטית)',
           description: 'קווים מעוגלים, כפתורי קפסולה, גווני רוז-גולד ושמנת ותמונת בוטיק קשתית.',
@@ -149,7 +149,7 @@ export const sectionEnhancerService = {
           prompt: 'עצב את האזור בפריסה בסגנון נשי (feminine) רכה ואלגנטית עם כפתורי קפסולה ומסגרת קשתית.',
         },
         {
-          id: 'hero-layout-masculine',
+          id: `${sectionType}-layout-masculine`,
           tab: 'layout',
           title: 'ב. פריסה בסגנון גברי (עוצמתית ודומיננטית)',
           description: 'טיפוגרפיית ענק מודגשת, פחם וזהב מתכתי, כפתורים רחבים ומסגרת פלדה.',
@@ -158,25 +158,25 @@ export const sectionEnhancerService = {
           prompt: 'עצב את האזור בפריסה בסגנון גברי (masculine) עוצמתית עם כותרות ענק וניגודיות כהה.',
         },
         {
-          id: 'hero-layout-bento',
+          id: `${sectionType}-layout-bento`,
           tab: 'layout',
-          title: 'ג. פריסה עכשווית (Bento Hero הקיימת)',
-          description: 'עיצוב Bento מודרני עם תגית הכרזה, תמונת ראווה ואווירת Mesh Glow.',
+          title: 'ג. פריסה עכשווית (הפריסה הקיימת)',
+          description: 'עיצוב מודרני ומאוזן עם טיפוגרפיה נקייה, כרטיסים מעוצבים ואווירת Mesh Glow.',
           badge: 'מומלץ KOSUN',
           iconName: 'Layers',
-          prompt: 'הפוך את האזור לפריסת Bento Hero עכשווית עם סגנון mesh-glow, כפתור פעולה מודגש ותגיות אמון.',
+          prompt: 'הפוך את האזור לפריסה עכשווית (standard / bento) עם כפתור פעולה מודגש וכרטיסי תוכן.',
         },
         {
-          id: 'hero-layout-spiritual',
+          id: `${sectionType}-layout-spiritual`,
           tab: 'layout',
           title: 'ד. פריסה רוחנית (הרמונית ושלווה)',
-          description: 'מרווחי נשימה, גווני מרווה וזהב הילה, ופורטל תמונה עגול במרכז העליון.',
+          description: 'מרווחי נשימה, גווני מרווה וזהב הילה, ופורטל תמונה עגול מוקף הילה.',
           badge: 'סגנון רוחני',
           iconName: 'Compass',
           prompt: 'עצב את האזור בפריסה רוחנית (spiritual) הרמונית ושלווה עם פורטל תמונה עגול וטבעות הילה.',
         },
         {
-          id: 'hero-layout-sharp',
+          id: `${sectionType}-layout-sharp`,
           tab: 'layout',
           title: 'ה. פריסה חדה (ברוטליסטית ומדויקת)',
           description: 'זוויות 90° ללא עיגול, מסגרות 2px חדות וצללים מוסטים בניגודיות גבוהה.',
@@ -185,7 +185,7 @@ export const sectionEnhancerService = {
           prompt: 'עצב את האזור בפריסה חדה (sharp) אדריכלית עם זוויות ישרות וצללים קשים.',
         },
         {
-          id: 'hero-layout-analytical',
+          id: `${sectionType}-layout-analytical`,
           tab: 'layout',
           title: 'ו. פריסה אנליטית (מבוססת נתונים ודיוק)',
           description: 'גריד דשבורד טכנולוגי עם כרטיסי מדדים (KPIs), גווני ציאן ומסוף נתונים חי.',
@@ -584,6 +584,35 @@ Return ONLY the raw updated JSON object.`;
 
       changes.push(`כותרת ותת-כותרת סונכרנו ישירות עם שם המותג וה-UVP`);
       changes.push(`חיבור כפתורי הנעה לפעולה ישירות לוואטסאפ ולטופס העמוד`);
+    } else if (sectionType === 'richContent') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת תוכן בסגנון נשי (רכה ואלגנטית)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת תוכן בסגנון גברי (עוצמתית ודומיננטית)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת תוכן רוחנית (הרמונית ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חדה')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת תוכן חדה (ברוטליסטית ומדויקת)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת תוכן אנליטית (מבוססת נתונים ודיוק)');
+      } else if (prompt.includes('standard') || prompt.includes('bento') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת תוכן עכשווית (Standard)');
+      }
+
+      updated.heading = `אודות ${company} – ${slogan || 'החזון והמומחיות שלנו'}`;
+      updated.subtitle = `• ${company} •`;
+      updated.body = `<p>${uvp || `ב-${company} אנו משלבים חדשנות, מומחיות וליווי אישי ליצירת תוצאות מדידות ויוצאות דופן עבור כל לקוח.`}</p>`;
+      updated.primaryButton = {
+        text: 'לתיאום שיחת היכרות',
+        url: '#contact',
+      };
+      changes.push(`סונכרנו כותרות ותוכן האזור עם מיתוג ${company}`);
     } else if (sectionType === 'pricing') {
       updated.title = `מסלולי הצטרפות מותאמים עבורכם`;
       updated.subtitle = `שקיפות מלאה ללא אותיות קטנות – בחרו את החבילה המתאימה`;

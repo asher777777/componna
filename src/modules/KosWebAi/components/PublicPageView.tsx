@@ -663,6 +663,12 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
                 `;
                 document.head.appendChild(gaInit);
               }
+
+              // Inject Google Search Console verification meta tag if configured
+              const gscToken = pageWithHeader.globalSettings?.googleSearchConsoleVerification?.trim();
+              if (gscToken) {
+                setMetaTag('name', 'google-site-verification', gscToken);
+              }
             }
 
             // Track page view and record telemetry in the Tenant's collection
@@ -670,7 +676,12 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
               db || null,
               tenantId,
               foundPage.pageId,
-              pageWithHeader.globalSettings?.googleAnalyticsId
+              pageWithHeader.globalSettings?.googleAnalyticsId,
+              {
+                verificationCode: pageWithHeader.globalSettings?.googleSearchConsoleVerification,
+                propertyUrl: pageWithHeader.globalSettings?.googleSearchConsolePropertyUrl,
+                keywords: pageWithHeader.seoSettings?.keywords,
+              }
             );
 
             if (foundPage.published) {
