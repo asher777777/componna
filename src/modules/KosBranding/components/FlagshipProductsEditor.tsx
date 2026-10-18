@@ -16,6 +16,12 @@ import {
   Upload,
   FolderOpen,
   RefreshCw,
+  ChevronDown,
+  Save,
+  FileText,
+  AlertCircle,
+  Users,
+  Award,
 } from 'lucide-react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { generateAiFlagshipProduct } from '../services/geminiBrandPrompt';
@@ -806,447 +812,749 @@ const FlagshipProductModal: React.FC<{
     );
   };
 
+  // בקרת לשוניות נפתחות (אקורדיון) – ברירת מחדל: ללא אף לשונית פתוחה, ופתיחה של רק אחת בכל פעם
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (sectionId: string) => {
+    setOpenSection((prev) => (prev === sectionId ? null : sectionId));
+  };
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" dir="rtl">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] overflow-y-auto shadow-2xl flex flex-col relative">
-        <div className="sticky top-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between z-20">
-          <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-            <Box className="w-5 h-5 text-indigo-500" />
-            עריכת מוצר דגל (תוכן, גלריה, אייקונים, שאלות ותשובות ו-SEO/AI)
-          </h3>
-          <div className="flex items-center gap-2">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in font-sans" dir="rtl">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
+        
+        {/* Modal Top Header - קומפקטי ומותאם מובייל ודסקטופ */}
+        <div className="p-3.5 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/30 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-sm">
+              <Box className="w-4 h-4 sm:w-5 sm:h-5" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                {draft.nameAndSlogan || 'מוצר דגל חדש'}
+              </h3>
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+                7 אזורי תוכן בלשוניות נפתחות (אקורדיון מודולרי)
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={handleAutoFillWithAi}
               disabled={isFillingAi || !draft.nameAndSlogan?.trim()}
-              className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="px-2.5 sm:px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              title="מלא שדות עם AI"
             >
               {isFillingAi ? (
                 <div className="w-3.5 h-3.5 border-2 border-indigo-400/30 border-t-indigo-500 rounded-full animate-spin" />
               ) : (
                 <Sparkles className="w-3.5 h-3.5" />
               )}
-              <span>{isFillingAi ? 'ממלא 6+3+6+10 ו-SEO עם AI...' : 'מלא שדות עם AI'}</span>
+              <span className="hidden sm:inline">{isFillingAi ? 'ממלא...' : 'מלא שדות עם AI'}</span>
             </button>
             <button
+              type="button"
+              onClick={() => {
+                save();
+                onClose();
+              }}
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm"
+              title="שמור שינויים"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">שמור</span>
+            </button>
+            <button
+              type="button"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              title="סגור חלון"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        <div className="p-6 space-y-6">
-          {/* שדות בסיס */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                שם המוצר + סלוגן
-              </label>
-              <input
-                type="text"
-                value={draft.nameAndSlogan}
-                onChange={(e) => updateField('nameAndSlogan', e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white"
-              />
-            </div>
+        {/* Modal Scrollable Body - לשוניות אקורדיון נפתחות בלבד */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-2.5 custom-scrollbar">
 
-            <div>
-              <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                תיאור קצר (Hero Subtitle)
-              </label>
-              <input
-                type="text"
-                value={draft.shortDescription}
-                onChange={(e) => updateField('shortDescription', e.target.value)}
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-              תיאור ארוך ומעמיק עבור העמוד, SEO וקידום AI
-            </label>
-            <textarea
-              value={draft.longDescription}
-              onChange={(e) => updateField('longDescription', e.target.value)}
-              rows={3}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/50 text-slate-900 dark:text-white resize-y"
-            />
-          </div>
-
-          {/* 1. 6 נקודות כאב */}
-          <RepeaterBlockEditor
-            title="נקודות הכאב שהמוצר פותר"
-            subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים מספריית האייקונים (מומלץ: 6 נקודות כאב)"
-            badgeText="יעד: 6 נקודות כאב"
-            items={draft.painPoints || []}
-            onChange={(next) => updateField('painPoints', next)}
-            defaultIcon="AlertCircle"
-          />
-
-          {/* 2. 3 קהלי יעד */}
-          <RepeaterBlockEditor
-            title="קהלי היעד של המוצר"
-            subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 3 קהלי יעד מובחנים)"
-            badgeText="יעד: 3 קהלים"
-            items={draft.targetAudiences || []}
-            onChange={(next) => updateField('targetAudiences', next)}
-            defaultIcon="Users"
-          />
-
-          {/* 3. 6 יתרונות תחרותיים */}
-          <RepeaterBlockEditor
-            title="היתרונות והמעלות על פני המתחרים"
-            subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 6 יתרונות בולטים)"
-            badgeText="יעד: 6 יתרונות"
-            items={draft.competitiveAdvantages || []}
-            onChange={(next) => updateField('competitiveAdvantages', next)}
-            defaultIcon="Award"
-          />
-
-          {/* 4. 10 שאלות ותשובות (FAQ) */}
-          <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4 text-indigo-500" />
-                  <span>שאלות ותשובות נפוצות לאזור ה-FAQ בעמוד</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border border-emerald-500/20">
-                    יעד: 10 שאלות ותשובות ({(draft.faqs || []).length})
-                  </span>
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  מוזרם ישירות לאזור השאלות והתשובות בעמוד המוצר ולסכמת ה-FAQ של מנועי ה-AI
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={addFaqItem}
-                className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                הוסף שאלה ותשובה
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(draft.faqs || []).map((faq, idx) => (
-                <div
-                  key={faq.id || idx}
-                  className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-2"
-                >
-                  <div className="flex items-center gap-2">
-                    <IconPickerPopover
-                      value={faq.icon || 'HelpCircle'}
-                      onChange={(icon) => updateFaqItem(idx, { icon })}
-                    />
-                    <input
-                      type="text"
-                      value={faq.question || ''}
-                      onChange={(e) => updateFaqItem(idx, { question: e.target.value })}
-                      placeholder={`שאלה #${idx + 1}...`}
-                      className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeFaqItem(idx)}
-                      className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
-                      title="מחק שאלה"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <textarea
-                    rows={2}
-                    value={faq.answer || ''}
-                    onChange={(e) => updateFaqItem(idx, { answer: e.target.value })}
-                    placeholder="תשובה מפורטת ומדויקת..."
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-y"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. גלריית תמונות מוצר (מרובת תמונות) */}
-          <div className="p-4 rounded-2xl bg-slate-50/80 dark:bg-slate-950/60 border border-slate-200 dark:border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <div>
-                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-                  <ImageIcon className="w-4 h-4 text-indigo-500" />
-                  <span>גלריית תמונות המוצר ({(draft.galleryImages || []).length})</span>
-                </h4>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  התמונה הראשונה תשמש כתמונת ה-Hero הראשית, וכל התמונות יוצגו באזור הגלריה בעמוד (אם אין תמונות, אזור הגלריה יוסתר אוטומטית)
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddGalleryImages}
-                className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                הוסף תמונות מהגלריה
-              </button>
-            </div>
-
-            {(draft.galleryImages || []).length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {(draft.galleryImages || []).map((imgUrl, idx) => (
-                  <div
-                    key={`${imgUrl}_${idx}`}
-                    className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900"
-                  >
-                    <img src={imgUrl} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
-                    {idx === 0 && (
-                      <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-indigo-600/90 text-white text-[10px] font-bold">
-                        תמונה ראשית
-                      </span>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveGalleryImage(idx)}
-                      className="absolute top-1.5 left-1.5 p-1.5 rounded-lg bg-black/60 hover:bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition-all"
-                      title="הסר תמונה מהגלריה"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={handleAddGalleryImages}
-                className="w-full h-28 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 transition-colors gap-1.5"
-              >
-                <ImageIcon className="w-6 h-6 text-indigo-400" />
-                <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
-                  בחר תמונות מספריית המדיה להוספה לגלריית המוצר
-                </span>
-              </button>
-            )}
-          </div>
-
-          {/* 6. הגדרות SEO + קידום במנועי AI (AIO/GEO) + תמונת שיתוף ברשתות (JPG < 100KB) */}
-          <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/25 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Globe className="w-4 h-4 text-amber-500" />
-                <h4 className="text-sm font-extrabold text-slate-900 dark:text-white">
-                  הגדרות SEO, קישור שיתוף ברשתות וקידום במנועי AI (AIO / GEO)
-                </h4>
-              </div>
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-500/30">
-                מוזרק ישירות להגדרות העמוד
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  כותרת SEO (Meta Title)
-                </label>
-                <input
-                  type="text"
-                  value={draft.seo?.metaTitle || ''}
-                  onChange={(e) => updateSeoField('metaTitle', e.target.value)}
-                  placeholder="כותרת העמוד בגוגל וברשתות..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  מזהה כתובת העמוד באנגלית (Slug)
-                </label>
-                <input
-                  type="text"
-                  dir="ltr"
-                  value={draft.seo?.slug || ''}
-                  onChange={(e) => updateSeoField('slug', e.target.value)}
-                  placeholder="kosass-flagship-product"
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  תיאור מטא לגוגל (Meta Description)
-                </label>
-                <textarea
-                  rows={2}
-                  value={draft.seo?.metaDescription || ''}
-                  onChange={(e) => updateSeoField('metaDescription', e.target.value)}
-                  placeholder="תיאור שיווקי קצר לתוצאות החיפוש..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  מילות מפתח ל-SEO (מופרדות בפסיקים)
-                </label>
-                <textarea
-                  rows={2}
-                  value={
-                    Array.isArray(draft.seo?.keywords)
-                      ? draft.seo.keywords.join(', ')
-                      : draft.seo?.keywords || ''
-                  }
-                  onChange={(e) => updateSeoField('keywords', e.target.value)}
-                  placeholder="מילת מפתח 1, מילת מפתח 2..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-none"
-                />
-              </div>
-            </div>
-
-            {/* העלאת קישור מהגלריה עבור הקישור שנשלח ברשתות - JPG בלבד ופחות מ-100KB */}
-            <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-amber-500/30 space-y-2.5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <div>
-                  <label className="block text-xs font-extrabold text-slate-900 dark:text-white">
-                    תמונת תצוגה מקדימה לקישור שנשלח ברשתות ובוואטסאפ (OG Image)
-                  </label>
-                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold">
-                    מוגבל לקובץ JPG בלבד (.jpg / .jpeg) במשקל פחות מ-100KB לטעינה מיידית בוואטסאפ וברשתות
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    type="button"
-                    onClick={handlePickOgImageFromGallery}
-                    className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold flex items-center gap-1.5 transition-colors"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5" />
-                    בחר מהגלריה (JPG &lt; 100KB)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => ogFileInputRef.current?.click()}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    העלה מהמחשב
-                  </button>
-                </div>
-              </div>
-
-              <input
-                ref={ogFileInputRef}
-                type="file"
-                accept=".jpg,.jpeg,image/jpeg"
-                onChange={handleOgFileUpload}
-                className="hidden"
-              />
-
-              {ogError && (
-                <div className="p-2.5 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-600 dark:text-rose-300 text-xs font-bold flex items-center justify-between">
-                  <span>{ogError}</span>
-                  <button type="button" onClick={() => setOgError(null)}>
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {draft.seo?.ogImage && (
-                <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
-                  <img
-                    src={draft.seo.ogImage}
-                    alt="OG Preview"
-                    className="w-20 h-14 object-cover rounded-lg border border-slate-300 dark:border-slate-700 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 block">
-                      תמונת שיתוף ברשתות פעילה (JPG &lt; 100KB)
-                    </span>
-                    <span className="text-[10px] text-slate-400 truncate block" dir="ltr">
-                      {draft.seo.ogImage.slice(0, 80)}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateSeoField('ogImage', '')}
-                    className="p-1.5 text-slate-400 hover:text-rose-500"
-                    title="הסר תמונת שיתוף"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* נתוני הקידום ב-AI (AIO / GEO) */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-              <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  תמצית ידע מותאמת למנועי AI (ChatGPT, Gemini, Perplexity)
-                </label>
-                <textarea
-                  rows={3}
-                  value={draft.seo?.aiKnowledgeSummary || ''}
-                  onChange={(e) => updateSeoField('aiKnowledgeSummary', e.target.value)}
-                  placeholder="פסקה עובדתית עשירה שמנועי AI יצטטו ישירות..."
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-y"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
-                  שאלות מפתח לקידום ב-AI (שאלה בכל שורה)
-                </label>
-                <textarea
-                  rows={3}
-                  value={(draft.seo?.aiTargetQuestions || []).join('\n')}
-                  onChange={(e) =>
-                    updateSeoField(
-                      'aiTargetQuestions',
-                      e.target.value
-                        .split('\n')
-                        .map((q) => q.trim())
-                        .filter(Boolean)
-                    )
-                  }
-                  placeholder="איך מצטרפים לתוכנית?&#10;למי המוצר מתאים?"
-                  className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-y"
-                />
-              </div>
-            </div>
-          </div>
-
+          {/* הודעת פריסת עמוד הצלחה */}
           {pageSuccessMsg && (
-            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between shrink-0 animate-fadeIn">
+              <div className="flex items-center gap-2 min-w-0">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>{pageSuccessMsg}</span>
+                <span className="truncate">{pageSuccessMsg}</span>
               </div>
               {draft.linkedPageSlug && (
                 <a
                   href={`/p/${draft.linkedPageSlug}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="underline flex items-center gap-1"
+                  className="underline flex items-center gap-1 shrink-0 text-emerald-600 dark:text-emerald-400 mr-2"
                 >
-                  <span>פתח עמוד</span>
+                  <span>פתח עמוד (/p/{draft.linkedPageSlug})</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </a>
               )}
             </div>
           )}
+
+          {/* 1. פרטי המוצר והסלוגן */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('general')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'general'
+                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'general'
+                    ? 'bg-indigo-500 text-white border-indigo-600 shadow-sm'
+                    : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-800/50'
+                }`}>
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">פרטי המוצר והסלוגן</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    שם המוצר, סלוגן, תיאור קצר (Hero) ותיאור מורחב
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  draft.nameAndSlogan
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                }`}>
+                  {draft.nameAndSlogan ? 'מוגדר' : 'נדרש'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'general' ? 'rotate-180 text-indigo-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'general' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                      שם המוצר + סלוגן
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.nameAndSlogan}
+                      onChange={(e) => updateField('nameAndSlogan', e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 shadow-sm"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                      תיאור קצר (Hero Subtitle)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.shortDescription}
+                      onChange={(e) => updateField('shortDescription', e.target.value)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 shadow-sm"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300">
+                    תיאור ארוך ומעמיק עבור העמוד, SEO וקידום AI
+                  </label>
+                  <textarea
+                    value={draft.longDescription}
+                    onChange={(e) => updateField('longDescription', e.target.value)}
+                    rows={3}
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed shadow-sm"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. 6 נקודות כאב */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('painPoints')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'painPoints'
+                  ? 'bg-rose-50/70 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'painPoints'
+                    ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                    : 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-200/50 dark:border-rose-800/50'
+                }`}>
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">נקודות הכאב שהמוצר פותר</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 6 נקודות כאב עם אייקונים מספריית האייקונים
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.painPoints || []).length} / 6 פריטים
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'painPoints' ? 'rotate-180 text-rose-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'painPoints' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <RepeaterBlockEditor
+                  title="נקודות הכאב שהמוצר פותר"
+                  subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 6 נקודות כאב)"
+                  badgeText="יעד: 6 נקודות כאב"
+                  items={draft.painPoints || []}
+                  onChange={(next) => updateField('painPoints', next)}
+                  defaultIcon="AlertCircle"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 3. 3 קהלי יעד */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('targetAudiences')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'targetAudiences'
+                  ? 'bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'targetAudiences'
+                    ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                    : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
+                }`}>
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">קהלי היעד של המוצר</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 3 קהלי יעד ממוקדים עם אייקונים
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.targetAudiences || []).length} / 3 קהלים
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'targetAudiences' ? 'rotate-180 text-blue-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'targetAudiences' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <RepeaterBlockEditor
+                  title="קהלי היעד של המוצר"
+                  subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 3 קהלי יעד מובחנים)"
+                  badgeText="יעד: 3 קהלים"
+                  items={draft.targetAudiences || []}
+                  onChange={(next) => updateField('targetAudiences', next)}
+                  defaultIcon="Users"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 4. 6 יתרונות תחרותיים */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('competitiveAdvantages')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'competitiveAdvantages'
+                  ? 'bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'competitiveAdvantages'
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                    : 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/50'
+                }`}>
+                  <Award className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">יתרונות תחרותיים</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 6 יתרונות ומעלות על פני המתחרים
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.competitiveAdvantages || []).length} / 6 יתרונות
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'competitiveAdvantages' ? 'rotate-180 text-amber-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'competitiveAdvantages' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <RepeaterBlockEditor
+                  title="היתרונות והמעלות על פני המתחרים"
+                  subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 6 יתרונות בולטים)"
+                  badgeText="יעד: 6 יתרונות"
+                  items={draft.competitiveAdvantages || []}
+                  onChange={(next) => updateField('competitiveAdvantages', next)}
+                  defaultIcon="Award"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 5. 10 שאלות ותשובות (FAQ) */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('faqs')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'faqs'
+                  ? 'bg-violet-50/70 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'faqs'
+                    ? 'bg-violet-500 text-white border-violet-600 shadow-sm'
+                    : 'bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border-violet-200/50 dark:border-violet-800/50'
+                }`}>
+                  <HelpCircle className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">שאלות ותשובות נפוצות (FAQ)</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 10 שאלות ותשובות עבור אזור השו״ת בעמוד המוצר ולסכמת ה-AI
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.faqs || []).length} / 10 שאלות
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'faqs' ? 'rotate-180 text-violet-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'faqs' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                    שאלות ותשובות מפורטות
+                  </span>
+                  <button
+                    type="button"
+                    onClick={addFaqItem}
+                    className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף שאלה</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(draft.faqs || []).map((faq, idx) => (
+                    <div
+                      key={faq.id || idx}
+                      className="p-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm flex flex-col gap-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <IconPickerPopover
+                          value={faq.icon || 'HelpCircle'}
+                          onChange={(icon) => updateFaqItem(idx, { icon })}
+                        />
+                        <input
+                          type="text"
+                          value={faq.question || ''}
+                          onChange={(e) => updateFaqItem(idx, { question: e.target.value })}
+                          placeholder={`שאלה #${idx + 1}...`}
+                          className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeFaqItem(idx)}
+                          className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg transition-colors"
+                          title="מחק שאלה"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <textarea
+                        rows={2}
+                        value={faq.answer || ''}
+                        onChange={(e) => updateFaqItem(idx, { answer: e.target.value })}
+                        placeholder="תשובה מפורטת ומדויקת..."
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500/40 resize-y"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 6. גלריית תמונות מוצר (מרובת תמונות) */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('gallery')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'gallery'
+                  ? 'bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'gallery'
+                    ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                    : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                }`}>
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">גלריית תמונות המוצר ומדיה</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    תמונה ראשית וגלריית תמונות מתוך KosCloudStore
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.galleryImages || []).length} תמונות
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'gallery' ? 'rotate-180 text-emerald-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'gallery' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                    תמונות הגלריה והתמונה הראשית
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleAddGalleryImages}
+                    className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף תמונות מ-KosCloudStore</span>
+                  </button>
+                </div>
+
+                {(draft.galleryImages || []).length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {(draft.galleryImages || []).map((imgUrl, idx) => (
+                      <div
+                        key={`${imgUrl}_${idx}`}
+                        className="relative group aspect-video rounded-xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900"
+                      >
+                        <img src={imgUrl} alt={`Gallery ${idx + 1}`} className="w-full h-full object-cover" />
+                        {idx === 0 && (
+                          <span className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-indigo-600/90 text-white text-[10px] font-bold">
+                            תמונה ראשית
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveGalleryImage(idx)}
+                          className="absolute top-1.5 left-1.5 p-1.5 rounded-lg bg-black/60 hover:bg-rose-600 text-white opacity-0 group-hover:opacity-100 transition-all"
+                          title="הסר תמונה מהגלריה"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleAddGalleryImages}
+                    className="w-full h-28 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800/80 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 dark:border-slate-700 transition-colors gap-1.5"
+                  >
+                    <ImageIcon className="w-6 h-6 text-indigo-400" />
+                    <span className="text-xs font-bold text-slate-600 dark:text-slate-300">
+                      בחר תמונות מספריית המדיה להוספה לגלריית המוצר
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 7. הגדרות SEO + קידום בינה מלאכותית (AIO/GEO) + תמונת שיתוף JPG < 100KB */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('seo')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'seo'
+                  ? 'bg-teal-50/70 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'seo'
+                    ? 'bg-teal-500 text-white border-teal-600 shadow-sm'
+                    : 'bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border-teal-200/50 dark:border-teal-800/50'
+                }`}>
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">הגדרות SEO וקידום AI (AIO / GEO)</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    סלאג, Meta, תמונת שיתוף JPG &lt; 100KB ושאלות יעד ל-AI
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 font-mono">
+                  {draft.seo?.slug ? `/p/${draft.seo.slug}` : 'SEO'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'seo' ? 'rotate-180 text-teal-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'seo' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      סלאג URL (אותיות באנגלית ומקפים בלבד)
+                    </label>
+                    <input
+                      type="text"
+                      dir="ltr"
+                      value={draft.seo?.slug || ''}
+                      onChange={(e) =>
+                        updateSeoField('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))
+                      }
+                      placeholder="master-package"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs font-mono text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      סוג ישות סכמה עבור מנועי חיפוש ו-AI
+                    </label>
+                    <select
+                      value={draft.seo?.aiEntitySchemaType || 'Product'}
+                      onChange={(e) => updateSeoField('aiEntitySchemaType', e.target.value as any)}
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
+                    >
+                      <option value="Product">Product (מוצר פיזי או דיגיטלי)</option>
+                      <option value="Service">Service (שירות / תוכנית)</option>
+                      <option value="Course">Course (קורס / הכשרה)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      כותרת מטא לגוגל (Meta Title)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.seo?.metaTitle || ''}
+                      onChange={(e) => updateSeoField('metaTitle', e.target.value)}
+                      placeholder="כותרת מפתה למנועי חיפוש..."
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      מילות מפתח (Keywords)
+                    </label>
+                    <input
+                      type="text"
+                      value={
+                        Array.isArray(draft.seo?.keywords)
+                          ? draft.seo.keywords.join(', ')
+                          : draft.seo?.keywords || ''
+                      }
+                      onChange={(e) => updateSeoField('keywords', e.target.value)}
+                      placeholder="מילות מפתח מופרדות בפסיקים..."
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                    תיאור מטא לגוגל (Meta Description)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={draft.seo?.metaDescription || ''}
+                    onChange={(e) => updateSeoField('metaDescription', e.target.value)}
+                    placeholder="תיאור תמציתי וממיר של עד 160 תווים..."
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-y"
+                  />
+                </div>
+
+                {/* תמונת שיתוף לרשתות חברתיות - JPG בלבד ופחות מ-100KB */}
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-slate-700 dark:text-slate-200 block">
+                        תמונת שיתוף לרשתות החברתיות (Social OG Image)
+                      </label>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-400 font-bold">
+                        מוגבל לקובץ JPG בלבד (.jpg / .jpeg) במשקל פחות מ-100KB לטעינה מהירה
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={ogFileInputRef}
+                        type="file"
+                        accept=".jpg,.jpeg,image/jpeg"
+                        className="hidden"
+                        onChange={handleOgFileUpload}
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePickOgImageFromGallery}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>בחר מהגלריה</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => ogFileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>העלה JPG</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {ogError && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+                      <X className="w-4 h-4 shrink-0" />
+                      <span>{ogError}</span>
+                    </div>
+                  )}
+
+                  {draft.seo?.ogImage && (
+                    <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <img
+                        src={draft.seo.ogImage}
+                        alt="OG Preview"
+                        className="w-16 h-10 object-cover rounded-lg border border-slate-200 dark:border-slate-700"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate block">
+                          תמונת שיתוף פעילה (JPG &lt; 100KB)
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono truncate block">
+                          {draft.seo.ogImage.slice(0, 60)}...
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateSeoField('ogImage', '')}
+                        className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg"
+                        title="הסר תמונה"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      תקציר ידע בלעדי לסוכני AI (AIO Knowledge Grounding)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={draft.seo?.aiKnowledgeSummary || ''}
+                      onChange={(e) => updateSeoField('aiKnowledgeSummary', e.target.value)}
+                      placeholder="פסקה עובדתית עשירה שמנועי AI יצטטו ישירות..."
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-y"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 dark:text-slate-300 mb-1">
+                      שאלות מפתח לקידום ב-AI (שאלה בכל שורה)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={(draft.seo?.aiTargetQuestions || []).join('\n')}
+                      onChange={(e) =>
+                        updateSeoField(
+                          'aiTargetQuestions',
+                          e.target.value
+                            .split('\n')
+                            .map((q) => q.trim())
+                            .filter(Boolean)
+                        )
+                      }
+                      placeholder="איך מצטרפים לתוכנית?&#10;למי המוצר מתאים?"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-white resize-y"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
 
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex flex-col md:flex-row items-center justify-between mt-auto gap-3 sticky bottom-0 z-20 backdrop-blur-md">
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        {/* Modal Footer Controls - רספונסיבי למובייל ודסקטופ */}
+        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={handleCreatePage}
               disabled={isCreatingPage}
-              className="flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-3.5 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50"
             >
               {isCreatingPage ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1268,24 +1576,26 @@ const FlagshipProductModal: React.FC<{
                 className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2 py-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                צפה בעמוד המוצר
+                <span>צפה בעמוד המוצר</span>
               </a>
             )}
           </div>
 
-          <div className="flex gap-2 w-full md:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
+              type="button"
               onClick={onClose}
-              className="flex-1 md:flex-none px-5 py-2.5 text-sm font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             >
               ביטול
             </button>
             <button
+              type="button"
               onClick={() => {
                 save();
                 onClose();
               }}
-              className="flex-1 md:flex-none px-5 py-2.5 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+              className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
             >
               שמור מוצר
             </button>

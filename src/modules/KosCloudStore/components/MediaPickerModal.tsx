@@ -317,7 +317,7 @@ export const MediaPickerModal: React.FC<MediaPickerModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in text-slate-100"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-black/90 backdrop-blur-md animate-fade-in text-slate-100"
       dir="rtl"
     >
       <MediaGalleryProvider

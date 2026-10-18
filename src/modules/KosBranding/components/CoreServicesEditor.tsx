@@ -16,6 +16,12 @@ import {
   Upload,
   FolderOpen,
   RefreshCw,
+  ChevronDown,
+  Save,
+  FileText,
+  AlertCircle,
+  Users,
+  Award,
 } from 'lucide-react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { generateAiCoreService } from '../services/geminiBrandPrompt';
@@ -692,495 +698,79 @@ const CoreServiceDetailModal: React.FC<{
     }
   };
 
+  // בקרת לשוניות נפתחות (אקורדיון) – ברירת מחדל: ללא אף לשונית פתוחה, ופתיחה של רק אחת בכל פעם
+  const [openSection, setOpenSection] = useState<string | null>(null);
+
+  const toggleSection = (sectionId: string) => {
+    setOpenSection((prev) => (prev === sectionId ? null : sectionId));
+  };
+
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" dir="rtl">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 dark:bg-black/80 backdrop-blur-sm p-2 sm:p-4 animate-in fade-in font-sans" dir="rtl">
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-4xl max-h-[92vh] flex flex-col shadow-2xl overflow-hidden animate-in zoom-in-95">
         
-        {/* Modal Top Header */}
-        <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/20">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-              <Briefcase className="w-5 h-5" />
+        {/* Modal Top Header - קומפקטי ומותאם מובייל ודסקטופ */}
+        <div className="p-3.5 sm:p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-800/30 shrink-0">
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0 shadow-sm">
+              <Briefcase className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                עורך שירות מרכזי: {draft.nameAndSlogan || 'שירות חדש'}
+            <div className="min-w-0">
+              <h3 className="text-xs sm:text-base font-bold text-slate-900 dark:text-white truncate">
+                {draft.nameAndSlogan || 'שירות מרכזי חדש'}
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                הגדרת תוכן, 6 נקודות כאב, 3 קהלים, 6 יתרונות, 10 שאלות ותשובות ו-SEO/AIO
+              <p className="text-[10px] sm:text-xs text-slate-500 dark:text-slate-400 truncate">
+                7 אזורי תוכן בלשוניות נפתחות (אקורדיון מודולרי)
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               type="button"
               onClick={handleRegenerateWithAi}
               disabled={isAiRephrasing}
-              className="px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              className="px-2.5 sm:px-3.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/15 dark:hover:bg-indigo-500/25 text-indigo-600 dark:text-indigo-300 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+              title="רענן שדות באמצעות AI"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>{isAiRephrasing ? 'מרענן שדות...' : 'רענן עם AI'}</span>
+              <span className="hidden sm:inline">{isAiRephrasing ? 'מרענן...' : 'רענן עם AI'}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm"
+              title="שמור שינויים"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">שמור</span>
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              title="סגור חלון"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
         </div>
 
-        {/* Modal Scrollable Body */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          
-          {/* 1. שם השירות וסלוגן */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-              שם השירות והסלוגן (Name & Slogan)
-            </label>
-            <input
-              type="text"
-              value={draft.nameAndSlogan || ''}
-              onChange={(e) => updateField('nameAndSlogan', e.target.value)}
-              placeholder="לדוגמה: אילוף כלבים מקצועי – שקט נפשי וחיבור אמיתי"
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-indigo-500"
-            />
-          </div>
+        {/* Modal Scrollable Body - לשוניות אקורדיון נפתחות בלבד */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-2.5 custom-scrollbar">
 
-          {/* 2. תיאור קצר ותיאור ארוך */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-700 dark:text-slate-300">
-                תיאור קצר (עבור ה-Hero ותקציר העמוד)
-              </label>
-              <textarea
-                value={draft.shortDescription || ''}
-                onChange={(e) => updateField('shortDescription', e.target.value)}
-                rows={3}
-                placeholder="1-2 משפטים חדים על מהות השירות והתועלת המיידית"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                <span>אודות ותוכן השירות (עבור אזור תוכן/אודות בבונה)</span>
-                <span className="text-[10px] text-indigo-500 font-bold">אזור אודות / תוכן (sec-about)</span>
-              </label>
-              <textarea
-                value={draft.longDescription || ''}
-                onChange={(e) => updateField('longDescription', e.target.value)}
-                rows={3}
-                placeholder="תיאור מורחב של 4-6 משפטים המספר על השירות, החוויה והליווי האישי"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
-              />
-            </div>
-          </div>
-
-          {/* 3. שדות חוזרים: 6 נקודות כאב, 3 קהלי יעד, 6 יתרונות תחרותיים */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <RepeaterSection
-              title="נקודות כאב שהשירות פותר"
-              countBadge={`${(draft.painPoints || []).length} / 6`}
-              items={draft.painPoints || []}
-              defaultIcon="AlertCircle"
-              onAdd={() => {
-                const next = [
-                  ...(draft.painPoints || []),
-                  { id: `pain_${Date.now()}`, title: '', text: '', icon: 'AlertCircle' },
-                ];
-                updateField('painPoints', next);
-              }}
-              onUpdate={(idx, patch) => {
-                const next = (draft.painPoints || []).map((p, i) => (i === idx ? { ...p, ...patch } : p));
-                updateField('painPoints', next);
-              }}
-              onRemove={(idx) => {
-                const next = (draft.painPoints || []).filter((_, i) => i !== idx);
-                updateField('painPoints', next);
-              }}
-              titlePlaceholder="כותרת נקודת כאב"
-              textPlaceholder="כיצד השירות פותר את הכאב הזה?"
-            />
-
-            <RepeaterSection
-              title="קהלי יעד ממוקדים"
-              countBadge={`${(draft.targetAudiences || []).length} / 3`}
-              items={draft.targetAudiences || []}
-              defaultIcon="Users"
-              onAdd={() => {
-                const next = [
-                  ...(draft.targetAudiences || []),
-                  { id: `aud_${Date.now()}`, title: '', text: '', icon: 'Users' },
-                ];
-                updateField('targetAudiences', next);
-              }}
-              onUpdate={(idx, patch) => {
-                const next = (draft.targetAudiences || []).map((a, i) => (i === idx ? { ...a, ...patch } : a));
-                updateField('targetAudiences', next);
-              }}
-              onRemove={(idx) => {
-                const next = (draft.targetAudiences || []).filter((_, i) => i !== idx);
-                updateField('targetAudiences', next);
-              }}
-              titlePlaceholder="שם קהל היעד"
-              textPlaceholder="מדוע השירות מותאם בול עבורו?"
-            />
-
-            <RepeaterSection
-              title="יתרונות תחרותיים"
-              countBadge={`${(draft.competitiveAdvantages || []).length} / 6`}
-              items={draft.competitiveAdvantages || []}
-              defaultIcon="Award"
-              onAdd={() => {
-                const next = [
-                  ...(draft.competitiveAdvantages || []),
-                  { id: `adv_${Date.now()}`, title: '', text: '', icon: 'Award' },
-                ];
-                updateField('competitiveAdvantages', next);
-              }}
-              onUpdate={(idx, patch) => {
-                const next = (draft.competitiveAdvantages || []).map((c, i) => (i === idx ? { ...c, ...patch } : c));
-                updateField('competitiveAdvantages', next);
-              }}
-              onRemove={(idx) => {
-                const next = (draft.competitiveAdvantages || []).filter((_, i) => i !== idx);
-                updateField('competitiveAdvantages', next);
-              }}
-              titlePlaceholder="יתרון תחרותי ייחודי"
-              textPlaceholder="המעלה על פני כל חלופה אחרת"
-            />
-          </div>
-
-          {/* 4. שאלות ותשובות נפוצות (10 שאלות) */}
-          <div className="space-y-3 p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HelpCircle className="w-4 h-4 text-indigo-500" />
-                <span className="text-xs font-black text-slate-900 dark:text-white">
-                  שאלות ותשובות נפוצות עבור אזור השו&quot;ת
-                </span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300">
-                  {(draft.faqs || []).length} / 10 שאלות
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => {
-                  updateField('faqs', [
-                    ...(draft.faqs || []),
-                    { id: `faq_${Date.now()}`, question: '', answer: '', icon: 'HelpCircle' },
-                  ]);
-                }}
-                className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>הוסף שאלה</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {(draft.faqs || []).map((faq, idx) => (
-                <div
-                  key={faq.id || idx}
-                  className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 group space-y-2 shadow-sm"
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">
-                      שאלה {idx + 1}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        updateField('faqs', (draft.faqs || []).filter((_, i) => i !== idx));
-                      }}
-                      className="p-1 text-slate-400 hover:text-rose-500 rounded"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                  <input
-                    type="text"
-                    value={faq.question || ''}
-                    onChange={(e) => {
-                      const next = (draft.faqs || []).map((f, i) => (i === idx ? { ...f, question: e.target.value } : f));
-                      updateField('faqs', next);
-                    }}
-                    placeholder="נוסח השאלה הנפוצה?"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                  />
-                  <textarea
-                    value={faq.answer || ''}
-                    onChange={(e) => {
-                      const next = (draft.faqs || []).map((f, i) => (i === idx ? { ...f, answer: e.target.value } : f));
-                      updateField('faqs', next);
-                    }}
-                    rows={2}
-                    placeholder="התשובה המפורטת והמרגיעה"
-                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 5. גלריית תמונות השירות */}
-          <div className="space-y-3 p-4 rounded-2xl bg-slate-50/70 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-indigo-500" />
-                <span className="text-xs font-black text-slate-900 dark:text-white">
-                  גלריית תמונות השירות
-                </span>
-                <span className="text-[10px] text-slate-500">
-                  ({(draft.galleryImages || []).length} תמונות)
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={async () => {
-                  if (mediaPicker?.openPicker) {
-                    try {
-                      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: true, maxFiles: 12 });
-                      if (selected) {
-                        const rawList = Array.isArray(selected) ? selected : [selected];
-                        const urls = rawList
-                          .map((item) => (typeof item === 'string' ? item : (item as any)?.url))
-                          .filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
-                        if (urls.length > 0) {
-                          const current = draft.galleryImages || [];
-                          const nextGallery = [...current, ...urls];
-                          updateField('galleryImages', nextGallery);
-                          if (!draft.imageUrl) updateField('imageUrl', nextGallery[0] || '');
-                        }
-                      }
-                    } catch (err) {
-                      const url = prompt('הזן כתובת תמונה URL:');
-                      if (url?.trim()) {
-                        const current = draft.galleryImages || [];
-                        const nextGallery = [...current, url.trim()];
-                        updateField('galleryImages', nextGallery);
-                        if (!draft.imageUrl) updateField('imageUrl', nextGallery[0] || '');
-                      }
-                    }
-                  } else {
-                    const url = prompt('הזן כתובת תמונה URL:');
-                    if (url?.trim()) {
-                      const current = draft.galleryImages || [];
-                      const nextGallery = [...current, url.trim()];
-                      updateField('galleryImages', nextGallery);
-                      if (!draft.imageUrl) updateField('imageUrl', nextGallery[0] || '');
-                    }
-                  }
-                }}
-                className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1 transition-colors"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>הוסף תמונה לגלריה</span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
-              {(draft.galleryImages || []).map((imgUrl, idx) => (
-                <div key={idx} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-sm">
-                  <img src={imgUrl} alt={`gallery_${idx}`} className="w-full h-full object-cover" />
-                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => updateField('imageUrl', imgUrl)}
-                      title="הגדר כתמונה ראשית"
-                      className={`p-1.5 rounded-lg text-xs font-bold ${
-                        draft.imageUrl === imgUrl
-                          ? 'bg-amber-500 text-white'
-                          : 'bg-white/80 hover:bg-white text-slate-800'
-                      }`}
-                    >
-                      ★
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const next = (draft.galleryImages || []).filter((_, i) => i !== idx);
-                        updateField('galleryImages', next);
-                        if (draft.imageUrl === imgUrl) {
-                          updateField('imageUrl', next[0] || '');
-                        }
-                      }}
-                      className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
-                      title="מחק מהגלריה"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* 6. הגדרות SEO + קידום AI (AIO/GEO) + תמונת שיתוף JPG < 100KB */}
-          <div className="space-y-4 p-4 rounded-2xl bg-indigo-500/5 dark:bg-indigo-500/10 border border-indigo-500/20">
-            <div className="flex items-center gap-2">
-              <Globe className="w-4 h-4 text-indigo-500" />
-              <span className="text-xs font-black text-slate-900 dark:text-white">
-                הגדרות SEO וקידום בינה מלאכותית (AIO / GEO)
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                  <span>סלאג עמוד השירות (נפתח ישירות ללא קידומת /p/)</span>
-                  <span className="text-[10px] text-emerald-600 font-bold">/{draft.seo?.slug || 'service-slug'}</span>
-                </label>
-                <input
-                  type="text"
-                  value={draft.seo?.slug || ''}
-                  onChange={(e) => updateSeoField('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                  placeholder="dog-training-course"
-                  dir="ltr"
-                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  כותרת מטא לגוגל (Meta Title)
-                </label>
-                <input
-                  type="text"
-                  value={draft.seo?.metaTitle || ''}
-                  onChange={(e) => updateSeoField('metaTitle', e.target.value)}
-                  placeholder="כותרת העמוד במנועי חיפוש"
-                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  תיאור מטא לגוגל (Meta Description)
-                </label>
-                <input
-                  type="text"
-                  value={draft.seo?.metaDescription || ''}
-                  onChange={(e) => updateSeoField('metaDescription', e.target.value)}
-                  placeholder="עד 160 תווים של תיאור מזמין"
-                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                  מילות מפתח (Keywords)
-                </label>
-                <input
-                  type="text"
-                  value={draft.seo?.keywords || ''}
-                  onChange={(e) => updateSeoField('keywords', e.target.value)}
-                  placeholder="מילה 1, מילה 2, מילה 3"
-                  className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
-                />
-              </div>
-            </div>
-
-            {/* תמונת שיתוף ברשתות - JPG בלבד ופחות מ-100KB */}
-            <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 block">
-                    תמונת שיתוף לרשתות החברתיות (Social OG Image)
-                  </label>
-                  <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
-                    מוגבל לקובץ JPG בלבד (.jpg / .jpeg) במשקל פחות מ-100KB לטעינה מיידית בוואטסאפ וברשתות
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={ogFileInputRef}
-                    type="file"
-                    accept="image/jpeg"
-                    className="hidden"
-                    onChange={handleOgFileUpload}
-                  />
-                  <button
-                    type="button"
-                    onClick={handlePickOgFromGallery}
-                    className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                  >
-                    <FolderOpen className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>בחר מהגלריה (JPG &lt; 100KB)</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => ogFileInputRef.current?.click()}
-                    className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    <span>העלה JPG מהמחשב</span>
-                  </button>
-                </div>
-              </div>
-
-              {ogError && (
-                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
-                  <X className="w-4 h-4 shrink-0" />
-                  <span>{ogError}</span>
-                </div>
-              )}
-
-              {draft.seo?.ogImage && (
-                <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
-                  <img
-                    src={draft.seo.ogImage}
-                    alt="OG Preview"
-                    className="w-16 h-10 object-cover rounded-lg border border-slate-200 dark:border-slate-800"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate block">
-                      תמונת שיתוף ברשתות פעילה (JPG &lt; 100KB)
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-mono truncate block">
-                      {draft.seo.ogImage.slice(0, 60)}...
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updateSeoField('ogImage', '')}
-                    className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg"
-                    title="הסר תמונה"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* AI Knowledge Summary */}
-            <div className="space-y-1 pt-2">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
-                תמצית ידע למנועי AI (ChatGPT, Gemini, Perplexity)
-              </label>
-              <textarea
-                value={draft.seo?.aiKnowledgeSummary || ''}
-                onChange={(e) => updateSeoField('aiKnowledgeSummary', e.target.value)}
-                rows={2}
-                placeholder="תמצית עובדתית מדויקת שמנועי בינה מלאכותית יצטטו ישירות לגבי השירות"
-                className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
-              />
-            </div>
-          </div>
-
+          {/* הודעת פריסת עמוד הצלחה (במידה וקיים) */}
           {pageSuccessMsg && (
-            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <div className="p-3 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-between shrink-0 animate-fadeIn">
+              <div className="flex items-center gap-2 min-w-0">
                 <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                <span>{pageSuccessMsg}</span>
+                <span className="truncate">{pageSuccessMsg}</span>
               </div>
               {draft.linkedPageSlug && (
                 <a
                   href={`/${draft.linkedPageSlug}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="underline flex items-center gap-1"
+                  className="underline flex items-center gap-1 shrink-0 text-emerald-600 dark:text-emerald-400 mr-2"
                 >
                   <span>פתח עמוד (/{draft.linkedPageSlug})</span>
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -1188,16 +778,711 @@ const CoreServiceDetailModal: React.FC<{
               )}
             </div>
           )}
+
+          {/* 1. פרטי השירות והסלוגן + תיאור קצר ואודות */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('general')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'general'
+                  ? 'bg-indigo-50/70 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'general'
+                    ? 'bg-indigo-500 text-white border-indigo-600 shadow-sm'
+                    : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-600 dark:text-indigo-400 border-indigo-200/50 dark:border-indigo-800/50'
+                }`}>
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">פרטי השירות והסלוגן</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    שם וסלוגן, תיאור קצר ואודות השירות
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                  draft.nameAndSlogan
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                }`}>
+                  {draft.nameAndSlogan ? 'מוגדר' : 'נדרש'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'general' ? 'rotate-180 text-indigo-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'general' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-black text-slate-700 dark:text-slate-300 block">
+                    שם השירות והסלוגן (Name & Slogan)
+                  </label>
+                  <input
+                    type="text"
+                    value={draft.nameAndSlogan || ''}
+                    onChange={(e) => updateField('nameAndSlogan', e.target.value)}
+                    placeholder="לדוגמה: אילוף כלבים מקצועי – שקט נפשי וחיבור אמיתי"
+                    className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2.5 text-xs text-slate-900 dark:text-white font-bold focus:outline-none focus:border-indigo-500 shadow-sm"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 dark:text-slate-300 block">
+                      תיאור קצר (עבור ה-Hero ותקציר העמוד)
+                    </label>
+                    <textarea
+                      value={draft.shortDescription || ''}
+                      onChange={(e) => updateField('shortDescription', e.target.value)}
+                      rows={3}
+                      placeholder="1-2 משפטים חדים על מהות השירות והתועלת המיידית"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed shadow-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-black text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span>אודות ותוכן השירות (עבור אזור תוכן/אודות)</span>
+                      <span className="text-[10px] text-indigo-500 font-bold">sec-about</span>
+                    </label>
+                    <textarea
+                      value={draft.longDescription || ''}
+                      onChange={(e) => updateField('longDescription', e.target.value)}
+                      rows={3}
+                      placeholder="תיאור מורחב של 4-6 משפטים המספר על השירות, החוויה והליווי האישי"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl px-4 py-2 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed shadow-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. נקודות כאב שהשירות פותר */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('painPoints')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'painPoints'
+                  ? 'bg-rose-50/70 dark:bg-rose-950/40 text-rose-700 dark:text-rose-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'painPoints'
+                    ? 'bg-rose-500 text-white border-rose-600 shadow-sm'
+                    : 'bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-200/50 dark:border-rose-800/50'
+                }`}>
+                  <AlertCircle className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">נקודות כאב שהשירות פותר</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 6 נקודות כאב מדויקות שהשירות נותן להן מענה
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.painPoints || []).length} / 6 פריטים
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'painPoints' ? 'rotate-180 text-rose-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'painPoints' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <RepeaterSection
+                  title="רשימת נקודות כאב ופתרונן"
+                  countBadge={`${(draft.painPoints || []).length} / 6`}
+                  items={draft.painPoints || []}
+                  defaultIcon="AlertCircle"
+                  onAdd={() => {
+                    const next = [
+                      ...(draft.painPoints || []),
+                      { id: `pain_${Date.now()}`, title: '', text: '', icon: 'AlertCircle' },
+                    ];
+                    updateField('painPoints', next);
+                  }}
+                  onUpdate={(idx, patch) => {
+                    const next = (draft.painPoints || []).map((p, i) => (i === idx ? { ...p, ...patch } : p));
+                    updateField('painPoints', next);
+                  }}
+                  onRemove={(idx) => {
+                    const next = (draft.painPoints || []).filter((_, i) => i !== idx);
+                    updateField('painPoints', next);
+                  }}
+                  titlePlaceholder="כותרת נקודת כאב"
+                  textPlaceholder="כיצד השירות פותר את הכאב הזה?"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 3. קהלי יעד ממוקדים */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('targetAudiences')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'targetAudiences'
+                  ? 'bg-blue-50/70 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'targetAudiences'
+                    ? 'bg-blue-500 text-white border-blue-600 shadow-sm'
+                    : 'bg-blue-50 dark:bg-blue-950/50 text-blue-600 dark:text-blue-400 border-blue-200/50 dark:border-blue-800/50'
+                }`}>
+                  <Users className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">קהלי יעד ממוקדים</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 3 קהלי יעד שהשירות תפור בדיוק לצרכיהם
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.targetAudiences || []).length} / 3 קהלים
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'targetAudiences' ? 'rotate-180 text-blue-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'targetAudiences' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <RepeaterSection
+                  title="רשימת קהלי היעד"
+                  countBadge={`${(draft.targetAudiences || []).length} / 3`}
+                  items={draft.targetAudiences || []}
+                  defaultIcon="Users"
+                  onAdd={() => {
+                    const next = [
+                      ...(draft.targetAudiences || []),
+                      { id: `aud_${Date.now()}`, title: '', text: '', icon: 'Users' },
+                    ];
+                    updateField('targetAudiences', next);
+                  }}
+                  onUpdate={(idx, patch) => {
+                    const next = (draft.targetAudiences || []).map((a, i) => (i === idx ? { ...a, ...patch } : a));
+                    updateField('targetAudiences', next);
+                  }}
+                  onRemove={(idx) => {
+                    const next = (draft.targetAudiences || []).filter((_, i) => i !== idx);
+                    updateField('targetAudiences', next);
+                  }}
+                  titlePlaceholder="שם קהל היעד"
+                  textPlaceholder="מדוע השירות מותאם בול עבורו?"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 4. יתרונות תחרותיים */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('competitiveAdvantages')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'competitiveAdvantages'
+                  ? 'bg-amber-50/70 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'competitiveAdvantages'
+                    ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                    : 'bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-200/50 dark:border-amber-800/50'
+                }`}>
+                  <Award className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">יתרונות תחרותיים</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 6 יתרונות בידול ואיכות על פני כל חלופה
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.competitiveAdvantages || []).length} / 6 יתרונות
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'competitiveAdvantages' ? 'rotate-180 text-amber-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'competitiveAdvantages' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <RepeaterSection
+                  title="רשימת יתרונות תחרותיים"
+                  countBadge={`${(draft.competitiveAdvantages || []).length} / 6`}
+                  items={draft.competitiveAdvantages || []}
+                  defaultIcon="Award"
+                  onAdd={() => {
+                    const next = [
+                      ...(draft.competitiveAdvantages || []),
+                      { id: `adv_${Date.now()}`, title: '', text: '', icon: 'Award' },
+                    ];
+                    updateField('competitiveAdvantages', next);
+                  }}
+                  onUpdate={(idx, patch) => {
+                    const next = (draft.competitiveAdvantages || []).map((c, i) => (i === idx ? { ...c, ...patch } : c));
+                    updateField('competitiveAdvantages', next);
+                  }}
+                  onRemove={(idx) => {
+                    const next = (draft.competitiveAdvantages || []).filter((_, i) => i !== idx);
+                    updateField('competitiveAdvantages', next);
+                  }}
+                  titlePlaceholder="יתרון תחרותי ייחודי"
+                  textPlaceholder="המעלה על פני כל חלופה אחרת"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* 5. שאלות ותשובות נפוצות (10 שאלות) */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('faqs')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'faqs'
+                  ? 'bg-violet-50/70 dark:bg-violet-950/40 text-violet-700 dark:text-violet-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'faqs'
+                    ? 'bg-violet-500 text-white border-violet-600 shadow-sm'
+                    : 'bg-violet-50 dark:bg-violet-950/50 text-violet-600 dark:text-violet-400 border-violet-200/50 dark:border-violet-800/50'
+                }`}>
+                  <HelpCircle className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">שאלות ותשובות נפוצות (FAQ)</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    עד 10 שאלות ותשובות עבור אזור השו״ת בעמוד השירות
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.faqs || []).length} / 10 שאלות
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'faqs' ? 'rotate-180 text-violet-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'faqs' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between pb-1">
+                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                    שאלות ותשובות מפורטות
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateField('faqs', [
+                        ...(draft.faqs || []),
+                        { id: `faq_${Date.now()}`, question: '', answer: '', icon: 'HelpCircle' },
+                      ]);
+                    }}
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 flex items-center gap-1"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף שאלה</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(draft.faqs || []).map((faq, idx) => (
+                    <div
+                      key={faq.id || idx}
+                      className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 group space-y-2 shadow-sm"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[10px] font-black text-indigo-500 bg-indigo-50 dark:bg-indigo-950 px-2 py-0.5 rounded">
+                          שאלה {idx + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            updateField('faqs', (draft.faqs || []).filter((_, i) => i !== idx));
+                          }}
+                          className="p-1 text-slate-400 hover:text-rose-500 rounded"
+                          title="מחק שאלה"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        value={faq.question || ''}
+                        onChange={(e) => {
+                          const next = (draft.faqs || []).map((f, i) => (i === idx ? { ...f, question: e.target.value } : f));
+                          updateField('faqs', next);
+                        }}
+                        placeholder="נוסח השאלה הנפוצה?"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs font-bold text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                      />
+                      <textarea
+                        value={faq.answer || ''}
+                        onChange={(e) => {
+                          const next = (draft.faqs || []).map((f, i) => (i === idx ? { ...f, answer: e.target.value } : f));
+                          updateField('faqs', next);
+                        }}
+                        rows={2}
+                        placeholder="התשובה המפורטת והמרגיעה"
+                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-lg px-2.5 py-1 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 6. גלריית תמונות השירות */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('gallery')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'gallery'
+                  ? 'bg-emerald-50/70 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'gallery'
+                    ? 'bg-emerald-500 text-white border-emerald-600 shadow-sm'
+                    : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200/50 dark:border-emerald-800/50'
+                }`}>
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">גלריית תמונות השירות</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    תמונה ראשית וגלריית תמונות מתוך KosCloudStore
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                  {(draft.galleryImages || []).length} תמונות
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'gallery' ? 'rotate-180 text-emerald-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'gallery' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-slate-900 dark:text-white">
+                    תמונות הגלריה והתמונה הראשית
+                  </span>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (mediaPicker?.openPicker) {
+                        try {
+                          const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: true, maxFiles: 12 });
+                          if (selected) {
+                            const rawList = Array.isArray(selected) ? selected : [selected];
+                            const urls = rawList
+                              .map((item) => (typeof item === 'string' ? item : (item as any)?.url))
+                              .filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+                            if (urls.length > 0) {
+                              const current = draft.galleryImages || [];
+                              const nextGallery = [...current, ...urls];
+                              updateField('galleryImages', nextGallery);
+                              if (!draft.imageUrl) updateField('imageUrl', nextGallery[0] || '');
+                            }
+                          }
+                        } catch (err) {
+                          const url = prompt('הזן כתובת תמונה URL:');
+                          if (url?.trim()) {
+                            const current = draft.galleryImages || [];
+                            const nextGallery = [...current, url.trim()];
+                            updateField('galleryImages', nextGallery);
+                            if (!draft.imageUrl) updateField('imageUrl', nextGallery[0] || '');
+                          }
+                        }
+                      } else {
+                        const url = prompt('הזן כתובת תמונה URL:');
+                        if (url?.trim()) {
+                          const current = draft.galleryImages || [];
+                          const nextGallery = [...current, url.trim()];
+                          updateField('galleryImages', nextGallery);
+                          if (!draft.imageUrl) updateField('imageUrl', nextGallery[0] || '');
+                        }
+                      }
+                    }}
+                    className="px-2.5 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>הוסף תמונה מ-KosCloudStore</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3">
+                  {(draft.galleryImages || []).map((imgUrl, idx) => (
+                    <div key={idx} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 shadow-sm">
+                      <img src={imgUrl} alt={`gallery_${idx}`} className="w-full h-full object-cover" />
+                      <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => updateField('imageUrl', imgUrl)}
+                          title="הגדר כתמונה ראשית"
+                          className={`p-1.5 rounded-lg text-xs font-bold ${
+                            draft.imageUrl === imgUrl
+                              ? 'bg-amber-500 text-white'
+                              : 'bg-white/80 hover:bg-white text-slate-800'
+                          }`}
+                        >
+                          ★
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const next = (draft.galleryImages || []).filter((_, i) => i !== idx);
+                            updateField('galleryImages', next);
+                            if (draft.imageUrl === imgUrl) {
+                              updateField('imageUrl', next[0] || '');
+                            }
+                          }}
+                          className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white"
+                          title="מחק מהגלריה"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 7. הגדרות SEO + קידום AI (AIO/GEO) + תמונת שיתוף JPG < 100KB */}
+          <div className="w-full flex flex-col rounded-2xl border overflow-hidden transition-all border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+            <button
+              type="button"
+              onClick={() => toggleSection('seo')}
+              className={`w-full min-h-[50px] px-3.5 sm:px-4 py-3 flex items-center justify-between font-bold text-xs sm:text-sm cursor-pointer transition-all ${
+                openSection === 'seo'
+                  ? 'bg-teal-50/70 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300'
+                  : 'text-slate-800 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${
+                  openSection === 'seo'
+                    ? 'bg-teal-500 text-white border-teal-600 shadow-sm'
+                    : 'bg-teal-50 dark:bg-teal-950/50 text-teal-600 dark:text-teal-400 border-teal-200/50 dark:border-teal-800/50'
+                }`}>
+                  <Globe className="w-4 h-4" />
+                </div>
+                <div className="text-right truncate">
+                  <span className="font-black text-xs sm:text-sm block sm:inline">הגדרות SEO וקידום AI (AIO / GEO)</span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block sm:inline sm:mr-2 truncate">
+                    סלאג ישיר, Meta, תמונת שיתוף JPG &lt; 100KB ותמצית AI
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 font-mono">
+                  {draft.seo?.slug ? `/${draft.seo.slug}` : 'SEO'}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+                  openSection === 'seo' ? 'rotate-180 text-teal-500' : ''
+                }`} />
+              </div>
+            </button>
+
+            {openSection === 'seo' && (
+              <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                      <span>סלאג עמוד השירות (נפתח ישירות ללא קידומת /p/)</span>
+                      <span className="text-[10px] text-emerald-600 font-bold">/{draft.seo?.slug || 'service-slug'}</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.seo?.slug || ''}
+                      onChange={(e) => updateSeoField('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+                      placeholder="dog-training-course"
+                      dir="ltr"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      כותרת מטא לגוגל (Meta Title)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.seo?.metaTitle || ''}
+                      onChange={(e) => updateSeoField('metaTitle', e.target.value)}
+                      placeholder="כותרת העמוד במנועי חיפוש"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      תיאור מטא לגוגל (Meta Description)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.seo?.metaDescription || ''}
+                      onChange={(e) => updateSeoField('metaDescription', e.target.value)}
+                      placeholder="עד 160 תווים של תיאור מזמין"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                      מילות מפתח (Keywords)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.seo?.keywords || ''}
+                      onChange={(e) => updateSeoField('keywords', e.target.value)}
+                      placeholder="מילה 1, מילה 2, מילה 3"
+                      className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                {/* תמונת שיתוף ברשתות - JPG בלבד ופחות מ-100KB */}
+                <div className="space-y-2 pt-2 border-t border-slate-200/60 dark:border-slate-800">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div>
+                      <label className="text-[11px] font-black text-slate-800 dark:text-slate-200 block">
+                        תמונת שיתוף לרשתות החברתיות (Social OG Image)
+                      </label>
+                      <p className="text-[10px] text-amber-600 dark:text-amber-400 font-bold">
+                        מוגבל לקובץ JPG בלבד (.jpg / .jpeg) במשקל פחות מ-100KB לטעינה מהירה
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={ogFileInputRef}
+                        type="file"
+                        accept="image/jpeg"
+                        className="hidden"
+                        onChange={handleOgFileUpload}
+                      />
+                      <button
+                        type="button"
+                        onClick={handlePickOgFromGallery}
+                        className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <FolderOpen className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>בחר מהגלריה</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => ogFileInputRef.current?.click()}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                      >
+                        <Upload className="w-3.5 h-3.5" />
+                        <span>העלה JPG</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {ogError && (
+                    <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+                      <X className="w-4 h-4 shrink-0" />
+                      <span>{ogError}</span>
+                    </div>
+                  )}
+
+                  {draft.seo?.ogImage && (
+                    <div className="flex items-center gap-3 p-2 bg-white dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800">
+                      <img
+                        src={draft.seo.ogImage}
+                        alt="OG Preview"
+                        className="w-16 h-10 object-cover rounded-lg border border-slate-200 dark:border-slate-800"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate block">
+                          תמונת שיתוף ברשתות פעילה (JPG &lt; 100KB)
+                        </span>
+                        <span className="text-[10px] text-slate-400 font-mono truncate block">
+                          {draft.seo.ogImage.slice(0, 60)}...
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => updateSeoField('ogImage', '')}
+                        className="p-1.5 text-slate-400 hover:text-rose-500 rounded-lg"
+                        title="הסר תמונה"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Knowledge Summary */}
+                <div className="space-y-1 pt-2">
+                  <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block">
+                    תמצית ידע למנועי AI (ChatGPT, Gemini, Perplexity)
+                  </label>
+                  <textarea
+                    value={draft.seo?.aiKnowledgeSummary || ''}
+                    onChange={(e) => updateSeoField('aiKnowledgeSummary', e.target.value)}
+                    rows={2}
+                    placeholder="תמצית עובדתית מדויקת שמנועי בינה מלאכותית יצטטו ישירות לגבי השירות"
+                    className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
         </div>
 
-        {/* Modal Footer Controls */}
-        <div className="p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex flex-col md:flex-row items-center justify-between mt-auto gap-3 sticky bottom-0 z-20 backdrop-blur-md">
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        {/* Modal Footer Controls - רספונסיבי למובייל ודסקטופ */}
+        <div className="p-3 sm:p-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/30 flex flex-col sm:flex-row items-center justify-between gap-3 shrink-0 sticky bottom-0 z-20 backdrop-blur-md">
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               type="button"
               onClick={handleCreatePage}
               disabled={isCreatingPage}
-              className="flex items-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-4 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 px-3.5 py-2.5 rounded-xl transition-colors shadow-sm disabled:opacity-50"
             >
               {isCreatingPage ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
@@ -1206,8 +1491,8 @@ const CoreServiceDetailModal: React.FC<{
               )}
               <span>
                 {draft.linkedPageId
-                  ? 'עדכן עמוד שירות ב-KosWebAi (ללא AI)'
-                  : 'פרוס עמוד שירות ב-KosWebAi (ללא AI)'}
+                  ? 'עדכן עמוד שירות ב-KosWebAi'
+                  : 'פרוס עמוד שירות ב-KosWebAi'}
               </span>
             </button>
 
@@ -1219,23 +1504,23 @@ const CoreServiceDetailModal: React.FC<{
                 className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2 py-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>צפה בעמוד חי (/{draft.linkedPageSlug || draft.linkedPageId})</span>
+                <span>צפה בעמוד חי</span>
               </a>
             )}
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 md:flex-none px-5 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
+              className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             >
               ביטול
             </button>
             <button
               type="button"
               onClick={handleSave}
-              className="flex-1 md:flex-none px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20"
+              className="flex-1 sm:flex-none px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-md shadow-indigo-500/20"
             >
               שמור שינויים בשירות
             </button>

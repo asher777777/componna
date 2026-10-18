@@ -308,7 +308,7 @@ export const MediaPreviewModal: React.FC = () => {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-fade-in select-none"
+      className="fixed inset-0 z-[310] flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-fade-in select-none"
       dir="rtl"
     >
       <div
