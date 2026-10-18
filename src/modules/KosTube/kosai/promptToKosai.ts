@@ -27,4 +27,10 @@ export const kosTubePromptGateway = {
   async generateVideoSeo(input: KosTubeAiGenerationInput) {
     return kosTubeAiContract.generateVideoSeoContent(input);
   },
+  async rewriteContent(input: any) {
+    return kosTubeAiContract.rewriteContent(input);
+  },
+  async fillMissingContent(input: any) {
+    return kosTubeAiContract.fillMissingContent(input);
+  },
 };

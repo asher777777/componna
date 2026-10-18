@@ -34,6 +34,24 @@ export interface KosTubeAiGenerationInput {
 export interface KosTubeAiTakeawayItem {
   title: string;
   text: string;
+  icon?: string;
+}
+
+export interface KosTubeAiRewriteInput {
+  target: 'h1' | 'executiveSummary' | 'takeaway' | 'faq' | 'cta' | 'meta';
+  videoTitle: string;
+  currentValue?: any;
+  brandDna?: any;
+  tenantId?: string;
+  instructions?: string;
+}
+
+export interface KosTubeAiFillMissingInput {
+  video: KosTubeVideo;
+  channelTitle?: string;
+  currentData: Partial<KosTubeAiGeneratedData>;
+  brandDna?: any;
+  tenantId?: string;
 }
 
 export interface KosTubeAiGeneratedData {
@@ -193,6 +211,124 @@ ${customText ? `- תוכן/תמלול מצורף: "${customText.slice(0, 1000)}"
       skipCache: options?.skipCache,
       customApiKey: options?.apiKey,
       tenantId: options?.tenantId,
+      category: 'content',
+    });
+  },
+
+  /**
+   * Rewrites a specific field or section with magnetic, brand-aligned copywriting.
+   */
+  async rewriteContent(input: KosTubeAiRewriteInput): Promise<KosaiContractResult<any>> {
+    const { target, videoTitle, currentValue, brandDna, tenantId, instructions } = input;
+    const brandName = brandDna?.identity?.companyName || 'העסק שלנו';
+    const slogan = brandDna?.identity?.slogan || '';
+    const tone = brandDna?.voice?.toneOfVoice || brandDna?.voice?.tone || 'מקצועי, מעצים ומסקרן';
+    const effectiveTenantId = tenantId || brandDna?.subdomain;
+
+    let targetPrompt = '';
+    let responseMimeType: string | undefined = undefined;
+
+    if (target === 'h1') {
+      targetPrompt = `שכתב את הכותרת הראשית (H1) לסרטון "${videoTitle}". הטקסט הנוכחי: "${currentValue || ''}".
+החזר אך ורק טקסט פשוט של כותרת סוחפת, מעצימה ומנצחת בת 4-8 מילים התואמת את הטון של המותג "${brandName}". ללא גרשיים, ללא כותרות משנה וללא הערות.`;
+    } else if (target === 'executiveSummary') {
+      targetPrompt = `שכתב את תמצית המנהלים (Executive Summary) עבור הסרטון "${videoTitle}". התקציר הנוכחי: "${currentValue || ''}".
+החזר 2-3 משפטים חדים, מרתקים וממוקדים בשפת המותג "${brandName}" (טון: ${tone}). ללא כותרות משנה וללא קידומות.`;
+    } else if (target === 'takeaway') {
+      responseMimeType = 'application/json';
+      targetPrompt = `שכתב תובנת מפתח בודדת (Key Takeaway) עבור הסרטון "${videoTitle}".
+הנתון הנוכחי: כותרת: "${currentValue?.title || ''}", טקסט: "${currentValue?.text || ''}".
+החזר JSON במבנה הבא בלבד:
+{
+  "title": "כותרת מסקרנת וסוחפת בת 2-5 מילים לפי שפת המותג ${brandName}",
+  "text": "הסבר מעשי ותמציתי של 1-2 משפטים על התובנה",
+  "icon": "שם אייקון מתאים מספריית האייקונים (כגון: Lightbulb, Target, Sparkles, Compass, Award, CheckCircle2, Shield, Zap)"
+}`;
+    } else if (target === 'faq') {
+      responseMimeType = 'application/json';
+      targetPrompt = `שכתב שאלה ותשובה עבור הסרטון "${videoTitle}".
+השאלה הנוכחית: "${currentValue?.question || ''}", התשובה הנוכחית: "${currentValue?.answer || ''}".
+החזר JSON במבנה הבא בלבד:
+{
+  "question": "שאלה נפוצה ומסקרנת בנושא הוידאו?",
+  "answer": "תשובה מקיפה, בהירה ומעשית התואמת את שפת המותג ${brandName}"
+}`;
+    } else if (target === 'cta') {
+      responseMimeType = 'application/json';
+      targetPrompt = `שכתב את אזור ההנעה לפעולה (Call To Action) עבור הסרטון "${videoTitle}". המותג: "${brandName}".
+סלוגן: "${slogan}".
+החזר JSON במבנה הבא בלבד:
+{
+  "title": "כותרת מושכת להנעה לפעולה",
+  "subtitle": "תת-כותרת מעודדת פנייה",
+  "buttonText": "טקסט מנצח לכפתור (לדוגמה: צרו קשר עכשיו / הצטרפו אלינו)"
+}`;
+    } else if (target === 'meta') {
+      responseMimeType = 'application/json';
+      targetPrompt = `שכתב את תגיות המטא ל-SEO עבור הסרטון "${videoTitle}" ומותג "${brandName}".
+כותרת נוכחית: "${currentValue?.metaTitle || ''}", תיאור נוכחי: "${currentValue?.metaDescription || ''}".
+החזר JSON במבנה הבא בלבד:
+{
+  "metaTitle": "כותרת מטא מושכת בין 50 ל-60 תווים כולל המותג ${brandName}",
+  "metaDescription": "תיאור מטא מנצח ומסקרן באורך 140-160 תווים שגורם להקליק"
+}`;
+    }
+
+    const fullPrompt = `${targetPrompt}
+${instructions ? `דגשים מיוחדים: ${instructions}` : ''}
+סגנון המותג: "${brandName}", טון: "${tone}".`;
+
+    return executeKosaiAi('KosTube', fullPrompt, {
+      model: 'gemini-3.8-flash-lite',
+      responseMimeType,
+      temperature: 0.7,
+      tenantId: effectiveTenantId,
+      category: 'content',
+    });
+  },
+
+  /**
+   * Intelligently generates ONLY the missing fields in a video review, leaving existing user edits intact.
+   */
+  async fillMissingContent(input: KosTubeAiFillMissingInput): Promise<KosaiContractResult<Partial<KosTubeAiGeneratedData>>> {
+    const { video, channelTitle = 'ערוץ יוטיוב', currentData, brandDna, tenantId } = input;
+    const brandName = brandDna?.identity?.companyName || 'העסק שלנו';
+    const tone = brandDna?.voice?.toneOfVoice || brandDna?.voice?.tone || 'מקצועי וסוחף';
+    const effectiveTenantId = tenantId || brandDna?.subdomain;
+
+    const missingFields: string[] = [];
+    if (!currentData.h1 || currentData.h1.trim().length === 0) missingFields.push('h1');
+    if (!currentData.executiveSummary || currentData.executiveSummary.trim().length === 0) missingFields.push('executiveSummary');
+    if (!currentData.metaTitle || currentData.metaTitle.trim().length === 0) missingFields.push('metaTitle');
+    if (!currentData.metaDescription || currentData.metaDescription.trim().length === 0) missingFields.push('metaDescription');
+    if (!currentData.keyTakeaways || currentData.keyTakeaways.length < 4) missingFields.push('keyTakeaways');
+    if (!currentData.faqs || currentData.faqs.length < 5) missingFields.push('faqs');
+    if (!currentData.callToAction?.title || currentData.callToAction.title.trim().length === 0) missingFields.push('callToAction');
+
+    if (missingFields.length === 0) {
+      return { success: true, data: currentData };
+    }
+
+    const prompt = `אתה מומחה תוכן ו-SEO עבור המותג "${brandName}".
+סרטון המקור: "${video.title || ''}" מאת "${channelTitle}".
+תיאור מקור: "${(video.description || '').slice(0, 300)}".
+
+עליך להשלים אך ורק את השדות הבאים שחסרים כעת בטופס העריכה:
+${missingFields.map((f) => `- ${f}`).join('\n')}
+
+דגשים:
+- אם נדרש keyTakeaways, ספק בדיוק 4 תובנות עם כותרות סוחפות ("title") לפי שפת המותג (איסור על שמות כמו "תובנה 1"), טקסט מעשי ("text") ואייקון ("icon" כגון: Lightbulb, Target, Sparkles, Compass, Award).
+- אם נדרש faqs, ספק בדיוק 5 שאלות ותשובות מעמיקות.
+- אם נדרש callToAction, ספק title, subtitle ו-buttonText.
+- כל התוכן מותאם לטון "${tone}" ולמותג "${brandName}".
+
+החזר אך ורק JSON תקין המכיל אך ורק את השדות החסרים: ${missingFields.join(', ')}.`;
+
+    return executeKosaiAi<Partial<KosTubeAiGeneratedData>>('KosTube', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      responseMimeType: 'application/json',
+      temperature: 0.7,
+      tenantId: effectiveTenantId,
       category: 'content',
     });
   },
