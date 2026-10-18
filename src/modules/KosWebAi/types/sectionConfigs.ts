@@ -34,6 +34,33 @@ export interface HeroAvatarItem {
   name?: string;
 }
 
+export type HeroLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'bento-hero'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'fz'
+  | 'spatial'
+  | 'centered'
+  | 'split';
+
+export type HeroTextBgEffect =
+  | 'zoom-glow'
+  | 'shimmer-sweep'
+  | 'float-parallax'
+  | 'blur-reveal'
+  | 'gradient-shift';
+
+export interface HeroMetricItem {
+  id: string;
+  label: string;
+  value: string;
+  trend?: string;
+}
+
 export interface HeroSectionConfig extends BaseSectionConfig {
   type: 'hero';
   title: string;
@@ -41,9 +68,13 @@ export interface HeroSectionConfig extends BaseSectionConfig {
   description?: string;
   imageSrc?: string;
   videoBgUrl?: string;
-  layout?: 'fz' | 'spatial' | 'centered' | 'split' | 'bento-hero';
+  layout?: HeroLayoutPreset;
   heroStyle?: 'classic' | 'modern' | 'minimal' | 'card' | 'mesh-glow';
   flexDirection?: 'row' | 'row-reverse';
+  objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';
+  imagePosition?: 'auto' | 'bottom' | 'top' | 'left' | 'right';
   buttonsVisible?: boolean;
   primaryButton?: {
     text: string;
@@ -57,7 +88,18 @@ export interface HeroSectionConfig extends BaseSectionConfig {
   };
   titleColor?: string;
   descriptionColor?: string;
+  primaryButtonColor?: string;
+  secondaryButtonColor?: string;
+  accentColor?: string;
   hoverColor?: string;
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
+  analyticalMetrics?: HeroMetricItem[];
   formMode?: boolean;
   formTitle?: string;
   announcementBadge?: {

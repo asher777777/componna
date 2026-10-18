@@ -3,6 +3,7 @@ import { Lock, Globe, KeyRound, ArrowRight, ShieldCheck, AlertCircle, RefreshCw 
 import { TenantRecord } from '../contracts';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { useSystemConnection } from '../connection/SystemConnectionContext';
+import { isPublicContentPath } from './TenantSubdomainView';
 
 export interface TenantAdminLoginViewProps {
   tenantRecord: TenantRecord;
@@ -41,7 +42,7 @@ export const TenantAdminLoginView: React.FC<TenantAdminLoginViewProps> = ({
       if (res.success) {
         onLoginSuccess();
         const currentPath = window.location.pathname;
-        const targetPath = (currentPath && currentPath !== '/' && !currentPath.startsWith('/p/')) ? currentPath : '/brand-dna';
+        const targetPath = (currentPath && currentPath !== '/' && !isPublicContentPath(currentPath)) ? currentPath : '/brand-dna';
         const url = new URL(window.location.href);
         url.pathname = targetPath;
         url.search = '';

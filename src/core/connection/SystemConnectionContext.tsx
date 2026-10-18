@@ -623,6 +623,16 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
           const masterRef = doc(db, ...getTenantApiKeysDocSegments(ROOT_TENANT_ID));
           await setDoc(masterRef, { googleAiApiKey: newKeys.googleAiApiKey.trim(), updatedAt: Date.now() }, { merge: true });
         }
+
+        // TikTok developer keys belong to Master. Whenever saved, always persist into master so all subdomains inherit
+        if ((newKeys.tiktokClientKey || newKeys.tiktokClientSecret || newKeys.tiktokAccessToken) && targetTenant !== ROOT_TENANT_ID) {
+          const masterRef = doc(db, ...getTenantApiKeysDocSegments(ROOT_TENANT_ID));
+          const masterPatch: Record<string, any> = { updatedAt: Date.now() };
+          if (newKeys.tiktokClientKey !== undefined) masterPatch.tiktokClientKey = (newKeys.tiktokClientKey || '').trim();
+          if (newKeys.tiktokClientSecret !== undefined) masterPatch.tiktokClientSecret = (newKeys.tiktokClientSecret || '').trim();
+          if (newKeys.tiktokAccessToken !== undefined) masterPatch.tiktokAccessToken = (newKeys.tiktokAccessToken || '').trim();
+          await setDoc(masterRef, masterPatch, { merge: true });
+        }
       } catch (err) {
         console.warn('[SystemConnection] Cloud save API keys notice:', err);
       }

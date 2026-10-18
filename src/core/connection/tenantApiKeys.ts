@@ -38,6 +38,9 @@ export interface SystemApiKeysConfig {
   kesherPaymentPageId?: string;
   kesherEzCountToken?: string;
   kesherDefaultReceiptType?: number;
+  tiktokClientKey?: string;
+  tiktokClientSecret?: string;
+  tiktokAccessToken?: string;
   [key: string]: any;
 }
 
@@ -60,6 +63,9 @@ export const DEFAULT_API_KEYS: SystemApiKeysConfig = {
   kesherPaymentPageId: '',
   kesherEzCountToken: '',
   kesherDefaultReceiptType: 405,
+  tiktokClientKey: '',
+  tiktokClientSecret: '',
+  tiktokAccessToken: '',
 };
 
 /** Firestore location of the keys document inside a tenant */
@@ -147,6 +153,8 @@ const ROUTE_TO_MODULE: Array<[string, string]> = [
   ['/db-collections', 'db-collections-hub'],
   ['/kosun-am', 'kosun-am'],
   ['/board-composer', 'kosun-board-composer'],
+  ['/kostiktok', 'kostiktok'],
+  ['/tiktok', 'kostiktok'],
   ['/template', 'template'],
 ];
 
@@ -273,6 +281,27 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
     ''
   ).trim();
 
+  const masterTiktokClientKey = (
+    input.masterKeys?.tiktokClientKey ||
+    (input.isRootTenant ? input.tenantKeys.tiktokClientKey : '') ||
+    input.tenantKeys.tiktokClientKey ||
+    ''
+  ).trim();
+
+  const masterTiktokClientSecret = (
+    input.masterKeys?.tiktokClientSecret ||
+    (input.isRootTenant ? input.tenantKeys.tiktokClientSecret : '') ||
+    input.tenantKeys.tiktokClientSecret ||
+    ''
+  ).trim();
+
+  const masterTiktokAccessToken = (
+    input.masterKeys?.tiktokAccessToken ||
+    (input.isRootTenant ? input.tenantKeys.tiktokAccessToken : '') ||
+    input.tenantKeys.tiktokAccessToken ||
+    ''
+  ).trim();
+
   if (!isModuleEntitledFor(input, moduleId)) {
     // Not entitled → secrets stripped, only non-secret model defaults kept
     return {
@@ -290,6 +319,10 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
     googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || localFallbackKey || envFallbackKey || '',
     // YouTube Data API v3 key: always inherited from Master collection for subdomains
     youtubeApiKey: masterYoutubeKey || input.tenantKeys.youtubeApiKey || '',
+    // TikTok Developer Platform Keys: always inherited from Master collection so subdomains route through it
+    tiktokClientKey: masterTiktokClientKey || input.tenantKeys.tiktokClientKey || '',
+    tiktokClientSecret: masterTiktokClientSecret || input.tenantKeys.tiktokClientSecret || '',
+    tiktokAccessToken: masterTiktokAccessToken || input.tenantKeys.tiktokAccessToken || '',
   };
 }
 

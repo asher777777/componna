@@ -5,7 +5,7 @@ import {
   ExternalLink, Sparkles, Server, Globe, Key, AlertCircle,
   FileJson, UploadCloud, Copy, RotateCcw, FolderSync, Bot,
   MessageSquare, Send, Cpu, KeyRound, Film, QrCode, Smartphone,
-  Shield, CheckCircle, Radio, CreditCard, FileCheck2
+  Shield, CheckCircle, Radio, CreditCard, FileCheck2, Video
 } from 'lucide-react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../../../core/connection/aiJsonParser';
@@ -85,6 +85,9 @@ export const DatabaseConnectorModal: React.FC = () => {
   const [greenApiInstanceId, setGreenApiInstanceId] = useState(apiKeys.greenApiInstanceId || '');
   const [greenApiToken, setGreenApiToken] = useState(apiKeys.greenApiToken || '');
   const [customWebhookUrl, setCustomWebhookUrl] = useState(apiKeys.customWebhookUrl || '');
+  const [tiktokClientKey, setTiktokClientKey] = useState(apiKeys.tiktokClientKey || '');
+  const [tiktokClientSecret, setTiktokClientSecret] = useState(apiKeys.tiktokClientSecret || '');
+  const [tiktokAccessToken, setTiktokAccessToken] = useState(apiKeys.tiktokAccessToken || '');
 
   // Kesher & EasyCount State
   const [kesherUserName, setKesherUserName] = useState((apiKeys.kesherUserName as string) || '');
@@ -158,6 +161,9 @@ export const DatabaseConnectorModal: React.FC = () => {
     setKesherPaymentPageId((apiKeys.kesherPaymentPageId as string) || '');
     setKesherEzCountToken((apiKeys.kesherEzCountToken as string) || '');
     setKesherDefaultReceiptType(Number(apiKeys.kesherDefaultReceiptType) || 405);
+    setTiktokClientKey(apiKeys.tiktokClientKey || '');
+    setTiktokClientSecret(apiKeys.tiktokClientSecret || '');
+    setTiktokAccessToken(apiKeys.tiktokAccessToken || '');
   }, [apiKeys]);
 
   const checkWaStatus = async () => {
@@ -412,6 +418,9 @@ export const DatabaseConnectorModal: React.FC = () => {
       kesherPaymentPageId: kesherPaymentPageId.trim(),
       kesherEzCountToken: kesherEzCountToken.trim(),
       kesherDefaultReceiptType: kesherDefaultReceiptType,
+      tiktokClientKey: tiktokClientKey.trim(),
+      tiktokClientSecret: tiktokClientSecret.trim(),
+      tiktokAccessToken: tiktokAccessToken.trim(),
     });
 
     if (greenApiService.isConfigured() && customWebhookUrl.trim()) {
@@ -1136,6 +1145,58 @@ export const DatabaseConnectorModal: React.FC = () => {
                       <span>{heygenTestResult.msg}</span>
                     </div>
                   )}
+                </div>
+              </div>
+
+              {/* TikTok Platform Developer Integration */}
+              <div className="border-t border-slate-800/80 pt-3">
+                <div className="flex items-center justify-between pb-2">
+                  <div>
+                    <h3 className="font-bold text-white flex items-center gap-2">
+                      <Video className="w-4 h-4 text-pink-500" />
+                      <span>אינטגרציית טיקטוק פלטפורמה (TikTok Platform Developer Keys)</span>
+                    </h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">
+                      מפתחות אלו נשמרים במאסטר ומשמשים את כלל הסאב-דומיינים והטננטים במערכת (OAuth, פרסום סרטונים, קליטת לידים ומעקב המרות).
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium text-xs">TikTok Client Key (App ID) *</label>
+                    <input
+                      type="text"
+                      value={tiktokClientKey}
+                      onChange={(e) => setTiktokClientKey(e.target.value)}
+                      placeholder="aw..."
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-pink-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-400 mb-1 font-medium text-xs">TikTok Client Secret *</label>
+                    <input
+                      type="password"
+                      value={tiktokClientSecret}
+                      onChange={(e) => setTiktokClientSecret(e.target.value)}
+                      placeholder="Client Secret מפורטל טיקטוק"
+                      className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-pink-500 text-xs"
+                      dir="ltr"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3">
+                  <label className="block text-slate-400 mb-1 font-medium text-xs">TikTok Access / Developer Token (אופציונלי לאירועי שרת ו-Events API)</label>
+                  <input
+                    type="password"
+                    value={tiktokAccessToken}
+                    onChange={(e) => setTiktokAccessToken(e.target.value)}
+                    placeholder="Token מ-Events API או Business Manager"
+                    className="w-full p-2.5 border border-slate-700 rounded-xl bg-slate-900 text-white font-mono focus:border-pink-500 text-xs"
+                    dir="ltr"
+                  />
                 </div>
               </div>
             </div>
