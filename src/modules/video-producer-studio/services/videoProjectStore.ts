@@ -1,7 +1,7 @@
 import { Firestore, collection, doc, getDocs, getDoc, setDoc, deleteDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { VideoProject, VideoScene } from '../types';
-import { MediaIndexedDbService } from '../../media-gallery-hub/services/mediaIndexedDbService';
-import { MediaItem } from '../../media-gallery-hub/types';
+import { MediaIndexedDbService } from '../../KosCloudStore/services/mediaIndexedDbService';
+import { MediaItem } from '../../KosCloudStore/types';
 
 const PROJECTS_COLLECTION = 'sdo_video_projects';
 const MEDIA_ITEMS_COLLECTION = 'sdo_media_items';

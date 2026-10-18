@@ -16,24 +16,53 @@ export function BUILD_BRAND_SUMMARY_PARAGRAPH_PROMPT(brand: BrandDna): string {
   const personas = (brand.audience.personas || []).map(p => `${p.name} (כאב: ${p.mainPain}, תוצאה: ${p.dreamOutcome})`).join('; ');
   const objections = (brand.audience.commonObjections || []).map(o => `${o.objection} -> ${o.rebuttal}`).join('; ');
 
-  return `חבר פסקת תמצית מותג (Brand Essence) דחוסה, עמוקה ומנוסחת ברמת קופירייטינג עילית.
+  // שאיבת כל האקוסיסטם המלא של הטננט (שירותים, מוצרי דגל, קהילות, אמון)
+  const services = (brand.ecosystem?.services || [])
+    .map(s => `${s.nameAndSlogan}: ${s.shortDescription || ''} (מענה: ${s.painPointSolved || ''}, בידול: ${s.competitiveAdvantage || ''})`)
+    .join(' | ');
 
-נתוני המותג מקולקציית ה-CRM וה-DNA:
-- שם: ${name}
-- תחום ותכלית: ${purpose}
-- סלוגן: ${slogan}
-- בידול ו-UVP: ${uvp}
-- חזון: ${vision}
-- קהלי יעד: ${audiences}
-- אישיות שפה: ${tone}
-- מילות עוצמה: ${powers}
-- פרסונות: ${personas}
-- מענה לחששות: ${objections}
+  const products = (brand.ecosystem?.products || [])
+    .map(p => `${p.name}: ${p.shortDescription || ''} (מחיר: ${p.price || ''})`)
+    .join(' | ');
+
+  const communities = (brand.ecosystem?.communities || [])
+    .map(c => `${c.name}: ${c.description || ''}`)
+    .join(' | ');
+
+  const events = (brand.ecosystem?.annualEvents || [])
+    .map(e => `${e.name}: ${e.description || ''}`)
+    .join(' | ');
+
+  const trust = [
+    brand.trust?.guaranteePolicy ? `אחריות: ${brand.trust.guaranteePolicy}` : '',
+    brand.trust?.supportHours ? `שירות: ${brand.trust.supportHours}` : '',
+    brand.trust?.officeAddress ? `כתובת: ${brand.trust.officeAddress}` : '',
+  ].filter(Boolean).join('; ');
+
+  return `חבר פסקת תמצית מותג (Brand Essence) דחוסה, עמוקה ומנוסחת ברמת קופירייטינג עילית.
+פסקת תמצית זו מהווה "מועט המחזיק את המרובה" – עליה לכלול בצורה חכמה ומלוכדת את כל נתוני המותג והאקוסיסטם של הארגון מבלי להחסיר אף נתון ליבה.
+
+נתוני המותג המלאים מקולקציית הטננט:
+- שם המותג: ${name}
+- תכלית ומהות הארגון: ${purpose}
+- סלוגן מוביל: ${slogan}
+- בידול שוק ו-UVP: ${uvp}
+- חזון עסקי: ${vision}
+- קהלי יעד מרכזיים: ${audiences}
+- אישיות וטון הדיבור: ${tone}
+- מילות עוצמה וערכי ליבה: ${powers}
+- פרסונות לקוח: ${personas || 'קהל לקוחות מגוון'}
+- התנגדויות ומענה המותג: ${objections || 'מענה מלא ושקט נפשי'}
+- שירותים מרכזיים ומעטפת הפעילות: ${services || 'מגוון שירותי פרימיום'}
+- מוצרי דגל וחבילות: ${products || 'פתרונות מובילים'}
+- קהילות ואירועים: ${[communities, events].filter(Boolean).join(' | ') || 'פעילות קהילתית ענפה'}
+- עקרונות אמון וביטחון: ${trust || 'אמינות ושקיפות מלאה'}
 
 כללי חובה:
 1. אורך מדויק: בין 250 ל-300 מילים בלבד! (לא פחות מ-250 ולא יותר מ-300 מילים).
-2. סגנון: תוכן מרוכז ודחוס המבטא "מועט המחזיק את המרובה" – ללא קלישאות, מדויק, רהוט ומרתק.
-3. מבנה: פסקה רציפה אחת או שתיים ללא כותרות ביניים.
+2. הכללה חכמה: שלב בטבעיות את כל נתוני הליבה (השירותים, המוצרים, הכאבים, הקהלים והבידול) לתוך נרטיב קולח ומהודק, מבלי להשמיט שום תחום פעילות.
+3. סגנון: קופירייטינג מעצים, רהוט, בעל סמכות מקצועית וחמימות, ללא קלישאות חלולות.
+4. מבנה: פסקה רציפה ומלוכדת (עד 2 פסקאות קצרות) ללא כותרות ביניים.
 
 החזר JSON בלבד במבנה הבא:
 {

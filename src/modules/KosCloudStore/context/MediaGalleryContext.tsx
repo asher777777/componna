@@ -480,6 +480,15 @@ export const MediaGalleryProvider: React.FC<{
 
       const addDeduplicated = (rawItem: MediaItem) => {
         if (!rawItem) return;
+
+        // Strict Tenant Isolation: sub-tenants MUST NEVER accept items from other tenants or root
+        if (tenantId && tenantId !== '_master') {
+          const itTenant = rawItem.tenantId || rawItem.metadata?.tenantId;
+          if (itTenant && itTenant !== tenantId) {
+            return;
+          }
+        }
+
         const normalized = normalizeItem(rawItem);
         const safeUrl = resolveSafeMediaUrl(normalized.url, normalized);
         const safeThumb = resolveSafeMediaUrl(normalized.thumbnailUrl, normalized);
@@ -570,18 +579,19 @@ export const MediaGalleryProvider: React.FC<{
 
       // 3. Instant IndexedDB Cache (0ms local DB)
       try {
-        const idbItems = await MediaIndexedDbService.getAllMedia();
+        const idbItems = await MediaIndexedDbService.getAllMedia(tenantId);
         idbItems.forEach((it) => {
           if (it && it.url) {
-            // Strict tenant isolation: do not load other tenants or master items into a sub-tenant
             const itemTenant = it.tenantId || it.metadata?.tenantId;
-            if (tenantId !== '_master' && itemTenant && itemTenant !== tenantId) {
-              return;
+            if (tenantId && tenantId !== '_master') {
+              if (itemTenant !== tenantId) return;
+            } else if (tenantId === '_master') {
+              if (itemTenant && itemTenant !== '_master') return;
             }
             addDeduplicated(it);
           }
         });
-        const idbFolders = await MediaIndexedDbService.getFolders();
+        const idbFolders = await MediaIndexedDbService.getFolders(tenantId);
         if (isMounted && idbFolders.length > 0) {
           setFolders(idbFolders);
         }
@@ -608,8 +618,9 @@ export const MediaGalleryProvider: React.FC<{
             if (item.url) addDeduplicated(item);
           });
 
-          // If scoped collection is not sdo_media_items, also fetch root collection items
-          if (collections.mediaItems !== 'sdo_media_items') {
+          // ONLY for _master root tenant backward compatibility:
+          // Sub-tenants (such as MLEA) MUST NEVER fetch or see root collection items!
+          if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
             try {
               const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
                 mediaItems: 'sdo_media_items',
@@ -624,7 +635,7 @@ export const MediaGalleryProvider: React.FC<{
           }
 
           const remoteFolders = await FirestoreMediaService.fetchFolders(db, collections);
-          if (collections.folders !== 'sdo_media_folders') {
+          if (tenantId === '_master' && collections.folders !== 'sdo_media_folders') {
             try {
               const defaultFolders = await FirestoreMediaService.fetchFolders(db, {
                 mediaItems: 'sdo_media_items',
@@ -731,7 +742,9 @@ export const MediaGalleryProvider: React.FC<{
 
       unsubMedia = FirestoreMediaService.subscribeMediaItems(db, applyIncomingItems, collections);
 
-      if (collections.mediaItems !== 'sdo_media_items') {
+      // ONLY for _master root tenant backward compatibility:
+      // Sub-tenants (such as MLEA) MUST NEVER subscribe to root collections!
+      if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
         unsubDefaultMedia = FirestoreMediaService.subscribeMediaItems(
           db,
           applyIncomingItems,
@@ -751,7 +764,8 @@ export const MediaGalleryProvider: React.FC<{
 
       unsubFolders = FirestoreMediaService.subscribeFolders(db, applyIncomingFolders, collections);
 
-      if (collections.folders !== 'sdo_media_folders') {
+      // ONLY for _master root tenant backward compatibility:
+      if (tenantId === '_master' && collections.folders !== 'sdo_media_folders') {
         unsubDefaultFolders = FirestoreMediaService.subscribeFolders(
           db,
           applyIncomingFolders,
@@ -839,8 +853,17 @@ export const MediaGalleryProvider: React.FC<{
       // Save complete JSON document to Firestore on the server
       if (db) {
         try {
+          finalItem = {
+            ...finalItem,
+            tenantId: finalItem.tenantId || tenantId || '_master',
+            metadata: {
+              ...(finalItem.metadata || {}),
+              tenantId: finalItem.tenantId || tenantId || '_master',
+            },
+          };
           await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
-          if (collections.mediaItems !== 'sdo_media_items') {
+          // ONLY for _master root tenant backward compatibility:
+          if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
             await FirestoreMediaService.saveMediaItem(
               db,
               { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
@@ -906,7 +929,8 @@ export const MediaGalleryProvider: React.FC<{
       if (db) {
         try {
           await FirestoreMediaService.deleteMediaItem(db, collections, item.id);
-          if (collections.mediaItems !== 'sdo_media_items') {
+          // ONLY for _master root tenant backward compatibility:
+          if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
             await FirestoreMediaService.deleteMediaItem(
               db,
               { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
@@ -918,7 +942,7 @@ export const MediaGalleryProvider: React.FC<{
 
       if (firebaseApp) {
         try {
-          await FirebaseStorageMediaService.deleteStorageFile(firebaseApp, item);
+          await FirebaseStorageMediaService.deleteStorageFile(firebaseApp, item, tenantId);
         } catch (e) {}
       }
     }
@@ -1039,6 +1063,7 @@ export const MediaGalleryProvider: React.FC<{
       color,
       icon,
       parentId,
+      tenantId: tenantId || '_master',
       createdAt: Date.now(),
       updatedAt: Date.now(),
       itemCount: 0,
