@@ -496,7 +496,11 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                   </h3>
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 font-mono" dir="ltr">
                     <Globe className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-                    <span className="truncate">/{page.slug || page.pageId}</span>
+                    <span className="truncate">
+                      {getCategoryFromPage(page) === 'youtube_post'
+                        ? (page.slug?.startsWith('kosvidio/') ? `/${page.slug}` : `/kosvidio/${page.slug || page.pageId}`)
+                        : `/${page.slug || page.pageId}`}
+                    </span>
                   </div>
                   {page.seoSettings?.description && (
                     <p className="text-xs text-slate-600 dark:text-slate-400 mt-1 line-clamp-2 leading-relaxed">
@@ -531,7 +535,15 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                     </button>
 
                     <a
-                      href={`/${(page.slug || page.pageId).replace(/^\/?p\//i, '')}${!page.published ? '?preview=true' : ''}`}
+                      href={
+                        (page.publicUrl ||
+                          (getCategoryFromPage(page) === 'youtube_post'
+                            ? (page.slug?.startsWith('kosvidio/')
+                                ? `/${page.slug}`
+                                : `/kosvidio/${(page.slug || page.pageId).replace(/^\/?kosvidio[-/]/i, '')}`)
+                            : `/${(page.slug || page.pageId).replace(/^\/?p\//i, '')}`)) +
+                        (!page.published ? '?preview=true' : '')
+                      }
                       target="_blank"
                       rel="noreferrer"
                       className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-700 transition-colors"

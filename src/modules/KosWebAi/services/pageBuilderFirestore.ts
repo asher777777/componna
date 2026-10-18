@@ -2,6 +2,7 @@ import { Firestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, 
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 const DEFAULT_COLLECTION_NAME = SYSTEM_COLLECTIONS.PAGES; // 'kos_web_ai_documents'
 const LEGACY_COLLECTION_NAME = 'mod_pages_documents';
@@ -289,6 +290,7 @@ export const pageBuilderFirestore = {
         const docRef = doc(db, collPath, pageId);
         const cleanData = JSON.parse(JSON.stringify(payload));
         await setDoc(docRef, cleanData, { merge: true });
+        try { eventBus.publish('pagebuilder:page_saved', { page: payload, tenantId: eff }); } catch {}
       } catch (err) {
         console.warn('[PageBuilder] Firestore savePage error:', err);
       }

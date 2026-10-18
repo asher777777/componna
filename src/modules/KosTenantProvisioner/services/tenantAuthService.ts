@@ -31,7 +31,9 @@ export class TenantAuthService {
 
     return (
       sessionStorage.getItem(`tenant_admin_auth_${cleanSub}`) === 'true' ||
-      sessionStorage.getItem(`tenant_admin_${cleanSub}`) === 'true'
+      sessionStorage.getItem(`tenant_admin_${cleanSub}`) === 'true' ||
+      localStorage.getItem(`tenant_admin_auth_${cleanSub}`) === 'true' ||
+      localStorage.getItem(`tenant_admin_${cleanSub}`) === 'true'
     );
   }
 
@@ -44,6 +46,9 @@ export class TenantAuthService {
     sessionStorage.removeItem(`tenant_admin_auth_${cleanSub}`);
     sessionStorage.removeItem(`tenant_admin_${cleanSub}`);
     sessionStorage.removeItem(`tenant_admin_user_${cleanSub}`);
+    localStorage.removeItem(`tenant_admin_auth_${cleanSub}`);
+    localStorage.removeItem(`tenant_admin_${cleanSub}`);
+    localStorage.removeItem(`tenant_admin_user_${cleanSub}`);
   }
 
   /**
@@ -193,10 +198,13 @@ export class TenantAuthService {
       return { success: false, error: 'סיסמה שגויה' };
     }
 
-    // Authentication succeeded! Store in session
+    // Authentication succeeded! Store in session and local storage
     sessionStorage.setItem(`tenant_admin_auth_${cleanSub}`, 'true');
     sessionStorage.setItem(`tenant_admin_${cleanSub}`, 'true');
     sessionStorage.setItem(`tenant_admin_user_${cleanSub}`, cleanUser);
+    localStorage.setItem(`tenant_admin_auth_${cleanSub}`, 'true');
+    localStorage.setItem(`tenant_admin_${cleanSub}`, 'true');
+    localStorage.setItem(`tenant_admin_user_${cleanSub}`, cleanUser);
 
     return {
       success: true,

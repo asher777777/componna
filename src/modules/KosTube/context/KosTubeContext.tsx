@@ -11,6 +11,8 @@ import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
 import { PLEASANT_KOS_TUBE_ERROR_HE } from '../config';
 import { KosTubeAiMode, KosTubeAiGeneratedData } from '../../kosai-engine/modelsAiService';
+import { KosTubePageSyncService } from '../services/kosTubePageSyncService';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 export type KosTubeTab = 'overview' | 'videos' | 'pages' | 'settings';
 
@@ -116,6 +118,25 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   useEffect(() => {
     refreshData();
   }, [refreshData]);
+
+  // Real-time bidirectional synchronization listener with PageBuilder
+  useEffect(() => {
+    if (!db) return;
+    const unsubAutoSync = KosTubePageSyncService.initAutoSync(db);
+    const unsubSynced = eventBus.subscribe('kostube:synced_from_page' as any, (data: any) => {
+      if (data?.seoPage) {
+        setSeoPages((prev) => {
+          const filtered = prev.filter((p) => p.id !== data.seoPage.id);
+          return [data.seoPage, ...filtered];
+        });
+      }
+    });
+
+    return () => {
+      unsubAutoSync();
+      unsubSynced();
+    };
+  }, [db]);
 
   const syncChannel = useCallback(
     async (query: string, apiKey?: string): Promise<boolean> => {
@@ -392,6 +413,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             const pageConfig = {
               pageId: pbPageId,
               pageTitle: `${res.data.h1 || video.title} - Kosvidio`,
+              pageCategory: 'youtube_post',
               slug,
               shortSlug: slug,
               publicUrl,
@@ -425,7 +447,16 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                 description: res.data.metaDescription || video.description.slice(0, 160),
                 keywords: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
               },
-              sectionOrder: ['header-1', 'kosvidio-1', 'about-1', 'faq-1', 'kosvidioGallery-1'],
+              sectionOrder: [
+                'header-1',
+                'kosvidio-1',
+                'videoEngagement-1',
+                'about-1',
+                'sec-takeaways',
+                'faq-1',
+                'sec-cta',
+                'kosvidioGallery-1',
+              ],
               sections: {
                 'header-1': {
                   type: 'header',
@@ -450,18 +481,21 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   channelAvatarUrl: video.thumbnailUrl,
                   viewsCount: Number(video.viewCount || 0),
                   likesCount: Number(video.likeCount || 0),
-                  commentsCount: 0,
-                  pageViewsCount: 0,
-                  tags: res.data.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
-                  comments: [],
-                  shortDescription: res.data.executiveSummary || video.description.slice(0, 160),
-                  longDescriptionMarkdown: res.data.articleContent || '',
-                  keyTakeaways: res.data.keyTakeaways || [],
-                  faqs: res.data.faqs || [],
-                  callToAction: res.data.callToAction,
                   ambientGlow: true,
                   showTheaterMode: true,
                   enableSocialShare: true,
+                },
+                'videoEngagement-1': {
+                  type: 'videoEngagement',
+                  id: 'videoEngagement-1',
+                  visible: true,
+                  anchorId: 'engagement',
+                  viewsCount: Number(video.viewCount || 0),
+                  likesCount: Number(video.likeCount || 0),
+                  commentsCount: 0,
+                  comments: [],
+                  enableShare: true,
+                  enableLikes: true,
                 },
                 'about-1': {
                   type: 'richContent',
@@ -476,6 +510,27 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   </div>`,
                   layout: 'highlight-box',
                 },
+                'sec-takeaways': {
+                  type: 'richContent',
+                  id: 'sec-takeaways',
+                  visible: (res.data.keyTakeaways || []).length > 0,
+                  anchorId: 'takeaways',
+                  heading: 'תובנות מרכזיות ונקודות מפתח',
+                  subtitle: 'עיקרי הדברים והמסקנות החשובות מתוך הסרטון',
+                  body: `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    ${(res.data.keyTakeaways || [])
+                      .map(
+                        (t: string, idx: number) => `
+                      <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 backdrop-blur-sm shadow-md flex items-start gap-3">
+                        <span class="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-sm shrink-0">${idx + 1}</span>
+                        <p class="text-sm text-slate-200 leading-relaxed font-normal">${t}</p>
+                      </div>
+                    `
+                      )
+                      .join('')}
+                  </div>`,
+                  layout: 'cards-grid-3',
+                },
                 'faq-1': {
                   type: 'faq',
                   id: 'faq-1',
@@ -486,6 +541,25 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   showSearchBar: true,
                   showContactCard: false,
                   items: fallbackFaqItems,
+                },
+                'sec-cta': {
+                  type: 'landingSection',
+                  id: 'sec-cta',
+                  visible: true,
+                  anchorId: 'cta',
+                  headline: res.data.callToAction?.title || `רוצים תוצאות דומות עם ${brandCompanyName}?`,
+                  subheadline: res.data.callToAction?.subtitle || 'השאירו פרטים ונחזור אליכם בהקדם',
+                  description: 'מלאו את הפרטים לקבלת מידע נוסף, ייעוץ אישי והתאמה מדויקת.',
+                  badgeText: 'הזדמנות בלעדית',
+                  buttonText: res.data.callToAction?.buttonText || 'צרו קשר עכשיו',
+                  buttonLink: '#contact',
+                  ctaStyle: 'gradient',
+                  showLeadForm: true,
+                  leadFormTitle: 'קבלו ייעוץ ופרטים מלאים',
+                  leadFormButtonText: res.data.callToAction?.buttonText || 'שליחת פרטים',
+                  showWhatsAppButton: Boolean(whatsapp),
+                  whatsAppNumber: whatsapp,
+                  layout: 'split-right',
                 },
                 'kosvidioGallery-1': {
                   type: 'kosvidioGallery',
@@ -513,6 +587,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
             await setDoc(doc(db, collPath, pbPageId), pageConfig, { merge: true });
             publicUrl = `/kosvidio/${slug}`;
+            eventBus.publish('pagebuilder:page_saved' as any, { page: pageConfig, tenantId });
 
           } catch (e) {
             console.warn('[KosTube] Direct save to PAGES collection warning:', e);
@@ -822,6 +897,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         };
 
         await kosTubeFirestore.saveSeoPage(db, tenantId, newPage);
+        await KosTubePageSyncService.syncTubeToPage(newPage, db, tenantId);
 
         setSeoPages((prev) => {
           const filtered = prev.filter((p) => p.id !== newPage.id);

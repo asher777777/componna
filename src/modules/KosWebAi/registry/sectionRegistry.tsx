@@ -770,7 +770,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
     type: 'kosvidio',
     name: 'נגן ועמוד וידאו Kosvidio',
     category: 'media',
-    description: 'נגן חדשני, כותרת, תוויות עדינות, שיתוף, תגובות יוטיוב, תיאור קצר ומאמר עומק SEO/AISEO',
+    description: 'נגן וידאו מעוצב וממוקד עם תאורה סביבתית, מצב קולנוע ופרטי ערוץ',
     icon: Video,
     viewComponent: KosvidioSection as any,
     editorComponent: KosvidioEditor as any,
@@ -779,7 +779,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       visible: true,
       anchorId: 'kosvidio',
       youtubeVideoId: 'dQw4w9WgXcQ',
-      title: 'המדריך המקיף לקידום וידאו ו-SEO בשנת 2026',
+      title: 'סרטון וידאו מעמיק',
       channelName: 'קושאן דיגיטל',
       channelSubscribers: '24.5K',
       verifiedBadge: true,
@@ -788,39 +788,7 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       commentsCount: 0,
       ambientGlow: true,
       showTheaterMode: true,
-      tags: ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
-      enableSocialShare: true,
-      shortDescriptionBadge: 'על הסרטון בכמה מילים',
-      shortDescription: 'הסבר תכליתי ומעשי על הפיכת תוכן וידאו למקור תנועה אורגנית עצום בגוגל ויוטיוב.',
-      longDescriptionMarkdown: `## חשיבות הוידאו במנועי החיפוש המודרניים
-וידאו הוא כבר מזמן לא רק פלטפורמת בידור, אלא אחד ממנועי החיפוש והסמכות המשמעותיים ביותר ברשת. כשמשלבים וידאו איכותי בתוך עמוד תוכן עשיר ומובנה, גוגל ומנועי החיפוש המבוססים על AI מתעדפים את התוכן בצורה דרמטית.
-
-### 3 עקרונות הברזל לקידום וידאו אורגני:
-- **סכמה מובנית (Schema.org VideoObject):** עוזרת לזחלנים להבין את זמן ההעלאה, מילות המפתח ותמצית הסרטון.
-- **תוכן עומק טקסטואלי:** מנועי AI קוראים את תמלול והסבר הוידאו לצורך הצגת תשובות ישירות.
-- **מעורבות קהילה אותנטית:** תגובות, לייקים ושיתופים מגבירים את אותות האמון וה-EEAT.`,
-      keyTakeaways: [
-        'שילוב נגן וידאו עם מאמר עומק מכפיל את זמן השהייה הממוצע בעמוד פי 3.',
-        'סימון Schema מלא של VideoObject ו-FAQPage מקפיץ את שיעור ההקלקה (CTR) בתוצאות החיפוש.',
-        'תוויות עדינות ושיתוף מהיר בוואטסאפ מניעים תנועה ויראלית מיידית.',
-      ],
-      comments: [],
-      faqs: [
-        {
-          question: 'איך עמוד כזה עוזר לקידום האורגני בגוגל?',
-          answer: 'עמוד Kosvidio משלב נגן וידאו אינטראקטיבי יחד עם מאמר עומק עשיר במילות מפתח וסכמת VideoObject מלאה, מה שמאפשר להופיע גם בתוצאות הוידאו וגם בתוצאות האורגניות המובילות.',
-        },
-        {
-          question: 'האם התגובות מיוטיוב מתעדכנות או שניתן להוסיף תגובות ישירות?',
-          answer: 'התגובות מעוצבות בסגנון המוכר של יוטיוב, והגולשים באתר יכולים להגיב, לתת לייקים ולפתח דיון פורה ישירות מתוך העמוד.',
-        },
-      ],
-      callToAction: {
-        title: 'רוצים לייצר נוכחות דיגיטלית ועמודי וידאו מובילים?',
-        subtitle: 'הצוות שלנו יסייע לכם להפוך כל סרטון יוטיוב למכונת לידים וסמכות אורגנית',
-        buttonText: 'דברו איתנו עכשיו',
-        buttonLink: '#contact',
-      },
+      backgroundColor: '#07090e',
     },
   },
 

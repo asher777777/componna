@@ -757,6 +757,25 @@ export interface CoreEventMap {
     name: string;
     tenantId?: string;
   };
+  'pagebuilder:page_saved': {
+    page: any;
+    tenantId?: string;
+  };
+  'kostube:synced_from_page': {
+    pageId?: string;
+    youtubeVideoId?: string;
+    slug?: string;
+    seoPage?: any;
+    tubePage?: any;
+    tubeVideo?: any;
+  };
+  'kosvidio:page_updated': {
+    pageId: string;
+    slug: string;
+    tenantId?: string;
+    youtubeVideoId?: string;
+    pageConfig?: any;
+  };
 }
 
 // ========================

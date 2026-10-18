@@ -213,11 +213,11 @@ export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
   },
   youtube_post: {
     key: 'youtube_post',
-    slugPrefix: 'KOSTUBE',
-    slugPrefixLower: 'kostube',
-    label: 'פוסט וידאו יוטיוב',
-    shortLabel: 'וידאו יוטיוב',
-    description: 'עמודי וידאו מיוטיוב, מאמרי SEO מבוססי AI ונגן אינטראקטיבי',
+    slugPrefix: 'KOSVIDIO',
+    slugPrefixLower: 'kosvidio',
+    label: 'עמוד וידאו Kosvidio',
+    shortLabel: 'וידאו Kosvidio',
+    description: 'עמודי וידאו מיוטיוב, מאמרי SEO מבוססי AI ונגן אינטראקטיבי Kosvidio',
     badgeStyle: 'bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20',
     filterBadgeStyle: 'bg-red-600 text-white',
   },
@@ -233,10 +233,11 @@ export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
   },
 };
 
-export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string; sections?: any } | null): PageCategory | null {
+export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string; pageId?: string; sections?: any } | null): PageCategory | null {
   if (!page) return null;
   if (page.pageCategory && PAGE_CATEGORIES[page.pageCategory]) return page.pageCategory;
   const s = (page.slug || '').toLowerCase();
+  const pid = (page.pageId || '').toLowerCase();
   if (
     s.startsWith('kosass') ||
     s.startsWith('service-') ||
@@ -248,7 +249,14 @@ export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?:
   if (s.startsWith('kosinfo') || s.startsWith('info-') || s.startsWith('article-')) return 'info_content';
   if (s.startsWith('kosevent') || s.startsWith('event-')) return 'event';
   if (s.startsWith('kosfunrise') || s.startsWith('campaign-') || s.startsWith('camp_')) return 'fundraising';
-  if (s.startsWith('kostube') || s.startsWith('kosvidio') || s.startsWith('tube-') || s.startsWith('video-')) return 'youtube_post';
+  if (
+    s.startsWith('kosvidio') ||
+    s.startsWith('kostube') ||
+    s.startsWith('tube-') ||
+    s.startsWith('video-') ||
+    pid.startsWith('page_kosvidio_') ||
+    Boolean(page.sections?.['kosvidio-1'] || page.sections?.kosvidio)
+  ) return 'youtube_post';
   if (s.startsWith('p-') || s === 'home') return 'general';
   return 'general';
 }

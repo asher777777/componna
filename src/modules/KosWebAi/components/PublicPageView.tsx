@@ -15,6 +15,7 @@ import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { createDynamicSectionConfig } from '../services/brandSectionHydrator';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
+import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAuthService';
 
 export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) => {
   const { slug: routeSlug } = useParams<{ slug?: string }>();
@@ -88,6 +89,47 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
     };
     window.addEventListener('kosun_theme_changed', handleThemeChange);
     return () => window.removeEventListener('kosun_theme_changed', handleThemeChange);
+  }, []);
+
+  const isLocal = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname.endsWith('.local')
+  );
+
+  const isTenantAuthed = Boolean(
+    isLocal ||
+    (tenantId && TenantAuthService.isTenantAuthenticated(tenantId)) ||
+    (typeof window !== 'undefined' && (
+      sessionStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
+      sessionStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true' ||
+      localStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
+      localStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true' ||
+      sessionStorage.getItem('kosun_super_admin_bypass') === 'true'
+    ))
+  );
+
+  const hasAdminQuery = typeof window !== 'undefined' && Boolean(
+    searchParams.get('edit') === 'true' ||
+    searchParams.get('admin') === 'true' ||
+    searchParams.get('mode') === 'admin'
+  );
+
+  const isAuthorized = Boolean(
+    isTenantAuthed ||
+    hasAdminQuery ||
+    isEditing ||
+    isLocal
+  );
+
+  useEffect(() => {
+    const handleEditChange = (e: any) => {
+      if (e?.detail?.isEditMode !== undefined) {
+        setIsEditing(Boolean(e.detail.isEditMode));
+      }
+    };
+    window.addEventListener('kosun_edit_mode_changed', handleEditChange);
+    return () => window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
   }, []);
 
   // Notify KOSAI AI agent and system of edit mode toggle
@@ -633,10 +675,26 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
       {/* KosWebAi Front Dock - Full Front Monopoly */}
       <KosWebAiFrontDock 
         pageId={page.pageId}
+        pageConfig={page}
+        globalSettings={page.globalSettings}
+        seoSettings={page.seoSettings}
+        onUpdateGlobalSettings={handleUpdateGlobalSettings}
+        onUpdateSeoSettings={(updated) => {
+          setPage((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, seoSettings: updated };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+            return next;
+          });
+        }}
+        pageTitle={page.pageTitle}
+        pageSections={Object.values(page.sections || {})}
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}
         onOpenSettings={() => setIsSettingsOpen(true)}
+        tenantId={tenantId}
+        isAuthorized={isAuthorized}
       />
 
       <PageSettingsDrawer
