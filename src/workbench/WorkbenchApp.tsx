@@ -15,6 +15,7 @@ import { useSystemConnection } from '../core/connection/SystemConnectionContext'
 import { AuthModal } from '../components/Auth/AuthModal';
 import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole, logoutUser } from '../services/firebaseAuth';
 import { KosNevModal } from '../components/Navigation/KosNevModal';
+import { CapabilitySlot } from '../core/bridge/CapabilitySlot';
 
 // PublicPageView loaded lazily to isolate KosWebAi from shell
 const PublicPageView = React.lazy(() =>
@@ -398,6 +399,10 @@ export const WorkbenchApp: React.FC = () => {
       <div className="w-screen min-h-screen bg-slate-50 dark:bg-[#09090b] flex items-center justify-center p-0 m-0 text-slate-900 dark:text-white font-sans transition-colors duration-300" dir="rtl">
         <main className="w-full min-h-screen">
           <Routes>
+            <Route path="/kosass" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosass/*" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosass-:slug" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosass/:slug" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -549,6 +554,10 @@ export const WorkbenchApp: React.FC = () => {
             />
             <Route path="/home" element={<Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center text-indigo-500 font-bold">טוען...</div>}><HomePage /></Suspense>} />
             
+            <Route path="/kosass" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosass/*" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosass-:slug" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosass/:slug" element={<ModuleErrorBoundary moduleName="עמוד שירות KOSASS"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד שירות KOSASS" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -562,6 +571,36 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/page/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/preview/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/preview/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            {/* Main Manager Dashboard Route */}
+            <Route
+              path="/dashboard"
+              element={
+                <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+                  <CapabilitySlot
+                    name="dashboard-renderer"
+                    props={{
+                      moduleId: 'overview',
+                      pageId: 'main-dashboard',
+                    }}
+                  />
+                </div>
+              }
+            />
+            <Route
+              path="/dashboard/*"
+              element={
+                <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+                  <CapabilitySlot
+                    name="dashboard-renderer"
+                    props={{
+                      moduleId: 'overview',
+                      pageId: 'main-dashboard',
+                    }}
+                  />
+                </div>
+              }
+            />
 
             {REGISTERED_MODULES.map((module) => {
               const Component = module.component;

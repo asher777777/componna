@@ -27,6 +27,7 @@ import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
 import { HeaderSection } from '../sections/header/HeaderSection';
 import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
 import { KosvidioGallerySection } from '../sections/kosvidioGallery/KosvidioGallerySection';
+import { VideoEngagementSection } from '../sections/videoEngagement/VideoEngagementSection';
 import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
 import { FutureContentSection } from '../sections/futureContent/FutureContentSection';
@@ -35,6 +36,7 @@ import { FutureContentSection } from '../sections/futureContent/FutureContentSec
 import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
 import { KosvidioGalleryEditor } from '../sections/kosvidioGallery/KosvidioGalleryEditor';
+import { VideoEngagementEditor } from '../sections/videoEngagement/VideoEngagementEditor';
 import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
 import { FutureContentEditor } from '../sections/futureContent/FutureContentEditor';
@@ -1138,6 +1140,33 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ctaButtonText: 'לכל סרטוני הערוץ (KOSVIDIO)',
       ctaButtonUrl: '/kosvidio',
       items: [],
+    },
+  },
+
+  videoEngagement: {
+    type: 'videoEngagement',
+    name: 'לייקים, שיתוף ותגובות לוידאו',
+    category: 'social_proof',
+    description: 'סרגל לייקים אמיתיים, צפיות, שיתוף ברשתות ותגובות יוטיוב אינטראקטיביות',
+    icon: MessageCircle,
+    viewComponent: VideoEngagementSection as any,
+    editorComponent: VideoEngagementEditor as any,
+    defaultConfig: {
+      type: 'videoEngagement',
+      visible: true,
+      anchorId: 'engagement',
+      title: 'אינטראקציה, שיתוף ותגובות',
+      videoTitle: 'סרטון וידאו',
+      allowLikes: true,
+      likesCount: 0,
+      viewsCount: 0,
+      allowComments: true,
+      allowUserComments: true,
+      enableSocialShare: true,
+      tags: ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
+      comments: [],
+      backgroundColor: 'transparent',
+      accentColor: '#ef4444',
     },
   },
 };

@@ -10,6 +10,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { KosunUniversalDock } from '../../components/Navigation/KosunUniversalDock';
+import { CapabilitySlot } from '../../core/bridge/CapabilitySlot';
 import { TikTokProvider, useTikTok } from './context/TikTokContext';
 import { KosTikTokTab } from './types';
 import { KosTikTokOverviewTab } from './components/KosTikTokOverviewTab';
@@ -125,7 +126,16 @@ const TikTokMainContent: React.FC = () => {
 
         {/* Tab Views */}
         <div className="pt-2">
-          {activeTab === 'overview' && <KosTikTokOverviewTab />}
+          {activeTab === 'overview' && (
+            <CapabilitySlot
+              name="dashboard-renderer"
+              props={{
+                moduleId: 'KosTikTok',
+                pageId: 'tiktok-dashboard',
+              }}
+              fallback={<KosTikTokOverviewTab />}
+            />
+          )}
           {activeTab === 'videos' && <KosTikTokVideosTab />}
           {activeTab === 'leads' && <KosTikTokLeadsTab />}
           {activeTab === 'events' && <KosTikTokEventsTab />}

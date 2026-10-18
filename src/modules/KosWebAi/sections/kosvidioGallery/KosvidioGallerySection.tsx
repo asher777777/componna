@@ -70,15 +70,21 @@ function isDummyVideoItem(item?: Partial<KosvidioGalleryItem> | null): boolean {
 
 function buildKosvidioHref(slugOrUrl?: string): string {
   if (!slugOrUrl) return '/kosvidio';
-  let clean = slugOrUrl.trim();
-  clean = clean.replace(/^\/?p\//i, '');
-  if (!clean || clean.toLowerCase() === 'kosvidio' || clean.toLowerCase() === '/kosvidio') {
+  let clean = slugOrUrl.trim().replace(/^\/?p\//i, '').replace(/^\/+/, '');
+  if (!clean || clean.toLowerCase() === 'kosvidio') {
     return '/kosvidio';
   }
   if (clean.startsWith('http://') || clean.startsWith('https://')) {
     return clean;
   }
-  return clean.startsWith('/') ? clean : `/${clean}`;
+  if (clean.toLowerCase().startsWith('kosvidio/')) {
+    return `/${clean}`;
+  }
+  if (clean.toLowerCase().startsWith('kosvidio-')) {
+    const sub = clean.slice('kosvidio-'.length);
+    return `/kosvidio/${sub}`;
+  }
+  return `/kosvidio/${clean}`;
 }
 
 function formatNumber(num?: number): string {
@@ -248,7 +254,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
                 youtubeVideoId: ytId,
                 thumbnailUrl:
                   d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
-                kosvidioSlug: d.slug || `kosvidio-${ytId}`,
+                kosvidioSlug: d.slug || ytId,
                 viewsCount: Number(d.viewsCount || 150),
                 likesCount: Number(d.likesCount || 30),
                 publishedAt: d.publishedAt || d.createdAt || '',
@@ -341,7 +347,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
                 youtubeVideoId: ytId,
                 thumbnailUrl:
                   d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
-                kosvidioSlug: d.seoPageSlug || d.slug || `kosvidio-${ytId}`,
+                kosvidioSlug: d.seoPageSlug || d.slug || ytId,
                 duration: d.duration || '',
                 viewsCount: Number(d.viewCount || d.viewsCount || 100),
                 likesCount: Number(d.likeCount || d.likesCount || 18),

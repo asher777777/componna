@@ -440,8 +440,8 @@ export const CoreServicesEditor: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 shrink-0">
               {srv.linkedPageSlug && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
-                  עמוד קיים (/{srv.linkedPageSlug})
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 font-mono">
+                  עמוד KOSASS (/{srv.linkedPageSlug})
                 </span>
               )}
               <button
@@ -630,7 +630,7 @@ const CoreServiceDetailModal: React.FC<{
         };
         setDraft(updatedDraft);
         onSave(updatedDraft);
-        setPageSuccessMsg(`העמוד נפרס בהצלחה מתוך נתוני השירות (/${res.slug}) ללא קריאת AI!`);
+        setPageSuccessMsg(`העמוד נפרס בהצלחה תחת נתיב KOSASS (/${res.slug}) ללא קריאת AI!`);
       } else {
         setEntitlementNotice(res.error || 'שגיאה ביצירת עמוד השירות בבונה העמודים.');
       }
@@ -1318,7 +1318,7 @@ const CoreServiceDetailModal: React.FC<{
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 font-mono">
-                  {draft.seo?.slug ? `/${draft.seo.slug}` : 'SEO'}
+                  {draft.seo?.slug ? `/${draft.seo.slug.startsWith('kosass-') ? draft.seo.slug : `kosass-${draft.seo.slug}`}` : 'KOSASS'}
                 </span>
                 <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
                   openSection === 'seo' ? 'rotate-180 text-teal-500' : ''
@@ -1331,14 +1331,16 @@ const CoreServiceDetailModal: React.FC<{
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between">
-                      <span>סלאג עמוד השירות (נפתח ישירות ללא קידומת /p/)</span>
-                      <span className="text-[10px] text-emerald-600 font-bold">/{draft.seo?.slug || 'service-slug'}</span>
+                      <span>סלאג עמוד השירות (נתיב KOSASS רשמי ללא קידומת /p/)</span>
+                      <span className="text-[10px] text-emerald-600 font-bold font-mono">
+                        /{draft.seo?.slug ? (draft.seo.slug.startsWith('kosass-') ? draft.seo.slug : `kosass-${draft.seo.slug}`) : 'kosass-service-slug'}
+                      </span>
                     </label>
                     <input
                       type="text"
                       value={draft.seo?.slug || ''}
                       onChange={(e) => updateSeoField('slug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
-                      placeholder="dog-training-course"
+                      placeholder="kosass-dog-training"
                       dir="ltr"
                       className="w-full bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl px-3 py-1.5 text-xs text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 font-mono"
                     />
@@ -1504,7 +1506,7 @@ const CoreServiceDetailModal: React.FC<{
                 className="flex items-center gap-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline px-2 py-1.5"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
-                <span>צפה בעמוד חי</span>
+                <span>צפה בעמוד חי (KOSASS)</span>
               </a>
             )}
           </div>

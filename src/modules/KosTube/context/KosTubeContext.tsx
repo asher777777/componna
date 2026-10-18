@@ -10,7 +10,7 @@ import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
 import { PLEASANT_KOS_TUBE_ERROR_HE } from '../config';
-import { KosTubeAiMode } from '../../kosai-engine/modelsAiService';
+import { KosTubeAiMode, KosTubeAiGeneratedData } from '../../kosai-engine/modelsAiService';
 
 export type KosTubeTab = 'overview' | 'videos' | 'pages' | 'settings';
 
@@ -18,6 +18,7 @@ export interface KosTubeGenerationOptions {
   mode?: KosTubeAiMode;
   includeBrand?: boolean;
   customText?: string;
+  customSlug?: string;
 }
 
 export interface KosTubeContextValue {
@@ -37,6 +38,12 @@ export interface KosTubeContextValue {
   syncChannel: (query: string, apiKey?: string) => Promise<boolean>;
   addVideoByUrl: (url: string) => Promise<KosTubeVideo | null>;
   generateSeoPage: (video: KosTubeVideo, options?: KosTubeGenerationOptions) => Promise<KosTubeSeoPage | null>;
+  generateAiContentOnly: (video: KosTubeVideo, options?: KosTubeGenerationOptions) => Promise<KosTubeAiGeneratedData | null>;
+  saveAndDeployReviewedPage: (video: KosTubeVideo, reviewedData: KosTubeAiGeneratedData) => Promise<{ success: boolean; publicUrl?: string; error?: string }>;
+  reviewModalData: { video: KosTubeVideo; aiData: KosTubeAiGeneratedData } | null;
+  setReviewModalData: (data: { video: KosTubeVideo; aiData: KosTubeAiGeneratedData } | null) => void;
+  isReviewModalOpen: boolean;
+  setIsReviewModalOpen: (open: boolean) => void;
   openGenerationModal: (video: KosTubeVideo) => void;
   batchGenerateSeoPages: () => Promise<number>;
   deleteSeoPage: (pageId: string, videoId?: string) => Promise<void>;
@@ -75,6 +82,8 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [selectedPage, setSelectedPage] = useState<KosTubeSeoPage | null>(null);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
   const [modalMode, setModalMode] = useState<'channel_connect' | 'add_video' | 'video_detail' | 'page_preview' | 'schema_view' | 'generate_options'>('channel_connect');
+  const [reviewModalData, setReviewModalData] = useState<{ video: KosTubeVideo; aiData: KosTubeAiGeneratedData } | null>(null);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
 
   const clearError = useCallback(() => setError(null), []);
 
@@ -291,9 +300,18 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
         const pageId = `page_${video.youtubeVideoId}`;
         const cleanVidId = (video.youtubeVideoId || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
-        const rawSlug = res.data?.slug || `kosvidio-${cleanVidId}`;
-        const slug = rawSlug.trim().replace(/^\/?p\//i, '').replace(/^[#/]+/, '');
-        let publicUrl = `/${slug}`;
+        const rawSlugCandidate = options?.customSlug || res.data?.slug || cleanVidId;
+        const slug = rawSlugCandidate
+          .trim()
+          .toLowerCase()
+          .replace(/^https?:\/\/[^/]+/i, '')
+          .replace(/^\/?(p|to|page)\//i, '')
+          .replace(/^\/?kosvidio[-/]/i, '')
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-+|-+$/g, '') || cleanVidId || 'video';
+
+        let publicUrl = `/kosvidio/${slug}`;
         let pbPageId = `page_kosvidio_${video.youtubeVideoId}`;
 
         const brandCompanyName = (effIncludeBrand && brandDna?.identity?.companyName) ? brandDna.identity.companyName : 'קושאן';
@@ -312,8 +330,9 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
               video,
               channelTitle: channel?.title || 'ערוץ יוטיוב',
               brandDna,
-              aiData: res.data,
+              aiData: { ...res.data, slug },
               channelVideos: videos,
+              customSlug: slug,
             });
             if (pbRes.success) {
               pbPageId = pbRes.pageId;
@@ -374,6 +393,8 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
               pageId: pbPageId,
               pageTitle: `${res.data.h1 || video.title} - Kosvidio`,
               slug,
+              shortSlug: slug,
+              publicUrl,
               published: true,
               isHomePage: false,
               viewsCount: 0,
@@ -491,7 +512,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
             };
 
             await setDoc(doc(db, collPath, pbPageId), pageConfig, { merge: true });
-            publicUrl = `/${slug}`;
+            publicUrl = `/kosvidio/${slug}`;
 
           } catch (e) {
             console.warn('[KosTube] Direct save to PAGES collection warning:', e);
@@ -563,9 +584,9 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setSelectedPage(newPage);
         setIsModalOpen(false);
 
-        // Direct navigation to the published live page at /p/kosvidio
+        // Direct navigation to the published live page at /kosvidio/:slug
         if (typeof window !== 'undefined') {
-          const targetUrl = publicUrl || `/${slug}`;
+          const targetUrl = publicUrl || `/kosvidio/${slug}`;
           setTimeout(() => {
             window.location.href = targetUrl;
           }, 350);
@@ -614,6 +635,217 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [db, tenantId]
   );
 
+  const generateAiContentOnly = useCallback(
+    async (
+      video: KosTubeVideo,
+      options?: KosTubeGenerationOptions
+    ): Promise<KosTubeAiGeneratedData | null> => {
+      const effMode = options?.mode || 'eco';
+      const effIncludeBrand = options?.includeBrand !== false;
+      const customText = options?.customText;
+
+      setIsGenerating(true);
+      setGeneratingVideoId(video.id);
+      setGenerationMode(effMode);
+      setError(null);
+      try {
+        let brandDna: any = null;
+        if (effIncludeBrand) {
+          try {
+            const brandCap = getCapability<BrandDnaContract>('brand-dna');
+            if (brandCap?.getBrandDna) {
+              brandDna = brandCap.getBrandDna();
+            }
+            if (!brandDna && db) {
+              const bSnap = await getDoc(
+                doc(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC)
+              );
+              if (bSnap.exists()) {
+                brandDna = bSnap.data();
+              }
+            }
+          } catch (e) {
+            console.warn('[KosTube] Could not load brand DNA:', e);
+          }
+        }
+
+        const res = await generateAiSeoContent({
+          video,
+          channelTitle: channel?.title || 'ערוץ יוטיוב',
+          brandDna,
+          mode: effMode,
+          includeBrand: effIncludeBrand,
+          customText,
+        });
+
+        if (!res.success || !res.data) {
+          setError(res.error || PLEASANT_KOS_TUBE_ERROR_HE);
+          return null;
+        }
+
+        const data: KosTubeAiGeneratedData = {
+          metaTitle: res.data.metaTitle || video.title,
+          metaDescription: res.data.metaDescription || video.description?.slice(0, 160) || '',
+          slug: res.data.slug || (video.youtubeVideoId || 'clip').toLowerCase(),
+          focusKeywords: res.data.focusKeywords || [],
+          tags: res.data.tags || [],
+          h1: res.data.h1 || video.title,
+          executiveSummary: res.data.executiveSummary || '',
+          keyTakeaways: res.data.keyTakeaways || [],
+          articleContent: res.data.articleContent || '',
+          faqs: (res.data.faqs as any) || [],
+          callToAction: res.data.callToAction
+            ? {
+                title: res.data.callToAction.title || '',
+                subtitle: res.data.callToAction.subtitle || '',
+                buttonText: res.data.callToAction.buttonText || '',
+                buttonLink: res.data.callToAction.buttonLink || '#sec-cta',
+              }
+            : undefined,
+        };
+
+        return data;
+      } catch (err: any) {
+        console.error('[KosTube] generateAiContentOnly failed:', err);
+        setError(err?.message || PLEASANT_KOS_TUBE_ERROR_HE);
+        return null;
+      } finally {
+        setIsGenerating(false);
+        setGeneratingVideoId(null);
+      }
+    },
+    [db, tenantId, channel?.title, getCapability]
+  );
+
+  const saveAndDeployReviewedPage = useCallback(
+    async (
+      video: KosTubeVideo,
+      reviewedData: KosTubeAiGeneratedData
+    ): Promise<{ success: boolean; publicUrl?: string; error?: string }> => {
+      setError(null);
+      try {
+        let brandDna: any = null;
+        try {
+          const brandCap = getCapability<BrandDnaContract>('brand-dna');
+          if (brandCap?.getBrandDna) {
+            brandDna = brandCap.getBrandDna();
+          }
+          if (!brandDna && db) {
+            const bSnap = await getDoc(
+              doc(db, 'tenants', tenantId || '_master', SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC)
+            );
+            if (bSnap.exists()) {
+              brandDna = bSnap.data();
+            }
+          }
+        } catch (e) {
+          console.warn('[KosTube] Could not load brand DNA:', e);
+        }
+
+        const cleanVidId = (video.youtubeVideoId || '').replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase();
+        const rawSlug = reviewedData.slug || cleanVidId;
+        const slug = rawSlug
+          .trim()
+          .toLowerCase()
+          .replace(/[^a-z0-9-]/g, '-')
+          .replace(/-+/g, '-')
+          .replace(/^-+|-+$/g, '') || cleanVidId || 'video';
+
+        let publicUrl = `/kosvidio/${slug}`;
+        let pbPageId = `page_kosvidio_${video.youtubeVideoId || slug}`;
+
+        if (pageBuilder?.createPageFromVideo) {
+          try {
+            const pbRes = await pageBuilder.createPageFromVideo({
+              video,
+              channelTitle: channel?.title || 'ערוץ יוטיוב',
+              brandDna,
+              aiData: { ...reviewedData, slug },
+              channelVideos: videos,
+              customSlug: slug,
+            });
+            if (pbRes.success) {
+              pbPageId = pbRes.pageId;
+              publicUrl = pbRes.publicUrl;
+            }
+          } catch (pbErr) {
+            console.warn('[KosTube] pageBuilder capability call warning:', pbErr);
+          }
+        }
+
+        const pageId = `page_${video.youtubeVideoId || slug}`;
+        const newPage: KosTubeSeoPage = {
+          id: pageId,
+          videoId: video.id,
+          youtubeVideoId: video.youtubeVideoId,
+          channelId: video.channelId,
+          channelTitle: channel?.title,
+          slug,
+          metaTitle: reviewedData.metaTitle || video.title,
+          metaDescription: reviewedData.metaDescription || video.description.slice(0, 150),
+          focusKeywords: reviewedData.focusKeywords || [],
+          tags: reviewedData.tags || [],
+          youtubeComments: [],
+          pageBuilderPageId: pbPageId,
+          h1: reviewedData.h1 || video.title,
+          articleContent: reviewedData.articleContent || '',
+          executiveSummary: reviewedData.executiveSummary || '',
+          keyTakeaways: reviewedData.keyTakeaways || [],
+          faqs: reviewedData.faqs || [],
+          callToAction: {
+            title: reviewedData.callToAction?.title || `רוצים תוצאות דומות עם ${brandDna?.identity?.companyName || 'קושאן'}?`,
+            subtitle: reviewedData.callToAction?.subtitle || 'השאירו פרטים ונשמח לסייע',
+            buttonText: reviewedData.callToAction?.buttonText || 'צרו קשר עכשיו',
+            buttonLink: '#sec-cta',
+            showLeadForm: true,
+            whatsappNumber: brandDna?.trust?.whatsappSupportNumber || '',
+          },
+          schemaJsonLd: {},
+          seoScore: 92,
+          seoScoreBreakdown: {
+            titleLengthScore: 19,
+            descriptionLengthScore: 19,
+            keywordsDensityScore: 18,
+            headingsStructureScore: 18,
+            schemaScore: 18,
+            readabilityScore: 18,
+          },
+          viewCount: Number(video.viewCount || 0),
+          likeCount: Number(video.likeCount || 0),
+          commentsCount: 0,
+          pageViewsCount: 0,
+          isPublished: true,
+          publishedAt: new Date().toISOString(),
+          publicUrl,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        await kosTubeFirestore.saveSeoPage(db, tenantId, newPage);
+
+        setSeoPages((prev) => {
+          const filtered = prev.filter((p) => p.id !== newPage.id);
+          return [newPage, ...filtered];
+        });
+
+        setVideos((prev) =>
+          prev.map((v) =>
+            v.id === video.id
+              ? { ...v, status: 'processed', seoPageId: newPage.id, seoPageSlug: newPage.slug }
+              : v
+          )
+        );
+
+        setSelectedPage(newPage);
+        return { success: true, publicUrl };
+      } catch (err: any) {
+        console.error('[KosTube] saveAndDeployReviewedPage failed:', err);
+        return { success: false, error: err?.message || 'שגיאה בפריסת עמוד ה-KOSVIDIO' };
+      }
+    },
+    [db, tenantId, channel?.title, pageBuilder, videos, getCapability]
+  );
+
   const value: KosTubeContextValue = {
     channel,
     videos,
@@ -631,6 +863,12 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
     syncChannel,
     addVideoByUrl,
     generateSeoPage,
+    generateAiContentOnly,
+    saveAndDeployReviewedPage,
+    reviewModalData,
+    setReviewModalData,
+    isReviewModalOpen,
+    setIsReviewModalOpen,
     openGenerationModal,
     batchGenerateSeoPages,
     deleteSeoPage,

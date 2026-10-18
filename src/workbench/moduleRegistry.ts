@@ -82,6 +82,9 @@ const KosSubscribedStandaloneView = React.lazy(() =>
   import('../modules/KosSubscribed').then((m) => ({ default: m.KosSubscribedStandaloneView }))
 );
 
+// Register KosDesBuilder UI capabilities eagerly for universal dashboard rendering
+import '../modules/KosDesBuilder';
+
 const KosDesBuilderStandaloneView = React.lazy(() =>
   import('../modules/KosDesBuilder').then((m) => ({ default: m.KosDesBuilderStandaloneView }))
 );

@@ -324,11 +324,20 @@ export const MediaGalleryProvider: React.FC<{
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  // User Isolation: items visible to the current authenticated user
+  // User & Tenant Isolation: items visible to the current authenticated user and tenant
   const userVisibleItems = useMemo(() => {
+    const isMaster = !tenantId || tenantId === '_master';
     return mediaItems.filter((item) => {
-      // Platform admins, master tenant, or guests see all public/shared files
-      if (!currentUserUid || currentUserRole === 'admin' || tenantId === '_master') {
+      // 1. Strict Tenant Isolation: sub-tenants MUST NEVER see other tenants' items or master items
+      if (!isMaster) {
+        const itemTenant = item.tenantId || item.metadata?.tenantId;
+        if (itemTenant && itemTenant !== tenantId) {
+          return false;
+        }
+      }
+
+      // 2. User Isolation
+      if (!currentUserUid || currentUserRole === 'admin' || isMaster) {
         return true;
       }
       const itemOwner =

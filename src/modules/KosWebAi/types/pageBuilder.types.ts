@@ -26,6 +26,7 @@ export type SectionType =
   | 'eventRsvp'
   | 'kosvidio'
   | 'kosvidioGallery'
+  | 'videoEngagement'
   | 'tiktokHero'
   | 'dynamicListing'
   | 'futureContent2027';
@@ -232,15 +233,22 @@ export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
   },
 };
 
-export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string } | null): PageCategory | null {
+export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string; sections?: any } | null): PageCategory | null {
   if (!page) return null;
   if (page.pageCategory && PAGE_CATEGORIES[page.pageCategory]) return page.pageCategory;
   const s = (page.slug || '').toLowerCase();
-  if (s.startsWith('kosass')) return 'service_product';
-  if (s.startsWith('kosinfo')) return 'info_content';
-  if (s.startsWith('kosevent')) return 'event';
-  if (s.startsWith('kosfunrise')) return 'fundraising';
-  if (s.startsWith('kostube') || s.startsWith('kosvidio')) return 'youtube_post';
+  if (
+    s.startsWith('kosass') ||
+    s.startsWith('service-') ||
+    s.startsWith('product-') ||
+    s.startsWith('srv_') ||
+    s.startsWith('srv-') ||
+    Boolean(page.sections?.painPoints?.visible && page.sections?.targetAudiences?.visible)
+  ) return 'service_product';
+  if (s.startsWith('kosinfo') || s.startsWith('info-') || s.startsWith('article-')) return 'info_content';
+  if (s.startsWith('kosevent') || s.startsWith('event-')) return 'event';
+  if (s.startsWith('kosfunrise') || s.startsWith('campaign-') || s.startsWith('camp_')) return 'fundraising';
+  if (s.startsWith('kostube') || s.startsWith('kosvidio') || s.startsWith('tube-') || s.startsWith('video-')) return 'youtube_post';
   if (s.startsWith('p-') || s === 'home') return 'general';
   return 'general';
 }
@@ -253,6 +261,7 @@ export interface PageBuilderConfig {
   published?: boolean;
   publishedAt?: string;
   publishedUrl?: string;
+  publicUrl?: string;
   shortSlug?: string;
   shortUrl?: string;
   qrCodeUrl?: string;

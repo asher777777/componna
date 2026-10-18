@@ -239,12 +239,14 @@ export class FirebaseStorageMediaService {
 
     // 0. Priority zero: Load from local IndexedDB & LocalStorage
     try {
-      const idbItems = await MediaIndexedDbService.getAllMedia();
+      const idbItems = await MediaIndexedDbService.getAllMedia(tenantId);
       idbItems.forEach((it) => {
         if (it && it.url) {
           const itemTenant = it.tenantId || it.metadata?.tenantId;
-          if (tenantId && tenantId !== '_master' && itemTenant && itemTenant !== tenantId) {
-            return;
+          if (tenantId && tenantId !== '_master') {
+            if (itemTenant !== tenantId) return;
+          } else if (tenantId === '_master') {
+            if (itemTenant && itemTenant !== '_master') return;
           }
           registerItem(it.name || it.id, it.url, it.sizeBytes, it.createdAt, it.id, it);
         }
@@ -256,7 +258,8 @@ export class FirebaseStorageMediaService {
     // 1. First priority: Load from Firestore `sdo_media_vault` (never blocked by CORS)
     try {
       const db = getFirestore(app);
-      const vaultColl = tenantId ? `tenants/${tenantId}/sdo_media_vault` : 'sdo_media_vault';
+      const isMaster = !tenantId || tenantId === '_master';
+      const vaultColl = isMaster ? 'sdo_media_vault' : `tenants/${tenantId}/sdo_media_vault`;
       const snap = await getDocs(collection(db, vaultColl));
       snap.forEach((docSnap) => {
         const data = docSnap.data();
@@ -267,13 +270,14 @@ export class FirebaseStorageMediaService {
             data.sizeBytes || 1992294,
             data.createdAt || Date.now(),
             data.id || docSnap.id,
-            data as Partial<MediaItem>
+            { ...(data as Partial<MediaItem>), tenantId: tenantId || '_master' }
           );
         }
       });
 
-      // Also load from root sdo_media_vault if scoped collection was used
-      if (vaultColl !== 'sdo_media_vault') {
+      // ONLY for root/master tenant backward compatibility:
+      // Sub-tenants (such as MLEA) MUST NEVER load or query the root sdo_media_vault!
+      if (isMaster && vaultColl !== 'sdo_media_vault') {
         try {
           const rootSnap = await getDocs(collection(db, 'sdo_media_vault'));
           rootSnap.forEach((docSnap) => {
@@ -320,25 +324,38 @@ export class FirebaseStorageMediaService {
   }
 
   /**
-   * Delete object from Firebase Cloud Storage, sdo_media_vault, and sdo_media_items
+   * Delete object from Firebase Cloud Storage and scoped Firestore collections
    */
-  public static async deleteStorageFile(app: FirebaseApp, itemOrName: MediaItem | string): Promise<void> {
+  public static async deleteStorageFile(
+    app: FirebaseApp,
+    itemOrName: MediaItem | string,
+    tenantId?: string
+  ): Promise<void> {
     const itemId = typeof itemOrName === 'string' ? itemOrName : itemOrName.id;
     const itemName = typeof itemOrName === 'string' ? itemOrName : itemOrName.name;
     const itemUrl = typeof itemOrName === 'string' ? '' : itemOrName.url || '';
+    const isMaster = !tenantId || tenantId === '_master';
+    const vaultColl = isMaster ? 'sdo_media_vault' : `tenants/${tenantId}/sdo_media_vault`;
+    const itemsColl = isMaster ? 'sdo_media_items' : `tenants/${tenantId}/sdo_media_items`;
 
     // 1. Delete from Firestore collections
     try {
       const db = getFirestore(app);
       const cleanDocId = itemId.replace(/^storage_/, '').replace(/^sdo_media_vault\//, '');
       const promises = [
-        deleteDoc(doc(db, 'sdo_media_vault', cleanDocId)),
-        deleteDoc(doc(db, 'sdo_media_vault', itemId)),
-        deleteDoc(doc(db, 'sdo_media_vault', itemName)),
-        deleteDoc(doc(db, 'sdo_media_items', itemId)),
-        deleteDoc(doc(db, 'sdo_media_items', cleanDocId)),
-        deleteDoc(doc(db, 'sdo_media_items', itemName)),
+        deleteDoc(doc(db, vaultColl, cleanDocId)),
+        deleteDoc(doc(db, vaultColl, itemId)),
+        deleteDoc(doc(db, vaultColl, itemName)),
+        deleteDoc(doc(db, itemsColl, itemId)),
+        deleteDoc(doc(db, itemsColl, cleanDocId)),
+        deleteDoc(doc(db, itemsColl, itemName)),
       ];
+      if (isMaster) {
+        promises.push(
+          deleteDoc(doc(db, 'sdo_media_vault', cleanDocId)),
+          deleteDoc(doc(db, 'sdo_media_items', itemId))
+        );
+      }
       await Promise.allSettled(promises);
     } catch (e) {
       console.warn('[FirebaseStorageMediaService] Firestore delete notice:', e);
@@ -355,7 +372,11 @@ export class FirebaseStorageMediaService {
       }
 
       if (!storagePath) {
-        storagePath = itemName.startsWith('sdo_media_vault/') ? itemName : `sdo_media_vault/${itemName}`;
+        if (!isMaster) {
+          storagePath = `tenants/${tenantId}/media/${itemName}`;
+        } else {
+          storagePath = itemName.startsWith('sdo_media_vault/') ? itemName : `sdo_media_vault/${itemName}`;
+        }
       }
 
       const fileRef = ref(storage, storagePath);

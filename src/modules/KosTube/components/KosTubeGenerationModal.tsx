@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Sparkles, Zap, Shield, FileText, Youtube, Check } from 'lucide-react';
+import { Sparkles, Zap, Shield, FileText, Youtube, Check, Link2 } from 'lucide-react';
 import { KosTubeFullscreenModal } from './KosTubeFullscreenModal';
 import { useKosTube } from '../context/KosTubeContext';
 import { KosTubeAiMode } from '../../kosai-engine/modelsAiService';
@@ -10,7 +10,9 @@ export const KosTubeGenerationModal: React.FC = () => {
     setIsModalOpen,
     modalMode,
     selectedVideo,
-    generateSeoPage,
+    generateAiContentOnly,
+    setReviewModalData,
+    setIsReviewModalOpen,
     isGenerating,
   } = useKosTube();
 
@@ -18,6 +20,7 @@ export const KosTubeGenerationModal: React.FC = () => {
   const [includeBrand, setIncludeBrand] = useState<boolean>(true);
   const [sourceType, setSourceType] = useState<'youtube' | 'custom_text'>('youtube');
   const [customText, setCustomText] = useState<string>('');
+  const [customSlug, setCustomSlug] = useState<string>('');
 
   if (!isModalOpen || modalMode !== 'generate_options' || !selectedVideo) {
     return null;
@@ -25,11 +28,16 @@ export const KosTubeGenerationModal: React.FC = () => {
 
   const handleStartGeneration = async () => {
     setIsModalOpen(false);
-    await generateSeoPage(selectedVideo, {
+    const aiData = await generateAiContentOnly(selectedVideo, {
       mode,
       includeBrand,
       customText: sourceType === 'custom_text' ? customText : undefined,
+      customSlug: customSlug.trim() || undefined,
     });
+    if (aiData) {
+      setReviewModalData({ video: selectedVideo, aiData });
+      setIsReviewModalOpen(true);
+    }
   };
 
   return (
@@ -205,6 +213,30 @@ export const KosTubeGenerationModal: React.FC = () => {
               </p>
             </div>
           )}
+        </div>
+
+        {/* 4. English SEO Slug (Customizable, especially for Lite / Economic mode) */}
+        <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 space-y-2">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-bold text-white flex items-center gap-2">
+              <Link2 className="w-4 h-4 text-emerald-400" />
+              <span>סלאג עמוד באנגלית (SEO Slug)</span>
+            </label>
+            <span className="text-[11px] text-slate-400">אופציונלי • נוצר ע"י AI אם ריק</span>
+          </div>
+          <div className="flex items-center gap-2" dir="ltr">
+            <span className="text-xs text-slate-500 font-mono select-none">/kosvidio/</span>
+            <input
+              type="text"
+              value={customSlug}
+              onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-'))}
+              placeholder={(selectedVideo.youtubeVideoId || 'clip').toLowerCase().replace(/[^a-z0-9]/g, '')}
+              className="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-emerald-400 font-mono text-xs placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
+            />
+          </div>
+          <p className="text-[11px] text-slate-400">
+            הזן סלאג ייחודי באנגלית (למשל עבור הפונקציה החסכונית), או השאר ריק כדי שה-AI יפיק סלאג SEO אוטומטי מהסרטון.
+          </p>
         </div>
 
         {/* Action Button */}

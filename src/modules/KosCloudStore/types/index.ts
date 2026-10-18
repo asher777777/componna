@@ -20,6 +20,7 @@ export interface MediaFolder {
   color?: string;
   icon?: string;
   sourceModule?: string;
+  tenantId?: string;
   createdAt: number;
   updatedAt?: number;
   itemCount?: number;

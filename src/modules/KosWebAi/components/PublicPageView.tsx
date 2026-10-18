@@ -37,7 +37,7 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
 
     const extractFromParts = (parts: string[]): string => {
       if (parts.length === 0) return '';
-      if (parts.length >= 2 && (parts[0] === 'p' || parts[0] === 'page' || parts[0] === 'to')) {
+      if (parts.length >= 2 && (parts[0] === 'p' || parts[0] === 'page' || parts[0] === 'to' || parts[0] === 'kosass')) {
         return parts.slice(1).join('/');
       }
       if (parts[0] === 'kosvidio') {
@@ -45,6 +45,18 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
           return parts.slice(1).join('/');
         }
         return 'kosvidio';
+      }
+      if (parts[0].startsWith('kosvidio-')) {
+        return parts[0].slice('kosvidio-'.length);
+      }
+      if (parts[0] === 'kosass') {
+        if (parts.length >= 2) {
+          return parts.slice(1).join('/');
+        }
+        return 'kosass';
+      }
+      if (parts[0].startsWith('kosass-')) {
+        return parts[0];
       }
       return parts.join('/');
     };
@@ -308,16 +320,41 @@ export const PublicPageView: React.FC<{ slug?: string }> = ({ slug: propSlug }) 
 
         if (resolvedSlug) {
           const target = resolvedSlug.toLowerCase().trim();
-          foundPage = allPages.find(
-            (p) =>
-              (p.slug && p.slug.toLowerCase().trim() === target) ||
-              (p.shortSlug && p.shortSlug.toLowerCase().trim() === target) ||
-              (p.slug && p.slug.toLowerCase().trim() === `kosvidio-${target}`) ||
-              (p.shortSlug && p.shortSlug.toLowerCase().trim() === `kosvidio-${target}`) ||
-              p.pageId === target ||
-              p.pageId === `page_kosvidio_${target}` ||
-              p.pageId === `page_${target}`
-          );
+          const cleanTarget = target.replace(/^(kosvidio|kosass)[-/]/, '');
+          foundPage = allPages.find((p) => {
+            const pSlug = (p.slug || '').toLowerCase().trim();
+            const pShort = (p.shortSlug || '').toLowerCase().trim();
+            const pId = (p.pageId || '').toLowerCase().trim();
+            const vidId = ((p.sections?.['kosvidio-1'] as any)?.youtubeVideoId || '').toLowerCase().trim();
+
+            return (
+              pSlug === target ||
+              pShort === target ||
+              pSlug === cleanTarget ||
+              pShort === cleanTarget ||
+              pSlug === `kosass-${target}` ||
+              pSlug === `kosass-${cleanTarget}` ||
+              pSlug === `kosass/${target}` ||
+              pSlug === `kosass/${cleanTarget}` ||
+              pShort === `kosass-${target}` ||
+              pShort === `kosass-${cleanTarget}` ||
+              pSlug === `kosvidio/${target}` ||
+              pSlug === `kosvidio/${cleanTarget}` ||
+              pSlug === `kosvidio-${target}` ||
+              pSlug === `kosvidio-${cleanTarget}` ||
+              pShort === `kosvidio-${target}` ||
+              pShort === `kosvidio-${cleanTarget}` ||
+              pId === target ||
+              pId === cleanTarget ||
+              pId === `page_${target}` ||
+              pId === `page_${cleanTarget}` ||
+              pId === `page_kosass_${target}` ||
+              pId === `page_kosass_${cleanTarget}` ||
+              pId === `page_kosvidio_${target}` ||
+              pId === `page_kosvidio_${cleanTarget}` ||
+              (vidId && (vidId === target || vidId === cleanTarget))
+            );
+          });
         } else {
           // If no slug provided, load the designated homepage
           foundPage = (await pageBuilderFirestore.getHomePage(db, tenantId)) || allPages.find((p) => p.isHomePage) || allPages[0];

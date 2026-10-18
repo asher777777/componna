@@ -12,6 +12,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { KosunUniversalDock } from '../../../components/Navigation/KosunUniversalDock';
+import { CapabilitySlot } from '../../../core/bridge/CapabilitySlot';
 import { useKosSubscribed } from '../hooks/useKosSubscribed';
 import { KosSubscribedTab } from '../types';
 import { SubscribersTrackingTab } from '../components/SubscribersTrackingTab';
@@ -179,7 +180,16 @@ export const KosSubscribedMainView: React.FC = () => {
           {activeTab === 'packages' && <PackagesAndDiscountsTab />}
           {activeTab === 'quizzes' && <QuizzesFormsTab />}
           {activeTab === 'content' && <ContentGatePreviewTab />}
-          {activeTab === 'analytics' && <SubscriptionAnalyticsTab />}
+          {activeTab === 'analytics' && (
+            <CapabilitySlot
+              name="dashboard-renderer"
+              props={{
+                moduleId: 'KosSubscribed',
+                pageId: 'analytics-dashboard',
+              }}
+              fallback={<SubscriptionAnalyticsTab />}
+            />
+          )}
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import { KosTubeChannelModal } from './components/KosTubeChannelModal';
 import { KosTubeAddVideoModal } from './components/KosTubeAddVideoModal';
 import { KosTubePagePreviewModal } from './components/KosTubePagePreviewModal';
 import { KosTubeGenerationModal } from './components/KosTubeGenerationModal';
+import { KosTubeContentReviewModal } from './components/KosTubeContentReviewModal';
 import { KosTubeGenerationCurtain } from './components/KosTubeGenerationCurtain';
 
 const KosTubeMainContent: React.FC = () => {
@@ -33,7 +34,11 @@ const KosTubeMainContent: React.FC = () => {
     error, 
     clearError, 
     setIsModalOpen, 
-    setModalMode 
+    setModalMode,
+    isReviewModalOpen,
+    setIsReviewModalOpen,
+    reviewModalData,
+    saveAndDeployReviewedPage,
   } = useKosTube();
 
   const tabs: Array<{ id: KosTubeTab; label: string; icon: React.FC<{ className?: string }> }> = [
@@ -152,6 +157,19 @@ const KosTubeMainContent: React.FC = () => {
       <KosTubeAddVideoModal />
       <KosTubePagePreviewModal />
       <KosTubeGenerationModal />
+
+      {/* Review & Edit Modal before deploying to KWB */}
+      {isReviewModalOpen && reviewModalData && (
+        <KosTubeContentReviewModal
+          isOpen={isReviewModalOpen}
+          onClose={() => setIsReviewModalOpen(false)}
+          video={reviewModalData.video}
+          initialData={reviewModalData.aiData}
+          onSaveAndDeploy={(reviewedData) =>
+            saveAndDeployReviewedPage(reviewModalData.video, reviewedData)
+          }
+        />
+      )}
 
       {/* Dynamic Reveal Curtain Animation */}
       <KosTubeGenerationCurtain

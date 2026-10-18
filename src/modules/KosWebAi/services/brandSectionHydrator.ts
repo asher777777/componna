@@ -326,6 +326,13 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'videoEngagement': {
+      if (primaryColor) {
+        cloned.accentColor = primaryColor;
+      }
+      break;
+    }
+
     case 'kosvidioGallery': {
       cloned.source = cloned.source || 'tenant_kosvidio';
       cloned.layout = cloned.layout || 'spotlight-grid';

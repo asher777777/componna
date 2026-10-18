@@ -241,12 +241,17 @@ export function fillMissingVideoData(
   const safeTitle = (aiData?.h1 || video.title || 'מדריך וידאו מעמיק').trim();
   const cleanVideoSlug = (video.youtubeVideoId || 'clip').toLowerCase().replace(/[^a-z0-9]/g, '');
 
-  let slug = 'kosvidio';
+  let slug = cleanVideoSlug || 'clip';
   if (aiData?.slug) {
-    const s = aiData.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/^-+|-+$/g, '');
-    slug = s.startsWith('kosvidio') ? s : `kosvidio-${s}`;
-  } else if (cleanVideoSlug) {
-    slug = `kosvidio-${cleanVideoSlug}`;
+    const s = aiData.slug
+      .toLowerCase()
+      .replace(/^https?:\/\/[^/]+/i, '')
+      .replace(/^\/?(p|to|page)\//i, '')
+      .replace(/^\/?kosvidio[-/]/i, '')
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (s) slug = s;
   }
 
   const metaTitle = (aiData?.metaTitle || (includeBrand ? `${safeTitle} | ${brandName}` : safeTitle)).slice(0, 65);

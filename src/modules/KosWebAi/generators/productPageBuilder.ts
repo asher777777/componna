@@ -576,7 +576,9 @@ export function buildPageConfigFromCoreService(
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
 
-  const cleanSlug = rawSlugCandidate || `service-${Date.now().toString().slice(-4)}`;
+  const cleanSlug = rawSlugCandidate.startsWith('kosass-')
+    ? rawSlugCandidate
+    : `kosass-${rawSlugCandidate.replace(/^kosass-?/, '').replace(/^-/, '') || Date.now().toString().slice(-4)}`;
   const pageId = existingPageId || service.linkedPageId || `page_${cleanSlug.replace(/[^a-z0-9_]/g, '_')}`;
 
   // קישורי תפריט ניווט עליון

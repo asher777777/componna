@@ -37,9 +37,46 @@ export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
 }
 
-export const isPublicContentPath = (path: string): boolean => {
-  const p = path.toLowerCase();
+export const isKnownModuleOrAdminRoute = (path: string): boolean => {
+  const p = path.toLowerCase().trim();
   if (p === '/' || p === '') return false;
+
+  const systemOrAdminPrefixes = [
+    '/dashboard',
+    '/brand-dna',
+    '/kosbranding',
+    '/branding',
+    '/overview',
+    '/control-center',
+    '/settings',
+    '/communities',
+    '/together',
+    '/crm-groups',
+    '/crm-groups-hub',
+    '/smart-forms',
+    '/media-gallery',
+    '/media-gallery-hub',
+    '/tenant-provisioner',
+    '/page-builder',
+    '/builder',
+    '/koswebbulider',
+  ];
+
+  if (systemOrAdminPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`))) {
+    return true;
+  }
+
+  return REGISTERED_MODULES.some((m) => {
+    const route = m.route.toLowerCase();
+    return p === route || p.startsWith(`${route}/`);
+  });
+};
+
+export const isPublicContentPath = (path: string): boolean => {
+  const p = path.toLowerCase().trim();
+  if (p === '/' || p === '') return false;
+
+  // 1. Explicit public content paths
   if (
     p === '/kosvidio' ||
     p.startsWith('/kosvidio/') ||
@@ -52,19 +89,14 @@ export const isPublicContentPath = (path: string): boolean => {
   ) {
     return true;
   }
-  const adminRoutes = [
-    '/dashboard',
-    '/brand-dna',
-    '/kosbranding',
-    '/branding',
-    '/overview',
-    '/control-center',
-    '/settings',
-  ];
-  if (adminRoutes.some((ar) => p === ar || p.startsWith(`${ar}/`))) {
+
+  // 2. Known module or backoffice admin routes are strictly non-public
+  if (isKnownModuleOrAdminRoute(path)) {
     return false;
   }
-  return true;
+
+  // 3. Direct public page slug (e.g. /about, /services) under the tenant subdomain
+  return p.length > 1 && !p.slice(1).includes('/');
 };
 
 export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenantRecord }) => {
@@ -80,6 +112,10 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       return 'public';
     }
     if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
+      return 'admin';
+    }
+    // Known module or admin routes strictly default to admin mode
+    if (isKnownModuleOrAdminRoute(pathname)) {
       return 'admin';
     }
     // Public home or public content pages (e.g. /kosvidio, /p/*) default strictly to public mode
@@ -117,6 +153,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       setMode('admin');
       sessionStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
       sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
+    } else if (isKnownModuleOrAdminRoute(location.pathname)) {
+      setMode('admin');
     } else if (isPublicContentPath(location.pathname) && !params.get('admin') && !params.get('mode')) {
       setMode('public');
     }
@@ -792,6 +830,11 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               <Route path="/together/*" element={<Navigate to="/crm-groups" replace />} />
               <Route path="/crm-groups-hub/*" element={<Navigate to="/crm-groups" replace />} />
               <Route path="/KosTogether/*" element={<Navigate to="/crm-groups" replace />} />
+              <Route path="/media-gallery-hub/*" element={<Navigate to="/KosCloudStore" replace />} />
+              <Route path="/media-gallery/*" element={<Navigate to="/KosCloudStore" replace />} />
+              <Route path="/KosWebBulider/*" element={<Navigate to="/KosWebAi" replace />} />
+              <Route path="/page-builder/*" element={<Navigate to="/KosWebAi" replace />} />
+              <Route path="/builder/*" element={<Navigate to="/KosWebAi" replace />} />
               <Route path="*" element={<Navigate to={defaultRoute} replace />} />
             </Routes>
           </main>

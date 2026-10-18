@@ -112,7 +112,7 @@ export class MediaIndexedDbService {
   /**
    * Load all media items and reconstitute active Object URLs from stored Blobs
    */
-  public static async getAllMedia(): Promise<MediaItem[]> {
+  public static async getAllMedia(tenantId?: string): Promise<MediaItem[]> {
     try {
       const db = await this.openDB();
       const tx = db.transaction([STORE_ITEMS, STORE_BLOBS], 'readonly');
@@ -132,12 +132,19 @@ export class MediaIndexedDbService {
       const blobsMap = new Map<string, Blob>();
       blobs.forEach((b) => blobsMap.set(b.id, b.blob));
 
-      // Merge with LocalStorage if items was empty
-      if (items.length === 0) {
+      // Merge with LocalStorage if items was empty (only for master/root tenant)
+      if (items.length === 0 && (!tenantId || tenantId === '_master')) {
         try {
           const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
           if (raw) items = JSON.parse(raw);
         } catch (e) {}
+      }
+
+      // Enforce strict tenant isolation on local items
+      if (tenantId && tenantId !== '_master') {
+        items = items.filter((it) => it && (it.tenantId === tenantId || it.metadata?.tenantId === tenantId));
+      } else if (tenantId === '_master') {
+        items = items.filter((it) => !it.tenantId || it.tenantId === '_master' || it.metadata?.tenantId === '_master');
       }
 
       // Check deleted tombstone set
@@ -427,7 +434,8 @@ export class MediaIndexedDbService {
     }
   }
 
-  public static async getFolders(): Promise<MediaFolder[]> {
+  public static async getFolders(tenantId?: string): Promise<MediaFolder[]> {
+    let resultFolders: MediaFolder[] = [];
     try {
       const db = await this.openDB();
       if (db.objectStoreNames.contains(STORE_FOLDERS)) {
@@ -438,17 +446,27 @@ export class MediaIndexedDbService {
           tx.onerror = () => res();
         });
         if (req.result && req.result.length > 0) {
-          return req.result;
+          resultFolders = req.result;
         }
       }
     } catch {}
 
-    try {
-      const raw = localStorage.getItem(LOCAL_STORAGE_FOLDERS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
+    if (resultFolders.length === 0 && (!tenantId || tenantId === '_master')) {
+      try {
+        const raw = localStorage.getItem(LOCAL_STORAGE_FOLDERS_KEY);
+        if (raw) resultFolders = JSON.parse(raw);
+      } catch {
+        resultFolders = [];
+      }
     }
+
+    if (tenantId && tenantId !== '_master') {
+      return resultFolders.filter((f) => f && f.tenantId === tenantId);
+    } else if (tenantId === '_master') {
+      return resultFolders.filter((f) => !f.tenantId || f.tenantId === '_master');
+    }
+
+    return resultFolders;
   }
 
   public static async deleteFolder(folderId: string): Promise<void> {

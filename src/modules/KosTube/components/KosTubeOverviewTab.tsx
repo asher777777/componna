@@ -162,7 +162,7 @@ export const KosTubeOverviewTab: React.FC = () => {
         moduleId: 'KosTube',
         initialSections: defaultKosTubeSections,
       }}
-      fallback={(
+      fallback={
         <div className="space-y-8 animate-fadeIn" dir="rtl">
           {/* Hero Channel Card */}
           <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 p-6 md:p-8 text-white shadow-xl border border-red-500/20">
@@ -490,7 +490,7 @@ export const KosTubeOverviewTab: React.FC = () => {
         </div>
       </div>
     </div>
-  )}
+  }
 />
   );
 };

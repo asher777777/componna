@@ -1026,6 +1026,7 @@ export interface CreateVideoSeoPageOptions {
   brandDna?: BrandDna | null;
   aiData?: Partial<KosTubeSeoPage>;
   channelVideos?: KosTubeVideo[];
+  customSlug?: string;
 }
 
 export interface CreateCampaignPageOptions {

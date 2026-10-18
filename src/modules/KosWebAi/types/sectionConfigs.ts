@@ -537,6 +537,8 @@ export interface KosvidioSectionConfig extends BaseSectionConfig {
   comments: KosvidioComment[];
   allowUserComments?: boolean;
 
+  hideInternalEngagement?: boolean; // When true, engagement bar & comments are handled by dedicated videoEngagement section
+
   // 5. Short description
   shortDescription: string;
   shortDescriptionBadge?: string;
@@ -552,6 +554,34 @@ export interface KosvidioSectionConfig extends BaseSectionConfig {
     buttonLink: string;
     showLeadForm?: boolean;
   };
+}
+
+export interface VideoEngagementComment {
+  id: string;
+  authorName: string;
+  authorAvatar?: string;
+  publishedAt: string;
+  content: string;
+  likesCount: number;
+  userLiked?: boolean;
+}
+
+export interface VideoEngagementSectionConfig extends BaseSectionConfig {
+  type: 'videoEngagement';
+  title?: string;
+  videoTitle?: string;
+  allowLikes?: boolean;
+  likesCount?: number;
+  viewsCount?: number | string;
+  viewsCountText?: string;
+  allowComments?: boolean;
+  allowUserComments?: boolean;
+  comments?: VideoEngagementComment[];
+  enableSocialShare?: boolean;
+  tags?: string[];
+  shareTitle?: string;
+  accentColor?: string;
+  publishedDateText?: string;
 }
 
 export interface TiktokHeroVideoSettings {

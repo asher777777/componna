@@ -10,6 +10,7 @@ import { QuickLeadModal } from './modals/QuickLeadModal';
 import { QuickWhatsAppModal } from './modals/QuickWhatsAppModal';
 import { ModuleDetailsDrawer } from './modals/ModuleDetailsDrawer';
 import { useControlCenter } from '../context/ControlCenterContext';
+import { CapabilitySlot } from '../../../core/bridge/CapabilitySlot';
 import { Sparkles } from 'lucide-react';
 
 export const ControlCenterMainView: React.FC = () => {
@@ -47,9 +48,16 @@ export const ControlCenterMainView: React.FC = () => {
         {/* Sub-bar: Category Tabs & Quick Action Buttons */}
         <QuickActionsPillBar />
 
-        {/* Dynamic 5-Layout Area */}
+        {/* Dynamic 5-Layout Area with in-place editable capability */}
         <div className="pt-2">
-          {renderActiveLayout()}
+          <CapabilitySlot
+            name="dashboard-renderer"
+            props={{
+              moduleId: 'control-center',
+              pageId: 'control-center-hub',
+            }}
+            fallback={renderActiveLayout()}
+          />
         </div>
       </main>
 
