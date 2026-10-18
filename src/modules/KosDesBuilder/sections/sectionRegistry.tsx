@@ -39,7 +39,7 @@ export interface DashboardSectionDefinition {
   defaultConfig: DashboardSectionConfig;
 }
 
-export const DASHBOARD_SECTIONS_REGISTRY: Record<DashboardSectionType, DashboardSectionDefinition> = {
+export const DASHBOARD_SECTIONS_REGISTRY: Partial<Record<DashboardSectionType, DashboardSectionDefinition>> & Record<string, DashboardSectionDefinition> = {
   header: {
     type: 'header',
     name: 'הדר וברכת פתיחה',

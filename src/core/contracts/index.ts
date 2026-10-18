@@ -1251,7 +1251,7 @@ export interface KosTubeSeoPage {
   h1: string;
   articleContent: string;
   executiveSummary: string;
-  keyTakeaways: string[];
+  keyTakeaways: Array<{ title: string; text: string; icon?: string } | string>;
   faqs: Array<{ question: string; answer: string }>;
   callToAction: {
     title: string;
@@ -1658,7 +1658,15 @@ export type DashboardSectionType =
   | 'quickActions'
   | 'floatingDock'
   | 'commandMatrix'
-  | 'slotWidget';
+  | 'slotWidget'
+  | 'brandingIdentity'
+  | 'brandingVoice'
+  | 'brandingAudience'
+  | 'brandingEcosystem'
+  | 'brandingDesignTokens'
+  | 'brandingTrust'
+  | 'brandingMarket'
+  | 'brandingOverview';
 
 export interface DashboardStatItem {
   id: string;
@@ -1767,7 +1775,8 @@ export type DashboardSectionConfig =
   | DashboardQuickActionsConfig
   | DashboardFloatingDockConfig
   | DashboardCommandMatrixConfig
-  | DashboardSlotWidgetConfig;
+  | DashboardSlotWidgetConfig
+  | Record<string, any>;
 
 export interface DashboardSection {
   id: string;
@@ -1868,6 +1877,90 @@ export interface KosAccessContract {
   saveDeclaration: (tenantId: string, declaration: Partial<AccessibilityDeclarationDocument>) => Promise<AccessibilityDeclarationDocument>;
   submitFeedback: (tenantId: string, feedback: Omit<AccessibilityFeedbackSubmission, 'id' | 'createdAt' | 'status' | 'tenantId'>) => Promise<string>;
   getFeedbackSubmissions: (tenantId: string) => Promise<AccessibilityFeedbackSubmission[]>;
+}
+
+// ============================================================================
+// 15. KosLive - Living Pages & Interactive Avatar Funnels (עמודים חיים)
+// ============================================================================
+
+export type LivingDisplayMode = 'full_page' | 'hero_embed' | 'floating_concierge' | 'dialog_modal';
+
+export interface LivingOverlayAction {
+  id: string;
+  label: string;
+  targetSceneId: string;
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'gold';
+  icon?: string;
+  actionType?: 'navigate' | 'open_whatsapp' | 'open_lead_form' | 'open_url' | 'trigger_payment';
+  externalUrl?: string;
+  paymentAmount?: number;
+}
+
+export interface LivingOverlayItem {
+  id: string;
+  type: 'quick_replies' | 'info_card' | 'badge' | 'product_card' | 'form_input' | 'countdown' | 'carousel';
+  position: 'top' | 'center' | 'bottom' | 'top-right' | 'bottom-right' | 'bottom-left';
+  title?: string;
+  subtitle?: string;
+  imageUrl?: string;
+  price?: string;
+  actions?: LivingOverlayAction[];
+  formFields?: { key: string; label: string; placeholder?: string; type: 'text' | 'email' | 'tel' }[];
+  style?: Record<string, string>;
+  delayMs?: number;
+  durationMs?: number;
+}
+
+export interface LivingSceneContract {
+  id: string;
+  sceneNumber: number;
+  title: string;
+  dialogueScript: string;
+  visualPrompt?: string;
+  avatarId?: string;
+  voiceId?: string;
+  backgroundMediaUrl?: string;
+  backgroundType?: 'image' | 'video' | 'color';
+  renderedVideoUrl?: string;
+  renderedAudioUrl?: string;
+  durationSeconds?: number;
+  overlays?: LivingOverlayItem[];
+  allowedIntents?: Record<string, string>; // intentName -> targetSceneId
+  autoTransitionOnEnd?: boolean;
+  autoTransitionDelaySec?: number;
+  autoTransitionTarget?: string;
+  enableVoiceTrigger?: boolean;
+}
+
+export interface LivingCampaignContract {
+  id: string;
+  slug: string;
+  name: string;
+  description?: string;
+  presenterId?: string;
+  initialSceneId: string;
+  scenes: Record<string, LivingSceneContract>;
+  sourcePageId?: string;
+  sourceProductId?: string;
+  isPublished: boolean;
+  publishedAt?: number;
+  aspectRatio: '16:9' | '9:16' | '1:1' | 'auto';
+  settings?: {
+    primaryColor?: string;
+    enableVoice?: boolean;
+    autoPlay?: boolean;
+    language?: string;
+    displayMode?: LivingDisplayMode;
+  };
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface KosLiveContract {
+  getCampaign: (campaignId: string) => Promise<LivingCampaignContract | null>;
+  listCampaigns: () => Promise<LivingCampaignContract[]>;
+  saveCampaign: (campaign: LivingCampaignContract) => Promise<void>;
+  convertPageToLivingCampaign: (pageConfig: any) => Promise<LivingCampaignContract>;
 }
 
 export * from './collections';

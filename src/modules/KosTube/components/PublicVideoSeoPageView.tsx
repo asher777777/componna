@@ -756,7 +756,7 @@ export const PublicVideoSeoPageView: React.FC = () => {
                     <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                       {idx + 1}
                     </span>
-                    <span>{item}</span>
+                    <span>{typeof item === 'string' ? item : (item?.title ? `${item.title}: ${item.text || ''}` : item?.text || '')}</span>
                   </li>
                 ))}
               </ul>

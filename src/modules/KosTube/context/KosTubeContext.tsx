@@ -520,12 +520,19 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
                   body: `<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     ${(res.data.keyTakeaways || [])
                       .map(
-                        (t: string, idx: number) => `
-                      <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 backdrop-blur-sm shadow-md flex items-start gap-3">
-                        <span class="w-7 h-7 rounded-full bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-sm shrink-0">${idx + 1}</span>
-                        <p class="text-sm text-slate-200 leading-relaxed font-normal">${t}</p>
+                        (t: any, idx: number) => {
+                          const title = typeof t === 'object' && t?.title ? t.title : '';
+                          const text = typeof t === 'object' && t?.text ? t.text : String(t);
+                          return `
+                      <div class="p-5 rounded-2xl bg-slate-900/40 border border-slate-800 backdrop-blur-sm shadow-md flex flex-col gap-2">
+                        <div class="flex items-center gap-2">
+                          <span class="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 font-bold flex items-center justify-center text-xs shrink-0">${idx + 1}</span>
+                          ${title ? `<span class="text-sm font-bold text-white">${title}</span>` : ''}
+                        </div>
+                        <p class="text-xs sm:text-sm text-slate-200 leading-relaxed font-normal">${text}</p>
                       </div>
-                    `
+                    `;
+                        }
                       )
                       .join('')}
                   </div>`,
@@ -766,7 +773,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           tags: res.data.tags || [],
           h1: res.data.h1 || video.title,
           executiveSummary: res.data.executiveSummary || '',
-          keyTakeaways: res.data.keyTakeaways || [],
+          keyTakeaways: (res.data.keyTakeaways || []).map((t: any) => typeof t === 'string' ? t : { title: t?.title || 'תובנה', text: t?.text || t?.description || '' }),
           articleContent: res.data.articleContent || '',
           faqs: (res.data.faqs as any) || [],
           callToAction: res.data.callToAction
@@ -835,7 +842,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
               video,
               channelTitle: channel?.title || 'ערוץ יוטיוב',
               brandDna,
-              aiData: { ...reviewedData, slug },
+              aiData: { ...reviewedData, slug } as any,
               channelVideos: videos,
               customSlug: slug,
             });
@@ -865,7 +872,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           h1: reviewedData.h1 || video.title,
           articleContent: reviewedData.articleContent || '',
           executiveSummary: reviewedData.executiveSummary || '',
-          keyTakeaways: reviewedData.keyTakeaways || [],
+          keyTakeaways: (reviewedData.keyTakeaways || []).map((t: any) => typeof t === 'string' ? t : (t?.title ? `${t.title}: ${t.text || ''}` : t?.text || '')),
           faqs: reviewedData.faqs || [],
           callToAction: {
             title: reviewedData.callToAction?.title || `רוצים תוצאות דומות עם ${brandDna?.identity?.companyName || 'קושאן'}?`,

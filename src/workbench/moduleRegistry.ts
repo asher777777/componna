@@ -96,6 +96,13 @@ const KosAccessStandaloneView = React.lazy(() =>
   import('../modules/KosAccess').then((m) => ({ default: m.KosAccessStandaloneView }))
 );
 
+// Register KosLive UI capabilities eagerly for universal living page rendering & concierge
+import '../modules/KosLive';
+
+const KosLiveStandaloneView = React.lazy(() =>
+  import('../modules/KosLive').then((m) => ({ default: m.KosLiveStandaloneView }))
+);
+
 export interface ModuleDefinition {
   id: string;
   name: string;
@@ -107,6 +114,22 @@ export interface ModuleDefinition {
 }
 
 export const REGISTERED_MODULES: ModuleDefinition[] = [
+  {
+    id: 'KosLivePage',
+    name: 'קושאן LivePage - עמודים חיים ואוואטרים אינטראקטיביים',
+    description: 'סטודיו הפקות ומנוע עמודים חיים: הפיכת עמודים, תוכן ומוצרים לסרטוני אווטאר אינטראקטיביים עם פיצול החלטות, שכבות ממשק וסוכן שיחה קולי מבוסס AI.',
+    component: KosLiveStandaloneView,
+    route: '/koslivepage',
+    collectionPrefix: 'mod_kos_live_',
+  },
+  {
+    id: 'KosLive',
+    name: 'KosLivePage (נתיב מקוצר)',
+    description: 'הפניה ישירה למנוע עמודים חיים KosLivePage',
+    component: KosLiveStandaloneView,
+    route: '/koslive',
+    collectionPrefix: 'mod_kos_live_',
+  },
   {
     id: 'KosAccess',
     name: 'קושאן Access - נגישות אתרים וחוקי משרד התקשורת',
@@ -247,9 +270,9 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'video-producer-studio',
-    name: 'קשואן Studio - סטודיו הפקות וידאו',
-    description: 'אולפן הפקות מתקדם: אשף תסריטים, סרטוני אווטאר וטלפרומפטר איכותי, שמבטיחים מומחיות ונראות מקצועית בכל סרטון.',
-    component: VideoProducerStudioView,
+    name: 'קשואן Studio (מאוחד ב-KosLive)',
+    description: 'אולפן הפקות מתקדם: אשף תסריטים, סרטוני אווטאר וטלפרומפטר איכותי - מאוחד כעת תחת מנוע העמודים החיים KosLive.',
+    component: KosLiveStandaloneView,
     route: '/video-producer',
     collectionPrefix: 'sdo_video_',
   },
@@ -295,9 +318,9 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'flow-player-engine',
-    name: 'קשואן Flow - נגן תהליכים אינטראקטיבי',
-    description: 'נגן מתקדם המשלב אינטראקציות חכמות וזיהוי קולי, ומספק חווית משתמש מרשימה התורמת להשגת תוצאות מוכחות.',
-    component: FlowPlayerEngineStandaloneView,
+    name: 'קשואן Flow (מאוחד ב-KosLive)',
+    description: 'נגן מתקדם המשלב אינטראקציות חכמות, סוכן שיחה קולי ופיצול החלטות - מאוחד כעת תחת מנוע העמודים החיים KosLive.',
+    component: KosLiveStandaloneView,
     route: '/flow-player-engine',
     collectionPrefix: 'sdo_player_',
   },

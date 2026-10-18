@@ -54,11 +54,15 @@ export const SYSTEM_COLLECTIONS = {
   WHATSAPP_AUTOMATIONS: 'kos_whatsup_automations',
   SCHEDULED_REMINDERS: 'scheduled_reminders',
   
-  // 7. Video Producer Studio & Flow Player
+  // 7. Video Producer Studio & Flow Player (Legacy & KosLive Unified)
   VIDEO_PROJECTS: 'sdo_video_projects',
   VIDEO_SCENES: 'sdo_video_scenes',
   PLAYER_CAMPAIGNS: 'sdo_player_campaign_configs',
   PLAYER_EVENTS: 'sdo_player_session_events',
+  KOS_LIVE_PROJECTS: 'kos_live_projects',
+  KOS_LIVE_CAMPAIGNS: 'kos_live_campaigns',
+  KOS_LIVE_ANALYTICS: 'kos_live_analytics',
+  KOS_LIVE_SESSIONS: 'kos_live_sessions',
   
   // 8. Settings & Brand DNA (KosBranding Monopoly)
   SETTINGS: 'settings',

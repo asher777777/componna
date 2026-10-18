@@ -1,61 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { FlowPlayerSectionConfig } from '../../types/sectionConfigs';
-import { FlowPlayerModuleProvider } from '../../../flow-player-engine/context/ModuleContext';
-import { PlayerMachineProvider } from '../../../flow-player-engine/context/PlayerMachineContext';
-import { PlayerContainer } from '../../../flow-player-engine/components/PlayerContainer';
-import { FirestoreService } from '../../../flow-player-engine/services/firestoreService';
-import { DEFAULT_CAMPAIGN_CONFIG, resolveCollections } from '../../../flow-player-engine/config';
-import { CampaignConfig } from '../../../flow-player-engine/types';
-import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
-import { Loader2 } from 'lucide-react';
+import { CapabilitySlot } from '../../../../core/bridge/CapabilitySlot';
+import { Loader2, Play } from 'lucide-react';
 
 export const FlowPlayerSection: React.FC<{ config: FlowPlayerSectionConfig }> = ({ config }) => {
-  const { firebaseApp, db } = useSystemConnection();
-  const [campaign, setCampaign] = useState<CampaignConfig>(DEFAULT_CAMPAIGN_CONFIG);
-  const [loading, setLoading] = useState<boolean>(true);
-
-  const collections = resolveCollections('sdo_player_');
-  const targetCampaignId = config.campaignId || config.campaignSlug || DEFAULT_CAMPAIGN_CONFIG.id;
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadCampaign() {
-      setLoading(true);
-      try {
-        const timeoutPromise = new Promise<null>((resolve) =>
-          setTimeout(() => resolve(null), 2500)
-        );
-        const loadPromise = FirestoreService.getCampaignConfig(
-          db as any,
-          collections,
-          targetCampaignId
-        );
-        const loaded = await Promise.race([loadPromise, timeoutPromise]);
-
-        if (loaded && isMounted) {
-          setCampaign(loaded);
-        } else if (isMounted) {
-          setCampaign(DEFAULT_CAMPAIGN_CONFIG);
-        }
-      } catch (err) {
-        console.warn('[FlowPlayerSection] Failed to load campaign:', err);
-        if (isMounted) {
-          setCampaign(DEFAULT_CAMPAIGN_CONFIG);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadCampaign();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [targetCampaignId, db]);
+  const targetCampaignId = config.campaignId || config.campaignSlug || 'demo-living-page';
 
   const widthClasses = {
     sm: 'max-w-xl',
@@ -126,31 +75,22 @@ export const FlowPlayerSection: React.FC<{ config: FlowPlayerSectionConfig }> = 
           </div>
         )}
 
-        {/* 3. Pure Video Stage - Embedded Player (Zero Clutter, Zero Admin Bars) */}
+        {/* 3. Pure Video Stage - Embedded Living Player via CapabilitySlot */}
         <div className="w-full flex justify-center">
-          {loading ? (
-            <div className="w-full max-w-[420px] aspect-[9/16] rounded-3xl bg-slate-900/40 border border-slate-800/80 flex flex-col items-center justify-center p-8 text-slate-400">
-              <Loader2 className="w-8 h-8 text-yellow-500 animate-spin mb-3" />
-              <span className="text-xs font-medium">טוען נגן אינטראקטיבי...</span>
-            </div>
-          ) : (
-            <FlowPlayerModuleProvider
-              config={{
-                firebaseApp,
-                db: db as any,
-                collectionPrefix: 'sdo_player_',
-                initialCampaign: campaign,
-              }}
-            >
-              <PlayerMachineProvider
-                key={`${campaign.id}_${campaign.slug || ''}_${campaign.updatedAt || '0'}`}
-                initialCampaign={campaign}
-                initialMode="live"
-              >
-                <PlayerContainer className="w-full p-0 sm:p-0" embedMode={true} />
-              </PlayerMachineProvider>
-            </FlowPlayerModuleProvider>
-          )}
+          <CapabilitySlot
+            name="living-page-player"
+            props={{
+              campaignId: targetCampaignId,
+              embedMode: true,
+              aspectRatio: '9:16',
+            }}
+            fallback={
+              <div className="w-full max-w-[420px] aspect-[9/16] rounded-3xl bg-slate-900 border border-slate-800 flex flex-col items-center justify-center p-8 text-slate-400">
+                <Play className="w-8 h-8 text-amber-500 mb-3" />
+                <span className="text-xs font-medium">עמוד חי אינטראקטיבי</span>
+              </div>
+            }
+          />
         </div>
       </div>
     </section>

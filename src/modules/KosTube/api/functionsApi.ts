@@ -273,14 +273,7 @@ export function fillMissingVideoData(
     ? aiData.youtubeComments
     : [];
 
-  const keyTakeaways = Array.isArray(aiData?.keyTakeaways) && aiData.keyTakeaways.length > 0
-    ? aiData.keyTakeaways
-    : [
-        'הבנה יסודית של הנושא המרכזי המוצג בסרטון ומשמעותו המעשית.',
-        'צעדים מדויקים ליישום מיידי של הכלים שנלמדו.',
-        'הימנעות מטעויות נפוצות שרבים עושים בשלבי ההתחלה.',
-        includeBrand ? `חיבור מעשי למומחיות ולפתרונות של ${brandName}.` : 'עקרונות להמשך צמיחה ומעקב אחר תוצאות.',
-      ];
+  const keyTakeaways = normalizeKeyTakeaways(aiData?.keyTakeaways, brandName, includeBrand);
 
   const defaultArticle = `## סקירה מקיפה וניתוח מקצועי${includeBrand ? ` מבית ${brandName}` : ''}
 הסרטון **${safeTitle}** מציג נקודת מבט ייחודית ומעשית על הנושא.
@@ -558,3 +551,113 @@ export async function fetchYoutubeChannelData(
     throw err;
   }
 }
+
+/**
+ * Intelligently extracts an engaging, captivating Hebrew title from takeaway text
+ * adhering strictly to the tenant's brand voice and context instead of generic "תובנה 1".
+ */
+export function extractCompellingTitle(text: string, index: number = 1, brandName: string = ''): string {
+  if (!text || text.trim().length === 0) {
+    return brandName ? `עיקרון מוביל מבית ${brandName}` : `תובנת מפתח מעשית ${index}`;
+  }
+
+  const clean = text.trim();
+
+  // If text already has a title format like "Title: Description" or "Title - Description"
+  if (clean.includes(':')) {
+    const parts = clean.split(':');
+    const firstPart = parts[0].trim();
+    if (firstPart.length >= 3 && firstPart.length <= 40 && !firstPart.startsWith('תובנה מרכזית') && !firstPart.startsWith('תובנה ')) {
+      return firstPart;
+    }
+  }
+
+  if (clean.includes(' - ')) {
+    const parts = clean.split(' - ');
+    const firstPart = parts[0].trim();
+    if (firstPart.length >= 3 && firstPart.length <= 40 && !firstPart.startsWith('תובנה מרכזית') && !firstPart.startsWith('תובנה ')) {
+      return firstPart;
+    }
+  }
+
+  // Remove common generic prefixes in Hebrew
+  let stripped = clean
+    .replace(/^(הבנה עמוקה של|הבנת|כלים מעשיים ל|כלי מעשי ל|התמודדות עם|שילוב של|למידה על|עקרונות ל|חשיבות ה|כיצד ליישם|איך ליישם|הדרך ל)\s*/i, '')
+    .trim();
+
+  // Pick first 2-5 words
+  const words = stripped.split(/\s+/).filter(Boolean);
+  if (words.length >= 2 && words.length <= 5) {
+    return stripped;
+  }
+  if (words.length > 5) {
+    return words.slice(0, 4).join(' ');
+  }
+
+  return clean.length <= 35 ? clean : clean.slice(0, 32) + '...';
+}
+
+/**
+ * Normalizes key takeaways into rich { title, text } objects with engaging, brand-aligned titles.
+ */
+export function normalizeKeyTakeaways(
+  raw: any,
+  brandName: string = 'קושאן',
+  includeBrand: boolean = true
+): Array<{ title: string; text: string }> {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return [
+      {
+        title: includeBrand ? `עקרון הליבה של ${brandName}` : 'הבנה מעמיקה ומיקוד',
+        text: 'הבנה יסודית של הנושא המרכזי המוצג בסרטון ומשמעותו המעשית לצמיחה אישית ועסקית.',
+      },
+      {
+        title: 'כלים מעשיים לשליטה ויישום',
+        text: 'צעדים מדויקים וכלים קונקרטיים ליישום מיידי של העקרונות שנלמדו.',
+      },
+      {
+        title: 'דיוק ומיקוד בעבודת הנפש',
+        text: 'התמודדות עם חסמים טבעיים תוך השגת תוצאות מוכחות בעקביות.',
+      },
+      {
+        title: includeBrand ? `מעטפת מקצועית וחיבור ל-${brandName}` : 'המשכיות והשגת תוצאות מוכחות',
+        text: includeBrand
+          ? `שילוב איכות ומעטפת קהילתית מחבקת ומקצועית מבית ${brandName}.`
+          : 'עקרונות להמשך צמיחה, ליווי ומעקב אחר תוצאות.',
+      },
+    ];
+  }
+
+  return raw.map((item: any, idx: number) => {
+    if (typeof item === 'object' && item !== null) {
+      const rawTitle = (item.title || '').trim();
+      const rawText = (item.text || item.description || item.body || '').trim();
+      const isGeneric = !rawTitle || rawTitle.startsWith('תובנה מרכזית') || rawTitle.startsWith('תובנה ') || rawTitle.startsWith('נקודה ');
+      const finalTitle = isGeneric ? extractCompellingTitle(rawText || rawTitle, idx + 1, brandName) : rawTitle;
+      const finalText = rawText || rawTitle || '';
+      return { title: finalTitle, text: finalText };
+    }
+
+    if (typeof item === 'string') {
+      const cleanStr = item.trim();
+      if (cleanStr.includes(':')) {
+        const parts = cleanStr.split(':');
+        const head = parts[0].trim();
+        const tail = parts.slice(1).join(':').trim();
+        if (head.length >= 3 && head.length <= 40 && !head.startsWith('תובנה מרכזית') && !head.startsWith('תובנה ')) {
+          return { title: head, text: tail || head };
+        }
+      }
+      return {
+        title: extractCompellingTitle(cleanStr, idx + 1, brandName),
+        text: cleanStr,
+      };
+    }
+
+    return {
+      title: extractCompellingTitle(String(item), idx + 1, brandName),
+      text: String(item),
+    };
+  });
+}
+

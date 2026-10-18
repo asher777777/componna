@@ -6,6 +6,7 @@
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { KosvidioGalleryItem } from '../types/sectionConfigs';
+import { extractCompellingTitle } from '../../KosTube/api/functionsApi';
 
 export interface CreateVideoPageOptions {
   video: {
@@ -81,14 +82,44 @@ export function buildPageConfigFromVideo(options: CreateVideoPageOptions): PageB
     ? `<div class="kosvidio-rich-content space-y-4 font-normal leading-relaxed text-slate-800 dark:text-slate-200">${summaryHtml}${articleHtml}</div>`
     : '';
 
-  // 2. Format Takeaways into structured cards (zero raw HTML)
-  const takeawayItems = (aiData?.keyTakeaways || []).map((point: string, idx: number) => ({
-    id: `takeaway_${idx + 1}`,
-    title: `תובנה מרכזית ${idx + 1}`,
-    text: point,
-    description: point,
-    icon: 'CheckCircle2',
-  }));
+  // 2. Format Takeaways into structured cards with captivating titles matching brand tone
+  const takeawayItems = (aiData?.keyTakeaways || []).map((point: any, idx: number) => {
+    let title = '';
+    let text = '';
+    if (typeof point === 'object' && point !== null) {
+      const rawTitle = (point.title || '').trim();
+      const rawText = (point.text || point.description || '').trim();
+      const isGeneric = !rawTitle || rawTitle.startsWith('תובנה מרכזית') || rawTitle.startsWith('תובנה ');
+      title = isGeneric ? extractCompellingTitle(rawText || rawTitle, idx + 1, brandCompanyName) : rawTitle;
+      text = rawText || rawTitle;
+    } else if (typeof point === 'string') {
+      const clean = point.trim();
+      if (clean.includes(':')) {
+        const parts = clean.split(':');
+        const head = parts[0].trim();
+        const tail = parts.slice(1).join(':').trim();
+        if (head.length >= 3 && head.length <= 40 && !head.startsWith('תובנה מרכזית') && !head.startsWith('תובנה ')) {
+          title = head;
+          text = tail || head;
+        }
+      }
+      if (!title) {
+        title = extractCompellingTitle(clean, idx + 1, brandCompanyName);
+        text = clean;
+      }
+    } else {
+      title = `עיקרון מוביל ${idx + 1}`;
+      text = String(point);
+    }
+
+    return {
+      id: `takeaway_${idx + 1}`,
+      title,
+      text,
+      description: text,
+      icon: 'CheckCircle2',
+    };
+  });
 
   // 3. Format FAQ items
   const faqItems = Array.isArray(aiData?.faqs) && aiData.faqs.length > 0

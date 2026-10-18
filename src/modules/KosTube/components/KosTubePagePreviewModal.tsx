@@ -327,7 +327,7 @@ export const KosTubePagePreviewModal: React.FC = () => {
                           <span className="w-4 h-4 rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">
                             {i + 1}
                           </span>
-                          <span>{point}</span>
+                          <span>{typeof point === 'string' ? point : (point?.title ? `${point.title}: ${point.text || ''}` : point?.text || '')}</span>
                         </li>
                       ))}
                     </ul>

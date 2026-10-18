@@ -13,6 +13,7 @@ import { SmartFormProvider } from './modules/KSF';
 import { KesherPaymentsProvider } from './modules/kesher-payments-hub';
 import { WhatsAppProvider } from './modules/KosWhatsUp';
 import { KosAccessWidget } from './modules/KosAccess';
+import { FloatingConciergeWidget } from './modules/KosLive';
 
 export const App: React.FC = () => {
   return (
@@ -32,6 +33,7 @@ export const App: React.FC = () => {
                       <FloatingKosaiButton />
                       <KosaiChatDrawer />
                       <KosAccessWidget position="center-left" />
+                      <FloatingConciergeWidget position="bottom-left" />
                     </KosaiProvider>
                   </BrandDnaProvider>
                 </SmartFormProvider>

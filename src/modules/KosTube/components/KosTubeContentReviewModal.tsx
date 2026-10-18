@@ -17,6 +17,7 @@ import {
 import { KosTubeFullscreenModal } from './KosTubeFullscreenModal';
 import { KosTubeVideo } from '../types';
 import { KosTubeAiGeneratedData } from '../../kosai-engine/modelsAiService';
+import { normalizeKeyTakeaways } from '../api/functionsApi';
 
 interface KosTubeContentReviewModalProps {
   isOpen: boolean;
@@ -54,11 +55,9 @@ export const KosTubeContentReviewModal: React.FC<KosTubeContentReviewModalProps>
   const [newTagInput, setNewTagInput] = useState('');
 
   const [executiveSummary, setExecutiveSummary] = useState(initialData.executiveSummary || '');
-  const [keyTakeaways, setKeyTakeaways] = useState<string[]>(
-    initialData.keyTakeaways && initialData.keyTakeaways.length > 0
-      ? initialData.keyTakeaways
-      : ['תובנת מפתח ראשונה', 'תובנת מפתח שנייה', 'תובנת מפתח שלישית']
-  );
+  const [keyTakeaways, setKeyTakeaways] = useState<Array<{ title: string; text: string }>>(() => {
+    return normalizeKeyTakeaways(initialData.keyTakeaways, initialData.metaTitle || 'קושאן');
+  });
 
   const [faqs, setFaqs] = useState<Array<{ question: string; answer: string }>>(
     initialData.faqs && initialData.faqs.length > 0
@@ -92,14 +91,14 @@ export const KosTubeContentReviewModal: React.FC<KosTubeContentReviewModalProps>
     setTags(tags.filter((_, i) => i !== idx));
   };
 
-  const handleUpdateTakeaway = (idx: number, val: string) => {
+  const handleUpdateTakeaway = (idx: number, field: 'title' | 'text', val: string) => {
     const updated = [...keyTakeaways];
-    updated[idx] = val;
+    updated[idx] = { ...updated[idx], [field]: val };
     setKeyTakeaways(updated);
   };
 
   const handleAddTakeaway = () => {
-    setKeyTakeaways([...keyTakeaways, 'תובנה מרכזית נוספת מהוידאו']);
+    setKeyTakeaways([...keyTakeaways, { title: 'עיקרון מנחה חדש', text: 'הסבר תמציתי ומעשי על התובנה מהסרטון' }]);
   };
 
   const handleRemoveTakeaway = (idx: number) => {
@@ -429,26 +428,38 @@ export const KosTubeContentReviewModal: React.FC<KosTubeContentReviewModalProps>
                 </button>
               </div>
 
-              <div className="space-y-2.5">
+              <div className="space-y-3">
                 {keyTakeaways.map((point, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <span className="w-6 h-6 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold shrink-0">
-                      {idx + 1}
-                    </span>
-                    <input
-                      type="text"
-                      value={point}
-                      onChange={(e) => handleUpdateTakeaway(idx, e.target.value)}
-                      className="flex-1 px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs sm:text-sm text-white"
+                  <div key={idx} className="p-3 bg-slate-950/80 border border-slate-800 rounded-xl space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-1">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex items-center justify-center text-xs font-bold shrink-0">
+                          {idx + 1}
+                        </span>
+                        <input
+                          type="text"
+                          value={point.title}
+                          onChange={(e) => handleUpdateTakeaway(idx, 'title', e.target.value)}
+                          placeholder="כותרת סוחפת לתובנה (לפי שפת המותג)"
+                          className="flex-1 px-2.5 py-1.5 bg-slate-900 border border-slate-700/80 rounded-lg text-xs font-bold text-white focus:border-indigo-500 focus:outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveTakeaway(idx)}
+                        className="p-1.5 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                        title="מחק תובנה"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <textarea
+                      value={point.text}
+                      onChange={(e) => handleUpdateTakeaway(idx, 'text', e.target.value)}
+                      placeholder="הסבר מעשי ותמציתי של התובנה..."
+                      rows={2}
+                      className="w-full px-2.5 py-1.5 bg-slate-900/60 border border-slate-800 rounded-lg text-xs text-slate-200 focus:border-indigo-500 focus:outline-none resize-none"
                     />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTakeaway(idx)}
-                      className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-colors"
-                      title="מחק תובנה"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
                   </div>
                 ))}
               </div>

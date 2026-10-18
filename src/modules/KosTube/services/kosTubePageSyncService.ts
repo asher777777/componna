@@ -11,6 +11,7 @@ import {
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { KosTubeSeoPage, KosTubeVideo } from '../types';
+import { extractCompellingTitle } from '../api/functionsApi';
 
 export class KosTubePageSyncService {
   private static isInitialized = false;
@@ -72,7 +73,10 @@ export class KosTubePageSyncService {
       const pageId = page.pageId || `page_kosvidio_${youtubeVideoId}`;
 
       const keyTakeaways = Array.isArray(takeawaysSec.items)
-        ? takeawaysSec.items.map((i: any) => i.description || i.text || i.title || '').filter(Boolean)
+        ? takeawaysSec.items.map((i: any) => ({
+            title: i.title || '',
+            text: i.description || i.text || i.title || '',
+          })).filter((i: any) => i.title || i.text)
         : [];
 
       const faqs = Array.isArray(faqSec.items)
@@ -204,13 +208,44 @@ export class KosTubePageSyncService {
       }
 
       if (pageConfig.sections?.['sec-takeaways'] && Array.isArray(seoPage.keyTakeaways)) {
-        pageConfig.sections['sec-takeaways'].items = seoPage.keyTakeaways.map((point, idx) => ({
-          id: `takeaway_${idx + 1}`,
-          title: `תובנה מרכזית ${idx + 1}`,
-          text: point,
-          description: point,
-          icon: 'CheckCircle2',
-        }));
+        const brandName = pageConfig.globalSettings?.companyName || 'קושאן';
+        pageConfig.sections['sec-takeaways'].items = seoPage.keyTakeaways.map((point: any, idx: number) => {
+          let title = '';
+          let text = '';
+          if (typeof point === 'object' && point !== null) {
+            const rawTitle = (point.title || '').trim();
+            const rawText = (point.text || point.description || '').trim();
+            const isGeneric = !rawTitle || rawTitle.startsWith('תובנה מרכזית') || rawTitle.startsWith('תובנה ');
+            title = isGeneric ? extractCompellingTitle(rawText || rawTitle, idx + 1, brandName) : rawTitle;
+            text = rawText || rawTitle;
+          } else if (typeof point === 'string') {
+            const clean = point.trim();
+            if (clean.includes(':')) {
+              const parts = clean.split(':');
+              const head = parts[0].trim();
+              const tail = parts.slice(1).join(':').trim();
+              if (head.length >= 3 && head.length <= 40 && !head.startsWith('תובנה מרכזית') && !head.startsWith('תובנה ')) {
+                title = head;
+                text = tail || head;
+              }
+            }
+            if (!title) {
+              title = extractCompellingTitle(clean, idx + 1, brandName);
+              text = clean;
+            }
+          } else {
+            title = `עיקרון מנחה ${idx + 1}`;
+            text = String(point);
+          }
+
+          return {
+            id: `takeaway_${idx + 1}`,
+            title,
+            text,
+            description: text,
+            icon: 'CheckCircle2',
+          };
+        });
       }
 
       if (pageConfig.sections?.['sec-faq'] && Array.isArray(seoPage.faqs)) {
