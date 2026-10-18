@@ -28,6 +28,10 @@ import { DASHBOARD_SECTIONS_REGISTRY } from '../sections/sectionRegistry';
 import { DashboardSectionPickerModal } from './DashboardSectionPickerModal';
 
 export interface DashboardPageRendererProps {
+  dashboardId?: string;
+  moduleId?: string;
+  pageId?: string;
+  initialSections?: DashboardSection[];
   dashboard?: DashboardPageDocument | null;
   isEditing?: boolean;
   tenantId?: string;
@@ -36,6 +40,10 @@ export interface DashboardPageRendererProps {
 }
 
 export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
+  dashboardId,
+  moduleId,
+  pageId,
+  initialSections,
   dashboard: propDashboard,
   isEditing: controlledIsEditing,
   tenantId: propTenantId,
@@ -45,6 +53,10 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
   const { db } = useSystemConnection();
   const { tenantId: scopeTenantId } = useTenantScope();
   const effectiveTenantId = propTenantId || scopeTenantId || '_master';
+  const effectiveDocId =
+    propDashboard?.id ||
+    dashboardId ||
+    (moduleId ? `dashboard_${moduleId}` : pageId ? `dashboard_${pageId}` : 'default');
 
   // Edit Mode state (controlled or listened via event)
   const [internalIsEditing, setInternalIsEditing] = useState<boolean>(false);
@@ -52,7 +64,12 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
 
   // Active dashboard document
   const [currentDashboard, setCurrentDashboard] = useState<DashboardPageDocument>(
-    propDashboard || INITIAL_DASHBOARD
+    propDashboard || {
+      ...INITIAL_DASHBOARD,
+      id: effectiveDocId,
+      title: moduleId ? `לוח בקרה — ${moduleId}` : INITIAL_DASHBOARD.title,
+      sections: initialSections && initialSections.length > 0 ? initialSections : INITIAL_DASHBOARD.sections,
+    }
   );
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -67,10 +84,24 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
       return;
     }
     let isMounted = true;
-    dashboardFirestore.getDashboards(db, effectiveTenantId).then((list) => {
+    dashboardFirestore.getDashboardById(db, effectiveTenantId, effectiveDocId).then((found) => {
       if (!isMounted) return;
-      if (list && list.length > 0) {
-        setCurrentDashboard(list[0]);
+      if (found) {
+        setCurrentDashboard(found);
+      } else if (initialSections && initialSections.length > 0) {
+        setCurrentDashboard({
+          ...INITIAL_DASHBOARD,
+          id: effectiveDocId,
+          title: `לוח בקרה — ${moduleId || pageId || tenantName}`,
+          sections: initialSections,
+        });
+      } else {
+        dashboardFirestore.getDashboards(db, effectiveTenantId).then((list) => {
+          if (!isMounted) return;
+          if (list && list.length > 0) {
+            setCurrentDashboard(list[0]);
+          }
+        });
       }
     }).catch((err) => {
       console.warn('[DashboardPageRenderer] Could not load dashboard:', err);
@@ -78,7 +109,7 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [propDashboard, db, effectiveTenantId]);
+  }, [propDashboard, db, effectiveTenantId, effectiveDocId, initialSections, moduleId, pageId, tenantName]);
 
   // Listen to dock edit mode events
   useEffect(() => {
@@ -97,7 +128,11 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
   const handleSaveAll = useCallback(async () => {
     setIsSaving(true);
     try {
-      const saved = await dashboardFirestore.saveDashboard(db, effectiveTenantId, currentDashboard);
+      const toSave: DashboardPageDocument = {
+        ...currentDashboard,
+        id: effectiveDocId,
+      };
+      const saved = await dashboardFirestore.saveDashboard(db, effectiveTenantId, toSave);
       setCurrentDashboard(saved);
       if (onSave) onSave(saved);
       setSaveSuccessNotice(true);
@@ -108,7 +143,7 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
     } finally {
       setIsSaving(false);
     }
-  }, [db, effectiveTenantId, currentDashboard, onSave]);
+  }, [db, effectiveTenantId, currentDashboard, effectiveDocId, onSave]);
 
   // Section CRUD Handlers
   const handleUpdateSection = useCallback((sectionId: string, updatedConfig: any) => {
@@ -291,6 +326,9 @@ export const DashboardPageRenderer: React.FC<DashboardPageRendererProps> = ({
                   setInternalIsEditing(false);
                   window.dispatchEvent(
                     new CustomEvent('kos_des_builder_toggle_edit', { detail: { isEditMode: false } })
+                  );
+                  window.dispatchEvent(
+                    new CustomEvent('kos_des_builder_edit_mode_changed', { detail: { isEditMode: false } })
                   );
                 }}
                 className="p-2 rounded-xl text-slate-400 hover:text-white transition cursor-pointer"

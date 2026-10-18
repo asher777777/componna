@@ -127,6 +127,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   const [isKosNevOpen, setIsKosNevOpen] = useState<boolean>(false);
   const [internalIsEditing, setInternalIsEditing] = useState<boolean>(false);
   const isEditing = controlledIsEditing !== undefined ? controlledIsEditing : internalIsEditing;
+  const [isDashboardEditing, setIsDashboardEditing] = useState<boolean>(false);
 
   // Day / Night Theme (Light is default per Cashwan standard)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -199,8 +200,17 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
         setInternalIsEditing(Boolean(e.detail.isEditMode));
       }
     };
+    const handleDashEdit = (e: any) => {
+      if (e?.detail?.isEditMode !== undefined) {
+        setIsDashboardEditing(Boolean(e.detail.isEditMode));
+      }
+    };
     window.addEventListener('kosun_edit_mode_changed', handleEditChange);
-    return () => window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
+    window.addEventListener('kos_des_builder_edit_mode_changed', handleDashEdit);
+    return () => {
+      window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
+      window.removeEventListener('kos_des_builder_edit_mode_changed', handleDashEdit);
+    };
   }, []);
 
   // Theme Toggle Function (Controls the full page)
@@ -287,17 +297,17 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   // Check if current user is Tenant Manager / Admin (Strict Multi-Tenant Control)
   const isTenantManager = Boolean(isAdminOrEditor || isRootTenant || isLocal);
 
-  // Toggle Dashboard Live Edit (Tenant Manager Only)
+  // Toggle Dashboard Live Edit (Tenant Manager Only) - In-Place Live Editing!
   const handleToggleDashboardEdit = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (location.pathname === '/KosDesBuilder') {
-      window.dispatchEvent(new CustomEvent('kos_des_builder_toggle_edit'));
-      return;
-    }
-    const targetUrl = effectiveTenantId && !isRootTenant
-      ? `/KosDesBuilder?tenant=${effectiveTenantId}`
-      : '/KosDesBuilder';
-    navigate(targetUrl);
+    const next = !isDashboardEditing;
+    setIsDashboardEditing(next);
+    window.dispatchEvent(new CustomEvent('kos_des_builder_toggle_edit', {
+      detail: { isEditMode: next, tenantId: effectiveTenantId }
+    }));
+    window.dispatchEvent(new CustomEvent('kos_des_builder_edit_mode_changed', {
+      detail: { isEditMode: next }
+    }));
   };
 
   // Open SEO & Page Settings
@@ -440,16 +450,16 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
                 type="button"
                 onClick={handleToggleDashboardEdit}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-2xl transition cursor-pointer text-xs font-bold ${
-                  location.pathname === '/KosDesBuilder'
+                  isDashboardEditing
                     ? 'bg-amber-500 text-slate-950 hover:bg-amber-400 font-black shadow-md ring-2 ring-amber-400/50'
                     : 'bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/80 text-indigo-700 dark:text-indigo-300'
                 }`}
-                title="עריכת לוח הבקרה (טננט מנג׳ר בלבד - KosDesBuilder)"
+                title={isDashboardEditing ? 'סיום עריכת לוח הבקרה' : 'עריכה חיה של עמוד זה (טננט מנג׳ר)'}
                 aria-label="ערוך לוח בקרה"
               >
-                <Edit3 className={`w-3.5 h-3.5 ${location.pathname === '/KosDesBuilder' ? 'text-slate-950' : 'text-indigo-600 dark:text-indigo-400'}`} />
+                <Edit3 className={`w-3.5 h-3.5 ${isDashboardEditing ? 'text-slate-950' : 'text-indigo-600 dark:text-indigo-400'}`} />
                 <span className="hidden sm:inline">
-                  {location.pathname === '/KosDesBuilder' ? 'עריכה פעילה' : 'ערוך עמוד'}
+                  {isDashboardEditing ? 'סיום עריכה' : 'ערוך עמוד'}
                 </span>
               </button>
             )}

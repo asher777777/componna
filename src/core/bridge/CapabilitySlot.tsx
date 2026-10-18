@@ -7,6 +7,22 @@ export interface CapabilitySlotProps<TProps = any> {
   fallback?: React.ReactNode;
 }
 
+const GLOBAL_CAPABILITY_REGISTRY = new Map<string, any>();
+
+/**
+ * Register a global UI capability provider without cross-module imports
+ */
+export function registerCapabilityUI(name: string, component: any) {
+  GLOBAL_CAPABILITY_REGISTRY.set(name, component);
+}
+
+/**
+ * Get registered UI capability provider
+ */
+export function getRegisteredCapabilityUI(name: string) {
+  return GLOBAL_CAPABILITY_REGISTRY.get(name) || null;
+}
+
 /**
  * CapabilitySlot: Enables zero cross-module direct imports.
  * Instead of `import { OtherView } from '../../other-module'`,
@@ -19,11 +35,8 @@ export const CapabilitySlot: React.FC<CapabilitySlotProps> = ({
 }) => {
   const { getCapability, hasCapability } = useHostCapabilities();
 
-  if (!hasCapability(name)) {
-    return <>{fallback}</>;
-  }
-
-  const CapabilityComponent = getCapability(name);
+  const GlobalComponent = getRegisteredCapabilityUI(name);
+  const CapabilityComponent = GlobalComponent || (hasCapability(name) ? getCapability(name) : null);
 
   if (!CapabilityComponent) {
     return <>{fallback}</>;

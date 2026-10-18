@@ -170,7 +170,19 @@ export const WorkbenchApp: React.FC = () => {
     return () => unsub();
   }, [firebaseApp, isLocalEnv]);
 
+  const isKnownModuleOrSystemRoute =
+    REGISTERED_MODULES.some((m) => location.pathname === m.route || location.pathname.startsWith(m.route + '/')) ||
+    ['/home', '/communities', '/together', '/crm-groups', '/media-gallery-hub', '/media-gallery'].some(
+      (p) => location.pathname === p || location.pathname.startsWith(p + '/')
+    );
+
+  const isDirectSlugPath =
+    !isKnownModuleOrSystemRoute &&
+    location.pathname.length > 1 &&
+    !location.pathname.slice(1).includes('/');
+
   const isPublicPage =
+    isDirectSlugPath ||
     location.pathname.startsWith('/p/') ||
     location.pathname.startsWith('/to/') ||
     location.pathname.startsWith('/tube/') ||
@@ -417,6 +429,17 @@ export const WorkbenchApp: React.FC = () => {
             {/* KosCloudStore legacy alias redirects */}
             <Route path="/media-gallery-hub/*" element={<Navigate to="/KosCloudStore" replace />} />
             <Route path="/media-gallery/*" element={<Navigate to="/KosCloudStore" replace />} />
+            {/* Direct public page slug (without /p/) */}
+            <Route
+              path="/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
             <Route
               path="/"
               element={
@@ -565,6 +588,17 @@ export const WorkbenchApp: React.FC = () => {
             {/* KosCloudStore legacy alias redirects */}
             <Route path="/media-gallery-hub/*" element={<Navigate to="/KosCloudStore" replace />} />
             <Route path="/media-gallery/*" element={<Navigate to="/KosCloudStore" replace />} />
+            {/* Direct public page slug (without /p/) */}
+            <Route
+              path="/:slug"
+              element={
+                <ModuleErrorBoundary moduleName="תצוגה ציבורית">
+                  <Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}>
+                    <PublicPageView />
+                  </Suspense>
+                </ModuleErrorBoundary>
+              }
+            />
           </Routes>
         </main>
       </div>

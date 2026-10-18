@@ -884,7 +884,7 @@ export interface FlagshipProduct {
   nameAndSlogan: string;
   shortDescription: string;
   longDescription: string;
-  imageUrl: string;
+  imageUrl?: string;
   galleryImages?: string[];
   painPointSolved: string;
   targetAudience: string;

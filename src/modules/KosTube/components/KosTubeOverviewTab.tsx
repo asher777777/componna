@@ -13,6 +13,7 @@ import {
   Layers, 
   Globe 
 } from 'lucide-react';
+import { CapabilitySlot } from '../../../core/bridge/CapabilitySlot';
 import { useKosTube } from '../context/KosTubeContext';
 import { useKosTubeData } from '../hooks/useKosTubeData';
 
@@ -34,15 +35,142 @@ export const KosTubeOverviewTab: React.FC = () => {
 
   const { stats, videos, seoPages } = useKosTubeData();
 
+  const defaultKosTubeSections = [
+    {
+      id: 'sec-header-kostube',
+      type: 'header',
+      title: 'ערוץ KosTube',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        greetingPrefix: channel?.title ? `ערוץ: ${channel.title}` : 'חבר ערוץ יוטיוב',
+        subtitle: channel?.description || 'סנכרון סרטונים אוטומטי והפקת עמודי SEO עם מנוע ה-AI',
+        showDateRange: true,
+        showTenantBadge: true,
+        primaryActionText: 'הוסף סרטון בקישור',
+        primaryActionUrl: '#add_video',
+      },
+    },
+    {
+      id: 'sec-stats-kostube',
+      type: 'stats',
+      title: 'מדדי ביצוע ועמודי תוכן',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        columns: 4,
+        stats: [
+          {
+            id: 'stat-yt-1',
+            label: 'סך סרטונים בערוץ',
+            value: String(stats.totalVideos || 0),
+            change: '+100%',
+            isPositive: true,
+            icon: 'Youtube',
+            color: 'red',
+          },
+          {
+            id: 'stat-yt-2',
+            label: 'עמודי SEO פעילים',
+            value: String(stats.totalSeoPages || 0),
+            change: '+15%',
+            isPositive: true,
+            icon: 'Globe',
+            color: 'emerald',
+          },
+          {
+            id: 'stat-yt-3',
+            label: 'סרטונים שסונכרנו',
+            value: String(channel?.videoCount || stats.totalVideos || 0),
+            change: 'מלא',
+            isPositive: true,
+            icon: 'Sparkles',
+            color: 'blue',
+          },
+          {
+            id: 'stat-yt-4',
+            label: 'סך רשומים לערוץ',
+            value: channel?.subscriberCount ? Number(channel.subscriberCount).toLocaleString() : '0',
+            change: '+8.4%',
+            isPositive: true,
+            icon: 'TrendingUp',
+            color: 'amber',
+          },
+        ],
+      },
+    },
+    {
+      id: 'sec-actions-kostube',
+      type: 'quickActions',
+      title: 'פעולות קידום מהירות',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        title: 'פעולות יוטיוב וקידום בלחיצה אחת',
+        layout: 'row',
+        buttons: [
+          {
+            id: 'btn-yt-1',
+            label: 'ייצר עמודי SEO לכל הסרטונים',
+            icon: 'Sparkles',
+            variant: 'primary',
+            actionType: 'navigate',
+            target: '#',
+          },
+          {
+            id: 'btn-yt-2',
+            label: 'סנכרן ערוץ עכשיו',
+            icon: 'RefreshCw',
+            variant: 'secondary',
+            actionType: 'navigate',
+            target: '#',
+          },
+          {
+            id: 'btn-yt-3',
+            label: 'הוסף סרטון בקישור',
+            icon: 'Plus',
+            variant: 'outline',
+            actionType: 'navigate',
+            target: '#',
+          },
+        ],
+      },
+    },
+    {
+      id: 'sec-table-kostube',
+      type: 'table',
+      title: 'סרטונים אחרונים וסטטוס עמודי SEO',
+      visible: true,
+      mobileHidden: false,
+      gridCols: 4,
+      config: {
+        title: 'רשימת סרטונים וסטטוס הפקת SEO',
+        streamType: 'videos',
+        pageSize: 5,
+        columns: ['כותרת סרטון', 'תאריך פרסום', 'סטטוס עמוד', 'פעולות'],
+      },
+    },
+  ];
+
   return (
-    <div className="space-y-8 animate-fadeIn" dir="rtl">
-      {/* Hero Channel Card */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 p-6 md:p-8 text-white shadow-xl border border-red-500/20">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.15),transparent_50%)] pointer-events-none" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="flex items-center gap-5">
-            <div className="relative">
+    <CapabilitySlot
+      name="dashboard-renderer"
+      props={{
+        moduleId: 'KosTube',
+        initialSections: defaultKosTubeSections,
+      }}
+      fallback={(
+        <div className="space-y-8 animate-fadeIn" dir="rtl">
+          {/* Hero Channel Card */}
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-red-950 p-6 md:p-8 text-white shadow-xl border border-red-500/20">
+            <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_top_right,rgba(239,68,68,0.15),transparent_50%)] pointer-events-none" />
+            
+            <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+              <div className="flex items-center gap-5">
+                <div className="relative">
               {channel?.thumbnailUrl ? (
                 <img 
                   src={channel.thumbnailUrl} 
@@ -362,5 +490,7 @@ export const KosTubeOverviewTab: React.FC = () => {
         </div>
       </div>
     </div>
+  )}
+/>
   );
 };

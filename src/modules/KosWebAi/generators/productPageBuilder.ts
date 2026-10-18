@@ -863,7 +863,7 @@ export function buildPageConfigFromCoreService(
     pageId,
     pageTitle: rawName,
     slug: cleanSlug,
-    pageCategory: 'core_service',
+    pageCategory: 'service_product',
     published: true,
     publishedUrl: `/${cleanSlug}`, // ללא קידומת /p/ לפי דרישת המשתמש
     isHomePage: false,
@@ -884,7 +884,6 @@ export function buildPageConfigFromCoreService(
       contactPhone,
       contactEmail,
       siteTitle: `${rawName} | ${companyName}`,
-      isRTL: true,
     },
     seoSettings: {
       title: seoTitle,

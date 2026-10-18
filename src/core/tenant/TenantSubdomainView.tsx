@@ -14,6 +14,7 @@ import { loadBrandDna } from '../../modules/KosBranding/services/brandDnaFiresto
 import { createDynamicSectionConfig, resolveLiveBrandDna } from '../../modules/KosWebAi/services/brandSectionHydrator';
 import { BrandDna } from '../contracts';
 import { FloatingSystemDock, CashwanDynamicMenu } from '../../components/Navigation/FloatingSystemDock';
+import { CapabilitySlot } from '../bridge/CapabilitySlot';
 import { TenantSyncSettingsModal } from '../../components/Navigation/TenantSyncSettingsModal';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { ModuleErrorBoundary } from '../../workbench/components/ModuleErrorBoundary';
@@ -707,15 +708,25 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               <Route
                 path="/dashboard/*"
                 element={
-                  customDashboard ? (
-                    <KosunBoardProvider>
-                      <div className="p-4 sm:p-6 max-w-7xl mx-auto">
-                        <DynamicCustomDashboardView dashboard={customDashboard} />
-                      </div>
-                    </KosunBoardProvider>
-                  ) : (
-                    <Navigate to={defaultRoute} replace />
-                  )
+                  <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+                    <CapabilitySlot
+                      name="dashboard-renderer"
+                      props={{
+                        tenantId: tenantRecord.subdomain,
+                        tenantName: tenantRecord.clientName,
+                        moduleId: 'dashboard',
+                      }}
+                      fallback={
+                        customDashboard ? (
+                          <KosunBoardProvider>
+                            <DynamicCustomDashboardView dashboard={customDashboard} />
+                          </KosunBoardProvider>
+                        ) : (
+                          <Navigate to={defaultRoute} replace />
+                        )
+                      }
+                    />
+                  </div>
                 }
               />
               {/* Fallback overview view if no modules are assigned */}

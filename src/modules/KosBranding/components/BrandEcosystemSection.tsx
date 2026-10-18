@@ -3,24 +3,21 @@ import { useBrandDna } from '../hooks/useBrandDna';
 import { Plus, Trash2, Box, Users, Calendar, Layers, Sparkles, Briefcase } from 'lucide-react';
 import { generateAiEcosystemItems, generateAiBusinessPackages } from '../services/geminiBrandPrompt';
 import { FlagshipProductsEditor } from './FlagshipProductsEditor';
+import { CoreServicesEditor } from './CoreServicesEditor';
 
 export const BrandEcosystemSection: React.FC = () => {
   const { brandDna, setFullBrandDna } = useBrandDna();
   const eco = brandDna.ecosystem || { services: [], products: [], annualEvents: [], communities: [] };
 
-  const [services, setServices] = useState<string[]>(eco.services || []);
-  const [products, setProducts] = useState<any[]>(eco.products || []);
   const [events, setEvents] = useState<string[]>(eco.annualEvents || []);
   const [communities, setCommunities] = useState<string[]>(eco.communities || []);
 
   useEffect(() => {
-    setServices(brandDna.ecosystem?.services || []);
-    setProducts(brandDna.ecosystem?.products || []);
     setEvents(brandDna.ecosystem?.annualEvents || []);
     setCommunities(brandDna.ecosystem?.communities || []);
   }, [brandDna.ecosystem]);
 
-  const handleSave = (key: 'services' | 'products' | 'annualEvents' | 'communities', val: string[]) => {
+  const handleSave = (key: 'annualEvents' | 'communities', val: string[]) => {
     setFullBrandDna({
       ...brandDna,
       ecosystem: {
@@ -42,7 +39,7 @@ export const BrandEcosystemSection: React.FC = () => {
     icon: any; 
     items: string[]; 
     setItems: any; 
-    fieldKey: 'services' | 'products' | 'annualEvents' | 'communities';
+    fieldKey: 'annualEvents' | 'communities';
     placeholder: string;
   }) => {
     const [newVal, setNewVal] = useState('');
@@ -140,14 +137,7 @@ export const BrandEcosystemSection: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <ArrayEditor 
-          title="שירותים מרכזיים" 
-          icon={Sparkles} 
-          items={services} 
-          setItems={setServices} 
-          fieldKey="services" 
-          placeholder="לדוגמה: ייעוץ עסקי, ליווי אסטרטגי..." 
-        />
+        <CoreServicesEditor />
         <FlagshipProductsEditor />
         <ArrayEditor 
           title="אירועי שיא (Annual Events)" 
