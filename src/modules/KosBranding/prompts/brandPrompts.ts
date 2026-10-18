@@ -492,3 +492,49 @@ export function BUILD_MARKET_RESEARCH_PROMPT(
   return { systemContext, userPrompt };
 }
 
+/**
+ * פרומפט לגזירה וחישוב של קהלי יעד, הצעת ערך (UVP), פרסונות והתנגדויות מתוך פסקת תמצית המותג (Brand Essence)
+ */
+export function BUILD_AUDIENCE_AND_PERSONAS_FROM_ESSENCE_PROMPT(
+  brand: BrandDna
+): { systemContext: string; userPrompt: string } {
+  const systemContext = BUILD_BRAND_SYSTEM_CONTEXT(brand, 'אסטרטג שיווק, פילוח קהלים ופסיכולוגיית צרכנים');
+  const essence = brand.brandSummaryParagraph || brand.identity.companyVision || brand.identity.organizationPurpose || '';
+  const company = brand.identity.companyName || 'המותג';
+
+  const userPrompt = `נתח לעומק את פסקת תמצית המותג (Brand Essence) ואת כלל נתוני המותג של "${company}", וגזור מתוכם אפיון מלא ומנצח עבור:
+1. הצעת ערך ייחודית (UVP) חדה, משכנעת ובלתי ניתנת לערעור.
+2. 3 עד 5 קהלי יעד ראשיים (סגמנטים ברורים וספציפיים).
+3. 2 עד 3 פרסונות לקוח מפורטות ועמוקות (שם ופרופיל, תפקיד/רקע, כאב מרכזי שמשאיר אותו ער בלילה, והתוצאה החלומית שתגרום לו להרגיש הצלחה מוחלטת).
+4. 3 עד 4 התנגדויות או חששות נפוצים של לקוחות, לצד מענה מרגיע, סמכותי ומשכנע בשפת המותג.
+
+פסקת תמצית המותג (Brand Essence):
+"${essence}"
+
+מהות, תכלית וסלוגן:
+${brand.identity.organizationPurpose || ''} | ${brand.identity.slogan || ''}
+
+החזר אך ורק אובייקט JSON תקין במבנה הבא:
+{
+  "mainUvp": "הצעת ערך ייחודית מנצחת...",
+  "targetAudiences": ["קהל 1", "קהל 2", "קהל 3"],
+  "personas": [
+    {
+      "name": "שם ופרופיל הפרסונה (לדוגמה: יעל, מנהלת שיווק בעמותה)",
+      "roleOrProfile": "תפקיד או רקע קצר",
+      "mainPain": "הכאב או האתגר המרכזי שמשאיר אותה ערה בלילה",
+      "dreamOutcome": "התוצאה החלומית שתגרום לה להרגיש ניצחון מוחלט"
+    }
+  ],
+  "commonObjections": [
+    {
+      "objection": "החשש או השאלה של הלקוח בגוף ראשון",
+      "rebuttal": "המענה המרגיע, המוסמך והמשכנע של המותג"
+    }
+  ]
+}`.trim();
+
+  return { systemContext, userPrompt };
+}
+
+
