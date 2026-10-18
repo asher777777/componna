@@ -1,0 +1,470 @@
+import { CreatePageFromProductOptions } from '../../../core/contracts';
+import { PageBuilderConfig } from '../types/pageBuilder.types';
+
+/**
+ * Deterministic function (0 AI calls, 0 tokens) that builds a complete PageBuilderConfig
+ * directly from a FlagshipProduct and BrandDna:
+ * - Populates only suited sections with the product's structured data (Hero, Long Description,
+ *   6 Pain Points, 3 Target Audiences, 6 Competitive Advantages, Gallery Images, 10 FAQs, Contact).
+ * - Hides (`visible: false`) all unsuited or empty sections.
+ * - Populates `seoSettings` and all AI Promotion (AIO / GEO) fields.
+ */
+export function buildPageConfigFromFlagshipProduct(
+  options: CreatePageFromProductOptions,
+  existingPageId?: string
+): PageBuilderConfig {
+  const { product, brandDna } = options;
+  const now = new Date().toISOString();
+
+  // Extract main title and subtitle from nameAndSlogan
+  const rawName = (product.nameAndSlogan || 'מוצר דגל').trim();
+  const splitParts = rawName.split(/\s*[–—-]\s*/);
+  const mainTitle = splitParts[0]?.trim() || rawName;
+  const sloganSub = splitParts.slice(1).join(' – ').trim();
+
+  const companyName = brandDna?.identity?.companyName || 'הארגון';
+  const brandSlogan = brandDna?.identity?.slogan || '';
+  const brandLogo = brandDna?.identity?.logoUrl || '';
+  const primaryColor = brandDna?.designTokens?.primaryColor || '#4f46e5';
+  const secondaryColor = brandDna?.designTokens?.secondaryColor || '#818cf8';
+  const backgroundColor = brandDna?.designTokens?.backgroundColor || '#0f172a';
+  const textColor = brandDna?.designTokens?.textColor || '#f8fafc';
+  const buttonBgColor = brandDna?.designTokens?.buttonBgColor || primaryColor;
+  const fontFamily = brandDna?.designTokens?.fontFamily || 'Heebo';
+  const contactPhone = brandDna?.trust?.contactPhone || '';
+  const contactEmail = brandDna?.trust?.contactEmail || '';
+  const contactWhatsApp = brandDna?.trust?.whatsappSupportNumber || contactPhone;
+  const officeAddress = brandDna?.trust?.officeAddress || '';
+
+  // Normalize gallery images
+  const galleryImages: string[] = Array.isArray(product.galleryImages) && product.galleryImages.length > 0
+    ? product.galleryImages.filter((u) => typeof u === 'string' && u.trim().length > 0)
+    : product.imageUrl && product.imageUrl.trim()
+      ? [product.imageUrl.trim()]
+      : [];
+
+  const primaryImage = galleryImages[0] || product.imageUrl || brandLogo || '';
+
+  // Normalize 6 Pain Points
+  const painPoints = Array.isArray(product.painPoints) && product.painPoints.length > 0
+    ? product.painPoints.filter((p) => p && (p.title || p.text))
+    : product.painPointSolved
+      ? product.painPointSolved.split('|').map((chunk, idx) => {
+          const [t, ...rest] = chunk.split(':');
+          return {
+            id: `pain_${idx + 1}`,
+            title: rest.length > 0 ? t.trim() : `נקודת כאב ${idx + 1}`,
+            text: (rest.length > 0 ? rest.join(':') : t).trim(),
+            icon: 'AlertCircle',
+          };
+        })
+      : [];
+
+  // Normalize 3 Target Audiences
+  const targetAudiences = Array.isArray(product.targetAudiences) && product.targetAudiences.length > 0
+    ? product.targetAudiences.filter((a) => a && (a.title || a.text))
+    : product.targetAudience
+      ? product.targetAudience.split('|').map((chunk, idx) => {
+          const [t, ...rest] = chunk.split(':');
+          return {
+            id: `aud_${idx + 1}`,
+            title: rest.length > 0 ? t.trim() : chunk.trim(),
+            text: (rest.length > 0 ? rest.join(':') : `מענה מותאם אישית עבור ${chunk.trim()}`).trim(),
+            icon: 'Users',
+          };
+        })
+      : [];
+
+  // Normalize 6 Competitive Advantages
+  const competitiveAdvantages = Array.isArray(product.competitiveAdvantages) && product.competitiveAdvantages.length > 0
+    ? product.competitiveAdvantages.filter((c) => c && (c.title || c.text))
+    : product.competitiveAdvantage
+      ? product.competitiveAdvantage.split('|').map((chunk, idx) => {
+          const [t, ...rest] = chunk.split(':');
+          return {
+            id: `adv_${idx + 1}`,
+            title: rest.length > 0 ? t.trim() : `יתרון מרכזי ${idx + 1}`,
+            text: (rest.length > 0 ? rest.join(':') : t).trim(),
+            icon: 'Award',
+          };
+        })
+      : [];
+
+  // Normalize 10 FAQs
+  const faqs = Array.isArray(product.faqs) && product.faqs.length > 0
+    ? product.faqs.filter((f) => f && f.question && f.answer)
+    : [];
+
+  // Build deterministic slug
+  const rawSlugCandidate = (
+    product.seo?.slug ||
+    product.linkedPageSlug ||
+    product.id ||
+    `product-${Date.now().toString().slice(-4)}`
+  )
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
+
+  const cleanSlug = rawSlugCandidate.startsWith('kosass-')
+    ? rawSlugCandidate
+    : `kosass-${rawSlugCandidate.replace(/^kosass/, '').replace(/^-/, '') || Date.now().toString().slice(-4)}`;
+
+  const pageId = existingPageId || product.linkedPageId || `page_${cleanSlug.replace(/[^a-z0-9_]/g, '_')}`;
+
+  // Custom navigation links for visible sections
+  const navLinks: Array<{ label: string; url: string; isButton?: boolean }> = [];
+  if (product.longDescription?.trim()) {
+    navLinks.push({ label: 'אודות המוצר', url: '#sec-about' });
+  }
+  if (painPoints.length > 0) {
+    navLinks.push({ label: 'האתגרים והמענה', url: '#sec-pain-points' });
+  }
+  if (targetAudiences.length > 0) {
+    navLinks.push({ label: 'קהלי יעד', url: '#sec-target-audiences' });
+  }
+  if (competitiveAdvantages.length > 0) {
+    navLinks.push({ label: 'יתרונות המוצר', url: '#sec-advantages' });
+  }
+  if (galleryImages.length > 0) {
+    navLinks.push({ label: 'גלריה', url: '#sec-gallery' });
+  }
+  if (faqs.length > 0) {
+    navLinks.push({ label: 'שאלות ותשובות', url: '#sec-faq' });
+  }
+  navLinks.push({ label: 'יצירת קשר', url: '#sec-contact', isButton: true });
+
+  const longDescHtml = product.longDescription?.trim()
+    ? product.longDescription
+        .trim()
+        .split(/\n+/)
+        .map((p) => `<p>${p.trim()}</p>`)
+        .join('')
+    : '';
+
+  const sections: Record<string, any> = {
+    header: {
+      id: 'header',
+      type: 'header',
+      visible: true,
+      layout: 'floating-glass',
+      sticky: true,
+      useBrandLogo: true,
+      customLogoUrl: brandLogo,
+      logoText: companyName,
+      showLogoText: true,
+      menuMode: 'custom',
+      customLinks: navLinks,
+      showCtaButton: true,
+      ctaButtonText: 'לתיאום והצטרפות',
+      ctaButtonUrl: '#sec-contact',
+      showPhone: Boolean(contactPhone),
+      phone: contactPhone,
+      showWhatsApp: Boolean(contactWhatsApp),
+      whatsApp: contactWhatsApp,
+    },
+    hero: {
+      id: 'hero',
+      type: 'hero',
+      visible: true,
+      anchorId: 'hero',
+      title: mainTitle,
+      subtitle: sloganSub || brandSlogan || companyName,
+      description: product.shortDescription || '',
+      imageSrc: primaryImage,
+      layout: primaryImage ? 'split' : 'centered',
+      heroStyle: 'modern',
+      buttonsVisible: true,
+      primaryButton: {
+        text: 'לתיאום שיחה והצטרפות',
+        url: '#sec-contact',
+      },
+      secondaryButton: {
+        text: 'גלו את היתרונות',
+        url: '#sec-advantages',
+      },
+      announcementBadge: {
+        text: `${companyName} • מוצר דגל`,
+        icon: 'Sparkles',
+      },
+    },
+    'sec-about': {
+      id: 'sec-about',
+      type: 'richContent',
+      visible: Boolean(longDescHtml),
+      anchorId: 'sec-about',
+      subtitle: 'הכירו לעומק',
+      heading: `אודות ${mainTitle}`,
+      body: longDescHtml,
+      layout: 'highlight-box',
+    },
+    'sec-pain-points': {
+      id: 'sec-pain-points',
+      type: 'richContent',
+      visible: painPoints.length > 0,
+      anchorId: 'sec-pain-points',
+      subtitle: 'האתגרים שאנו פותרים',
+      heading: 'נקודות הכאב שהמוצר פותר עבורכם',
+      body: '',
+      layout: 'cards-grid-3',
+      items: painPoints.map((p, idx) => ({
+        id: p.id || `pain_${idx + 1}`,
+        title: p.title,
+        text: p.text,
+        description: p.text,
+        icon: p.icon || 'AlertCircle',
+      })),
+    },
+    'sec-target-audiences': {
+      id: 'sec-target-audiences',
+      type: 'richContent',
+      visible: targetAudiences.length > 0,
+      anchorId: 'sec-target-audiences',
+      subtitle: 'למי זה מתאים?',
+      heading: 'קהלי היעד שלנו',
+      body: '',
+      layout: 'cards-grid-3',
+      items: targetAudiences.map((a, idx) => ({
+        id: a.id || `aud_${idx + 1}`,
+        title: a.title,
+        text: a.text,
+        description: a.text,
+        icon: a.icon || 'Users',
+      })),
+    },
+    'sec-advantages': {
+      id: 'sec-advantages',
+      type: 'richContent',
+      visible: competitiveAdvantages.length > 0,
+      anchorId: 'sec-advantages',
+      subtitle: 'למה לבחור בנו?',
+      heading: 'היתרונות והמעלות של המוצר',
+      body: '',
+      layout: 'cards-grid-3',
+      items: competitiveAdvantages.map((c, idx) => ({
+        id: c.id || `adv_${idx + 1}`,
+        title: c.title,
+        text: c.text,
+        description: c.text,
+        icon: c.icon || 'Award',
+      })),
+    },
+    'sec-gallery': {
+      id: 'sec-gallery',
+      type: 'imageListing',
+      visible: galleryImages.length > 0,
+      anchorId: 'sec-gallery',
+      title: 'גלריית תמונות המוצר',
+      imagesPerRow: 3,
+      imagesPerRowMobile: 1,
+      images: galleryImages.map((imgUrl, idx) => ({
+        id: `gal_${idx + 1}`,
+        imageUrl: imgUrl,
+        title: `${mainTitle} - תמונה ${idx + 1}`,
+      })),
+    },
+    'sec-faq': {
+      id: 'sec-faq',
+      type: 'faq',
+      visible: faqs.length > 0,
+      anchorId: 'sec-faq',
+      title: 'שאלות ותשובות נפוצות',
+      subtitle: `כל מה שחשוב לדעת על ${mainTitle}`,
+      showSearchBar: true,
+      showContactCard: true,
+      whatsappContact: contactWhatsApp,
+      items: faqs.map((f, idx) => ({
+        id: f.id || `faq_${idx + 1}`,
+        question: f.question,
+        answer: f.answer,
+        icon: f.icon || 'HelpCircle',
+      })),
+    },
+    'sec-contact': {
+      id: 'sec-contact',
+      type: 'contact',
+      visible: true,
+      anchorId: 'sec-contact',
+      title: `מעוניינים להצטרף ל-${mainTitle}?`,
+      subtitle: product.shortDescription || 'השאירו פרטים ונחזור אליכם עם כל המידע',
+      phone: contactPhone,
+      email: contactEmail,
+      address: officeAddress,
+      whatsapp: contactWhatsApp,
+      showForm: true,
+      directWhatsappChat: Boolean(contactWhatsApp),
+    },
+    // Unsuited sections explicitly marked visible: false as required
+    pricing: {
+      id: 'pricing',
+      type: 'pricing',
+      visible: false,
+      title: 'חבילות ומסלולים',
+      packages: [],
+    },
+    testimonials: {
+      id: 'testimonials',
+      type: 'testimonials',
+      visible: false,
+      title: 'המלצות',
+      items: [],
+    },
+    statsBento: {
+      id: 'statsBento',
+      type: 'statsBento',
+      visible: false,
+      stats: [],
+    },
+    beforeAfter: {
+      id: 'beforeAfter',
+      type: 'beforeAfter',
+      visible: false,
+      title: 'לפני ואחרי',
+      beforeImage: '',
+      afterImage: '',
+    },
+    videoGallery: {
+      id: 'videoGallery',
+      type: 'videoGallery',
+      visible: false,
+    },
+    timer: {
+      id: 'timer',
+      type: 'timer',
+      visible: false,
+      title: '',
+      targetDate: now,
+    },
+  };
+
+  const sectionOrder = [
+    'header',
+    'hero',
+    'sec-about',
+    'sec-pain-points',
+    'sec-target-audiences',
+    'sec-advantages',
+    'sec-gallery',
+    'sec-faq',
+    'sec-contact',
+    'pricing',
+    'testimonials',
+    'statsBento',
+    'beforeAfter',
+    'videoGallery',
+    'timer',
+  ];
+
+  // Build SEO & AI Promotion (AIO / GEO) settings
+  const seoTitle = product.seo?.metaTitle?.trim() || `${mainTitle} | ${companyName}`;
+  const seoDescription =
+    product.seo?.metaDescription?.trim() ||
+    product.shortDescription?.trim() ||
+    (product.longDescription ? product.longDescription.trim().slice(0, 155) : `${mainTitle} מבית ${companyName}`);
+
+  const keywordsList: string[] = product.seo?.keywords
+    ? (Array.isArray(product.seo.keywords)
+        ? product.seo.keywords
+        : String(product.seo.keywords).split(',')
+      )
+        .map((k: string) => String(k || '').trim())
+        .filter((k): k is string => Boolean(k))
+    : [mainTitle, companyName, ...targetAudiences.map((a) => String(a.title || '').trim())].filter(
+        (k): k is string => Boolean(k)
+      );
+
+  const aiKnowledgeSummary =
+    product.seo?.aiKnowledgeSummary?.trim() ||
+    `${rawName} מבית ${companyName}: ${product.shortDescription || ''}. ${
+      competitiveAdvantages.length > 0
+        ? 'יתרונות מרכזיים: ' + competitiveAdvantages.map((c) => c.title).join(', ') + '.'
+        : ''
+    }`.trim();
+
+  const aiTargetQuestions =
+    Array.isArray(product.seo?.aiTargetQuestions) && product.seo!.aiTargetQuestions!.length > 0
+      ? product.seo!.aiTargetQuestions!
+      : faqs.slice(0, 6).map((f) => f.question);
+
+  const rawSchemaType = product.seo?.aiEntitySchemaType;
+  const mappedSchemaType: 'Organization' | 'ProfessionalService' | 'Product' | 'FAQPage' | 'Article' =
+    rawSchemaType === 'Product'
+      ? 'Product'
+      : rawSchemaType === 'Organization'
+        ? 'Organization'
+        : rawSchemaType === 'FAQPage'
+          ? 'FAQPage'
+          : 'ProfessionalService';
+
+  const ogImage = product.seo?.ogImage?.trim() || primaryImage || '';
+
+  return {
+    pageId,
+    pageTitle: rawName,
+    slug: cleanSlug,
+    pageCategory: 'service_product',
+    published: true,
+    publishedUrl: `/p/${cleanSlug}`,
+    isHomePage: false,
+    createdAt: now,
+    updatedAt: now,
+    viewsCount: 0,
+    leadsCount: 0,
+    sectionOrder,
+    sections,
+    globalSettings: {
+      siteTitle: seoTitle,
+      siteLogoUrl: brandLogo,
+      companyName,
+      slogan: sloganSub || brandSlogan,
+      theme: 'modern',
+      headerLayout: 'floating-glass',
+      headerSticky: true,
+      isHeaderVisible: true,
+      isFooterVisible: true,
+      primaryColor,
+      secondaryColor,
+      backgroundColor,
+      textColor,
+      buttonBgColor,
+      fontFamily,
+      contactPhone,
+      contactEmail,
+      contactWhatsApp,
+      address: officeAddress,
+      navLinks,
+      brandDnaSynced: true,
+    },
+    seoSettings: {
+      title: seoTitle,
+      description: seoDescription,
+      keywords: keywordsList,
+      faviconUrl: brandLogo,
+      ogImage,
+      ogType: 'website',
+      twitterCard: 'summary_large_image',
+      author: companyName,
+      googleAuditScore: 98,
+      googleAuditRecommendations: [
+        'תגיות Meta Title ו-Meta Description הוזרקו מנתוני מוצר הדגל',
+        'נתוני קידום ב-AI (AIO/GEO) ושאלות נפוצות הוגדרו במלואם',
+      ],
+      aiKnowledgeSummary,
+      aiTargetQuestions,
+      aiBotIndexingEnabled: product.seo?.aiBotIndexingEnabled !== false,
+      aiEntitySchemaType: mappedSchemaType,
+      geo: {
+        enabled: true,
+        targetCity: officeAddress || 'ישראל',
+        targetCountry: 'IL',
+        localBusinessName: companyName,
+        localBusinessType: 'EducationalOrganization',
+        businessAddress: officeAddress,
+        businessPhone: contactPhone,
+        businessEmail: contactEmail,
+        localizedKeywords: keywordsList,
+      },
+    },
+  };
+}

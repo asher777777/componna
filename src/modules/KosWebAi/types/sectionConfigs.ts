@@ -268,6 +268,7 @@ export interface FaqItem {
   question: string;
   answer: string;
   category?: string;
+  icon?: string;
 }
 
 export interface FaqSectionConfig extends BaseSectionConfig {
@@ -324,11 +325,21 @@ export interface PricingSectionConfig extends BaseSectionConfig {
   packages: PricingPackageItem[];
 }
 
+export interface RichContentItem {
+  id: string;
+  title: string;
+  description?: string;
+  text?: string;
+  icon?: string;
+}
+
 export interface RichContentSectionConfig extends BaseSectionConfig {
   type: 'richContent';
   heading: string;
+  subtitle?: string;
   body: string;
-  layout?: 'standard' | 'two-columns' | 'highlight-box';
+  layout?: 'standard' | 'two-columns' | 'highlight-box' | 'cards-grid-3' | 'cards-grid-2';
+  items?: RichContentItem[];
 }
 
 export interface CommunitySectionConfig extends BaseSectionConfig {

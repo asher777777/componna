@@ -4,7 +4,7 @@
  */
 
 export interface MediaPickerOptions {
-  accept?: 'image/*' | 'video/*' | 'audio/*' | 'image/jpeg' | '*/*';
+  accept?: 'image/*' | 'video/*' | 'audio/*' | 'image/jpeg' | '*/*' | string;
   multiple?: boolean;
   maxFiles?: number;
   initialTab?: 'gallery' | 'icons';
@@ -847,7 +847,7 @@ export interface BrandTrustAndCheckout {
 
 export interface FlagshipRepeaterItem {
   id: string;
-  title?: string;
+  title: string;
   text: string;
   icon?: string;
 }
@@ -863,11 +863,19 @@ export interface FlagshipSeoData {
   slug?: string;
   metaTitle?: string;
   metaDescription?: string;
-  keywords?: string[];
+  keywords?: string | string[];
   ogImage?: string;
   aiKnowledgeSummary?: string;
   aiTargetQuestions?: string[];
-  aiEntitySchemaType?: 'Organization' | 'ProfessionalService' | 'Product' | 'FAQPage' | 'Article';
+  aiEntitySchemaType?:
+    | 'Organization'
+    | 'ProfessionalService'
+    | 'LocalBusiness'
+    | 'Product'
+    | 'Service'
+    | 'Course'
+    | 'FAQPage'
+    | 'Article';
   aiBotIndexingEnabled?: boolean;
 }
 

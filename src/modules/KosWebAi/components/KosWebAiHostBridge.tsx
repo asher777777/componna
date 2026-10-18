@@ -14,6 +14,7 @@ import {
 import { eventBus } from '../../../core/bridge/EventBus';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { pageGenerator } from '../generators/pageGenerator';
+import { buildPageConfigFromFlagshipProduct } from '../generators/productPageBuilder';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 
@@ -180,46 +181,20 @@ export const KosWebAiHostBridge: React.FC = () => {
       createPageFromProduct: async (options: CreatePageFromProductOptions) => {
         try {
           const product = options.product;
-          const prompt = `צור עמוד נחיתה מלא וממיר עבור מוצר הדגל הבא:
-שם המוצר: ${product.nameAndSlogan}
-תיאור קצר: ${product.shortDescription || ''}
-תיאור נרחב (SEO): ${product.longDescription || ''}
-נקודות כאב שהוא פותר: ${product.painPointSolved || ''}
-יתרון תחרותי: ${product.competitiveAdvantage || ''}
-קהל יעד: ${product.targetAudience || ''}
+          options.onStep?.({
+            statusText: 'פורס את נתוני מוצר הדגל באזורים המותאמים ומגדיר SEO ו-AIO...',
+            percent: 45,
+          });
 
-חובה לייצר slug באנגלית על בסיס SEO לשם המוצר. עמוד הנחיתה צריך לכלול Hero מרשים ${product.imageUrl ? `(השתמש בתמונה ${product.imageUrl})` : ''}, פירוט היתרונות, התייחסות לנקודות הכאב כ-Features, וקריאה לפעולה מרכזית.`;
-
-          const generatedConfig = await pageGenerator.generatePageLive(
-            prompt,
-            options.brandDna,
-            (step) => {
-              if (options.onStep) {
-                options.onStep({
-                  statusText: step.statusText || 'מייצר עמוד...',
-                  percent: step.progressPercent,
-                });
-              }
-            },
-            { generateImages: false }
+          const generatedConfig = buildPageConfigFromFlagshipProduct(
+            options,
+            product.linkedPageId
           );
 
-          if (product.imageUrl && generatedConfig.sections) {
-            const heroSec = Object.values(generatedConfig.sections).find((s: any) => s.type === 'hero');
-            if (heroSec) {
-              (heroSec as any).imageSrc = product.imageUrl;
-              (heroSec as any).imageUrl = product.imageUrl;
-            }
-          }
-
-          // Ensure product/service page has KOSASS slug prefix and pageCategory
-          const rawGeneratedSlug = (generatedConfig.slug || 'product').toLowerCase().replace(/[^a-z0-9-]/g, '');
-          const cleanSlug = rawGeneratedSlug.startsWith('kosass')
-            ? rawGeneratedSlug
-            : `kosass-${rawGeneratedSlug.replace(/^(page-|product-)?/, '') || Date.now().toString().slice(-4)}`;
-
-          generatedConfig.slug = cleanSlug;
-          generatedConfig.pageCategory = 'service_product';
+          options.onStep?.({
+            statusText: 'שומר עמוד מוצר ומסתיר אזורים שאינם מותאמים...',
+            percent: 85,
+          });
 
           // Save page through pageBuilderFirestore
           await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
@@ -228,16 +203,21 @@ export const KosWebAiHostBridge: React.FC = () => {
           try {
             const brandContract = getCapability<BrandDnaContract>('brand-dna');
             if (brandContract?.registerServicePageSlug) {
-              await brandContract.registerServicePageSlug(product.nameAndSlogan, cleanSlug);
+              await brandContract.registerServicePageSlug(product.nameAndSlogan, generatedConfig.slug);
             }
             eventBus.publish('brand:service_slug_updated', {
               serviceName: product.nameAndSlogan,
-              slug: cleanSlug,
+              slug: generatedConfig.slug,
               pageId: generatedConfig.pageId,
             });
           } catch (brandErr) {
             console.warn('[KosWebAiHostBridge] Brand slug registration warning:', brandErr);
           }
+
+          options.onStep?.({
+            statusText: 'העמוד נוצר בהצלחה!',
+            percent: 100,
+          });
 
           return {
             success: true,
@@ -252,7 +232,7 @@ export const KosWebAiHostBridge: React.FC = () => {
             pageId: '',
             slug: '',
             publicUrl: '',
-            error: err?.message || 'שגיאה ביצירת עמוד הנחיתה עם AI.',
+            error: err?.message || 'שגיאה בפריסת עמוד הנחיתה מנתוני המוצר.',
           };
         }
       },

@@ -11,14 +11,15 @@ interface PageBuilderIconPickerProps {
   className?: string;
 }
 
-const COMMON_ICONS = [
-  'Star', 'Heart', 'Sparkles', 'Zap', 'Shield', 'Award', 'CheckCircle2',
+export const COMMON_ICONS = [
+  'Star', 'Heart', 'HeartHandshake', 'Sparkles', 'Zap', 'Shield', 'ShieldCheck', 'Award', 'Crown', 'Gem', 'CheckCircle2',
+  'AlertCircle', 'HelpCircle', 'Info', 'Lightbulb', 'Flame', 'Key', 'Anchor', 'Feather', 'Home', 'Briefcase', 'Coffee',
   'Layers', 'Layout', 'Grid', 'Compass', 'Globe', 'MapPin', 'Phone',
   'Mail', 'MessageCircle', 'Send', 'Share2', 'Users', 'UserPlus',
   'Clock', 'Calendar', 'FileText', 'BookOpen', 'GraduationCap', 'Video',
   'Image', 'Music', 'TrendingUp', 'BarChart3', 'DollarSign', 'CreditCard',
   'Gift', 'Package', 'ShoppingBag', 'Tag', 'Smile', 'Sun', 'Moon',
-  'Target', 'Sliders', 'Lock', 'Bell', 'HelpCircle', 'Folder'
+  'Target', 'Sliders', 'Lock', 'Bell', 'Folder'
 ];
 
 export const DynamicIcon: React.FC<{ name?: string; className?: string }> = ({ name = 'Star', className = 'w-5 h-5' }) => {

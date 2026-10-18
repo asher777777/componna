@@ -11,6 +11,8 @@ interface PageBuilderImageUploadProps {
   value?: string;
   onChange: (url: string) => void;
   className?: string;
+  allowedMimeTypes?: string[];
+  maxSizeBytes?: number;
 }
 
 const isVideoMedia = (url?: string): boolean => {
@@ -36,6 +38,8 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   value,
   onChange,
   className,
+  allowedMimeTypes,
+  maxSizeBytes,
 }) => {
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
@@ -46,11 +50,21 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   const [isEditingUrl, setIsEditingUrl] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const isJpgRestricted = allowedMimeTypes?.some((m) => m.includes('jpeg') || m.includes('jpg'));
 
   const handleOpenMediaGallery = async (initialTab: 'gallery' | 'icons' = 'gallery') => {
+    setValidationError(null);
     if (mediaPicker) {
       try {
-        const selected = await mediaPicker.openPicker({ multiple: false, initialTab });
+        const selected = await mediaPicker.openPicker({
+          multiple: false,
+          initialTab,
+          accept: isJpgRestricted ? 'image/jpeg' : undefined,
+          allowedMimeTypes,
+          maxSizeBytes,
+        });
         if (selected) {
           const finalUrl = Array.isArray(selected) ? selected[0] : selected;
           if (finalUrl) {
@@ -68,8 +82,25 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValidationError(null);
     const file = e.target.files?.[0];
     if (file) {
+      if (isJpgRestricted) {
+        const isMimeJpg = file.type === 'image/jpeg' || file.type === 'image/jpg';
+        const isExtJpg = /\.(jpg|jpeg)$/i.test(file.name);
+        if (!isMimeJpg && !isExtJpg) {
+          setValidationError('שגיאה: מותר להעלות קובץ JPG בלבד (.jpg / .jpeg).');
+          e.target.value = '';
+          return;
+        }
+      }
+      if (maxSizeBytes && file.size > maxSizeBytes) {
+        const maxKb = Math.round(maxSizeBytes / 1024);
+        const actualKb = Math.round(file.size / 1024);
+        setValidationError(`שגיאה: משקל הקובץ (${actualKb}KB) חורג מהמותר (עד ${maxKb}KB).`);
+        e.target.value = '';
+        return;
+      }
       const localUrl = URL.createObjectURL(file);
       onChange(localUrl);
       setUrlInput(localUrl);
@@ -77,8 +108,14 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
   };
 
   const handleApplyUrl = () => {
+    setValidationError(null);
     if (urlInput.trim()) {
-      onChange(urlInput.trim());
+      const clean = urlInput.trim();
+      if (isJpgRestricted && !/\.(jpg|jpeg)(\?.*)?$/i.test(clean) && !clean.startsWith('data:image/jpeg')) {
+        setValidationError('שגיאה: הקישור חייב להפנות לקובץ JPG בלבד (.jpg / .jpeg).');
+        return;
+      }
+      onChange(clean);
       setIsEditingUrl(false);
     }
   };
@@ -107,6 +144,7 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
               onChange('');
               setUrlInput('');
               setIsEditingUrl(false);
+              setValidationError(null);
             }}
             className="text-[11px] text-rose-400 hover:text-rose-300 flex items-center gap-1 cursor-pointer transition-colors"
           >
@@ -115,10 +153,19 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
         )}
       </div>
 
+      {validationError && (
+        <div className="p-2 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-[11px] font-bold flex items-center justify-between gap-2">
+          <span>{validationError}</span>
+          <button type="button" onClick={() => setValidationError(null)} className="text-rose-300 hover:text-white">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       <input
         type="file"
         ref={fileInputRef}
-        accept="image/*,video/*,audio/*"
+        accept={isJpgRestricted ? '.jpg,.jpeg,image/jpeg' : 'image/*,video/*,audio/*'}
         className="hidden"
         onChange={handleFileUpload}
       />

@@ -68,8 +68,11 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
     };
   }, [openPicker]);
 
+  const [validationError, setValidationError] = useState<string | null>(null);
+
   const handleClose = () => {
     setIsOpen(false);
+    setValidationError(null);
     if (resolver) {
       resolver.resolve(null);
       setResolver(null);
@@ -77,6 +80,37 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
   };
 
   const handleSelect = (items: MediaItem[]) => {
+    setValidationError(null);
+
+    if (options?.allowedMimeTypes && options.allowedMimeTypes.length > 0) {
+      const invalidType = items.find((item) => {
+        const mime = (item.mimeType || '').toLowerCase();
+        const ext = (item.extension || item.name || item.url || '').toLowerCase();
+        const isJpgAllowed = options.allowedMimeTypes!.some((m) => m.includes('jpeg') || m.includes('jpg'));
+        if (isJpgAllowed) {
+          const isMimeJpg = mime === 'image/jpeg' || mime === 'image/jpg';
+          const isExtJpg = /\.(jpg|jpeg)(\?.*)?$/i.test(ext);
+          return !(isMimeJpg || isExtJpg);
+        }
+        return !options.allowedMimeTypes!.includes(mime);
+      });
+
+      if (invalidType) {
+        setValidationError('שגיאה: יש לבחור קובץ בפורמט JPG בלבד (.jpg / .jpeg) עבור תמונת שיתוף ברשתות.');
+        return;
+      }
+    }
+
+    if (options?.maxSizeBytes && options.maxSizeBytes > 0) {
+      const maxKb = Math.round(options.maxSizeBytes / 1024);
+      const tooLarge = items.find((item) => item.sizeBytes && item.sizeBytes > options.maxSizeBytes!);
+      if (tooLarge) {
+        const actualKb = Math.round(tooLarge.sizeBytes / 1024);
+        setValidationError(`שגיאה: הקובץ שנבחר שוקל ${actualKb}KB. המשקל המקסימלי המותר הוא עד ${maxKb}KB.`);
+        return;
+      }
+    }
+
     setIsOpen(false);
     if (resolver) {
       if (options?.multiple) {
@@ -92,16 +126,33 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
   return (
     <>
       {isOpen && (
-        <MediaPickerModal
-          isOpen={true}
-          onClose={handleClose}
-          allowedTypes={undefined}
-          initialTab={options?.initialTab}
-          maxSelectCount={options?.multiple ? options.maxFiles || 10 : 1}
-          onSelectMedia={handleSelect}
-          firebaseApp={firebaseApp}
-          db={db}
-        />
+        <>
+          {validationError && (
+            <div
+              className="fixed top-6 left-1/2 -translate-x-1/2 z-[9999] bg-rose-600 text-white px-5 py-3 rounded-2xl shadow-2xl border border-rose-400 flex items-center gap-3 text-sm font-bold animate-in fade-in slide-in-from-top-3"
+              dir="rtl"
+            >
+              <span>{validationError}</span>
+              <button
+                type="button"
+                onClick={() => setValidationError(null)}
+                className="px-2 py-0.5 rounded-lg bg-white/20 hover:bg-white/30 text-xs"
+              >
+                סגור
+              </button>
+            </div>
+          )}
+          <MediaPickerModal
+            isOpen={true}
+            onClose={handleClose}
+            allowedTypes={undefined}
+            initialTab={options?.initialTab}
+            maxSelectCount={options?.multiple ? options.maxFiles || 10 : 1}
+            onSelectMedia={handleSelect}
+            firebaseApp={firebaseApp}
+            db={db}
+          />
+        </>
       )}
     </>
   );

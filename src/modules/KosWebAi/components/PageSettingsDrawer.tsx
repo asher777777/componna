@@ -803,9 +803,11 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                 {/* OG Image */}
                 <div className="space-y-0.5">
                   <PageBuilderImageUpload
-                    label="תמונת שיתוף חברתי (OG Image)"
+                    label="תמונת שיתוף ברשתות (OG Image - קובץ JPG בלבד עד 100KB)"
                     value={formDataSeo.ogImage}
                     onChange={(url) => handleSeoChange('ogImage', url)}
+                    allowedMimeTypes={['image/jpeg', 'image/jpg']}
+                    maxSizeBytes={100 * 1024}
                   />
                 </div>
 

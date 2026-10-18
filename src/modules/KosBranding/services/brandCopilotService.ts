@@ -301,6 +301,21 @@ export async function generateAiFlagshipProduct(
   painPointSolved: string;
   targetAudience: string;
   competitiveAdvantage: string;
+  painPoints: Array<{ id: string; title: string; text: string; icon?: string }>;
+  targetAudiences: Array<{ id: string; title: string; text: string; icon?: string }>;
+  competitiveAdvantages: Array<{ id: string; title: string; text: string; icon?: string }>;
+  faqs: Array<{ id: string; question: string; answer: string; icon?: string }>;
+  seo: {
+    slug?: string;
+    metaTitle?: string;
+    metaDescription?: string;
+    keywords?: string;
+    ogImage?: string;
+    aiKnowledgeSummary?: string;
+    aiTargetQuestions?: string[];
+    aiEntitySchemaType?: 'Organization' | 'LocalBusiness' | 'Product' | 'Service' | 'Course' | 'FAQPage';
+    aiBotIndexingEnabled?: boolean;
+  };
 } | null> {
   const activeKey = resolveGeminiApiKey(apiKey);
   const cleanIdea = (idea || brand.identity?.organizationPurpose || 'מוצר דגל מוביל').trim();
@@ -308,6 +323,68 @@ export async function generateAiFlagshipProduct(
   const slogan = brand.identity?.slogan || '';
   const defaultAudience = brand.audience?.targetAudiences?.[0] || 'קהל היעד המרכזי של הארגון';
   const uvp = brand.audience?.mainUvp || brand.identity?.companyVision || '';
+
+  const defaultPainIcons = ['AlertCircle', 'Clock', 'HeartHandshake', 'ShieldCheck', 'Compass', 'Sparkles'];
+  const defaultAudienceIcons = ['Users', 'Heart', 'Briefcase'];
+  const defaultAdvantageIcons = ['Award', 'CheckCircle2', 'Sparkles', 'HeartHandshake', 'Star', 'Shield'];
+  const defaultFaqIcons = ['HelpCircle', 'CheckCircle2', 'Info', 'Sparkles', 'Clock', 'Heart', 'Shield', 'Users', 'Phone', 'Star'];
+
+  const normalizeRepeater = (
+    rawList: any,
+    targetCount: number,
+    prefix: string,
+    defaultIcons: string[],
+    fallbackGenerator: (idx: number) => { title: string; text: string }
+  ) => {
+    const arr = Array.isArray(rawList) ? rawList : [];
+    return Array.from({ length: targetCount }, (_, idx) => {
+      const item = arr[idx];
+      const fb = fallbackGenerator(idx);
+      if (item && typeof item === 'object') {
+        return {
+          id: String(item.id || `${prefix}_${idx + 1}`),
+          title: String(item.title || item.heading || fb.title).trim(),
+          text: String(item.text || item.description || item.content || fb.text).trim(),
+          icon: String(item.icon || defaultIcons[idx % defaultIcons.length]).trim(),
+        };
+      }
+      if (typeof item === 'string' && item.trim()) {
+        return {
+          id: `${prefix}_${idx + 1}`,
+          title: fb.title,
+          text: item.trim(),
+          icon: defaultIcons[idx % defaultIcons.length],
+        };
+      }
+      return {
+        id: `${prefix}_${idx + 1}`,
+        title: fb.title,
+        text: fb.text,
+        icon: defaultIcons[idx % defaultIcons.length],
+      };
+    });
+  };
+
+  const normalizeFaqs = (rawFaqs: any) => {
+    const arr = Array.isArray(rawFaqs) ? rawFaqs : [];
+    return Array.from({ length: 10 }, (_, idx) => {
+      const item = arr[idx];
+      if (item && typeof item === 'object' && (item.question || item.q) && (item.answer || item.a)) {
+        return {
+          id: String(item.id || `faq_${idx + 1}`),
+          question: String(item.question || item.q).trim(),
+          answer: String(item.answer || item.a).trim(),
+          icon: String(item.icon || defaultFaqIcons[idx % defaultFaqIcons.length]).trim(),
+        };
+      }
+      return {
+        id: `faq_${idx + 1}`,
+        question: `שאלה נפוצה ${idx + 1} בנושא ${cleanIdea}`,
+        answer: `ב-${company} אנו מעניקים מענה אישי, מקצועי ומלא סביב ${cleanIdea}, בתיאום מלא לצרכים שלך.`,
+        icon: defaultFaqIcons[idx % defaultFaqIcons.length],
+      };
+    });
+  };
 
   if (!activeKey) {
     return null;
@@ -332,20 +409,53 @@ export async function generateAiFlagshipProduct(
         res.description ||
         `ב-${company} פיתחנו את "${cleanIdea}" כדי להעניק מעטפת שלמה, איכותית ומעצימה לקהל שלנו. התוכנית משלבת מקצועיות ללא פשרות עם יחס אישי, חם ומסור, ונועדה לתת מענה אמיתי ומעמיק לצרכים היומיומיים שלך. ${uvp}`;
 
+      const painPoints = normalizeRepeater(res.painPoints, 6, 'pain', defaultPainIcons, (idx) => ({
+        title: `אתגר מרכזי ${idx + 1}`,
+        text: `התמודדות יומיומית הדורשת מענה מקצועי, אמין ונגיש בתחום ${cleanIdea} מבית ${company}.`,
+      }));
+
+      const targetAudiences = normalizeRepeater(res.targetAudiences, 3, 'aud', defaultAudienceIcons, (idx) => ({
+        title: brand.audience?.targetAudiences?.[idx] || `קהל יעד ${idx + 1}`,
+        text: `מותאם במיוחד עבור ${brand.audience?.targetAudiences?.[idx] || defaultAudience} המחפשים מעטפת איכותית וליווי אישי.`,
+      }));
+
+      const competitiveAdvantages = normalizeRepeater(res.competitiveAdvantages, 6, 'adv', defaultAdvantageIcons, (idx) => ({
+        title: `יתרון מוביל ${idx + 1}`,
+        text: `סטנדרט שירות גבוה, יחס אישי ומעטפת מקצועית מוכחת של ${company}.`,
+      }));
+
+      const faqs = normalizeFaqs(res.faqs);
+
       const painPointSolved =
         res.painPointSolved ||
-        res.painPoint ||
-        `הצורך במענה זמין, מקצועי, אמין ועוטף בתחום ${cleanIdea}, החוסך התמודדות לבד ומעניק שקט נפשי וביטחון מלא.`;
+        painPoints.map((p) => `${p.title}: ${p.text}`).join(' | ');
 
       const targetAudience =
         res.targetAudience ||
-        defaultAudience;
+        targetAudiences.map((a) => `${a.title}: ${a.text}`).join(' | ');
 
       const competitiveAdvantage =
         res.competitiveAdvantage ||
-        (Array.isArray(res.benefits) && res.benefits.length > 0 ? res.benefits.join(' • ') : '') ||
-        uvp ||
-        `שילוב ייחודי של מקצועיות, ניסיון וליווי אישי מכל הלב בסטנדרט האיכות של ${company}.`;
+        competitiveAdvantages.map((c) => `${c.title}: ${c.text}`).join(' | ');
+
+      const rawSeo = res.seo && typeof res.seo === 'object' ? res.seo : {};
+      const seo = {
+        slug: String(rawSeo.slug || '').trim() || undefined,
+        metaTitle: String(rawSeo.metaTitle || `${nameAndSlogan} | ${company}`).trim(),
+        metaDescription: String(rawSeo.metaDescription || shortDescription).trim().slice(0, 160),
+        keywords: String(rawSeo.keywords || `${cleanIdea}, ${company}`).trim(),
+        aiKnowledgeSummary: String(
+          rawSeo.aiKnowledgeSummary ||
+            `${nameAndSlogan} מבית ${company}: ${shortDescription} מעניק מענה ל-${targetAudiences.map((t) => t.title).join(', ')}.`
+        ).trim(),
+        aiTargetQuestions: Array.isArray(rawSeo.aiTargetQuestions) && rawSeo.aiTargetQuestions.length > 0
+          ? rawSeo.aiTargetQuestions.map((q: any) => String(q).trim()).filter(Boolean)
+          : faqs.slice(0, 5).map((f) => f.question),
+        aiEntitySchemaType: (['Organization', 'LocalBusiness', 'Product', 'Service', 'Course', 'FAQPage'].includes(rawSeo.aiEntitySchemaType)
+          ? rawSeo.aiEntitySchemaType
+          : 'Service') as 'Organization' | 'LocalBusiness' | 'Product' | 'Service' | 'Course' | 'FAQPage',
+        aiBotIndexingEnabled: rawSeo.aiBotIndexingEnabled !== false,
+      };
 
       return {
         nameAndSlogan: String(nameAndSlogan).trim(),
@@ -354,20 +464,51 @@ export async function generateAiFlagshipProduct(
         painPointSolved: String(painPointSolved).trim(),
         targetAudience: String(targetAudience).trim(),
         competitiveAdvantage: String(competitiveAdvantage).trim(),
+        painPoints,
+        targetAudiences,
+        competitiveAdvantages,
+        faqs,
+        seo,
       };
     }
   } catch (err) {
     console.warn('[brandCopilotService] generateAiFlagshipProduct live AI fallback:', err);
   }
 
-  // Fallback עשיר ומלא בכל 6 השדות של FlagshipProduct כדי שהמשתמש לעולם לא יקבל שדות ריקים
+  const fallbackPainPoints = normalizeRepeater([], 6, 'pain', defaultPainIcons, (idx) => ({
+    title: `נקודת כאב ${idx + 1}`,
+    text: `הצורך בפתרון אמין, נגיש ומחבק עבור ${cleanIdea}, המעניק תמיכה מלאה ומונע תחושת עומס או בדידות.`,
+  }));
+  const fallbackTargetAudiences = normalizeRepeater([], 3, 'aud', defaultAudienceIcons, (idx) => ({
+    title: brand.audience?.targetAudiences?.[idx] || `קהל יעד ${idx + 1}`,
+    text: `מענה מדויק ומותאם אישית עבור ${brand.audience?.targetAudiences?.[idx] || defaultAudience}.`,
+  }));
+  const fallbackAdvantages = normalizeRepeater([], 6, 'adv', defaultAdvantageIcons, (idx) => ({
+    title: `יתרון בולט ${idx + 1}`,
+    text: uvp || `ליווי אישי ומסור מכל הלב בשילוב הסטנדרט המקצועי והייחודי של ${company}.`,
+  }));
+  const fallbackFaqs = normalizeFaqs([]);
+
   return {
     nameAndSlogan: `${cleanIdea} – ${slogan || `המענה המוביל מבית ${company}`}`,
     shortDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
     longDescription: `מוצר הדגל "${cleanIdea}" מבית ${company} נבנה מתוך היכרות עמוקה עם הצרכים של הקהילה וקהל היעד שלנו. אנו מעניקים שילוב נדיר של איכות מוקפדת, ליווי אישי בגובה העיניים ומענה שלם שמייצר שקט נפשי, חיבור אמיתי ותוצאות משמעותיות לאורך זמן.`,
-    painPointSolved: `הצורך בפתרון אמין, נגיש ומחבק עבור ${cleanIdea}, המעניק תמיכה מלאה ומונע תחושת עומס או בדידות.`,
-    targetAudience: defaultAudience,
-    competitiveAdvantage: uvp || `ליווי אישי ומסור מכל הלב בשילוב הסטנדרט המקצועי והייחודי של ${company}.`,
+    painPointSolved: fallbackPainPoints.map((p) => `${p.title}: ${p.text}`).join(' | '),
+    targetAudience: fallbackTargetAudiences.map((a) => `${a.title}: ${a.text}`).join(' | '),
+    competitiveAdvantage: fallbackAdvantages.map((c) => `${c.title}: ${c.text}`).join(' | '),
+    painPoints: fallbackPainPoints,
+    targetAudiences: fallbackTargetAudiences,
+    competitiveAdvantages: fallbackAdvantages,
+    faqs: fallbackFaqs,
+    seo: {
+      metaTitle: `${cleanIdea} | ${company}`,
+      metaDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
+      keywords: `${cleanIdea}, ${company}`,
+      aiKnowledgeSummary: `${cleanIdea} מבית ${company} מעניק מענה שלם ומקצועי לקהל היעד של הארגון.`,
+      aiTargetQuestions: fallbackFaqs.slice(0, 5).map((f) => f.question),
+      aiEntitySchemaType: 'Service',
+      aiBotIndexingEnabled: true,
+    },
   };
 }
 

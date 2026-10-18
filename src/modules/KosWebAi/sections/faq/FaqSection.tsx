@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { FaqSectionConfig } from '../../types/sectionConfigs';
+import { DynamicIcon } from '../../ui/PageBuilderIconPicker';
 import { ChevronDown, Search, Sparkles, MessageCircle } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -80,7 +81,14 @@ export const FaqSection: React.FC<{ config: FaqSectionConfig }> = ({ config }) =
                   onClick={() => toggleAccordion(index)}
                   className="w-full p-5 sm:p-6 text-right flex items-center justify-between gap-4 font-bold text-base sm:text-lg text-slate-900 dark:text-white"
                 >
-                  <span>{item.question}</span>
+                  <div className="flex items-center gap-3">
+                    {item.icon && (
+                      <div className="w-9 h-9 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
+                        <DynamicIcon name={item.icon} className="w-4 h-4" />
+                      </div>
+                    )}
+                    <span>{item.question}</span>
+                  </div>
                   <div
                     className={clsx(
                       'w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-transform duration-300',
