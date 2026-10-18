@@ -137,7 +137,7 @@ export const sectionEnhancerService = {
     // 3. LAYOUT & BENTO SUGGESTIONS
     const layoutSuggestions: SectionAiSuggestion[] = [];
 
-    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'mainContent') {
+    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'mainContent') {
       layoutSuggestions.push(
         {
           id: `${sectionType}-layout-feminine`,
@@ -740,6 +740,40 @@ Return ONLY the raw updated JSON object.`;
       updated.subtitle = slogan || 'סרטונים, הדרכות ותוכן בלעדי';
       updated.source = 'tenant_youtube';
       changes.push(`סונכרנו כותרות גלריית הוידאו וחיבור ברירת מחדל לנתוני YouTube של ${company}`);
+    } else if (sectionType === 'timer') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        updated.boxShape = 'flower';
+        changes.push('שודרג לפריסת טיימר בסגנון נשי (רכה ואלגנטית עם תיבות פרח/לב)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        updated.boxShape = 'shield';
+        changes.push('שודרג לפריסת טיימר בסגנון גברי (עוצמתית וטקטית עם תיבות מגן פלדה)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        updated.boxShape = 'lotus';
+        changes.push('שודרג לפריסת טיימר רוחנית (הרמונית ושלווה עם תיבות לוטוס)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        updated.boxShape = 'sharp';
+        changes.push('שודרג לפריסת טיימר חדה (ברוטליסטית מדויקת 90 מעלות עם מסגרת 2px)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        updated.boxShape = 'hud';
+        changes.push('שודרג לפריסת טיימר אנליטית (מסוף HUD טכנולוגי חתוך זוויות)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        updated.boxShape = 'rounded';
+        changes.push('שודרג לפריסת טיימר עכשווית');
+      }
+
+      updated.title = `הספירה לאחור של ${company} החלה`;
+      updated.subtitle = slogan || 'אל תפספסו את ההזדמנות להצטרף בתנאי השקה בלעדיים';
+      updated.ctaText = 'הבטיחו את מקומכם עכשיו';
+      if (whatsapp || phone) {
+        updated.ctaUrl = `https://wa.me/${(whatsapp || phone).replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום, אני פונה לגבי ההשקה של ${company}`)}`;
+      }
+      changes.push(`סונכרנו כותרות הטיימר, תאריך היעד וחיבור הנעה לפעולה של ${company}`);
     } else if (sectionType === 'mainContent') {
       if (prompt.includes('feminine') || prompt.includes('נשי')) {
         updated.layout = 'feminine';
