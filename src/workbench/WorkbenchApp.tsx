@@ -192,10 +192,14 @@ export const WorkbenchApp: React.FC = () => {
     location.pathname === '/kosvidio' ||
     location.pathname.startsWith('/kosvidio/') ||
     location.pathname.startsWith('/kosvidio-') ||
+    location.pathname === '/kosass' ||
+    location.pathname.startsWith('/kosass/') ||
+    location.pathname.startsWith('/kosass-') ||
     location.hash.startsWith('#/p/') ||
     location.hash.startsWith('#/to/') ||
     location.hash.startsWith('#/tube/') ||
     location.hash.startsWith('#/kosvidio') ||
+    location.hash.startsWith('#/kosass') ||
     location.hash.startsWith('#/page/');
 
   const isHomePage = location.pathname === '/';

@@ -201,7 +201,7 @@ export async function syncUserToAdminCrm(
     const phone = user.phoneNumber || '';
     const nowIso = new Date().toISOString();
 
-    const contactPayload = {
+    const contactPayload: Record<string, any> = {
       id: user.uid,
       conta_name: displayName,
       email: email,
@@ -210,7 +210,7 @@ export async function syncUserToAdminCrm(
       is_lead: false,
       contact_type: isSubscriber ? 'subscriber' : 'contact',
       isContentSubscriber: Boolean(isSubscriber),
-      subscriberRole: isSubscriber ? 'content_subscriber' : undefined,
+      ...(isSubscriber ? { subscriberRole: 'content_subscriber' } : {}),
       tenantId: effectiveTenant || '_master',
       registeredSubdomain: effectiveTenant || '_master',
       lead_source: isSubscriber ? 'הרשמה למנוי תוכן (KosSubscribed)' : (effectiveTenant ? `סאב-דומיין (${effectiveTenant})` : 'התחברות למערכת (Auth)'),
@@ -222,6 +222,13 @@ export async function syncUserToAdminCrm(
         : ['משתמש רשום', effectiveTenant || 'Kosun Platform'],
       ...(subscriptionDetails || {}),
     };
+
+    // Strip any undefined values to satisfy Firestore setDoc constraints
+    Object.keys(contactPayload).forEach((key) => {
+      if (contactPayload[key] === undefined) {
+        delete contactPayload[key];
+      }
+    });
 
     // 1. Write to tenant-scoped contacts collection if inside a subdomain tenant!
     if (effectiveTenant) {

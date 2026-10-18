@@ -17,7 +17,8 @@ import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContex
 import { BrandDnaContract } from '../../../core/contracts';
 import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAuthService';
 import { subscribeToAuth, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../../../services/firebaseAuth';
-import { extractSubdomainFromHost } from '../../../core/tenant/tenantResolver';
+import { extractSubdomainFromHost, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
+import { TenantCoreService } from '../../../core/tenant/tenantService';
 
 export interface PublicPageViewProps {
   slug?: string;
@@ -512,9 +513,56 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
               pId === `page_kosass_${cleanTarget}` ||
               pId === `page_kosvidio_${target}` ||
               pId === `page_kosvidio_${cleanTarget}` ||
-              (vidId && (vidId === target || vidId === cleanTarget))
+              Boolean(vidId && (vidId === target || vidId === cleanTarget))
             );
           });
+
+          // If not found on root/master domain, check if this page belongs to a specific tenant
+          if (!foundPage && db && (tenantId === '_master' || tenantId === ROOT_TENANT_ID || !scopeTenantId)) {
+            try {
+              const allTenants = await TenantCoreService.getAllTenants(db);
+              for (const t of allTenants) {
+                if (t.subdomain && t.subdomain !== '_master' && t.subdomain !== ROOT_TENANT_ID) {
+                  const tPages = await pageBuilderFirestore.getAllPages(db, t.subdomain);
+                  const matchedInTenant = tPages.find((p) => {
+                    const pSlug = (p.slug || '').toLowerCase().trim();
+                    const pShort = (p.shortSlug || '').toLowerCase().trim();
+                    const pId = (p.pageId || '').toLowerCase().trim();
+                    const vidId = ((p.sections?.['kosvidio-1'] as any)?.youtubeVideoId || '').toLowerCase().trim();
+                    const normSlug = stripBrandAndPrefix(pSlug);
+                    const normShort = stripBrandAndPrefix(pShort);
+                    const normId = stripBrandAndPrefix(pId);
+                    if (normTarget && (normSlug === normTarget || normShort === normTarget || normId === normTarget)) return true;
+                    return (
+                      pSlug === target || pShort === target || pSlug === cleanTarget || pShort === cleanTarget ||
+                      pSlug === `kosass-${target}` || pSlug === `kosass-${cleanTarget}` || pSlug === `kosass/${target}` || pSlug === `kosass/${cleanTarget}` ||
+                      pShort === `kosass-${target}` || pShort === `kosass-${cleanTarget}` || pShort === `kosass/${target}` || pShort === `kosass/${cleanTarget}` ||
+                      pSlug === `kosvidio/${target}` || pSlug === `kosvidio/${cleanTarget}` || pSlug === `kosvidio-${target}` || pSlug === `kosvidio-${cleanTarget}` ||
+                      pId === target || pId === cleanTarget || pId === `page_${target}` || pId === `page_${cleanTarget}` ||
+                      pId === `page_kosass_${target}` || pId === `page_kosass_${cleanTarget}` || pId === `page_kosvidio_${target}` || pId === `page_kosvidio_${cleanTarget}` ||
+                      (vidId && (vidId === target || vidId === cleanTarget))
+                    );
+                  });
+
+                  if (matchedInTenant) {
+                    const hostname = typeof window !== 'undefined' ? window.location.hostname.toLowerCase() : '';
+                    const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
+                    if (!isLocal && typeof window !== 'undefined') {
+                      // Redirect to the tenant's dedicated subdomain
+                      const targetUrl = `https://${t.subdomain}.kosun.pro${window.location.pathname}${window.location.search}${window.location.hash}`;
+                      window.location.replace(targetUrl);
+                      return;
+                    } else {
+                      foundPage = matchedInTenant;
+                      break;
+                    }
+                  }
+                }
+              }
+            } catch (tenantSearchErr) {
+              console.warn('[PublicPageView] Tenant lookup failed:', tenantSearchErr);
+            }
+          }
         } else {
           // If no slug provided, load the designated homepage
           foundPage = (await pageBuilderFirestore.getHomePage(db, tenantId)) || allPages.find((p) => p.isHomePage) || allPages[0];
