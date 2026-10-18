@@ -491,4 +491,155 @@ export const pageAnalyticsService = {
       }
     } catch (_) {}
   },
+
+  /**
+   * Retrieves domain-wide Google Integrations (1 key for domain and all subdomains).
+   * Cascades from tenant to master root domain.
+   */
+  async getDomainGoogleIntegrations(
+    db: Firestore | null | undefined,
+    tenantId?: string
+  ): Promise<DomainGoogleIntegrationsConfig> {
+    const eff = resolveEffectiveTenant(tenantId);
+    const localKey = 'kosun_domain_google_integrations';
+
+    if (db) {
+      try {
+        // First check active tenant settings
+        const tenantDocRef = doc(db, `tenants/${eff}/settings`, 'google_integrations');
+        const snap = await getDoc(tenantDocRef);
+        if (snap.exists()) {
+          const data = snap.data() as DomainGoogleIntegrationsConfig;
+          try {
+            localStorage.setItem(localKey, JSON.stringify(data));
+          } catch (_) {}
+          return data;
+        }
+
+        // If not found and not root, cascade to root master domain
+        if (eff !== ROOT_TENANT_ID) {
+          const rootDocRef = doc(db, 'tenants/_master/settings', 'google_integrations');
+          const rootSnap = await getDoc(rootDocRef);
+          if (rootSnap.exists()) {
+            const rootData = rootSnap.data() as DomainGoogleIntegrationsConfig;
+            try {
+              localStorage.setItem(localKey, JSON.stringify(rootData));
+            } catch (_) {}
+            return rootData;
+          }
+        }
+      } catch (err) {
+        console.warn('[pageAnalyticsService] Failed fetching domain Google integrations from Firestore:', err);
+      }
+    }
+
+    return this.getDomainGoogleIntegrationsSync(eff);
+  },
+
+  /**
+   * Synchronous retrieval of domain-wide Google integrations from LocalStorage.
+   */
+  getDomainGoogleIntegrationsSync(tenantId?: string): DomainGoogleIntegrationsConfig {
+    const eff = resolveEffectiveTenant(tenantId);
+    const keys = [
+      `kosun_${eff}_domain_google_integrations`,
+      'kosun_domain_google_integrations',
+      'kosun__master_domain_google_integrations',
+    ];
+
+    for (const k of keys) {
+      try {
+        const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(k) : null;
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.googleAnalyticsId || parsed.googleSearchConsoleVerification) {
+            return {
+              googleAnalyticsId: parsed.googleAnalyticsId || '',
+              googleSearchConsoleVerification: parsed.googleSearchConsoleVerification || '',
+              googleSearchConsolePropertyUrl: parsed.googleSearchConsolePropertyUrl || '',
+              applyToAllSubdomains: parsed.applyToAllSubdomains !== false,
+              cookieDomainAuto: parsed.cookieDomainAuto !== false,
+              updatedAt: parsed.updatedAt || new Date().toISOString(),
+              customQueries: parsed.customQueries || [],
+            };
+          }
+        }
+      } catch (_) {}
+    }
+
+    return {
+      googleAnalyticsId: '',
+      googleSearchConsoleVerification: '',
+      googleSearchConsolePropertyUrl: typeof window !== 'undefined' ? window.location.origin : 'https://kosun.pro',
+      applyToAllSubdomains: true,
+      cookieDomainAuto: true,
+      updatedAt: new Date().toISOString(),
+      customQueries: [],
+    };
+  },
+
+  /**
+   * Saves domain-wide Google Integrations (Master key applying to root domain and all subdomains).
+   */
+  async saveDomainGoogleIntegrations(
+    db: Firestore | null | undefined,
+    config: DomainGoogleIntegrationsConfig,
+    tenantId?: string
+  ): Promise<void> {
+    const eff = resolveEffectiveTenant(tenantId);
+    const nowIso = new Date().toISOString();
+    const cleanConfig: DomainGoogleIntegrationsConfig = {
+      ...config,
+      googleAnalyticsId: (config.googleAnalyticsId || '').trim(),
+      googleSearchConsoleVerification: extractGscVerificationToken(config.googleSearchConsoleVerification),
+      googleSearchConsolePropertyUrl: (config.googleSearchConsolePropertyUrl || '').trim(),
+      applyToAllSubdomains: config.applyToAllSubdomains !== false,
+      cookieDomainAuto: config.cookieDomainAuto !== false,
+      updatedAt: nowIso,
+    };
+
+    if (db) {
+      try {
+        // Save to active tenant
+        const tenantDocRef = doc(db, `tenants/${eff}/settings`, 'google_integrations');
+        await setDoc(tenantDocRef, cleanConfig, { merge: true });
+
+        // If applyToAllSubdomains is enabled, also persist at the master root level
+        if (cleanConfig.applyToAllSubdomains) {
+          const rootDocRef = doc(db, 'tenants/_master/settings', 'google_integrations');
+          await setDoc(rootDocRef, cleanConfig, { merge: true });
+        }
+      } catch (err) {
+        console.warn('[pageAnalyticsService] Error saving domain Google integrations to Firestore:', err);
+      }
+    }
+
+    try {
+      localStorage.setItem('kosun_domain_google_integrations', JSON.stringify(cleanConfig));
+      localStorage.setItem(`kosun_${eff}_domain_google_integrations`, JSON.stringify(cleanConfig));
+      if (cleanConfig.applyToAllSubdomains) {
+        localStorage.setItem('kosun__master_domain_google_integrations', JSON.stringify(cleanConfig));
+      }
+    } catch (_) {}
+
+    // Dispatch global event for live reactive update across the UI and runtime
+    try {
+      window.dispatchEvent(
+        new CustomEvent('kosun:google_integrations_updated', {
+          detail: cleanConfig,
+        })
+      );
+    } catch (_) {}
+  },
 };
+
+export interface DomainGoogleIntegrationsConfig {
+  googleAnalyticsId: string;
+  googleSearchConsoleVerification: string;
+  googleSearchConsolePropertyUrl: string;
+  applyToAllSubdomains: boolean;
+  cookieDomainAuto: boolean;
+  updatedAt?: string;
+  customQueries?: SearchConsoleQueryEntry[];
+}
+

@@ -34,6 +34,9 @@ const CrmAnalyticsStandaloneView = React.lazy(() =>
 const PageBuilderStandaloneView = React.lazy(() =>
   import('../modules/KosWebAi').then((m) => ({ default: m.PageBuilderStandaloneView }))
 );
+const GoogleAnalyticsConsoleHubView = React.lazy(() =>
+  import('../modules/KosWebAi').then((m) => ({ default: m.GoogleAnalyticsConsoleHub }))
+);
 const AuthPortalStandaloneView = React.lazy(() =>
   import('../modules/auth-portal').then((m) => ({ default: m.AuthPortalStandaloneView }))
 );
@@ -363,5 +366,13 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     component: AmbassadorCampaignsStandaloneView,
     route: '/ambassador-campaigns',
     collectionPrefix: 'mod_campaigns_',
+  },
+  {
+    id: 'google-analytics-console-hub',
+    name: 'מרכז Google Analytics 4 ו-Search Console (דומיין וסאב-דומיינים)',
+    description: 'ניהול מפתח אחד מרוכז לכל הדומיין והסאב-דומיינים, מעקב תנועה, ביצועי חיפוש אורגני ואימות גוגל בזמן אמת.',
+    component: GoogleAnalyticsConsoleHubView,
+    route: '/google-analytics-console',
+    collectionPrefix: 'sys_google_',
   }
 ];

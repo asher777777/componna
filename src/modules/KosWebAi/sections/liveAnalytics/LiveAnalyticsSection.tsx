@@ -88,13 +88,15 @@ export const LiveAnalyticsSection: React.FC<LiveAnalyticsSectionProps> = ({
     return () => unsubscribe();
   }, [db, tenantId, pageId]);
 
-  const effectiveGaId = (googleAnalyticsId || telemetry?.googleAnalyticsId || '').trim();
+  const domainGoogleConfig = pageAnalyticsService.getDomainGoogleIntegrationsSync(tenantId);
+  const effectiveGaId = (googleAnalyticsId || telemetry?.googleAnalyticsId || domainGoogleConfig.googleAnalyticsId || '').trim();
   const effectiveGscToken = extractGscVerificationToken(
-    googleSearchConsoleVerification || telemetry?.googleSearchConsoleVerification
+    googleSearchConsoleVerification || telemetry?.googleSearchConsoleVerification || domainGoogleConfig.googleSearchConsoleVerification
   );
   const effectiveGscProperty = (
     googleSearchConsolePropertyUrl ||
     telemetry?.googleSearchConsolePropertyUrl ||
+    domainGoogleConfig.googleSearchConsolePropertyUrl ||
     (typeof window !== 'undefined' ? window.location.origin : '')
   ).trim();
 

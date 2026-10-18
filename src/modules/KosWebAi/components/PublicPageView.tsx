@@ -644,8 +644,9 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
                 setMetaTag('name', 'keywords', seo.keywords.join(', '));
               }
 
-              // Inject GA4 (Google Analytics 4) Measurement Script if ID is configured
-              const gaId = pageWithHeader.globalSettings?.googleAnalyticsId?.trim();
+              // Resolve Google Analytics 4 (GA4) ID - Page override or Domain-wide Master Key
+              const domainGoogleConfig = pageAnalyticsService.getDomainGoogleIntegrationsSync(tenantId);
+              const gaId = (pageWithHeader.globalSettings?.googleAnalyticsId?.trim() || domainGoogleConfig.googleAnalyticsId || '').trim();
               if (gaId && !document.getElementById('ga4-tracking-script')) {
                 const gaScript = document.createElement('script');
                 gaScript.id = 'ga4-tracking-script';
@@ -659,27 +660,40 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
                   window.dataLayer = window.dataLayer || [];
                   function gtag(){dataLayer.push(arguments);}
                   gtag('js', new Date());
-                  gtag('config', '${gaId}', { send_page_view: true });
+                  gtag('config', '${gaId}', {
+                    send_page_view: true,
+                    cookie_domain: 'auto',
+                    cookie_flags: 'SameSite=None;Secure'
+                  });
                 `;
                 document.head.appendChild(gaInit);
               }
 
-              // Inject Google Search Console verification meta tag if configured
-              const gscToken = pageWithHeader.globalSettings?.googleSearchConsoleVerification?.trim();
+              // Inject Google Search Console verification meta tag - Page override or Domain-wide Master Key
+              const gscToken = (
+                pageWithHeader.globalSettings?.googleSearchConsoleVerification?.trim() ||
+                domainGoogleConfig.googleSearchConsoleVerification ||
+                ''
+              ).trim();
               if (gscToken) {
                 setMetaTag('name', 'google-site-verification', gscToken);
               }
             }
 
             // Track page view and record telemetry in the Tenant's collection
+            const domainGoogleConfig = pageAnalyticsService.getDomainGoogleIntegrationsSync(tenantId);
+            const effectiveGaId = pageWithHeader.globalSettings?.googleAnalyticsId || domainGoogleConfig.googleAnalyticsId;
+            const effectiveGscToken = pageWithHeader.globalSettings?.googleSearchConsoleVerification || domainGoogleConfig.googleSearchConsoleVerification;
+            const effectiveGscProperty = pageWithHeader.globalSettings?.googleSearchConsolePropertyUrl || domainGoogleConfig.googleSearchConsolePropertyUrl;
+
             pageAnalyticsService.recordPageView(
               db || null,
               tenantId,
               foundPage.pageId,
-              pageWithHeader.globalSettings?.googleAnalyticsId,
+              effectiveGaId,
               {
-                verificationCode: pageWithHeader.globalSettings?.googleSearchConsoleVerification,
-                propertyUrl: pageWithHeader.globalSettings?.googleSearchConsolePropertyUrl,
+                verificationCode: effectiveGscToken,
+                propertyUrl: effectiveGscProperty,
                 keywords: pageWithHeader.seoSettings?.keywords,
               }
             );

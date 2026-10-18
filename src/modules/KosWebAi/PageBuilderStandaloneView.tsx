@@ -20,6 +20,7 @@ import { KosaiProvider } from '../kosai-engine';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
 import { eventBus } from '../../core/bridge/EventBus';
+import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
 
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';
@@ -101,7 +102,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   const { getCapability } = useHostCapabilities();
   const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
 
-  const [viewMode, setViewMode] = useState<'pages' | 'editor' | 'public'>('pages');
+  const [viewMode, setViewMode] = useState<'pages' | 'editor' | 'public' | 'analytics-hub'>('pages');
   const [pages, setPages] = useState<PageBuilderConfig[]>([]);
   const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(() => getInitialCleanPageConfig(brandDna));
 
@@ -496,7 +497,10 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
               console.warn('[PageBuilder] Manual legal pages creation error:', err);
             }
           }}
+          onOpenAnalyticsHub={() => setViewMode('analytics-hub')}
         />
+      ) : viewMode === 'analytics-hub' ? (
+        <GoogleAnalyticsConsoleHub onBackToPages={() => setViewMode('pages')} />
       ) : (
         <PageBuilderEditor
           initialConfig={currentPage}

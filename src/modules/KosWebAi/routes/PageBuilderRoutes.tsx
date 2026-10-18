@@ -11,6 +11,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { Loader2 } from 'lucide-react';
+import { GoogleAnalyticsConsoleHub } from '../components/GoogleAnalyticsConsoleHub';
 
 const PageEditorRouteWrapper: React.FC = () => {
   const { pageId } = useParams<{ pageId: string }>();
@@ -156,9 +157,15 @@ const DashboardRouteWrapper: React.FC = () => {
           window.open(`/#/p/${page.slug}`, '_blank');
         }}
         onEnsureLegalPages={loadPages}
+        onOpenAnalyticsHub={() => navigate('/analytics')}
       />
     </div>
   );
+};
+
+const AnalyticsRouteWrapper: React.FC = () => {
+  const navigate = useNavigate();
+  return <GoogleAnalyticsConsoleHub onBackToPages={() => navigate('/')} />;
 };
 
 export const PageBuilderRoutes: React.FC = () => {
@@ -167,6 +174,8 @@ export const PageBuilderRoutes: React.FC = () => {
       <KosaiProvider>
       <Routes>
         <Route path="/" element={<DashboardRouteWrapper />} />
+        <Route path="/analytics" element={<AnalyticsRouteWrapper />} />
+        <Route path="/google-analytics" element={<AnalyticsRouteWrapper />} />
         <Route path="/edit/:pageId" element={<PageEditorRouteWrapper />} />
         <Route path="/preview/:pageId" element={<PagePreviewRouteWrapper />} />
       </Routes>

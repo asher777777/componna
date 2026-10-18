@@ -175,9 +175,100 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
   // ============================================================================
   // ג. הפריסה העכשווית (Current / Standard - Exact Existing Design + Enhancements)
   // ============================================================================
-  if (isCurrentLayout && imagePosition === 'auto' && !imageSrc) {
+  if (isCurrentLayout) {
     const isCardsLayout =
       normalizedLayout === 'cards-grid-3' || normalizedLayout === 'cards-grid-2' || hasItems;
+    const pos = imagePosition === 'auto' ? 'left' : imagePosition;
+    const isStack = !imageSrc || pos === 'top' || pos === 'bottom';
+
+    const currentImageBlock = imageSrc && (
+      <div className="relative rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl group max-w-lg mx-auto w-full">
+        <img
+          src={imageSrc}
+          alt={heading}
+          className="w-full h-auto object-cover group-hover:scale-105 transition-transform duration-700"
+        />
+      </div>
+    );
+
+    const mainContentBody = (
+      <div className="flex flex-col gap-6">
+        {(heading || subtitle) && (
+          <div
+            className={clsx(
+              'flex flex-col gap-2',
+              (hasItems || isStack) && 'text-center items-center max-w-3xl mx-auto'
+            )}
+          >
+            {subtitle && (
+              <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold w-fit">
+                {subtitle}
+              </span>
+            )}
+            {heading && (
+              <h2
+                className={clsx(
+                  getHeadingScaleClass('text-3xl sm:text-4xl'),
+                  'font-extrabold tracking-tight leading-tight',
+                  textBgEnabled ? 'text-white' : 'text-slate-900 dark:text-white'
+                )}
+                style={{ color: headingColor }}
+              >
+                {heading}
+              </h2>
+            )}
+          </div>
+        )}
+
+        {body && body.trim() && (
+          <div
+            className={clsx(
+              getBodyScaleClass('text-base sm:text-lg'),
+              'leading-relaxed space-y-4 font-normal',
+              textBgEnabled ? 'text-slate-200' : 'text-slate-700 dark:text-slate-300',
+              normalizedLayout === 'two-columns' && 'sm:columns-2 sm:gap-8',
+              hasItems && 'max-w-3xl mx-auto text-center'
+            )}
+            style={{ color: bodyColor }}
+            dangerouslySetInnerHTML={{ __html: body }}
+          />
+        )}
+
+        {hasButtons && (
+          <div className={clsx('flex flex-wrap items-center gap-4 pt-2', hasItems && 'justify-center')}>
+            {primaryButton?.text && (
+              <a
+                href={primaryButton.url || '#'}
+                target={primaryButton.target}
+                style={{ backgroundColor: primaryButtonColor || undefined }}
+                className={clsx(
+                  'inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5',
+                  getButtonShapeClass('rounded-2xl'),
+                  getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
+                )}
+              >
+                <span>{primaryButton.text}</span>
+                <ArrowLeft className="w-4 h-4" />
+              </a>
+            )}
+            {secondaryButton?.text && (
+              <a
+                href={secondaryButton.url || '#'}
+                target={secondaryButton.target}
+                style={{ backgroundColor: secondaryButtonColor || undefined }}
+                className={clsx(
+                  'inline-flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold transition-all',
+                  getButtonShapeClass('rounded-2xl'),
+                  getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
+                )}
+              >
+                <span>{secondaryButton.text}</span>
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    );
 
     return (
       <section
@@ -196,81 +287,24 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
               'bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-xl'
           )}
         >
-          {wrapTextWithOptionalBg(
-            <div className="flex flex-col gap-6">
-              {(heading || subtitle) && (
-                <div
-                  className={clsx(
-                    'flex flex-col gap-2',
-                    hasItems && 'text-center items-center max-w-3xl mx-auto'
-                  )}
-                >
-                  {subtitle && (
-                    <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-600 dark:text-indigo-300 text-xs font-bold w-fit">
-                      {subtitle}
-                    </span>
-                  )}
-                  {heading && (
-                    <h2
-                      className={clsx(
-                        getHeadingScaleClass('text-3xl sm:text-4xl'),
-                        'font-extrabold tracking-tight leading-tight',
-                        textBgEnabled ? 'text-white' : 'text-slate-900 dark:text-white'
-                      )}
-                      style={{ color: headingColor }}
-                    >
-                      {heading}
-                    </h2>
-                  )}
-                </div>
-              )}
-
-              {body && body.trim() && (
-                <div
-                  className={clsx(
-                    getBodyScaleClass('text-base sm:text-lg'),
-                    'leading-relaxed space-y-4 font-normal',
-                    textBgEnabled ? 'text-slate-200' : 'text-slate-700 dark:text-slate-300',
-                    normalizedLayout === 'two-columns' && 'sm:columns-2 sm:gap-8',
-                    hasItems && 'max-w-3xl mx-auto text-center'
-                  )}
-                  style={{ color: bodyColor }}
-                  dangerouslySetInnerHTML={{ __html: body }}
-                />
-              )}
-
-              {hasButtons && (
-                <div className={clsx('flex flex-wrap items-center gap-4 pt-2', hasItems && 'justify-center')}>
-                  {primaryButton?.text && (
-                    <a
-                      href={primaryButton.url || '#'}
-                      target={primaryButton.target}
-                      style={{ backgroundColor: primaryButtonColor || undefined }}
-                      className={clsx(
-                        'inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-bold shadow-lg shadow-indigo-600/20 transition-all hover:-translate-y-0.5',
-                        getButtonShapeClass('rounded-2xl'),
-                        getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
-                      )}
-                    >
-                      <span>{primaryButton.text}</span>
-                      <ArrowLeft className="w-4 h-4" />
-                    </a>
-                  )}
-                  {secondaryButton?.text && (
-                    <a
-                      href={secondaryButton.url || '#'}
-                      target={secondaryButton.target}
-                      style={{ backgroundColor: secondaryButtonColor || undefined }}
-                      className={clsx(
-                        'inline-flex items-center gap-2 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold transition-all',
-                        getButtonShapeClass('rounded-2xl'),
-                        getButtonSizeClass('px-7 py-3.5 text-sm sm:text-base')
-                      )}
-                    >
-                      <span>{secondaryButton.text}</span>
-                    </a>
-                  )}
-                </div>
+          {isStack ? (
+            <div className="flex flex-col gap-8">
+              {pos === 'top' && currentImageBlock}
+              {wrapTextWithOptionalBg(mainContentBody)}
+              {pos === 'bottom' && currentImageBlock}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-center">
+              {pos === 'right' ? (
+                <>
+                  <div className="lg:col-span-5">{currentImageBlock}</div>
+                  <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
+                </>
+              ) : (
+                <>
+                  <div className="lg:col-span-7">{wrapTextWithOptionalBg(mainContentBody)}</div>
+                  <div className="lg:col-span-5">{currentImageBlock}</div>
+                </>
               )}
             </div>
           )}
@@ -321,7 +355,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     const textAndCards = (
       <div className="flex flex-col gap-8">
         {wrapTextWithOptionalBg(
-          <div className={clsx('flex flex-col gap-4', isStack && !hasItems && 'items-center text-center')}>
+          <div className={clsx('flex flex-col gap-4', isStack ? 'items-center text-center' : 'items-start text-right')}>
             {subtitle && (
               <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-100/90 dark:bg-rose-500/15 border border-rose-200 dark:border-rose-400/30 text-rose-800 dark:text-rose-200 text-xs font-medium w-fit">
                 <Heart className="w-3.5 h-3.5 text-rose-500 fill-rose-400/40" />
@@ -345,14 +379,15 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
                 className={clsx(
                   getBodyScaleClass('text-base sm:text-lg'),
                   'leading-[1.85] space-y-4 font-normal',
-                  textBgEnabled ? 'text-rose-100/95' : 'text-stone-600 dark:text-rose-100/80'
+                  textBgEnabled ? 'text-rose-100/95' : 'text-stone-600 dark:text-rose-100/80',
+                  isStack && 'max-w-3xl mx-auto'
                 )}
                 style={{ color: bodyColor }}
                 dangerouslySetInnerHTML={{ __html: body }}
               />
             )}
             {hasButtons && (
-              <div className="flex flex-wrap items-center gap-4 pt-3">
+              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', isStack && 'justify-center')}>
                 {primaryButton?.text && (
                   <a
                     href={primaryButton.url || '#'}
@@ -476,7 +511,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     const textAndCards = (
       <div className="flex flex-col gap-8">
         {wrapTextWithOptionalBg(
-          <div className="flex flex-col gap-5 text-right">
+          <div className={clsx('flex flex-col gap-5 text-right', isStack && 'items-center text-center')}>
             {subtitle && (
               <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-md bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-black uppercase tracking-wider w-fit">
                 <Shield className="w-3.5 h-3.5 text-amber-400" />
@@ -498,14 +533,15 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
               <div
                 className={clsx(
                   getBodyScaleClass('text-base sm:text-xl'),
-                  'text-zinc-300 leading-relaxed space-y-4 font-medium border-r-4 border-amber-500 pr-4'
+                  'text-zinc-300 leading-relaxed space-y-4 font-medium',
+                  isStack ? 'max-w-3xl mx-auto border-t-2 border-amber-500/40 pt-4' : 'border-r-4 border-amber-500 pr-4'
                 )}
                 style={{ color: bodyColor }}
                 dangerouslySetInnerHTML={{ __html: body }}
               />
             )}
             {hasButtons && (
-              <div className="flex flex-wrap items-center gap-4 pt-3">
+              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', isStack && 'justify-center')}>
                 {primaryButton?.text && (
                   <a
                     href={primaryButton.url || '#'}
@@ -775,7 +811,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     const textAndCards = (
       <div className="flex flex-col gap-8">
         {wrapTextWithOptionalBg(
-          <div className="flex flex-col gap-4 text-right">
+          <div className={clsx('flex flex-col gap-4 text-right', isStack && 'items-center text-center')}>
             {subtitle && (
               <span className="inline-flex items-center gap-2 px-3.5 py-1 rounded-none bg-indigo-600 text-white border-2 border-slate-950 dark:border-white text-xs font-mono font-bold uppercase tracking-widest w-fit shadow-[3px_3px_0px_0px_#0f172a] dark:shadow-[3px_3px_0px_0px_#ffffff]">
                 <Crosshair className="w-3.5 h-3.5" />
@@ -799,14 +835,15 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
                 className={clsx(
                   getBodyScaleClass('text-base sm:text-lg'),
                   'leading-snug space-y-4 font-medium',
-                  textBgEnabled ? 'text-slate-200' : 'text-slate-800 dark:text-slate-200'
+                  textBgEnabled ? 'text-slate-200' : 'text-slate-800 dark:text-slate-200',
+                  isStack && 'max-w-3xl mx-auto'
                 )}
                 style={{ color: bodyColor }}
                 dangerouslySetInnerHTML={{ __html: body }}
               />
             )}
             {hasButtons && (
-              <div className="flex flex-wrap items-center gap-4 pt-3">
+              <div className={clsx('flex flex-wrap items-center gap-4 pt-3', isStack && 'justify-center')}>
                 {primaryButton?.text && (
                   <a
                     href={primaryButton.url || '#'}
@@ -929,7 +966,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
   const analyticalTextAndCards = (
     <div className="flex flex-col gap-8">
       {wrapTextWithOptionalBg(
-        <div className="flex flex-col gap-4 text-right">
+        <div className={clsx('flex flex-col gap-4 text-right', isStack && 'items-center text-center')}>
           {subtitle && (
             <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-lg bg-cyan-500/10 border border-cyan-500/30 text-cyan-700 dark:text-cyan-300 text-xs font-mono font-bold w-fit">
               <span className="w-2 h-2 rounded-full bg-cyan-500 animate-ping" />
@@ -954,14 +991,15 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
               className={clsx(
                 getBodyScaleClass('text-base sm:text-lg'),
                 'leading-relaxed space-y-4 font-normal',
-                textBgEnabled ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'
+                textBgEnabled ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300',
+                isStack && 'max-w-3xl mx-auto'
               )}
               style={{ color: bodyColor }}
               dangerouslySetInnerHTML={{ __html: body }}
             />
           )}
           {hasButtons && (
-            <div className="flex flex-wrap items-center gap-3.5 pt-2">
+            <div className={clsx('flex flex-wrap items-center gap-3.5 pt-2', isStack && 'justify-center')}>
               {primaryButton?.text && (
                 <a
                   href={primaryButton.url || '#'}

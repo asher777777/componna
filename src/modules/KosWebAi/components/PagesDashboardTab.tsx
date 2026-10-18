@@ -30,6 +30,7 @@ import {
   HeartHandshake,
   Youtube,
   ShieldCheck,
+  BarChart3,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { CreatePageWizardModal, PageCreationOptions } from './CreatePageWizardModal';
@@ -48,6 +49,7 @@ interface PagesDashboardTabProps {
   onOpenShortener: (page: PageBuilderConfig) => void;
   onConvertToVideo?: (page: PageBuilderConfig) => void;
   onEnsureLegalPages?: () => Promise<void>;
+  onOpenAnalyticsHub?: () => void;
 }
 
 export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
@@ -61,6 +63,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onSetHomePage,
   onUnsetHomePage,
   onEnsureLegalPages,
+  onOpenAnalyticsHub,
   onTogglePublish,
   onOpenShortener,
   onConvertToVideo,
@@ -316,6 +319,19 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
               >
                 <ShieldCheck className="w-4 h-4 text-emerald-500" />
                 <span className="hidden sm:inline">תנאי שימוש ופרטיות</span>
+              </button>
+            )}
+
+            {onOpenAnalyticsHub && (
+              <button
+                type="button"
+                onClick={onOpenAnalyticsHub}
+                className="px-3 py-2 rounded-2xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                title="מרכז Google Analytics 4 ו-Search Console לדומיין"
+                aria-label="מרכז Google Analytics 4 ו-Search Console לדומיין"
+              >
+                <BarChart3 className="w-4 h-4 text-amber-500" />
+                <span className="hidden sm:inline">אנליטיקס וקונסול לדומיין</span>
               </button>
             )}
 
