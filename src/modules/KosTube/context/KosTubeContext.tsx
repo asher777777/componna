@@ -775,7 +775,7 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           tags: res.data.tags || [],
           h1: res.data.h1 || video.title,
           executiveSummary: res.data.executiveSummary || '',
-          keyTakeaways: (res.data.keyTakeaways || []).map((t: any) => typeof t === 'string' ? t : { title: t?.title || 'תובנה', text: t?.text || t?.description || '' }),
+          keyTakeaways: (res.data.keyTakeaways || []).map((t: any) => typeof t === 'string' ? t : { title: t?.title || 'תובנה', text: t?.text || t?.description || '', icon: t?.icon || 'Sparkles' }),
           articleContent: res.data.articleContent || '',
           faqs: (res.data.faqs as any) || [],
           callToAction: res.data.callToAction

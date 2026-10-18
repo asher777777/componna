@@ -6,6 +6,8 @@
 
 import { executeKosaiAi } from './executeKosaiAi';
 import { KosaiContractResult } from './types';
+import { KosTubeVideo } from '../../../core/contracts';
+import { calculateGeminiCost } from '../../../core/ai/geminiCostTracker';
 
 export type KosTubeAiMode = 'eco' | 'balanced' | 'deep';
 
@@ -226,7 +228,7 @@ ${customText ? `- תוכן/תמלול מצורף: "${customText.slice(0, 1000)}"
     const effectiveTenantId = tenantId || brandDna?.subdomain;
 
     let targetPrompt = '';
-    let responseMimeType: string | undefined = undefined;
+    let responseMimeType: 'application/json' | 'text/plain' | undefined = undefined;
 
     if (target === 'h1') {
       targetPrompt = `שכתב את הכותרת הראשית (H1) לסרטון "${videoTitle}". הטקסט הנוכחי: "${currentValue || ''}".
@@ -280,7 +282,7 @@ ${instructions ? `דגשים מיוחדים: ${instructions}` : ''}
 
     return executeKosaiAi('KosTube', fullPrompt, {
       model: 'gemini-3.8-flash-lite',
-      responseMimeType,
+      responseMimeType: responseMimeType as 'application/json' | 'text/plain' | undefined,
       temperature: 0.7,
       tenantId: effectiveTenantId,
       category: 'content',
@@ -306,7 +308,15 @@ ${instructions ? `דגשים מיוחדים: ${instructions}` : ''}
     if (!currentData.callToAction?.title || currentData.callToAction.title.trim().length === 0) missingFields.push('callToAction');
 
     if (missingFields.length === 0) {
-      return { success: true, data: currentData };
+      return {
+        success: true,
+        data: currentData,
+        costReport: calculateGeminiCost({
+          model: 'gemini-3.8-flash-lite',
+          promptTokens: 0,
+          candidatesTokens: 0,
+        }),
+      };
     }
 
     const prompt = `אתה מומחה תוכן ו-SEO עבור המותג "${brandName}".
