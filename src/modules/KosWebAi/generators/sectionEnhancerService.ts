@@ -289,6 +289,36 @@ export const sectionEnhancerService = {
           prompt: 'הגדר את פריסת האזור ל-floating-islands עם כרטיסים צפים ומודאל הרחבה עשיר.',
         }
       );
+    } else if (sectionType === 'kosvidioGallery') {
+      layoutSuggestions.push(
+        {
+          id: 'kosvidio-gallery-spotlight',
+          tab: 'layout',
+          title: 'פריסה א׳: וידאו גדול ותחתיו כמה קטנים (Spotlight Grid)',
+          description: 'נגן וידאו מרכזי גדול בראש האזור ומתחתיו כרטיסי וידאו קטנים המקושרים ל-KOSVIDIO.',
+          badge: 'מומלץ KOSVIDIO',
+          iconName: 'Sparkles',
+          prompt: 'הגדר את פריסת גלריית הוידאו ל-spotlight-grid עם וידאו ראשי גדול ותחתיו כרטיסי משנה.',
+        },
+        {
+          id: 'kosvidio-gallery-stacked',
+          tab: 'layout',
+          title: 'פריסה ב׳: רשימת סרטונים זה תחת זה (Stacked List)',
+          description: 'רשימה אנכית עשירה בפרטים עם תצוגה מקדימה וקישור ישיר לעמוד ה-KOSVIDIO.',
+          badge: 'רשימה אנכית',
+          iconName: 'Layers',
+          prompt: 'הגדר את פריסת גלריית הוידאו ל-stacked-list ברשימה אנכית נקייה.',
+        },
+        {
+          id: 'kosvidio-gallery-horizontal',
+          tab: 'layout',
+          title: 'פריסה ג׳: גלריה עם גלילה אופקית ללא גלישה (Horizontal Scroll)',
+          description: 'קרוסלת וידאו אופקית חלקה ותחומה ללא גלישת עמוד.',
+          badge: 'גלילה אופקית',
+          iconName: 'Compass',
+          prompt: 'הגדר את פריסת גלריית הוידאו ל-horizontal-scroll עם גלילה אופקית ללא גלישה.',
+        }
+      );
     } else {
       layoutSuggestions.push(
         {
@@ -605,6 +635,45 @@ Return ONLY the raw updated JSON object.`;
           metrics: srv.price ? [{ label: 'מחיר', value: `₪${srv.price}` }] : undefined,
         }));
         changes.push('רענון פריטי התוכן והשירותים מתוך טאב השירותים במיתוג');
+      }
+    } else if (sectionType === 'kosvidioGallery') {
+      updated.title = `ספריית הוידאו והתוכן של ${company}`;
+      updated.subtitle = slogan;
+      updated.description =
+        uvp || `צפו בסרטונים המובילים של ${company} המקושרים ישירות לעמודי ה-KOSVIDIO של העסק.`;
+      updated.channelName = company;
+      updated.channelSlogan = slogan;
+      if (prompt.includes('spotlight-grid') || prompt.includes('גדול')) {
+        updated.layout = 'spotlight-grid';
+        changes.push('מעבר לפריסה א׳: וידאו גדול ותחתיו כמה קטנים');
+      } else if (prompt.includes('stacked-list') || prompt.includes('רשימה')) {
+        updated.layout = 'stacked-list';
+        changes.push('מעבר לפריסת רשימה זה תחת זה');
+      } else if (prompt.includes('horizontal-scroll') || prompt.includes('אופקית')) {
+        updated.layout = 'horizontal-scroll';
+        changes.push('מעבר לפריסת גלריה עם גלילה אופקית ללא גלישה');
+      }
+      const services = dna?.ecosystem?.services || [];
+      const sampleYtIds = ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ', 'jNQXAC9IVRw'];
+      if (services.length > 0) {
+        updated.items = services.map((srv: any, idx: number) => {
+          const srvName = typeof srv === 'string' ? srv : srv?.name || `שירות ${idx + 1}`;
+          return {
+            id: `kosvidio-srv-${idx + 1}`,
+            title: srvName,
+            subtitle: `${company} • ${slogan}`,
+            description: `סרטון הדרכה וסקירה מקצועית עבור ${srvName} מבית ${company}. מקושר לסלאג KOSVIDIO.`,
+            youtubeVideoId: sampleYtIds[idx % sampleYtIds.length],
+            kosvidioSlug: 'Kosvidio',
+            duration: '03:45',
+            viewsCount: 1300 + idx * 250,
+            likesCount: 110 + idx * 20,
+            category: 'שירותים מרכזיים',
+            tags: [srvName, company, 'KOSVIDIO'],
+            featured: idx === 0,
+          };
+        });
+        changes.push('סנכרון סרטוני הגלריה מתוך שירותי המותג ב-DNA וקישור לסלאג KOSVIDIO');
       }
     } else {
       updated.title = `${updated.title || 'שדרוג אזור'} – ${company}`;

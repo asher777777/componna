@@ -73,6 +73,10 @@ export interface Contact {
   
   // Subscriptions
   subscriptions?: UserSubscription[];
+  content_subscriptions?: import('../../../core/contracts').ContactContentSubscription[];
+  kosun_crm_content_subscriptions?: import('../../../core/contracts').ContactContentSubscription[];
+  quiz_results?: import('../../../core/contracts').ContactQuizSubmission[];
+  kosun_crm_quiz_results?: import('../../../core/contracts').ContactQuizSubmission[];
 
   // Canonical KOSUN CRM Schema (kosun_crm_*)
   kosun_crm_name?: string;

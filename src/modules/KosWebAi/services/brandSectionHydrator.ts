@@ -249,6 +249,43 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'kosvidioGallery': {
+      cloned.source = cloned.source || 'tenant_kosvidio';
+      cloned.layout = cloned.layout || 'spotlight-grid';
+      cloned.title = `ספריית הוידאו והתוכן של ${companyName}`;
+      cloned.subtitle = slogan;
+      cloned.description =
+        uvp ||
+        `צפו בסרטונים, בהדרכות ובפתרונות של ${companyName} המקושרים ישירות לעמודי ה-KOSVIDIO של המותג.`;
+      cloned.channelName = companyName;
+      cloned.channelSlogan = slogan;
+      cloned.channelAvatarUrl = logoUrl;
+      if (primaryColor && !cloned.accentColor) {
+        cloned.accentColor = primaryColor;
+      }
+      const sampleYtIds = ['M7lc1UVf-VE', 'dQw4w9WgXcQ', 'aqz-KE-bpKQ', 'jNQXAC9IVRw'];
+      if (services.length > 0) {
+        cloned.items = services.map((srv: any, idx: number) => {
+          const srvName = typeof srv === 'string' ? srv : srv?.name || `שירות מוביל ${idx + 1}`;
+          return {
+            id: `kosvidio-item-${idx + 1}`,
+            title: srvName,
+            subtitle: `${companyName} • ${slogan}`,
+            description: `סרטון הדרכה וסקירה מקצועית עבור ${srvName} מבית ${companyName}. מקושר לסלאג KOSVIDIO.`,
+            youtubeVideoId: sampleYtIds[idx % sampleYtIds.length],
+            kosvidioSlug: 'Kosvidio',
+            duration: `0${3 + (idx % 3)}:${15 + idx * 10}`,
+            viewsCount: 1250 + idx * 320,
+            likesCount: 95 + idx * 24,
+            category: 'שירותים מרכזיים',
+            tags: [srvName, companyName, 'KOSVIDIO'],
+            featured: idx === 0,
+          };
+        });
+      }
+      break;
+    }
+
     case 'features': {
       cloned.title = `למה לבחור ב-${companyName}?`;
       cloned.subtitle = uvp || slogan;

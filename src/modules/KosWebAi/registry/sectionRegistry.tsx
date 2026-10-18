@@ -26,6 +26,7 @@ import { SmartFormSection } from '../sections/smartForm/SmartFormSection';
 import { FlowPlayerSection } from '../sections/flowPlayer/FlowPlayerSection';
 import { HeaderSection } from '../sections/header/HeaderSection';
 import { KosvidioSection } from '../sections/kosvidio/KosvidioSection';
+import { KosvidioGallerySection } from '../sections/kosvidioGallery/KosvidioGallerySection';
 import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
 import { FutureContentSection } from '../sections/futureContent/FutureContentSection';
@@ -33,6 +34,7 @@ import { FutureContentSection } from '../sections/futureContent/FutureContentSec
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
 import { KosvidioEditor } from '../sections/kosvidio/KosvidioEditor';
+import { KosvidioGalleryEditor } from '../sections/kosvidioGallery/KosvidioGalleryEditor';
 import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
 import { FutureContentEditor } from '../sections/futureContent/FutureContentEditor';
@@ -1097,5 +1099,106 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       },
     },
   },
+
+  kosvidioGallery: {
+    type: 'kosvidioGallery',
+    name: 'גלריית סרטוני וידאו (KOSVIDIO)',
+    category: 'media',
+    description:
+      'גלריית סרטונים חכמה המקושרת לסלאג KOSVIDIO ב-3 פריסות (וידאו גדול ותחתיו קטנים, רשימה אנכית, גלילה אופקית ללא גלישה) עם תנאים לוגיים וסינכרון מהמיתוג',
+    icon: Video,
+    viewComponent: KosvidioGallerySection as any,
+    editorComponent: KosvidioGalleryEditor as any,
+    defaultConfig: {
+      type: 'kosvidioGallery',
+      visible: true,
+      anchorId: 'kosvidio-gallery',
+      badge: 'KOSVIDIO • גלריית וידאו חכמה',
+      title: 'ספריית הוידאו והתוכן המובילה',
+      subtitle: 'כל אדם זה נכס',
+      description:
+        'צפו בסרטונים, בהדרכות ובפתרונות המובילים המקושרים ישירות לעמודי ה-KOSVIDIO של העסק.',
+      layout: 'spotlight-grid',
+      allowVisitorLayoutSwitch: true,
+      source: 'tenant_kosvidio',
+      maxVideos: 4,
+      logicRules: {
+        sortBy: 'newest',
+        filterTag: '',
+        filterKeyword: '',
+        minViews: 0,
+        onlyPublished: false,
+        maxVideos: 4,
+      },
+      clickBehavior: 'inline_and_link',
+      backgroundColor: '#090d16',
+      titleColor: '#ffffff',
+      descriptionColor: '#94a3b8',
+      accentColor: '#ef4444',
+      cardBgColor: '#111827',
+      ctaButtonText: 'לכל סרטוני הערוץ (KOSVIDIO)',
+      ctaButtonUrl: '/p/Kosvidio',
+      items: [
+        {
+          id: 'kosvidio-default-1',
+          title: 'פיתוח מערכות SaaS מבוססות בינה מלאכותית',
+          subtitle: 'קושאן • כל אדם זה נכס',
+          description:
+            'סקירה מעמיקה על בניית מערכות חכמות ואוטונומיות המזניקות את ביצועי העסק קדימה.',
+          youtubeVideoId: 'M7lc1UVf-VE',
+          kosvidioSlug: 'Kosvidio',
+          duration: '04:15',
+          viewsCount: 1850,
+          likesCount: 164,
+          category: 'שירותים מרכזיים',
+          tags: ['SaaS', 'AI', 'KOSVIDIO'],
+          featured: true,
+        },
+        {
+          id: 'kosvidio-default-2',
+          title: 'אוטומציה עסקית וחיבור מערכות CRM ו-WhatsApp',
+          subtitle: 'קושאן • כל אדם זה נכס',
+          description:
+            'כיצד לחבר את כל תהליכי השיווק, המכירות והשירות למכונה אוטומטית שעובדת 24/7.',
+          youtubeVideoId: 'aqz-KE-bpKQ',
+          kosvidioSlug: 'Kosvidio',
+          duration: '03:45',
+          viewsCount: 1420,
+          likesCount: 128,
+          category: 'שירותים מרכזיים',
+          tags: ['אוטומציה', 'CRM', 'KOSVIDIO'],
+        },
+        {
+          id: 'kosvidio-default-3',
+          title: 'בניית אתרים חכמים ודפי נחיתה ממירים ב-AI',
+          subtitle: 'קושאן • כל אדם זה נכס',
+          description:
+            'הדור החדש של אתרי התוכן והמכירה המשלבים וידאו אינטראקטיבי וקידום אורגני ב-AI.',
+          youtubeVideoId: 'dQw4w9WgXcQ',
+          kosvidioSlug: 'Kosvidio',
+          duration: '05:10',
+          viewsCount: 1190,
+          likesCount: 105,
+          category: 'שירותים מרכזיים',
+          tags: ['אתרים', 'SEO', 'KOSVIDIO'],
+        },
+        {
+          id: 'kosvidio-default-4',
+          title: 'ייעוץ אסטרטגי וליווי טכנולוגי לצמיחה',
+          subtitle: 'קושאן • כל אדם זה נכס',
+          description:
+            'אפיון מדויק, בניית מפת דרכים וליווי אישי להשגת יעדי הצמיחה של הארגון.',
+          youtubeVideoId: 'jNQXAC9IVRw',
+          kosvidioSlug: 'Kosvidio',
+          duration: '03:20',
+          viewsCount: 940,
+          likesCount: 88,
+          category: 'שירותים מרכזיים',
+          tags: ['אסטרטגיה', 'צמיחה', 'KOSVIDIO'],
+        },
+      ],
+    },
+  },
 };
+
 

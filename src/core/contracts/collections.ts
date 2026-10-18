@@ -11,6 +11,9 @@ export const SYSTEM_COLLECTIONS = {
   GROUPS: 'crm_groups',
   INTERACTIONS: 'crm_interactions',
   CHAT_MESSAGES: 'crm_chat_messages',
+  CRM_SUBSCRIPTION_PACKAGES: 'crm_subscription_packages',
+  CRM_SUBSCRIPTION_COUPONS: 'crm_subscription_coupons',
+  CRM_SUBSCRIPTION_QUIZZES: 'crm_subscription_quizzes',
   
   // 2. Marketing & Landing Pages (KosWebAi Monopoly)
   PAGES: 'kos_web_ai_documents',
@@ -180,8 +183,10 @@ export const KOSUN_CRM_FIELD_KEYS = {
   AI_NEXT_ACTION: 'kosun_crm_ai_next_action',
   AI_INTERACTIONS: 'kosun_crm_ai_interactions',
 
-  // 11. מנויים וסליקת SaaS
+  // 11. מנויים וסליקת SaaS ותוכן (KosSubscribed)
   SUBSCRIPTIONS: 'kosun_crm_subscriptions',
+  CONTENT_SUBSCRIPTIONS: 'kosun_crm_content_subscriptions',
+  QUIZ_RESULTS: 'kosun_crm_quiz_results',
   BILLING_CUSTOMER_ID: 'kosun_crm_billing_customer_id',
 
   // 12. זמני מערכת

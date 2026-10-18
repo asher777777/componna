@@ -4,10 +4,12 @@
  */
 
 export interface MediaPickerOptions {
-  accept?: 'image/*' | 'video/*' | 'audio/*' | '*/*';
+  accept?: 'image/*' | 'video/*' | 'audio/*' | 'image/jpeg' | '*/*';
   multiple?: boolean;
   maxFiles?: number;
   initialTab?: 'gallery' | 'icons';
+  allowedMimeTypes?: string[];
+  maxSizeBytes?: number;
 }
 
 export interface MediaPickerContract {
@@ -743,6 +745,18 @@ export interface CoreEventMap {
     chart: any;
     tenantId?: string;
   };
+  'crm:subscription:updated': {
+    contactId: string;
+    subscriptionId: string;
+    packageId: string;
+    status: string;
+    tenantId?: string;
+  };
+  'crm:subscription:package_saved': {
+    packageId: string;
+    name: string;
+    tenantId?: string;
+  };
 }
 
 // ========================
@@ -831,15 +845,47 @@ export interface BrandTrustAndCheckout {
   whatsappSupportNumber?: string;
 }
 
+export interface FlagshipRepeaterItem {
+  id: string;
+  title?: string;
+  text: string;
+  icon?: string;
+}
+
+export interface FlagshipFaqItem {
+  id: string;
+  question: string;
+  answer: string;
+  icon?: string;
+}
+
+export interface FlagshipSeoData {
+  slug?: string;
+  metaTitle?: string;
+  metaDescription?: string;
+  keywords?: string[];
+  ogImage?: string;
+  aiKnowledgeSummary?: string;
+  aiTargetQuestions?: string[];
+  aiEntitySchemaType?: 'Organization' | 'ProfessionalService' | 'Product' | 'FAQPage' | 'Article';
+  aiBotIndexingEnabled?: boolean;
+}
+
 export interface FlagshipProduct {
   id: string;
   nameAndSlogan: string;
   shortDescription: string;
   longDescription: string;
   imageUrl: string;
+  galleryImages?: string[];
   painPointSolved: string;
   targetAudience: string;
   competitiveAdvantage: string;
+  painPoints?: FlagshipRepeaterItem[];
+  targetAudiences?: FlagshipRepeaterItem[];
+  competitiveAdvantages?: FlagshipRepeaterItem[];
+  faqs?: FlagshipFaqItem[];
+  seo?: FlagshipSeoData;
   linkedPageId?: string;
   linkedPageSlug?: string;
 }
@@ -946,9 +992,17 @@ export interface CreatePageFromProductOptions {
     shortDescription?: string;
     longDescription?: string;
     imageUrl?: string;
+    galleryImages?: string[];
     painPointSolved?: string;
     competitiveAdvantage?: string;
     targetAudience?: string;
+    painPoints?: FlagshipRepeaterItem[];
+    targetAudiences?: FlagshipRepeaterItem[];
+    competitiveAdvantages?: FlagshipRepeaterItem[];
+    faqs?: FlagshipFaqItem[];
+    seo?: FlagshipSeoData;
+    linkedPageId?: string;
+    linkedPageSlug?: string;
   };
   brandDna?: BrandDna | null;
   onStep?: (step: { statusText: string; percent?: number }) => void;
@@ -1304,7 +1358,228 @@ export interface KosTikTokContract {
   syncLeads: () => Promise<{ success: boolean; count: number; error?: string }>;
 }
 
+// ==========================================
+// KosSubscribed - Content Subscriptions, Packages, Discounts & Quizzes (CRM Monopoly Contract)
+// ==========================================
+
+export type SubscriptionBillingCycle = 'monthly' | 'annual' | 'one_time';
+export type ContentSubscriptionStatus = 'active' | 'trial' | 'paused' | 'past_due' | 'canceled';
+
+export interface SubscriptionContentItem {
+  id: string;
+  title: string;
+  type: 'video' | 'article' | 'course' | 'download' | 'quiz';
+  description?: string;
+  contentUrl?: string;
+  previewText?: string;
+  lockedBodyText?: string;
+  requiredMinQuizScore?: number;
+}
+
+export interface SubscriptionPackageItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  discountPercent?: number;
+  billingCycle: SubscriptionBillingCycle;
+  trialDays?: number;
+  features: string[];
+  contentItems: SubscriptionContentItem[];
+  linkedPaymentPageId?: string;
+  linkedPaymentPageSlug?: string;
+  linkedPaymentPageUrl?: string;
+  linkedQuizFormId?: string;
+  linkedQuizFormTitle?: string;
+  passingScorePercent?: number;
+  badgeText?: string;
+  isPopular?: boolean;
+  isActive: boolean;
+  subscribersCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SubscriptionDiscountCoupon {
+  id: string;
+  code: string;
+  description: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  applicablePackageIds: string[]; // empty = all packages
+  maxUses?: number;
+  usedCount: number;
+  validUntil?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface SubscriptionQuizQuestion {
+  id: string;
+  questionText: string;
+  options: string[];
+  correctOptionIndex: number;
+  points: number;
+}
+
+export interface SubscriptionQuizItem {
+  id: string;
+  title: string;
+  description: string;
+  packageId?: string;
+  packageName?: string;
+  passingScore: number;
+  ksfFormId?: string;
+  questions: SubscriptionQuizQuestion[];
+  submissionsCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContactQuizSubmission {
+  id: string;
+  quizId: string;
+  quizTitle: string;
+  packageId?: string;
+  score: number;
+  passingScore: number;
+  passed: boolean;
+  submittedAt: string;
+  answers?: Record<string, string | number>;
+}
+
+export interface ContactContentSubscription {
+  id: string;
+  contactId: string;
+  contactName: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  packageId: string;
+  packageName: string;
+  billingCycle: SubscriptionBillingCycle;
+  basePrice: number;
+  discountCode?: string;
+  discountAmount?: number;
+  finalAmount: number;
+  status: ContentSubscriptionStatus;
+  startDate: string;
+  nextBillingDate?: string;
+  endDate?: string;
+  paymentMethod?: string;
+  lastTransactionId?: string;
+  receiptUrl?: string;
+  paymentPageUrl?: string;
+  quizFormId?: string;
+  quizPassed?: boolean;
+  quizScore?: number;
+  notes?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrmSubscriberContactRecord {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  company?: string;
+  city?: string;
+  tags: string[];
+  totalSpent: number;
+  contentSubscriptions: ContactContentSubscription[];
+  quizResults: ContactQuizSubmission[];
+  lastPaymentDate?: string;
+  rawContact?: Record<string, any>;
+}
+
+export interface SubscriptionAnalyticsSummary {
+  totalSubscribers: number;
+  activeSubscribers: number;
+  trialSubscribers: number;
+  pastDueSubscribers: number;
+  canceledSubscribers: number;
+  mrr: number; // Monthly Recurring Revenue
+  arr: number; // Annual Recurring Revenue
+  totalCollectedRevenue: number;
+  averageRevenuePerUser: number;
+  quizPassRate: number;
+  revenueByPackage: Array<{
+    packageId: string;
+    packageName: string;
+    subscribersCount: number;
+    monthlyRevenue: number;
+  }>;
+}
+
+export interface CrmSubscriptionsContract {
+  // Contacts & Subscriptions (CRM Monopoly)
+  getSubscriberContacts: () => Promise<CrmSubscriberContactRecord[]>;
+  getContactSubscriptions: (contactId: string) => Promise<{
+    subscriptions: ContactContentSubscription[];
+    quizResults: ContactQuizSubmission[];
+  }>;
+  assignPackageToContact: (params: {
+    contactId: string;
+    packageId: string;
+    discountCode?: string;
+    customDiscountAmount?: number;
+    status?: ContentSubscriptionStatus;
+    paymentMethod?: string;
+    transactionId?: string;
+    receiptUrl?: string;
+    notes?: string;
+  }) => Promise<ContactContentSubscription | null>;
+  updateContactSubscriptionStatus: (
+    contactId: string,
+    subscriptionId: string,
+    updates: Partial<ContactContentSubscription>
+  ) => Promise<boolean>;
+  removeContactSubscription: (contactId: string, subscriptionId: string) => Promise<boolean>;
+  recordContactSubscriptionPayment: (params: {
+    contactId: string;
+    subscriptionId: string;
+    amount: number;
+    paymentMethod: string;
+    transactionId?: string;
+    receiptUrl?: string;
+  }) => Promise<boolean>;
+  recordContactQuizSubmission: (
+    contactId: string,
+    submission: Omit<ContactQuizSubmission, 'id' | 'submittedAt'>
+  ) => Promise<ContactQuizSubmission | null>;
+  checkContactContentAccess: (
+    contactId: string,
+    packageId: string,
+    requiredMinQuizScore?: number
+  ) => Promise<{ hasAccess: boolean; reason?: string; subscription?: ContactContentSubscription }>;
+
+  // Packages (Tenant-Scoped under CRM Monopoly)
+  getPackages: () => Promise<SubscriptionPackageItem[]>;
+  savePackage: (pkg: Partial<SubscriptionPackageItem> & { name: string; price: number }) => Promise<SubscriptionPackageItem>;
+  deletePackage: (packageId: string) => Promise<boolean>;
+
+  // Discounts & Coupons (Tenant-Scoped under CRM Monopoly)
+  getCoupons: () => Promise<SubscriptionDiscountCoupon[]>;
+  saveCoupon: (coupon: Partial<SubscriptionDiscountCoupon> & { code: string; discountValue: number }) => Promise<SubscriptionDiscountCoupon>;
+  deleteCoupon: (couponId: string) => Promise<boolean>;
+  validateCoupon: (code: string, packageId?: string) => Promise<{
+    valid: boolean;
+    coupon?: SubscriptionDiscountCoupon;
+    error?: string;
+  }>;
+
+  // Quizzes / Tests (Tenant-Scoped under CRM Monopoly + KSF Integration)
+  getQuizzes: () => Promise<SubscriptionQuizItem[]>;
+  saveQuiz: (quiz: Partial<SubscriptionQuizItem> & { title: string }) => Promise<SubscriptionQuizItem>;
+  deleteQuiz: (quizId: string) => Promise<boolean>;
+
+  // Analytics Summary
+  getAnalyticsSummary: () => Promise<SubscriptionAnalyticsSummary>;
+}
+
 export * from './collections';
+
 
 
 
