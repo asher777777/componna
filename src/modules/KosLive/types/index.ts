@@ -1,6 +1,8 @@
 import { 
   LivingDisplayMode, 
   LivingOverlayAction, 
+  LivingCarouselCardItem,
+  LivingFormFieldConfig,
   LivingOverlayItem, 
   LivingSceneContract, 
   LivingCampaignContract,
@@ -10,6 +12,8 @@ import {
 export type {
   LivingDisplayMode, 
   LivingOverlayAction, 
+  LivingCarouselCardItem,
+  LivingFormFieldConfig,
   LivingOverlayItem, 
   LivingSceneContract, 
   LivingCampaignContract,
@@ -26,6 +30,67 @@ export type SceneRoleType =
   | 'lead_closing' 
   | 'custom';
 
+export type SubtitleStyle = 'glow' | 'outline' | 'boxed' | 'minimal' | 'tiktok' | 'karaoke';
+export type SubtitleStylePreset = SubtitleStyle;
+export type SubtitleAnimation = 'word' | 'pop' | 'fade' | 'line';
+export type SubtitleAnimationType = SubtitleAnimation;
+export type TransitionEffectType = 'cut' | 'fade' | 'zoom' | 'slide' | 'whip_pan' | 'glitch';
+export type MicPosition = 'center' | 'bottom' | 'screen_center_trigger' | 'hidden';
+export type MicActionType = 'open_text_input' | 'navigate_to_node';
+export type OutputDeliverablePreference = 'script_prompts' | 'script_tts' | 'script_images' | 'full_production';
+
+export interface ProjectOverview {
+  concept: string;
+  characterBible: string;
+  visualGuide: string;
+  narrativeArc: string;
+  toneAndStyle: string;
+  targetKpi: string;
+  bananaConsistencySeed?: string;
+}
+
+export interface ChatMessageContext {
+  role: 'user' | 'model';
+  content: string;
+  timestamp: string;
+}
+
+export interface ClarificationQuestionItem {
+  id: string;
+  question: string;
+  hint?: string;
+  suggestedAnswer?: string;
+}
+
+export interface ClarificationResult {
+  questions: ClarificationQuestionItem[];
+  analysisSummary?: string;
+  conversationId: string;
+}
+
+export interface HeyGenAvatar {
+  avatar_id: string;
+  avatar_name: string;
+  gender: 'male' | 'female' | 'neutral';
+  preview_image_url: string;
+  preview_video_url?: string;
+}
+
+export interface HeyGenVoice {
+  voice_id: string;
+  name: string;
+  language: string;
+  gender: string;
+  preview_audio?: string;
+}
+
+export interface HeyGenGenerateJobResult {
+  video_id: string;
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  video_url?: string;
+  error?: string;
+}
+
 export interface LivingScene extends LivingSceneContract {
   visualPrompt?: string;
   characterDescription?: string;
@@ -35,16 +100,21 @@ export interface LivingScene extends LivingSceneContract {
   videoProvider?: 'heygen' | 'veo' | 'custom';
   isPhotoAvatar?: boolean;
   customAvatarImageUrl?: string;
+  transition?: 'cut' | 'fade' | 'slide' | 'zoom';
   
-  // Google Cloud TTS Settings
+  // Google Cloud TTS & Gemini Speech Settings
   googleTtsVoiceName?: string;
   googleTtsLanguageCode?: string;
   googleTtsSsmlRate?: string;
   googleTtsSsmlPitch?: string;
+  googleTtsEmphasis?: 'none' | 'strong' | 'moderate' | 'reduced';
   
   // Subtitles & Captions
   subtitleText?: string;
-  subtitleStyle?: 'glow' | 'outline' | 'boxed' | 'minimal' | 'tiktok';
+  subtitleStyle?: SubtitleStyle;
+  subtitleAnimation?: SubtitleAnimation;
+  subtitleFontSize?: number;
+  subtitlePosition?: 'top' | 'center' | 'bottom';
   
   // Role & Conversion
   sceneRole?: SceneRoleType;
@@ -60,6 +130,17 @@ export interface LivingProject {
   aspectRatio: AspectRatioType;
   targetAudience?: string;
   marketingHook?: string;
+  productionType?: string;
+  visualStyle?: string;
+  ttsLanguage?: string;
+  outputPreference?: OutputDeliverablePreference;
+  cardCountPerScene?: number;
+  includeLeadForm?: boolean;
+  smartFormId?: string;
+  formsApiEndpoint?: string;
+  projectOverview?: ProjectOverview;
+  conversationId?: string;
+  conversationHistory?: ChatMessageContext[];
   scenes: LivingScene[];
   sourcePageId?: string;
   sourcePageTitle?: string;
@@ -78,16 +159,22 @@ export interface LivingProject {
 export interface ExtractedPageSummary {
   pageId: string;
   pageTitle: string;
+  heroTitle?: string;
   slug: string;
   companyName?: string;
   slogan?: string;
+  logoUrl?: string;
+  primaryColor?: string;
   heroHeadline?: string;
   heroSubheadline?: string;
   heroCtaText?: string;
-  services: Array<{ title: string; description?: string; badge?: string }>;
+  heroImageUrl?: string;
+  heroVideoUrl?: string;
+  services: Array<{ title: string; description?: string; badge?: string; imageUrl?: string; icon?: string; price?: string }>;
+  products: Array<{ title: string; description?: string; price?: string; imageUrl?: string; badge?: string }>;
   faqItems: Array<{ question: string; answer: string; category?: string }>;
-  testimonials: Array<{ name: string; content: string; rating?: number }>;
-  pricingPackages: Array<{ name: string; price: string; features: string[] }>;
+  testimonials: Array<{ name: string; content: string; rating?: number; role?: string; avatarUrl?: string }>;
+  pricingPackages: Array<{ name: string; price: string; features: string[]; badge?: string }>;
   stats: Array<{ number: string; label: string; description?: string }>;
   contact: {
     phone?: string;
@@ -95,7 +182,10 @@ export interface ExtractedPageSummary {
     whatsapp?: string;
     address?: string;
   };
-  formFields: Array<{ label: string; type: string }>;
+  formFields: Array<{ key: string; label: string; type: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'number'; placeholder?: string; required?: boolean }>;
+  smartFormId?: string;
+  formTitle?: string;
+  formSubtitle?: string;
   sectionsSummaryText: string;
 }
 
@@ -104,6 +194,10 @@ export interface TelemetryEvent {
   campaignId: string;
   sessionId: string;
   nodeId?: string;
+  from?: string;
+  to?: string;
+  transcript?: string;
+  latencyMs?: number;
   type: 'session_start' | 'node_view' | 'node_transition' | 'overlay_click' | 'form_submit' | 'voice_start' | 'voice_intent' | 'voice_end' | 'error';
   timestamp: number;
   details?: Record<string, any>;

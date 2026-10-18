@@ -1889,11 +1889,35 @@ export interface LivingOverlayAction {
   id: string;
   label: string;
   targetSceneId: string;
-  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'gold';
+  variant?: 'primary' | 'secondary' | 'outline' | 'danger' | 'gold' | 'glass' | 'whatsapp';
   icon?: string;
-  actionType?: 'navigate' | 'open_whatsapp' | 'open_lead_form' | 'open_url' | 'trigger_payment';
+  actionType?: 'navigate' | 'transition' | 'open_whatsapp' | 'open_lead_form' | 'submit_form' | 'open_url' | 'trigger_payment';
   externalUrl?: string;
   paymentAmount?: number;
+}
+
+export interface LivingCarouselCardItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  description?: string;
+  targetSceneId?: string;
+  icon?: string;
+  imageUrl?: string;
+  badge?: string;
+  price?: string;
+  ctaText?: string;
+  actionLabel?: string;
+  externalUrl?: string;
+}
+
+export interface LivingFormFieldConfig {
+  key: string;
+  label: string;
+  placeholder?: string;
+  type: 'text' | 'email' | 'tel' | 'textarea' | 'select' | 'number';
+  required?: boolean;
+  options?: string | string[]; // comma-separated or array of options for select
 }
 
 export interface LivingOverlayItem {
@@ -1905,7 +1929,11 @@ export interface LivingOverlayItem {
   imageUrl?: string;
   price?: string;
   actions?: LivingOverlayAction[];
-  formFields?: { key: string; label: string; placeholder?: string; type: 'text' | 'email' | 'tel' }[];
+  cards?: LivingCarouselCardItem[];
+  formFields?: LivingFormFieldConfig[];
+  smartFormId?: string;
+  webhookUrl?: string;
+  submitButtonText?: string;
   style?: Record<string, string>;
   delayMs?: number;
   durationMs?: number;
@@ -1915,21 +1943,59 @@ export interface LivingSceneContract {
   id: string;
   sceneNumber: number;
   title: string;
+  description?: string;
   dialogueScript: string;
+  scriptText?: string;
   visualPrompt?: string;
+  visualDescription?: string;
+  characterDescription?: string;
+  backgroundPrompt?: string;
+  onScreenText?: string;
+  cameraAngle?: string;
   avatarId?: string;
   voiceId?: string;
   backgroundMediaUrl?: string;
+  fallbackImageUrl?: string;
+  generatedImageUrl?: string;
   backgroundType?: 'image' | 'video' | 'color';
   renderedVideoUrl?: string;
+  videoUrl?: string;
   renderedAudioUrl?: string;
   durationSeconds?: number;
+  transitionEffect?: 'cut' | 'fade' | 'zoom' | 'slide' | 'whip_pan' | 'glitch';
+  heygenStatus?: 'pending' | 'processing' | 'completed' | 'failed' | string;
+  veoStatus?: 'pending' | 'processing' | 'completed' | 'failed' | string;
+  ttsLanguageCode?: string;
+  ttsSpeakingRate?: number;
+  ttsPitch?: number;
+  ttsVolumeGainDb?: number;
+  ttsEmphasis?: 'none' | 'strong' | 'moderate' | 'reduced';
   overlays?: LivingOverlayItem[];
   allowedIntents?: Record<string, string>; // intentName -> targetSceneId
+  autoPlay?: boolean;
+  loopUntilTrigger?: boolean;
+  soundEnabled?: boolean;
+  micPosition?: 'center' | 'bottom' | 'screen_center_trigger' | 'hidden';
+  micIcon?: string;
+  micPromptText?: string;
+  micActionType?: 'open_text_input' | 'navigate_to_node';
+  micTargetAction?: 'open_text_input' | 'navigate_to_node';
+  clickMicTargetSceneId?: string;
+  micTargetSceneId?: string;
   autoTransitionOnEnd?: boolean;
   autoTransitionDelaySec?: number;
+  autoTransitionAfterSeconds?: number;
   autoTransitionTarget?: string;
+  nextSceneId?: string;
   enableVoiceTrigger?: boolean;
+  subtitleEnabled?: boolean;
+  subtitleText?: string;
+  subtitleStyle?: 'glow' | 'outline' | 'boxed' | 'minimal' | 'tiktok' | 'karaoke';
+  subtitleAnimation?: 'word' | 'pop' | 'fade' | 'line';
+  subtitleFontSize?: number;
+  subtitlePosition?: 'top' | 'center' | 'bottom';
+  subtitleTextColor?: string;
+  subtitleHighlightColor?: string;
 }
 
 export interface LivingCampaignContract {
@@ -1951,6 +2017,8 @@ export interface LivingCampaignContract {
     autoPlay?: boolean;
     language?: string;
     displayMode?: LivingDisplayMode;
+    formsApiEndpoint?: string;
+    smartFormId?: string;
   };
   createdAt: number;
   updatedAt: number;

@@ -6,6 +6,8 @@ import { OneClickPageConverterModal } from '../components/OneClickPageConverterM
 import { LivingTimelineEditor } from '../components/LivingTimelineEditor';
 import { LivingPlayerContainer } from '../components/LivingPlayerContainer';
 import { EmbedPublishModal } from '../components/EmbedPublishModal';
+import { TeleprompterModal } from '../components/TeleprompterModal';
+import { HeyGenAvatarModal } from '../components/HeyGenAvatarModal';
 import { LivingCampaignContract, LivingSceneContract } from '../types';
 import { DEFAULT_LIVING_CAMPAIGN } from '../config';
 
@@ -47,7 +49,6 @@ export const KosLiveStudioView: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans select-none" dir="rtl">
-      
       {/* Top Header */}
       <KosLiveHeader />
 
@@ -61,7 +62,7 @@ export const KosLiveStudioView: React.FC = () => {
             <div className="mb-4 text-center">
               <h2 className="text-lg font-black text-white">סימולטור בדיקה חיה של העמוד החי</h2>
               <p className="text-xs text-slate-400">
-                התנסו בנגיעה בכפתורי ההסתעפות, מילוי טופס הלידים או שיחה קולית עם הפרזנטור
+                התנסו בקרוסלת הכרטיסים, מילוי טופס הלידים החכם, כפתורי ההסתעפות או שיחה קולית עם הפרזנטור
               </p>
             </div>
             <LivingPlayerContainer
@@ -74,6 +75,9 @@ export const KosLiveStudioView: React.FC = () => {
         {tab === 'embed' && <EmbedPublishModal />}
       </main>
 
+      {/* Studio Modals */}
+      <TeleprompterModal />
+      <HeyGenAvatarModal />
     </div>
   );
 };

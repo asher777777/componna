@@ -1,10 +1,18 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { LivingCampaignContract, LivingSceneContract, LivingOverlayItem } from '../types';
+import { LivingCampaignContract, LivingSceneContract } from '../types';
 import { DEFAULT_LIVING_CAMPAIGN } from '../config';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
 import { LivingStorageService } from '../services/livingStorageService';
 import { LeadDispatchService } from '../services/leadDispatchService';
+
+export interface LivingTelemetryEvent {
+  id: string;
+  timestamp: string;
+  type: 'scene_enter' | 'card_click' | 'voice_intent' | 'form_submit' | 'quick_reply';
+  sceneId: string;
+  detail: string;
+}
 
 interface LivingPlayerContextValue {
   campaign: LivingCampaignContract;
@@ -16,13 +24,18 @@ interface LivingPlayerContextValue {
   isProcessingIntent: boolean;
   sessionId: string;
   history: string[];
+  telemetryEvents: LivingTelemetryEvent[];
   togglePlay: () => void;
   toggleMute: () => void;
   setIsVoiceActive: (active: boolean) => void;
   setIsProcessingIntent: (processing: boolean) => void;
   transitionTo: (targetSceneId: string, trigger?: string) => void;
   resetSession: () => void;
-  submitLead: (formData: Record<string, string>) => Promise<void>;
+  submitLead: (
+    formData: Record<string, string>,
+    options?: { smartFormId?: string; webhookUrl?: string }
+  ) => Promise<void>;
+  logTelemetry: (type: LivingTelemetryEvent['type'], detail: string) => void;
 }
 
 const LivingPlayerContext = createContext<LivingPlayerContextValue | null>(null);
@@ -44,7 +57,34 @@ export const LivingPlayerProvider: React.FC<{
   const [isVoiceActive, setIsVoiceActive] = useState<boolean>(false);
   const [isProcessingIntent, setIsProcessingIntent] = useState<boolean>(false);
   const [history, setHistory] = useState<string[]>([currentSceneId]);
+  const [telemetryEvents, setTelemetryEvents] = useState<LivingTelemetryEvent[]>([]);
   const [sessionId] = useState<string>(() => `live_sess_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`);
+
+  const logTelemetry = useCallback((type: LivingTelemetryEvent['type'], detail: string) => {
+    setTelemetryEvents(prev => [
+      {
+        id: `ev_${Date.now()}_${Math.random().toString(36).slice(2, 5)}`,
+        timestamp: new Date().toLocaleTimeString('he-IL'),
+        type,
+        sceneId: currentSceneId,
+        detail
+      },
+      ...prev.slice(0, 39)
+    ]);
+  }, [currentSceneId]);
+
+  // Keep synced when initialCampaign prop updates from Studio Editor
+  useEffect(() => {
+    if (initialCampaign) {
+      setCampaign(initialCampaign);
+      const validCurrent = initialCampaign.scenes[currentSceneId];
+      if (!validCurrent) {
+        const firstId = initialCampaign.initialSceneId || Object.keys(initialCampaign.scenes)[0] || '';
+        setCurrentSceneId(firstId);
+        setHistory([firstId]);
+      }
+    }
+  }, [initialCampaign]);
 
   // Load campaign if ID provided and differs from current
   useEffect(() => {
@@ -77,26 +117,34 @@ export const LivingPlayerProvider: React.FC<{
       setCurrentSceneId(targetSceneId);
       setHistory(prev => [...prev, targetSceneId]);
       setIsPlaying(true);
+      logTelemetry('scene_enter', `מעבר לסצנה "${campaign.scenes[targetSceneId]?.title || targetSceneId}" (${trigger})`);
     } else {
       console.warn(`[LivingPlayerContext] Target scene ${targetSceneId} not found in campaign.`);
     }
-  }, [campaign.scenes]);
+  }, [campaign.scenes, logTelemetry]);
 
   const resetSession = useCallback(() => {
     const initial = campaign.initialSceneId || Object.keys(campaign.scenes)[0];
     setCurrentSceneId(initial);
     setHistory([initial]);
     setIsPlaying(true);
-  }, [campaign]);
+    logTelemetry('scene_enter', 'אתחול סשן מחדש');
+  }, [campaign, logTelemetry]);
 
-  const submitLead = useCallback(async (formData: Record<string, string>) => {
+  const submitLead = useCallback(async (
+    formData: Record<string, string>,
+    options?: { smartFormId?: string; webhookUrl?: string }
+  ) => {
+    logTelemetry('form_submit', `שליחת טופס לידים (${Object.keys(formData).length} שדות)`);
     await LeadDispatchService.dispatchLead(db as any, tenantId, formData, {
       campaignId: campaign.id,
       campaignName: campaign.name,
       sceneId: currentSceneId,
-      sceneTitle: currentScene?.title
+      sceneTitle: currentScene?.title,
+      smartFormId: options?.smartFormId,
+      webhookUrl: options?.webhookUrl
     });
-  }, [db, tenantId, campaign, currentSceneId, currentScene]);
+  }, [db, tenantId, campaign, currentSceneId, currentScene, logTelemetry]);
 
   const value = useMemo(() => ({
     campaign,
@@ -108,13 +156,15 @@ export const LivingPlayerProvider: React.FC<{
     isProcessingIntent,
     sessionId,
     history,
+    telemetryEvents,
     togglePlay,
     toggleMute,
     setIsVoiceActive,
     setIsProcessingIntent,
     transitionTo,
     resetSession,
-    submitLead
+    submitLead,
+    logTelemetry
   }), [
     campaign,
     currentSceneId,
@@ -125,11 +175,13 @@ export const LivingPlayerProvider: React.FC<{
     isProcessingIntent,
     sessionId,
     history,
+    telemetryEvents,
     togglePlay,
     toggleMute,
     transitionTo,
     resetSession,
-    submitLead
+    submitLead,
+    logTelemetry
   ]);
 
   return (

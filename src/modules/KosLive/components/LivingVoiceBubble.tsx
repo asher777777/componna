@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Mic, MicOff, Send, Sparkles, Loader2, MessageSquare } from 'lucide-react';
+import { MicOff, Send, Sparkles, Loader2, MessageSquare } from 'lucide-react';
 import { useLivingPlayer } from '../context/LivingPlayerContext';
 import { matchUserIntent } from '../api/voiceIntentApi';
+import { PremiumVectorIcon } from '../utils/premiumIcons';
 
 export const LivingVoiceBubble: React.FC = () => {
-  const { currentScene, transitionTo } = useLivingPlayer();
+  const { currentScene, transitionTo, logTelemetry } = useLivingPlayer();
   const [isListening, setIsListening] = useState<boolean>(false);
   const [isThinking, setIsThinking] = useState<boolean>(false);
   const [transcript, setTranscript] = useState<string>('');
@@ -20,7 +21,7 @@ export const LivingVoiceBubble: React.FC = () => {
       const recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = true;
-      recognition.lang = 'he-IL';
+      recognition.lang = currentScene?.ttsLanguageCode || 'he-IL';
 
       recognition.onstart = () => {
         setIsListening(true);
@@ -57,6 +58,7 @@ export const LivingVoiceBubble: React.FC = () => {
     if (!text.trim() || isThinking) return;
     setIsThinking(true);
     setFeedbackMessage('מנתח את בקשתך...');
+    logTelemetry('voice_intent', `קלט משתמש: "${text}"`);
 
     try {
       const allowed = currentScene?.allowedIntents || {};
@@ -66,55 +68,83 @@ export const LivingVoiceBubble: React.FC = () => {
       });
 
       if (result.targetSceneId) {
-        setFeedbackMessage(`מעביר אותך לסצנה המתאימה...`);
+        setFeedbackMessage('מעביר אותך לסצנה המתאימה...');
         setTimeout(() => {
           transitionTo(result.targetSceneId!, 'voice_intent');
           setFeedbackMessage(null);
           setTranscript('');
           setTextInput('');
           setShowTextInput(false);
-        }, 800);
+        }, 700);
+      } else if (currentScene?.micTargetSceneId) {
+        transitionTo(currentScene.micTargetSceneId, 'voice_fallback');
       } else {
-        setFeedbackMessage('לא זיהינו כוונה מדויקת, נסו ללחוץ על אחת האפשרויות על המסך');
+        setFeedbackMessage('בחרו אחת מהאפשרויות או הכרטיסים על המסך להמשך');
         setTimeout(() => setFeedbackMessage(null), 3000);
       }
-    } catch (e) {
+    } catch {
       setFeedbackMessage(null);
     } finally {
       setIsThinking(false);
     }
   };
 
-  const toggleMic = () => {
+  const handleTriggerClick = () => {
+    if (currentScene?.micTargetAction === 'navigate_to_node' && currentScene?.micTargetSceneId) {
+      transitionTo(currentScene.micTargetSceneId, 'mic_direct_trigger');
+      return;
+    }
     if (isListening) {
       recognitionRef.current?.stop();
     } else {
       try {
-        recognitionRef.current?.start();
+        if (recognitionRef.current) {
+          recognitionRef.current.start();
+        } else {
+          setShowTextInput(prev => !prev);
+        }
       } catch {
         setShowTextInput(true);
       }
     }
   };
 
-  if (currentScene?.enableVoiceTrigger === false) return null;
+  if (currentScene?.enableVoiceTrigger === false || currentScene?.micPosition === 'hidden') {
+    return null;
+  }
+
+  const isCenterPosition =
+    currentScene?.micPosition === 'center' || currentScene?.micPosition === 'screen_center_trigger';
 
   return (
-    <div className="absolute bottom-20 left-4 z-30 flex flex-col items-start gap-2 select-none" dir="rtl">
-      
+    <div
+      className={`absolute z-30 flex flex-col gap-2 select-none ${
+        isCenterPosition
+          ? 'bottom-24 left-1/2 -translate-x-1/2 items-center'
+          : 'bottom-20 left-4 items-start'
+      }`}
+      dir="rtl"
+    >
       {/* Feedback banner */}
       {(feedbackMessage || transcript) && (
         <div className="bg-slate-950/90 backdrop-blur-md border border-amber-500/40 rounded-2xl px-3.5 py-1.5 text-xs text-amber-200 shadow-xl max-w-xs animate-fade-in flex items-center gap-2">
-          {isThinking ? <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
+          {isThinking ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+          ) : (
+            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+          )}
           <span>{transcript || feedbackMessage}</span>
         </div>
       )}
 
       {/* Text input drawer if open */}
       {showTextInput && (
-        <form 
-          onSubmit={e => { e.preventDefault(); handleProcessIntent(textInput); }}
-          className="flex items-center gap-1.5 bg-slate-900/90 border border-slate-700 rounded-2xl p-1.5 shadow-xl backdrop-blur-md animate-scale-up"
+        <form
+          onSubmit={e => {
+            e.preventDefault();
+            handleProcessIntent(textInput);
+          }}
+          className="flex items-center gap-1.5 bg-slate-900/95 border border-amber-500/40 rounded-2xl p-1.5 shadow-2xl backdrop-blur-md animate-scale-up"
         >
           <input
             type="text"
@@ -126,26 +156,34 @@ export const LivingVoiceBubble: React.FC = () => {
           <button
             type="submit"
             disabled={isThinking || !textInput.trim()}
-            className="p-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition disabled:opacity-50"
+            className="p-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-bold transition disabled:opacity-50 cursor-pointer"
           >
             <Send className="w-3.5 h-3.5" />
           </button>
         </form>
       )}
 
-      {/* Mic trigger & text toggle */}
+      {/* Mic / Luxury Trigger & Text Toggle */}
       <div className="flex items-center gap-2">
         <button
-          onClick={toggleMic}
+          onClick={handleTriggerClick}
           disabled={isThinking}
-          title={isListening ? 'עצור האזנה' : 'דברו עם הפרזנטור'}
+          title={currentScene?.micPromptText || (isListening ? 'עצור האזנה' : 'דברו עם הפרזנטור')}
           className={`w-11 h-11 rounded-2xl flex items-center justify-center shadow-2xl transition-all active:scale-90 cursor-pointer ${
             isListening
               ? 'bg-rose-600 text-white animate-pulse ring-4 ring-rose-500/40'
-              : 'bg-gradient-to-tr from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/30'
+              : 'bg-gradient-to-tr from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-amber-500/30'
           }`}
         >
-          {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          {isListening ? (
+            <MicOff className="w-5 h-5" />
+          ) : (
+            <PremiumVectorIcon
+              iconKey={currentScene?.micIcon || 'mic'}
+              className="w-5 h-5"
+              isGold={false}
+            />
+          )}
         </button>
 
         <button
@@ -156,7 +194,6 @@ export const LivingVoiceBubble: React.FC = () => {
           <MessageSquare className="w-3.5 h-3.5" />
         </button>
       </div>
-
     </div>
   );
 };
