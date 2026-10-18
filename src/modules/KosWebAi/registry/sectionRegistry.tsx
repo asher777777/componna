@@ -392,6 +392,8 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       anchorId: 'mainContent',
       title: 'הצטרפו למחזור ההכשרה המקצועי הקרוב',
       subtitle: 'הרשמה מוקדמת בהנחה מיוחדת',
+      badge: '• תכנית הדגל המקצועית •',
+      layout: 'standard',
       features: ['ליווי אישי של מנטור צמוד', 'פרויקטים מעשיים מהעולם האמיתי', 'תעודת הסמכה בינלאומית', 'גישה לכל החיים להקלטות'],
       buttonsVisible: true,
       primaryButton: { text: 'שריינו מקום עכשיו', url: '#' },
