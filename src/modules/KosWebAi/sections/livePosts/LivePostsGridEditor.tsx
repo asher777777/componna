@@ -96,7 +96,6 @@ export const LIVE_POSTS_LAYOUT_DEFINITIONS: LivePostsLayoutDefinition[] = [
     title: 'ג. הפריסה העכשווית (סגנון Notion SaaS 2026)',
     subtitle: 'סקוורקל מעוגל 3XL נקי ומאוזן, אינדיגו וסגול מודרניים, צללים רכים ואווירת Mesh Glow',
     icon: LayoutTemplate,
-    defaultShapeDesc: 'סקוורקל מעוגל 3XL',
     objectSizingDesc: 'כרטיסי Notion SaaS מעוגלים (Rounded 3XL), טיפוגרפיה חדה וריווחים שקולים',
     buttonStyleDesc: 'כפתורים מעוגלים מודרניים (Rounded XL) באינדיגו ואמרלד עם צל רך',
     colorPaletteDesc: 'אינדיגו מודרני, סגול עדין, לבן, סלייט וניגודיות שקופה אלגנטית',
