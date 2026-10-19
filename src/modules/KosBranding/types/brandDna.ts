@@ -23,6 +23,7 @@ export type {
   FlagshipSeoData,
   FlagshipSectionTitles,
   BusinessPackage,
+  BrandUiVocabulary,
 } from '../../../core/contracts';
 
 import type { BrandDna } from '../../../core/contracts';

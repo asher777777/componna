@@ -1,6 +1,6 @@
 import React from 'react';
 import { BeforeAfterSectionConfig } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 
 export const BeforeAfterEditor: React.FC<{
@@ -13,19 +13,19 @@ export const BeforeAfterEditor: React.FC<{
         <PageBuilderInput
           label="כותרת ראשית"
           value={config.title || ''}
-          onChange={(val) => onChange({ ...config, title: val })}
+          onChange={(e) => onChange({ ...config, title: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(val) => onChange({ ...config, subtitle: val })}
+          onChange={(e) => onChange({ ...config, subtitle: resolveInputValue(e) })}
         />
       </div>
 
       <PageBuilderInput
         label="תיאור קצר"
         value={config.description || ''}
-        onChange={(val) => onChange({ ...config, description: val })}
+        onChange={(e) => onChange({ ...config, description: resolveInputValue(e) })}
       />
 
       <div className="p-4 bg-slate-950/70 border border-slate-800 rounded-2xl flex flex-col gap-4">
@@ -36,7 +36,7 @@ export const BeforeAfterEditor: React.FC<{
             <PageBuilderInput
               label="תווית תמונת 'לפני'"
               value={config.beforeLabel || 'לפני'}
-              onChange={(val) => onChange({ ...config, beforeLabel: val })}
+              onChange={(e) => onChange({ ...config, beforeLabel: resolveInputValue(e) })}
             />
             <PageBuilderImageUpload
               label="תמונת 'לפני'"
@@ -49,7 +49,7 @@ export const BeforeAfterEditor: React.FC<{
             <PageBuilderInput
               label="תווית תמונת 'אחרי'"
               value={config.afterLabel || 'אחרי'}
-              onChange={(val) => onChange({ ...config, afterLabel: val })}
+              onChange={(e) => onChange({ ...config, afterLabel: resolveInputValue(e) })}
             />
             <PageBuilderImageUpload
               label="תמונת 'אחרי'"

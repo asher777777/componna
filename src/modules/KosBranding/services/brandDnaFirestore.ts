@@ -129,6 +129,7 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
           audience: { ...baseDefault.audience, ...(data.audience || {}) },
           designTokens: { ...baseDefault.designTokens, ...(data.designTokens || {}) },
           trust: { ...baseDefault.trust, ...(data.trust || {}) },
+          uiVocabulary: data.uiVocabulary ? { ...(baseDefault.uiVocabulary || {}), ...data.uiVocabulary } : baseDefault.uiVocabulary,
         };
         try {
           if (typeof window !== 'undefined') {
@@ -166,6 +167,7 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
           audience: { ...baseDefault.audience, ...(legacyData.audience || {}) },
           designTokens: { ...baseDefault.designTokens, ...(legacyData.designTokens || {}) },
           trust: { ...baseDefault.trust, ...(legacyData.trust || {}) },
+          uiVocabulary: legacyData.uiVocabulary ? { ...(baseDefault.uiVocabulary || {}), ...legacyData.uiVocabulary } : baseDefault.uiVocabulary,
         };
         // Migrate to new collection doc in background
         setDoc(docRef, merged, { merge: true }).catch(console.warn);
@@ -206,6 +208,7 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
         audience: { ...baseDefault.audience, ...(parsed.audience || {}) },
         designTokens: { ...baseDefault.designTokens, ...(parsed.designTokens || {}) },
         trust: { ...baseDefault.trust, ...(parsed.trust || {}) },
+        uiVocabulary: parsed.uiVocabulary ? { ...(baseDefault.uiVocabulary || {}), ...parsed.uiVocabulary } : baseDefault.uiVocabulary,
       };
     }
   } catch (err) {

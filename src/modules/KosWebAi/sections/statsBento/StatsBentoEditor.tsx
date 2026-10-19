@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { StatsBentoSectionConfig, StatsBentoItem } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderIconPicker } from '../../ui/PageBuilderIconPicker';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -8,7 +8,10 @@ export const StatsBentoEditor: React.FC<{
   config: StatsBentoSectionConfig;
   onChange: (updated: StatsBentoSectionConfig) => void;
 }> = ({ config, onChange }) => {
-  const handleItemChange = (index: number, field: keyof StatsBentoItem, value: any) => {
+  const handleItemChange = (index: number, field: keyof StatsBentoItem, rawValue: any) => {
+    const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean'
+      ? rawValue
+      : resolveInputValue(rawValue);
     const updated = [...(config.stats || [])];
     updated[index] = { ...updated[index], [field]: value };
     onChange({ ...config, stats: updated });
@@ -38,12 +41,12 @@ export const StatsBentoEditor: React.FC<{
         <PageBuilderInput
           label="כותרת אזור המספרים"
           value={config.title || ''}
-          onChange={(val) => onChange({ ...config, title: val })}
+          onChange={(e) => onChange({ ...config, title: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(val) => onChange({ ...config, subtitle: val })}
+          onChange={(e) => onChange({ ...config, subtitle: resolveInputValue(e) })}
         />
       </div>
 
@@ -78,17 +81,17 @@ export const StatsBentoEditor: React.FC<{
               <PageBuilderInput
                 label="מספר ראשי"
                 value={stat.number || ''}
-                onChange={(val) => handleItemChange(idx, 'number', val)}
+                onChange={(e) => handleItemChange(idx, 'number', resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="סיומת (כגון: %, +, X)"
                 value={stat.suffix || ''}
-                onChange={(val) => handleItemChange(idx, 'suffix', val)}
+                onChange={(e) => handleItemChange(idx, 'suffix', resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="תווית / כותרת המדד"
                 value={stat.label || ''}
-                onChange={(val) => handleItemChange(idx, 'label', val)}
+                onChange={(e) => handleItemChange(idx, 'label', resolveInputValue(e))}
               />
             </div>
 
@@ -96,7 +99,7 @@ export const StatsBentoEditor: React.FC<{
               <PageBuilderInput
                 label="תיאור קצר"
                 value={stat.description || ''}
-                onChange={(val) => handleItemChange(idx, 'description', val)}
+                onChange={(e) => handleItemChange(idx, 'description', resolveInputValue(e))}
               />
               <PageBuilderIconPicker
                 label="אייקון"

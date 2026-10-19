@@ -1,6 +1,6 @@
 import React from 'react';
 import { TestimonialsSectionConfig, TestimonialItem } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { Plus, Trash2, Star, CheckCircle2 } from 'lucide-react';
 
@@ -8,7 +8,10 @@ export const TestimonialsEditor: React.FC<{
   config: TestimonialsSectionConfig;
   onChange: (updated: TestimonialsSectionConfig) => void;
 }> = ({ config, onChange }) => {
-  const handleItemChange = (index: number, field: keyof TestimonialItem, value: any) => {
+  const handleItemChange = (index: number, field: keyof TestimonialItem, rawValue: any) => {
+    const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean'
+      ? rawValue
+      : resolveInputValue(rawValue);
     const updatedItems = [...(config.items || [])];
     updatedItems[index] = { ...updatedItems[index], [field]: value };
     onChange({ ...config, items: updatedItems });
@@ -40,19 +43,19 @@ export const TestimonialsEditor: React.FC<{
         <PageBuilderInput
           label="כותרת ראשית"
           value={config.title || ''}
-          onChange={(val) => onChange({ ...config, title: val })}
+          onChange={(e) => onChange({ ...config, title: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(val) => onChange({ ...config, subtitle: val })}
+          onChange={(e) => onChange({ ...config, subtitle: resolveInputValue(e) })}
         />
       </div>
 
       <PageBuilderInput
         label="תיאור קצר (אופציונלי)"
         value={config.description || ''}
-        onChange={(val) => onChange({ ...config, description: val })}
+        onChange={(e) => onChange({ ...config, description: resolveInputValue(e) })}
       />
 
       <div className="p-4 bg-slate-900/60 border border-slate-800 rounded-2xl flex flex-col gap-4">
@@ -71,12 +74,12 @@ export const TestimonialsEditor: React.FC<{
             label="ציון כולל"
             type="number"
             value={String(config.overallRating || 4.9)}
-            onChange={(val) => onChange({ ...config, overallRating: parseFloat(val) || 5 })}
+            onChange={(e) => onChange({ ...config, overallRating: parseFloat(resolveInputValue(e)) || 5 })}
           />
           <PageBuilderInput
             label="טקסט כמות ביקורות"
             value={config.totalReviewsCount || ''}
-            onChange={(val) => onChange({ ...config, totalReviewsCount: val })}
+            onChange={(e) => onChange({ ...config, totalReviewsCount: resolveInputValue(e) })}
           />
         </div>
       </div>
@@ -112,17 +115,17 @@ export const TestimonialsEditor: React.FC<{
               <PageBuilderInput
                 label="שם הממליץ"
                 value={item.name || ''}
-                onChange={(val) => handleItemChange(idx, 'name', val)}
+                onChange={(e) => handleItemChange(idx, 'name', resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="תפקיד"
                 value={item.role || ''}
-                onChange={(val) => handleItemChange(idx, 'role', val)}
+                onChange={(e) => handleItemChange(idx, 'role', resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="חברה / ארגון"
                 value={item.company || ''}
-                onChange={(val) => handleItemChange(idx, 'company', val)}
+                onChange={(e) => handleItemChange(idx, 'company', resolveInputValue(e))}
               />
             </div>
 
@@ -131,12 +134,12 @@ export const TestimonialsEditor: React.FC<{
                 label="דירוג (1-5)"
                 type="number"
                 value={String(item.rating || 5)}
-                onChange={(val) => handleItemChange(idx, 'rating', parseInt(val) || 5)}
+                onChange={(e) => handleItemChange(idx, 'rating', parseInt(resolveInputValue(e)) || 5)}
               />
               <PageBuilderInput
                 label="תגית / Badge"
                 value={item.badge || ''}
-                onChange={(val) => handleItemChange(idx, 'badge', val)}
+                onChange={(e) => handleItemChange(idx, 'badge', resolveInputValue(e))}
               />
             </div>
 

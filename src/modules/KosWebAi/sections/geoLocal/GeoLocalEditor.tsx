@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { GeoLocalSectionConfig } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 
 export const GeoLocalEditor: React.FC<{
   config: GeoLocalSectionConfig;
@@ -12,12 +12,12 @@ export const GeoLocalEditor: React.FC<{
         <PageBuilderInput
           label="כותרת אזור הסניף המקומי"
           value={config.title || ''}
-          onChange={(val) => onChange({ ...config, title: val })}
+          onChange={(e) => onChange({ ...config, title: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(val) => onChange({ ...config, subtitle: val })}
+          onChange={(e) => onChange({ ...config, subtitle: resolveInputValue(e) })}
         />
       </div>
 
@@ -25,43 +25,43 @@ export const GeoLocalEditor: React.FC<{
         <PageBuilderInput
           label="שם העסק / הסניף"
           value={config.businessName || ''}
-          onChange={(val) => onChange({ ...config, businessName: val })}
+          onChange={(e) => onChange({ ...config, businessName: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="עיר מרכזית"
           value={config.city || ''}
-          onChange={(val) => onChange({ ...config, city: val })}
+          onChange={(e) => onChange({ ...config, city: resolveInputValue(e) })}
         />
       </div>
 
       <PageBuilderInput
         label="כתובת מלאה (כולל רחוב ומספר)"
         value={config.address || ''}
-        onChange={(val) => onChange({ ...config, address: val })}
+        onChange={(e) => onChange({ ...config, address: resolveInputValue(e) })}
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <PageBuilderInput
           label="טלפון"
           value={config.phone || ''}
-          onChange={(val) => onChange({ ...config, phone: val })}
+          onChange={(e) => onChange({ ...config, phone: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="וואטסאפ"
           value={config.whatsapp || ''}
-          onChange={(val) => onChange({ ...config, whatsapp: val })}
+          onChange={(e) => onChange({ ...config, whatsapp: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="אימייל"
           value={config.email || ''}
-          onChange={(val) => onChange({ ...config, email: val })}
+          onChange={(e) => onChange({ ...config, email: resolveInputValue(e) })}
         />
       </div>
 
       <PageBuilderInput
         label="קישור הטמעת Google Maps Embed (iframe URL)"
         value={config.mapEmbedUrl || ''}
-        onChange={(val) => onChange({ ...config, mapEmbedUrl: val })}
+        onChange={(e) => onChange({ ...config, mapEmbedUrl: resolveInputValue(e) })}
       />
 
       <div>

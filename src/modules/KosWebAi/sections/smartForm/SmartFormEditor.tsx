@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SmartFormSectionConfig } from './SmartFormSection';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { FormBuilderContract, FormItemSummary } from '../../../../core/contracts';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
 import { FileText, Sparkles, RefreshCw, Layers } from 'lucide-react';
@@ -44,13 +44,13 @@ export const SmartFormEditor: React.FC<{
           <PageBuilderInput
             label="כותרת הסקשן"
             value={config.sectionTitle || ''}
-            onChange={(val) => onChange({ ...config, sectionTitle: val })}
+            onChange={(e) => onChange({ ...config, sectionTitle: resolveInputValue(e) })}
             placeholder="למשל: דברו איתנו / השאירו פרטים"
           />
           <PageBuilderInput
             label="תת כותרת"
             value={config.sectionSubtitle || ''}
-            onChange={(val) => onChange({ ...config, sectionSubtitle: val })}
+            onChange={(e) => onChange({ ...config, sectionSubtitle: resolveInputValue(e) })}
             placeholder="נחזור אליכם תוך זמן קצר"
           />
         </div>
@@ -99,7 +99,7 @@ export const SmartFormEditor: React.FC<{
           <PageBuilderInput
             label="מזהה טופס ידני (אופציונלי)"
             value={config.formId || ''}
-            onChange={(val) => onChange({ ...config, formId: val })}
+            onChange={(e) => onChange({ ...config, formId: resolveInputValue(e) })}
             placeholder="form_id..."
           />
         </div>

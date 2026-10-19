@@ -5,6 +5,7 @@
 
 import { executeKosaiAi } from './executeKosaiAi';
 import { KosaiContractResult } from './types';
+import { BrandUiVocabulary } from '../../../core/contracts';
 
 export interface KosaiBrandContractResult<T = any> extends KosaiContractResult<T> {}
 
@@ -130,6 +131,30 @@ export const kosaiBrandContract = {
       responseMimeType: options?.responseMimeType || 'application/json',
       temperature: 0.65,
       maxOutputTokens: options?.maxOutputTokens || 1500,
+      customApiKey: options?.apiKey,
+      tenantId: options?.tenantId,
+      category: 'content',
+    });
+  },
+
+  /**
+   * Generates microcopy and UI vocabulary (CTAs, placeholders, section headings) matching Brand DNA.
+   * Capped to 1000 output tokens.
+   */
+  async generateBrandUiVocabulary(
+    prompt: string,
+    options?: {
+      apiKey?: string;
+      tenantId?: string;
+      systemInstruction?: string;
+    }
+  ): Promise<KosaiContractResult<BrandUiVocabulary>> {
+    return executeKosaiAi<BrandUiVocabulary>('KosBranding', prompt, {
+      model: 'gemini-3.8-flash-lite',
+      systemInstruction: options?.systemInstruction,
+      responseMimeType: 'application/json',
+      temperature: 0.6,
+      maxOutputTokens: 1000,
       customApiKey: options?.apiKey,
       tenantId: options?.tenantId,
       category: 'content',

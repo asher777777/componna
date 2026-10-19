@@ -18,6 +18,7 @@ import {
   BUILD_OBJECTION_PROMPT,
   BUILD_MARKET_RESEARCH_PROMPT,
   BUILD_AUDIENCE_AND_PERSONAS_FROM_ESSENCE_PROMPT,
+  BUILD_BRAND_UI_VOCABULARY_PROMPT,
 } from '../prompts/brandPrompts';
 import { kosaiBrandContract } from '../../kosai-engine/modelsAiService/brandAiContract';
 import { BrandDna } from '../types/brandDna';
@@ -274,3 +275,20 @@ export async function dispatchAudienceAndPersonasFromEssenceToKosai(
 }
 
 
+
+
+/**
+ * מפיק ערכת שפת ממשק, כפתורים וכותרות (Brand UI Vocabulary) מותאמת אישית מתוך קולקציית המיתוג
+ */
+export async function dispatchBrandUiVocabularyToKosai(
+  brand: BrandDna,
+  options?: KosaiBrandDispatchOptions
+): Promise<any> {
+  const { systemContext, userPrompt } = BUILD_BRAND_UI_VOCABULARY_PROMPT(brand);
+  const result = await kosaiBrandContract.generateBrandUiVocabulary(userPrompt, {
+    apiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+    systemInstruction: systemContext,
+  });
+  return result.data;
+}

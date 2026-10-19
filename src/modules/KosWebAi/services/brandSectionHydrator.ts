@@ -3,6 +3,7 @@ import { BrandDna } from '../../../core/contracts';
 import { DEFAULT_BRAND_DNA } from '../../KosBranding/types/brandDna';
 import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 import { resolveCurrentTenantId } from '../../../core/tenant';
+import { buildDefaultBrandUiVocabulary } from '../../KosBranding/services/brandCopilotService';
 
 /**
  * Resolves live Brand DNA from active context, tenant-scoped local storage, or tenant defaults.
@@ -50,6 +51,7 @@ export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: strin
         ...(provided.ecosystem || {}),
       },
       voice: { ...baseDefault.voice, ...(provided.voice || {}) },
+      uiVocabulary: provided.uiVocabulary || (baseDefault as any).uiVocabulary,
     };
   }
 
@@ -98,6 +100,7 @@ export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: strin
             audience: { ...baseDefault.audience, ...(parsed.audience || {}) },
             ecosystem: { ...baseDefault.ecosystem, ...(parsed.ecosystem || {}) },
             voice: { ...baseDefault.voice, ...(parsed.voice || {}) },
+            uiVocabulary: parsed.uiVocabulary || (baseDefault as any).uiVocabulary,
           };
         }
       }
@@ -151,6 +154,8 @@ export function hydrateSectionWithBrandDna(
   const secondaryColor = brand.designTokens?.secondaryColor;
   const services = brand.ecosystem?.services || [];
   const commonObjections = brand.audience?.commonObjections || [];
+  const uiVocab = brand.uiVocabulary || buildDefaultBrandUiVocabulary(brand);
+  const headings = uiVocab.sectionHeadings || {};
 
   cloned.brandDnaSynced = true;
 
@@ -178,14 +183,14 @@ export function hydrateSectionWithBrandDna(
 
     case 'hero': {
       cloned.badge = companyName;
-      cloned.title = `${companyName} - ${slogan}`;
-      cloned.subtitle = uvp;
-      if (!cloned.primaryButton || cloned.primaryButton.text === 'התחל עכשיו') {
-        cloned.primaryButton = { text: 'לפנייה ופרטים נוספים', url: '#contact' };
+      cloned.title = headings.heroTitle || (slogan ? `${companyName} - ${slogan}` : companyName);
+      cloned.subtitle = headings.heroSubtitle || uvp;
+      if (!cloned.primaryButton || cloned.primaryButton.text === 'התחל עכשיו' || cloned.primaryButton.text === 'לפנייה ופרטים נוספים') {
+        cloned.primaryButton = { text: uiVocab.primaryCta || 'לפרטים והצטרפות', url: '#contact' };
       }
-      if (!cloned.secondaryButton) {
+      if (!cloned.secondaryButton || cloned.secondaryButton.text === 'שיחה מהירה ב-WhatsApp') {
         cloned.secondaryButton = {
-          text: 'שיחה מהירה ב-WhatsApp',
+          text: uiVocab.whatsappCta || 'שיחה מהירה ב-WhatsApp',
           url: buildWhatsAppUrl(whatsapp, `שלום, הגעתי דרך האתר של ${companyName}`),
         };
       }
@@ -193,12 +198,17 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'contact': {
-      cloned.title = `יצירת קשר עם ${companyName}`;
-      cloned.subtitle = slogan ? `${slogan} • נשמח לעמוד לשירותכם` : 'נשמח לעמוד לשירותכם לכל שאלה, פנייה או התייעצות';
+      cloned.title = headings.contactHeading || (companyName ? `יצירת קשר עם ${companyName}` : cloned.title);
+      cloned.subtitle = headings.contactSubtitle || (slogan ? `${slogan} • נשמח לעמוד לשירותכם` : 'נשמח לעמוד לשירותכם לכל שאלה, פנייה או התייעצות');
       cloned.phone = phone;
       cloned.email = email;
       cloned.whatsapp = whatsapp;
       cloned.address = address;
+      if (uiVocab.formSubmitText) cloned.submitText = uiVocab.formSubmitText;
+      if (uiVocab.namePlaceholder) cloned.namePlaceholder = uiVocab.namePlaceholder;
+      if (uiVocab.phonePlaceholder) cloned.phonePlaceholder = uiVocab.phonePlaceholder;
+      if (uiVocab.emailPlaceholder) cloned.emailPlaceholder = uiVocab.emailPlaceholder;
+      if (uiVocab.messagePlaceholder) cloned.messagePlaceholder = uiVocab.messagePlaceholder;
       break;
     }
 
@@ -250,8 +260,8 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'imageListing': {
-      cloned.title = companyName ? `גלריית ${companyName}` : cloned.title;
-      cloned.subtitle = slogan || 'הצצה לעולם העשיר, ליצירה ולפרויקטים המובילים שלנו';
+      cloned.title = headings.galleryHeading || (companyName ? `גלריית ${companyName}` : cloned.title);
+      cloned.subtitle = headings.gallerySubtitle || slogan || 'הצצה לעולם העשיר, ליצירה ולפרויקטים המובילים שלנו';
       cloned.badge = companyName ? `• ${companyName} SHOWCASE •` : '• גלריית מדיה •';
       if (brand.identity?.vibeImages && brand.identity.vibeImages.length > 0) {
         cloned.images = brand.identity.vibeImages.map((url, idx) => ({
@@ -266,7 +276,8 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'faq': {
-      cloned.subtitle = `כל מה שחשוב לדעת על ${companyName}`;
+      cloned.title = headings.faqHeading || cloned.title || 'שאלות ותשובות נפוצות';
+      cloned.subtitle = headings.faqSubtitle || `כל מה שחשוב לדעת על ${companyName}`;
       if (commonObjections.length > 0) {
         const dynamicFaq = commonObjections.map((item, idx) => ({
           id: `faq_${idx + 1}`,
@@ -314,8 +325,8 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'statsBento': {
-      cloned.title = `היתרונות המובילים של ${companyName}`;
-      cloned.description = uvp;
+      cloned.title = headings.advantagesHeading || `היתרונות המובילים של ${companyName}`;
+      cloned.description = headings.advantagesSubtitle || uvp;
       if (services.length > 0 && Array.isArray(cloned.items)) {
         cloned.items = cloned.items.map((item: any, idx: number) => {
           if (services[idx]) {
@@ -332,7 +343,8 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'testimonials': {
-      cloned.title = `מה הלקוחות מספרים על ${companyName}?`;
+      cloned.title = headings.testimonialsHeading || `מה מספרים עלינו?`;
+      cloned.subtitle = headings.testimonialsSubtitle || 'עדויות ומשובים מהשטח';
       cloned.trustBadgeText = `לקוחות מאומתים של ${companyName}`;
       if (Array.isArray(brand.audience?.personas) && brand.audience.personas.length > 0 && Array.isArray(cloned.items)) {
         cloned.items = cloned.items.map((item: any, idx: number) => {
@@ -437,8 +449,8 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'features': {
-      cloned.title = `למה לבחור ב-${companyName}?`;
-      cloned.subtitle = uvp || slogan;
+      cloned.title = headings.advantagesHeading || `למה לבחור ב-${companyName}?`;
+      cloned.subtitle = headings.advantagesSubtitle || uvp || slogan;
       if (services.length > 0 && Array.isArray(cloned.items)) {
         cloned.items = cloned.items.map((it: any, idx: number) => {
           if (services[idx]) {
@@ -455,16 +467,16 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'about': {
-      cloned.title = `אודות ${companyName}`;
-      cloned.subtitle = slogan;
+      cloned.title = headings.aboutHeading || `אודות ${companyName}`;
+      cloned.subtitle = headings.aboutSubtitle || slogan;
       if (uvp) cloned.description = uvp;
       break;
     }
 
     case 'cta': {
-      cloned.title = `מוכנים להתקדם עם ${companyName}?`;
-      cloned.subtitle = slogan;
-      cloned.buttonText = 'צרו איתנו קשר עכשיו';
+      cloned.title = headings.painPointsHeading || `מוכנים להתקדם עם ${companyName}?`;
+      cloned.subtitle = headings.painPointsSubtitle || slogan;
+      cloned.buttonText = uiVocab.contactCta || uiVocab.primaryCta || 'צרו איתנו קשר עכשיו';
       cloned.buttonUrl = buildWhatsAppUrl(whatsapp, `שלום ${companyName}, אני מעוניין לשמוע פרטים נוספים`);
       break;
     }
@@ -487,8 +499,9 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'community': {
-      cloned.title = `קהילת ${companyName}`;
-      cloned.subtitle = slogan;
+      cloned.title = headings.communityHeading || `קהילת ${companyName}`;
+      cloned.subtitle = headings.communitySubtitle || slogan;
+      cloned.ctaButtonText = uiVocab.whatsappCta || 'הצטרפות לקהילה';
       cloned.whatsappLink = buildWhatsAppUrl(whatsapp, `היי, אני רוצה להצטרף לקהילה של ${companyName}`);
       break;
     }

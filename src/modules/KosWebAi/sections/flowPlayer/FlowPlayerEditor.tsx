@@ -4,7 +4,7 @@ import { FirestoreService } from '../../../flow-player-engine/services/firestore
 import { DEFAULT_CAMPAIGN_CONFIG, resolveCollections } from '../../../flow-player-engine/config';
 import { CampaignConfig } from '../../../flow-player-engine/types';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { PageBuilderAccordion } from '../../ui/PageBuilderAccordion';
@@ -205,13 +205,13 @@ export const FlowPlayerEditor: React.FC<{
               <PageBuilderInput
                 label="כותרת הסקשן בעמוד"
                 value={config.sectionTitle || ''}
-                onChange={(val) => update('sectionTitle', val)}
+                onChange={(e) => update('sectionTitle', resolveInputValue(e))}
                 placeholder="למשל: התנסו בנציג המכירות האינטראקטיבי שלנו"
               />
               <PageBuilderInput
                 label="פסקת תיאור / כותרת משנה"
                 value={config.sectionSubtitle || ''}
-                onChange={(val) => update('sectionSubtitle', val)}
+                onChange={(e) => update('sectionSubtitle', resolveInputValue(e))}
                 placeholder="למשל: דברו בקולכם או לחצו על המסך"
               />
             </div>

@@ -1,6 +1,8 @@
-﻿import React from 'react';
+import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+
+export { resolveInputValue } from '../utils/sanitizeConfig';
 
 export interface PageBuilderInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
   label?: string;
@@ -9,6 +11,7 @@ export interface PageBuilderInputProps extends Omit<React.InputHTMLAttributes<HT
   prefixIcon?: React.ReactNode;
   suffixIcon?: React.ReactNode;
   onChange?: (e: any) => void;
+  onValueChange?: (value: string) => void;
 }
 
 export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
@@ -20,6 +23,7 @@ export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
   className,
   id,
   onChange,
+  onValueChange,
   ...props
 }) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
@@ -50,6 +54,9 @@ export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
             )
           )}
           onChange={(e) => {
+            if (onValueChange) {
+              onValueChange(e.target.value);
+            }
             if (onChange) {
               onChange(e);
             }
@@ -73,6 +80,7 @@ export interface PageBuilderTextareaProps extends Omit<React.TextareaHTMLAttribu
   helperText?: string;
   error?: string;
   onChange?: (e: any) => void;
+  onValueChange?: (value: string) => void;
 }
 
 export const PageBuilderTextarea: React.FC<PageBuilderTextareaProps> = ({
@@ -83,6 +91,7 @@ export const PageBuilderTextarea: React.FC<PageBuilderTextareaProps> = ({
   id,
   rows = 3,
   onChange,
+  onValueChange,
   ...props
 }) => {
   const inputId = id || (label ? label.toLowerCase().replace(/\s+/g, '-') : undefined);
@@ -106,6 +115,9 @@ export const PageBuilderTextarea: React.FC<PageBuilderTextareaProps> = ({
           )
         )}
         onChange={(e) => {
+          if (onValueChange) {
+            onValueChange(e.target.value);
+          }
           if (onChange) {
             onChange(e);
           }

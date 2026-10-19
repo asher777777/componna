@@ -1,6 +1,6 @@
 import React from 'react';
 import { LiveAnalyticsSectionConfig } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { eventBus } from '../../../../core/bridge/EventBus';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../../core/tenant';
@@ -43,7 +43,10 @@ export const LiveAnalyticsEditor: React.FC<{
     return 'default_page';
   };
 
-  const updateField = (field: keyof LiveAnalyticsSectionConfig, val: any) => {
+  const updateField = (field: keyof LiveAnalyticsSectionConfig, rawVal: any) => {
+    const val = typeof rawVal === 'string' || typeof rawVal === 'number' || typeof rawVal === 'boolean'
+      ? rawVal
+      : resolveInputValue(rawVal);
     onChange({ ...config, [field]: val });
   };
 
@@ -210,13 +213,13 @@ export const LiveAnalyticsEditor: React.FC<{
         <PageBuilderInput
           label="כותרת האזור"
           value={config.title || ''}
-          onChange={(val) => updateField('title', val)}
+          onChange={(e) => updateField('title', resolveInputValue(e))}
           placeholder="מדדי ביצועים ואנליטיקס בזמן אמת"
         />
         <PageBuilderInput
           label="תת-כותרת"
           value={config.subtitle || ''}
-          onChange={(val) => updateField('subtitle', val)}
+          onChange={(e) => updateField('subtitle', resolveInputValue(e))}
           placeholder="נתוני צפייה, אינטראקציה, חיפוש אורגני מ-Google Search Console ותנועה ממנועי AI"
         />
       </div>
@@ -224,7 +227,7 @@ export const LiveAnalyticsEditor: React.FC<{
       <PageBuilderInput
         label="טקסט תגית חיה (Badge Text)"
         value={config.customBadgeText || ''}
-        onChange={(val) => updateField('customBadgeText', val)}
+        onChange={(e) => updateField('customBadgeText', resolveInputValue(e))}
         placeholder="Live Telemetry Active"
       />
 

@@ -1,13 +1,16 @@
 import React from 'react';
 import { PricingSectionConfig, PricingPackageItem } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { Plus, Trash2 } from 'lucide-react';
 
 export const PricingEditor: React.FC<{
   config: PricingSectionConfig;
   onChange: (updated: PricingSectionConfig) => void;
 }> = ({ config, onChange }) => {
-  const handlePackageChange = (index: number, field: keyof PricingPackageItem, value: any) => {
+  const handlePackageChange = (index: number, field: keyof PricingPackageItem, rawValue: any) => {
+    const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean'
+      ? rawValue
+      : resolveInputValue(rawValue);
     const updated = [...(config.packages || [])];
     updated[index] = { ...updated[index], [field]: value };
     onChange({ ...config, packages: updated });
@@ -39,12 +42,12 @@ export const PricingEditor: React.FC<{
         <PageBuilderInput
           label="כותרת מחירון"
           value={config.title || ''}
-          onChange={(val) => onChange({ ...config, title: val })}
+          onChange={(e) => onChange({ ...config, title: resolveInputValue(e) })}
         />
         <PageBuilderInput
           label="תת-כותרת / תגית"
           value={config.subtitle || ''}
-          onChange={(val) => onChange({ ...config, subtitle: val })}
+          onChange={(e) => onChange({ ...config, subtitle: resolveInputValue(e) })}
         />
       </div>
 
@@ -63,7 +66,7 @@ export const PricingEditor: React.FC<{
           <PageBuilderInput
             label="תגית הנחה שנתית (Badge)"
             value={config.yearlyDiscountBadge || 'חיסכון של 20%'}
-            onChange={(val) => onChange({ ...config, yearlyDiscountBadge: val })}
+            onChange={(e) => onChange({ ...config, yearlyDiscountBadge: resolveInputValue(e) })}
           />
         </div>
       </div>
@@ -99,17 +102,17 @@ export const PricingEditor: React.FC<{
               <PageBuilderInput
                 label="שם החבילה"
                 value={pkg.name || ''}
-                onChange={(val) => handlePackageChange(idx, 'name', val)}
+                onChange={(e) => handlePackageChange(idx, 'name', resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="מחיר חודשי"
                 value={pkg.priceMonthly || ''}
-                onChange={(val) => handlePackageChange(idx, 'priceMonthly', val)}
+                onChange={(e) => handlePackageChange(idx, 'priceMonthly', resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="מחיר שנתי מוזל"
                 value={pkg.priceYearly || ''}
-                onChange={(val) => handlePackageChange(idx, 'priceYearly', val)}
+                onChange={(e) => handlePackageChange(idx, 'priceYearly', resolveInputValue(e))}
               />
             </div>
 
@@ -117,7 +120,7 @@ export const PricingEditor: React.FC<{
               <PageBuilderInput
                 label="תגית / Badge"
                 value={pkg.badge || ''}
-                onChange={(val) => handlePackageChange(idx, 'badge', val)}
+                onChange={(e) => handlePackageChange(idx, 'badge', resolveInputValue(e))}
               />
               <label className="flex items-center gap-2 text-xs text-slate-300 cursor-pointer pt-6">
                 <input
@@ -131,7 +134,7 @@ export const PricingEditor: React.FC<{
               <PageBuilderInput
                 label="טקסט כפתור"
                 value={pkg.buttonText || ''}
-                onChange={(val) => handlePackageChange(idx, 'buttonText', val)}
+                onChange={(e) => handlePackageChange(idx, 'buttonText', resolveInputValue(e))}
               />
             </div>
 
@@ -168,7 +171,7 @@ export const PricingEditor: React.FC<{
                 <PageBuilderInput
                   label="כתובת URL להפניה"
                   value={pkg.buttonUrl || ''}
-                  onChange={(val) => handlePackageChange(idx, 'buttonUrl', val)}
+                  onChange={(e) => handlePackageChange(idx, 'buttonUrl', resolveInputValue(e))}
                   placeholder="https://example.com/checkout או #contact"
                 />
               ) : (

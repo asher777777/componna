@@ -1,6 +1,6 @@
 import React from 'react';
 import { LogoMarqueeSectionConfig, LogoMarqueeItem } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -8,7 +8,10 @@ export const LogoMarqueeEditor: React.FC<{
   config: LogoMarqueeSectionConfig;
   onChange: (updated: LogoMarqueeSectionConfig) => void;
 }> = ({ config, onChange }) => {
-  const handleItemChange = (index: number, field: keyof LogoMarqueeItem, value: any) => {
+  const handleItemChange = (index: number, field: keyof LogoMarqueeItem, rawValue: any) => {
+    const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean'
+      ? rawValue
+      : resolveInputValue(rawValue);
     const updated = [...(config.logos || [])];
     updated[index] = { ...updated[index], [field]: value };
     onChange({ ...config, logos: updated });
@@ -33,7 +36,7 @@ export const LogoMarqueeEditor: React.FC<{
       <PageBuilderInput
         label="כותרת שורת הלוגואים"
         value={config.title || ''}
-        onChange={(val) => onChange({ ...config, title: val })}
+        onChange={(e) => onChange({ ...config, title: resolveInputValue(e) })}
       />
 
       <div className="flex items-center gap-4">
@@ -78,7 +81,7 @@ export const LogoMarqueeEditor: React.FC<{
             <PageBuilderInput
               label="שם חברה / מותג"
               value={logo.name || ''}
-              onChange={(val) => handleItemChange(idx, 'name', val)}
+              onChange={(e) => handleItemChange(idx, 'name', resolveInputValue(e))}
             />
 
             <PageBuilderImageUpload

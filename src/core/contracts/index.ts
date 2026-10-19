@@ -958,6 +958,40 @@ export interface BrandEcosystem {
   businessPackages?: BusinessPackage[];
 }
 
+export interface BrandUiVocabulary {
+  primaryCta?: string;
+  secondaryCta?: string;
+  whatsappCta?: string;
+  contactCta?: string;
+  formSubmitText?: string;
+  namePlaceholder?: string;
+  phonePlaceholder?: string;
+  emailPlaceholder?: string;
+  messagePlaceholder?: string;
+  sectionHeadings?: {
+    heroTitle?: string;
+    heroSubtitle?: string;
+    aboutHeading?: string;
+    aboutSubtitle?: string;
+    advantagesHeading?: string;
+    advantagesSubtitle?: string;
+    painPointsHeading?: string;
+    painPointsSubtitle?: string;
+    targetAudiencesHeading?: string;
+    targetAudiencesSubtitle?: string;
+    faqHeading?: string;
+    faqSubtitle?: string;
+    contactHeading?: string;
+    contactSubtitle?: string;
+    communityHeading?: string;
+    communitySubtitle?: string;
+    testimonialsHeading?: string;
+    testimonialsSubtitle?: string;
+    galleryHeading?: string;
+    gallerySubtitle?: string;
+  };
+}
+
 export interface BrandDna {
   identity: BrandIdentity;
   voice: BrandVoice;
@@ -967,6 +1001,7 @@ export interface BrandDna {
   trust: BrandTrustAndCheckout;
   serviceSlugs?: Record<string, string>;
   brandSummaryParagraph?: string;
+  uiVocabulary?: BrandUiVocabulary;
   updatedAt?: string;
 }
 

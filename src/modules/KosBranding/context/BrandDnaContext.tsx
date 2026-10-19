@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { doc, onSnapshot } from 'firebase/firestore';
-import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, BrandDesignTokens, BrandTrustAndCheckout } from '../types/brandDna';
+import { BrandDna, DEFAULT_BRAND_DNA, BrandIdentity, BrandVoice, BrandAudience, BrandDesignTokens, BrandTrustAndCheckout, BrandUiVocabulary } from '../types/brandDna';
 import { loadBrandDna, saveBrandDna, getCommunityBrand, saveCommunityBrand, createTenantInitialBrandDna } from '../services/brandDnaFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { buildBrandSystemContext } from '../services/geminiBrandPrompt';
@@ -22,6 +22,7 @@ export interface BrandDnaContextValue {
   updateAudience: (partial: Partial<BrandAudience>) => void;
   updateDesignTokens: (partial: Partial<BrandDesignTokens>) => void;
   updateTrust: (partial: Partial<BrandTrustAndCheckout>) => void;
+  updateUiVocabulary: (partial: Partial<BrandUiVocabulary>) => void;
   setFullBrandDna: (newDna: BrandDna) => void;
   saveNow: () => Promise<boolean>;
   resetToDefaults: () => void;
@@ -228,6 +229,21 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setBrandDna((prev) => ({
       ...prev,
       designTokens: { ...prev.designTokens, ...partial },
+    }));
+  }, [markLocalEdit]);
+
+  const updateUiVocabulary = useCallback((partial: Partial<BrandUiVocabulary>) => {
+    markLocalEdit();
+    setBrandDna((prev) => ({
+      ...prev,
+      uiVocabulary: {
+        ...(prev.uiVocabulary || {}),
+        ...partial,
+        sectionHeadings: {
+          ...(prev.uiVocabulary?.sectionHeadings || {}),
+          ...(partial.sectionHeadings || {}),
+        },
+      },
     }));
   }, [markLocalEdit]);
 
@@ -472,6 +488,7 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         updateAudience,
         updateDesignTokens,
         updateTrust,
+        updateUiVocabulary,
         setFullBrandDna,
         saveNow,
         resetToDefaults,
@@ -498,6 +515,7 @@ const FALLBACK_CONTEXT_VALUE: BrandDnaContextValue = {
   updateAudience: () => {},
   updateDesignTokens: () => {},
   updateTrust: () => {},
+  updateUiVocabulary: () => {},
   setFullBrandDna: () => {},
   saveNow: async () => true,
   resetToDefaults: () => {},

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { GenderAddressing, SectorCompliance } from '../types/brandDna';
+import { BrandUiVocabularyEditor } from './BrandUiVocabularyEditor';
 import {
   MessageSquareQuote,
   Sliders,
@@ -360,6 +361,9 @@ export const BrandVoiceSection: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 4. Brand UI Vocabulary & Microcopy */}
+      <BrandUiVocabularyEditor />
     </div>
   );
 };

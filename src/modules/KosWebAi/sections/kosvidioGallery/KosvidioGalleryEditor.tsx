@@ -11,7 +11,8 @@ import {
 } from '../../types/sectionConfigs';
 import { getCategoryFromPage, PAGE_CATEGORIES, PageCategory } from '../../types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
-import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, PageBuilderTextarea, resolveInputValue } from '../../ui/PageBuilderInput';
+import { sanitizeSectionConfig } from '../../utils/sanitizeConfig';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
