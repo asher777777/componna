@@ -144,9 +144,32 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
   }[colorPreset];
 
   const handlePickIcon = (iconName: string) => {
-    // Generate high-resolution luxury SVG data URI
+    // Generate high-resolution luxury SVG data URI for the chosen icon
     const hex = presetStyles.color;
-    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="128" height="128" fill="none" stroke="${hex}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="${hex}" stroke-opacity="0.2" fill="${hex}" fill-opacity="0.08"/><g transform="translate(4,4) scale(0.66)"><path stroke="${hex}" stroke-width="2.2" d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></g></svg>`;
+    const IconComp = (LucideIcons as any)[iconName] || LucideIcons.Sparkles;
+    let inner = '';
+    try {
+      const el = IconComp && (IconComp as any).render ? (IconComp as any).render({}, null) : null;
+      if (el && el.props && Array.isArray(el.props.iconNode)) {
+        inner = el.props.iconNode
+          .map(([tag, attrs]: [string, Record<string, any>]) => {
+            const attrStr = Object.entries(attrs)
+              .filter(([k]) => k !== 'key')
+              .map(([k, v]) => `${k}="${v}"`)
+              .join(' ');
+            return `<${tag} ${attrStr}/>`;
+          })
+          .join('');
+      }
+    } catch (err) {
+      console.error('Error generating icon SVG:', iconName, err);
+    }
+
+    if (!inner) {
+      inner = `<path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>`;
+    }
+
+    const svgString = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="128" height="128" fill="none" stroke="${hex}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" stroke="${hex}" stroke-opacity="0.2" fill="${hex}" fill-opacity="0.08"/><g transform="translate(4,4) scale(0.66)" stroke="${hex}" stroke-width="2">${inner}</g></svg>`;
     const dataUrl = `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
     if (onSelectIconSvg) onSelectIconSvg(dataUrl, iconName);
     if (onSelectIcon) onSelectIcon(dataUrl, iconName);

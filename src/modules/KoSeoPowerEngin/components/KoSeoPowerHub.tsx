@@ -30,6 +30,7 @@ import {
   Server,
   Zap,
   FileText,
+  Save,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useKoSeoPower } from '../hooks/useKoSeoPower';
@@ -241,16 +242,42 @@ export const KoSeoPowerHub: React.FC<KoSeoPowerHubProps> = ({ onBackToPages }) =
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">
-                    מזהה מדידה (Measurement ID):
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span>מזהה מדידה (Measurement ID):</span>
+                    {config.googleAnalyticsId && (
+                      <span className="text-[10px] text-emerald-400 font-mono">תקין ומוכן לשמירה</span>
+                    )}
                   </label>
-                  <input
-                    type="text"
-                    value={config.googleAnalyticsId}
-                    onChange={(e) => updateConfig({ googleAnalyticsId: e.target.value.trim() })}
-                    placeholder="לדוגמה: G-3L4X8HXXXX"
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={config.googleAnalyticsId || ''}
+                      onChange={(e) => updateConfig({ googleAnalyticsId: e.target.value.trim() })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          saveConfig();
+                        }
+                      }}
+                      placeholder="לדוגמה: G-3L4X8HXXXX"
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveConfig}
+                      disabled={isSaving}
+                      className="px-3.5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-bold transition cursor-pointer disabled:opacity-50 shrink-0 flex items-center gap-1.5 shadow-md shadow-amber-500/20"
+                      title="שמור מזהה מדידה"
+                    >
+                      {isSaving ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : saveSuccess ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-950" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      <span>{saveSuccess ? 'נשמר!' : 'שמור'}</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div>
@@ -342,16 +369,42 @@ export const KoSeoPowerHub: React.FC<KoSeoPowerHubProps> = ({ onBackToPages }) =
 
               <div className="space-y-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5">
-                    קוד אימות (טוקן, תגית Meta או DNS):
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1.5 flex items-center justify-between">
+                    <span>קוד אימות (טוקן, תגית Meta או DNS):</span>
+                    {cleanGscCode && (
+                      <span className="text-[10px] text-emerald-400 font-mono">טוקן נקי זוהה</span>
+                    )}
                   </label>
-                  <input
-                    type="text"
-                    value={config.googleSearchConsoleVerification}
-                    onChange={(e) => updateConfig({ googleSearchConsoleVerification: e.target.value })}
-                    placeholder='הדבק תגית <meta ...> או טוקן'
-                    className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-indigo-500 transition"
-                  />
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      value={config.googleSearchConsoleVerification || ''}
+                      onChange={(e) => updateConfig({ googleSearchConsoleVerification: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          saveConfig();
+                        }
+                      }}
+                      placeholder='הדבק תגית <meta ...> או טוקן'
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono text-white focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition"
+                    />
+                    <button
+                      type="button"
+                      onClick={saveConfig}
+                      disabled={isSaving}
+                      className="px-3.5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition cursor-pointer disabled:opacity-50 shrink-0 flex items-center gap-1.5 shadow-md shadow-blue-500/20"
+                      title="שמור קוד אימות Search Console"
+                    >
+                      {isSaving ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : saveSuccess ? (
+                        <Check className="w-3.5 h-3.5 text-emerald-300" />
+                      ) : (
+                        <Save className="w-3.5 h-3.5" />
+                      )}
+                      <span>{saveSuccess ? 'נשמר!' : 'שמור'}</span>
+                    </button>
+                  </div>
                   {cleanGscCode && (
                     <span className="block text-[10px] text-emerald-400 mt-1 font-mono">
                       טוקן נקי זוהה: {cleanGscCode.slice(0, 24)}...

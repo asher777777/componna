@@ -70,15 +70,31 @@ export const KoSeoPowerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [searchQueries, setSearchQueries] = useState<SearchConsoleQueryMetric[]>([]);
   const [trafficSources, setTrafficSources] = useState<TrafficSourceMetric[]>(DEFAULT_TRAFFIC_SOURCES);
 
-  // Load latest settings & real subdomains from the Subdomain Manager collection on mount
+  // 1. Initial configuration load from Firestore once on mount (or when tenant changes)
   useEffect(() => {
     let isMounted = true;
     seoPowerStorageService.getDomainConfig(db, tenantId).then((fetched) => {
       if (isMounted && fetched) {
-        setConfig(fetched);
+        setConfig((prev) => ({
+          ...prev,
+          ...fetched,
+          // Preserve any values user already started typing
+          googleAnalyticsId: prev.googleAnalyticsId || fetched.googleAnalyticsId || '',
+          googleSearchConsoleVerification:
+            prev.googleSearchConsoleVerification || fetched.googleSearchConsoleVerification || '',
+          googleTagManagerId: prev.googleTagManagerId || fetched.googleTagManagerId || 'GTM-WDDMHZJQ',
+        }));
       }
     });
 
+    return () => {
+      isMounted = false;
+    };
+  }, [db, tenantId]);
+
+  // 2. Fetch real subdomains and telemetry without resetting form state
+  useEffect(() => {
+    let isMounted = true;
     seoPowerStorageService
       .fetchRealSubdomainsAndMetrics(db, config.masterDomain, config)
       .then((realData) => {
@@ -93,7 +109,7 @@ export const KoSeoPowerProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     return () => {
       isMounted = false;
     };
-  }, [db, tenantId, config.masterDomain, config.googleAnalyticsId, config.googleSearchConsoleVerification]);
+  }, [db, tenantId, config.masterDomain]);
 
   const updateConfig = useCallback((patch: Partial<DomainGoogleIntegrationsConfig>) => {
     setConfig((prev) => ({ ...prev, ...patch }));

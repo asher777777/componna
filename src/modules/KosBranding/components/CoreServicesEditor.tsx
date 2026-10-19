@@ -47,8 +47,36 @@ const DynamicBrandIcon: React.FC<{ name?: string; className?: string }> = ({
   name = 'Sparkles',
   className = 'w-4 h-4',
 }) => {
-  const IconComp = (LucideIcons as any)[name] || LucideIcons.Sparkles;
-  return <IconComp className={className} />;
+  if (!name) {
+    const Fallback = LucideIcons.Sparkles;
+    return <Fallback className={className} />;
+  }
+
+  if (name.startsWith('data:image/') || name.startsWith('http://') || name.startsWith('https://') || name.startsWith('/')) {
+    return <img src={name} alt="icon" className={`${className} object-contain inline-block`} />;
+  }
+
+  let IconComp = (LucideIcons as any)[name];
+
+  if (!IconComp) {
+    const pascalName = name
+      .trim()
+      .replace(/(^|[-_ ])+([a-zA-Z0-9])/g, (_, __, c) => c.toUpperCase());
+    IconComp = (LucideIcons as any)[pascalName];
+  }
+
+  if (!IconComp) {
+    const lower = name.toLowerCase().replace(/[-_ ]/g, '');
+    const matchedKey = Object.keys(LucideIcons).find(
+      (key) => key.toLowerCase() === lower
+    );
+    if (matchedKey) {
+      IconComp = (LucideIcons as any)[matchedKey];
+    }
+  }
+
+  const FinalComp = IconComp || LucideIcons.Sparkles;
+  return <FinalComp className={className} />;
 };
 
 /**

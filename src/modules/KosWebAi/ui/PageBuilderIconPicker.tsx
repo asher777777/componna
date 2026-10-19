@@ -23,8 +23,40 @@ export const COMMON_ICONS = [
 ];
 
 export const DynamicIcon: React.FC<{ name?: string; className?: string }> = ({ name = 'Star', className = 'w-5 h-5' }) => {
-  const IconComponent = (LucideIcons as any)[name] || LucideIcons.FileQuestion;
-  return <IconComponent className={className} />;
+  if (!name) {
+    const Fallback = LucideIcons.Sparkles;
+    return <Fallback className={className} />;
+  }
+
+  // Support SVG data URLs or web image URLs
+  if (name.startsWith('data:image/') || name.startsWith('http://') || name.startsWith('https://') || name.startsWith('/')) {
+    return <img src={name} alt="icon" className={twMerge(clsx(className, 'object-contain inline-block'))} />;
+  }
+
+  // Direct lookup
+  let IconComponent = (LucideIcons as any)[name];
+
+  // Try normalized PascalCase (e.g. "shield-check" -> "ShieldCheck", "star" -> "Star")
+  if (!IconComponent) {
+    const pascalName = name
+      .trim()
+      .replace(/(^|[-_ ])+([a-zA-Z0-9])/g, (_, __, c) => c.toUpperCase());
+    IconComponent = (LucideIcons as any)[pascalName];
+  }
+
+  // Case-insensitive lookup
+  if (!IconComponent) {
+    const lower = name.toLowerCase().replace(/[-_ ]/g, '');
+    const matchedKey = Object.keys(LucideIcons).find(
+      (key) => key.toLowerCase() === lower
+    );
+    if (matchedKey) {
+      IconComponent = (LucideIcons as any)[matchedKey];
+    }
+  }
+
+  const FinalComponent = IconComponent || LucideIcons.HelpCircle || LucideIcons.FileQuestion;
+  return <FinalComponent className={className} />;
 };
 
 export const PageBuilderIconPicker: React.FC<PageBuilderIconPickerProps> = ({
