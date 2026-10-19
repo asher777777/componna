@@ -687,11 +687,40 @@ const FlagshipProductModal: React.FC<{
     }));
   };
 
-  const save = () => {
+  const [isSaving, setIsSaving] = useState(false);
+
+  const save = async () => {
+    setIsSaving(true);
     const synced = syncLegacyStrings(draft);
-    setDraft(synced);
-    onSave(synced);
-    return synced;
+    let finalDraft = synced;
+
+    // שמירה מסנכרנת: אם למוצר יש עמוד מקושר (linkedPageId), נסנכרן את העמוד ב-KosWebAi מיידית
+    if (synced.linkedPageId && pageBuilder?.createPageFromProduct) {
+      try {
+        const res = await pageBuilder.createPageFromProduct({
+          product: synced,
+          brandDna,
+        });
+        if (res && res.success) {
+          finalDraft = {
+            ...synced,
+            linkedPageId: res.pageId,
+            linkedPageSlug: res.slug,
+            seo: {
+              ...(synced.seo || {}),
+              slug: res.slug,
+            },
+          };
+        }
+      } catch (syncErr) {
+        console.warn('[FlagshipProductDetailModal] Background page sync error on save:', syncErr);
+      }
+    }
+
+    setDraft(finalDraft);
+    onSave(finalDraft);
+    setIsSaving(false);
+    return finalDraft;
   };
 
   // הוספת תמונות לגלריית המוצר מספריית המדיה
@@ -796,7 +825,7 @@ const FlagshipProductModal: React.FC<{
       return;
     }
 
-    const syncedDraft = save();
+    const syncedDraft = await save();
     setIsCreatingPage(true);
     setPageSuccessMsg(null);
     try {
@@ -896,15 +925,18 @@ const FlagshipProductModal: React.FC<{
             </button>
             <button
               type="button"
-              onClick={() => {
-                save();
+              disabled={isSaving}
+              onClick={async () => {
+                await save();
                 onClose();
               }}
-              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm"
+              className="p-1.5 sm:px-3 sm:py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-black flex items-center gap-1.5 transition-colors shadow-sm disabled:opacity-50"
               title="שמור שינויים"
             >
               <Save className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">שמור</span>
+              <span className="hidden sm:inline">
+                {isSaving ? 'שומר ומסנכרן...' : 'שמור'}
+              </span>
             </button>
             <button
               type="button"
@@ -1677,22 +1709,31 @@ const FlagshipProductModal: React.FC<{
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {draft.linkedPageId && (
+              <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1 ml-2">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                <span>יסנכרן אוטומטית את העמוד המקושר</span>
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
+              disabled={isSaving}
               className="flex-1 sm:flex-none px-4 py-2.5 text-xs font-bold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
             >
               ביטול
             </button>
             <button
               type="button"
-              onClick={() => {
-                save();
+              disabled={isSaving}
+              onClick={async () => {
+                await save();
                 onClose();
               }}
-              className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-lg shadow-indigo-500/20"
+              className="flex-1 sm:flex-none px-5 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-colors shadow-lg shadow-indigo-500/20 disabled:opacity-50 flex items-center justify-center gap-1.5"
             >
-              שמור מוצר
+              <Save className="w-3.5 h-3.5" />
+              <span>{isSaving ? 'שומר ומסנכרן עמוד...' : 'שמור מוצר'}</span>
             </button>
           </div>
         </div>
