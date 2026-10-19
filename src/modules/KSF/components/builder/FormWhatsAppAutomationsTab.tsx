@@ -1,8 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SmartFormDefinition, FormWhatsAppRule, FormWhatsAppConditionType, FormWhatsAppRecipientType } from '../../types';
 import { AVAILABLE_DYNAMIC_TAGS, renderWhatsAppMessage } from '../../services/whatsappTemplateService';
 import { getGreenApiService } from '../../services/formWhatsAppService';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
+import { WhatsAppContract } from '../../../../core/contracts';
+import { useTenantScope } from '../../../../core/tenant';
+import { SYSTEM_COLLECTIONS } from '../../../../core/contracts/collections';
+import { useBrandDna } from '../../../KosBranding/hooks/useBrandDna';
+import { SavedWhatsAppTemplate } from '../../types/whatsapp.types';
+import {
+  getSavedWhatsAppTemplates,
+  saveWhatsAppTemplate,
+  deleteWhatsAppTemplate,
+} from '../../services/whatsappTemplateStorageService';
+import {
+  generateBrandedWhatsAppTemplates,
+  extractBrandingEssence,
+} from '../../services/aiWhatsAppTemplateService';
 import { LuxuryIconRenderer } from '../shared/LuxuryIconRenderer';
 import {
   MessageSquare,
@@ -27,6 +42,13 @@ import {
   ExternalLink,
   Clock,
   ShieldCheck,
+  BookOpen,
+  BookmarkPlus,
+  Save,
+  X,
+  Loader2,
+  Bot,
+  Search,
 } from 'lucide-react';
 
 export interface FormWhatsAppAutomationsTabProps {
@@ -38,8 +60,26 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
   form,
   onChange,
 }) => {
-  const { apiKeys, openConnectorModal } = useSystemConnection();
-  const isGreenApiConnected = Boolean(apiKeys.greenApiInstanceId && apiKeys.greenApiToken);
+  const { tenantApiKeys, apiKeys, openConnectorModal } = useSystemConnection();
+  const { getCapability } = useHostCapabilities();
+  const { getScopedCollectionPath } = useTenantScope();
+  const brandContext = useBrandDna();
+  const brandDna = brandContext?.brandDna;
+
+  const templatesCollection = getScopedCollectionPath(SYSTEM_COLLECTIONS.KOS_WHATSUP_TEMPLATES);
+
+  // Consume WhatsApp contract from HostCapabilities (Monopoly Law)
+  const whatsappContract =
+    getCapability<WhatsAppContract>('whatsapp') ||
+    getCapability<WhatsAppContract>('whatsapp-service') ||
+    getCapability<WhatsAppContract>('KosWhatsUp') ||
+    getCapability<WhatsAppContract>('koswhatsup');
+
+  const isGreenApiConnected = Boolean(
+    whatsappContract?.isConfigured() ||
+    (apiKeys.greenApiInstanceId && apiKeys.greenApiToken) ||
+    (tenantApiKeys?.greenApiInstanceId && tenantApiKeys?.greenApiToken)
+  );
 
   const rules: FormWhatsAppRule[] = form.whatsappRules || [];
   const isEnabled = form.whatsappAutomationEnabled ?? false;
@@ -47,6 +87,37 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
   const [selectedRuleId, setSelectedRuleId] = useState<string | null>(
     rules.length > 0 ? rules[0].id : null
   );
+
+  // Saved templates state
+  const [savedTemplates, setSavedTemplates] = useState<SavedWhatsAppTemplate[]>([]);
+  const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+  const [isTemplatesModalOpen, setIsTemplatesModalOpen] = useState(false);
+  const [saveTemplateSuccess, setSaveTemplateSuccess] = useState(false);
+  const [templateSearchTerm, setTemplateSearchTerm] = useState('');
+  const [templateCategoryFilter, setTemplateCategoryFilter] = useState<string>('all');
+
+  // AI branded templates state
+  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isGeneratingAi, setIsGeneratingAi] = useState(false);
+  const [aiTemplates, setAiTemplates] = useState<SavedWhatsAppTemplate[]>([]);
+  const [savedAiTemplateIds, setSavedAiTemplateIds] = useState<Record<string, boolean>>({});
+
+  // Load saved system templates
+  const loadTemplates = useCallback(async () => {
+    setIsLoadingTemplates(true);
+    try {
+      const items = await getSavedWhatsAppTemplates(undefined, templatesCollection);
+      setSavedTemplates(items);
+    } catch (e) {
+      console.warn('Failed to load saved templates:', e);
+    } finally {
+      setIsLoadingTemplates(false);
+    }
+  }, [templatesCollection]);
+
+  useEffect(() => {
+    loadTemplates();
+  }, [loadTemplates]);
 
   // Test send state
   const [testPhone, setTestPhone] = useState('');
@@ -140,18 +211,91 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
     }
   };
 
-  // Test live dispatch
+  const brandingEssencePreview = useMemo(() => {
+    return extractBrandingEssence(brandDna);
+  }, [brandDna]);
+
+  // Save current active rule message as a reusable system template
+  const handleSaveCurrentAsTemplate = async () => {
+    if (!activeRule?.messageTemplate?.trim()) return;
+    try {
+      await saveWhatsAppTemplate(
+        {
+          name: activeRule.name || 'תבנית הודעת וואטסאפ',
+          messageTemplate: activeRule.messageTemplate,
+          category: (form.category?.includes('סליקה') ? 'payment' : form.category?.includes('תרומ') ? 'donation' : 'leads') as any,
+          tags: ['טופס', form.title],
+        },
+        undefined,
+        templatesCollection
+      );
+      setSaveTemplateSuccess(true);
+      setTimeout(() => setSaveTemplateSuccess(false), 2500);
+      loadTemplates();
+    } catch (e: any) {
+      alert('שגיאה בשמירת התבנית למערכת: ' + (e?.message || ''));
+    }
+  };
+
+  // Apply a saved system template to the active rule
+  const handleApplySavedTemplate = (template: SavedWhatsAppTemplate) => {
+    if (!activeRule) return;
+    handleUpdateActiveRule({
+      messageTemplate: template.messageTemplate,
+      name: template.name || activeRule.name,
+    });
+    setIsTemplatesModalOpen(false);
+  };
+
+  // Delete a saved template from system
+  const handleDeleteTemplate = async (templateId: string) => {
+    if (!confirm('האם למחוק תבנית זו מספריית המערכת?')) return;
+    try {
+      await deleteWhatsAppTemplate(templateId, undefined, templatesCollection);
+      loadTemplates();
+    } catch (e: any) {
+      alert('שגיאה במחיקת התבנית');
+    }
+  };
+
+  // Generate branded templates using AI and brand essence
+  const handleGenerateAiTemplates = async () => {
+    setIsGeneratingAi(true);
+    try {
+      const generated = await generateBrandedWhatsAppTemplates({
+        form,
+        brandDna,
+      });
+      setAiTemplates(generated);
+    } catch (e: any) {
+      alert('חלה שגיאה ביצירת תבניות ממותגות ב-AI: ' + (e?.message || ''));
+    } finally {
+      setIsGeneratingAi(false);
+    }
+  };
+
+  // Save an AI generated template into system library
+  const handleSaveAiTemplate = async (tpl: SavedWhatsAppTemplate) => {
+    try {
+      await saveWhatsAppTemplate(tpl, undefined, templatesCollection);
+      setSavedAiTemplateIds((prev) => ({ ...prev, [tpl.id]: true }));
+      loadTemplates();
+    } catch (e: any) {
+      alert('שגיאה בשמירת התבנית למערכת');
+    }
+  };
+
+  // Test live dispatch - tries WhatsAppContract first (Zero Cross-Import Monopoly), then greenService fallback
   const handleTestSend = async () => {
     if (!activeRule || !testPhone) {
       alert('נא להזין מספר טלפון לבדיקה');
       return;
     }
 
-    const greenService = getGreenApiService();
-    if (!greenService || !greenService.isConfigured()) {
+    if (!isGreenApiConnected) {
       setTestResult({
         success: false,
-        msg: 'שירות Green-API לא מוגדר במערכת. לחץ על הגדרות לחיבור.',
+        msg: 'שירות וואטסאפ אינו מחובר. לחץ על הגדרות להזנת פרטי Green-API.',
       });
       return;
     }
@@ -176,21 +320,39 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
         submittedAt: new Date().toISOString(),
       });
 
-      const res = await greenService.sendMessage({
-        chatId: testPhone,
-        message: sampleRendered,
-      });
-
-      if (res?.idMessage) {
-        setTestResult({
-          success: true,
-          msg: `הודעת בדיקה נשלחה בהצלחה! מזהה: ${res.idMessage}`,
-        });
+      // Priority 1: Use WhatsApp Contract
+      if (whatsappContract && whatsappContract.isConfigured()) {
+        const res = await whatsappContract.sendMessage(testPhone, sampleRendered);
+        if (res?.success) {
+          setTestResult({
+            success: true,
+            msg: `הודעת בדיקה נשלחה בהצלחה! מזהה: ${res.idMessage || 'נשלח בהצלחה'}`,
+          });
+        } else {
+          setTestResult({
+            success: false,
+            msg: res?.error || 'שגיאה בשליחת הודעת בדיקה דרך חוזה הוואטסאפ',
+          });
+        }
       } else {
-        setTestResult({
-          success: false,
-          msg: res?.error || 'שגיאה בשליחת הודעת בדיקה',
+        // Priority 2: Use direct Green API service
+        const greenService = getGreenApiService();
+        const res = await greenService.sendMessage({
+          chatId: testPhone,
+          message: sampleRendered,
         });
+
+        if (res?.idMessage) {
+          setTestResult({
+            success: true,
+            msg: `הודעת בדיקה נשלחה בהצלחה! מזהה: ${res.idMessage}`,
+          });
+        } else {
+          setTestResult({
+            success: false,
+            msg: res?.error || 'שגיאה בשליחת הודעת בדיקה',
+          });
+        }
       }
     } catch (e: any) {
       setTestResult({
@@ -245,11 +407,11 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {/* Green API Status Indicator */}
+          {/* WhatsApp Status Indicator */}
           {isGreenApiConnected ? (
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold border border-emerald-500/20">
               <CheckCircle className="w-4 h-4" />
-              <span>GREEN-API מחובר</span>
+              <span>{whatsappContract?.isConfigured() ? 'וואטסאפ מחובר (חוזה KosWhatsUp)' : 'וואטסאפ מחובר (GREEN-API)'}</span>
             </div>
           ) : (
             <button
@@ -666,10 +828,54 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
                 </div>
 
                 {/* Message Template Textarea */}
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    נוסח הודעת הוואטסאפ:
-                  </label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                      נוסח הודעת הוואטסאפ:
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                      {/* 1. AI Branded Templates Button */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAiModalOpen(true);
+                          if (aiTemplates.length === 0) {
+                            handleGenerateAiTemplates();
+                          }
+                        }}
+                        className="px-2.5 py-1.5 bg-gradient-to-r from-indigo-500/10 via-purple-500/10 to-pink-500/10 hover:from-indigo-500/20 hover:to-purple-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-xs"
+                        title="יצירת 3 תבניות וואטסאפ ממותגות ב-AI על בסיס תמצית המיתוג"
+                      >
+                        <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                        <span>יצירת תבניות מיתוג ב-AI</span>
+                      </button>
+
+                      {/* 2. System Templates Library Button */}
+                      <button
+                        type="button"
+                        onClick={() => setIsTemplatesModalOpen(true)}
+                        className="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors"
+                        title="פתיחת ספריית התבניות השמורות במערכת"
+                      >
+                        <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                        <span>ספריית תבניות ({savedTemplates.length})</span>
+                      </button>
+
+                      {/* 3. Save Current as System Template Button */}
+                      <button
+                        type="button"
+                        onClick={handleSaveCurrentAsTemplate}
+                        disabled={!activeRule.messageTemplate?.trim()}
+                        className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                        title="שמור הודעה זו כתבנית מערכת שמורה לשימוש חוזר בכל טופס"
+                      >
+                        <BookmarkPlus className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                        <span>{saveTemplateSuccess ? 'נשמר בהצלחה!' : 'שמור כתבנית'}</span>
+                      </button>
+                    </div>
+                  </div>
+
                   <textarea
                     rows={6}
                     value={activeRule.messageTemplate}
@@ -748,6 +954,309 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
                 בחר או צור תרחיש כדי להתחיל לערוך.
               </div>
             )}
+          </div>
+        </div>
+      )}
+      {/* 1. Modal: ספריית תבניות מערכת שמורות */}
+      {isTemplatesModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div
+            dir="rtl"
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 space-y-4 max-h-[85vh] flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 rounded-xl">
+                  <BookOpen className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    ספריית תבניות הודעות וואטסאפ במערכת
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    תבניות הודעות שמורות בטננט לשימוש חוזר בכל הטפסים והקמפיינים
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsTemplatesModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Filter & Search Bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex-1 min-w-[200px] relative">
+                <input
+                  type="text"
+                  value={templateSearchTerm}
+                  onChange={(e) => setTemplateSearchTerm(e.target.value)}
+                  placeholder="חיפוש לפי שם תבנית או מילות מפתח..."
+                  className="w-full pl-3 pr-8 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white"
+                />
+                <Search className="w-4 h-4 text-slate-400 absolute right-2.5 top-2.5" />
+              </div>
+
+              <select
+                value={templateCategoryFilter}
+                onChange={(e) => setTemplateCategoryFilter(e.target.value)}
+                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 outline-none"
+              >
+                <option value="all">כל הקטגוריות</option>
+                <option value="leads">לידים ופניות</option>
+                <option value="payment">סליקה ותשלומים</option>
+                <option value="donation">תרומות והוראת קבע</option>
+                <option value="branded">תבניות ממותגות AI</option>
+              </select>
+            </div>
+
+            {/* Templates List */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {savedTemplates
+                .filter((t) => {
+                  const matchCat =
+                    templateCategoryFilter === 'all' ||
+                    t.category === templateCategoryFilter ||
+                    (templateCategoryFilter === 'branded' && t.isAiGenerated);
+                  const matchSearch =
+                    !templateSearchTerm ||
+                    t.name.toLowerCase().includes(templateSearchTerm.toLowerCase()) ||
+                    t.messageTemplate.toLowerCase().includes(templateSearchTerm.toLowerCase()) ||
+                    t.tags?.some((tag) => tag.toLowerCase().includes(templateSearchTerm.toLowerCase()));
+                  return matchCat && matchSearch;
+                })
+                .map((tpl) => (
+                  <div
+                    key={tpl.id}
+                    className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-indigo-500/50 rounded-2xl transition-all space-y-2 group"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">
+                          {tpl.name}
+                        </span>
+                        {tpl.isAiGenerated && (
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5" />
+                            <span>AI ממותג</span>
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
+                          {tpl.category === 'payment'
+                            ? 'סליקה'
+                            : tpl.category === 'donation'
+                            ? 'תרומות'
+                            : tpl.category === 'leads'
+                            ? 'לידים'
+                            : 'כללי'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => handleApplySavedTemplate(tpl)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                        >
+                          החל על התרחיש
+                        </button>
+                        {!DEFAULT_WHATSAPP_TEMPLATES.some((d) => d.id === tpl.id) && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteTemplate(tpl.id)}
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded-lg hover:bg-white dark:hover:bg-slate-700"
+                            title="מחק תבנית זו"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-3 bg-white dark:bg-slate-900 rounded-xl text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre-wrap max-h-32 overflow-y-auto leading-relaxed border border-slate-100 dark:border-slate-800">
+                      {tpl.messageTemplate}
+                    </div>
+
+                    {tpl.tags && tpl.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {tpl.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="px-2 py-0.5 rounded-md text-[10px] bg-slate-200/60 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400"
+                          >
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+              {savedTemplates.length === 0 && (
+                <div className="text-center py-10 text-slate-400 text-xs">
+                  {isLoadingTemplates ? (
+                    <div className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                      <span>טוען תבניות...</span>
+                    </div>
+                  ) : (
+                    'אין תבניות שמורות כרגע.'
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. Modal: יצירת תבניות מיתוגיות על ידי ה-AI (על בסיס תמצית המיתוג) */}
+      {isAiModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div
+            dir="rtl"
+            className="w-full max-w-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl p-6 space-y-5 max-h-[88vh] flex flex-col"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 bg-gradient-to-tr from-indigo-500 to-purple-500 text-white rounded-xl shadow-xs">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                    יצירת תבניות הודעות ממותגות ב-AI (Brand WhatsApp AI)
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    חילוץ תמצית המותג המזוקקת ויצירת 3 תבניות וואטסאפ מלוטשות
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsAiModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Brand Essence Box (תמצית המיתוג שנשלחת לסוכן) */}
+            <div className="p-3.5 bg-indigo-500/5 dark:bg-indigo-950/20 border border-indigo-500/20 rounded-2xl space-y-2">
+              <div className="flex items-center justify-between text-xs font-bold text-indigo-700 dark:text-indigo-300">
+                <span className="flex items-center gap-1.5">
+                  <Bot className="w-3.5 h-3.5" />
+                  תמצית המיתוג שנשלחת לסוכן ה-AI (Brand Essence בלבד):
+                </span>
+                <span className="text-[10px] font-mono bg-indigo-500/10 px-2 py-0.5 rounded-full">
+                  ללא עודף נתונים גולמיים
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans bg-white/70 dark:bg-slate-900/70 p-2.5 rounded-xl border border-indigo-500/10 whitespace-pre-wrap">
+                {brandingEssencePreview}
+              </p>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-xs font-semibold text-slate-500">
+                {aiTemplates.length > 0 ? `נוצרו ${aiTemplates.length} תבניות מותג מותאמות` : 'מוכן למחולל'}
+              </span>
+
+              <button
+                type="button"
+                disabled={isGeneratingAi}
+                onClick={handleGenerateAiTemplates}
+                className="px-4 py-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs flex items-center gap-2 transition-all shadow-md"
+              >
+                {isGeneratingAi ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>הסוכן מייצר תבניות מותג...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4" />
+                    <span>{aiTemplates.length > 0 ? 'חולל שוב תבניות מותג' : 'חולל 3 תבניות מותג ב-AI'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Generated Templates Cards */}
+            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+              {aiTemplates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 rounded-2xl shadow-xs space-y-3 transition-all"
+                >
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-bold text-sm text-slate-900 dark:text-white flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                      {tpl.name}
+                    </h4>
+
+                    <div className="flex items-center gap-2">
+                      {/* Save to System Button */}
+                      <button
+                        type="button"
+                        onClick={() => handleSaveAiTemplate(tpl)}
+                        className={`px-2.5 py-1 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1 ${
+                          savedAiTemplateIds[tpl.id]
+                            ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/30'
+                            : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                        }`}
+                      >
+                        {savedAiTemplateIds[tpl.id] ? (
+                          <>
+                            <Check className="w-3 h-3 text-emerald-600" />
+                            <span>נשמר במערכת</span>
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-3 h-3 text-slate-500" />
+                            <span>שמור במערכת</span>
+                          </>
+                        )}
+                      </button>
+
+                      {/* Apply to Current Rule */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleApplySavedTemplate(tpl);
+                          setIsAiModalOpen(false);
+                        }}
+                        className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                      >
+                        החל על התרחיש
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/80 rounded-xl text-xs font-mono text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed border border-slate-100 dark:border-slate-800">
+                    {tpl.messageTemplate}
+                  </div>
+                </div>
+              ))}
+
+              {isGeneratingAi && (
+                <div className="p-10 text-center space-y-3 bg-slate-50 dark:bg-slate-800/40 rounded-2xl border border-slate-200 dark:border-slate-800 animate-pulse">
+                  <Loader2 className="w-7 h-7 text-indigo-500 animate-spin mx-auto" />
+                  <p className="text-xs font-bold text-slate-700 dark:text-slate-200">
+                    מנתח את תמצית המותג של "{brandDna?.identity?.companyName || 'הארגון'}"...
+                  </p>
+                  <p className="text-[11px] text-slate-400">
+                    יוצר 3 נוסחי וואטסאפ ממוקדים עם התאמת טון, שפה ותגיות דינמיות.
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
