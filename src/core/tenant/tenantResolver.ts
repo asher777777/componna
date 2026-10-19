@@ -9,7 +9,7 @@
 export const ROOT_TENANT_ID = '_master';
 
 export const RESERVED_TENANT_SUBDOMAINS = [
-  'www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop'
+  'www', 'app', 'api', 'admin', 'system', 'sys', 'mail', 'mall', 'hub', 'dashboard', 'control', 'auth', 'login', 'store', 'shop', 'default', 'master'
 ];
 
 /** Standard provisioned modules enabled by default for subdomain tenants */

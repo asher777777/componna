@@ -394,6 +394,7 @@ export interface CrmGroupSummary {
   gallery?: string[];
   logoUrl?: string;
   leaderName?: string;
+  leaderContactId?: string;
 }
 
 export interface CrmGroupsContract {
@@ -1052,6 +1053,7 @@ export interface CommunityBrandProfile {
     textColor?: string;
   };
   leaderName?: string;
+  leaderContactId?: string;
   contactPhone?: string;
   contactEmail?: string;
   websiteUrl?: string;

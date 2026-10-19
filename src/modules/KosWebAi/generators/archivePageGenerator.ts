@@ -573,9 +573,8 @@ export async function ensureDefaultArchivePages(
   try {
     const liveBrand = await fetchLiveBrandDna(db, tenantId, brandDnaInput);
     const allPages = await pageBuilderFirestore.getAllPages(db || null, tenantId);
-    const archivePages: PageBuilderConfig[] = [];
 
-    for (const [slug, cat] of Object.entries(ARCHIVE_SLUG_MAP)) {
+    const tasks = Object.entries(ARCHIVE_SLUG_MAP).map(async ([slug, cat]) => {
       const existing = allPages.find((p) => {
         const pSlug = (p.slug || '').toLowerCase().trim().replace(/^\/+/, '');
         const pShort = (p.shortSlug || '').toLowerCase().trim().replace(/^\/+/, '');
@@ -583,17 +582,22 @@ export async function ensureDefaultArchivePages(
       });
 
       if (existing) {
+        const currentTheme = existing.globalSettings?.theme;
+        const targetPreset = (liveBrand.designTokens?.defaultStylePreset as TenantStylePreset) || 'standard';
+        if (existing.sectionOrder?.length === 3 && existing.isArchivePage && currentTheme === targetPreset) {
+          return existing;
+        }
         const sanitized = sanitizeArchivePageWithBrandDna(existing, liveBrand, tenantId);
         await pageBuilderFirestore.savePage(sanitized, db || null, tenantId);
-        archivePages.push(sanitized);
+        return sanitized;
       } else {
         const config = buildArchivePageConfig(cat, tenantId, liveBrand);
         await pageBuilderFirestore.savePage(config, db || null, tenantId);
-        archivePages.push(config);
+        return config;
       }
-    }
+    });
 
-    return archivePages;
+    return await Promise.all(tasks);
   } catch (err) {
     console.warn('[ensureDefaultArchivePages] Failed checking/creating archive pages:', err);
     return [];
@@ -613,13 +617,17 @@ export async function syncArchivePagesWithBrandDna(
     const liveBrand = await fetchLiveBrandDna(db, tenantId, brandDnaInput);
     const allPages = await pageBuilderFirestore.getAllPages(db || null, tenantId);
 
-    for (const page of allPages) {
-      const slug = (page.slug || '').toLowerCase().trim().replace(/^\/+/, '');
-      if (page.isArchivePage || ARCHIVE_SLUG_MAP[slug]) {
+    const updateTasks = allPages
+      .filter((page) => {
+        const slug = (page.slug || '').toLowerCase().trim().replace(/^\/+/, '');
+        return page.isArchivePage || ARCHIVE_SLUG_MAP[slug];
+      })
+      .map(async (page) => {
         const sanitized = sanitizeArchivePageWithBrandDna(page, liveBrand, tenantId);
         await pageBuilderFirestore.savePage(sanitized, db || null, tenantId);
-      }
-    }
+      });
+
+    await Promise.all(updateTasks);
   } catch (err) {
     console.warn('[syncArchivePagesWithBrandDna] Failed updating archive pages:', err);
   }
