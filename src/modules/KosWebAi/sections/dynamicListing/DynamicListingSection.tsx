@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   DynamicListingSectionConfig,
   DynamicListingItem,
@@ -19,6 +19,10 @@ import {
   Check,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
+import { PAGE_CATEGORIES, getCategoryFromPage } from '../../types/pageBuilder.types';
 
 export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConfig }> = ({ config }) => {
   const {
@@ -26,6 +30,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     title = 'מאגר התוכן והפעילות',
     subtitle = 'סקירה מעמיקה של כל העדכונים, הפרויקטים והשירותים המובילים',
     badge = 'תוכן ופעילות',
+    source = 'pages',
     layout = 'bento-showcase',
     gridColumns = 3,
     aspectRatio = '16:9',
@@ -45,6 +50,162 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [modalItem, setModalItem] = useState<DynamicListingItem | null>(null);
 
+  // Dynamic Content Resolution State
+  const [dynamicItems, setDynamicItems] = useState<DynamicListingItem[]>(items && items.length > 0 ? items : []);
+  const [, setIsLoadingDynamic] = useState<boolean>(false);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function fetchDynamicContent() {
+      // If user explicitly chose custom items and provided them
+      if (source === 'custom' && items && items.length > 0) {
+        if (isMounted) setDynamicItems(items);
+        return;
+      }
+
+      setIsLoadingDynamic(true);
+      try {
+        const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+        const brand = resolveLiveBrandDna(null, effTenant);
+        const pages = await pageBuilderFirestore.getAllPages(null, effTenant);
+
+        const pageItems: DynamicListingItem[] = [];
+
+        // 1. Process published tenant pages
+        pages.forEach((p) => {
+          if (!p || !p.pageTitle || p.isHomePage || p.slug === 'home') return;
+          const cat = getCategoryFromPage(p) || 'general';
+          const catCfg = PAGE_CATEGORIES[cat];
+          const heroSec = Object.values(p.sections || {}).find((s: any) => s && s.type === 'hero') as any;
+
+          const defaultImg =
+            heroSec?.imageSrc ||
+            heroSec?.imageUrl ||
+            p.globalSettings?.siteLogoUrl ||
+            (cat === 'event'
+              ? 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80'
+              : cat === 'course'
+              ? 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80'
+              : cat === 'fundraising'
+              ? 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb7?auto=format&fit=crop&w=800&q=80'
+              : cat === 'checkout'
+              ? 'https://images.unsplash.com/photo-1556742049-0a67e557229f?auto=format&fit=crop&w=800&q=80'
+              : cat === 'community'
+              ? 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80'
+              : cat === 'youtube_post'
+              ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'
+              : 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80');
+
+          const slug = p.publishedUrl || p.shortUrl || (p.slug ? (p.slug.startsWith('/') ? p.slug : `/${p.slug}`) : `/p/${p.pageId}`);
+
+          pageItems.push({
+            id: p.pageId,
+            title: p.pageTitle,
+            subtitle: heroSec?.subtitle || p.globalSettings?.slogan || catCfg?.description || '',
+            excerpt: heroSec?.description || p.seoSettings?.description || '',
+            imageUrl: defaultImg,
+            badge: catCfg?.shortLabel || 'עמוד פעיל',
+            category: catCfg?.label || 'תוכן ומאמרים',
+            date: p.createdAt ? new Date(p.createdAt).toLocaleDateString('he-IL') : undefined,
+            linkUrl: slug,
+            actionType: 'link',
+          });
+        });
+
+        // 2. Add Brand Products & Services
+        const products = brand.ecosystem?.products || [];
+        products.forEach((prod: any, idx: number) => {
+          if (!prod) return;
+          const pName = typeof prod === 'string' ? prod : (prod.nameAndSlogan || prod.title || `מוצר ${idx + 1}`);
+          const pDesc = typeof prod === 'string' ? '' : (prod.shortDescription || prod.painPointSolved || '');
+          const pSlug = typeof prod === 'string' ? '' : (prod.linkedPageSlug ? (prod.linkedPageSlug.startsWith('/') ? prod.linkedPageSlug : `/${prod.linkedPageSlug}`) : `/kosass/${prod.id || idx + 1}`);
+          const pImg = typeof prod === 'string' ? '' : (prod.imageUrl || (prod.galleryImages && prod.galleryImages[0]));
+
+          pageItems.push({
+            id: `brand-prod-${idx + 1}`,
+            title: pName,
+            subtitle: pDesc,
+            excerpt: typeof prod !== 'string' && prod.longDescription ? prod.longDescription.slice(0, 100) : pDesc,
+            imageUrl: pImg || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+            badge: 'מוצר דגל',
+            category: 'מוצרי דגל ושירותים',
+            linkUrl: pSlug || '#sec-contact',
+            actionType: 'link',
+          });
+        });
+
+        // 3. Fallback starters if total is 0 (brand new installation with zero pages and products)
+        if (pageItems.length === 0) {
+          const company = brand.identity?.companyName || 'המותג שלנו';
+          const starters: DynamicListingItem[] = [
+            {
+              id: 'starter-1',
+              title: `מדריך עומק מקצועי מבית ${company}`,
+              subtitle: 'תובנות מעשיות, מחקרי שוק וכלים מובילים',
+              excerpt: 'קריאת עומק מקיפה למקבלי החלטות ולמנהלים',
+              imageUrl: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80',
+              badge: 'תוכן ומאמרים',
+              category: 'עמודי תוכן ומאמרים',
+              linkUrl: '/kosinfo',
+              actionType: 'link',
+            },
+            {
+              id: 'starter-2',
+              title: `כנס ומפגש קהילה שנתי מבית ${company}`,
+              subtitle: 'שריון מקום מוקדם לערב שיא מעורר השראה',
+              excerpt: 'הרצאות מרכזיות, סדנאות מעשיות ונטוורקינג ממוקד',
+              imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+              badge: 'אירועים',
+              category: 'עמודי אירועים וכנסים',
+              linkUrl: '/kosevent',
+              actionType: 'link',
+            },
+            {
+              id: 'starter-3',
+              title: `התכנית המקיפה להכשרה ומצוינות`,
+              subtitle: 'סילבוס מעשי וליווי צמוד לתוצאות מוכחות',
+              excerpt: 'מחזור קרוב יוצא לדרך • מספר המקומות מוגבל',
+              imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+              badge: 'קורסים',
+              category: 'דפי קורסים והכשרות',
+              linkUrl: '/koscourse',
+              actionType: 'link',
+            },
+            {
+              id: 'starter-4',
+              title: `קהילת השגרירים והמובילים`,
+              subtitle: 'מרחב שיח פתוח, שיתופי פעולה ותוכן בלעדי',
+              excerpt: 'הצטרפו למעגל העשייה והנטוורקינג',
+              imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+              badge: 'קהילה',
+              category: 'דפי קהילה ומועדון',
+              linkUrl: '/koscommunity',
+              actionType: 'link',
+            },
+          ];
+          if (isMounted) setDynamicItems(starters);
+        } else {
+          if (isMounted) setDynamicItems(pageItems);
+        }
+      } catch (err) {
+        console.warn('[DynamicListingSection] Dynamic content load failed, using config items:', err);
+        if (isMounted) setDynamicItems(items || []);
+      } finally {
+        if (isMounted) setIsLoadingDynamic(false);
+      }
+    }
+
+    fetchDynamicContent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [source, items]);
+
+  // Use dynamic items if available, otherwise config items
+  const effectiveItems = dynamicItems && dynamicItems.length > 0 ? dynamicItems : items;
+
   // Magnetic thumbnail state for Editorial List
   const [hoveredItem, setHoveredItem] = useState<DynamicListingItem | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -58,15 +219,15 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
       return ['all', ...config.categories];
     }
     const set = new Set<string>();
-    items.forEach((item) => {
+    effectiveItems.forEach((item) => {
       if (item.category) set.add(item.category);
     });
     return ['all', ...Array.from(set)];
-  }, [config.categories, items]);
+  }, [config.categories, effectiveItems]);
 
   // Filtered items by category and search query
   const filteredItems = useMemo(() => {
-    return items.filter((item) => {
+    return effectiveItems.filter((item) => {
       const matchesCategory =
         selectedCategory === 'all' || item.category === selectedCategory;
       const q = searchQuery.toLowerCase().trim();
@@ -78,7 +239,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
         (item.category && item.category.toLowerCase().includes(q));
       return matchesCategory && matchesSearch;
     });
-  }, [items, selectedCategory, searchQuery]);
+  }, [effectiveItems, selectedCategory, searchQuery]);
 
   const handleCardClick = (item: DynamicListingItem) => {
     if (item.actionType === 'modal' || !item.linkUrl || item.linkUrl === '#') {

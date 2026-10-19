@@ -18,6 +18,7 @@ import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketing
 import { PageBuilderProvider } from './context/PageBuilderContext';
 import { KosaiProvider } from '../kosai-engine';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
+import { applyLayoutArchetypeToPage } from './services/pageStylePresetService';
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
 import { eventBus } from '../../core/bridge/EventBus';
 import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
@@ -218,6 +219,12 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       sections: SectionType[];
       keywords: string[];
     }> = {
+      home: {
+        title: 'עמוד בית ראשי ומערכתי',
+        slugPrefix: '',
+        sections: ['header', 'hero', 'statsBento', 'dynamicListing', 'richContent', 'community', 'testimonials', 'faq', 'contact'],
+        keywords: ['עמוד בית', 'ראשי', 'שירותים', 'מוצרים', 'קהילה', 'אירועים'],
+      },
       info_content: {
         title: 'עמוד מידע ותוכן חדש',
         slugPrefix: 'kosinfo',
@@ -280,16 +287,18 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
     // Build unique slug conforming to category prefix
     let finalSlug = '';
     const cleanPrefix = targetTemplate.slugPrefix;
-    if (options.slugSuffix?.trim()) {
+    if (category === 'home') {
+      finalSlug = 'home';
+    } else if (options.slugSuffix?.trim()) {
       const cleanSuffix = options.slugSuffix
         .trim()
         .toLowerCase()
         .replace(/[^a-z0-9_-]/g, '-')
         .replace(/^-+|-+$/g, '');
-      finalSlug = cleanSuffix.startsWith(`${cleanPrefix}-`) ? cleanSuffix : `${cleanPrefix}-${cleanSuffix}`;
+      finalSlug = cleanPrefix ? (cleanSuffix.startsWith(`${cleanPrefix}-`) ? cleanSuffix : `${cleanPrefix}-${cleanSuffix}`) : cleanSuffix;
     } else {
       const randomSuffix = Math.floor(Math.random() * 9000 + 1000);
-      finalSlug = `${cleanPrefix}-${randomSuffix}`;
+      finalSlug = cleanPrefix ? `${cleanPrefix}-${randomSuffix}` : `page-${randomSuffix}`;
     }
 
     const liveBrandDna = resolveLiveBrandDna(brandDna, tenantId);
@@ -419,21 +428,30 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         builtSections.richContent.heading = finalTitle;
         builtSections.richContent.body = `<p>${options.description}</p>`;
       }
+    } else if (category === 'home') {
+      if (builtSections.dynamicListing) {
+        builtSections.dynamicListing.source = 'all';
+      }
+      if (builtSections.hero && liveBrandDna?.identity?.companyName) {
+        builtSections.hero.title = finalTitle;
+        if (liveBrandDna.identity.slogan) builtSections.hero.subtitle = liveBrandDna.identity.slogan;
+      }
     }
 
-    const newPage: PageBuilderConfig = {
+    let newPage: PageBuilderConfig = {
       ...baseInitial,
       pageId: newId,
       pageTitle: finalTitle,
       slug: finalSlug,
       pageCategory: category,
-      published: false,
-      isHomePage: false,
+      published: category === 'home',
+      isHomePage: category === 'home' || Boolean(options.isHomePage),
       viewsCount: 0,
       leadsCount: 0,
       globalSettings: {
         ...baseInitial.globalSettings,
         siteTitle: finalTitle,
+        layoutArchetype: options.layoutArchetype || (category === 'home' ? 'bento_hub' : undefined),
         primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
         companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
         fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
@@ -446,6 +464,13 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       sectionOrder: targetTemplate.sections,
       sections: builtSections,
     };
+
+    // If an archetype is chosen or creating a home page, apply archetype formatting & order
+    if (options.layoutArchetype || category === 'home') {
+      const targetArchetype = options.layoutArchetype || 'bento_hub';
+      const { updatedPage } = applyLayoutArchetypeToPage(newPage, targetArchetype, liveBrandDna, tenantId);
+      newPage = updatedPage;
+    }
 
     // If it's a service/product page, register slug with BrandDNA contract
     if (category === 'service_product') {

@@ -4,6 +4,8 @@ import {
   PAGE_CATEGORIES,
   PageBuilderConfig,
   ARCHIVE_7_SECTIONS_SPECS,
+  LayoutArchetype,
+  LAYOUT_ARCHETYPES,
 } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import {
@@ -30,6 +32,8 @@ import {
   HelpCircle,
   Flame,
   GraduationCap,
+  LayoutGrid,
+  Zap,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -63,6 +67,10 @@ export interface PageCreationOptions {
 
   // Video / KosTube specific
   youtubeUrl?: string;
+
+  // Homepage / Ecosystem specific
+  layoutArchetype?: LayoutArchetype;
+  isHomePage?: boolean;
 }
 
 interface CreatePageWizardModalProps {
@@ -85,6 +93,7 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
   const [pageTitle, setPageTitle] = useState('');
   const [slugSuffix, setSlugSuffix] = useState('');
   const [description, setDescription] = useState('');
+  const [layoutArchetype, setLayoutArchetype] = useState<LayoutArchetype>('bento_hub');
 
   // Event Specific
   const [eventDate, setEventDate] = useState('2026-11-20');
@@ -114,17 +123,24 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
   if (!isOpen) return null;
 
   const currentCategoryConfig = PAGE_CATEGORIES[category] || PAGE_CATEGORIES.info_content;
-  const calculatedSlug = `${currentCategoryConfig.slugPrefixLower}-${(slugSuffix || pageTitle || 'new')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9-]/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '') || Math.floor(Math.random() * 9000 + 1000)}`;
+  const calculatedSlug = category === 'home'
+    ? ((slugSuffix || 'home').toLowerCase().trim().replace(/[^a-z0-9-]/g, '-') || 'home')
+    : `${currentCategoryConfig.slugPrefixLower}-${(slugSuffix || pageTitle || 'new')
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9-]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '') || Math.floor(Math.random() * 9000 + 1000)}`;
 
   const handleSelectCategory = (cat: PageCategory) => {
     setCategory(cat);
     // Apply smart default titles based on category
-    if (cat === 'info_content') {
+    if (cat === 'home') {
+      const company = brandDna?.identity?.companyName || 'קמונה';
+      setPageTitle(`${company} - עמוד בית ראשי`);
+      setDescription(brandDna?.identity?.slogan || 'שער הכניסה הדינמי לכל התכנים, המוצרים, השירותים והאירועים שלנו');
+      setSlugSuffix('home');
+    } else if (cat === 'info_content') {
       setPageTitle('מדריך מקיף ומרכז ידע מקצועי');
       setDescription('כל מה שרציתם לדעת – תובנות מעמיקות, שאלות נפוצות ומידע שימושי.');
     } else if (cat === 'event') {
@@ -166,6 +182,8 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
         pageTitle: pageTitle.trim(),
         slugSuffix: calculatedSlug,
         description: description.trim(),
+        layoutArchetype,
+        isHomePage: category === 'home',
         eventDate,
         eventTime,
         eventEndTime,
@@ -236,6 +254,38 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
           {/* STEP 1: CATEGORY SELECTION */}
           {step === 'category' && (
             <div className="py-5 flex flex-col gap-4">
+              {/* FEATURED: Living Ecosystem Master Homepage */}
+              <button
+                type="button"
+                onClick={() => handleSelectCategory('home')}
+                className="group p-4 sm:p-5 rounded-2xl border-2 border-indigo-500/40 hover:border-indigo-500 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-pink-50/40 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900 text-right transition-all flex items-start gap-4 cursor-pointer hover:shadow-lg shadow-indigo-500/10"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-indigo-500/20">
+                  <LayoutGrid className="w-6 h-6" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1 flex-wrap">
+                    <span className="font-black text-sm sm:text-base text-slate-900 dark:text-white">
+                      עמוד בית חי ומערכתי (Master Homepage Ecosystem)
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold shadow-sm">
+                      מומלץ • 10 אזורים מחוברים
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
+                    שער כניסה חי ונושם המחבר בזמן אמת את כל 6 הארכיונים (תוכן, אירועים, קורסים, סליקה, קהילה, קמפיינים) לצד מוצרי דגל ושירותים – עם בחירה בין 5 ארכיטיפי עימוד ייחודיים ללא שבלונה קבועה!
+                  </p>
+                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
+                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
+                      5 ארכיטיפי פריסה (Bento, Luxury, Community, Academy, Sales)
+                    </span>
+                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
+                      נתיב ראשי /
+                    </span>
+                  </div>
+                </div>
+              </button>
+
               <div className="flex items-center justify-between px-1">
                 <span className="text-xs font-black text-slate-700 dark:text-slate-300">
                   תבניות ארכיון מובנות (7 אזורים לכל ארכיון)
@@ -465,7 +515,7 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
                   </span>
                 </div>
                 <div className="text-xs font-mono text-indigo-600 dark:text-indigo-400 font-bold" dir="ltr">
-                  /p/{calculatedSlug}
+                  {category === 'home' ? '/' : `/p/${calculatedSlug}`}
                 </div>
               </div>
 
@@ -526,6 +576,91 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
               </div>
 
               {/* ================= CATEGORY SPECIFIC SECTIONS ================= */}
+
+              {/* HOMEPAGE ECOSYSTEM SPECIFIC: 5 Layout Archetypes Selector */}
+              {category === 'home' && (
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-purple-50/50 to-pink-50/40 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900 border border-indigo-200/80 dark:border-indigo-800/80 flex flex-col gap-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 text-xs font-black">
+                      <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+                      <span>בחר ארכיטיפ עימוד ייחודי לסאב-דומיין (Layout Archetype)</span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300">
+                      ללא שבלונה קבועה
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                    כדי למנוע תסמונת שבלונה גנרית, כל סאב-דומיין יכול לבחור מבנה וסדר אזורים ייעודי בהתאם לאופיו:
+                  </p>
+
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {(Object.keys(LAYOUT_ARCHETYPES) as LayoutArchetype[]).map((archKey) => {
+                      const spec = LAYOUT_ARCHETYPES[archKey];
+                      const isSelected = layoutArchetype === archKey;
+                      return (
+                        <button
+                          key={archKey}
+                          type="button"
+                          onClick={() => setLayoutArchetype(archKey)}
+                          className={clsx(
+                            'p-3.5 rounded-2xl border text-right transition-all flex items-start justify-between cursor-pointer',
+                            isSelected
+                              ? 'bg-white dark:bg-slate-900 border-indigo-500 shadow-md ring-2 ring-indigo-500/20'
+                              : 'bg-white/60 dark:bg-slate-900/40 border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700'
+                          )}
+                        >
+                          <div className="flex items-start gap-3">
+                            <div className={clsx(
+                              'w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5',
+                              isSelected
+                                ? 'bg-indigo-600 text-white shadow-sm'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                            )}>
+                              {archKey === 'bento_hub' && <LayoutGrid className="w-4 h-4" />}
+                              {archKey === 'editorial_boutique' && <FileText className="w-4 h-4" />}
+                              {archKey === 'warm_community' && <Users className="w-4 h-4" />}
+                              {archKey === 'knowledge_academy' && <GraduationCap className="w-4 h-4" />}
+                              {archKey === 'direct_showcase' && <Zap className="w-4 h-4" />}
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={clsx('text-xs font-black', isSelected ? 'text-indigo-600 dark:text-indigo-300' : 'text-slate-900 dark:text-white')}>
+                                  {spec.name}
+                                </span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-500 font-mono">
+                                  {spec.badge}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                                {spec.description}
+                              </p>
+                              <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                <span className="text-[10px] text-slate-400 font-bold">מבנה מוביל:</span>
+                                {spec.sectionOrder.slice(0, 5).map((sec, sIdx) => (
+                                  <span key={sIdx} className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                                    {SECTION_REGISTRY[sec]?.name || sec}
+                                  </span>
+                                ))}
+                                {spec.sectionOrder.length > 5 && (
+                                  <span className="text-[9px] text-slate-400">+{spec.sectionOrder.length - 5}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="shrink-0 mr-2">
+                            <div className={clsx(
+                              'w-5 h-5 rounded-full flex items-center justify-center border transition-all',
+                              isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300 dark:border-slate-700'
+                            )}>
+                              {isSelected && <Check className="w-3 h-3" />}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* EVENT SPECIFIC: Time, Location, Waze, Calendar, CRM & Payments */}
               {category === 'event' && (

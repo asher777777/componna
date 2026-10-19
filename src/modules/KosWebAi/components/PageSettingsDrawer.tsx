@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { GlobalPageSettings, SeoSettings, PageDesignSnapshot } from '../types/pageBuilder.types';
+import { GlobalPageSettings, SeoSettings, PageDesignSnapshot, LayoutArchetype, LAYOUT_ARCHETYPES } from '../types/pageBuilder.types';
 import { PageBuilderColorPicker } from '../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../ui/PageBuilderImageUpload';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -22,6 +22,7 @@ import {
   Activity, 
   Layers,
   Layout,
+  LayoutGrid,
   ExternalLink,
   Cookie,
   Heart,
@@ -43,6 +44,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 import {
   applyStylePresetToPage,
+  applyLayoutArchetypeToPage,
   resetPageToBrandInitialState,
   STYLE_GLOBAL_THEMES,
   PRESET_TITLE_MAP,
@@ -165,6 +167,14 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     return tenantDefaultPreset;
   });
 
+  // Local state for editing - mirrors CRM Contact360Modal
+  const [formDataGlobal, setFormDataGlobal] = useState<GlobalPageSettings>({ ...globalSettings });
+  const [initialGlobalData, setInitialGlobalData] = useState<GlobalPageSettings>({ ...globalSettings });
+
+  const [selectedArchetype, setSelectedArchetype] = useState<LayoutArchetype>(() => {
+    return globalSettings?.layoutArchetype || 'bento_hub';
+  });
+
   // Track active sections from either 'sections' map or 'pageSections' array
   const [currentSections, setCurrentSections] = useState<Record<string, any>>(() => {
     if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
@@ -272,6 +282,74 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     );
 
     showNotification(`הסגנון ${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset} הוחל בהצלחה על כל אזורי העמוד! נשמרה גרסת שחזור.`);
+  };
+
+  // Apply Layout Archetype with Automatic Snapshot and Section Reordering
+  const handleApplyLayoutArchetype = () => {
+    let sourceSections = { ...currentSections };
+    if (Object.keys(sourceSections).length === 0) {
+      if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
+        sourceSections = { ...sections };
+      } else if (Array.isArray(pageSections) && pageSections.length > 0) {
+        pageSections.forEach((s: any, idx: number) => {
+          const id = s.id || `section_${idx}`;
+          sourceSections[id] = s;
+        });
+      }
+    }
+
+    const sectionKeys = Object.keys(sourceSections);
+    if (sectionKeys.length === 0) {
+      showNotification('לא נמצאו אזורים פעילים בעמוד להחלת הארכיטיפ');
+      return;
+    }
+
+    const dummyPage: PageBuilderConfig = {
+      pageId: 'current',
+      pageTitle: displayName,
+      slug: 'current',
+      published: true,
+      globalSettings: formDataGlobal,
+      seoSettings: formDataSeo,
+      sectionOrder: sectionKeys,
+      sections: sourceSections,
+      designSnapshots: localSnapshots,
+    };
+
+    const { updatedPage, snapshot } = applyLayoutArchetypeToPage(dummyPage, selectedArchetype, brandDna, tenantId);
+    const nextSnapshots = updatedPage.designSnapshots || [snapshot, ...localSnapshots];
+    const nextGlobal = updatedPage.globalSettings || formDataGlobal;
+    const nextSections = updatedPage.sections || sourceSections;
+
+    setFormDataGlobal(nextGlobal);
+    setCurrentSections(nextSections);
+    setLocalSnapshots(nextSnapshots);
+
+    if (onApplyGlobalOverride) {
+      onApplyGlobalOverride({
+        globalSettings: nextGlobal,
+        sections: nextSections,
+        designSnapshots: nextSnapshots,
+      });
+    } else {
+      if (onUpdateDesignSnapshots) onUpdateDesignSnapshots(nextSnapshots);
+      onUpdateGlobalSettings(nextGlobal);
+      if (onUpdateSections) onUpdateSections(nextSections);
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: nextSections,
+          preset: selectedStylePreset,
+          globalSettings: nextGlobal,
+          tenantId,
+        },
+      })
+    );
+
+    const spec = LAYOUT_ARCHETYPES[selectedArchetype];
+    showNotification(`ארכיטיפ פריסה "${spec?.name || selectedArchetype}" הוחל בהצלחה! סדר האזורים והעימוד עודכנו.`);
   };
 
   // Reset current page to Brand DNA initial state with automatic snapshot
@@ -477,9 +555,12 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   };
 
 
-  // Local state for editing - mirrors CRM Contact360Modal
-  const [formDataGlobal, setFormDataGlobal] = useState<GlobalPageSettings>({ ...globalSettings });
-  const [initialGlobalData, setInitialGlobalData] = useState<GlobalPageSettings>({ ...globalSettings });
+
+  useEffect(() => {
+    if (formDataGlobal.layoutArchetype) {
+      setSelectedArchetype(formDataGlobal.layoutArchetype);
+    }
+  }, [formDataGlobal.layoutArchetype]);
 
   const [formDataSeo, setFormDataSeo] = useState<SeoSettings>({ ...seoSettings });
   const [initialSeoData, setInitialSeoData] = useState<SeoSettings>({ ...seoSettings });
@@ -1118,6 +1199,80 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                       );
                     })}
                   </div>
+                </div>
+
+                {/* Archetype Selection (5 Layout Archetypes) */}
+                <div className="space-y-2 pt-2 border-t border-white/10">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold text-indigo-400 block">
+                      ארכיטיפ פריסה ומבנה (Layout Archetype):
+                    </label>
+                    <span className="text-[10px] text-zinc-400">
+                      למניעת שבלונה גנרית
+                    </span>
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    {(Object.keys(LAYOUT_ARCHETYPES) as LayoutArchetype[]).map((archKey) => {
+                      const spec = LAYOUT_ARCHETYPES[archKey];
+                      const isSelected = selectedArchetype === archKey;
+                      return (
+                        <button
+                          key={archKey}
+                          type="button"
+                          onClick={() => setSelectedArchetype(archKey)}
+                          className={`w-full p-2.5 rounded-2xl border text-right transition-all flex items-start justify-between cursor-pointer group ${
+                            isSelected
+                              ? 'bg-indigo-500/15 border-indigo-500 shadow-md shadow-indigo-500/10 ring-1 ring-indigo-500/30'
+                              : isDarkMode
+                                ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/10'
+                                : 'bg-slate-50 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          <div className="flex items-start gap-2.5 min-w-0">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border ${
+                              isSelected
+                                ? 'bg-indigo-600 border-indigo-500 text-white'
+                                : isDarkMode ? 'bg-white/5 border-white/10 text-indigo-400' : 'bg-indigo-50 border-indigo-200 text-indigo-600'
+                            }`}>
+                              <LayoutGrid className="w-4 h-4" />
+                            </div>
+                            <div className="space-y-0.5 min-w-0">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className={`text-xs font-black truncate ${isSelected ? 'text-indigo-300' : isDarkMode ? 'text-white' : 'text-slate-900'}`}>
+                                  {spec.name}
+                                </span>
+                                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${
+                                  isDarkMode ? 'bg-white/5 border-white/10 text-zinc-300' : 'bg-slate-200 border-slate-300 text-slate-700'
+                                }`}>
+                                  {spec.badge}
+                                </span>
+                              </div>
+                              <p className={`text-[10px] leading-relaxed line-clamp-2 ${isDarkMode ? 'text-zinc-400' : 'text-slate-500'}`}>
+                                {spec.description}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="shrink-0 mr-1.5 mt-1">
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center border transition-all ${
+                              isSelected ? 'bg-indigo-600 border-indigo-600 text-white' : isDarkMode ? 'border-zinc-700 bg-zinc-800' : 'border-slate-300 bg-white'
+                            }`}>
+                              {isSelected && <Check className="w-2.5 h-2.5 stroke-[3]" />}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleApplyLayoutArchetype}
+                    className="w-full py-2 px-3 rounded-xl font-black text-xs bg-gradient-to-r from-indigo-600 to-purple-600 hover:opacity-90 text-white flex items-center justify-center gap-1.5 shadow-md shadow-indigo-600/20 cursor-pointer transition-all active:scale-[0.99]"
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5" />
+                    <span>החל ארכיטיפ פריסה וסדר אזורים</span>
+                  </button>
                 </div>
 
                 {/* C. Action Buttons: Override all sections + Save manual snapshot */}

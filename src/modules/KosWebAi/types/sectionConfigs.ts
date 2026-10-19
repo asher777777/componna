@@ -1160,6 +1160,7 @@ export type DynamicListingLayout =
 export type DynamicListingSource =
   | 'custom'
   | 'pages'
+  | 'all'
   | 'kos_tube'
   | 'campaigns'
   | 'media';

@@ -53,6 +53,7 @@ export interface GlobalPageSettings {
   legalEntityId?: string; // ח.פ / ע.מ / מספר תאגיד
   slogan?: string;
   theme?: 'navy' | 'modern' | 'dark' | 'emerald' | 'purple' | 'sunset' | 'light-minimal' | 'cyber-neon';
+  layoutArchetype?: LayoutArchetype;
   headerLayout?: 'capsule-floating' | 'classic' | 'centered' | 'minimal' | 'transparent' | 'floating-glass';
   headerSticky?: boolean;
   isHeaderVisible?: boolean;
@@ -172,7 +173,115 @@ export interface BaseSectionConfig {
   customClasses?: string;
 }
 
+export type LayoutArchetype =
+  | 'bento_hub'
+  | 'editorial_boutique'
+  | 'warm_community'
+  | 'knowledge_academy'
+  | 'direct_showcase';
+
+export interface LayoutArchetypeSpec {
+  id: LayoutArchetype;
+  name: string;
+  englishLabel: string;
+  description: string;
+  badge: string;
+  icon: string;
+  sectionOrder: SectionType[];
+  headerLayout: 'floating-glass' | 'minimal' | 'capsule-floating' | 'classic';
+  heroLayout: 'bento-hero' | 'split' | 'centered' | 'mesh-glow';
+  listingLayout: 'bento-showcase' | 'editorial-list' | 'snap-carousel' | 'floating-grid';
+  statsLayout: 'bento-4' | 'cards-3' | 'row-4';
+  testimonialsLayout: 'grid' | 'carousel' | 'masonry';
+  defaultCtaPrimary: string;
+  defaultCtaSecondary: string;
+}
+
+export const LAYOUT_ARCHETYPES: Record<LayoutArchetype, LayoutArchetypeSpec> = {
+  bento_hub: {
+    id: 'bento_hub',
+    name: 'פורטל והאב אקולוגי (Bento Ecosystem)',
+    englishLabel: 'Bento Tech Hub',
+    description: 'מבנה הייטק מודרני מבוסס קוביות בנטו, מדדים בולטים ומאגר פעילות עשיר ואינטראקטיבי',
+    badge: 'פורטל טכנולוגי • Bento',
+    icon: 'LayoutGrid',
+    sectionOrder: ['header', 'hero', 'statsBento', 'dynamicListing', 'richContent', 'community', 'testimonials', 'faq', 'contact'],
+    headerLayout: 'floating-glass',
+    heroLayout: 'bento-hero',
+    listingLayout: 'bento-showcase',
+    statsLayout: 'bento-4',
+    testimonialsLayout: 'grid',
+    defaultCtaPrimary: 'גלה את המערכת',
+    defaultCtaSecondary: 'שיחה ב-WhatsApp',
+  },
+  editorial_boutique: {
+    id: 'editorial_boutique',
+    name: 'מגזין ובוטיק יוקרתי (Editorial Luxury)',
+    englishLabel: 'Editorial Boutique',
+    description: 'עימוד עריכתי מרווח, טיפוגרפיה סמכותית ורשימת תוכן מגנטית אלגנטית במעבר עכבר',
+    badge: 'בוטיק עריכתי • Minimalist',
+    icon: 'Newspaper',
+    sectionOrder: ['header', 'hero', 'richContent', 'dynamicListing', 'statsBento', 'testimonials', 'faq', 'contact'],
+    headerLayout: 'capsule-floating',
+    heroLayout: 'split',
+    listingLayout: 'editorial-list',
+    statsLayout: 'cards-3',
+    testimonialsLayout: 'masonry',
+    defaultCtaPrimary: 'תיאום פגישה אישית',
+    defaultCtaSecondary: 'הצצה לעשייה שלנו',
+  },
+  warm_community: {
+    id: 'warm_community',
+    name: 'קהילה וחיבור אנושי (Warm Community)',
+    englishLabel: 'Warm Community',
+    description: 'פוקוס קהילתי חם: פיד הפוסטים והמפגשים בראש העמוד, צורות רכות ושיח פתוח',
+    badge: 'קהילה ועשייה • Community First',
+    icon: 'Users',
+    sectionOrder: ['header', 'hero', 'community', 'livePosts', 'dynamicListing', 'testimonials', 'statsBento', 'faq', 'contact'],
+    headerLayout: 'floating-glass',
+    heroLayout: 'mesh-glow',
+    listingLayout: 'snap-carousel',
+    statsLayout: 'cards-3',
+    testimonialsLayout: 'carousel',
+    defaultCtaPrimary: 'הצטרפו למעגל',
+    defaultCtaSecondary: 'בואו נדבר בוואטסאפ',
+  },
+  knowledge_academy: {
+    id: 'knowledge_academy',
+    name: 'קמפוס ידע והכשרות (Knowledge Academy)',
+    englishLabel: 'Academy Campus',
+    description: 'מבנה לימודי מקצועי: סילבוס ותוכניות בראש, קורסים פופולריים, תעודות ומסלולי הרשמה',
+    badge: 'קמפוס אקדמי • Academy',
+    icon: 'GraduationCap',
+    sectionOrder: ['header', 'hero', 'mainContent', 'dynamicListing', 'pricing', 'statsBento', 'testimonials', 'faq', 'contact'],
+    headerLayout: 'classic',
+    heroLayout: 'split',
+    listingLayout: 'bento-showcase',
+    statsLayout: 'row-4',
+    testimonialsLayout: 'grid',
+    defaultCtaPrimary: 'שריון מקום במחזור הקרוב',
+    defaultCtaSecondary: 'הורדת הסילבוס המלא',
+  },
+  direct_showcase: {
+    id: 'direct_showcase',
+    name: 'המרה וסליקה ישירה (High-Impact Showcase)',
+    englishLabel: 'Direct Sales',
+    description: 'מבנה מכירתי עוצמתי: הצעת ערך, מוצרי דגל, טיימר הטבה, סליקה מהירה וביקורות רוכשים',
+    badge: 'סליקה והמרה • High Impact',
+    icon: 'Zap',
+    sectionOrder: ['header', 'hero', 'pricing', 'timer', 'dynamicListing', 'smartForm', 'testimonials', 'faq', 'contact'],
+    headerLayout: 'floating-glass',
+    heroLayout: 'bento-hero',
+    listingLayout: 'floating-grid',
+    statsLayout: 'bento-4',
+    testimonialsLayout: 'carousel',
+    defaultCtaPrimary: 'הזמינו עכשיו',
+    defaultCtaSecondary: 'רכישה מאובטחת',
+  },
+};
+
 export type PageCategory =
+  | 'home'
   | 'info_content'
   | 'event'
   | 'checkout'
@@ -362,10 +471,21 @@ export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
     badgeStyle: 'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20',
     filterBadgeStyle: 'bg-slate-600 text-white',
   },
+  home: {
+    key: 'home',
+    slugPrefix: 'HOME',
+    slugPrefixLower: 'home',
+    label: 'עמוד בית חי ומערכתי',
+    shortLabel: 'עמוד בית',
+    description: 'שער מותגי חי ונושם המחבר את כלל עמודי הארכיון, מוצרי הדגל והשירותים',
+    badgeStyle: 'bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20',
+    filterBadgeStyle: 'bg-violet-600 text-white',
+  },
 };
 
-export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string; pageId?: string; sections?: any } | null): PageCategory | null {
+export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?: string; pageId?: string; isHomePage?: boolean; sections?: any } | null): PageCategory | null {
   if (!page) return null;
+  if (page.isHomePage || (page.slug || '').toLowerCase() === 'home' || page.pageCategory === 'home') return 'home';
   if (page.pageCategory && PAGE_CATEGORIES[page.pageCategory]) return page.pageCategory;
   const s = (page.slug || '').toLowerCase();
   const pid = (page.pageId || '').toLowerCase();

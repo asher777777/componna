@@ -1,8 +1,8 @@
 import { Firestore } from 'firebase/firestore';
 import { TenantStylePreset, BrandDna } from '../../../core/contracts';
-import { GlobalPageSettings, PageBuilderConfig, PageDesignSnapshot } from '../types/pageBuilder.types';
+import { GlobalPageSettings, PageBuilderConfig, PageDesignSnapshot, LayoutArchetype, LAYOUT_ARCHETYPES, SectionType } from '../types/pageBuilder.types';
 import { pageBuilderFirestore } from './pageBuilderFirestore';
-import { hydrateSectionWithBrandDna, applyStylePresetToSection } from './brandSectionHydrator';
+import { hydrateSectionWithBrandDna, applyStylePresetToSection, createDynamicSectionConfig } from './brandSectionHydrator';
 
 export const PRESET_TITLE_MAP: Record<string, string> = {
   standard: 'סטנדרטי ומאוזן (Standard)',
@@ -276,4 +276,116 @@ export async function resetAllTenantPagesToBrand(
   }
 
   return { updatedCount: updatedPages.length, pages: updatedPages };
+}
+
+/**
+ * Applies a Layout Archetype to a page:
+ * - Updates sectionOrder
+ * - Applies layout configs to hero, header, dynamicListing, statsBento, testimonials, etc.
+ * - Auto-creates missing sections if page is home/ecosystem
+ * - Creates a PageDesignSnapshot for safety rollback
+ */
+export function applyLayoutArchetypeToPage(
+  page: PageBuilderConfig,
+  archetype: LayoutArchetype,
+  brandDna?: BrandDna | null,
+  tenantId?: string
+): { updatedPage: PageBuilderConfig; snapshot: PageDesignSnapshot } {
+  const spec = LAYOUT_ARCHETYPES[archetype] || LAYOUT_ARCHETYPES.bento_hub;
+
+  const now = new Date();
+  const formattedDate = now.toLocaleDateString('he-IL', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  const snapshot: PageDesignSnapshot = {
+    id: `snap_${Date.now()}`,
+    timestamp: now.toISOString(),
+    createdAtFormatted: formattedDate,
+    label: `לפני החלת ארכיטיפ עימוד: ${spec.name}`,
+    preset: (page.globalSettings?.theme as any) || 'standard',
+    sections: JSON.parse(JSON.stringify(page.sections || {})),
+    theme: page.globalSettings?.theme,
+  };
+
+  const existingSections = { ...(page.sections || {}) };
+  const nextSections: Record<string, any> = {};
+  const processedKeys = new Set<string>();
+
+  // Process sections in the order specified by the archetype
+  for (const targetType of spec.sectionOrder) {
+    let matchingKey = Object.keys(existingSections).find(
+      (k) => !processedKeys.has(k) && (existingSections[k]?.type === targetType || k === targetType)
+    );
+
+    let secConfig: any = null;
+
+    if (matchingKey) {
+      secConfig = JSON.parse(JSON.stringify(existingSections[matchingKey]));
+      processedKeys.add(matchingKey);
+    } else if (page.isHomePage || page.slug === 'home' || page.pageCategory === 'home') {
+      try {
+        secConfig = createDynamicSectionConfig(targetType as SectionType, brandDna, undefined, tenantId);
+        matchingKey = secConfig.id || targetType;
+        if (matchingKey) processedKeys.add(matchingKey);
+      } catch (e) {
+        console.warn(`[applyLayoutArchetypeToPage] Could not instantiate missing section ${targetType}`, e);
+      }
+    }
+
+    if (secConfig && matchingKey) {
+      // Apply archetype-specific layouts
+      if (targetType === 'header') {
+        secConfig.layout = spec.headerLayout;
+        secConfig.style = spec.headerLayout;
+      } else if (targetType === 'hero') {
+        secConfig.layout = spec.heroLayout;
+        secConfig.heroLayout = spec.heroLayout;
+        if (spec.defaultCtaPrimary && (!secConfig.ctaPrimaryText || secConfig.ctaPrimaryText.trim() === 'גלה את המערכת' || secConfig.ctaPrimaryText.trim() === 'תיאום פגישה אישית' || secConfig.ctaPrimaryText.trim() === 'הצטרפו למעגל' || secConfig.ctaPrimaryText.trim() === 'שריון מקום במחזור הקרוב' || secConfig.ctaPrimaryText.trim() === 'הזמנה מיידית')) {
+          secConfig.ctaPrimaryText = spec.defaultCtaPrimary;
+        }
+        if (spec.defaultCtaSecondary && (!secConfig.ctaSecondaryText || secConfig.ctaSecondaryText.trim() === 'שיחה ב-WhatsApp' || secConfig.ctaSecondaryText.trim() === 'הצצה לעשייה שלנו' || secConfig.ctaSecondaryText.trim() === 'בואו נדבר בוואטסאפ' || secConfig.ctaSecondaryText.trim() === 'הורדת הסילבוס המלא' || secConfig.ctaSecondaryText.trim() === 'פרטים נוספים')) {
+          secConfig.ctaSecondaryText = spec.defaultCtaSecondary;
+        }
+      } else if (targetType === 'dynamicListing') {
+        secConfig.layout = spec.listingLayout;
+        secConfig.source = 'all';
+      } else if (targetType === 'statsBento') {
+        secConfig.layout = spec.statsLayout;
+      } else if (targetType === 'testimonials') {
+        secConfig.layout = spec.testimonialsLayout;
+      }
+
+      nextSections[matchingKey] = secConfig;
+    }
+  }
+
+  // Preserve any remaining sections not covered by archetype sectionOrder
+  for (const [key, sec] of Object.entries(existingSections)) {
+    if (!processedKeys.has(key)) {
+      nextSections[key] = sec;
+      processedKeys.add(key);
+    }
+  }
+
+  const newGlobalSettings: GlobalPageSettings = {
+    ...(page.globalSettings || {}),
+    layoutArchetype: archetype,
+  };
+
+  const updatedPage: PageBuilderConfig = {
+    ...page,
+    sections: nextSections,
+    sectionOrder: Object.keys(nextSections),
+    globalSettings: newGlobalSettings,
+    designSnapshots: [snapshot, ...(page.designSnapshots || [])],
+    lastModified: Date.now(),
+  };
+
+  return { updatedPage, snapshot };
 }

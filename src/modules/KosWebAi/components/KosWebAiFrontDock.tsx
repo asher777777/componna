@@ -5,6 +5,9 @@ import { GlobalPageSettings, SeoSettings, PageBuilderConfig, PageDesignSnapshot 
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
+import { syncSinglePageWithBrandDna } from '../services/pageBrandSyncService';
+import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
+import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 
 export interface KosWebAiFrontDockProps {
   pageId?: string;
@@ -194,6 +197,42 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
     [onApplyGlobalOverride, onUpdateGlobalSettings, onUpdateSections, onUpdateDesignSnapshots, resolvedPage, db, tenantId]
   );
 
+  const handleSyncBrandDna = useCallback(async () => {
+    if (!resolvedPage) return;
+    if (!window.confirm('האם לרענן את כל כותרות האזורים, הכפתורים והפלייסהולדרים בעמוד זה לפי שפת הממשק של המותג? (גרסת שחזור תישמר אוטומטית)')) {
+      return;
+    }
+    const freshDna = await loadBrandDna(db, tenantId);
+    const liveDna = resolveLiveBrandDna(freshDna, tenantId);
+    const { updatedPage, changesCount } = syncSinglePageWithBrandDna(resolvedPage, liveDna);
+
+    handleApplyGlobalOverride({
+      globalSettings: updatedPage.globalSettings || effectiveGlobalSettings,
+      sections: updatedPage.sections,
+      designSnapshots: updatedPage.designSnapshots || [],
+    });
+
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: updatedPage.sections,
+          preset: (liveDna.designTokens?.defaultStylePreset as any) || 'standard',
+          globalSettings: updatedPage.globalSettings,
+        },
+      })
+    );
+
+    alert(`✓ העמוד עודכן וסונכרן בהצלחה לשפת המיתוג! עודכנו ${changesCount} פריטים בעמוד.`);
+  }, [resolvedPage, tenantId, db, effectiveGlobalSettings, handleApplyGlobalOverride]);
+
+  useEffect(() => {
+    const handleSyncEvent = () => {
+      handleSyncBrandDna();
+    };
+    window.addEventListener('kosun_sync_brand_dna', handleSyncEvent);
+    return () => window.removeEventListener('kosun_sync_brand_dna', handleSyncEvent);
+  }, [handleSyncBrandDna]);
+
   return (
     <>
       <KosunUniversalDock
@@ -203,6 +242,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         isSaving={isSaving}
         onOpenSettings={onOpenSettings}
         onOpenSeoSettings={handleOpenSeo}
+        onSyncBrandDna={handleSyncBrandDna}
         tenantId={tenantId}
         className={className}
         isAuthorized={isAuthorized}

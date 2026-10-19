@@ -3,6 +3,8 @@ import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { eventBus } from '../../../core/bridge/EventBus';
+import { getPageBlueprints } from '../blueprints/pageBlueprints';
+import { resolveLiveBrandDna, hydrateSectionWithBrandDna } from './brandSectionHydrator';
 
 const DEFAULT_COLLECTION_NAME = SYSTEM_COLLECTIONS.PAGES; // 'kos_web_ai_documents'
 const LEGACY_COLLECTION_NAME = 'mod_pages_documents';
@@ -485,9 +487,56 @@ export const pageBuilderFirestore = {
   },
 
   // Built-in pristine root homepage template (used when no saved pages exist yet)
-  createDefaultRootHomePage(): PageBuilderConfig {
+  createDefaultRootHomePage(tenantId?: string): PageBuilderConfig {
+    const eff = resolveEffectiveTenant(tenantId);
+    const brand = resolveLiveBrandDna(null, eff);
+    const blueprints = getPageBlueprints();
+    const homepageBp = blueprints.find((b) => b.id === 'ecosystem-homepage');
+
+    if (homepageBp) {
+      const clonedConfig: PageBuilderConfig = JSON.parse(JSON.stringify(homepageBp.config));
+      clonedConfig.pageId = `home_${eff}`;
+      clonedConfig.isHomePage = true;
+      clonedConfig.published = true;
+      clonedConfig.slug = 'home';
+      clonedConfig.pageCategory = 'home';
+
+      // Hydrate all sections with the tenant's Brand DNA
+      const hydratedSections: Record<string, any> = {};
+      Object.entries(clonedConfig.sections || {}).forEach(([sId, secData]) => {
+        hydratedSections[sId] = hydrateSectionWithBrandDna(secData, brand, secData?.type, eff);
+      });
+      clonedConfig.sections = hydratedSections;
+
+      if (brand.identity?.companyName) {
+        clonedConfig.globalSettings.companyName = brand.identity.companyName;
+        clonedConfig.globalSettings.siteTitle = `${brand.identity.companyName} | ${brand.identity.slogan || 'עמוד הבית המרכזי'}`;
+        clonedConfig.pageTitle = `${brand.identity.companyName} | ${brand.identity.slogan || 'עמוד הבית המרכזי'}`;
+      }
+      if (brand.identity?.slogan) {
+        clonedConfig.globalSettings.slogan = brand.identity.slogan;
+      }
+      if (brand.identity?.logoUrl) {
+        clonedConfig.globalSettings.siteLogoUrl = brand.identity.logoUrl;
+      }
+      if (brand.designTokens?.primaryColor) {
+        clonedConfig.globalSettings.primaryColor = brand.designTokens.primaryColor;
+      }
+      if (brand.designTokens?.secondaryColor) {
+        clonedConfig.globalSettings.secondaryColor = brand.designTokens.secondaryColor;
+      }
+      if (brand.trust?.contactPhone) {
+        clonedConfig.globalSettings.contactPhone = brand.trust.contactPhone;
+      }
+      if (brand.trust?.whatsappSupportNumber) {
+        clonedConfig.globalSettings.contactWhatsApp = brand.trust.whatsappSupportNumber;
+      }
+
+      return clonedConfig;
+    }
+
     return {
-      pageId: 'bp-sales-funnel',
+      pageId: `home_${eff}`,
       pageTitle: 'קושאן | כל אדם זה נכס',
       slug: 'home',
       published: true,

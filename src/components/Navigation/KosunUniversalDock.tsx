@@ -10,8 +10,9 @@ import {
   X, 
   LogOut,
   Sliders,
-  Settings,
-  Plus
+  Plus,
+  Wand2,
+  Compass
 } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
@@ -40,6 +41,7 @@ export interface KosunUniversalDockProps {
   className?: string;
   isGlobalFallback?: boolean;
   isAuthorized?: boolean;
+  onSyncBrandDna?: () => void;
 }
 
 /**
@@ -66,6 +68,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   className = '',
   isGlobalFallback = false,
   isAuthorized: propIsAuthorized,
+  onSyncBrandDna,
 }: KosunUniversalDockProps & { isGlobalFallback?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -125,6 +128,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   // Dock UI State
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [isKosNevOpen, setIsKosNevOpen] = useState<boolean>(false);
+  const [isNavModalOpen, setIsNavModalOpen] = useState<boolean>(false);
   const [internalIsEditing, setInternalIsEditing] = useState<boolean>(false);
   const isEditing = controlledIsEditing !== undefined ? controlledIsEditing : internalIsEditing;
   const [isDashboardEditing, setIsDashboardEditing] = useState<boolean>(false);
@@ -258,8 +262,8 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   };
 
   // Navigate to Homepage
-  const handleNavigateHome = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleNavigateHome = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setIsExpanded(false);
     if (onGoToHome) {
       onGoToHome();
@@ -311,8 +315,8 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   };
 
   // Open SEO & Page Settings
-  const handleOpenSeoSettings = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleOpenSeoSettings = (e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     if (onOpenSeoSettings) {
       onOpenSeoSettings();
     } else if (onOpenSettings && !isSubdomain) {
@@ -464,6 +468,40 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
               </button>
             )}
 
+                        {/* 3.2 Navigation & Quick Actions Button */}
+            {detectedMode === 'front' && isEditing && (
+              <button
+                type="button"
+                onClick={() => setIsNavModalOpen(true)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-slate-900 dark:bg-slate-800 text-white hover:bg-slate-800 dark:hover:bg-slate-700 transition text-xs font-bold cursor-pointer group shadow-sm"
+                title="ניווט ופעולות מהירות (כולל רענון מיתוג, הוספת אזורים ותבניות)"
+                aria-label="ניווט ופעולות"
+              >
+                <Compass className="w-4 h-4 text-amber-400 group-hover:rotate-45 transition-transform duration-300" />
+                <span className="hidden sm:inline">ניווט ופעולות</span>
+              </button>
+            )}
+
+            {/* 3.3 Quick 1-Click Sync Brand Button */}
+            {detectedMode === 'front' && isEditing && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (onSyncBrandDna) {
+                    onSyncBrandDna();
+                  } else {
+                    window.dispatchEvent(new CustomEvent('kosun_sync_brand_dna'));
+                  }
+                }}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all shadow-md shadow-indigo-600/30 cursor-pointer animate-in fade-in"
+                title="רענן וסנכרן את כותרות האזורים, הכפתורים והפלייסהולדרים לפי שפת המיתוג (UI Vocabulary)"
+                aria-label="רענן לפי מיתוג"
+              >
+                <Wand2 className="w-3.5 h-3.5 text-amber-300" />
+                <span className="hidden sm:inline">רענן מיתוג</span>
+              </button>
+            )}
+
             {/* 4. MODE B: SEO & Page Settings */}
             {detectedMode === 'front' && (
               <button
@@ -489,18 +527,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
               <span className="hidden sm:inline">עמוד הבית</span>
             </button>
 
-            {/* 6. Subdomain Tenant Settings Shortcut */}
-            {isSubdomain && onOpenSettings && (
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                className="p-2 rounded-2xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition cursor-pointer"
-                title="הגדרות וסנכרון טננט"
-                aria-label="הגדרות טננט"
-              >
-                <Settings className="w-4 h-4 text-slate-500" />
-              </button>
-            )}
+
 
             {/* 7. Day / Night Mode Toggle (Controls entire page) */}
             <button
@@ -532,6 +559,97 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
       </div>
 
       {/* Canonical KosNev Modal (Screenshot UI standard) */}
+      {/* Navigation & Quick Actions Modal */}
+      {isNavModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm select-none animate-in fade-in"
+          dir="rtl"
+        >
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 w-full max-w-md shadow-2xl space-y-5 relative">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                  <Compass className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white">ניווט ופעולות מהירות</h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">פעולות עריכה, שפת מיתוג והגדרות עמוד</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsNavModalOpen(false)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* 1. Sync Brand DNA */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNavModalOpen(false);
+                  if (onSyncBrandDna) {
+                    onSyncBrandDna();
+                  } else {
+                    window.dispatchEvent(new CustomEvent('kosun_sync_brand_dna'));
+                  }
+                }}
+                className="p-3.5 rounded-2xl bg-indigo-50/60 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 hover:border-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/80 text-right flex flex-col gap-1.5 transition-all cursor-pointer group"
+              >
+                <Wand2 className="w-5 h-5 text-indigo-600 dark:text-indigo-400 group-hover:rotate-12 transition-transform" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">רענן לפי מיתוג</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">סנכרון כותרות וכפתורים לשפת המותג</span>
+              </button>
+
+              {/* 2. Page Settings & SEO */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNavModalOpen(false);
+                  handleOpenSeoSettings();
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-purple-500 hover:bg-purple-50/50 dark:hover:bg-slate-800 text-right flex flex-col gap-1.5 transition-all cursor-pointer group"
+              >
+                <Settings2 className="w-5 h-5 text-purple-500 group-hover:rotate-12 transition-transform" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">הגדרות עמוד ו-SEO</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">מטא-תגיות, סגנון ופלטות עיצוב</span>
+              </button>
+
+              {/* 3. Add Section */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNavModalOpen(false);
+                  window.dispatchEvent(new CustomEvent('kosun_open_add_section'));
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-amber-500 hover:bg-amber-50/50 dark:hover:bg-slate-800 text-right flex flex-col gap-1.5 transition-all cursor-pointer group"
+              >
+                <Plus className="w-5 h-5 text-amber-500 group-hover:rotate-90 transition-transform" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">הוסף אזור חדש</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">קטלוג אזורים ובלוקים</span>
+              </button>
+
+              {/* 4. Go to Homepage */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsNavModalOpen(false);
+                  handleNavigateHome();
+                }}
+                className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 hover:border-cyan-500 hover:bg-cyan-50/50 dark:hover:bg-slate-800 text-right flex flex-col gap-1.5 transition-all cursor-pointer group"
+              >
+                <Globe className="w-5 h-5 text-cyan-500 group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-bold text-slate-900 dark:text-white">מעבר לעמוד הבית</span>
+                <span className="text-[10px] text-slate-500 dark:text-slate-400">עמוד הראשי של הטננט</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <KosNevModal
         isOpen={isKosNevOpen}
         onClose={() => setIsKosNevOpen(false)}

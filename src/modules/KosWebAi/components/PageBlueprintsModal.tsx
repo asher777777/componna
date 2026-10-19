@@ -18,6 +18,7 @@ import {
   BookOpen,
   Calendar,
   CreditCard,
+  LayoutGrid,
 } from 'lucide-react';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 
@@ -48,6 +49,8 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
+      case 'LayoutGrid':
+        return <LayoutGrid className="w-5 h-5 text-indigo-400" />;
       case 'BookOpen':
         return <BookOpen className="w-5 h-5 text-emerald-400" />;
       case 'Calendar':
@@ -113,6 +116,7 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
         <div className="px-6 py-3 border-b border-slate-800/60 bg-slate-900/20 flex items-center gap-2 overflow-x-auto">
           {[
             { id: 'all', label: `כל התבניות (${PAGE_BLUEPRINTS.length})` },
+            { id: 'home', label: 'עמוד בית אקולוגי (HOMEPAGE)' },
             { id: 'content', label: 'עמודי תוכן (KOSINFO)' },
             { id: 'events', label: 'עמודי אירועים (KOSEVENT)' },
             { id: 'checkout', label: 'דפי סליקה (KOSCHECKOUT)' },

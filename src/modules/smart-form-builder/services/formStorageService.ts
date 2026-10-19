@@ -99,6 +99,32 @@ export async function getSmartFormById(
 }
 
 /**
+ * Remove undefined values recursively to avoid Firestore SDK crashes
+ */
+function cleanUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj
+      .filter((item) => item !== undefined)
+      .map((item) => (typeof item === 'object' && item !== null ? cleanUndefined(item) : item)) as any;
+  }
+  if (typeof obj === 'object' && !(obj instanceof Date)) {
+    const cleaned: Record<string, any> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      if (value !== undefined) {
+        if (value !== null && typeof value === 'object' && !(value instanceof Date)) {
+          cleaned[key] = cleanUndefined(value);
+        } else {
+          cleaned[key] = value;
+        }
+      }
+    }
+    return cleaned as T;
+  }
+  return obj;
+}
+
+/**
  * Save / Update a Smart Form definition
  */
 export async function saveSmartForm(
@@ -135,8 +161,9 @@ export async function saveSmartForm(
     crmDefaultCommunity: form.crmDefaultCommunity || '',
   };
 
+  const cleanedData = cleanUndefined(dataToSave);
   const docRef = doc(targetDb, collectionName, formId);
-  await setDoc(docRef, dataToSave, { merge: true });
+  await setDoc(docRef, cleanedData, { merge: true });
 
   return formId;
 }

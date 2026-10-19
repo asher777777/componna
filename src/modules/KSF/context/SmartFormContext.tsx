@@ -440,25 +440,38 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
           const now = new Date().toISOString();
           const formId = payload.id || `form_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
 
+          const normalizeStep = (step: any, idx: number): any => {
+            const stepObj: any = {
+              id: step.id || `step_${idx + 1}`,
+              order: idx + 1,
+              title: step.title || `שאלה ${idx + 1}`,
+              subtitle: step.subtitle || '',
+              fieldType: step.fieldType || 'text',
+              iconName: step.iconName || 'Sparkles',
+              placeholder: step.placeholder || '',
+              required: step.required ?? true,
+              mappingKey: step.mappingKey || `field_${idx + 1}`,
+              minRating: step.minRating || 1,
+              maxRating: step.maxRating || 5,
+              minScale: step.minScale || 1,
+              maxScale: step.maxScale || 10,
+              minScaleLabel: step.minScaleLabel || 'נמוך',
+              maxScaleLabel: step.maxScaleLabel || 'גבוה מאוד',
+            };
+            if (Array.isArray(step.options) && step.options.length > 0) {
+              stepObj.options = step.options.map((opt: any, optIdx: number) => ({
+                id: opt.id || `opt_${optIdx + 1}`,
+                label: opt.label || '',
+                value: opt.value || opt.label || `opt_${optIdx + 1}`,
+                description: opt.description || '',
+                iconName: opt.iconName || 'Sparkles',
+              }));
+            }
+            return stepObj;
+          };
+
           const rawSteps = Array.isArray(payload.steps) ? payload.steps : [];
-          const normalizedSteps = rawSteps.map((step: any, idx: number) => ({
-            id: step.id || `step_${idx + 1}`,
-            order: idx + 1,
-            title: step.title || `שאלה ${idx + 1}`,
-            subtitle: step.subtitle || '',
-            fieldType: step.fieldType || 'text',
-            iconName: step.iconName || 'Sparkles',
-            placeholder: step.placeholder || '',
-            required: step.required ?? true,
-            mappingKey: step.mappingKey || `field_${idx + 1}`,
-            options: Array.isArray(step.options) ? step.options : undefined,
-            minRating: step.minRating || 1,
-            maxRating: step.maxRating || 5,
-            minScale: step.minScale || 1,
-            maxScale: step.maxScale || 10,
-            minScaleLabel: step.minScaleLabel || 'נמוך',
-            maxScaleLabel: step.maxScaleLabel || 'גבוה מאוד',
-          }));
+          const normalizedSteps = rawSteps.map(normalizeStep);
 
           const newForm: SmartFormDefinition = {
             id: formId,
@@ -515,24 +528,36 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
 
           let updatedSteps = targetForm.steps;
           if (Array.isArray(payload.steps)) {
-            updatedSteps = payload.steps.map((step: any, idx: number) => ({
-              id: step.id || `step_${idx + 1}`,
-              order: idx + 1,
-              title: step.title || `שאלה ${idx + 1}`,
-              subtitle: step.subtitle || '',
-              fieldType: step.fieldType || 'text',
-              iconName: step.iconName || 'Sparkles',
-              placeholder: step.placeholder || '',
-              required: step.required ?? true,
-              mappingKey: step.mappingKey || `field_${idx + 1}`,
-              options: Array.isArray(step.options) ? step.options : undefined,
-              minRating: step.minRating || 1,
-              maxRating: step.maxRating || 5,
-              minScale: step.minScale || 1,
-              maxScale: step.maxScale || 10,
-              minScaleLabel: step.minScaleLabel || 'נמוך',
-              maxScaleLabel: step.maxScaleLabel || 'גבוה מאוד',
-            }));
+            const normalizeUpdateStep = (step: any, idx: number): any => {
+              const stepObj: any = {
+                id: step.id || `step_${idx + 1}`,
+                order: idx + 1,
+                title: step.title || `שאלה ${idx + 1}`,
+                subtitle: step.subtitle || '',
+                fieldType: step.fieldType || 'text',
+                iconName: step.iconName || 'Sparkles',
+                placeholder: step.placeholder || '',
+                required: step.required ?? true,
+                mappingKey: step.mappingKey || `field_${idx + 1}`,
+                minRating: step.minRating || 1,
+                maxRating: step.maxRating || 5,
+                minScale: step.minScale || 1,
+                maxScale: step.maxScale || 10,
+                minScaleLabel: step.minScaleLabel || 'נמוך',
+                maxScaleLabel: step.maxScaleLabel || 'גבוה מאוד',
+              };
+              if (Array.isArray(step.options) && step.options.length > 0) {
+                stepObj.options = step.options.map((opt: any, optIdx: number) => ({
+                  id: opt.id || `opt_${optIdx + 1}`,
+                  label: opt.label || '',
+                  value: opt.value || opt.label || `opt_${optIdx + 1}`,
+                  description: opt.description || '',
+                  iconName: opt.iconName || 'Sparkles',
+                }));
+              }
+              return stepObj;
+            };
+            updatedSteps = payload.steps.map(normalizeUpdateStep);
           }
 
           const updatedForm: SmartFormDefinition = {
