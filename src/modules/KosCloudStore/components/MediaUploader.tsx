@@ -25,7 +25,14 @@ export const MediaUploader: React.FC = () => {
     activeFolderId,
     isUploaderOpen,
     setIsUploaderOpen,
+    selectionMode,
+    onSelectMedia,
+    setSelectedIds,
+    setFocusedItem,
+    maxSelectCount,
   } = useMediaGallery();
+
+  const [justUploadedItems, setJustUploadedItems] = useState<MediaItem[]>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isWindowDragging, setIsWindowDragging] = useState<boolean>(false);
@@ -135,7 +142,7 @@ export const MediaUploader: React.FC = () => {
     }
 
     // Parallel concurrent upload
-    await addMediaItems(createdItems, fileArray, (fileIdx, pct) => {
+    const uploadedItems = await addMediaItems(createdItems, fileArray, (fileIdx, pct) => {
       setUploadQueue((prev) =>
         prev.map((q, idx) =>
           idx === fileIdx
@@ -149,10 +156,24 @@ export const MediaUploader: React.FC = () => {
       prev.map((q) => ({ ...q, progressPercent: 100, status: 'completed' }))
     );
 
-    // Auto-clear successful queue after 4s
+    if (uploadedItems && uploadedItems.length > 0) {
+      setJustUploadedItems(uploadedItems);
+      if (selectionMode) {
+        const newIds = uploadedItems.map((it) => it.id);
+        setSelectedIds((prev) => {
+          if (maxSelectCount === 1) {
+            return [newIds[0]];
+          }
+          return Array.from(new Set([...prev, ...newIds]));
+        });
+        setFocusedItem(uploadedItems[0]);
+      }
+    }
+
+    // Auto-clear successful queue after 7s to give user time to use quick button
     setTimeout(() => {
       setUploadQueue((prev) => prev.filter((q) => q.status !== 'completed'));
-    }, 4000);
+    }, 7000);
   };
 
   return (
@@ -324,6 +345,22 @@ export const MediaUploader: React.FC = () => {
               </div>
             ))}
           </div>
+
+          {selectionMode && onSelectMedia && justUploadedItems.length > 0 && uploadQueue.some((q) => q.status === 'completed') && (
+            <div className="pt-2 border-t border-slate-800 flex items-center justify-between">
+              <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {justUploadedItems.length === 1 ? 'הקובץ הועלה וסומן לבחירה!' : `${justUploadedItems.length} קבצים הועלו וסומנו לבחירה!`}
+              </span>
+              <button
+                type="button"
+                onClick={() => onSelectMedia(justUploadedItems)}
+                className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 text-black font-extrabold text-xs shadow-lg hover:from-yellow-400 flex items-center gap-1.5 cursor-pointer active:scale-95 transition-transform"
+              >
+                <span>השתמש בקבצים שהועלו כעת</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
     </>

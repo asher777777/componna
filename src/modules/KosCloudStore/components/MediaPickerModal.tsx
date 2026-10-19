@@ -7,6 +7,7 @@ import {
   SlidersHorizontal,
   Menu,
   Crown,
+  CheckCircle2,
 } from 'lucide-react';
 import { MediaGalleryProvider, useMediaGallery } from '../context/MediaGalleryContext';
 import { LuxuryIconsGallery } from './LuxuryIconsGallery';
@@ -60,6 +61,10 @@ const MediaPickerModalContent: React.FC<{
     docToLandingItem,
     closeDocToLanding,
     setDocToLandingItem,
+    selectedIds,
+    mediaItems,
+    maxSelectCount,
+    clearSelection,
   } = useMediaGallery();
   const isLight = theme === 'light';
 
@@ -293,6 +298,88 @@ const MediaPickerModalContent: React.FC<{
           setIsAiGeneratorOpen(false);
         }}
       />
+
+      {/* 5. Sticky Selection Footer Bar */}
+      <footer
+        className={`h-16 px-4 sm:px-6 border-t flex items-center justify-between flex-shrink-0 z-30 transition-colors ${
+          isLight
+            ? 'bg-white/95 border-slate-200 text-slate-800 shadow-[0_-4px_20px_rgba(0,0,0,0.05)]'
+            : 'bg-slate-900/95 border-slate-800 text-white shadow-[0_-4px_25px_rgba(0,0,0,0.4)]'
+        }`}
+      >
+        <div className="flex items-center space-x-3 rtl:space-x-reverse min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${
+                selectedIds.length > 0
+                  ? 'bg-amber-500 text-black'
+                  : isLight
+                  ? 'bg-slate-200 text-slate-500'
+                  : 'bg-slate-800 text-slate-400'
+              }`}
+            >
+              {selectedIds.length}
+            </span>
+            <div className="text-xs">
+              <span className="font-bold">
+                {selectedIds.length === 0
+                  ? 'לא נבחרו קבצים עדיין'
+                  : selectedIds.length === 1
+                  ? 'נבחר קובץ 1'
+                  : `נבחרו ${selectedIds.length} קבצים`}
+              </span>
+              {maxSelectCount && maxSelectCount > 1 && (
+                <span className={`text-[11px] mr-1.5 ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
+                  (עד {maxSelectCount} קבצים)
+                </span>
+              )}
+            </div>
+          </div>
+
+          {selectedIds.length > 0 && (
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="text-[11px] text-red-400 hover:text-red-300 underline mr-2"
+            >
+              נקה בחירה
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+          <button
+            type="button"
+            onClick={onClose}
+            className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${
+              isLight
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+            }`}
+          >
+            ביטול
+          </button>
+
+          <button
+            type="button"
+            disabled={selectedIds.length === 0}
+            onClick={() => {
+              const selectedItems = mediaItems.filter((it) => selectedIds.includes(it.id));
+              if (selectedItems.length > 0 && onSelectMedia) {
+                onSelectMedia(selectedItems);
+              }
+            }}
+            className={`px-5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-md cursor-pointer ${
+              selectedIds.length > 0
+                ? 'bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-black shadow-yellow-500/20 active:scale-95'
+                : 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4" />
+            <span>אישור בחירה והחלה ({selectedIds.length})</span>
+          </button>
+        </div>
+      </footer>
     </div>
   );
 };

@@ -380,6 +380,8 @@ const MediaGridCard: React.FC<{
           className={`absolute top-2 right-2 w-7 h-7 rounded-xl flex items-center justify-center transition-all shadow-md cursor-pointer z-10 ${
             isSelected
               ? 'bg-amber-500 text-black'
+              : selectionMode
+              ? 'bg-black/70 text-slate-200 border border-white/40 opacity-100 hover:border-amber-400'
               : 'bg-black/60 text-slate-300 hover:text-white border border-white/20 opacity-0 group-hover:opacity-100'
           }`}
           title="סמן קובץ"

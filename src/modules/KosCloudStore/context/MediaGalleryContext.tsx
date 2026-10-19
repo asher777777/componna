@@ -108,6 +108,7 @@ interface MediaGalleryContextValue {
   filters: MediaFilterOptions;
   setFilters: React.Dispatch<React.SetStateAction<MediaFilterOptions>>;
   selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
   toggleSelect: (id: string) => void;
   selectAll: () => void;
   clearSelection: () => void;
@@ -120,7 +121,7 @@ interface MediaGalleryContextValue {
     items: MediaItem[],
     files?: (File | Blob)[],
     onProgress?: (fileIndex: number, pct: number) => void
-  ) => Promise<void>;
+  ) => Promise<MediaItem[]>;
   deleteMediaItems: (ids: string[]) => Promise<void>;
   updateMediaItem: (id: string, updates: Partial<MediaItem>) => Promise<void>;
   replaceMediaItem: (originalId: string, updatedItem: MediaItem, file?: File | Blob) => Promise<void>;
@@ -900,7 +901,7 @@ export const MediaGalleryProvider: React.FC<{
       return finalItem;
     });
 
-    await Promise.all(uploadPromises);
+    return await Promise.all(uploadPromises);
   };
 
   const deleteMediaItems = async (ids: string[]) => {
@@ -1323,6 +1324,7 @@ export const MediaGalleryProvider: React.FC<{
         filters,
         setFilters,
         selectedIds,
+        setSelectedIds,
         toggleSelect,
         selectAll,
         clearSelection,
