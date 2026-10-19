@@ -283,8 +283,61 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     }
 
   const body = req.body;
-  if (!body || body.typeWebhook !== 'incomingMessageReceived') {
-    res.status(200).send('Not an incoming message');
+  if (!body) {
+    res.status(200).send('No body');
+    return;
+  }
+
+  // Multi-Tenant & Debug Logger Helper: Log raw event immediately so user sees what arrived in real-time
+  const incomingInstanceId = String(body.instanceData?.idInstance || '').trim();
+  let resolvedTenantId = '_master';
+
+  const logWebhookEvent = async (tenantId: string, status: string, detail?: any) => {
+    try {
+      const eventLogId = `wh_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+      const logData = {
+        id: eventLogId,
+        typeWebhook: body.typeWebhook || 'unknown',
+        instanceId: incomingInstanceId || 'unknown',
+        sender: body.senderData?.chatId || body.senderData?.sender || null,
+        messageText: body.messageData?.textMessageData?.textMessage ||
+          body.messageData?.extendedTextMessageData?.textMessage ||
+          body.messageData?.buttonsResponseMessageData?.selectedDisplayText ||
+          body.messageData?.buttonsResponseMessageData?.selectedButtonId ||
+          body.messageData?.listResponseMessageData?.title || null,
+        status,
+        detail: detail || null,
+        timestamp: Date.now(),
+        serverTimestamp: admin.firestore.FieldValue.serverTimestamp(),
+      };
+      // 1. Save in tenant scoped collection
+      if (tenantId && tenantId !== '_master') {
+        await db.collection('tenants').doc(tenantId).collection('whatsapp_webhook_logs').doc(eventLogId).set(logData);
+      }
+      // 2. Always mirror to global logs collection for easy overview
+      await db.collection('whatsapp_webhook_logs').doc(eventLogId).set({ ...logData, tenantId });
+    } catch (logErr) {
+      console.warn('[whatsappWebhook] Failed to write webhook log:', logErr);
+    }
+  };
+
+  // If this is a test ping / non-message notification, log it and return 200 immediately
+  if (body.typeWebhook !== 'incomingMessageReceived') {
+    // Attempt fast tenant resolution for test notifications
+    if (incomingInstanceId) {
+      try {
+        const tenantsSnap = await db.collection('tenants').get();
+        for (const tDoc of tenantsSnap.docs) {
+          const tKeysDoc = await db.collection('tenants').doc(tDoc.id).collection('settings').doc('api_keys').get();
+          if (tKeysDoc.exists && String(tKeysDoc.data()?.greenApiInstanceId || '').trim() === incomingInstanceId) {
+            resolvedTenantId = tDoc.id;
+            break;
+          }
+        }
+      } catch {}
+    }
+    await logWebhookEvent(resolvedTenantId, `Notification received (${body.typeWebhook})`, body);
+    res.status(200).send(`Received ${body.typeWebhook}`);
     return;
   }
 
@@ -300,6 +353,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
   const senderName = body.senderData?.senderName || body.senderData?.senderContactName || '';
   
   if (!messageText || !targetChatId) {
+    await logWebhookEvent(resolvedTenantId, 'Ignored: No text or targetChatId');
     res.status(200).send('No text or targetChatId');
     return;
   }
@@ -310,8 +364,6 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
 
   try {
     // 1. Fetch API Keys with Dynamic Multi-Tenant Resolution
-    const incomingInstanceId = String(body.instanceData?.idInstance || '').trim();
-    let resolvedTenantId = '_master';
     let apiKeys: any = {};
 
     if (incomingInstanceId) {
@@ -516,6 +568,19 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     }
 
     if (!triggeredBot) {
+      // Automatic Fallback: If tenant has any active bot, use it to ensure user gets a response!
+      const anyActiveBot = botDocsList.find(b => b.isActive !== false);
+      if (anyActiveBot) {
+        triggeredBot = anyActiveBot;
+        console.log(`[whatsappWebhook] Using default active bot fallback: ${anyActiveBot.name} (${anyActiveBot.id})`);
+      }
+    }
+
+    if (!triggeredBot) {
+      await logWebhookEvent(resolvedTenantId, 'No bot triggered: Message did not match any keywords and no active default bot found', {
+        messageText,
+        availableBots: botDocsList.map(b => ({ id: b.id, name: b.name, triggerType: b.triggerType, keywords: b.triggerKeywords || b.keywords }))
+      });
       res.status(200).send('No bot triggered');
       return;
     }
@@ -698,7 +763,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
     chatHistory.push({ role: 'user', text: messageText, timestamp: nowTimestamp });
     chatHistory.push({ role: 'model', text: replyText, timestamp: nowTimestamp + 50 });
 
-    await chatDocRef.set({
+    const chatDataToSave = {
       id: targetChatId,
       phone: normPhone,
       contactName: contactName || senderName || normPhone,
@@ -707,7 +772,18 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
       botName: triggeredBot.name,
       lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
       messages: chatHistory
-    }, { merge: true });
+    };
+
+    await chatDocRef.set(chatDataToSave, { merge: true });
+
+    // Also mirror to scoped collection for UI tab: tenants/{resolvedTenantId}/kos_whatsup_bot_chats
+    if (resolvedTenantId && resolvedTenantId !== '_master') {
+      try {
+        await db.collection('tenants').doc(resolvedTenantId).collection('kos_whatsup_bot_chats').doc(targetChatId).set(chatDataToSave, { merge: true });
+      } catch (scopedChatErr) {
+        console.warn('[whatsappWebhook] Error writing scoped chat:', scopedChatErr);
+      }
+    }
 
     // Also mirror conversation to contact's subcollection if contact exists
     if (contactDocId) {
