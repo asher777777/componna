@@ -258,7 +258,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
         if (!keysSnap.exists()) {
           const migrated: SystemApiKeysConfig = {
             ...DEFAULT_API_KEYS,
-            ...(legacyLocalKeys || {}),
             ...(legacyCloudKeys || {}),
           };
           await setDoc(
@@ -281,7 +280,7 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
     return () => {
       cancelled = true;
     };
-  }, [db, isRootTenant, legacyLocalKeys]);
+  }, [db, isRootTenant]);
 
   // Real-time tenant API keys: tenants/{tenantId}/settings/api_keys
   useEffect(() => {
