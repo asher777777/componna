@@ -20,56 +20,85 @@ function normalizeModelName(rawModel) {
     }
     return clean;
 }
-// Fire-and-forget contact extraction
-async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderName, contactIdHint) {
+// Fire-and-forget contact extraction & synchronization with tenant isolation
+async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderName, contactIdHint, tenantId) {
     var _a, _b;
     try {
         const rawDigits = phone.replace(/\D/g, '');
         const normPhone = rawDigits.startsWith('972') ? '0' + rawDigits.slice(3) : rawDigits;
+        const targetTenant = (tenantId && tenantId !== '_master') ? tenantId : null;
+        // Helper: is a name a generic/mock/test placeholder?
+        const isMockOrGenericName = (n) => {
+            if (!n)
+                return true;
+            const clean = n.trim().toLowerCase();
+            return (clean === 'ישראל ישראלי' ||
+                clean === 'טסט' ||
+                clean === 'בדיקה' ||
+                clean === 'test' ||
+                clean === phone ||
+                clean === normPhone ||
+                clean.startsWith('לקוח '));
+        };
         // 1. Smart lookup existing contact FIRST (Zero-Token Rule)
         let matchedDocId = contactIdHint || null;
         let existingData = null;
-        if (!matchedDocId) {
-            const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).get();
-            if (!qSnap.empty) {
-                matchedDocId = qSnap.docs[0].id;
-                existingData = qSnap.docs[0].data();
+        // Check tenant scoped contacts FIRST if tenant exists
+        if (targetTenant) {
+            if (matchedDocId) {
+                const tDoc = await db.collection('tenants').doc(targetTenant).collection('contacts').doc(matchedDocId).get();
+                if (tDoc.exists) {
+                    existingData = tDoc.data();
+                }
+            }
+            if (!existingData) {
+                const tSnap = await db.collection('tenants').doc(targetTenant).collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
+                if (!tSnap.empty) {
+                    matchedDocId = tSnap.docs[0].id;
+                    existingData = tSnap.docs[0].data();
+                }
+            }
+        }
+        if (!matchedDocId || !existingData) {
+            if (matchedDocId) {
+                const docSnap = await db.collection('contacts').doc(matchedDocId).get();
+                if (docSnap.exists)
+                    existingData = docSnap.data();
             }
             else {
-                const qSnap2 = await db.collection('contacts').where('phone', '==', phone).get();
-                if (!qSnap2.empty) {
-                    matchedDocId = qSnap2.docs[0].id;
-                    existingData = qSnap2.docs[0].data();
+                const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
+                if (!qSnap.empty) {
+                    matchedDocId = qSnap.docs[0].id;
+                    existingData = qSnap.docs[0].data();
                 }
                 else {
-                    const qSnap3 = await db.collection('contacts').where('conta_phone', '==', normPhone).get();
-                    if (!qSnap3.empty) {
-                        matchedDocId = qSnap3.docs[0].id;
-                        existingData = qSnap3.docs[0].data();
+                    const qSnap2 = await db.collection('contacts').where('phone', '==', phone).limit(1).get();
+                    if (!qSnap2.empty) {
+                        matchedDocId = qSnap2.docs[0].id;
+                        existingData = qSnap2.docs[0].data();
+                    }
+                    else {
+                        const qSnap3 = await db.collection('contacts').where('conta_phone', '==', normPhone).limit(1).get();
+                        if (!qSnap3.empty) {
+                            matchedDocId = qSnap3.docs[0].id;
+                            existingData = qSnap3.docs[0].data();
+                        }
                     }
                 }
             }
         }
-        else {
-            const docSnap = await db.collection('contacts').doc(matchedDocId).get();
-            if (docSnap.exists) {
-                existingData = docSnap.data();
-            }
-        }
         const existingName = (existingData === null || existingData === void 0 ? void 0 : existingData.name) || (existingData === null || existingData === void 0 ? void 0 : existingData.conta_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_name);
-        const hasValidName = Boolean(existingName && existingName !== phone && existingName !== normPhone && !existingName.startsWith('לקוח '));
+        const hasRealName = Boolean(existingName && !isMockOrGenericName(existingName) && !existingName.startsWith('קושאןWHAT'));
         const hasCompany = Boolean((existingData === null || existingData === void 0 ? void 0 : existingData.company_name) || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_company));
         const hasEmail = Boolean((existingData === null || existingData === void 0 ? void 0 : existingData.email) || (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_email));
         // ZERO-TOKEN SHORTCUT:
-        // If contact already has name and company/email, OR extraction ran recently, skip Gemini completely!
         const lastExtracted = (existingData === null || existingData === void 0 ? void 0 : existingData.lastAiExtractionTimestamp) || 0;
         const isRecentlyExtracted = (Date.now() - lastExtracted) < (2 * 60 * 60 * 1000); // 2 hours throttle
         const lastMsgText = messages.length > 0 ? (messages[messages.length - 1].text || '') : '';
         const isTrivialMessage = /^(כן|לא|בטח|מחר|תודה|שלום|אהלן|היי|מעולה|אוקי|ok|סבבה|05\d{8})$/i.test(lastMsgText.trim());
         let data = {};
-        // ONLY call Gemini if we genuinely lack essential info and message might contain details
-        if ((!hasValidName || (!hasCompany && !hasEmail)) && !isRecentlyExtracted && !isTrivialMessage && geminiKey) {
-            // Send AT MOST the last 4 messages, NOT the whole multi-day conversation!
+        // ONLY call Gemini if we genuinely lack real name or details and message isn't trivial
+        if ((!hasRealName || (!hasCompany && !hasEmail)) && !isRecentlyExtracted && !isTrivialMessage && geminiKey) {
             const recentSlice = messages.slice(-4);
             const chatText = recentSlice.map(m => `${m.role}: ${m.text}`).join('\n');
             const genAI = new generative_ai_1.GoogleGenerativeAI(geminiKey);
@@ -104,7 +133,21 @@ ${chatText}
                 data = {};
             }
         }
-        const resolvedName = data.name || existingName || fallbackSenderName || `לקוח ${normPhone.slice(-4)}`;
+        // Naming Rule:
+        // 1. If AI extracted real name -> use it
+        // 2. Else if existing contact has a real non-generic name -> keep it
+        // 3. Else if WhatsApp provided a senderName -> use it
+        // 4. Default: 'קושאןWHAT'
+        let resolvedName = 'קושאןWHAT';
+        if (data.name && !isMockOrGenericName(data.name)) {
+            resolvedName = data.name;
+        }
+        else if (hasRealName) {
+            resolvedName = existingName;
+        }
+        else if (fallbackSenderName && !isMockOrGenericName(fallbackSenderName)) {
+            resolvedName = fallbackSenderName;
+        }
         const nowIso = new Date().toISOString();
         if (!matchedDocId) {
             // Create new contact in canonical KOSUN CRM schema
@@ -134,15 +177,23 @@ ${chatText}
                 last_channel: 'whatsapp',
                 last_conversation_date: nowIso,
                 lastAiExtractionTimestamp: Date.now(),
+                tenantId: targetTenant || '_master',
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
                 updatedAt: admin.firestore.FieldValue.serverTimestamp(),
             };
             const addedRef = await db.collection('contacts').add(newContactDoc);
             matchedDocId = addedRef.id;
+            // Mirror to tenant collection
+            if (targetTenant) {
+                try {
+                    await db.collection('tenants').doc(targetTenant).collection('contacts').doc(matchedDocId).set(newContactDoc, { merge: true });
+                }
+                catch (_c) { }
+            }
             try {
                 await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).set(newContactDoc, { merge: true });
             }
-            catch (_c) { }
+            catch (_d) { }
         }
         else {
             // Update existing contact
@@ -153,10 +204,11 @@ ${chatText}
                 last_conversation_date: nowIso,
                 lastAiExtractionTimestamp: Date.now(),
             };
-            if (data.name && (!(existingData === null || existingData === void 0 ? void 0 : existingData.name) || (existingData === null || existingData === void 0 ? void 0 : existingData.name) === phone || (existingData === null || existingData === void 0 ? void 0 : existingData.name) === normPhone)) {
-                updates.name = data.name;
-                updates.conta_name = data.name;
-                updates.kosun_crm_name = data.name;
+            if (resolvedName && (!existingName || isMockOrGenericName(existingName) || existingName === 'קושאןWHAT')) {
+                updates.name = resolvedName;
+                updates.fullName = resolvedName;
+                updates.conta_name = resolvedName;
+                updates.kosun_crm_name = resolvedName;
             }
             if (data.email && !(existingData === null || existingData === void 0 ? void 0 : existingData.email)) {
                 updates.email = data.email;
@@ -167,31 +219,37 @@ ${chatText}
                 updates.kosun_crm_company = data.businessType;
             }
             await db.collection('contacts').doc(matchedDocId).set(updates, { merge: true });
+            if (targetTenant) {
+                try {
+                    await db.collection('tenants').doc(targetTenant).collection('contacts').doc(matchedDocId).set(updates, { merge: true });
+                }
+                catch (_e) { }
+            }
             try {
                 await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).set(updates, { merge: true });
             }
-            catch (_d) { }
+            catch (_f) { }
         }
-        // Persist full conversation history into contact's subcollection
+        // Persist full conversation history into contact's subcollection under both global and tenant scopes!
         if (matchedDocId) {
-            const convSubRef = db.collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`);
-            await convSubRef.set({
+            const convData = {
                 id: `conv_${normPhone}`,
                 contactId: matchedDocId,
                 channel: 'whatsapp',
                 lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 messages: messages,
-            }, { merge: true });
-            try {
-                await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`).set({
-                    id: `conv_${normPhone}`,
-                    contactId: matchedDocId,
-                    channel: 'whatsapp',
-                    lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    messages: messages,
-                }, { merge: true });
+            };
+            await db.collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`).set(convData, { merge: true });
+            if (targetTenant) {
+                try {
+                    await db.collection('tenants').doc(targetTenant).collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`).set(convData, { merge: true });
+                }
+                catch (_g) { }
             }
-            catch (_e) { }
+            try {
+                await db.collection('tenants').doc('_master').collection('contacts').doc(matchedDocId).collection('conversations').doc(`conv_${normPhone}`).set(convData, { merge: true });
+            }
+            catch (_h) { }
         }
     }
     catch (err) {
@@ -260,7 +318,7 @@ function matchKeywords(messageText, keywords = [], matchMode = 'contains') {
 // Webhook for Green API
 exports.whatsappWebhook = functions.https.onRequest((req, res) => {
     cors(req, res, async () => {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17;
         if (req.method !== 'POST' && req.method !== 'GET') {
             res.status(405).send('Method Not Allowed');
             return;
@@ -324,7 +382,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                         }
                     }
                 }
-                catch (_17) { }
+                catch (_18) { }
             }
             await logWebhookEvent(resolvedTenantId, `Notification received (${body.typeWebhook})`, body);
             res.status(200).send(`Received ${body.typeWebhook}`);
@@ -413,12 +471,23 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 res.status(200).send('Missing keys - acknowledged');
                 return;
             }
-            // 2. Load Chat History
+            // 2. Load Chat History & Check Session Timeout (30 minutes TTL)
             const chatDocRef = db.collection('wa_bot_chats').doc(targetChatId);
             const chatDoc = await chatDocRef.get();
             let chatHistory = [];
+            let isSessionExpired = false;
             if (chatDoc.exists) {
-                chatHistory = ((_0 = chatDoc.data()) === null || _0 === void 0 ? void 0 : _0.messages) || [];
+                const chatData = chatDoc.data();
+                chatHistory = (chatData === null || chatData === void 0 ? void 0 : chatData.messages) || [];
+                const lastUpdateSec = ((_0 = chatData === null || chatData === void 0 ? void 0 : chatData.lastUpdatedAt) === null || _0 === void 0 ? void 0 : _0.seconds) || 0;
+                if (lastUpdateSec > 0) {
+                    const diffMs = Date.now() - (lastUpdateSec * 1000);
+                    if (diffMs > 30 * 60 * 1000) {
+                        isSessionExpired = true;
+                        console.log(`[whatsappWebhook] Session for ${targetChatId} expired (${Math.round(diffMs / 60000)}m > 30m). Flushing memory cache.`);
+                        chatHistory = []; // Memory flush
+                    }
+                }
             }
             // 3. Load active bots from resolved tenant, master tenant, and collectionGroup
             // Support both canonical KOSUN26 `kos_whatsup_ai_bots` and legacy `whatsapp_ai_bots`
@@ -462,22 +531,9 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 }
                 catch (e) { }
             }
-            for (const col of botCollections) {
-                try {
-                    const rootSnap = await db.collection(col).get();
-                    rootSnap.forEach(d => {
-                        const data = d.data();
-                        if (data && data.isActive !== false && !botDocsList.some(b => b.id === (data.id || d.id))) {
-                            botDocsList.push(Object.assign(Object.assign({}, data), { id: data.id || d.id }));
-                        }
-                    });
-                }
-                catch (e) { }
-            }
             let triggeredBot = null;
-            let activeBotId = (_1 = chatDoc.data()) === null || _1 === void 0 ? void 0 : _1.botId;
+            let activeBotId = !isSessionExpired ? (_1 = chatDoc.data()) === null || _1 === void 0 ? void 0 : _1.botId : null;
             // STEP 3A: Check explicit KEYWORD triggers FIRST!
-            // This guarantees the bot responds to search words even if a previous conversation existed
             for (const bot of botDocsList) {
                 if (bot.triggerType === 'keyword' && (bot.triggerKeywords || bot.keywords)) {
                     const kws = bot.triggerKeywords || bot.keywords;
@@ -518,11 +574,11 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     console.warn('Error querying kosai rules for keyword triggers:', err);
                 }
             }
-            // STEP 3C: If no keyword matched, but the chat was already engaged with an active bot, continue with it
-            if (!triggeredBot && activeBotId) {
+            // STEP 3C: Continue ongoing session ONLY if not expired!
+            if (!triggeredBot && activeBotId && !isSessionExpired) {
                 triggeredBot = botDocsList.find(b => b.id === activeBotId) || null;
             }
-            // STEP 3D: If still no bot triggered, check for bots configured to catch 'all' messages
+            // STEP 3D: Check bots configured for 'all' messages
             if (!triggeredBot) {
                 for (const bot of botDocsList) {
                     if (bot.triggerType === 'all') {
@@ -553,44 +609,51 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 catch (err) { }
             }
             if (!triggeredBot) {
-                // Automatic Fallback: If tenant has any active bot, use it to ensure user gets a response!
-                const anyActiveBot = botDocsList.find(b => b.isActive !== false);
-                if (anyActiveBot) {
-                    triggeredBot = anyActiveBot;
-                    console.log(`[whatsappWebhook] Using default active bot fallback: ${anyActiveBot.name} (${anyActiveBot.id})`);
-                }
-            }
-            if (!triggeredBot) {
-                await logWebhookEvent(resolvedTenantId, 'No bot triggered: Message did not match any keywords and no active default bot found', {
+                await logWebhookEvent(resolvedTenantId, 'No bot triggered: Awaiting keyword or session expired', {
                     messageText,
+                    isSessionExpired,
                     availableBots: botDocsList.map(b => ({ id: b.id, name: b.name, triggerType: b.triggerType, keywords: b.triggerKeywords || b.keywords }))
                 });
                 res.status(200).send('No bot triggered');
                 return;
             }
-            // 4. CRM Contact Check
+            // 4. CRM Contact Check (Tenant-Scoped Priority)
             let contactDocId = null;
             let contactName = null;
+            const isMockName = (n) => {
+                if (!n)
+                    return true;
+                const c = n.trim().toLowerCase();
+                return c === 'ישראל ישראלי' || c === 'בדיקה' || c === 'טסט' || c === 'test' || c === phone || c === normPhone || c.startsWith('לקוח ');
+            };
             try {
-                const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).get();
-                if (!qSnap.empty) {
-                    contactDocId = qSnap.docs[0].id;
-                    const d = qSnap.docs[0].data();
-                    contactName = d.kosun_crm_name || d.conta_name || d.name || null;
+                if (resolvedTenantId && resolvedTenantId !== '_master') {
+                    const tSnap = await db.collection('tenants').doc(resolvedTenantId).collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
+                    if (!tSnap.empty) {
+                        contactDocId = tSnap.docs[0].id;
+                        const d = tSnap.docs[0].data();
+                        const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
+                        if (!isMockName(rawN))
+                            contactName = rawN;
+                    }
                 }
-                else {
-                    const qSnap2 = await db.collection('contacts').where('phone', '==', phone).get();
-                    if (!qSnap2.empty) {
-                        contactDocId = qSnap2.docs[0].id;
-                        const d = qSnap2.docs[0].data();
-                        contactName = d.kosun_crm_name || d.conta_name || d.name || null;
+                if (!contactDocId) {
+                    const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
+                    if (!qSnap.empty) {
+                        contactDocId = qSnap.docs[0].id;
+                        const d = qSnap.docs[0].data();
+                        const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
+                        if (!isMockName(rawN))
+                            contactName = rawN;
                     }
                     else {
-                        const qSnap3 = await db.collection('contacts').where('conta_phone', '==', normPhone).get();
-                        if (!qSnap3.empty) {
-                            contactDocId = qSnap3.docs[0].id;
-                            const d = qSnap3.docs[0].data();
-                            contactName = d.kosun_crm_name || d.conta_name || d.name || null;
+                        const qSnap2 = await db.collection('contacts').where('phone', '==', phone).limit(1).get();
+                        if (!qSnap2.empty) {
+                            contactDocId = qSnap2.docs[0].id;
+                            const d = qSnap2.docs[0].data();
+                            const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
+                            if (!isMockName(rawN))
+                                contactName = rawN;
                         }
                     }
                 }
@@ -598,13 +661,28 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             catch (cErr) {
                 console.warn('[whatsappWebhook] Contact query error:', cErr);
             }
-            if (!contactName && senderName) {
-                contactName = senderName;
+            // Name Resolution Priority:
+            // 1. Real CRM Name (non-mock)
+            // 2. WhatsApp senderName if real
+            // 3. Fallback: "קושאןWHAT"
+            if (!contactName) {
+                if (senderName && !isMockName(senderName)) {
+                    contactName = senderName;
+                }
+                else {
+                    contactName = 'קושאןWHAT';
+                }
             }
-            // 4.5 Fetch Brand DNA
+            // Count user messages in current active session
+            const userMessagesCount = chatHistory.filter(m => m.role === 'user').length + 1;
+            const isGenericContact = !contactName || contactName === 'קושאןWHAT' || isMockName(contactName);
+            // 4.5 Fetch Brand DNA (Tenant Scoped Priority)
             let brandContext = '';
             try {
-                const brandDnaSnap = await db.collection('settings').doc('brand_dna').get();
+                let brandDnaSnap = await db.collection('tenants').doc(resolvedTenantId).collection('settings').doc('brand_dna').get();
+                if (!brandDnaSnap.exists) {
+                    brandDnaSnap = await db.collection('settings').doc('brand_dna').get();
+                }
                 if (brandDnaSnap.exists) {
                     const dna = brandDnaSnap.data();
                     brandContext = `\n\n=== רקע על המותג (Brand DNA) ===\n`;
@@ -619,14 +697,38 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 }
             }
             catch (e) { }
+            // 4.6 Fetch Tenant Resources Catalog (Live server-side inventory for accurate dynamic dispatch)
+            let tenantResourcesContext = '';
+            try {
+                const docsSnap = await db.collection('tenants').doc(resolvedTenantId).collection('kos_web_ai_documents').get();
+                if (!docsSnap.empty) {
+                    tenantResourcesContext = `\n\n=== נכסים וקישורים ישירים רשמיים של הטננט (לשליחה מיידית כשהלקוח שואל/מבקש) ===\n`;
+                    docsSnap.forEach(docD => {
+                        var _a;
+                        const docData = docD.data();
+                        const slug = docData.slug || docD.id;
+                        const title = docData.title || ((_a = (docData.sections && Object.values(docData.sections)[0])) === null || _a === void 0 ? void 0 : _a.title) || slug;
+                        const fullUrl = `https://${resolvedTenantId}.kosun.pro/${slug}`;
+                        tenantResourcesContext += `- ${title} (${slug}): ${fullUrl}\n`;
+                    });
+                    tenantResourcesContext += `כלל ברזל לשליחת קישורים: כאשר הלקוח מבקש קישור, שיעור, ספריית וידאו, טופס או עמוד תוכן, ספק לו **ישירות ובאותה הודעה** את הקישור הרשמי המתאים מתוך הרשימה למעלה! אל תגיד שתעביר לנציג כדי לשלוח קישור אם הוא מופיע ברשימה.\n`;
+                }
+            }
+            catch (resErr) {
+                console.warn('[whatsappWebhook] Error loading tenant resources:', resErr);
+            }
             // 5. Append static, stabilized logic to System Prompt (enables Gemini Implicit Context Caching)
-            let strictPrompt = (triggeredBot.systemPrompt || 'אתה נציג שירות ומכירות אינטליגנטי.') + brandContext + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
+            let strictPrompt = (triggeredBot.systemPrompt || 'אתה נציג שירות ומכירות אינטליגנטי.') + brandContext + tenantResourcesContext + '\n\n=== הנחיות חובה נוספות למודל (לא להציג ללקוח) ===\n';
             strictPrompt += '1. התשובות שלך חייבות להיות **קצרות מאוד ותמציתיות** (עד 2-3 משפטים בלבד).\n';
             strictPrompt += '2. אם הלקוח מבקש מידע ארוך (כמו חבילות), תן לו אותו מתומצת מאוד בנקודות קצרות.\n';
             strictPrompt += '3. הובלת השיחה וסגירת מעגל: כאשר השיחה בשלב בירור צרכים, סיים בשאלה ממוקדת כדי לקדם את השיחה. אולם, כאשר הלקוח אישר העברה לנציג אנושי, סגרת פנייה, או הגעתם לסיכום - **איסור מוחלט לשאול שאלות נוספות**! תן אישור קצר, ברכת הצלחה חמה ושחרר את הלקוח.\n';
             strictPrompt += '4. מודעות ערוץ וואטסאפ: אתה מתכתב עם הלקוח ישירות בתוך הוואטסאפ! **לעולם אל תשאל מה מספר הטלפון שלו**, שכן המספר שלו כבר גלוי ומוגדר בהקשר השיחה. אם הלקוח מבקש לשלוח לו דוגמאות או לינקים בווטסאפ, השב שיישלח ישירות למספר זה.\n';
             strictPrompt += '5. כרטיס איש קשר (vCard) ושמירת מספר: כשהלקוח מתעניין או כשהשיחה נסגרת, הצע לו לשמור את כרטיס איש הקשר הרשמי שלנו כדי שיוכל לצפות בסטטוסים שלנו ולקבל תזכורות ועדכונים ישירות ללא סינון ספאם. אם יש צורך בשליחת כרטיס, הוסף את התגית [SEND_CONTACT] בסוף התשובה.\n';
             strictPrompt += '6. אם אין לך תשובה טובה, תגיד שאתה מעביר את הפנייה לנציג אנושי.\n';
+            // RULE: If more than 5 messages and name is still unknown/generic -> politely ask for the name!
+            if (userMessagesCount >= 5 && isGenericContact) {
+                strictPrompt += '\n7. **כלל בירור שם יזום**: השיחה כבר מתנהלת מעל 5 הודעות ועדיין אינך יודע את שמו האמיתי של הלקוח. שלב בתשובתך שאלה קצרה ומנומסת: "אגב, אשמח מאוד לדעת עם מי יש לי הכבוד לשוחח?".\n';
+            }
             if (triggeredBot.conversationGoal) {
                 strictPrompt += `\n=== משימת השיחה העיקרית של הבוט ===\n${triggeredBot.conversationGoal}\n`;
             }
@@ -784,14 +886,14 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                             messages: chatHistory
                         }, { merge: true });
                     }
-                    catch (_18) { }
+                    catch (_19) { }
                 }
                 catch (subErr) {
                     console.warn('[whatsappWebhook] Error updating contact conversation subcollection:', subErr);
                 }
             }
-            // 8. Trigger Async Info Extraction
-            extractAndSaveContact(geminiKey, phone, chatHistory, senderName, contactDocId || undefined);
+            // 8. Trigger Async Info Extraction with full tenant isolation & naming rules
+            extractAndSaveContact(geminiKey, phone, chatHistory, senderName, contactDocId || undefined, resolvedTenantId);
             // 9. Process Media / Contact tags in reply
             let sendContactRequested = false;
             if (replyText.includes('[SEND_CONTACT]')) {
@@ -849,8 +951,17 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             // 9c. Send vCard contact card if requested (enables mutual contact saving for status visibility & anti-ban)
             if (sendContactRequested) {
                 try {
-                    const businessPhone = String(apiKeys.businessContactPhone || apiKeys.adminNotificationPhone || apiKeys.adminPhone || instStr).replace(/\D/g, '');
-                    const businessName = String(apiKeys.businessContactName || 'Kosun - שירות לקוחות');
+                    // Resolve real phone: apiKeys -> body.instanceData.wid -> fallback
+                    const instanceWidDigits = String(((_17 = body.instanceData) === null || _17 === void 0 ? void 0 : _17.wid) || '').split('@')[0].replace(/\D/g, '');
+                    const businessPhone = String(apiKeys.businessContactPhone ||
+                        apiKeys.adminNotificationPhone ||
+                        apiKeys.adminPhone ||
+                        instanceWidDigits ||
+                        '0545377029').replace(/\D/g, '');
+                    let businessName = apiKeys.businessContactName;
+                    if (!businessName) {
+                        businessName = resolvedTenantId === 'mlea' ? 'מדרש לאה' : 'שירות לקוחות';
+                    }
                     const phoneInt = parseInt(businessPhone, 10);
                     if (!isNaN(phoneInt) && phoneInt > 0) {
                         const sendContactUrl = `${host}/waInstance${instStr}/sendContact/${greenApiToken}`;
@@ -862,7 +973,7 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                                 contact: {
                                     phoneContact: phoneInt,
                                     firstName: businessName,
-                                    company: 'Kosun'
+                                    company: businessName
                                 }
                             })
                         });
