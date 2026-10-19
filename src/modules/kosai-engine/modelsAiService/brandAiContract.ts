@@ -138,8 +138,8 @@ export const kosaiBrandContract = {
   },
 
   /**
-   * Generates microcopy and UI vocabulary (CTAs, placeholders, section headings) matching Brand DNA.
-   * Capped to 1000 output tokens.
+   * Generates microcopy and UI vocabulary (CTAs, placeholders, section headings, archive categories) matching Brand DNA.
+   * Capped to 3500 output tokens to allow full coverage of all sections and archive definitions.
    */
   async generateBrandUiVocabulary(
     prompt: string,
@@ -147,6 +147,7 @@ export const kosaiBrandContract = {
       apiKey?: string;
       tenantId?: string;
       systemInstruction?: string;
+      maxOutputTokens?: number;
     }
   ): Promise<KosaiContractResult<BrandUiVocabulary>> {
     return executeKosaiAi<BrandUiVocabulary>('KosBranding', prompt, {
@@ -154,7 +155,7 @@ export const kosaiBrandContract = {
       systemInstruction: options?.systemInstruction,
       responseMimeType: 'application/json',
       temperature: 0.6,
-      maxOutputTokens: 1000,
+      maxOutputTokens: options?.maxOutputTokens || 3500,
       customApiKey: options?.apiKey,
       tenantId: options?.tenantId,
       category: 'content',

@@ -1578,8 +1578,36 @@ export async function generateBrandUiVocabulary(
 ): Promise<{ success: boolean; vocabulary: BrandUiVocabulary; error?: string }> {
   const activeKey = resolveGeminiApiKey(apiKey);
   try {
-    const res = await dispatchBrandUiVocabularyToKosai(brand, { apiKey: activeKey });
-    if (res && (res.primaryCta || res.sectionHeadings)) {
+    let res = await dispatchBrandUiVocabularyToKosai(brand, { apiKey: activeKey });
+    
+    // Fallback: If res came back as raw string (e.g. from JSON parse failure or markdown wrapper)
+    if (typeof res === 'string') {
+      try {
+        const cleaned = res.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim();
+        res = JSON.parse(cleaned);
+      } catch {
+        // Attempt relaxed regex extraction for keys if JSON was slightly truncated
+        try {
+          const extractObj = (key: string) => {
+            const match = res.match(new RegExp(`"${key}"\\s*:\\s*\\{([^}]+)\\}`));
+            if (match) {
+              try { return JSON.parse(`{${match[1]}}`); } catch { return {}; }
+            }
+            return {};
+          };
+          res = {
+            categoryTitles: extractObj('categoryTitles'),
+            categoryDescriptions: extractObj('categoryDescriptions'),
+            archiveSeoDescriptions: extractObj('archiveSeoDescriptions'),
+            sectionHeadings: extractObj('sectionHeadings'),
+          };
+        } catch {
+          // ignore
+        }
+      }
+    }
+
+    if (res && (res.primaryCta || res.sectionHeadings || res.categoryTitles)) {
       const fallback = buildDefaultBrandUiVocabulary(brand);
       return {
         success: true,

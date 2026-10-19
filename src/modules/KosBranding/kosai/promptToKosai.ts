@@ -289,6 +289,7 @@ export async function dispatchBrandUiVocabularyToKosai(
     apiKey: options?.apiKey,
     tenantId: options?.tenantId,
     systemInstruction: systemContext,
+    maxOutputTokens: 3500,
   });
   return result.data;
 }
