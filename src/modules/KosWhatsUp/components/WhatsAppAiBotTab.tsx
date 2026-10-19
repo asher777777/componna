@@ -22,6 +22,8 @@ const PREDEFINED_COLLECTIONS = [
 ];
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
+import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
+import type { BrandDna } from '../../KosBranding/types';
 
 
 interface Props {
@@ -262,11 +264,20 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     setIsSimLoading(true);
 
     try {
+      let tenantBrandDna: BrandDna | null = null;
+      try {
+        tenantBrandDna = await loadBrandDna(db || undefined, tenantId);
+      } catch (bErr) {
+        console.warn("[WhatsAppAiBotTab] could not load brand DNA:", bErr);
+      }
+
       const res = await WhatsAppAiBotService.generateAiResponse({
         apiKey: effectiveGoogleAiApiKey,
         botConfig: activeBot,
         userMessage: userMsgText,
         chatHistory: newHistory.map((h) => ({ role: h.role, text: h.text })),
+        brandDna: tenantBrandDna,
+        tenantId: tenantId || undefined,
       });
 
       setSimChat((prev) => [
@@ -1041,4 +1052,5 @@ export const WhatsAppAiBotTab: React.FC<Props> = ({
     </div>
   );
 };
+
 

@@ -13,6 +13,8 @@ import {
 import { KOSAI_SUPPORTED_MODULES } from '../config/kosaiModules';
 import { KOSAI_TEMPLATES } from '../config/kosaiTemplates';
 import { generateAgentPromptWithAi } from '../api/kosaiApi';
+import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
+import type { BrandDna } from '../../KosBranding/types';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { checkKeywordMatch, WhatsAppBotService, WhatsAppAiBotConfig } from '../../KosWhatsUp/services/whatsappBotService';
 import { doc, setDoc } from 'firebase/firestore';
@@ -300,14 +302,22 @@ export const KosaiSettingsBackoffice: React.FC<KosaiSettingsBackofficeProps> = (
       return found ? found.label : c;
     });
     
-    const tempRule = { ...rule, systemPromptAddon: 'Kosun AI מנסח כעת פרומפט מדויק...' };
+    const tempRule = { ...rule, systemPromptAddon: 'Kosun AI מנסח כעת פרומפט מדויק וממותג...' };
     setRules(prev => prev.map(r => r.id === rule.id ? tempRule : r));
+
+    let tenantBrandDna: BrandDna | null = null;
+    try {
+      tenantBrandDna = await loadBrandDna(db || undefined, tenantId);
+    } catch (bErr) {
+      console.warn('[KosaiSettings] Could not load tenant brand DNA:', bErr);
+    }
 
     const { prompt, usage } = await generateAgentPromptWithAi(
       modName,
       caps,
       rule.allowedDataSources || [],
-      rule.toneOfVoice || { professionalism: 60, detail: 50, creativity: 50 }
+      rule.toneOfVoice || { professionalism: 60, detail: 50, creativity: 50 },
+      tenantBrandDna
     );
     
     if (db) {

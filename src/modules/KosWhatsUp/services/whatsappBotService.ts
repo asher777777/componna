@@ -549,8 +549,9 @@ export class WhatsAppBotService {
     chatHistory?: { role: 'user' | 'model'; text: string }[];
     cachedContentId?: string;
     brandDna?: BrandDna | null;
+    tenantId?: string;
   }): Promise<{ replyText: string; buttons: { buttonId: string; buttonText: string }[]; cachedContentId?: string; costReport?: TokenUsageReport }> {
-    const { apiKey, botConfig, userMessage, chatHistory = [], cachedContentId, brandDna } = params;
+    const { apiKey, botConfig, userMessage, chatHistory = [], cachedContentId, brandDna, tenantId } = params;
 
     const replyText = await dispatchBotReplyToKosai(
       {
@@ -561,6 +562,7 @@ export class WhatsAppBotService {
       },
       {
         apiKey,
+        tenantId,
         model: botConfig.model || 'gemini-3.8-flash-lite',
       }
     );

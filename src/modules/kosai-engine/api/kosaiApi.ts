@@ -226,30 +226,56 @@ export const generateAgentPromptWithAi = async (
   moduleName: string, 
   capabilities: string[], 
   allowedDataSources: string[], 
-  toneOfVoice: { professionalism: number, detail: number, creativity: number }
+  toneOfVoice: { professionalism: number, detail: number, creativity: number },
+  brandDna?: any
 ): Promise<{ prompt: string; usage: TokenUsageReport; error?: string }> => {
   
-  const systemInstruction = `You are a world-class prompt engineer and AI system designer for Kosun's KOSAI engine.
-Your task is to write a highly effective, professional system prompt IN HEBREW for a new AI assistant acting inside the component "${moduleName}".
+  // Extract concise Brand DNA essence (Dense & Low-Token)
+  const brandName = brandDna?.identity?.companyName || brandDna?.identity?.name || 'העסק';
+  const slogan = brandDna?.identity?.slogan ? `"${brandDna.identity.slogan}"` : '';
+  const vision = brandDna?.identity?.companyVision || brandDna?.identity?.organizationPurpose || '';
+  const uvp = brandDna?.audience?.mainUvp || '';
+  const powerWords = brandDna?.voice?.powerWords?.length > 0 ? brandDna.voice.powerWords.join(', ') : '';
+  const forbiddenWords = brandDna?.voice?.forbiddenWords?.length > 0 ? brandDna.voice.forbiddenWords.join(', ') : '';
+  const addressing = brandDna?.voice?.genderAddressing || 'plural';
 
-Here is the assistant's profile:
-- Granted Capabilities (Tools): ${capabilities.length > 0 ? capabilities.join(', ') : 'None'}
-- Authorized Data Sources (Collections): ${allowedDataSources.length > 0 ? allowedDataSources.join(', ') : 'None'}
+  const brandContextBlock = `
+Brand Profile:
+- Company/Brand Name: ${brandName}
+${slogan ? `- Slogan: ${slogan}` : ''}
+${vision ? `- Vision/Purpose: ${vision}` : ''}
+${uvp ? `- Unique Value Proposition: ${uvp}` : ''}
+${powerWords ? `- Mandatory Power Words (use naturally): ${powerWords}` : ''}
+${forbiddenWords ? `- FORBIDDEN WORDS (strictly prohibited): ${forbiddenWords}` : ''}
+- Addressing: ${addressing}
+`.trim();
+
+  const systemInstruction = `You are an elite prompt engineer for Kosun KOSAI engine.
+Your task is to write a precise, powerful, and TOKEN-EFFICIENT system prompt IN HEBREW for an AI agent operating inside the "${moduleName}" module.
+
+${brandContextBlock}
+
+Assistant Profile:
+- Granted Capabilities (Tools): ${capabilities.length > 0 ? capabilities.join(', ') : 'Standard conversation & assistance'}
+- Authorized Data Sources: ${allowedDataSources.length > 0 ? allowedDataSources.join(', ') : 'Standard module context'}
 - Tone of Voice Profile (0-100 scale):
-  * Professionalism: ${toneOfVoice.professionalism} (0=Casual/Funny, 100=Strict/Formal)
-  * Detail: ${toneOfVoice.detail} (0=Short/Concise, 100=Highly detailed and elaborate)
+  * Professionalism: ${toneOfVoice.professionalism} (0=Casual/Warm, 100=Formal/Authoritative)
+  * Detail: ${toneOfVoice.detail} (0=Concise/Punchy, 100=Elaborate)
   * Creativity: ${toneOfVoice.creativity} (0=Conservative/Safe, 100=Bold/Creative)
 
-Instructions:
-1. Write ONLY the final system prompt in Hebrew that will be injected into the AI.
-2. The prompt should explicitly tell the AI what its persona is based on the tone of voice sliders.
-3. The prompt should explain to the AI what tools it has and what data it can access.
-4. Do NOT wrap the response in markdown blocks (no \`\`\` text). Return plain text only.`;
+STRICT TOKEN & FORMULATION RULES:
+1. TOKEN BUDGET: Keep the prompt compact and direct (strictly between 60 to 120 words). Do not waste tokens on filler or long preambles.
+2. IDENTITY & BRAND: Define the agent as the official assistant of "${brandName}". It must represent the brand voice and UVP.
+3. STRUCTURE:
+   - Role & Brand Identity (1-2 sentences).
+   - Core Mission & Tools (1-2 sentences).
+   - Tone & Communication Rules (concise bullet points: zero emojis, professional Hebrew, no hallucinations).
+4. OUTPUT FORMAT: Plain text only. No markdown formatting blocks (\`\`\`), no greetings, return ONLY the prompt text ready to be saved.`;
 
   const model = 'gemini-3.8-flash';
 
   const response = await coreCallGeminiApi({
-    prompt: `Please generate the system prompt for the "${moduleName}" assistant.`,
+    prompt: `Please generate the system prompt for the "${moduleName}" assistant for "${brandName}".`,
     systemInstruction,
     responseMimeType: 'text/plain',
     model,
@@ -263,15 +289,15 @@ Instructions:
   });
 
   if (!response.success || response.isFallback || !response.data) {
-    // Graceful Degradation: Provide a tailored professional prompt without exposing raw error strings
-    let defaultPrompt = `אתה סוכן AI מקצועי, שירותי ומדויק של קושאן עבור ${moduleName}.
-תפקידך העיקרי לסייע למשתמש בניהול המודול, ביצוע פעולות חכמות, הפקת תובנות ומענה מדויק.
-שפת הפעולה שלך היא עברית רהוטה ללא אימוג'ים טקסטואליים.`;
+    // Graceful Degradation: Provide a tailored professional prompt with brand alignment
+    let defaultPrompt = `אתה נציג ה-AI הרשמי והשירותי של "${brandName}" ברכיב ${moduleName}.
+תפקידך לסייע למשתמש באופן ממוקד, מדויק ומהיר, לקדם את מטרות העסק ${slogan ? `(${slogan})` : ''} ולבצע פעולות בצורה חכמה.
+כללי תקשורת: שפה עברית רהוטה ומקצועית, ללא שימוש באימוג'ים, תשובות קצרות וענייניות הממוקדות בתוצאות.`;
 
     if (moduleName.includes('CRM') || moduleName.includes('אנליטיקה') || moduleName.includes('crm')) {
-      defaultPrompt = `אתה סוכן ה-CRM, הנתונים והאנליטיקה המתקדם של קושאן.
-תפקידך לסייע בפילוח לקוחות, מעקב עסקאות, ניהול קהילות וקבוצות, ויצירת גרפים ותרשימים אנליטיים בזמן אמת באמצעות פעולת CREATE_CRM_CHART.
-השב תמיד בעברית מקצועית, שירותית ועסקית.`;
+      defaultPrompt = `אתה סוכן ה-CRM והאנליטיקה הרשמי של "${brandName}".
+תפקידך לנתח נתוני לקוחות ועסקאות, לבצע פילוחים מתקדמים ולהפיק תובנות עסקיות ותרשימים אנליטיים בזמן אמת.
+הקפד על נתוני אמת בלבד (Zero Hallucination), ללא אימוג'ים, ובטון מקצועי ושירותי.`;
     }
 
     return {

@@ -3,6 +3,8 @@ import { doc, getDoc, setDoc, collection, getDocs } from 'firebase/firestore';
 import { GreenApiService } from '../services/greenApiService';
 import { WhatsAppBotService, checkKeywordMatch, WhatsAppAiBotConfig } from '../services/whatsappBotService';
 import { whatsappAutoCrmService } from '../services/whatsappAutoCrmService';
+import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
+import type { BrandDna } from '../../KosBranding/types';
 
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
 
@@ -183,6 +185,13 @@ export const useWhatsAppAutoResponder = ({
                   }
                 }
 
+                let tenantBrandDna: BrandDna | null = null;
+                try {
+                  tenantBrandDna = await loadBrandDna(db || undefined, tenantId || '_master');
+                } catch (bErr) {
+                  console.warn('[AutoResponder] could not load brand DNA:', bErr);
+                }
+
                 try {
                   const res = await WhatsAppBotService.generateAiResponse({
                     apiKey: apiKey || '',
@@ -190,6 +199,8 @@ export const useWhatsAppAutoResponder = ({
                     userMessage: messageText,
                     chatHistory: historyForAi,
                     cachedContentId: existingCachedContentId,
+                    brandDna: tenantBrandDna,
+                    tenantId: tenantId || undefined,
                   });
 
                   if (res?.replyText) {
