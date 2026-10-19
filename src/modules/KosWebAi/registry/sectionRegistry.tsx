@@ -59,6 +59,7 @@ import { RichContentEditor } from '../sections/richContent/RichContentEditor';
 import { CommunityEditor } from '../sections/community/CommunityEditor';
 import { LivePostsGridEditor } from '../sections/livePosts/LivePostsGridEditor';
 import { LandingEditor } from '../sections/landing/LandingEditor';
+import { DEFAULT_LANDING_FORM_CONFIG } from '../sections/landing/LandingFormDefaults';
 import { ContactEditor } from '../sections/contact/ContactEditor';
 import { SmartFormEditor } from '../sections/smartForm/SmartFormEditor';
 import { FlowPlayerEditor } from '../sections/flowPlayer/FlowPlayerEditor';
@@ -661,11 +662,19 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       type: 'landingSection',
       visible: true,
       anchorId: 'landingSection',
+      badge: 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון',
       title: 'השאירו פרטים לקבלת מידע נוסף',
       subtitle: 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון',
       description: 'מלאו את הפרטים הקצרים בטופס ונציג מקצועי יחזור אליכם בהקדם האפשרי.',
-      buttonText: 'שלח פרטים עכשיו',
+      buttonText: 'שליחת פרטים עכשיו',
+      modalButtonText: 'השאירו פרטים לקבלת מידע',
+      layout: 'standard',
+      formPosition: 'left',
+      objectScale: 'normal',
+      buttonShape: 'rounded',
+      buttonSize: 'md',
       backgroundColor: 'transparent',
+      form: DEFAULT_LANDING_FORM_CONFIG,
     },
   },
 

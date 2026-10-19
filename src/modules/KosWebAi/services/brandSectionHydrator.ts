@@ -352,6 +352,24 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'landingSection': {
+      cloned.title = companyName ? `השאירו פרטים לקבלת מידע נוסף מ-${companyName}` : (cloned.title || 'השאירו פרטים לקבלת מידע נוסף');
+      cloned.subtitle = slogan || cloned.subtitle || 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון';
+      cloned.badge = companyName ? `• ${companyName} LEADS •` : (cloned.badge || '• קבלת מידע נוסף •');
+      cloned.description = uvp || cloned.description || `מלאו את הפרטים הקצרים בטופס ונציג מקצועי מבית ${companyName || 'שלנו'} יחזור אליכם בהקדם האפשרי.`;
+      cloned.buttonText = uiVocab.formSubmitText || cloned.buttonText || 'שליחת פרטים עכשיו';
+      cloned.modalButtonText = cloned.modalButtonText || 'השאירו פרטים לקבלת מידע';
+      cloned.layout = cloned.layout || 'standard';
+      cloned.formPosition = cloned.formPosition || 'left';
+      cloned.objectScale = cloned.objectScale || 'normal';
+      cloned.buttonShape = cloned.buttonShape || 'rounded';
+      cloned.buttonSize = cloned.buttonSize || 'md';
+      if (primaryColor) {
+        cloned.accentColor = primaryColor;
+      }
+      break;
+    }
+
     case 'testimonials': {
       cloned.title = headings.testimonialsHeading || `מה מספרים עלינו?`;
       cloned.subtitle = headings.testimonialsSubtitle || 'עדויות ומשובים מהשטח';
@@ -698,7 +716,7 @@ export function applyStylePresetToSection(sec: any, preset: string): any {
 
   // LandingSection layout
   if (sType === 'landingSection') {
-    sec.layout = (preset === 'feminine' || preset === 'spiritual') ? 'centered' : (preset === 'sharp' ? 'card' : 'split');
+    sec.layout = (preset === 'feminine' || preset === 'spiritual' || preset === 'masculine' || preset === 'sharp' || preset === 'analytical') ? preset : 'standard';
     return sec;
   }
 

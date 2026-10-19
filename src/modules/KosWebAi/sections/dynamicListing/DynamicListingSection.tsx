@@ -6,7 +6,7 @@ import {
   DynamicListingSortBy,
   DynamicListingLogicCondition,
 } from '../../types/sectionConfigs';
-import { BrandDnaContract } from '../../../../core/contracts';
+import { BrandDna } from '../../../../core/contracts';
 import {
   Search,
   ArrowLeft,
@@ -76,7 +76,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
   } = config;
 
   // Dynamic Light / Dark mode and Brand DNA state
-  const [brandDnaData, setBrandDnaData] = useState<BrandDnaContract | null>(null);
+  const [brandDnaData, setBrandDnaData] = useState<BrandDna | null>(null);
   const [activeSort, setActiveSort] = useState<DynamicListingSortBy>(sortBy || 'date-desc');
 
   // Search & Filter States

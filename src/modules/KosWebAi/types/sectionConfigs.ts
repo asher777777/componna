@@ -772,16 +772,46 @@ export interface LandingFormField {
   options?: string[];
 }
 
+export type LandingLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical';
+
+export type LandingFormPosition = 'left' | 'right' | 'bottom' | 'modal';
+
 export interface LandingSectionConfig extends BaseSectionConfig {
   type: 'landingSection';
   title: string;
   subtitle?: string;
+  badge?: string;
   description?: string;
   imageSrc?: string;
-  form?: boolean;
-  formMode?: 'lead' | 'register' | 'contact';
+  formId?: string;
+  form?: FormConfigContract | boolean;
+  formPosition?: LandingFormPosition;
+  modalButtonText?: string;
+  layout?: LandingLayoutPreset | 'split' | 'card' | 'centered';
+  objectScale?: 'compact' | 'normal' | 'spacious';
+  buttonShape?: 'rounded' | 'pill' | 'sharp';
+  buttonSize?: 'sm' | 'md' | 'lg';
+  titleColor?: string;
+  subtitleColor?: string;
+  descriptionColor?: string;
+  cardBackgroundColor?: string;
+  accentColor?: string;
+  /** רקע של תמונה מאחורי הטקסט עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'whole-section';
   buttonText?: string;
-  layout?: 'split' | 'card' | 'centered';
+  formMode?: 'lead' | 'register' | 'contact';
   fields?: LandingFormField[];
 }
 
