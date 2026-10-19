@@ -16,9 +16,11 @@ import {
   MessageSquare,
   Brain,
   Info,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
-import { GroupListSidebar } from './GroupListSidebar';
+import { GroupSelectorDropdown } from './GroupSelectorDropdown';
 import { GroupHeaderStatsBar } from './GroupHeaderStatsBar';
 import { GroupContactsTable } from './GroupContactsTable';
 import { GroupInteractionsTab } from './GroupInteractionsTab';
@@ -48,7 +50,10 @@ export const CrmGroupsMainView: React.FC = () => {
   } = useCrmGroups();
 
   const [mainMode, setMainMode] = useState<'manage' | 'whatsapp_import' | 'micro_portal' | 'community_chat'>('manage');
-  const [currentTab, setCurrentTab] = useState<'grow' | 'contacts' | 'interactions'>('grow');
+  const [currentTab, setCurrentTab] = useState<'grow' | 'contacts' | 'interactions'>('contacts');
+
+  // Sticky Collapsible actions toolbar state (הצמד את סרגל הפעולות ואפשר הסתר שלו)
+  const [isToolbarCollapsed, setIsToolbarCollapsed] = useState(false);
 
   // Hidden collapsible bars states (hidden by default per KOSUN Constitution)
   const [isRadarOpen, setIsRadarOpen] = useState(false);
@@ -301,130 +306,172 @@ export const CrmGroupsMainView: React.FC = () => {
       )}
 
       {/* Main Content Area - 0px Top with padding for content */}
-      <div className="pt-16 px-4 md:px-8 pb-8 space-y-6">
-        <div className="flex flex-col lg:flex-row gap-6 items-start">
-          {/* Left Sidebar */}
-          <GroupListSidebar
-            onOpenCreateGroup={handleOpenCreateGroup}
-            onOpenEditGroup={handleOpenEditGroup}
-          />
+      {/* Main Content Area - Full width without sidebar */}
+      <div className="pt-16 px-4 md:px-8 pb-8 space-y-5">
+        <div className="w-full space-y-4 min-w-0">
+          {/* Pinned Sticky Actions Toolbar with Hide/Collapse option (סעיף 3) */}
+          <div className="sticky top-2 z-30 transition-all duration-300">
+            {isToolbarCollapsed ? (
+              /* Minimal floating pill when collapsed */
+              <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 rounded-2xl px-4 py-2 shadow-lg flex items-center justify-between gap-4 max-w-xl mx-auto animate-in fade-in zoom-in-95">
+                <div className="flex items-center gap-2.5">
+                  <span
+                    className="w-2.5 h-2.5 rounded-full"
+                    style={{ backgroundColor: activeGroup.color || '#4f46e5' }}
+                  />
+                  <span className="text-xs font-black text-slate-800 dark:text-slate-100">
+                    {activeGroup.name}
+                  </span>
+                  <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                    {filteredContacts.length}
+                  </span>
+                </div>
 
-          {/* Right Main Content */}
-          <div className="flex-1 w-full space-y-5 min-w-0">
-            {/* Sub-tabs & Action Toolbar (סעיף ב: ללא תוויות טקסט, רק איקונים עם טולטיפ) */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-2.5 shadow-xs flex items-center justify-between flex-wrap gap-2">
-              <div className="flex items-center gap-1.5">
-                {/* 1. מגדלים את הקהילה (First Tab) - Icon only with tooltip */}
                 <button
                   type="button"
-                  onClick={() => setCurrentTab('grow')}
-                  className={`w-10 h-10 rounded-2xl transition-all flex items-center justify-center cursor-pointer ${
-                    currentTab === 'grow'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
-                  title="מגדלים את הקהילה (הוספת חברים בגרירה)"
+                  onClick={() => setIsToolbarCollapsed(false)}
+                  className="text-xs font-bold text-indigo-600 hover:text-indigo-700 flex items-center gap-1.5 cursor-pointer py-1 px-2.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 transition"
+                  title="הצג סרגל פעולות מלא"
                 >
-                  <UserPlus className="w-4 h-4" />
-                </button>
-
-                {/* 2. חברי הקהילה - Icon + count badge with tooltip */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentTab('contacts')}
-                  className={`h-10 px-3 rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-mono font-bold ${
-                    currentTab === 'contacts'
-                      ? 'bg-indigo-600 text-white shadow-2xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
-                  title="חברי הקהילה (רשימה וניהול)"
-                >
-                  <Users className="w-4 h-4" />
-                  <span>{filteredContacts.length}</span>
-                </button>
-
-                {/* 3. אינטראקציות - Icon only with tooltip */}
-                <button
-                  type="button"
-                  onClick={() => setCurrentTab('interactions')}
-                  className={`w-10 h-10 rounded-2xl transition-all flex items-center justify-center cursor-pointer ${
-                    currentTab === 'interactions'
-                      ? 'bg-emerald-600 text-white shadow-2xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
-                  }`}
-                  title="יומן אינטראקציות ופעילות"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                </button>
-
-                <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
-
-                {/* סעיף ח: כפתור איש חושב (צירוף חכם לפי תנאים לוגיים) */}
-                <button
-                  type="button"
-                  onClick={() => setIsSmartRulesModalOpen(true)}
-                  className="w-10 h-10 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shadow-xs transition-all cursor-pointer"
-                  title="איש חושב: הוספה אוטומטית לקהילה בעזרת תנאים לוגיים"
-                >
-                  <Brain className="w-4 h-4" />
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>הצג סרגל פעולות</span>
                 </button>
               </div>
-
-              {/* Quick Actions: Icon only with tooltips (סעיף ב) */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => handleOpenWhatsAppBroadcast()}
-                  className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
-                  title="שידור וואטסאפ לקהילה"
-                >
-                  <Share2 className="w-4 h-4" />
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setMainMode('micro_portal')}
-                  className="w-10 h-10 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
-                  title="פורטל קהילה ופיד"
-                >
-                  <Globe className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Hidden Collapsible Community Engagement Radar (Engagement Heatmap) */}
-            <GroupEngagementRadar
-              isOpen={isRadarOpen}
-              onToggle={() => setIsRadarOpen(false)}
-            />
-
-            {/* Active Tab View */}
-            {currentTab === 'grow' ? (
-              <CommunityGrowthTab
-                activeGroup={activeGroup}
-                allContacts={contacts}
-                onAssignToGroup={bulkAssignToGroup}
-                onOpenContactDetail={onOpenContactDetail}
-                onOpenSmartRulesModal={() => setIsSmartRulesModalOpen(true)}
-              />
-            ) : currentTab === 'contacts' ? (
-              <GroupContactsTable
-                onOpenTransferModal={handleOpenTransferModal}
-                onOpenAddMembersModal={() => setIsAddMembersModalOpen(true)}
-                onOpenWhatsAppBroadcast={() => handleOpenWhatsAppBroadcast()}
-                onOpenContactDetail={onOpenContactDetail}
-                onOpenCommunityPortal={() => setMainMode('micro_portal')}
-                onOpenCommunityChat={() => setMainMode('community_chat')}
-                onOpenWhatsAppImport={() => setMainMode('whatsapp_import')}
-                isRadarOpen={isRadarOpen}
-                onToggleRadar={() => setIsRadarOpen((prev) => !prev)}
-                currentTab={currentTab}
-                onTabChange={setCurrentTab}
-              />
             ) : (
-              <GroupInteractionsTab />
+              /* Full Toolbar */
+              <div className="bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200/90 dark:border-slate-800 rounded-3xl p-2.5 shadow-md flex items-center justify-between flex-wrap gap-2.5">
+                {/* 1. Group Selector Dropdown + Plus Button (סעיפים 1 ו-2) */}
+                <GroupSelectorDropdown
+                  onOpenCreateGroup={handleOpenCreateGroup}
+                  onOpenEditGroup={handleOpenEditGroup}
+                />
+
+                {/* 2. Sub-tabs & Thinking Man */}
+                <div className="flex items-center gap-1.5">
+                  {/* Contacts Tab - Default (סעיף 2) */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentTab('contacts')}
+                    className={`h-10 px-3.5 rounded-2xl transition-all flex items-center gap-1.5 cursor-pointer text-xs font-mono font-bold ${
+                      currentTab === 'contacts'
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                    title="כל אנשי הקשר / חברי הקהילה"
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>{filteredContacts.length}</span>
+                  </button>
+
+                  {/* Grow Community Tab */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentTab('grow')}
+                    className={`w-10 h-10 rounded-2xl transition-all flex items-center justify-center cursor-pointer ${
+                      currentTab === 'grow'
+                        ? 'bg-indigo-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                    title="מגדלים את הקהילה (הוספת חברים בגרירה)"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+
+                  {/* Interactions Tab */}
+                  <button
+                    type="button"
+                    onClick={() => setCurrentTab('interactions')}
+                    className={`w-10 h-10 rounded-2xl transition-all flex items-center justify-center cursor-pointer ${
+                      currentTab === 'interactions'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200'
+                    }`}
+                    title="יומן אינטראקציות ופעילות"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                  </button>
+
+                  <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
+
+                  {/* Thinking Man Button */}
+                  <button
+                    type="button"
+                    onClick={() => setIsSmartRulesModalOpen(true)}
+                    className="w-10 h-10 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white flex items-center justify-center shadow-xs transition-all cursor-pointer"
+                    title="איש חושב: הוספה אוטומטית לקהילה בעזרת תנאים לוגיים"
+                  >
+                    <Brain className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 3. Quick Actions & Hide Toolbar Button */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleOpenWhatsAppBroadcast()}
+                    className="w-10 h-10 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+                    title="שידור וואטסאפ לקהילה"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setMainMode('micro_portal')}
+                    className="w-10 h-10 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-2xs transition-all cursor-pointer"
+                    title="פורטל קהילה ופיד"
+                  >
+                    <Globe className="w-4 h-4" />
+                  </button>
+
+                  <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 mx-1 hidden sm:block" />
+
+                  {/* Collapse Toolbar Button (סעיף 3) */}
+                  <button
+                    type="button"
+                    onClick={() => setIsToolbarCollapsed(true)}
+                    className="w-10 h-10 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-white flex items-center justify-center transition-all cursor-pointer"
+                    title="הסתר סרגל פעולות (לפינוי מקום מקסימלי בטבלה)"
+                  >
+                    <EyeOff className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
             )}
           </div>
+
+          {/* Hidden Collapsible Community Engagement Radar (Engagement Heatmap) */}
+          <GroupEngagementRadar
+            isOpen={isRadarOpen}
+            onToggle={() => setIsRadarOpen(false)}
+          />
+
+          {/* Active Tab View */}
+          {currentTab === 'grow' ? (
+            <CommunityGrowthTab
+              activeGroup={activeGroup}
+              allContacts={contacts}
+              onAssignToGroup={bulkAssignToGroup}
+              onOpenContactDetail={onOpenContactDetail}
+              onOpenSmartRulesModal={() => setIsSmartRulesModalOpen(true)}
+            />
+          ) : currentTab === 'contacts' ? (
+            <GroupContactsTable
+              onOpenTransferModal={handleOpenTransferModal}
+              onOpenAddMembersModal={() => setIsAddMembersModalOpen(true)}
+              onOpenWhatsAppBroadcast={() => handleOpenWhatsAppBroadcast()}
+              onOpenContactDetail={onOpenContactDetail}
+              onOpenCommunityPortal={() => setMainMode('micro_portal')}
+              onOpenCommunityChat={() => setMainMode('community_chat')}
+              onOpenWhatsAppImport={() => setMainMode('whatsapp_import')}
+              isRadarOpen={isRadarOpen}
+              onToggleRadar={() => setIsRadarOpen((prev) => !prev)}
+              currentTab={currentTab}
+              onTabChange={setCurrentTab}
+            />
+          ) : (
+            <GroupInteractionsTab />
+          )}
         </div>
       </div>
 

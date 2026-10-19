@@ -88,6 +88,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
   const [openTagDropdownId, setOpenTagDropdownId] = useState<string | null>(null);
   const [isTagModalOpen, setIsTagModalOpen] = useState(false);
   const [tagNameInput, setTagNameInput] = useState('');
+  const [applyTagToAll, setApplyTagToAll] = useState(false);
   const [layoutMode, setLayoutMode] = useState<CommunitiesLayoutMode>('table');
   const [active360Contact, setActive360Contact] = useState<ContactRecord | null>(null);
   const [is360ModalOpen, setIs360ModalOpen] = useState(false);
@@ -316,7 +317,16 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
             <span className="w-6 h-6 rounded-full bg-indigo-700 text-xs font-mono font-bold flex items-center justify-center">
               {selectedContactIds.length}
             </span>
-            <span className="text-xs font-bold">אנשי קשר נבחרו לפעולה מרוכזת</span>
+            <span className="text-xs font-bold">אנשי קשר נבחרו</span>
+            {selectedContactIds.length < filteredContacts.length && (
+              <button
+                type="button"
+                onClick={toggleSelectAll}
+                className="text-xs underline text-indigo-200 hover:text-white px-2 py-0.5 rounded cursor-pointer font-bold transition"
+              >
+                (בחר את כל {filteredContacts.length} אנשי הקשר)
+              </button>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -1067,6 +1077,18 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
             </div>
 
             <div className="space-y-3 text-xs">
+              <label className="flex items-center gap-2 cursor-pointer bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                <input
+                  type="checkbox"
+                  checked={applyTagToAll}
+                  onChange={(e) => setApplyTagToAll(e.target.checked)}
+                  className="w-4 h-4 text-indigo-600 rounded cursor-pointer accent-indigo-600"
+                />
+                <span className="font-bold text-xs text-slate-800">
+                  בחר הכל - החל על כל {filteredContacts.length} אנשי הקשר בתצוגה הנוכחית
+                </span>
+              </label>
+
               <div>
                 <label className="block font-bold text-slate-700 mb-1.5">שם התווית / התגית:</label>
                 <input
@@ -1082,7 +1104,7 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
             <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
-                onClick={() => { setIsTagModalOpen(false); setTagNameInput(''); }}
+                onClick={() => { setIsTagModalOpen(false); setTagNameInput(''); setApplyTagToAll(false); }}
                 className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100"
               >
                 ביטול
@@ -1091,16 +1113,18 @@ export const GroupContactsTable: React.FC<GroupContactsTableProps> = ({
                 type="button"
                 disabled={!tagNameInput.trim()}
                 onClick={async () => {
-                  if (tagNameInput.trim() && selectedContactIds.length > 0) {
-                    await bulkAssignToGroup(selectedContactIds, tagNameInput.trim());
+                  const targetIds = applyTagToAll ? filteredContacts.map((c) => c.id) : selectedContactIds;
+                  if (tagNameInput.trim() && targetIds.length > 0) {
+                    await bulkAssignToGroup(targetIds, tagNameInput.trim());
                     setSelectedContactIds([]);
                     setTagNameInput('');
+                    setApplyTagToAll(false);
                     setIsTagModalOpen(false);
                   }
                 }}
                 className="px-4 py-2 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white transition disabled:opacity-50"
               >
-                הוסף תווית
+                הוסף תווית ({applyTagToAll ? filteredContacts.length : selectedContactIds.length})
               </button>
             </div>
           </div>

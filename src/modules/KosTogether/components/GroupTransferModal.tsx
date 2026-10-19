@@ -16,6 +16,7 @@ export const GroupTransferModal: React.FC<GroupTransferModalProps> = ({
   const {
     groups,
     selectedContactIds,
+    filteredContacts,
     activeGroupId,
     activeGroup,
     bulkAssignToGroup,
@@ -24,8 +25,11 @@ export const GroupTransferModal: React.FC<GroupTransferModalProps> = ({
 
   const [targetGroupName, setTargetGroupName] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [applyToAll, setApplyToAll] = useState(false);
 
   if (!isOpen) return null;
+
+  const targetIds = applyToAll ? filteredContacts.map((c) => c.id) : selectedContactIds;
 
   const handleExecute = async () => {
     if (!targetGroupName) {
@@ -36,10 +40,10 @@ export const GroupTransferModal: React.FC<GroupTransferModalProps> = ({
     try {
       setSubmitting(true);
       if (mode === 'add') {
-        await bulkAssignToGroup(selectedContactIds, targetGroupName);
+        await bulkAssignToGroup(targetIds, targetGroupName);
       } else {
         const sourceName = activeGroupId.startsWith('__') ? '' : activeGroup.name;
-        await bulkMoveBetweenGroups(selectedContactIds, sourceName, targetGroupName);
+        await bulkMoveBetweenGroups(targetIds, sourceName, targetGroupName);
       }
       onClose();
     } catch (err: any) {
@@ -76,9 +80,28 @@ export const GroupTransferModal: React.FC<GroupTransferModalProps> = ({
         </div>
 
         <div className="p-6 space-y-4 text-xs">
-          <p className="text-slate-600">
-            פעולה זו תחול על <span className="font-bold text-indigo-700">{selectedContactIds.length}</span> אנשי קשר נבחרים.
-          </p>
+          <div className="bg-indigo-50/70 dark:bg-indigo-950/40 p-3 rounded-2xl border border-indigo-100 dark:border-indigo-900/60 flex items-center justify-between">
+            <div>
+              <p className="text-slate-800 dark:text-slate-200 font-bold">
+                פעולה זו תחול על <span className="font-extrabold text-indigo-700 dark:text-indigo-400 text-sm">{targetIds.length}</span> אנשי קשר.
+              </p>
+              <p className="text-[11px] text-slate-500">
+                {applyToAll ? `כלל אנשי הקשר בתצוגה הנוכחית (${filteredContacts.length})` : `אנשי הקשר המסומנים כעת (${selectedContactIds.length})`}
+              </p>
+            </div>
+
+            <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 shadow-2xs">
+              <input
+                type="checkbox"
+                checked={applyToAll}
+                onChange={(e) => setApplyToAll(e.target.checked)}
+                className="w-4 h-4 text-indigo-600 rounded cursor-pointer accent-indigo-600"
+              />
+              <span className="font-extrabold text-xs text-indigo-950 dark:text-indigo-200">
+                בחר הכל ({filteredContacts.length})
+              </span>
+            </label>
+          </div>
 
           <div>
             <label className="font-bold text-slate-700 block mb-1">בחר קבוצה או קהילת יעד:</label>

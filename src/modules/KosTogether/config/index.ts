@@ -43,16 +43,24 @@ export const ALL_GROUP_COLUMNS: GroupColumnDefinition[] = [
 
 export const DEFAULT_VISIBLE_COLUMNS = ['conta_name', 'tags', 'conta_phone', 'mh_crm_city', 'total_spent', 'actions'];
 
-export const RULE_FIELD_OPTIONS: { value: GroupRuleField; label: string; type: 'number' | 'text' | 'boolean' }[] = [
-  { value: 'total_spent', label: 'סך תשלומים מצטבר (₪)', type: 'number' },
-  { value: 'campaign_amount', label: 'סכום תרומה לקמפיין (₪)', type: 'number' },
-  { value: 'order_count', label: 'מספר הזמנות / תשלומים', type: 'number' },
-  { value: 'mh_crm_city', label: 'עיר מגורים', type: 'text' },
-  { value: 'lead_source', label: 'מקור הגעה (ליד)', type: 'text' },
-  { value: 'company_name', label: 'שם חברה / ארגון', type: 'text' },
-  { value: 'job_title', label: 'תפקיד', type: 'text' },
-  { value: 'gender', label: 'מגדר', type: 'text' },
-  { value: 'status', label: 'סטטוס ב-CRM', type: 'text' },
+export const RULE_FIELD_OPTIONS: { value: GroupRuleField; label: string; type: 'number' | 'text' | 'boolean'; placeholder?: string }[] = [
+  { value: 'tags', label: 'תווית / תגית', type: 'text', placeholder: 'לדוגמה: VIP / שגריר / בוגרים' },
+  { value: 'community', label: 'קהילה משויכת', type: 'text', placeholder: 'לדוגמה: קהילת ירושלים' },
+  { value: 'conta_name', label: 'שם איש קשר', type: 'text', placeholder: 'לדוגמה: ישראל ישראלי' },
+  { value: 'conta_phone', label: 'מספר טלפון', type: 'text', placeholder: 'לדוגמה: 0501234567' },
+  { value: 'email', label: 'כתובת אימייל', type: 'text', placeholder: 'לדוגמה: user@domain.com' },
+  { value: 'mh_crm_city', label: 'עיר מגורים', type: 'text', placeholder: 'לדוגמה: ירושלים / תל אביב' },
+  { value: 'mh_crm_street', label: 'רחוב / כתובת', type: 'text', placeholder: 'לדוגמה: יפו 10' },
+  { value: 'company_name', label: 'שם ארגון או חברה', type: 'text', placeholder: 'לדוגמה: עמותת ידידים' },
+  { value: 'job_title', label: 'תפקיד או מקצוע', type: 'text', placeholder: 'לדוגמה: מנהל / מתנדב' },
+  { value: 'lead_source', label: 'מקור הגעה (ליד)', type: 'text', placeholder: 'לדוגמה: וואטסאפ / אתר / פייסבוק' },
+  { value: 'status', label: 'סטטוס ב-CRM', type: 'text', placeholder: 'לדוגמה: פעיל / ליד חדש' },
+  { value: 'gender', label: 'מגדר', type: 'text', placeholder: 'לדוגמה: זכר / נקבה' },
+  { value: 'notes', label: 'הערות', type: 'text', placeholder: 'הקלד הערה לחיפוש...' },
+  { value: 'last_form_name', label: 'שם טופס אחרון', type: 'text', placeholder: 'לדוגמה: טופס הצטרפות' },
+  { value: 'total_spent', label: 'סך תשלומים מצטבר (₪)', type: 'number', placeholder: 'לדוגמה: 1000' },
+  { value: 'campaign_amount', label: 'סכום תרומה לקמפיין (₪)', type: 'number', placeholder: 'לדוגמה: 500' },
+  { value: 'order_count', label: 'מספר הזמנות / תשלומים', type: 'number', placeholder: 'לדוגמה: 2' },
   { value: 'has_phone', label: 'קיים מספר טלפון', type: 'boolean' },
   { value: 'has_email', label: 'קיימת כתובת אימייל', type: 'boolean' },
 ];

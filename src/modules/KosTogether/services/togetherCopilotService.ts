@@ -122,6 +122,18 @@ export function offlineSmartRulesHeuristic(
     });
   }
 
+  // Tag / Label match (תווית או תגית)
+  if (q.includes('תווית') || q.includes('תגית') || q.includes('תג ')) {
+    const tagMatch = q.match(/(?:תווית|תגית|תג)\s+([^\s,]+)/);
+    if (tagMatch) {
+      rules.push({
+        field: 'tags',
+        operator: 'contains',
+        value: tagMatch[1],
+      });
+    }
+  }
+
   // Any operator
   if (q.includes('או ') || q.includes('אחד מהם')) {
     matchType = 'any';

@@ -42,16 +42,42 @@ export function evaluateRule(contact: ContactRecord, rule: GroupRule): boolean {
   const { field, operator, value } = rule;
 
   if (field === 'has_phone') {
-    const has = Boolean(contact.conta_phone && String(contact.conta_phone).trim().length > 0);
+    const phone = contact.conta_phone || contact.phone || contact.kosun_crm_phone;
+    const has = Boolean(phone && String(phone).trim().length > 0);
     return operator === 'exists' ? has : !has;
   }
 
   if (field === 'has_email') {
-    const has = Boolean(contact.email && String(contact.email).trim().length > 0);
+    const email = contact.email || contact.kosun_crm_email;
+    const has = Boolean(email && String(email).trim().length > 0);
     return operator === 'exists' ? has : !has;
   }
 
-  const contactVal = contact[field];
+  if (field === 'tags') {
+    const tagsArr: string[] = Array.isArray(contact.tags)
+      ? contact.tags
+      : typeof contact.tags === 'string'
+      ? (contact.tags as string).split(',').map((t: string) => t.trim()).filter(Boolean)
+      : [];
+    const targetStr = String(value || '').toLowerCase().trim();
+
+    if (operator === 'exists') return tagsArr.length > 0;
+    if (operator === 'not_exists') return tagsArr.length === 0;
+    if (operator === 'eq') return tagsArr.some((t) => t.toLowerCase() === targetStr);
+    if (operator === 'contains') return tagsArr.some((t) => t.toLowerCase().includes(targetStr));
+    return false;
+  }
+
+  const contactVal =
+    contact[field] ??
+    contact[`kosun_crm_${field}`] ??
+    (field === 'conta_name' ? contact.name : undefined) ??
+    (field === 'conta_phone' ? contact.phone : undefined) ??
+    (field === 'job_title' ? contact.role || contact.kosun_crm_role : undefined) ??
+    (field === 'company_name' ? contact.company || contact.kosun_crm_company : undefined) ??
+    (field === 'mh_crm_city' ? contact.city || contact.kosun_crm_city : undefined) ??
+    (field === 'mh_crm_street' ? contact.street || contact.kosun_crm_street : undefined) ??
+    (field === 'lead_source' ? contact.source || contact.kosun_crm_source : undefined);
 
   if (field === 'total_spent' || field === 'campaign_amount' || field === 'order_count') {
     const num = Number(contactVal || 0);
@@ -59,6 +85,8 @@ export function evaluateRule(contact: ContactRecord, rule: GroupRule): boolean {
     if (operator === 'gte') return num >= target;
     if (operator === 'lte') return num <= target;
     if (operator === 'eq') return num === target;
+    if (operator === 'exists') return num > 0;
+    if (operator === 'not_exists') return num === 0;
     return false;
   }
 

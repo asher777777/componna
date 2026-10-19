@@ -7,17 +7,23 @@ export type GroupMatchType = 'all' | 'any';
 export type CommunitiesLayoutMode = 'cards' | 'table' | 'split' | 'kanban';
 
 export type GroupRuleField = 
+  | 'tags'
+  | 'community'
+  | 'conta_name'
+  | 'conta_phone'
+  | 'email'
+  | 'mh_crm_city'
+  | 'mh_crm_street'
+  | 'company_name'
+  | 'job_title'
+  | 'lead_source'
+  | 'status'
+  | 'gender'
+  | 'notes'
+  | 'last_form_name'
   | 'total_spent' 
   | 'campaign_amount'
   | 'order_count' 
-  | 'lead_source' 
-  | 'gender' 
-  | 'mh_crm_city' 
-  | 'company_name' 
-  | 'job_title'
-  | 'tags'
-  | 'status'
-  | 'last_form_name' 
   | 'has_phone'
   | 'has_email';
 
