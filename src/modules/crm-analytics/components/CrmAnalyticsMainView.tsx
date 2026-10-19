@@ -85,7 +85,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
     } else if (firebaseApp) {
       try {
         const db = getFirestore(firebaseApp);
-        const formsColl = collection(db, 'mod_forms');
+        const formsColl = collection(db, resolvedCollections.forms);
         const q = ownerId 
           ? query(formsColl, where('ownerId', '==', ownerId)) 
           : query(formsColl, orderBy('updatedAt', 'desc'));
@@ -107,7 +107,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
     }
 
     return () => unsub();
-  }, [formCapability, firebaseApp, ownerId]);
+  }, [formCapability, firebaseApp, ownerId, resolvedCollections.forms]);
 
   const handleSyncAllFormsToCrm = async () => {
     setIsSyncingForms(true);
@@ -829,7 +829,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
                 </div>
                 {selectedFormId && (
                   <span className="text-xs text-gray-400 font-mono">
-                    קולקציה: `mod_forms/{selectedFormId}/submissions`
+                    קולקציה: `{resolvedCollections.forms}/{selectedFormId}/submissions`
                   </span>
                 )}
               </div>

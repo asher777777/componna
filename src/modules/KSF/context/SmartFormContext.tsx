@@ -195,6 +195,96 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
 
   const { registerCapability, unregisterCapability } = useHostCapabilities();
 
+  const createDefaultForm = useCallback(
+    async (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => {
+      let newForm: Partial<SmartFormDefinition>;
+
+      if (type === 'payment') {
+        newForm = {
+          ...TEMPLATE_PAYMENT_CHECKOUT,
+          id: `form_pay_${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      } else if (type === 'donation_recurring') {
+        newForm = {
+          ...TEMPLATE_DONATION_RECURRING,
+          id: `form_don_${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      } else if (type === 'whatsapp') {
+        newForm = {
+          title: 'טופס פנייה עם מענה וואטסאפ מיידי',
+          slug: 'whatsapp-lead-trigger',
+          description: 'איסוף פרטים ושליחת הודעת וואטסאפ אוטומטית ברגע ההרשמה',
+          category: 'וואטסאפ',
+          status: 'published',
+          isCrmSyncEnabled: true,
+          whatsappAutomationEnabled: true,
+          crmDefaultTags: ['ליד וואטסאפ', 'טריגר פעיל'],
+          steps: [
+            {
+              id: 'wa_step_1',
+              order: 1,
+              title: 'איך קוראים לך?',
+              fieldType: 'text',
+              iconName: 'User',
+              required: true,
+              mappingKey: 'conta_name',
+            },
+            {
+              id: 'wa_step_2',
+              order: 2,
+              title: 'מה מספר הוואטסאפ שלך?',
+              subtitle: 'נשלח לך הודעת וואטסאפ מיידית עם כל הפרטים',
+              fieldType: 'phone',
+              iconName: 'MessageSquare',
+              required: true,
+              mappingKey: 'conta_phone',
+            },
+            {
+              id: 'wa_step_3',
+              order: 3,
+              title: 'במה נוכל לסייע לך היום?',
+              fieldType: 'textarea',
+              iconName: 'FileText',
+              required: false,
+              mappingKey: 'notes',
+            },
+          ],
+          whatsappRules: [
+            {
+              id: `rule_wa_${Date.now()}`,
+              name: 'הודעת ברוכים הבאים מיידית',
+              enabled: true,
+              conditionType: 'always',
+              recipientType: 'submitter',
+              messageTemplate: 'שלום {{conta_name}}, תודה רבה על פנייתך! קיבלנו את פרטיך ונציג יחזור אליך בהקדם.',
+              includePdfSummary: false,
+            },
+          ],
+        };
+      } else {
+        // 'leads'
+        newForm = {
+          ...TEMPLATE_LEAD_CAPTURE,
+          id: `form_lead_${Date.now()}`,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      const createdId = await saveForm(newForm);
+      const fullForm = await getSmartFormById(createdId, customFirestore, effectiveCollectionName);
+      if (fullForm) {
+        setActiveForm(fullForm);
+      }
+      return { id: createdId, title: newForm.title || '' };
+    },
+    [saveForm, customFirestore, effectiveCollectionName, setActiveForm]
+  );
+
   // Register FormBuilderContract into HostCapabilities
   useEffect(() => {
     const contract: FormBuilderContract = {
@@ -265,92 +355,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
           missingTypes,
         };
       },
-      createDefaultForm: async (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => {
-        let newForm: Partial<SmartFormDefinition>;
-
-        if (type === 'payment') {
-          newForm = {
-            ...TEMPLATE_PAYMENT_CHECKOUT,
-            id: `form_pay_${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        } else if (type === 'donation_recurring') {
-          newForm = {
-            ...TEMPLATE_DONATION_RECURRING,
-            id: `form_don_${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        } else if (type === 'whatsapp') {
-          newForm = {
-            title: 'טופס פנייה עם מענה וואטסאפ מיידי',
-            slug: 'whatsapp-lead-trigger',
-            description: 'איסוף פרטים ושליחת הודעת וואטסאפ אוטומטית ברגע ההרשמה',
-            category: 'וואטסאפ',
-            status: 'published',
-            isCrmSyncEnabled: true,
-            whatsappAutomationEnabled: true,
-            crmDefaultTags: ['ליד וואטסאפ', 'טריגר פעיל'],
-            steps: [
-              {
-                id: 'wa_step_1',
-                order: 1,
-                title: 'איך קוראים לך?',
-                fieldType: 'text',
-                iconName: 'User',
-                required: true,
-                mappingKey: 'conta_name',
-              },
-              {
-                id: 'wa_step_2',
-                order: 2,
-                title: 'מה מספר הוואטסאפ שלך?',
-                subtitle: 'נשלח לך הודעת וואטסאפ מיידית עם כל הפרטים',
-                fieldType: 'phone',
-                iconName: 'MessageSquare',
-                required: true,
-                mappingKey: 'conta_phone',
-              },
-              {
-                id: 'wa_step_3',
-                order: 3,
-                title: 'במה נוכל לסייע לך היום?',
-                fieldType: 'textarea',
-                iconName: 'FileText',
-                required: false,
-                mappingKey: 'notes',
-              },
-            ],
-            whatsappRules: [
-              {
-                id: `rule_wa_${Date.now()}`,
-                name: 'הודעת ברוכים הבאים מיידית',
-                enabled: true,
-                conditionType: 'always',
-                recipientType: 'submitter',
-                messageTemplate: 'שלום {{conta_name}}, תודה רבה על פנייתך! קיבלנו את פרטיך ונציג יחזור אליך בהקדם.',
-                includePdfSummary: false,
-              },
-            ],
-          };
-        } else {
-          // 'leads'
-          newForm = {
-            ...TEMPLATE_LEAD_CAPTURE,
-            id: `form_lead_${Date.now()}`,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-          };
-        }
-
-        const createdId = await saveForm(newForm);
-        const fullForm = await getSmartFormById(createdId, customFirestore, effectiveCollectionName);
-        if (fullForm) {
-          setActiveForm(fullForm);
-        }
-        return { id: createdId, title: newForm.title || '' };
-      },
+      createDefaultForm,
       openBrainstormModal: () => {
         window.dispatchEvent(new CustomEvent('ksf_open_ai_brainstorm'));
       },
@@ -376,7 +381,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
       unregisterCapability('form-builder');
       unregisterCapability('form-renderer');
     };
-  }, [forms, saveForm, loadFormById, customFirestore, effectiveCollectionName, registerCapability, unregisterCapability, setActiveForm]);
+  }, [forms, saveForm, loadFormById, customFirestore, effectiveCollectionName, registerCapability, unregisterCapability, setActiveForm, createDefaultForm]);
 
   // Listen to AI Agent Actions from Kosai Engine (EventBus Bridge)
   useEffect(() => {

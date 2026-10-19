@@ -16,6 +16,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { createDynamicSectionConfig, resolveLiveBrandDna } from '../services/brandSectionHydrator';
 import { buildPageConfigFromVideo } from '../generators/videoPageBuilder';
+import { isArchiveSlug, resolveOrGenerateArchivePage } from '../generators/archivePageGenerator';
 import { kosTubeFirestore } from '../../KosTube/services/kosTubeFirestore';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
@@ -636,6 +637,24 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
               }
             } catch (tubeErr) {
               console.warn('[PublicPageView] KosTube fallback lookup error:', tubeErr);
+            }
+          }
+
+          // If still not found, check if this is an archive route (/kosvidio, /kosinfo, /kosevent, /koscheckout, /koscommunity, /kosfunrise, /koscourse, /kosass)
+          if (!foundPage) {
+            const effTenant = tenantId || '_master';
+            const targetSlug = (cleanTarget || target || '').toLowerCase().trim();
+            if (isArchiveSlug(targetSlug) || isArchiveSlug(target)) {
+              const archiveSlugToUse = isArchiveSlug(targetSlug) ? targetSlug : target;
+              let liveBrand: any = null;
+              try {
+                const bDoc = await getDoc(doc(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC));
+                if (bDoc.exists()) liveBrand = bDoc.data();
+              } catch {}
+              const archiveConfig = await resolveOrGenerateArchivePage(archiveSlugToUse, db, effTenant, liveBrand);
+              if (archiveConfig) {
+                foundPage = archiveConfig;
+              }
             }
           }
         } else {

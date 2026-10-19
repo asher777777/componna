@@ -43,6 +43,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     backgroundColor = 'transparent',
     cardBgColor,
     titleColor,
+    filterCategory,
   } = config;
 
   // Search & Filter States
@@ -74,8 +75,9 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
 
         // 1. Process published tenant pages
         pages.forEach((p) => {
-          if (!p || !p.pageTitle || p.isHomePage || p.slug === 'home') return;
+          if (!p || !p.pageTitle || p.isHomePage || p.slug === 'home' || p.isArchivePage) return;
           const cat = getCategoryFromPage(p) || 'general';
+          if (filterCategory && filterCategory !== 'all' && cat !== filterCategory) return;
           const catCfg = PAGE_CATEGORIES[cat];
           const heroSec = Object.values(p.sections || {}).find((s: any) => s && s.type === 'hero') as any;
 
@@ -113,77 +115,187 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
           });
         });
 
-        // 2. Add Brand Products & Services
-        const products = brand.ecosystem?.products || [];
-        products.forEach((prod: any, idx: number) => {
-          if (!prod) return;
-          const pName = typeof prod === 'string' ? prod : (prod.nameAndSlogan || prod.title || `מוצר ${idx + 1}`);
-          const pDesc = typeof prod === 'string' ? '' : (prod.shortDescription || prod.painPointSolved || '');
-          const pSlug = typeof prod === 'string' ? '' : (prod.linkedPageSlug ? (prod.linkedPageSlug.startsWith('/') ? prod.linkedPageSlug : `/${prod.linkedPageSlug}`) : `/kosass/${prod.id || idx + 1}`);
-          const pImg = typeof prod === 'string' ? '' : (prod.imageUrl || (prod.galleryImages && prod.galleryImages[0]));
+        // 2. Add Brand Products & Services (only if general or checkout/service archives)
+        if (!filterCategory || filterCategory === 'all' || filterCategory === 'checkout' || filterCategory === 'service_product') {
+          const products = brand.ecosystem?.products || [];
+          products.forEach((prod: any, idx: number) => {
+            if (!prod) return;
+            const pName = typeof prod === 'string' ? prod : (prod.nameAndSlogan || prod.title || `מוצר ${idx + 1}`);
+            const pDesc = typeof prod === 'string' ? '' : (prod.shortDescription || prod.painPointSolved || '');
+            const pSlug = typeof prod === 'string' ? '' : (prod.linkedPageSlug ? (prod.linkedPageSlug.startsWith('/') ? prod.linkedPageSlug : `/${prod.linkedPageSlug}`) : `/kosass/${prod.id || idx + 1}`);
+            const pImg = typeof prod === 'string' ? '' : (prod.imageUrl || (prod.galleryImages && prod.galleryImages[0]));
 
-          pageItems.push({
-            id: `brand-prod-${idx + 1}`,
-            title: pName,
-            subtitle: pDesc,
-            excerpt: typeof prod !== 'string' && prod.longDescription ? prod.longDescription.slice(0, 100) : pDesc,
-            imageUrl: pImg || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
-            badge: 'מוצר דגל',
-            category: 'מוצרי דגל ושירותים',
-            linkUrl: pSlug || '#sec-contact',
-            actionType: 'link',
+            pageItems.push({
+              id: `brand-prod-${idx + 1}`,
+              title: pName,
+              subtitle: pDesc,
+              excerpt: typeof prod !== 'string' && prod.longDescription ? prod.longDescription.slice(0, 100) : pDesc,
+              imageUrl: pImg || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+              badge: 'מוצר דגל',
+              category: 'מוצרי דגל ושירותים',
+              linkUrl: pSlug || '#sec-contact',
+              actionType: 'link',
+            });
           });
-        });
+        }
 
         // 3. Fallback starters if total is 0 (brand new installation with zero pages and products)
         if (pageItems.length === 0) {
           const company = brand.identity?.companyName || 'המותג שלנו';
-          const starters: DynamicListingItem[] = [
-            {
-              id: 'starter-1',
-              title: `מדריך עומק מקצועי מבית ${company}`,
-              subtitle: 'תובנות מעשיות, מחקרי שוק וכלים מובילים',
-              excerpt: 'קריאת עומק מקיפה למקבלי החלטות ולמנהלים',
-              imageUrl: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80',
-              badge: 'תוכן ומאמרים',
-              category: 'עמודי תוכן ומאמרים',
-              linkUrl: '/kosinfo',
-              actionType: 'link',
-            },
-            {
-              id: 'starter-2',
-              title: `כנס ומפגש קהילה שנתי מבית ${company}`,
-              subtitle: 'שריון מקום מוקדם לערב שיא מעורר השראה',
-              excerpt: 'הרצאות מרכזיות, סדנאות מעשיות ונטוורקינג ממוקד',
-              imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
-              badge: 'אירועים',
-              category: 'עמודי אירועים וכנסים',
-              linkUrl: '/kosevent',
-              actionType: 'link',
-            },
-            {
-              id: 'starter-3',
-              title: `התכנית המקיפה להכשרה ומצוינות`,
-              subtitle: 'סילבוס מעשי וליווי צמוד לתוצאות מוכחות',
-              excerpt: 'מחזור קרוב יוצא לדרך • מספר המקומות מוגבל',
-              imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
-              badge: 'קורסים',
-              category: 'דפי קורסים והכשרות',
-              linkUrl: '/koscourse',
-              actionType: 'link',
-            },
-            {
-              id: 'starter-4',
-              title: `קהילת השגרירים והמובילים`,
-              subtitle: 'מרחב שיח פתוח, שיתופי פעולה ותוכן בלעדי',
-              excerpt: 'הצטרפו למעגל העשייה והנטוורקינג',
-              imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
-              badge: 'קהילה',
-              category: 'דפי קהילה ומועדון',
-              linkUrl: '/koscommunity',
-              actionType: 'link',
-            },
-          ];
+          let starters: DynamicListingItem[] = [];
+
+          if (filterCategory === 'event') {
+            starters = [
+              {
+                id: 'starter-evt-1',
+                title: `כנס שנתי וערב גאלה מבית ${company}`,
+                subtitle: 'האירוע המרכזי של השנה • הרצאות מפתח ונטוורקינג',
+                excerpt: 'מפגש פסגה של בכירי התעשייה עם מתחמי הרצאות ותוכן בלעדי.',
+                imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+                badge: 'אירוע קרוב',
+                category: 'עמודי אירועים וכנסים',
+                linkUrl: '#sec-eventRsvp',
+                actionType: 'link',
+              },
+              {
+                id: 'starter-evt-2',
+                title: `וובינר מקצועי: עקרונות צמיחה וחדשנות`,
+                subtitle: 'שידור חי אינטראקטיבי בהנחיית מומחי ${company}',
+                excerpt: 'שעה של כלים פרקטיים ומענה לשאלות המשתתפים בזמן אמת.',
+                imageUrl: 'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=800&q=80',
+                badge: 'שידור חי',
+                category: 'עמודי אירועים וכנסים',
+                linkUrl: '#sec-eventRsvp',
+                actionType: 'link',
+              },
+            ];
+          } else if (filterCategory === 'course') {
+            starters = [
+              {
+                id: 'starter-crs-1',
+                title: `תכנית ההכשרה המקיפה מבית ${company}`,
+                subtitle: 'סילבוס מעשי, פרויקטים מהשטח וליווי צמוד',
+                excerpt: 'מחזור קרוב יוצא לדרך • מספר מקומות מוגבל לשמירה על איכות הליווי.',
+                imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+                badge: 'קורס מבוקש',
+                category: 'דפי קורסים והכשרות',
+                linkUrl: '#sec-pricing',
+                actionType: 'link',
+              },
+              {
+                id: 'starter-crs-2',
+                title: `סדנת אומן למתקדמים ומנהלים`,
+                subtitle: 'מתודולוגיות מוכחות וכלים לפריצת דרך מקצועית',
+                excerpt: 'הכשרה מרוכזת של 4 מפגשים מעשיים לשיפור ביצועים מיידי.',
+                imageUrl: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80',
+                badge: 'סדנה מעשית',
+                category: 'דפי קורסים והכשרות',
+                linkUrl: '#sec-pricing',
+                actionType: 'link',
+              },
+            ];
+          } else if (filterCategory === 'fundraising') {
+            starters = [
+              {
+                id: 'starter-fnd-1',
+                title: `קמפיין שותפות וגיוס משאבים לפיתוח`,
+                subtitle: 'ביחד מגיעים אל היעד • כל תרומה מוכפלת',
+                excerpt: 'שותפות משמעותית להרחבת הפעילות והשפעה רחבת היקף.',
+                imageUrl: 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb7?auto=format&fit=crop&w=800&q=80',
+                badge: 'קמפיין חי',
+                category: 'קמפיין וגיוס כספים',
+                linkUrl: '#sec-campaignTiers',
+                actionType: 'link',
+              },
+            ];
+          } else if (filterCategory === 'checkout' || filterCategory === 'service_product') {
+            starters = [
+              {
+                id: 'starter-srv-1',
+                title: `חבילת הליווי והשירות המובילה של ${company}`,
+                subtitle: 'פתרון מקצועי מקיף בהתאמה אישית לצורכי העסק',
+                excerpt: 'כלים מתקדמים, ליווי שוטף והתחייבות למצוינות ולתוצאות.',
+                imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+                badge: 'חבילת הדגל',
+                category: 'עמודי שירות / מוצר',
+                linkUrl: '#sec-pricing',
+                actionType: 'link',
+              },
+              {
+                id: 'starter-srv-2',
+                title: `שירות ייעוץ ואפיון אסטרטגי`,
+                subtitle: 'מיפוי פערים, בניית תכנית פעולה ומענה ממוקד',
+                excerpt: 'פגישת עבודה מעמיקה למיקוד המטרות והאצת היעדים.',
+                imageUrl: 'https://images.unsplash.com/photo-1556742049-0a67e557229f?auto=format&fit=crop&w=800&q=80',
+                badge: 'ייעוץ ממוקד',
+                category: 'עמודי שירות / מוצר',
+                linkUrl: '#sec-pricing',
+                actionType: 'link',
+              },
+            ];
+          } else if (filterCategory === 'community') {
+            starters = [
+              {
+                id: 'starter-com-1',
+                title: `מועדון החברים והקהילה המובילה של ${company}`,
+                subtitle: 'מרחב שיח, נטוורקינג, מפגשים ותכנים סגורים לחברים בלבד',
+                excerpt: 'הצטרפו למעגל של עשייה, שיתוף פעולה והזדמנויות הדדיות.',
+                imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+                badge: 'קהילת חברים',
+                category: 'דפי קהילה ומועדון',
+                linkUrl: '#sec-contact',
+                actionType: 'link',
+              },
+            ];
+          } else {
+            starters = [
+              {
+                id: 'starter-1',
+                title: `מדריך עומק מקצועי מבית ${company}`,
+                subtitle: 'תובנות מעשיות, מחקרי שוק וכלים מובילים',
+                excerpt: 'קריאת עומק מקיפה למקבלי החלטות ולמנהלים',
+                imageUrl: 'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80',
+                badge: 'תוכן ומאמרים',
+                category: 'עמודי תוכן ומאמרים',
+                linkUrl: '/kosinfo',
+                actionType: 'link',
+              },
+              {
+                id: 'starter-2',
+                title: `כנס ומפגש קהילה שנתי מבית ${company}`,
+                subtitle: 'שריון מקום מוקדם לערב שיא מעורר השראה',
+                excerpt: 'הרצאות מרכזיות, סדנאות מעשיות ונטוורקינג ממוקד',
+                imageUrl: 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+                badge: 'אירועים',
+                category: 'עמודי אירועים וכנסים',
+                linkUrl: '/kosevent',
+                actionType: 'link',
+              },
+              {
+                id: 'starter-3',
+                title: `התכנית המקיפה להכשרה ומצוינות`,
+                subtitle: 'סילבוס מעשי וליווי צמוד לתוצאות מוכחות',
+                excerpt: 'מחזור קרוב יוצא לדרך • מספר המקומות מוגבל',
+                imageUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+                badge: 'קורסים',
+                category: 'דפי קורסים והכשרות',
+                linkUrl: '/koscourse',
+                actionType: 'link',
+              },
+              {
+                id: 'starter-4',
+                title: `קהילת השגרירים והמובילים`,
+                subtitle: 'מרחב שיח פתוח, שיתופי פעולה ותוכן בלעדי',
+                excerpt: 'הצטרפו למעגל העשייה והנטוורקינג',
+                imageUrl: 'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+                badge: 'קהילה',
+                category: 'דפי קהילה ומועדון',
+                linkUrl: '/koscommunity',
+                actionType: 'link',
+              },
+            ];
+          }
+
           if (isMounted) setDynamicItems(starters);
         } else {
           if (isMounted) setDynamicItems(pageItems);

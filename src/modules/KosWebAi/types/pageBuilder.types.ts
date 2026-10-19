@@ -317,16 +317,16 @@ export interface ArchiveTemplateSpec {
 }
 
 export const ARCHIVE_7_SECTIONS_SPECS: Record<
-  'info_content' | 'event' | 'checkout' | 'community' | 'fundraising' | 'course',
+  'info_content' | 'event' | 'checkout' | 'community' | 'fundraising' | 'course' | 'service_product' | 'youtube_post',
   ArchiveTemplateSpec
 > = {
   info_content: {
     category: 'info_content',
     name: 'עמודי תוכן ומאמרים',
     slugPrefix: 'kosinfo',
-    sections: ['hero', 'richContent', 'statsBento', 'faq', 'testimonials', 'community', 'contact'],
+    sections: ['hero', 'dynamicListing', 'richContent', 'statsBento', 'faq', 'testimonials', 'contact'],
     description: 'מבנה עשיר של 7 אזורים למאמרים, מדריכים ומרכז ידע עם מעורבות גבוהה',
-    defaultTitle: 'מדריך מעשי ותוכן מקצועי',
+    defaultTitle: 'מרכז התוכן, הידע והמאמרים',
     defaultSubtitle: 'תובנות מעמיקות, כלים ומתודולוגיות מוכחות',
     keywords: ['תוכן', 'מאמר', 'מדריך', 'ידע מקצועי', 'בלוג'],
   },
@@ -334,29 +334,29 @@ export const ARCHIVE_7_SECTIONS_SPECS: Record<
     category: 'event',
     name: 'עמודי אירועים וכנסים',
     slugPrefix: 'kosevent',
-    sections: ['hero', 'timer', 'eventRsvp', 'richContent', 'statsBento', 'faq', 'contact'],
+    sections: ['hero', 'dynamicListing', 'eventRsvp', 'timer', 'statsBento', 'faq', 'contact'],
     description: 'מבנה 7 אזורים מלא לכנסים והשקות כולל ספירה לאחור, RSVP, לו"ז ודרכי הגעה',
-    defaultTitle: 'כנס שנתי ואירוע קהילה',
-    defaultSubtitle: 'הבטיחו את מקומכם באירוע המרכזי של השנה',
+    defaultTitle: 'לוח האירועים, הכנסים והסדנאות',
+    defaultSubtitle: 'הבטיחו את מקומכם באירועים המובילים של השנה',
     keywords: ['אירוע', 'כנס', 'RSVP', 'וובינר', 'הרשמה'],
   },
   checkout: {
     category: 'checkout',
     name: 'דפי סליקה ותשלום',
     slugPrefix: 'koscheckout',
-    sections: ['hero', 'pricing', 'smartForm', 'timer', 'testimonials', 'faq', 'contact'],
-    description: 'משפך סליקה ממיר ב-7 אזורים: הצעת ערך, מחירון, טופס סליקה מאובטח, טיימר וביקורות',
-    defaultTitle: 'הצטרפות והסדרת תשלום מאובטח',
-    defaultSubtitle: 'הצעה מיוחדת לזמן מוגבל • סליקה מהירה בתקן אבטחה מחמיר',
+    sections: ['hero', 'dynamicListing', 'pricing', 'timer', 'testimonials', 'faq', 'contact'],
+    description: 'משפך סליקה ממיר ב-7 אזורים: הצעות ערך, קטלוג מוצרים, מחירון, טיימר וביקורות',
+    defaultTitle: 'מרכז המוצרים, החבילות והרכישה המאובטחת',
+    defaultSubtitle: 'הצעות מיוחדות • סליקה מהירה ומאובטחת בתקן מחמיר',
     keywords: ['סליקה', 'תשלום', 'רכישה', 'מחירון', 'הזמנה מאובטחת'],
   },
   community: {
     category: 'community',
     name: 'דפי קהילה ומועדון',
     slugPrefix: 'koscommunity',
-    sections: ['hero', 'community', 'statsBento', 'livePosts', 'testimonials', 'faq', 'contact'],
+    sections: ['hero', 'dynamicListing', 'community', 'livePosts', 'statsBento', 'faq', 'contact'],
     description: 'מתחם 7 אזורים לקהילות ומועדוני לקוחות: הטבות, חברים, פוסטים חיים והרשמה',
-    defaultTitle: 'קהילת המובילים והמקצוענים',
+    defaultTitle: 'פורטל הקהילות, המועדונים והרשתות',
     defaultSubtitle: 'נטוורקינג, הטבות בלעדיות ותוכן סגור לחברים בלבד',
     keywords: ['קהילה', 'מועדון חברים', 'נטוורקינג', 'חברות', 'VIP'],
   },
@@ -364,9 +364,9 @@ export const ARCHIVE_7_SECTIONS_SPECS: Record<
     category: 'fundraising',
     name: 'דפי קמפיין לגיוס',
     slugPrefix: 'kosfunrise',
-    sections: ['campaignHeader', 'hero', 'campaignTiers', 'campaignDonors', 'statsBento', 'faq', 'contact'],
+    sections: ['campaignHeader', 'hero', 'dynamicListing', 'campaignTiers', 'campaignDonors', 'faq', 'contact'],
     description: 'מערך גיוס המונים ב-7 אזורים: מד יעד, סיפור מרגש, מדרגות תרומה, קיר תורמים וסעיף 46',
-    defaultTitle: 'קמפיין שותפות וגיוס תרומות',
+    defaultTitle: 'מרכז הקמפיינים וגיוס התרומות',
     defaultSubtitle: 'ביחד מגיעים אל היעד • כל תרומה מוכפלת ומוכרת למס',
     keywords: ['תרומות', 'קמפיין', 'גיוס המונים', 'סעיף 46', 'שותפות'],
   },
@@ -374,11 +374,31 @@ export const ARCHIVE_7_SECTIONS_SPECS: Record<
     category: 'course',
     name: 'דפי קורסים והכשרות',
     slugPrefix: 'koscourse',
-    sections: ['hero', 'mainContent', 'statsBento', 'pricing', 'testimonials', 'faq', 'contact'],
-    description: 'דף קורס מקצועי ב-7 אזורים: סילבוס, באנר תוכן מודגש, נתונים, מסלולים והרשמה',
-    defaultTitle: 'התכנית המקיפה להכשרה מקצועית',
+    sections: ['hero', 'dynamicListing', 'mainContent', 'pricing', 'statsBento', 'faq', 'contact'],
+    description: 'דף קורס מקצועי ב-7 אזורים: סילבוס, קטלוג הכשרות, נתונים, מסלולים והרשמה',
+    defaultTitle: 'האקדמיה הדיגיטלית ומרכז הקורסים',
     defaultSubtitle: 'סילבוס מעשי, פרויקטים מהשטח וליווי צמוד עד להצלחה',
     keywords: ['קורס', 'סדנה', 'הכשרה', 'לימודים', 'אקדמיה', 'סילבוס'],
+  },
+  service_product: {
+    category: 'service_product',
+    name: 'עמודי שירות / מוצר',
+    slugPrefix: 'kosass',
+    sections: ['hero', 'dynamicListing', 'pricing', 'testimonials', 'statsBento', 'faq', 'contact'],
+    description: 'קטלוג 7 אזורים לשירותים, חבילות והצעות ערך: מחירון, סיפורי הצלחה ופגישת ייעוץ',
+    defaultTitle: 'קטלוג השירותים, הפתרונות וההצעות',
+    defaultSubtitle: 'מעטפת מקצועית מקיפה לתוצאות עסקיות מוכחות',
+    keywords: ['שירותים', 'פתרונות', 'מוצרים', 'הצעת ערך', 'ייעוץ'],
+  },
+  youtube_post: {
+    category: 'youtube_post',
+    name: 'עמוד וידאו Kosvidio',
+    slugPrefix: 'kosvidio',
+    sections: ['hero', 'kosvidioGallery', 'videoEngagement', 'statsBento', 'testimonials', 'faq', 'contact'],
+    description: 'ארכיון וידאו חי ב-7 אזורים: נגן מובנה, גלריית סרטונים חיה, מדדי צפייה, מעורבות וקהילה',
+    defaultTitle: 'מרכז הוידאו, ההרצאות והשידורים החיים',
+    defaultSubtitle: 'כל התכנים, הניתוחים והשידורים המרתקים במקום אחד',
+    keywords: ['וידאו', 'יוטיוב', 'שידורים חיים', 'הרצאות', 'VOD', 'Kosvidio'],
   },
 };
 
@@ -553,6 +573,7 @@ export interface PageBuilderConfig {
   shortUrl?: string;
   qrCodeUrl?: string;
   isHomePage?: boolean;
+  isArchivePage?: boolean;
   viewsCount?: number;
   leadsCount?: number;
   globalSettings: GlobalPageSettings;

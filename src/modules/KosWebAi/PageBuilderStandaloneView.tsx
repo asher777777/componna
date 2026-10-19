@@ -20,6 +20,7 @@ import { KosaiProvider } from '../kosai-engine';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
 import { applyLayoutArchetypeToPage, STYLE_GLOBAL_THEMES } from './services/pageStylePresetService';
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
+import { ensureDefaultArchivePages, syncArchivePagesWithBrandDna } from './generators/archivePageGenerator';
 import { eventBus } from '../../core/bridge/EventBus';
 import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
@@ -116,11 +117,12 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   // Load all pages from Firestore / LocalStorage
   useEffect(() => {
     const loadData = async () => {
-      // Automatically ensure Terms of Use and Privacy Policy default pages exist for this tenant
+      // Automatically ensure Terms of Use, Privacy Policy, and 8 Archive Pages exist for this tenant
       try {
         await ensureDefaultLegalPages(db, tenantId, brandDna);
+        await ensureDefaultArchivePages(db, tenantId, brandDna);
       } catch (err) {
-        console.warn('[PageBuilder] Auto-ensure default legal pages warning:', err);
+        console.warn('[PageBuilder] Auto-ensure default legal/archive pages warning:', err);
       }
 
       const all = await pageBuilderFirestore.getAllPages(db, tenantId);
@@ -166,6 +168,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       try {
         if (data?.brandDna) {
           await syncLegalPagesWithBrandDna(db, tenantId, data.brandDna);
+          await syncArchivePagesWithBrandDna(db, tenantId, data.brandDna);
           const refreshed = await pageBuilderFirestore.getAllPages(db, tenantId);
           setPages(refreshed.map((p) => sanitizeSectionConfig(p)));
         }
@@ -582,6 +585,15 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
               setPages(all);
             } catch (err) {
               console.warn('[PageBuilder] Manual legal pages creation error:', err);
+            }
+          }}
+          onEnsureArchivePages={async () => {
+            try {
+              await ensureDefaultArchivePages(db, tenantId, brandDna);
+              const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+              setPages(all);
+            } catch (err) {
+              console.warn('[PageBuilder] Manual archive pages creation error:', err);
             }
           }}
           onOpenAnalyticsHub={() => setViewMode('analytics-hub')}

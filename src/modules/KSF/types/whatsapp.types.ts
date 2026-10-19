@@ -30,6 +30,7 @@ export interface FormWhatsAppRule {
   timing?: 'immediate' | 'delayed_reminder'; // Immediate or Google Cloud Scheduled Reminder
   delayMinutes?: number;      // Delay in minutes for cloud reminder (e.g. 60, 1440)
   sendContactCard?: boolean;  // Send business vCard so lead adds number (Anti-Ban & Statuses)
+  includePdfSummary?: boolean;// Attach PDF summary of submission
 }
 
 export interface FormWhatsAppDeliveryLog {

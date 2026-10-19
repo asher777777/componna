@@ -49,6 +49,7 @@ interface PagesDashboardTabProps {
   onOpenShortener: (page: PageBuilderConfig) => void;
   onConvertToVideo?: (page: PageBuilderConfig) => void;
   onEnsureLegalPages?: () => Promise<void>;
+  onEnsureArchivePages?: () => Promise<void>;
   onOpenAnalyticsHub?: () => void;
 }
 
@@ -63,6 +64,7 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onSetHomePage,
   onUnsetHomePage,
   onEnsureLegalPages,
+  onEnsureArchivePages,
   onOpenAnalyticsHub,
   onTogglePublish,
   onOpenShortener,
@@ -370,6 +372,19 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
               </button>
             )}
 
+            {onEnsureArchivePages && (
+              <button
+                type="button"
+                onClick={onEnsureArchivePages}
+                className="px-3 py-2 rounded-2xl bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/80 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-sm flex items-center gap-1.5 text-xs font-bold"
+                title="סנכרון והקמת 8 עמודי ארכיון חיים (וידאו, תוכן, אירועים, סליקה, קהילה, קמפיין, קורסים, שירותים)"
+                aria-label="סנכרון והקמת 8 עמודי ארכיון חיים"
+              >
+                <Layers className="w-4 h-4 text-purple-500" />
+                <span className="hidden sm:inline">8 עמודי ארכיון חיים</span>
+              </button>
+            )}
+
             {onOpenAnalyticsHub && (
               <button
                 type="button"
@@ -441,6 +456,12 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-amber-500/20 text-amber-700 dark:text-amber-300 border border-amber-500/30">
                         <Home className="w-3.5 h-3.5" />
                         <span>עמוד בית ראשי</span>
+                      </span>
+                    )}
+                    {page.isArchivePage && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold bg-purple-500/20 text-purple-700 dark:text-purple-300 border border-purple-500/30">
+                        <Layers className="w-3.5 h-3.5 text-purple-500" />
+                        <span>ארכיון חי</span>
                       </span>
                     )}
                     {/* Interactive Publish Status Dropdown Menu */}

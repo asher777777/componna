@@ -29,5 +29,8 @@ export * from './components/builder/FormWhatsAppAutomationsTab';
 export * from './components/analytics/FormSubmissionsTable';
 export * from './components/analytics/FormAnalyticsSummary';
 export * from './components/analytics/SubmissionDetailModal';
+export * from './components/donation/CampaignTiersList';
+export * from './components/donation/DonationDrawer';
+export * from './types/donation.types';
 export * from './StandaloneView';
 

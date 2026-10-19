@@ -1193,6 +1193,7 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   aspectRatio?: '16:9' | '4:3' | '1:1' | '9:16';
   showCategoryFilter?: boolean;
   categories?: string[];
+  filterCategory?: string;
   showSearchBar?: boolean;
   searchPlaceholder?: string;
   effectStyle?: 'border-beam' | 'glow-hover' | 'tilt-3d' | 'subtle';

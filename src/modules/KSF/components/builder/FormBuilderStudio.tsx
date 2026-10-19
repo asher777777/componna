@@ -24,6 +24,9 @@ import {
   FileText,
   Sparkles,
   MessageSquare,
+  CreditCard,
+  Heart,
+  UserCheck,
 } from 'lucide-react';
 
 export const FormBuilderStudio: React.FC = () => {
@@ -35,12 +38,26 @@ export const FormBuilderStudio: React.FC = () => {
     setActiveForm,
     saveForm,
     deleteForm,
+    createDefaultForm,
   } = useSmartForm();
 
   const [activeTab, setActiveTab] = useState<'editor' | 'design' | 'whatsapp' | 'analytics' | 'preview'>('editor');
   const [isBrainstormOpen, setIsBrainstormOpen] = useState(false);
   const [isEmbedOpen, setIsEmbedOpen] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState(false);
+  const [creatingTemplateType, setCreatingTemplateType] = useState<string | null>(null);
+
+  const handleCreateTemplate = async (type: 'payment' | 'donation_recurring' | 'leads') => {
+    try {
+      setCreatingTemplateType(type);
+      await createDefaultForm(type);
+    } catch (err) {
+      console.error('Failed to create default template:', err);
+      alert('חלה שגיאה ביצירת התבנית');
+    } finally {
+      setCreatingTemplateType(null);
+    }
+  };
 
   React.useEffect(() => {
     const handleNav = (e: any) => {
@@ -64,15 +81,153 @@ export const FormBuilderStudio: React.FC = () => {
   // If no active form, let user pick or create one
   if (!activeForm && !isLoading) {
     return (
-      <div dir="rtl" className="w-full max-w-5xl mx-auto pt-6 pb-12 px-4 space-y-6 animate-fadeIn">
-        {/* Forms Grid - Zero Giant Headers & Zero Giant Buttons */}
-        <div>
+      <div dir="rtl" className="w-full max-w-5xl mx-auto pt-6 pb-12 px-4 space-y-8 animate-fadeIn">
+        {/* Default Canonical Templates Quick-Launch Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500" />
+                תבניות ברירת מחדל מוכנות לשימוש
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                טפסים מובנים ומחוברים ישירות לסליקה, תרומות ומערכת ה-CRM בלחיצה אחת
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* 1. Payment Checkout Template */}
+            <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-emerald-500/50 rounded-3xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 group">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-500/20 group-hover:scale-105 transition-transform">
+                    <CreditCard className="w-5 h-5" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                    סליקה ותשלומים
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                    טופס סליקה ותשלום
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    טופס סליקה מאובטח ומהיר עם בחירת סכום, פרטי משלם וחיבור ישיר לסליקת קשר.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={creatingTemplateType !== null}
+                onClick={() => handleCreateTemplate('payment')}
+                className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+              >
+                {creatingTemplateType === 'payment' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>הקם טופס סליקה</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* 2. Donation + Recurring Template */}
+            <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-rose-500/50 rounded-3xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 group">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-2xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center border border-rose-500/20 group-hover:scale-105 transition-transform">
+                    <Heart className="w-5 h-5" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500/10 text-rose-700 dark:text-rose-300 border border-rose-500/20">
+                    תרומות וקמפיינים
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                    טופס תרומות והוראת קבע
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    מדרגות תרומה, תמיכה בהוראת קבע 12 חודשים, הקדשה אישית וסעיף 46.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={creatingTemplateType !== null}
+                onClick={() => handleCreateTemplate('donation_recurring')}
+                className="w-full py-2.5 px-4 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+              >
+                {creatingTemplateType === 'donation_recurring' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>הקם טופס תרומות</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* 3. Lead Capture Template */}
+            <div className="p-5 bg-gradient-to-br from-white to-slate-50/50 dark:from-slate-900 dark:to-slate-800/50 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 rounded-3xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-4 group">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="w-10 h-10 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center border border-indigo-500/20 group-hover:scale-105 transition-transform">
+                    <UserCheck className="w-5 h-5" />
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border border-indigo-500/20">
+                    לידים ו-CRM
+                  </span>
+                </div>
+                <div>
+                  <h4 className="font-bold text-slate-900 dark:text-white text-base">
+                    טופס לידים ויצירת קשר
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                    שאלון רב-שלבי חכם, מיפוי ישיר לרשומות ה-CRM והתאמה אישית של פניות.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                disabled={creatingTemplateType !== null}
+                onClick={() => handleCreateTemplate('leads')}
+                className="w-full py-2.5 px-4 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+              >
+                {creatingTemplateType === 'leads' ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Plus className="w-4 h-4" />
+                    <span>הקם טופס לידים</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* User's Existing Forms Grid */}
+        <div className="space-y-4 pt-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-4 h-4 text-indigo-500" />
+              הטפסים הקיימים שלך ({forms.length})
+            </h3>
+          </div>
+
           {forms.length === 0 ? (
-            <div className="p-12 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-slate-500 space-y-3">
-              <Sparkles className="w-10 h-10 text-indigo-500 mx-auto" />
-              <p className="font-bold text-base text-slate-800 dark:text-white">עדיין לא נוצרו טפסים</p>
+            <div className="p-10 text-center bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-slate-500 space-y-3">
+              <Sparkles className="w-9 h-9 text-indigo-500 mx-auto" />
+              <p className="font-bold text-base text-slate-800 dark:text-white">עדיין לא הוגדרו טפסים פעילים</p>
               <p className="text-xs text-slate-400">
-                פתח את צ'אט ה-AI (כפתור KSFAI הצף) להפקת טופס ראשון בלחיצה אחת.
+                בחר באחת התבניות למעלה או פתח את צ'אט ה-AI (KSFAI) להפקת טופס מותאם אישית.
               </p>
             </div>
           ) : (

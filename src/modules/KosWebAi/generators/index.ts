@@ -4,4 +4,5 @@ export * from './sectionEnhancerService';
 export * from './productPageBuilder';
 export * from './videoPageBuilder';
 export * from './legalPagesGenerator';
+export * from './archivePageGenerator';
 

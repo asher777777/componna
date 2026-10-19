@@ -155,6 +155,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
     isFirstStep,
     isLastStep,
     progressPercent,
+    answers,
     currentAnswer,
     validationError,
     isSubmitting,
