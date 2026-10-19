@@ -1435,6 +1435,8 @@ export function buildDefaultBrandUiVocabulary(brand: BrandDna): BrandUiVocabular
       sectionHeadings: {
         heroTitle: slogan ? `${companyName} • ${slogan}` : companyName,
         heroSubtitle: uvp || 'מרחב מותאם, אישי ומעצים במיוחד עבורך',
+        heroDescription: brand.identity?.shortVision || brand.audience?.mainUvp || 'גלי עולם של הזדמנויות, צמיחה ותוכן מעשיר שנבנה במיוחד עבורך.',
+        heroBadge: slogan ? `• ${slogan} •` : `• ${companyName} •`,
         aboutHeading: `נעים להכיר, ${companyName}`,
         aboutSubtitle: 'החזון, הערכים והשליחות שלנו למענך',
         advantagesHeading: 'למה כדאי לך לבחור בנו?',
@@ -1471,6 +1473,8 @@ export function buildDefaultBrandUiVocabulary(brand: BrandDna): BrandUiVocabular
       sectionHeadings: {
         heroTitle: slogan ? `${companyName} • ${slogan}` : companyName,
         heroSubtitle: uvp || 'פתרונות מדויקים ומעטפת מקצועית עבורך',
+        heroDescription: brand.identity?.shortVision || brand.audience?.mainUvp || 'גלה את הכלים והפתרונות המובילים שנבנו לקחת אותך קדימה במקצועיות ובביטחון.',
+        heroBadge: slogan ? `• ${slogan} •` : `• ${companyName} •`,
         aboutHeading: `אודות ${companyName}`,
         aboutSubtitle: 'החזון, הערכים והניסיון המקצועי שלנו',
         advantagesHeading: 'למה לבחור בנו?',
@@ -1507,6 +1511,8 @@ export function buildDefaultBrandUiVocabulary(brand: BrandDna): BrandUiVocabular
     sectionHeadings: {
       heroTitle: slogan ? `${companyName} • ${slogan}` : companyName,
       heroSubtitle: uvp || 'פתרונות מתקדמים ומעטפת שירות אישית ומקיפה',
+      heroDescription: brand.identity?.shortVision || brand.audience?.mainUvp || 'מעטפת פתרונות דיגיטליים מתקדמים המותאמת במדויק לחזון ולצרכים שלכם.',
+      heroBadge: slogan ? `• ${slogan} •` : `• ${companyName} •`,
       aboutHeading: `נעים להכיר, ${companyName}`,
       aboutSubtitle: 'החזון, הערכים והמחויבות הבלתי מתפשרת שלנו',
       advantagesHeading: 'למה לבחור בנו?',

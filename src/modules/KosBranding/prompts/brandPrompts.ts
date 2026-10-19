@@ -673,6 +673,8 @@ export function BUILD_BRAND_UI_VOCABULARY_PROMPT(
   "sectionHeadings": {
     "heroTitle": "כותרת ראשית סוחפת להדליין של ה-Hero",
     "heroSubtitle": "כותרת משנה חדה ל-Hero המשקפת את ה-UVP",
+    "heroDescription": "פסקת תיאור קצרה, מדויקת ומזמינה לאזור הפתיח (Hero) בשפת המותג",
+    "heroBadge": "תווית / באדג' הכרזה ייחודי קצר לפתיח (למשל: מהדורה מיוחדת / ייעוץ מומחה / קהילת הדגל)",
     "aboutHeading": "כותרת אזור אודות (לא בנאלית)",
     "aboutSubtitle": "כותרת משנה לאזור אודות",
     "advantagesHeading": "כותרת אזור יתרונות / למה דווקא אנחנו",

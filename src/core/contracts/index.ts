@@ -988,6 +988,8 @@ export interface BrandUiVocabulary {
   sectionHeadings?: {
     heroTitle?: string;
     heroSubtitle?: string;
+    heroDescription?: string;
+    heroBadge?: string;
     aboutHeading?: string;
     aboutSubtitle?: string;
     advantagesHeading?: string;

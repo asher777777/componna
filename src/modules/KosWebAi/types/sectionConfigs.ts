@@ -107,12 +107,25 @@ export interface HeroSectionConfig extends BaseSectionConfig {
     url?: string;
     icon?: string;
   };
+  imageBadge?: {
+    visible?: boolean;
+    text?: string;
+    icon?: string;
+    url?: string;
+  };
   socialProofAvatars?: {
     visible: boolean;
     avatars: HeroAvatarItem[];
     ratingText?: string;
     starsCount?: number;
   };
+  // Full Font Typography Controls
+  titleFontSize?: string;
+  titleFontWeight?: string;
+  titleAlignment?: 'right' | 'center' | 'left';
+  subtitleFontSize?: string;
+  subtitleFontWeight?: string;
+  descriptionFontSize?: string;
 }
 
 

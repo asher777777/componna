@@ -43,7 +43,14 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     textBgScope = 'text-card',
     analyticalMetrics,
     announcementBadge,
+    imageBadge,
     socialProofAvatars,
+    titleFontSize,
+    titleFontWeight,
+    titleAlignment,
+    subtitleFontSize,
+    subtitleFontWeight,
+    descriptionFontSize,
   } = config;
 
   // Normalize layout key (treat 'bento-hero' and 'current' as the current layout)
@@ -458,11 +465,15 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
             />
             <div className="absolute inset-0 bg-gradient-to-t from-rose-950/30 via-transparent to-transparent" />
           </div>
-          {/* Floating boutique pill */}
-          <div className="absolute -bottom-4 right-6 px-5 py-2.5 rounded-full bg-white/95 dark:bg-slate-900/95 border border-rose-200 dark:border-rose-800/60 shadow-lg flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-rose-500" />
-            <span className="text-xs font-bold text-rose-950 dark:text-rose-100">עיצוב בוטיק מותאם אישית</span>
-          </div>
+          {/* Floating boutique pill (dynamic via imageBadge) */}
+          {(imageBadge?.visible !== false && (imageBadge?.text || true)) && (
+            <div className="absolute -bottom-4 right-6 px-5 py-2.5 rounded-full bg-white/95 dark:bg-slate-900/95 border border-rose-200 dark:border-rose-800/60 shadow-lg flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-rose-500" />
+              <span className="text-xs font-bold text-rose-950 dark:text-rose-100">
+                {imageBadge?.text || 'עיצוב בוטיק מותאם אישית'}
+              </span>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -611,13 +622,17 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
             className="w-full h-auto max-h-[540px] object-cover contrast-110 group-hover:scale-105 transition-transform duration-700"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-          <div className="absolute bottom-4 right-4 left-4 flex items-center justify-between px-4 py-3 rounded-lg bg-zinc-950/90 border border-zinc-800 backdrop-blur-md">
-            <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-xs font-black text-white tracking-wider">ביצועים ועוצמה ללא פשרות</span>
+          {imageBadge?.visible !== false && (
+            <div className="absolute bottom-4 right-4 left-4 flex items-center justify-between px-4 py-3 rounded-lg bg-zinc-950/90 border border-zinc-800 backdrop-blur-md">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-pulse" />
+                <span className="text-xs font-black text-white tracking-wider">
+                  {imageBadge?.text || 'ביצועים ועוצמה ללא פשרות'}
+                </span>
+              </div>
+              <span className="text-[11px] font-mono text-amber-400 font-bold">PRO EDITION</span>
             </div>
-            <span className="text-[11px] font-mono text-amber-400 font-bold">PRO EDITION</span>
-          </div>
+          )}
         </div>
       </div>
     );

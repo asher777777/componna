@@ -406,6 +406,26 @@ export const BrandUiVocabularyEditor: React.FC = () => {
                   className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
+              <div>
+                <label className="text-[11px] text-slate-300 block mb-1">פסקת תיאור</label>
+                <textarea
+                  rows={2}
+                  value={headings.heroDescription || ''}
+                  onChange={(e) => updateHeading('heroDescription', e.target.value)}
+                  placeholder="תיאור קצר ומזמין..."
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 resize-none"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-300 block mb-1">תווית / באדג' הכרזה</label>
+                <input
+                  type="text"
+                  value={headings.heroBadge || ''}
+                  onChange={(e) => updateHeading('heroBadge', e.target.value)}
+                  placeholder="למשל: מהדורה מיוחדת / ייעוץ מומחה"
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
             </div>
 
             {/* About */}

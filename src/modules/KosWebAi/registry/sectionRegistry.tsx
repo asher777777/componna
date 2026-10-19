@@ -170,7 +170,8 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       buttonsVisible: true,
       primaryButton: { text: 'התחל עכשיו בחינם', url: '#pricing', target: '_self' },
       secondaryButton: { text: 'צפה בהדגמה חיה', url: '#testimonials', target: '_self' },
-      announcementBadge: { text: 'שחרור רשמי של גרסת 2026 זמין כעת', url: '#about' },
+      announcementBadge: { text: 'חדשנות ומצוינות 2026', url: '#about' },
+      imageBadge: { visible: true, text: 'עיצוב בוטיק מותאם אישית' },
       socialProofAvatars: {
         visible: true,
         ratingText: 'מדורג 4.9/5 על ידי יותר מ-1,200+ לקוחות',

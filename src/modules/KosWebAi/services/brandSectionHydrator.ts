@@ -186,13 +186,28 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'hero': {
-      cloned.badge = companyName;
+      cloned.badge = headings.heroBadge || companyName;
       cloned.title = headings.heroTitle || (slogan ? `${companyName} - ${slogan}` : companyName);
       cloned.subtitle = headings.heroSubtitle || uvp;
-      if (!cloned.primaryButton || cloned.primaryButton.text === 'התחל עכשיו' || cloned.primaryButton.text === 'לפנייה ופרטים נוספים') {
+      if (!cloned.description || cloned.description.includes('עצבו, ערכו ופרסמו דפי אינטרנט')) {
+        cloned.description = headings.heroDescription || brand.identity?.shortVision || brand.identity?.companyVision || cloned.description;
+      }
+      if (!cloned.announcementBadge || cloned.announcementBadge.text === 'שחרור רשמי של גרסת 2026 זמין כעת') {
+        cloned.announcementBadge = {
+          text: headings.heroBadge || slogan || `${companyName} 2026`,
+          url: '#about',
+        };
+      }
+      if (!cloned.imageBadge || !cloned.imageBadge.text) {
+        cloned.imageBadge = {
+          visible: true,
+          text: headings.heroBadge || slogan || companyName,
+        };
+      }
+      if (!cloned.primaryButton || cloned.primaryButton.text === 'התחל עכשיו' || cloned.primaryButton.text === 'לפנייה ופרטים נוספים' || cloned.primaryButton.text === 'התחל עכשיו בחינם') {
         cloned.primaryButton = { text: uiVocab.primaryCta || 'לפרטים והצטרפות', url: '#contact' };
       }
-      if (!cloned.secondaryButton || cloned.secondaryButton.text === 'שיחה מהירה ב-WhatsApp') {
+      if (!cloned.secondaryButton || cloned.secondaryButton.text === 'שיחה מהירה ב-WhatsApp' || cloned.secondaryButton.text === 'צפה בהדגמה חיה') {
         cloned.secondaryButton = {
           text: uiVocab.whatsappCta || 'שיחה מהירה ב-WhatsApp',
           url: buildWhatsAppUrl(whatsapp, `שלום, הגעתי דרך האתר של ${companyName}`),
