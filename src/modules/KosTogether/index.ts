@@ -24,4 +24,5 @@ export * from './components/GroupEngagementRadar';
 export * from './components/CommunityMicroPortalView';
 export * from './components/CommunityChatRoomView';
 export * from './components/ColumnPickerDropdown';
+export * from './components/LeaderContactAutocomplete';
 export * from './StandaloneView';

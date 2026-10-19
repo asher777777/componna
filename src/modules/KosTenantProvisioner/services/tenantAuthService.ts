@@ -190,13 +190,10 @@ export class TenantAuthService {
       return { success: false, error: 'סיסמה שגויה' };
     }
 
-    // Authentication succeeded! Store in session and local storage
+    // Authentication succeeded! Store in active session strictly (Gate 5 Compliance: No token persistence in localStorage)
     sessionStorage.setItem(`tenant_admin_auth_${cleanSub}`, 'true');
     sessionStorage.setItem(`tenant_admin_${cleanSub}`, 'true');
     sessionStorage.setItem(`tenant_admin_user_${cleanSub}`, cleanUser);
-    localStorage.setItem(`tenant_admin_auth_${cleanSub}`, 'true');
-    localStorage.setItem(`tenant_admin_${cleanSub}`, 'true');
-    localStorage.setItem(`tenant_admin_user_${cleanSub}`, cleanUser);
     window.dispatchEvent(new CustomEvent('kosun_tenant_auth_changed', { detail: { subdomain: cleanSub, authed: true } }));
 
     return {

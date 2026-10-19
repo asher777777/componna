@@ -311,42 +311,47 @@ function checkTenantDatabaseScope(filterMod = null) {
 }
 
 // -----------------------------------------------------------------------------
-// CHECK 5: API Keys & LocalStorage Security
+// CHECK 5: API Keys, Tokens & LocalStorage Security (Gate 5)
 // -----------------------------------------------------------------------------
 function checkLocalStorageSecurity(filterMod = null) {
   const result = {
-    category: '5. אבטחת מפתחות API ומניעת LocalStorage (Keys Security)',
+    category: '5. שער האבטחה ומניעת דליפות LocalStorage (Security & Storage Gate)',
     passed: true,
     messages: []
   };
 
-  const modulesDir = path.join(ROOT_DIR, 'src', 'modules');
-  let targetPath = modulesDir;
-  if (filterMod) {
-    targetPath = path.join(modulesDir, filterMod);
-  }
-
+  const targetPath = filterMod ? path.join(ROOT_DIR, 'src', 'modules', filterMod) : path.join(ROOT_DIR, 'src');
   const srcFiles = getAllFiles(targetPath);
   const violations = [];
 
+  // Strictly prohibited in localStorage:
+  // 1. Direct API Keys or secrets (Gemini, Google AI, OpenAI, GreenAPI, Kesher, etc.)
+  // 2. Auth tokens, admin flags, passwords, or user roles (tenant_admin_*, sdo_user_role_*, auth_*)
+  const forbiddenPatterns = [
+    { regex: /localStorage\.(getItem|setItem)\(['"`](gemini|googleAi|openai|apiKey|api_key|secret)/i, name: 'שמירת מפתחות API ב-localStorage' },
+    { regex: /localStorage\.(getItem|setItem)\(['"`](tenant_admin|tenant_auth|admin_auth|sdo_user_role|user_token|auth_token|auth_credentials)/i, name: 'שמירת טוקני אימות או הרשאות ניהול ב-localStorage' },
+    { regex: /localStorage\.(getItem|setItem)\(['"`][^'"`]*(password|plainPassword|secretKey)[^'"`]*['"`]\)/i, name: 'שמירת סיסמאות או מפתחות סודיים ב-localStorage' }
+  ];
+
   for (const file of srcFiles) {
     const content = fs.readFileSync(file, 'utf-8');
-    if (
-      content.includes("localStorage.getItem('gemini") ||
-      content.includes("localStorage.getItem('googleAi") ||
-      content.includes("localStorage.setItem('gemini")
-    ) {
-      violations.push(path.relative(ROOT_DIR, file));
+    for (const pat of forbiddenPatterns) {
+      if (pat.regex.test(content)) {
+        violations.push({
+          file: path.relative(ROOT_DIR, file),
+          issue: pat.name
+        });
+      }
     }
   }
 
   if (violations.length > 0) {
     result.passed = false;
-    result.messages.push(`נמצאה קריאה או שמירה ישירה של מפתחות ב-localStorage בקבצים:`);
-    violations.forEach(v => result.messages.push(`  - ${v}`));
-    result.messages.push(`הנחיה: יש להשתמש ב-tenantApiKeys.ts ובמנגנון ההרשאות המרכזי.`);
+    result.messages.push(`נמצאו הפרות אבטחה חמורות של שער 5 (דליפת אימות/מפתחות ל-localStorage):`);
+    violations.forEach(v => result.messages.push(`  - ${v.file}: ${v.issue}`));
+    result.messages.push(`הנחיה: אסור לשמור טוקנים, הרשאות ניהול, סודות או מפתחות ב-localStorage! יש להשתמש ב-Firebase Auth SDK, בזיכרון (In-Memory), או ב-tenantApiKeys.ts.`);
   } else {
-    result.messages.push('אין שמירה או שליפה של מפתחות API דרך localStorage ברכיב.');
+    result.messages.push('עבר בהצלחה: אין שמירה או שליפה של מפתחות API, טוקני אימות או הרשאות ניהול ב-localStorage.');
   }
 
   return result;
@@ -364,7 +369,7 @@ function checkBuildCompilation() {
 
   try {
     console.log('מריץ בדיקת קומפילציה (tsc --noEmit)...');
-    execSync('npx tsc --noEmit', { cwd: ROOT_DIR, stdio: 'pipe' });
+    execSync('node ./node_modules/typescript/bin/tsc --noEmit', { cwd: ROOT_DIR, stdio: 'pipe' });
     result.messages.push('קומפילציית TypeScript עברה בהצלחה ללא שגיאות.');
   } catch (err) {
     result.passed = false;
@@ -378,43 +383,45 @@ function checkBuildCompilation() {
   return result;
 }
 
-// -----------------------------------------------------------------------------
-// RUN ALL AUDITS
-// -----------------------------------------------------------------------------
-auditResults.push(checkRootHygiene());
-if (TARGET_MODULE) {
-  auditResults.push(checkModuleAnatomy(TARGET_MODULE));
-}
-auditResults.push(checkModuleMonopoly(TARGET_MODULE));
-auditResults.push(checkTenantDatabaseScope(TARGET_MODULE));
-auditResults.push(checkLocalStorageSecurity(TARGET_MODULE));
-auditResults.push(checkBuildCompilation());
+const skipBuild = args.includes('--skip-build') || args.includes('--no-build');
 
 // -----------------------------------------------------------------------------
-// PRINT SUMMARY
+// RUN ALL AUDITS & PRINT LIVE
 // -----------------------------------------------------------------------------
-let allPassed = true;
-
-console.log('\n=============================================================');
-console.log('📊  סיכום דו"ח שומר הסף (GATEKEEPER AUDIT REPORT)');
-if (TARGET_MODULE) {
-  console.log(`🔎  בדיקה ממוקדת לרכיב: ${TARGET_MODULE}`);
-}
-console.log('=============================================================\n');
-
-for (const res of auditResults) {
+function runAndPrint(fn, ...params) {
+  const res = fn(...params);
+  auditResults.push(res);
   const statusIcon = res.passed ? '✅ תקין' : '❌ נכשל';
   console.log(`${statusIcon} - ${res.category}`);
   for (const msg of res.messages) {
     console.log(`   ${msg}`);
   }
   console.log('');
-  if (!res.passed) allPassed = false;
+  return res;
 }
+
+runAndPrint(checkRootHygiene);
+if (TARGET_MODULE) {
+  runAndPrint(checkModuleAnatomy, TARGET_MODULE);
+}
+runAndPrint(checkModuleMonopoly, TARGET_MODULE);
+runAndPrint(checkTenantDatabaseScope, TARGET_MODULE);
+runAndPrint(checkLocalStorageSecurity, TARGET_MODULE);
+
+if (!skipBuild) {
+  runAndPrint(checkBuildCompilation);
+} else {
+  console.log('⏭️  דלג על בדיקת קומפילציה (עקב דגל --skip-build)\n');
+}
+
+// -----------------------------------------------------------------------------
+// PRINT SUMMARY
+// -----------------------------------------------------------------------------
+let allPassed = auditResults.every(r => r.passed);
 
 console.log('=============================================================');
 if (allPassed) {
-  console.log('🎉 שומר הסף אישר את הרכיב! כל החוקים והבדיקות עברו בהצלחה.');
+  console.log('🎉 שומר הסף אישר את המערכת! כל החוקים והבדיקות עברו בהצלחה.');
   console.log('=============================================================\n');
   process.exit(0);
 } else {

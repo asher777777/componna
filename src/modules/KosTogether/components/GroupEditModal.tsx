@@ -29,10 +29,11 @@ import {
   Star,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
-import { SmartGroup, GroupRule, GroupRuleField, GroupRuleOperator } from '../types';
+import { SmartGroup, GroupRule, GroupRuleField, GroupRuleOperator, ContactRecord } from '../types';
 import { PRESET_COLORS, RULE_FIELD_OPTIONS, RULE_OPERATOR_OPTIONS } from '../config';
 import { isContactInGroup } from '../services/groupsUtils';
 import { generateCommunityVision } from '../services/togetherCopilotService';
+import { LeaderContactAutocomplete } from './LeaderContactAutocomplete';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import {
   MediaPickerContract,
@@ -72,12 +73,27 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
   // Form State - Identity
   const [name, setName] = useState('');
   const [leaderName, setLeaderName] = useState('');
+  const [selectedLeaderContact, setSelectedLeaderContact] = useState<ContactRecord | null>(null);
   const [purpose, setPurpose] = useState('');
   const [vision, setVision] = useState('');
   const [description, setDescription] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
   const [contactPhone, setContactPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
+
+  const handleSelectLeaderContact = (contact: ContactRecord) => {
+    setSelectedLeaderContact(contact);
+    const chosenName = contact.conta_name || contact.fullName || contact.name || '';
+    setLeaderName(chosenName);
+
+    // Auto-fill phone and email from selected tenant contact if empty
+    if (contact.conta_phone && !contactPhone.trim()) {
+      setContactPhone(contact.conta_phone);
+    }
+    if (contact.email && !contactEmail.trim()) {
+      setContactEmail(contact.email);
+    }
+  };
 
   // Form State - Services & Ecosystem
   const [services, setServices] = useState<string[]>([]);
@@ -131,7 +147,19 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
     async function loadData() {
       if (editingGroup) {
         setName(editingGroup.name || '');
-        setLeaderName(editingGroup.leaderName || '');
+        const currentLeader = editingGroup.leaderName || '';
+        setLeaderName(currentLeader);
+        if (currentLeader) {
+          const matched = contacts.find(
+            (c) =>
+              (c.conta_name || c.name || c.fullName) === currentLeader ||
+              (editingGroup.leaderContactId && c.id === editingGroup.leaderContactId)
+          );
+          if (matched) setSelectedLeaderContact(matched);
+          else setSelectedLeaderContact(null);
+        } else {
+          setSelectedLeaderContact(null);
+        }
         setColor(editingGroup.color || PRESET_COLORS[0]);
         setSecondaryColor(editingGroup.secondaryColor || '#818cf8');
         setDescription(editingGroup.description || '');
@@ -164,7 +192,15 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
               if (brandProfile.gallery && brandProfile.gallery.length > 0) setGallery(brandProfile.gallery);
               if (brandProfile.colors?.primaryColor) setColor(brandProfile.colors.primaryColor);
               if (brandProfile.colors?.secondaryColor) setSecondaryColor(brandProfile.colors.secondaryColor);
-              if (brandProfile.leaderName) setLeaderName(brandProfile.leaderName);
+              if (brandProfile.leaderName) {
+                setLeaderName(brandProfile.leaderName);
+                const matched = contacts.find(
+                  (c) =>
+                    (c.conta_name || c.name || c.fullName) === brandProfile.leaderName ||
+                    (brandProfile.leaderContactId && c.id === brandProfile.leaderContactId)
+                );
+                if (matched) setSelectedLeaderContact(matched);
+              }
               if (brandProfile.contactPhone) setContactPhone(brandProfile.contactPhone);
               if (brandProfile.contactEmail) setContactEmail(brandProfile.contactEmail);
             }
@@ -175,6 +211,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
       } else {
         setName('');
         setLeaderName('');
+        setSelectedLeaderContact(null);
         setColor(PRESET_COLORS[Math.floor(Math.random() * PRESET_COLORS.length)]);
         setSecondaryColor('#818cf8');
         setDescription('');
@@ -357,6 +394,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
         previousName: editingGroup?.name,
         name: name.trim(),
         leaderName: leaderName.trim(),
+        leaderContactId: selectedLeaderContact?.id || editingGroup?.leaderContactId,
         color,
         secondaryColor,
         logoUrl,
@@ -400,6 +438,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
             textColor: '#0f172a',
           },
           leaderName: leaderName.trim(),
+          leaderContactId: selectedLeaderContact?.id || editingGroup?.leaderContactId,
           contactPhone: contactPhone.trim(),
           contactEmail: contactEmail.trim(),
           websiteUrl: effectiveSlug ? `/to/${effectiveSlug}` : '',
@@ -428,6 +467,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
               secondaryColor,
             },
             leaderName: leaderName.trim(),
+            leaderContactId: selectedLeaderContact?.id || editingGroup?.leaderContactId,
             contactPhone: contactPhone.trim(),
             contactEmail: contactEmail.trim(),
           },
@@ -574,16 +614,50 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                   <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
                     מוביל הקהילה / מנהל ראשי
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={leaderName}
-                      onChange={(e) => setLeaderName(e.target.value)}
-                      placeholder="שם מלא של מנהל הקהילה"
-                      className="w-full h-10 pr-9 pl-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs focus:ring-2 focus:ring-indigo-500/20 focus:outline-none dark:text-white"
-                    />
-                    <User className="w-4 h-4 text-slate-400 absolute right-3 top-3 pointer-events-none" />
-                  </div>
+                  <LeaderContactAutocomplete
+                    value={leaderName}
+                    onChange={(val) => {
+                      setLeaderName(val);
+                      if (selectedLeaderContact && (selectedLeaderContact.conta_name || selectedLeaderContact.name) !== val) {
+                        setSelectedLeaderContact(null);
+                      }
+                    }}
+                    contacts={contacts}
+                    onSelectContact={handleSelectLeaderContact}
+                    placeholder="הקלד שם, טלפון או דוא״ל לחיפוש בטננט..."
+                  />
+
+                  {/* Connected CRM Contact Badge & Quick Sync Actions */}
+                  {selectedLeaderContact && (
+                    <div className="mt-1.5 flex flex-wrap items-center justify-between gap-1.5 p-2 rounded-xl bg-indigo-50/80 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-900/60 text-[11px] text-indigo-700 dark:text-indigo-300 animate-in fade-in duration-200">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <span className="font-bold">איש קשר מקושר מהטננט:</span>
+                        <span className="truncate font-semibold">
+                          {selectedLeaderContact.conta_name || selectedLeaderContact.fullName || selectedLeaderContact.name}
+                        </span>
+                        {selectedLeaderContact.conta_phone && (
+                          <span className="text-slate-500 dark:text-slate-400 font-mono text-[10px]" dir="ltr">
+                            ({selectedLeaderContact.conta_phone})
+                          </span>
+                        )}
+                      </div>
+                      {((selectedLeaderContact.conta_phone && contactPhone !== selectedLeaderContact.conta_phone) ||
+                        (selectedLeaderContact.email && contactEmail !== selectedLeaderContact.email)) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (selectedLeaderContact.conta_phone) setContactPhone(selectedLeaderContact.conta_phone);
+                            if (selectedLeaderContact.email) setContactEmail(selectedLeaderContact.email);
+                          }}
+                          className="px-2 py-0.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] transition-colors cursor-pointer shrink-0 shadow-sm"
+                          title="עדכן את מס' הטלפון והמייל של הקהילה לפי פרטי איש הקשר הנבחר"
+                        >
+                          סנכרן טלפון ומייל לקהילה
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

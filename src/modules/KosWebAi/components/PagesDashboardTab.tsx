@@ -51,6 +51,7 @@ interface PagesDashboardTabProps {
   onEnsureLegalPages?: () => Promise<void>;
   onEnsureArchivePages?: () => Promise<void>;
   onOpenAnalyticsHub?: () => void;
+  onSwitchTenant?: (tenantId: string) => void;
   brandDna?: any;
   tenantId?: string;
 }
@@ -73,27 +74,33 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onConvertToVideo,
   brandDna,
   tenantId,
+  onSwitchTenant,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'drafts'>('all');
   const [selectedCategory, setSelectedCategory] = useState<'all' | PageCategory>('all');
   const [isNewPageModalOpen, setIsNewPageModalOpen] = useState(false);
   const [openPublishDropdownPageId, setOpenPublishDropdownPageId] = useState<string | null>(null);
+  const [isTenantDropdownOpen, setIsTenantDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const tenantDropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setOpenPublishDropdownPageId(null);
       }
+      if (tenantDropdownRef.current && !tenantDropdownRef.current.contains(e.target as Node)) {
+        setIsTenantDropdownOpen(false);
+      }
     };
-    if (openPublishDropdownPageId) {
+    if (openPublishDropdownPageId || isTenantDropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [openPublishDropdownPageId]);
+  }, [openPublishDropdownPageId, isTenantDropdownOpen]);
 
   const filteredPages = pages.filter((page) => {
     const matchesSearch =
@@ -115,8 +122,8 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 text-right select-none transition-colors duration-300" dir="rtl">
-      {/* Top Brand Header Bar: K SVG from gallery on the left, KosWebBulider, Slogan */}
-      <div className="flex items-center justify-between mb-6">
+      {/* Top Brand Header Bar: K SVG from gallery on the left, KosWebBulider, Slogan, and Tenant Selector */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <div className="flex flex-col items-start text-left" dir="ltr">
           <div className="flex items-center gap-3">
             {/* K SVG from gallery - on the left */}
@@ -134,6 +141,71 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
           <span className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-medium tracking-wide mt-1 pl-1">
             Building Your Digital Interaction
           </span>
+        </div>
+
+        {/* Tenant Scope Selector & Active Collection Badge */}
+        <div className="flex items-center gap-2" ref={tenantDropdownRef}>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">מרחב מותג:</span>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsTenantDropdownOpen((v) => !v)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-800 dark:text-slate-100 transition-all cursor-pointer shadow-sm"
+            >
+              <Globe className="w-3.5 h-3.5 text-indigo-500" />
+              <span>
+                {tenantId === 'mlea'
+                  ? 'בית מדרש לאה (mlea)'
+                  : tenantId === '_master' || !tenantId
+                  ? 'קושאן ראשי (_master)'
+                  : `${tenantId}`}
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-mono font-bold border border-indigo-200/50 dark:border-indigo-800/50">
+                {pages.length} עמודים
+              </span>
+              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+            </button>
+
+            {isTenantDropdownOpen && onSwitchTenant && (
+              <div className="absolute left-0 mt-2 w-64 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl py-2 z-50">
+                <div className="px-3 py-1 text-[10px] uppercase font-bold text-slate-400">החלף מרחב טננט</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSwitchTenant('mlea');
+                    setIsTenantDropdownOpen(false);
+                  }}
+                  className={clsx(
+                    'w-full text-right px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer',
+                    tenantId === 'mlea' ? 'font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-slate-700 dark:text-slate-300'
+                  )}
+                >
+                  <div className="flex flex-col">
+                    <span>בית מדרש לאה</span>
+                    <span className="text-[10px] text-slate-400 font-mono">mlea • 20 עמודים</span>
+                  </div>
+                  {tenantId === 'mlea' && <Check className="w-4 h-4 text-indigo-600" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSwitchTenant('_master');
+                    setIsTenantDropdownOpen(false);
+                  }}
+                  className={clsx(
+                    'w-full text-right px-3 py-2 text-xs flex items-center justify-between hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer',
+                    tenantId === '_master' || !tenantId ? 'font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/30' : 'text-slate-700 dark:text-slate-300'
+                  )}
+                >
+                  <div className="flex flex-col">
+                    <span>קושאן ראשי</span>
+                    <span className="text-[10px] text-slate-400 font-mono">_master • 21 עמודים</span>
+                  </div>
+                  {(tenantId === '_master' || !tenantId) && <Check className="w-4 h-4 text-indigo-600" />}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

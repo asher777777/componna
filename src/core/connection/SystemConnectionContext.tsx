@@ -103,18 +103,10 @@ export const DEFAULT_SYSTEM_COLLECTIONS: SystemCollectionsConfig = {
 export const SystemConnectionContext = createContext<SystemConnectionContextValue | null>(null);
 
 /**
- * Legacy keys that used to live in localStorage. Read ONCE at module load (only to migrate them
- * into tenants/_master/settings/api_keys) and immediately purged – keys are never stored locally anymore.
+ * Purge any legacy API keys that might linger in localStorage on client devices.
+ * Keys are strictly stored in Firestore and In-Memory state.
  */
-const LEGACY_LOCAL_KEYS_SNAPSHOT: Partial<SystemApiKeysConfig> | null = (() => {
-  let legacy: Partial<SystemApiKeysConfig> | null = null;
-  try {
-    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('kosun_system_apikeys_config') : null;
-    if (raw) legacy = JSON.parse(raw);
-  } catch {}
-  purgeLegacyLocalApiKeys();
-  return legacy;
-})();
+purgeLegacyLocalApiKeys();
 
 export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [config, setConfig] = useState<SystemFirebaseConfig>(() => {
@@ -144,8 +136,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
   const [masterApiKeys, setMasterApiKeys] = useState<SystemApiKeysConfig>(DEFAULT_API_KEYS);
   const [purchasedModules, setPurchasedModules] = useState<string[]>([]);
 
-  // Legacy locally-stored keys (captured once at module load, already purged from the browser)
-  const legacyLocalKeys = LEGACY_LOCAL_KEYS_SNAPSHOT;
 
   const [isConnectorModalOpen, setIsConnectorModalOpen] = useState(false);
   const [connectorModalInitialTab, setConnectorModalInitialTab] = useState<string | undefined>(undefined);

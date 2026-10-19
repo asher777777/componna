@@ -45,15 +45,12 @@ export const RolePermissions = {
   isContentSubscriber: (role: UserRole) => role === 'subscriber',
 };
 
+// Gate 5 Compliance: Strictly in-memory caching for user roles, NO localStorage leaks
+const inMemoryUserRoleCache = new Map<string, UserRole>();
+
 export function getCachedUserRole(uid?: string | null): UserRole {
   if (!uid) return 'viewer';
-  try {
-    const saved = localStorage.getItem(`sdo_user_role_${uid}`);
-    if (saved === 'admin' || saved === 'editor' || saved === 'viewer' || saved === 'subscriber') {
-      return saved as UserRole;
-    }
-  } catch {}
-  return 'viewer'; // Default to viewer for safe least-privilege security
+  return inMemoryUserRoleCache.get(uid) || 'viewer';
 }
 
 export function isPlatformAdminEmail(email?: string | null): boolean {
@@ -66,9 +63,9 @@ export function isPlatformAdminEmail(email?: string | null): boolean {
 }
 
 export function setCachedUserRole(uid: string, role: UserRole): void {
-  try {
-    localStorage.setItem(`sdo_user_role_${uid}`, role);
-  } catch {}
+  if (uid) {
+    inMemoryUserRoleCache.set(uid, role);
+  }
 }
 
 export async function fetchUserRole(uid: string, app?: FirebaseApp, tenantId?: string): Promise<UserRole> {
@@ -444,6 +441,18 @@ export async function loginAnonymously(app?: FirebaseApp): Promise<User> {
  */
 export async function logoutUser(app?: FirebaseApp): Promise<void> {
   const auth = getOrCreateAuth(app);
+  inMemoryUserRoleCache.clear();
+  try {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('sdo_user_role');
+      // Clean up any legacy role caches
+      Object.keys(localStorage).forEach((k) => {
+        if (k.startsWith('sdo_user_role') || k.startsWith('tenant_admin')) {
+          localStorage.removeItem(k);
+        }
+      });
+    }
+  } catch {}
   await signOut(auth);
 }
 

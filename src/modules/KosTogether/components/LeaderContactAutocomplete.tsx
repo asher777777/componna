@@ -192,7 +192,9 @@ export const LeaderContactAutocomplete: React.FC<LeaderContactAutocompleteProps>
         {/* Right Icon: User or UserCheck */}
         <div className="absolute right-3 top-3 pointer-events-none text-slate-400">
           {matchedContact ? (
-            <UserCheck className="w-4 h-4 text-emerald-500" title="איש קשר מקושר מהטננט" />
+            <span title="איש קשר מקושר מהטננט">
+              <UserCheck className="w-4 h-4 text-emerald-500" />
+            </span>
           ) : (
             <User className="w-4 h-4" />
           )}

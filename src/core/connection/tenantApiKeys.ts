@@ -259,16 +259,12 @@ export function isModuleEntitledFor(input: ApiKeysResolutionInput, moduleId?: st
  * Rule (Clause ד): Subdomain transactional APIs (Kesher, Green-API WhatsApp, HeyGen, Webhook) use tenant-scoped keys.
  */
 export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: string): SystemApiKeysConfig {
-  const localFallbackKey = typeof window !== 'undefined'
-    ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '')
-    : '';
   const envFallbackKey = (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) || '';
 
   const masterAiKey = (
     input.masterKeys?.googleAiApiKey ||
     (input.isRootTenant ? input.tenantKeys.googleAiApiKey : '') ||
     input.tenantKeys.googleAiApiKey ||
-    localFallbackKey ||
     envFallbackKey ||
     ''
   ).trim();

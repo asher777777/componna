@@ -106,7 +106,7 @@ const getInitialCleanPageConfig = (brandDna?: any, tenantId?: string): PageBuild
 const PageBuilderStandaloneViewInner: React.FC = () => {
   const navigate = useNavigate();
   const { db } = useSystemConnection();
-  const { tenantId } = useTenantScope();
+  const { tenantId, setTenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const hostBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const [brandDna, setBrandDna] = useState<BrandDna | null>(() => hostBrandDna || resolveLiveBrandDna(null, tenantId));
@@ -122,12 +122,38 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 
   // Load all pages and live Brand DNA from Firestore / LocalStorage
   useEffect(() => {
+    let isMounted = true;
     const loadData = async () => {
-      // 1. Fetch live Brand DNA from Firestore collection tenants/{tenantId}/settings/kos_branding_dna
+      // 1. Immediately fetch existing pages so the dashboard displays instantly with zero delay!
+      let initialPages: PageBuilderConfig[] = [];
+      try {
+        initialPages = await pageBuilderFirestore.getAllPages(db || null, tenantId);
+        if (!isMounted) return;
+        if (initialPages.length > 0) {
+          const sanitized = initialPages.map((p) => sanitizeSectionConfig(p));
+          setPages(sanitized);
+          const home = sanitized.find((p) => p.isHomePage) || sanitized[0];
+          setCurrentPage(home);
+        } else if (tenantId === '_master') {
+          // On localhost dev, if _master has 0, check if mlea has pages
+          const mleaPages = await pageBuilderFirestore.getAllPages(db || null, 'mlea');
+          if (!isMounted) return;
+          if (mleaPages.length > 0) {
+            const sanitized = mleaPages.map((p) => sanitizeSectionConfig(p));
+            setPages(sanitized);
+            const home = sanitized.find((p) => p.isHomePage) || sanitized[0];
+            setCurrentPage(home);
+          }
+        }
+      } catch (err) {
+        console.warn('[PageBuilder] Initial getAllPages warning:', err);
+      }
+
+      // 2. Fetch live Brand DNA in background
       let activeBrand = brandDna;
       try {
         const liveBrand = await loadBrandDna(db || undefined, tenantId);
-        if (liveBrand) {
+        if (liveBrand && isMounted) {
           activeBrand = liveBrand;
           setBrandDna(liveBrand);
         }
@@ -135,50 +161,28 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         console.warn('[PageBuilder] loadBrandDna warning:', err);
       }
 
-      // 2. Automatically ensure Terms of Use, Privacy Policy, and 8 Archive Pages exist for this tenant
+      // 3. Automatically ensure Terms of Use, Privacy Policy, and 8 Archive Pages exist for this tenant
       try {
-        await ensureDefaultLegalPages(db || null, tenantId, activeBrand);
-        await ensureDefaultArchivePages(db || null, tenantId, activeBrand);
+        await Promise.allSettled([
+          ensureDefaultLegalPages(db || null, tenantId, activeBrand),
+          ensureDefaultArchivePages(db || null, tenantId, activeBrand),
+        ]);
+        if (!isMounted) return;
+        const refreshed = await pageBuilderFirestore.getAllPages(db || null, tenantId);
+        if (isMounted && refreshed.length > 0) {
+          const sanitized = refreshed.map((p) => sanitizeSectionConfig(p));
+          setPages(sanitized);
+        }
       } catch (err) {
         console.warn('[PageBuilder] Auto-ensure default legal/archive pages warning:', err);
       }
-
-      const all = await pageBuilderFirestore.getAllPages(db || null, tenantId);
-      // Clean up any historical dummy values or accidental event objects in stored pages
-      const sanitized = all.map((p) => sanitizeSectionConfig(p)).map((p) => {
-        let pCopy = { ...p };
-        let wasCleaned = false;
-        if (pCopy.viewsCount === 1420 && pCopy.leadsCount === 38) {
-          pCopy.viewsCount = 0;
-          pCopy.leadsCount = 0;
-          wasCleaned = true;
-        }
-        if (pCopy.globalSettings?.companyName === 'הארגון המוביל') {
-          pCopy.globalSettings = {
-            ...pCopy.globalSettings,
-            companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
-            siteTitle: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
-          };
-          wasCleaned = true;
-        }
-        if (wasCleaned && db) {
-          pageBuilderFirestore.savePage(pCopy, db, tenantId).catch(() => {});
-        }
-        return pCopy;
-      });
-
-      if (sanitized.length > 0) {
-        setPages(sanitized);
-        const home = sanitized.find((p) => p.isHomePage) || sanitized[0];
-        setCurrentPage(home);
-      } else {
-        // Zero dummy data: clean empty state, no auto-saving fake pages to Firestore
-        setPages([]);
-        setCurrentPage(getInitialCleanPageConfig(brandDna));
-      }
     };
+
     loadData();
-  }, [db, tenantId, brandDna]);
+    return () => {
+      isMounted = false;
+    };
+  }, [db, tenantId]);
 
   // Two-way synchronization: when Brand DNA updates anywhere in the system, refresh legal pages
   useEffect(() => {
@@ -636,6 +640,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           activePageId={currentPage.pageId}
           brandDna={brandDna}
           tenantId={tenantId}
+          onSwitchTenant={setTenantId}
           onSelectPage={(page) => {
             setCurrentPage(page);
             setViewMode('editor');
