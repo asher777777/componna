@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import { PageBuilderConfig, GeoSeoSettings } from '../types/pageBuilder.types';
-import { PageBuilderInput } from '../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../ui/PageBuilderInput';
 import { MapPin, X, Sparkles, CheckCircle2, Globe, Building, Clock, Phone } from 'lucide-react';
 
 interface GeoSeoDrawerProps {
@@ -32,7 +32,10 @@ export const GeoSeoDrawer: React.FC<GeoSeoDrawerProps> = ({
     openingHours: 'Mo-Th 09:00-19:00, Fr 09:00-13:00',
   };
 
-  const handleGeoChange = (field: keyof GeoSeoSettings, value: any) => {
+  const handleGeoChange = (field: keyof GeoSeoSettings, rawValue: any) => {
+    const value = typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean' || Array.isArray(rawValue)
+      ? rawValue
+      : resolveInputValue(rawValue);
     const updatedGeo: GeoSeoSettings = { ...geo, [field]: value };
     onSaveConfig({
       ...config,
@@ -142,7 +145,7 @@ export const GeoSeoDrawer: React.FC<GeoSeoDrawerProps> = ({
             <PageBuilderInput
               label="שם העסק (לפי גוגל מפות)"
               value={geo.localBusinessName || ''}
-              onChange={(val) => handleGeoChange('localBusinessName', val)}
+              onChange={(e) => handleGeoChange('localBusinessName', resolveInputValue(e))}
             />
             <div>
               <label className="block text-xs text-slate-400 mb-1 font-medium">סוג העסק (Schema Type)</label>
@@ -164,26 +167,26 @@ export const GeoSeoDrawer: React.FC<GeoSeoDrawerProps> = ({
           <PageBuilderInput
             label="כתובת פיזית מלאה"
             value={geo.businessAddress || ''}
-            onChange={(val) => handleGeoChange('businessAddress', val)}
+            onChange={(e) => handleGeoChange('businessAddress', resolveInputValue(e))}
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <PageBuilderInput
               label="טלפון ראשי לפניות"
               value={geo.businessPhone || ''}
-              onChange={(val) => handleGeoChange('businessPhone', val)}
+              onChange={(e) => handleGeoChange('businessPhone', resolveInputValue(e))}
             />
             <PageBuilderInput
               label="אימייל לפניות"
               value={geo.businessEmail || ''}
-              onChange={(val) => handleGeoChange('businessEmail', val)}
+              onChange={(e) => handleGeoChange('businessEmail', resolveInputValue(e))}
             />
           </div>
 
           <PageBuilderInput
             label="שעות פתיחה ופעילות"
             value={geo.openingHours || ''}
-            onChange={(val) => handleGeoChange('openingHours', val)}
+            onChange={(e) => handleGeoChange('openingHours', resolveInputValue(e))}
           />
         </div>
 

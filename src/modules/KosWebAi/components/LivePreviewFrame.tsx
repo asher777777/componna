@@ -5,6 +5,7 @@ import { isSectionVisibleInViewport } from '../utils/resolutionVisibility';
 import { Sparkles, MessageCircle, Phone, LogIn } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../../KosBranding/hooks/useBrandDna';
+import { sanitizeSectionConfig } from '../utils/sanitizeConfig';
 
 interface LivePreviewFrameProps {
   config: PageBuilderConfig;
@@ -76,7 +77,7 @@ export const LivePreviewFrame: React.FC<LivePreviewFrameProps> = ({
 
             return (
               <div key={sectionId} id={sectionData.anchorId || sectionId} className="w-full relative">
-                <ViewComponent config={sectionData} />
+                <ViewComponent config={sanitizeSectionConfig(sectionData)} />
               </div>
             );
           })}

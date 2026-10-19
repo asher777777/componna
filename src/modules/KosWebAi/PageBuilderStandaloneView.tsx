@@ -21,6 +21,7 @@ import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/bran
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
 import { eventBus } from '../../core/bridge/EventBus';
 import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
+import { sanitizeSectionConfig } from './utils/sanitizeConfig';
 
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';

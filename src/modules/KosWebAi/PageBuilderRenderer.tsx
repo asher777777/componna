@@ -18,6 +18,7 @@ import { Check } from 'lucide-react';
 import { SectionResolutionVisibilityMenu } from './components/SectionResolutionVisibilityMenu';
 import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
+import { sanitizeSectionConfig } from './utils/sanitizeConfig';
 
 export interface PageBuilderRendererProps {
   config: PageBuilderConfig;
@@ -487,7 +488,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
 
               {/* Render Section View Component */}
               <ViewComponent
-                config={sectionData}
+                config={sanitizeSectionConfig(sectionData)}
                 onSelectTier={onSelectDonationTier}
                 onLeadSubmit={onLeadSubmit}
               />
@@ -555,10 +556,10 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                   onClick={(e) => e.stopPropagation()}
                 >
                   <EditorComponent
-                    config={sec}
+                    config={sanitizeSectionConfig(sec)}
                     onChange={(updated) => {
                       if (onUpdateSection) {
-                        onUpdateSection(editingSectionId, updated);
+                        onUpdateSection(editingSectionId, sanitizeSectionConfig(updated));
                       }
                     }}
                     onClose={() => setEditingSectionId(null)}
@@ -578,10 +579,10 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
             >
               <div className="p-4 sm:p-6 text-right" dir="rtl">
                 <EditorComponent
-                  config={sec}
+                  config={sanitizeSectionConfig(sec)}
                   onChange={(updated) => {
                     if (onUpdateSection) {
-                      onUpdateSection(editingSectionId, updated);
+                      onUpdateSection(editingSectionId, sanitizeSectionConfig(updated));
                     }
                   }}
                 />

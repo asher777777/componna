@@ -25,6 +25,7 @@ import { useSystemConnection } from '../../core/connection/SystemConnectionConte
 import { loadBrandDna } from '../KosBranding/services/brandDnaFirestore';
 import { BrandDna } from '../../core/contracts';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
+import { sanitizeSectionConfig } from './utils/sanitizeConfig';
 import { ArrowUp, ArrowDown, Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -43,7 +44,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   onGoToPagesList,
   onConvertToVideo,
 }) => {
-  const [config, setConfig] = useState<PageBuilderConfig>(initialConfig);
+  const [config, setConfig] = useState<PageBuilderConfig>(() => sanitizeSectionConfig(initialConfig));
   const [activeTab, setActiveTab] = useState<BuilderTab>('edit');
   const [viewportMode, setViewportMode] = useState<ViewportMode>('desktop');
   const [openSectionId, setOpenSectionId] = useState<string | null>(
@@ -158,7 +159,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
   }, []);
 
   useEffect(() => {
-    setConfig(initialConfig);
+    setConfig(sanitizeSectionConfig(initialConfig));
     if (!openSectionId && initialConfig.sectionOrder.length > 0) {
       setOpenSectionId(initialConfig.sectionOrder[0]);
     }
@@ -185,11 +186,12 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
 
   // Section update handler
   const handleUpdateSectionData = (sectionId: string, updatedData: any) => {
+    const sanitized = sanitizeSectionConfig(updatedData);
     setConfig({
       ...config,
       sections: {
         ...config.sections,
-        [sectionId]: updatedData,
+        [sectionId]: sanitized,
       },
     });
   };
@@ -425,7 +427,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                     key={sectionId}
                     sectionId={sectionId}
                     sectionType={sectionData.type}
-                    title={sectionData.adminTitle || regDef?.name || sectionId}
+                    title={(typeof sectionData.adminTitle === 'string' ? sectionData.adminTitle : '') || regDef?.name || sectionId}
                     isOpen={isOpen}
                     onToggleOpen={() => setOpenSectionId(isOpen ? null : sectionId)}
                     sectionData={sectionData}
@@ -444,7 +446,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                   >
                     {regDef && (
                       <regDef.editorComponent
-                        config={sectionData}
+                        config={sanitizeSectionConfig(sectionData)}
                         onChange={(updated) => handleUpdateSectionData(sectionId, updated)}
                       />
                     )}
@@ -484,7 +486,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
                         #{idx + 1}
                       </span>
                       <span className="font-bold text-slate-900 dark:text-white text-sm">
-                        {sec?.title || reg?.name || sectionId}
+                        {(typeof sec?.title === 'string' ? sec.title : '') || reg?.name || sectionId}
                       </span>
                     </div>
 

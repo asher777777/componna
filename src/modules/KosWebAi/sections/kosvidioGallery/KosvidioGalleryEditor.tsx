@@ -1158,28 +1158,28 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
               <PageBuilderInput
                 label="באדג' עליון (קטן מעל הכותרת)"
                 value={localConfig.badge || ''}
-                onChange={(val) => update('badge', val)}
+                onChange={(e) => update('badge', resolveInputValue(e))}
                 placeholder="• ספריית וידאו חכמה •"
               />
 
               <PageBuilderInput
                 label="כותרת ראשית"
                 value={localConfig.title || ''}
-                onChange={(val) => update('title', val)}
+                onChange={(e) => update('title', resolveInputValue(e))}
                 placeholder="ספריית הוידאו והתוכן"
               />
 
               <PageBuilderInput
                 label="כותרת משנה"
                 value={localConfig.subtitle || ''}
-                onChange={(val) => update('subtitle', val)}
+                onChange={(e) => update('subtitle', resolveInputValue(e))}
                 placeholder="סרטונים, הדרכות ותוכן בלעדי"
               />
 
               <PageBuilderTextarea
                 label="תיאור האזור"
                 value={localConfig.description || ''}
-                onChange={(val) => update('description', val)}
+                onChange={(e) => update('description', resolveInputValue(e))}
                 rows={2}
                 placeholder="צפו בסרטונים ובהדרכות המובילים..."
               />
@@ -1192,13 +1192,13 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                   <PageBuilderInput
                     label="שם הערוץ / העסק"
                     value={localConfig.channelName || ''}
-                    onChange={(val) => update('channelName', val)}
+                    onChange={(e) => update('channelName', resolveInputValue(e))}
                     placeholder={brandCompanyName || 'שם העסק'}
                   />
                   <PageBuilderInput
                     label="סלוגן הערוץ"
                     value={localConfig.channelSlogan || ''}
-                    onChange={(val) => update('channelSlogan', val)}
+                    onChange={(e) => update('channelSlogan', resolveInputValue(e))}
                     placeholder={brandSlogan || 'סלוגן'}
                   />
                 </div>
@@ -1217,13 +1217,13 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                   <PageBuilderInput
                     label="טקסט כפתור תחתון"
                     value={localConfig.ctaButtonText || ''}
-                    onChange={(val) => update('ctaButtonText', val)}
+                    onChange={(e) => update('ctaButtonText', resolveInputValue(e))}
                     placeholder="לכל סרטוני הערוץ"
                   />
                   <PageBuilderInput
                     label="קישור כפתור תחתון"
                     value={localConfig.ctaButtonUrl || ''}
-                    onChange={(val) => update('ctaButtonUrl', val)}
+                    onChange={(e) => update('ctaButtonUrl', resolveInputValue(e))}
                     placeholder="/kosvidio"
                   />
                 </div>
@@ -1463,13 +1463,14 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                           <PageBuilderInput
                             label="כותרת הסרטון"
                             value={video.title || ''}
-                            onChange={(val) => handleUpdateItem(video.id, { title: val })}
+                            onChange={(e) => handleUpdateItem(video.id, { title: resolveInputValue(e) })}
                           />
 
                           <PageBuilderInput
                             label="מזהה YouTube (11 תווים) או קישור וידאו מלא"
                             value={video.youtubeVideoId || video.videoUrl || ''}
-                            onChange={(val) => {
+                            onChange={(e) => {
+                              const val = resolveInputValue(e);
                               const ytId = extractYouTubeId(val);
                               if (ytId) {
                                 handleUpdateItem(video.id, {
@@ -1486,7 +1487,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                           <PageBuilderTextarea
                             label="תיאור קצר"
                             value={video.description || ''}
-                            onChange={(val) => handleUpdateItem(video.id, { description: val })}
+                            onChange={(e) => handleUpdateItem(video.id, { description: resolveInputValue(e) })}
                             rows={2}
                           />
 
@@ -1494,12 +1495,12 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                             <PageBuilderInput
                               label="משך (למשל: 04:20)"
                               value={video.duration || ''}
-                              onChange={(val) => handleUpdateItem(video.id, { duration: val })}
+                              onChange={(e) => handleUpdateItem(video.id, { duration: resolveInputValue(e) })}
                             />
                             <PageBuilderInput
                               label="קטגוריה"
                               value={video.category || ''}
-                              onChange={(val) => handleUpdateItem(video.id, { category: val })}
+                              onChange={(e) => handleUpdateItem(video.id, { category: resolveInputValue(e) })}
                               placeholder="וידאו / תווית מהעמוד"
                             />
                           </div>
@@ -1508,14 +1509,14 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                             <PageBuilderInput
                               label="מספר צפיות"
                               value={String(video.viewsCount ?? 120)}
-                              onChange={(val) =>
-                                handleUpdateItem(video.id, { viewsCount: Number(val) || 0 })
+                              onChange={(e) =>
+                                handleUpdateItem(video.id, { viewsCount: Number(resolveInputValue(e)) || 0 })
                               }
                             />
                             <PageBuilderInput
                               label="קישור עמוד יעד לסרטון"
                               value={video.kosvidioSlug || ''}
-                              onChange={(val) => handleUpdateItem(video.id, { kosvidioSlug: val })}
+                              onChange={(e) => handleUpdateItem(video.id, { kosvidioSlug: resolveInputValue(e) })}
                               placeholder="/kosvidio"
                             />
                           </div>

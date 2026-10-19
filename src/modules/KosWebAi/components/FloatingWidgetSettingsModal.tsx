@@ -1,6 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { PageBuilderModal } from '../ui/PageBuilderModal';
-import { PageBuilderInput } from '../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue } from '../ui/PageBuilderInput';
 import { useBrandDna } from '../../KosBranding/hooks/useBrandDna';
 import { MessageCircle, Phone, Mail, MapPin, Share2, Sparkles, Check } from 'lucide-react';
 import { clsx } from 'clsx';
@@ -98,7 +98,7 @@ export const FloatingWidgetSettingsModal: React.FC<FloatingWidgetSettingsModalPr
             label="טקסט הכפתור הצף"
             value={buttonText}
             placeholder="אנחנו כאן"
-            onChange={(val) => setButtonText(val)}
+            onChange={(e) => setButtonText(resolveInputValue(e))}
           />
         </div>
 
@@ -124,28 +124,28 @@ export const FloatingWidgetSettingsModal: React.FC<FloatingWidgetSettingsModalPr
               label="טלפון"
               value={phone}
               placeholder={brandDna?.trust?.contactPhone || '052-6968008'}
-              onChange={(val) => setPhone(val)}
+              onChange={(e) => setPhone(resolveInputValue(e))}
               dir="ltr"
             />
             <PageBuilderInput
               label="וואטסאפ (ללא מקפים)"
               value={whatsapp}
               placeholder={brandDna?.trust?.whatsappSupportNumber || '0526968008'}
-              onChange={(val) => setWhatsapp(val)}
+              onChange={(e) => setWhatsapp(resolveInputValue(e))}
               dir="ltr"
             />
             <PageBuilderInput
               label="אימייל לפניות"
               value={email}
               placeholder={brandDna?.trust?.contactEmail || 'contact@example.com'}
-              onChange={(val) => setEmail(val)}
+              onChange={(e) => setEmail(resolveInputValue(e))}
               dir="ltr"
             />
             <PageBuilderInput
               label="כתובת פיזית ל-Waze"
               value={address}
               placeholder={brandDna?.trust?.officeAddress || 'תל אביב'}
-              onChange={(val) => setAddress(val)}
+              onChange={(e) => setAddress(resolveInputValue(e))}
             />
           </div>
         </div>
@@ -180,13 +180,13 @@ export const FloatingWidgetSettingsModal: React.FC<FloatingWidgetSettingsModalPr
                 label="כותרת שיתוף"
                 value={shareTitle}
                 placeholder={globalSettings?.siteTitle || 'כותרת העמוד לשיתוף'}
-                onChange={(val) => setShareTitle(val)}
+                onChange={(e) => setShareTitle(resolveInputValue(e))}
               />
               <PageBuilderInput
                 label="טקסט / תיאור שיתוף"
                 value={shareText}
                 placeholder={globalSettings?.slogan || 'הזמנה להצטרף ולבקר בעמוד שלנו'}
-                onChange={(val) => setShareText(val)}
+                onChange={(e) => setShareText(resolveInputValue(e))}
               />
             </div>
           )}
