@@ -6,809 +6,777 @@ import {
   LivePostsDisplayMode,
   HeroTextBgEffect,
 } from '../../types/sectionConfigs';
-import { PageBuilderInput, PageBuilderTextarea } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, PageBuilderTextarea, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
-import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
-import { BrandDnaContract } from '../../../../core/contracts';
+import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
+import { BrandDna } from '../../../../core/contracts';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 import {
-  Save,
-  X,
-  ChevronDown,
   Sparkles,
-  Palette,
-  LayoutTemplate,
-  CheckCircle2,
-  Heart,
   Shield,
-  Sun,
+  Layers,
+  Compass,
   Crosshair,
   Activity,
-  Layers,
-  Wand2,
-  Calendar,
+  Heart,
+  Save,
+  X,
+  CheckCircle2,
+  Image as ImageIcon,
+  Palette,
   Sliders,
+  FileText,
+  Wand2,
+  Grid,
+  Calendar,
+  Star,
   Plus,
   Trash2,
-  Edit2,
+  ChevronDown,
+  ChevronUp,
   Clock,
   User,
-  Star,
   ArrowLeft,
-  Grid,
-  Check,
-  RotateCcw,
-  ExternalLink,
+  LayoutTemplate,
+  List,
 } from 'lucide-react';
 
-export type LivePostsEditorAccordionSection =
-  | 'layouts'
-  | 'display'
-  | 'text_bg'
-  | 'posts'
-  | 'colors';
-
-interface LivePostsLayoutDefinition {
-  id: LivePostsLayoutPreset;
-  letter: string;
-  shortLabel: string;
-  title: string;
-  subtitle: string;
-  icon: React.FC<{ className?: string }>;
-  objectSizingDesc: string;
-  buttonStyleDesc: string;
-  colorPaletteDesc: string;
-  cardStyleDesc: string;
-  swatches: string[];
-}
-
-export const LIVE_POSTS_LAYOUT_DEFINITIONS: LivePostsLayoutDefinition[] = [
-  {
-    id: 'feminine',
-    letter: 'א',
-    shortLabel: 'סגנון נשי',
-    title: 'א. פריסה בסגנון נשי (רכה, אלגנטית ומזמינה)',
-    subtitle: 'קשתות מעוגלות עמוקות (Radius 2.25rem), פלטת רוז-גולד, פודרה ושמנת חמה, תגיות פסטל וברק עדין',
-    icon: Heart,
-    objectSizingDesc: 'כרטיסים קפסולריים מעוגלים, מרווחים אווריריים והילת תאורה ורודה-זהובה רכה',
-    buttonStyleDesc: 'כפתורי קפסולה עגולים מלאים (Rounded Full) בגרדיאנט ורוד-רוז רך עם מעבר עדין',
-    colorPaletteDesc: 'ורוד פודרה, שמנת חמה, רוז-גולד, שמפניה וזהב מעודן',
-    cardStyleDesc: 'כרטיסים רכים עם קשתות עליונות, תגיות פסטל מעוגלות ואפקט הרמה רך',
-    swatches: ['#f43f5e', '#fb7185', '#fde68a', '#fff1f2'],
-  },
-  {
-    id: 'masculine',
-    letter: 'ב',
-    shortLabel: 'סגנון גברי',
-    title: 'ב. פריסה בסגנון גברי (עוצמתית, דומיננטית וטקטית)',
-    subtitle: 'כותרות ענק מודגשות, פחם כהה, זהב מתכתי, מסגרת פלדה כפולה 2px וכרטיסים מסיביים סמכותיים',
-    icon: Shield,
-    objectSizingDesc: 'כרטיסי פלדה רחבים, כותרות שחורות בולטות (Font Black) וגבולות מתכת כפולים',
-    buttonStyleDesc: 'כפתורים רחבים מסותתים (Rounded LG) עם גבול כפול מודגש בזהב ענבר',
-    colorPaletteDesc: 'שחור-אוניקס, אפור פחם, זהב-ענבר מתכתי וכחול פלדה כהה',
-    cardStyleDesc: 'כרטיסי פלדה עם גבול 2px כפול, תגיות שחור-זהב וטיפוגרפיה סמכותית',
-    swatches: ['#090a0f', '#f59e0b', '#27272a', '#3b82f6'],
-  },
-  {
-    id: 'standard',
-    letter: 'ג',
-    shortLabel: 'פריסה עכשווית',
-    title: 'ג. הפריסה העכשווית (סגנון Notion SaaS 2026)',
-    subtitle: 'סקוורקל מעוגל 3XL נקי ומאוזן, אינדיגו וסגול מודרניים, צללים רכים ואווירת Mesh Glow',
-    icon: LayoutTemplate,
-    objectSizingDesc: 'כרטיסי Notion SaaS מעוגלים (Rounded 3XL), טיפוגרפיה חדה וריווחים שקולים',
-    buttonStyleDesc: 'כפתורים מעוגלים מודרניים (Rounded XL) באינדיגו ואמרלד עם צל רך',
-    colorPaletteDesc: 'אינדיגו מודרני, סגול עדין, לבן, סלייט וניגודיות שקופה אלגנטית',
-    cardStyleDesc: 'כרטיסי SaaS מאוזנים עם תגיות מעודנות וצל זכוכית עדין',
-    swatches: ['#6366f1', '#a855f7', '#0f172a', '#f8fafc'],
-  },
-  {
-    id: 'spiritual',
-    letter: 'ד',
-    shortLabel: 'פריסה רוחנית',
-    title: 'ד. פריסה רוחנית (הרמונית, שלווה ומעוררת השראה)',
-    subtitle: 'ירוק מרווה (Sage), טורקיז עמוק, זהב הילה, עקומות אורגניות ומעברים איטיים ושלווים',
-    icon: Sun,
-    objectSizingDesc: 'מרווחי נשימה עמוקים, קווים עגולים עוטפים וטיפוגרפיה שלווה ומרווחת',
-    buttonStyleDesc: 'כפתורי לוטוס הרמוניים עם שקיפות זכוכית ומעברי צבע איטיים ושלווים (duration-700)',
-    colorPaletteDesc: 'ירוק מרווה (Sage), טורקיז עמוק, חול מדברי וזהב הילה זוהר בעדינות',
-    cardStyleDesc: 'כרטיסים הרמוניים עם מסגרת טורקיז מעודנת, תגיות הילה וצל אוורירי',
-    swatches: ['#0f766e', '#10b981', '#fbbf24', '#faf8f5'],
-  },
-  {
-    id: 'sharp',
-    letter: 'ה',
-    shortLabel: 'פריסה חדה',
-    title: 'ה. פריסה חדה (ברוטליסטית, טכנית ומדויקת)',
-    subtitle: 'זוויות ישרות 90° ללא שום עיגול, מסגרת 2px שחור/לבן, צל מוסט קשיח 5px ותגיות מונוספייס חותכות',
-    icon: Crosshair,
-    objectSizingDesc: 'אובייקטים גיאומטריים חדים (0px Radius), מסגרות 2px מודגשות וגריד מדויק',
-    buttonStyleDesc: 'כפתורים מלבניים חדים (Rounded None) עם צל קשיח מוסט ואפקט לחיצה חותך',
-    colorPaletteDesc: 'שחור ולבן בניגודיות מקסימלית עם הדגשות אינדיגו חשמלי',
-    cardStyleDesc: 'כרטיסים מלבניים חדים 90° עם מסגרת 2px שחורה/לבנה, צל מוסט קשיח ותגיות [CHIP]',
-    swatches: ['#050505', '#ffffff', '#6366f1', '#e2e8f0'],
-  },
-  {
-    id: 'analytical',
-    letter: 'ו',
-    shortLabel: 'פריסה אנליטית',
-    title: 'ו. פריסה אנליטית (מסוף HUD טכנולוגי ודיוק מדדי)',
-    subtitle: 'כרטיסי HUD עם חיתוכי פינות 45° (Chamfered), ציאן-כחול טלמטריה, זמני קריאה ומדדי חשיפה',
-    icon: Activity,
-    objectSizingDesc: 'קומפוזיציית מסוף דשבורד מהודקת, תגיות זמני קריאה (3m read) ומדדי פעילות חיים',
-    buttonStyleDesc: 'כפתורים טכנולוגיים מהודקים (Rounded XL) בגרדיאנט ציאן-כחול עם חיווי סטטוס',
-    colorPaletteDesc: 'כחול-צי עמוק, ציאן טלמטריה, ירוק אמרלד של זמינות ורשת נקודות',
-    cardStyleDesc: 'כרטיסי HUD מנוקבי זוויות עם סוגרי פינות מוארים, מדדי זמן קריאה וקווי סריקה',
-    swatches: ['#06b6d4', '#2563eb', '#10b981', '#050b14'],
-  },
-];
-
-export const LIVE_POSTS_DISPLAY_MODES: Array<{
-  id: LivePostsDisplayMode;
-  label: string;
-  description: string;
-  icon: React.FC<{ className?: string }>;
-}> = [
-  {
-    id: 'grid',
-    label: 'גריד עמודות קלאסי (Grid)',
-    description: 'חלוקה מאוזנת ל-3 עמודות עם תמונות ביחס 16:9 וכרטיסים אחידים',
-    icon: Grid,
-  },
-  {
-    id: 'carousel',
-    label: 'קרוסלה זזה עם חיצים (Carousel Slider)',
-    description: 'גלילה אופקית חלקה עם חיצי ניווט – אידיאלי לעמודים עמוסי תוכן',
-    icon: Sliders,
-  },
-  {
-    id: 'spotlight',
-    label: 'פוסט מוביל מודגש (Featured Spotlight)',
-    description: 'פוסט ראשי גדול ומרשים בצד, ופוסטים משניים לצדו',
-    icon: Star,
-  },
-  {
-    id: 'compact-list',
-    label: 'רשימה מהודקת (Compact List)',
-    description: 'כרטיסים אופקיים עם תמונה קומפקטית בצד – מתאים ליומן אירועים וחדשות',
-    icon: Calendar,
-  },
-];
-
-interface LivePostsGridEditorProps {
+export interface LivePostsGridEditorProps {
   config: LivePostsGridSectionConfig;
   onChange: (updated: LivePostsGridSectionConfig) => void;
   onClose?: () => void;
 }
 
-export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({ config, onChange, onClose }) => {
-  const { getCapability } = useHostCapabilities();
-  const brandDnaCap = getCapability<BrandDnaContract>('brandDna');
+interface LayoutOptionDef {
+  id: LivePostsLayoutPreset;
+  letter: string;
+  shortLabel: string;
+  title: string;
+  icon: React.FC<{ className?: string }>;
+  swatches: string[];
+  objectSizingDesc: string;
+  buttonStyleDesc: string;
+  colorPaletteDesc: string;
+  cardDesc: string;
+  defaultValues: Partial<LivePostsGridSectionConfig>;
+}
 
-  const [formData, setFormData] = useState<LivePostsGridSectionConfig>({
-    ...config,
-    title: config.title || 'עדכונים ואירועים אחרונים',
-    description: config.description || 'כל מה שחדש וקורה בפעילות ובקהילה שלנו',
-    layout: config.layout || 'standard',
-    displayMode: config.displayMode || 'grid',
-    objectScale: config.objectScale || 'normal',
-    buttonShape: config.buttonShape || 'rounded',
-    buttonSize: config.buttonSize || 'md',
-    showCtaButton: config.showCtaButton ?? true,
-    ctaText: config.ctaText || 'לכל האירועים והחדשות',
-    ctaUrl: config.ctaUrl || '#',
-    showPostExcerpt: config.showPostExcerpt ?? true,
-    showPostDate: config.showPostDate ?? true,
-    showPostTag: config.showPostTag ?? true,
-    showPostAuthor: config.showPostAuthor ?? true,
-    showReadTime: config.showReadTime ?? true,
-  });
+const LIVE_POSTS_LAYOUT_DEFINITIONS: LayoutOptionDef[] = [
+  {
+    id: 'feminine',
+    letter: 'א',
+    shortLabel: 'נשי',
+    title: 'א. סגנון נשי יוקרתי',
+    icon: Heart,
+    swatches: ['#f43f5e', '#fb7185', '#fff1f2', '#fda4af'],
+    objectSizingDesc: 'מרווח ומאוורר (Spacious/Normal), פינות קשתיות רכות (36px)',
+    buttonStyleDesc: 'קפסולה מעוגלת מלאה (Pill), רוז-גולד והילה עדינה',
+    colorPaletteDesc: 'ורוד בלאש, רוז-גולד, שמנת יוקרתית והילת אור עדינה',
+    cardDesc: 'כרטיסים זכוכיתיים מעוגלים ברכות, קשתות רכות ותגיות פסטל מעוגלות',
+    defaultValues: {
+      layout: 'feminine',
+      objectScale: 'normal',
+      buttonShape: 'pill',
+      buttonSize: 'md',
+      cardBackgroundColor: '#ffffff',
+      accentColor: '#f43f5e',
+    },
+  },
+  {
+    id: 'masculine',
+    letter: 'ב',
+    shortLabel: 'גברי',
+    title: 'ב. סגנון גברי עוצמתי',
+    icon: Shield,
+    swatches: ['#09090b', '#27272a', '#f59e0b', '#10b981'],
+    objectSizingDesc: 'קומפקטי וממוקד (Compact), מסגרות כפולות 2px',
+    buttonStyleDesc: 'חד וישר (Sharp), פינות מודגשות ונוכחות חזקה',
+    colorPaletteDesc: 'שחור עמוק, פלדה כהה, הדגשות אמבר/אזמרגד עוצמתיות',
+    cardDesc: 'כרטיסי פלדה כהים דמויי קוביות פלדה עם מסגרות כפולות וסמכותיות',
+    defaultValues: {
+      layout: 'masculine',
+      objectScale: 'compact',
+      buttonShape: 'sharp',
+      buttonSize: 'md',
+      cardBackgroundColor: '#0f172a',
+      accentColor: '#f59e0b',
+    },
+  },
+  {
+    id: 'standard',
+    letter: 'ג',
+    shortLabel: 'סטנדרטי',
+    title: 'ג. סגנון סטנדרטי (נוכחי) מודרני',
+    icon: LayoutTemplate,
+    swatches: ['#4f46e5', '#6366f1', '#1e1e24', '#f8fafc'],
+    objectSizingDesc: 'מאוזן ונקי (Normal), פינות מעוגלות 24px',
+    buttonStyleDesc: 'מעוגל קלאסי (Rounded 12px)',
+    colorPaletteDesc: 'כחול אינדיגו, סגול עמוק, רקע נקי ואלגנטי',
+    cardDesc: 'כרטיסי Notion SaaS מעוגלים ונקיים עם הצללות רכות וחלוקה אחידה',
+    defaultValues: {
+      layout: 'standard',
+      objectScale: 'normal',
+      buttonShape: 'rounded',
+      buttonSize: 'md',
+      cardBackgroundColor: '#ffffff',
+      accentColor: '#4f46e5',
+    },
+  },
+  {
+    id: 'spiritual',
+    letter: 'ד',
+    shortLabel: 'רוחני',
+    title: 'ד. סגנון רוחני והוליסטי',
+    icon: Compass,
+    swatches: ['#10b981', '#14b8a6', '#061815', '#a7f3d0'],
+    objectSizingDesc: 'מרווח ומדיטטיבי (Spacious), מעוגל 40px',
+    buttonStyleDesc: 'קפסולה עוטפת (Pill), הילה פלורסנטית עדינה',
+    colorPaletteDesc: 'אמרלד אזמרגד, ירוק יער עמוק, גווני מנטה ואור הילתי',
+    cardDesc: 'כרטיסים הילתיים עם מעברי צבע רכים (Glow) ואווירת רוגע שלווה',
+    defaultValues: {
+      layout: 'spiritual',
+      objectScale: 'large',
+      buttonShape: 'pill',
+      buttonSize: 'lg',
+      cardBackgroundColor: '#09221d',
+      accentColor: '#10b981',
+    },
+  },
+  {
+    id: 'sharp',
+    letter: 'ה',
+    shortLabel: 'חד',
+    title: 'ה. סגנון חד וטכנולוגי (Cyber/Sharp)',
+    icon: Crosshair,
+    swatches: ['#06b6d4', '#000000', '#ef4444', '#22d3ee'],
+    objectSizingDesc: 'מדויק וקומפקטי (Compact), פינות ישרות 0px',
+    buttonStyleDesc: 'ישר וחד לחלוטין (Sharp), מסגרת ניאון',
+    colorPaletteDesc: 'שחור מוחלט, ציאן עתידני, אדום בוהק וניגודיות שיא',
+    cardDesc: 'כרטיסים חדים ללא עיגול, מסגרות ניאון זוהרות וצל מוסט קשיח',
+    defaultValues: {
+      layout: 'sharp',
+      objectScale: 'compact',
+      buttonShape: 'sharp',
+      buttonSize: 'md',
+      cardBackgroundColor: '#000000',
+      accentColor: '#06b6d4',
+    },
+  },
+  {
+    id: 'analytical',
+    letter: 'ו',
+    shortLabel: 'אנליטי',
+    title: 'ו. סגנון אנליטי ופיננסי (Data-First)',
+    icon: Activity,
+    swatches: ['#2563eb', '#0284c7', '#091528', '#38bdf8'],
+    objectSizingDesc: 'מודולרי ומובנה (Normal), תצוגת מדדי קריאה',
+    buttonStyleDesc: 'מעוגל עדין (Rounded), כפתור הדגשה טכני',
+    colorPaletteDesc: 'כחול רויאל, כחול כהה פיננסי, תגיות אינדקס ותכלת',
+    cardDesc: 'כרטיסי דשבורד אנליטיים עם זמני קריאה, מדדי אירוע וגבולות עדינים',
+    defaultValues: {
+      layout: 'analytical',
+      objectScale: 'normal',
+      buttonShape: 'rounded',
+      buttonSize: 'md',
+      cardBackgroundColor: '#091528',
+      accentColor: '#38bdf8',
+    },
+  },
+];
 
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
-    layouts: true,
-  });
-  const [editingPostId, setEditingPostId] = useState<string | null>(null);
+export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({
+  config,
+  onChange,
+  onClose,
+}) => {
+  const { db } = useSystemConnection();
+  const effTenant = useMemo(
+    () => (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || '_master',
+    []
+  );
 
-  const [isSaving, setIsSaving] = useState(false);
+  // Local draft state for Dirty tracking & real-time preview
+  const [localConfig, setLocalConfig] = useState<LivePostsGridSectionConfig>(config);
+  const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
 
+  // Synchronize when outer config changes ONLY if not dirty
   useEffect(() => {
-    setFormData({
-      ...config,
-      title: config.title || 'עדכונים ואירועים אחרונים',
-      description: config.description || 'כל מה שחדש וקורה בפעילות ובקהילה שלנו',
-      layout: config.layout || 'standard',
-      displayMode: config.displayMode || 'grid',
-      objectScale: config.objectScale || 'normal',
-      buttonShape: config.buttonShape || 'rounded',
-      buttonSize: config.buttonSize || 'md',
-      showCtaButton: config.showCtaButton ?? true,
-      ctaText: config.ctaText || 'לכל האירועים והחדשות',
-      ctaUrl: config.ctaUrl || '#',
-      showPostExcerpt: config.showPostExcerpt ?? true,
-      showPostDate: config.showPostDate ?? true,
-      showPostTag: config.showPostTag ?? true,
-      showPostAuthor: config.showPostAuthor ?? true,
-      showReadTime: config.showReadTime ?? true,
-    });
-  }, [config]);
+    if (!isDirty) {
+      setLocalConfig(config);
+    }
+  }, [config, isDirty]);
 
-  // Dirty state tracking
-  const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(config);
-  }, [formData, config]);
+  // Firestore Brand DNA state
+  const [firestoreBrand, setFirestoreBrand] = useState<BrandDna | null>(null);
 
-  const update = <K extends keyof LivePostsGridSectionConfig>(
-    field: K,
-    value: LivePostsGridSectionConfig[K]
-  ) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
+  useEffect(() => {
+    let active = true;
+    async function fetchBrand() {
+      try {
+        const dna = await loadBrandDna(db, effTenant);
+        if (active && dna) {
+          setFirestoreBrand(dna);
+          // If section has default 'standard' or missing layout, sync to tenant's preset
+          if (dna.designTokens?.defaultStylePreset && (!config.layout || config.layout === 'standard')) {
+            const tenantPreset = dna.designTokens.defaultStylePreset as LivePostsLayoutPreset;
+            if (['feminine', 'masculine', 'standard', 'spiritual', 'sharp', 'analytical'].includes(tenantPreset)) {
+              setLocalConfig((prev) => ({
+                ...prev,
+                layout: tenantPreset,
+              }));
+            }
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+    fetchBrand();
+    return () => {
+      active = false;
+    };
+  }, [db, effTenant, config.layout]);
+
+  const liveBrand = useMemo(
+    () => resolveLiveBrandDna(firestoreBrand, effTenant),
+    [firestoreBrand, effTenant]
+  );
+
+  // Accordions: All closed by default
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
+  const toggleAccordion = (id: string) => {
+    setOpenAccordion((prev) => (prev === id ? null : id));
   };
 
-  const toggleSection = (section: LivePostsEditorAccordionSection) => {
-    setOpenSections((prev) => ({
-      ...prev,
-      [section]: !prev[section],
-    }));
+  // Hover layout tooltip
+  const [hoveredLayoutId, setHoveredLayoutId] = useState<string | null>(null);
+
+  // Expanded post item inside Accordion 4
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
+
+  const normalizedActiveLayout: LivePostsLayoutPreset =
+    (localConfig.layout as LivePostsLayoutPreset) || 'standard';
+
+  const activeLayoutDef =
+    LIVE_POSTS_LAYOUT_DEFINITIONS.find((d) => d.id === normalizedActiveLayout) ||
+    LIVE_POSTS_LAYOUT_DEFINITIONS[2];
+
+  const tooltipLayoutDef =
+    LIVE_POSTS_LAYOUT_DEFINITIONS.find((d) => d.id === hoveredLayoutId) || null;
+
+  // Real-time update handler
+  const handleUpdate = (updated: Partial<LivePostsGridSectionConfig>) => {
+    const next = { ...localConfig, ...updated };
+    setLocalConfig(next);
+    setIsDirty(true);
+    onChange(next);
   };
 
-  const handleSave = () => {
+  // Layout selection
+  const handleSelectLayout = (def: LayoutOptionDef) => {
+    const next: LivePostsGridSectionConfig = {
+      ...localConfig,
+      ...def.defaultValues,
+      layout: def.id,
+    };
+    setLocalConfig(next);
+    setIsDirty(true);
+    onChange(next);
+  };
+
+  // Brand DNA sync
+  const handleSyncBrandDna = () => {
+    if (!liveBrand) return;
+    const companyName =
+      liveBrand.identity?.companyName || (liveBrand.identity as any)?.brandName || '';
+    const slogan = liveBrand.identity?.slogan || '';
+    const uvp = liveBrand.audience?.mainUvp || liveBrand.identity?.companyVision || '';
+    const primaryColor = liveBrand.designTokens?.primaryColor;
+    const tenantPreset = (liveBrand.designTokens?.defaultStylePreset as LivePostsLayoutPreset) || 'standard';
+    const whatsapp = liveBrand.trust?.whatsappSupportNumber || liveBrand.trust?.contactPhone || '';
+
+    const next: LivePostsGridSectionConfig = {
+      ...localConfig,
+      title: companyName ? `עדכונים ואירועים אחרונים מ-${companyName}` : localConfig.title,
+      subtitle: slogan || localConfig.subtitle,
+      description: uvp || localConfig.description,
+      ctaText: localConfig.ctaText || 'לכל האירועים והחדשות',
+      ctaUrl: whatsapp
+        ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום ${companyName}, קראתי על העדכונים שלכם ואשמח לקבל פרטים נוספים`)}`
+        : localConfig.ctaUrl || '#',
+      layout: tenantPreset,
+      accentColor: primaryColor || localConfig.accentColor,
+    };
+
+    setLocalConfig(next);
+    setIsDirty(true);
+    setIsBrandSynced(true);
+    onChange(next);
+    setTimeout(() => setIsBrandSynced(false), 3000);
+  };
+
+  // Save handler: immediate, clean, no glitching
+  const handleSave = (andClose = false) => {
     setIsSaving(true);
-    onChange(formData);
-    setTimeout(() => {
-      setIsSaving(false);
-      setToastMessage('השינויים נשמרו בהצלחה!');
-      setTimeout(() => setToastMessage(null), 3000);
-    }, 250);
-  };
-
-  const handleClose = () => {
-    if (isDirty) {
-      setShowUnsavedConfirm(true);
-    } else if (onClose) {
+    onChange(localConfig);
+    setIsDirty(false);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 2000);
+    setIsSaving(false);
+    if (andClose && onClose) {
       onClose();
     }
   };
 
-  const handleSyncBrandDna = async () => {
-    if (!brandDnaCap) {
-      setToastMessage('שירות Brand DNA אינו זמין כעת');
-      setTimeout(() => setToastMessage(null), 3000);
+  // Close handler with confirmation
+  const handleRequestClose = () => {
+    if (isDirty) {
+      setShowUnsavedConfirm(true);
       return;
     }
-    try {
-      const dna = await brandDnaCap.getBrandDna();
-      if (dna) {
-        const company = dna.identity?.companyName || '';
-        const slogan = dna.identity?.slogan || '';
-        const phone = dna.trust?.contactPhone || '';
-        const whatsapp = dna.trust?.whatsappSupportNumber || phone;
-
-        setFormData((prev) => ({
-          ...prev,
-          title: company ? `עדכונים ואירועים אחרונים של ${company}` : prev.title,
-          description: slogan || prev.description,
-          ctaText: prev.ctaText || 'לכל האירועים והחדשות',
-          ctaUrl: whatsapp
-            ? `https://wa.me/${whatsapp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`שלום, קראתי על העדכונים של ${company}`)}`
-            : prev.ctaUrl || '#',
-        }));
-
-        setIsBrandSynced(true);
-        setToastMessage(`סונכרן בהצלחה עם ה-DNA של ${company || 'המותג'}!`);
-        setTimeout(() => {
-          setIsBrandSynced(false);
-          setToastMessage(null);
-        }, 3000);
-      }
-    } catch (err) {
-      console.error('Failed to sync brand DNA:', err);
-      setToastMessage('שגיאה בסנכרון עם Brand DNA');
-      setTimeout(() => setToastMessage(null), 3000);
-    }
+    if (onClose) onClose();
   };
 
-  // Post management helpers
+  // Post Items helpers
+  const handlePostChange = (index: number, field: keyof LivePostItem, rawValue: any) => {
+    const value =
+      typeof rawValue === 'string' || typeof rawValue === 'number' || typeof rawValue === 'boolean'
+        ? rawValue
+        : resolveInputValue(rawValue);
+    const updatedPosts = [...(localConfig.customPages || [])];
+    updatedPosts[index] = { ...updatedPosts[index], [field]: value };
+    handleUpdate({ customPages: updatedPosts });
+  };
+
   const handleAddPost = () => {
     const newPost: LivePostItem = {
-      id: Date.now().toString(),
+      id: `post_${Date.now()}`,
       title: 'כותרת אירוע או עדכון חדש',
-      excerpt: 'תקציר הידיעה, מה התחדש, ומידע רלוונטי לקהילה וללקוחות...',
+      excerpt: 'תקציר הידיעה, מה התחדש ומידע רלוונטי לקהילה...',
       date: 'היום',
       tag: 'אירועים',
-      tagColor: '#6366f1',
       readTimeMinutes: 3,
-      authorName: 'צוות המערכת',
-      isFeatured: false,
-      imageUrl:
-        'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
+      authorName: liveBrand?.identity?.companyName || 'צוות הארגון',
+      imageUrl: 'https://images.unsplash.com/photo-1511578314322-379afb476865?auto=format&fit=crop&w=800&q=80',
       linkUrl: '#',
-      ctaButtonText: 'קרא עוד',
+      isFeatured: false,
     };
-    const updated = [...(formData.customPages || []), newPost];
-    update('customPages', updated);
-    setEditingPostId(newPost.id);
+    const nextPosts = [...(localConfig.customPages || []), newPost];
+    handleUpdate({ customPages: nextPosts });
+    setExpandedPostId(newPost.id);
   };
 
-  const handleUpdatePost = (id: string, updates: Partial<LivePostItem>) => {
-    const updated = (formData.customPages || []).map((p) => (p.id === id ? { ...p, ...updates } : p));
-    update('customPages', updated);
+  const handleDeletePost = (index: number) => {
+    const nextPosts = (localConfig.customPages || []).filter((_, i) => i !== index);
+    handleUpdate({ customPages: nextPosts });
   };
 
-  const handleDeletePost = (id: string) => {
-    if (confirm('האם למחוק פוסט זה?')) {
-      const updated = (formData.customPages || []).filter((p) => p.id !== id);
-      update('customPages', updated);
-      if (editingPostId === id) setEditingPostId(null);
-    }
+  const handleMovePost = (index: number, direction: 'up' | 'down') => {
+    const current = [...(localConfig.customPages || [])];
+    const target = direction === 'up' ? index - 1 : index + 1;
+    if (target < 0 || target >= current.length) return;
+    const temp = current[index];
+    current[index] = current[target];
+    current[target] = temp;
+    handleUpdate({ customPages: current });
   };
-
-  const currentLayoutDef = useMemo(() => {
-    const active = formData.layout || 'standard';
-    return (
-      LIVE_POSTS_LAYOUT_DEFINITIONS.find((l) => l.id === active) ||
-      LIVE_POSTS_LAYOUT_DEFINITIONS[2] // standard
-    );
-  }, [formData.layout]);
 
   return (
     <div
-      className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col font-sans transition-all duration-300 relative text-right"
-      dir="rtl"
+      className="w-full rounded-3xl sm:rounded-[2.5rem] p-3.5 sm:p-5 relative shadow-2xl flex flex-col no-scrollbar border transition-colors font-sans text-right bg-[#0a0a0a] border-white/10 text-white"
       style={{ fontFamily: "'Heebo', sans-serif" }}
+      dir="rtl"
     >
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="absolute top-16 left-1/2 -translate-x-1/2 z-50 bg-slate-900/95 dark:bg-indigo-600/95 text-white text-xs sm:text-sm px-4 py-2 rounded-full shadow-2xl backdrop-blur-md flex items-center gap-2 border border-white/10 animate-in fade-in slide-in-from-top-2 duration-300">
-          <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" />
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* TOP HEADER BAR */}
-      <div className="p-3.5 sm:p-4 bg-slate-50/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200/80 dark:border-slate-800 flex items-center justify-between gap-3 sticky top-0 z-20">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-500 via-purple-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-md shadow-indigo-500/20 ring-1 ring-white/20">
+      {/* 1. Header: Compact with Two-Letter Avatar Icon (LP), Title, Brand DNA Sync, Save Icon, and Close */}
+      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b shrink-0 border-white/10">
+        {/* Right: Connected Two-Letter Avatar Icon (LP) + Title */}
+        <div className="flex items-center gap-2 max-w-[70%]">
+          <div
+            className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-black shrink-0 shadow-sm border select-none bg-indigo-500/20 text-indigo-400 border-indigo-500/30"
+            title="Live Posts Section Editor"
+          >
             LP
           </div>
-          <div>
-            <h3 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-white leading-tight flex items-center gap-1.5">
-              <span>עדכונים ואירועים (פוסטים) 2.0</span>
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
-                PRO
-              </span>
-            </h3>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-none mt-0.5">
-              6 פריסות מותג • גריד, קרוסלה וספוטלייט • ניהול עשיר
-            </p>
+
+          <div className="truncate">
+            <div className="text-xs sm:text-sm font-black truncate leading-tight text-white flex items-center gap-1.5">
+              <span>עדכונים ואירועים (פוסטים)</span>
+            </div>
+            <div className="text-[10px] truncate leading-none mt-0.5 text-zinc-400">
+              {activeLayoutDef.title}
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* Brand DNA Sync */}
-          {brandDnaCap && (
-            <button
-              type="button"
-              onClick={handleSyncBrandDna}
-              title="סנכרן כותרות ותכנים מ-Brand DNA של המותג"
-              className={`p-2 rounded-xl text-xs font-semibold transition-all duration-200 flex items-center gap-1 border ${
-                isBrandSynced
-                  ? 'bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-500/20'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-indigo-400 hover:text-indigo-500'
-              }`}
-            >
-              <Sparkles className={`w-3.5 h-3.5 ${isBrandSynced ? 'animate-spin' : 'text-indigo-500'}`} />
-              <span className="hidden sm:inline text-xs">סנכרון DNA</span>
-            </button>
-          )}
-
-          {/* Save Button */}
+        {/* Left: Quick Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all duration-200 flex items-center gap-1.5 shadow-sm ${
-              isDirty
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-indigo-500/25 hover:shadow-md hover:scale-[1.02] active:scale-[0.98] ring-2 ring-indigo-400/30 animate-pulse'
-                : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
+            onClick={handleSyncBrandDna}
+            className={`p-1.5 rounded-full border transition hover:opacity-80 cursor-pointer ${
+              isBrandSynced
+                ? 'border-emerald-500 bg-emerald-500/20 text-emerald-400'
+                : 'border-indigo-900 text-indigo-400 bg-indigo-950/30'
             }`}
+            title="סנכרן מ-Brand DNA של הטננט"
           >
-            <Save className={`w-3.5 h-3.5 ${isSaving ? 'animate-spin' : ''}`} />
-            <span>{isSaving ? 'שומר...' : isDirty ? 'שמור שינויים' : 'שמור'}</span>
+            {isBrandSynced ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
           </button>
 
-          {/* Close Button */}
+          <button
+            type="button"
+            onClick={() => handleSave(false)}
+            disabled={isSaving}
+            className={`p-1.5 rounded-full transition shadow-sm cursor-pointer disabled:opacity-50 ${
+              isDirty
+                ? 'bg-amber-500 hover:bg-amber-400 text-black ring-2 ring-amber-400/50 animate-pulse'
+                : saveSuccess
+                ? 'bg-emerald-500 text-black'
+                : 'bg-white/10 hover:bg-white/20 text-white'
+            }`}
+            title={isDirty ? 'שמור שינויים שלא נשמרו' : saveSuccess ? 'נשמר בהצלחה!' : 'שמור'}
+          >
+            {saveSuccess ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
+          </button>
+
           {onClose && (
             <button
               type="button"
-              onClick={handleClose}
-              className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-              title="סגור חלונית עריכה"
+              onClick={handleRequestClose}
+              className="p-1.5 rounded-full transition cursor-pointer bg-white/10 hover:bg-white/20 text-white"
+              title="סגור"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
       </div>
 
-      {/* ICON MENU TOOLBAR (STRICTLY ICON + RICH TOOLTIP ONLY, NO TEXT LABELS) */}
-      <div className="px-3 py-2 bg-slate-100/70 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800/80 flex items-center justify-around gap-1">
-        {[
-          {
-            id: 'layouts' as LivePostsEditorAccordionSection,
-            icon: LayoutTemplate,
-            label: 'פריסות וסגנון מותג',
-            badge: currentLayoutDef.shortLabel,
-          },
-          {
-            id: 'display' as LivePostsEditorAccordionSection,
-            icon: Sliders,
-            label: 'אופן תצוגה וכפתור פעולה',
-            badge: formData.displayMode,
-          },
-          {
-            id: 'text_bg' as LivePostsEditorAccordionSection,
-            icon: Layers,
-            label: 'רקע תמונה ואפקטים',
-            badge: formData.textBgEnabled ? 'פעיל' : undefined,
-          },
-          {
-            id: 'posts' as LivePostsEditorAccordionSection,
-            icon: Calendar,
-            label: 'ניהול פוסטים ואירועים',
-            badge: `${(formData.customPages || []).length} פוסטים`,
-          },
-          {
-            id: 'colors' as LivePostsEditorAccordionSection,
-            icon: Palette,
-            label: 'צבעים ומזהה עוגן',
-          },
-        ].map((item) => {
-          const isOpen = Boolean(openSections[item.id]);
-          const Icon = item.icon;
-          return (
+      {/* Unsaved Changes Confirmation Banner */}
+      {showUnsavedConfirm && (
+        <div className="mb-2.5 p-3 rounded-2xl border flex flex-col gap-2 animate-fadeIn bg-amber-950/40 border-amber-500/40 text-amber-200">
+          <div className="text-xs font-bold">יש שינויים שלא נשמרו. מה ברצונך לעשות?</div>
+          <div className="flex items-center gap-2 justify-end">
             <button
-              key={item.id}
               type="button"
-              onClick={() => toggleSection(item.id)}
-              className={`relative group p-2.5 rounded-xl transition-all duration-200 flex items-center justify-center ${
-                isOpen
-                  ? 'bg-white dark:bg-slate-700 text-indigo-600 dark:text-indigo-300 shadow-sm border border-slate-200/80 dark:border-slate-600'
-                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200 hover:bg-white/50 dark:hover:bg-slate-800'
-              }`}
-              title={item.label}
-              aria-label={item.label}
+              onClick={() => handleSave(true)}
+              className="px-3 py-1 rounded-xl bg-amber-500 hover:bg-amber-400 text-black text-xs font-bold transition cursor-pointer"
             >
-              <Icon className="w-4 h-4 shrink-0" />
-
-              {/* Rich Floating Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:flex flex-col items-center pointer-events-none z-30">
-                <div className="bg-slate-900 text-white text-[11px] font-medium py-1 px-2.5 rounded-lg shadow-xl whitespace-nowrap border border-slate-700 flex items-center gap-1.5">
-                  <span>{item.label}</span>
-                  {item.badge && (
-                    <span className="text-[10px] px-1 rounded bg-indigo-500/20 text-indigo-300 font-bold">
-                      {item.badge}
-                    </span>
-                  )}
-                </div>
-                <div className="w-2 h-2 bg-slate-900 rotate-45 -mt-1 border-r border-b border-slate-700" />
-              </div>
+              שמור וסגור
             </button>
-          );
-        })}
-      </div>
-
-      {/* ACTIVE LAYOUT SUMMARY CARD */}
-      <div className="mx-3 my-2.5 p-3 rounded-2xl bg-gradient-to-r from-indigo-500/5 via-purple-500/5 to-indigo-500/10 border border-indigo-500/20 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 flex items-center justify-center shrink-0">
-            {React.createElement(currentLayoutDef.icon, { className: 'w-4 h-4' })}
-          </div>
-          <div>
-            <div className="text-xs font-bold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
-              <span>{currentLayoutDef.shortLabel}</span>
-              <span className="text-[10px] px-1.5 py-0.2 rounded bg-indigo-500/15 text-indigo-700 dark:text-indigo-300 font-semibold">
-                תצוגה: {formData.displayMode || 'grid'}
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1">
-              {currentLayoutDef.subtitle}
-            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowUnsavedConfirm(false);
+                if (onClose) onClose();
+              }}
+              className="px-3 py-1 rounded-xl text-xs font-bold transition cursor-pointer bg-red-950/60 hover:bg-red-900/80 text-red-300 border border-red-800/50"
+            >
+              צא ללא שמירה
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowUnsavedConfirm(false)}
+              className="px-2.5 py-1 rounded-xl text-xs opacity-70 hover:opacity-100 transition cursor-pointer"
+            >
+              ביטול
+            </button>
           </div>
         </div>
+      )}
 
-        <div className="flex items-center gap-1 shrink-0">
-          {currentLayoutDef.swatches.map((color, idx) => (
-            <span
-              key={idx}
-              className="w-3.5 h-3.5 rounded-full border border-white dark:border-slate-800 shadow-sm"
-              style={{ backgroundColor: color }}
-              title={color}
-            />
-          ))}
+      {/* 2. Top Icon Menu for the 6 Visual Presets (Strictly Icons + Letters, with rich interactive hover tooltip) */}
+      <div className="p-2.5 mb-2.5 rounded-2xl border relative transition-all bg-[#141414] border-white/5">
+        <div className="flex items-center justify-between mb-1.5 px-1">
+          <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-1">
+            <Wand2 className="w-3 h-3" />
+            <span>סגנון פריסה מותג (רחף מעל אייקון לפירוט)</span>
+          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-indigo-500/15 text-indigo-300 border-indigo-500/30">
+            פעיל: {activeLayoutDef.letter}. {activeLayoutDef.shortLabel}
+          </span>
         </div>
-      </div>
 
-      {/* ACCORDION CONTENT BODY */}
-      <div className="flex-1 overflow-y-auto px-3.5 py-2 space-y-3 max-h-[calc(90vh-180px)]">
+        {/* 6 Icons Row */}
+        <div className="grid grid-cols-6 gap-1.5">
+          {LIVE_POSTS_LAYOUT_DEFINITIONS.map((def) => {
+            const IconComp = def.icon;
+            const isSelected = normalizedActiveLayout === def.id;
+            return (
+              <div
+                key={def.id}
+                className="relative flex flex-col items-center"
+                onMouseEnter={() => setHoveredLayoutId(def.id)}
+                onMouseLeave={() => setHoveredLayoutId((prev) => (prev === def.id ? null : prev))}
+              >
+                <button
+                  type="button"
+                  onClick={() => handleSelectLayout(def)}
+                  onFocus={() => setHoveredLayoutId(def.id)}
+                  onBlur={() => setHoveredLayoutId(null)}
+                  aria-label={def.title}
+                  className={`w-full py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                    isSelected
+                      ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400 shadow-md ring-1 ring-indigo-500/40'
+                      : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] font-black opacity-75">{def.letter}.</span>
+                    <IconComp className="w-4 h-4 shrink-0" />
+                  </div>
+                  <span className="text-[10px] font-bold truncate max-w-full">{def.shortLabel}</span>
+                </button>
+              </div>
+            );
+          })}
+        </div>
 
-        {/* 1. LAYOUT PRESETS ACCORDION (STRICTLY VERTICAL ROWS STACKED ONE UNDER ANOTHER) */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40 transition-all">
-          <button
-            type="button"
-            onClick={() => toggleSection('layouts')}
-            className="w-full p-3 flex items-center justify-between text-right hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <LayoutTemplate className="w-4 h-4 text-indigo-500" />
-              <div>
-                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                  1. בחירת פריסה ועיצוב מותג
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  6 סגנונות מותג מתקדמים לאזור הפוסטים והאירועים
-                </span>
+        {/* Rich Interactive Tooltip on Hover / Focus */}
+        {tooltipLayoutDef && (
+          <div className="mt-2 p-3 rounded-xl border text-xs space-y-1.5 animate-fadeIn shadow-xl bg-[#0d0d0d] border-indigo-500/40 text-zinc-200">
+            <div className="flex items-center justify-between border-b pb-1.5 border-indigo-500/20">
+              <span className="font-black text-indigo-400 text-xs">{tooltipLayoutDef.title}</span>
+              <div className="flex items-center gap-1">
+                {tooltipLayoutDef.swatches.map((hex, idx) => (
+                  <span
+                    key={idx}
+                    className="w-3 h-3 rounded-full border border-white/20 inline-block"
+                    style={{ backgroundColor: hex }}
+                  />
+                ))}
               </div>
             </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-[11px] leading-snug pt-0.5">
+              <div>
+                <strong className="text-indigo-400">גודל אובייקטים: </strong>
+                <span>{tooltipLayoutDef.objectSizingDesc}</span>
+              </div>
+              <div>
+                <strong className="text-indigo-400">צורת כפתורים: </strong>
+                <span>{tooltipLayoutDef.buttonStyleDesc}</span>
+              </div>
+              <div>
+                <strong className="text-indigo-400">פלטת צבעים: </strong>
+                <span>{tooltipLayoutDef.colorPaletteDesc}</span>
+              </div>
+              <div>
+                <strong className="text-indigo-400">סגנון כרטיסים: </strong>
+                <span>{tooltipLayoutDef.cardDesc}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 3. Five Closed-by-Default Accordions */}
+      <div className="flex flex-col gap-2">
+        {/* Accordion 1: סגנונות פריסה, אופן תצוגה וגדלים */}
+        <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
+          <button
+            type="button"
+            onClick={() => toggleAccordion('layout')}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <Sliders className="w-4 h-4 text-indigo-400" />
+              <span>1. סגנונות פריסה, אופן תצוגה וגדלים</span>
+            </div>
             <ChevronDown
-              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                openSections.layouts ? 'rotate-180' : ''
+              className={`w-4 h-4 transition-transform duration-200 ${
+                openAccordion === 'layout' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
               }`}
             />
           </button>
 
-          {openSections.layouts && (
-            <div className="p-3.5 pt-1 space-y-3.5 border-t border-slate-200/80 dark:border-slate-800">
-              {/* VERTICAL ROWS ONE UNDER ANOTHER (FLEX FLEX-COL) */}
-              <div className="flex flex-col gap-2.5">
-                {LIVE_POSTS_LAYOUT_DEFINITIONS.map((layout) => {
-                  const isSelected = formData.layout === layout.id;
-                  const LayoutIcon = layout.icon;
-                  return (
-                    <div
-                      key={layout.id}
-                      onClick={() => update('layout', layout.id)}
-                      className={`p-3 rounded-2xl border cursor-pointer transition-all duration-200 relative text-right flex flex-col justify-between ${
-                        isSelected
-                          ? 'border-indigo-500 bg-indigo-50/40 dark:bg-indigo-950/20 ring-2 ring-indigo-500/20 shadow-md'
-                          : 'border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-slate-300 dark:hover:border-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 border ${
-                              isSelected
-                                ? 'bg-indigo-500 text-white border-indigo-600'
-                                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-600'
-                            }`}
-                          >
-                            <LayoutIcon className="w-3.5 h-3.5" />
-                          </div>
-                          <div>
-                            <span className="font-extrabold text-xs text-slate-900 dark:text-white block leading-tight">
-                              {layout.title}
-                            </span>
-                            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">
-                              {layout.cardStyleDesc}
-                            </span>
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <CheckCircle2 className="w-4 h-4 text-indigo-500 shrink-0" />
-                        )}
-                      </div>
-
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
-                        {layout.subtitle}
-                      </p>
-
-                      <div className="flex items-center justify-between mt-2.5 pt-2 border-t border-slate-100 dark:border-slate-800/80">
-                        <span className="text-[10px] text-slate-400">פלטת צבעים:</span>
-                        <div className="flex items-center gap-1">
-                          {layout.swatches.map((color, i) => (
-                            <span
-                              key={i}
-                              className="w-2.5 h-2.5 rounded-full border border-white dark:border-slate-900 shadow-xs"
-                              style={{ backgroundColor: color }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 2. DISPLAY MODES & SECTION CONTROLS (VERTICAL ROWS) */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40 transition-all">
-          <button
-            type="button"
-            onClick={() => toggleSection('display')}
-            className="w-full p-3 flex items-center justify-between text-right hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
-          >
-            <div className="flex items-center gap-2">
-              <Sliders className="w-4 h-4 text-purple-500" />
-              <div>
-                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                  2. אופן תצוגה וכפתור פעולה
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  גריד, קרוסלה, ספוטלייט מודגש או רשימה מהודקת
-                </span>
-              </div>
-            </div>
-            <ChevronDown
-              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                openSections.display ? 'rotate-180' : ''
-              }`}
-            />
-          </button>
-
-          {openSections.display && (
-            <div className="p-3.5 pt-1 space-y-3.5 border-t border-slate-200/80 dark:border-slate-800">
-              {/* DISPLAY MODE ROWS (VERTICAL STACK) */}
-              <div className="space-y-2">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                  סגנון תצוגת הפוסטים (Display Mode)
-                </span>
-                <div className="flex flex-col gap-2">
-                  {LIVE_POSTS_DISPLAY_MODES.map((mode) => {
-                    const isSelected = (formData.displayMode || 'grid') === mode.id;
-                    const ModeIcon = mode.icon;
+          {openAccordion === 'layout' && (
+            <div className="p-3.5 border-t border-white/10 space-y-3.5 bg-black/30">
+              {/* Display Mode (4 Compact Modes with Icons) */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-zinc-300">אופן תצוגת הפוסטים (Display Mode)</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { id: 'grid', label: 'גריד עמודות', desc: '3 עמודות קלאסי', icon: Grid },
+                    { id: 'carousel', label: 'קרוסלה זזה', desc: 'גלילה עם חיצים', icon: Sliders },
+                    { id: 'spotlight', label: 'ספוטלייט מודגש', desc: 'פוסט ראשי גדול', icon: Star },
+                    { id: 'compact-list', label: 'רשימה מהודקת', desc: 'שורות כרטיסים', icon: List },
+                  ].map((m) => {
+                    const ModeIcon = m.icon;
+                    const isSelected = (localConfig.displayMode || 'grid') === m.id;
                     return (
-                      <div
-                        key={mode.id}
-                        onClick={() => update('displayMode', mode.id)}
-                        className={`p-2.5 rounded-xl border cursor-pointer transition-all duration-200 flex items-center justify-between gap-2.5 ${
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => handleUpdate({ displayMode: m.id as LivePostsDisplayMode })}
+                        className={`p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
                           isSelected
-                            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 ring-1 ring-indigo-500'
-                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:border-slate-300'
+                            ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                            : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
                         }`}
                       >
-                        <div className="flex items-center gap-2">
-                          <div
-                            className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                              isSelected
-                                ? 'bg-indigo-500 text-white'
-                                : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                            }`}
-                          >
-                            <ModeIcon className="w-3.5 h-3.5" />
-                          </div>
-                          <div>
-                            <span className="text-xs font-bold text-slate-900 dark:text-white block leading-tight">
-                              {mode.label}
-                            </span>
-                            <span className="text-[10px] text-slate-500 block">
-                              {mode.description}
-                            </span>
-                          </div>
-                        </div>
-                        {isSelected && (
-                          <CheckCircle2 className="w-4 h-4 text-indigo-500 shrink-0" />
-                        )}
-                      </div>
+                        <ModeIcon className="w-4 h-4" />
+                        <span className="text-xs">{m.label}</span>
+                        <span className="text-[10px] opacity-75">{m.desc}</span>
+                      </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* Display controls toggles */}
-              <div className="bg-white dark:bg-slate-850 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block mb-1">
-                  הצגת אלמנטים בכרטיסי הפוסטים:
-                </span>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(formData.showPostExcerpt ?? true)}
-                      onChange={(e) => update('showPostExcerpt', e.target.checked)}
-                      className="rounded text-indigo-500 focus:ring-indigo-400 w-3.5 h-3.5"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">תקציר הפוסט</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(formData.showPostDate ?? true)}
-                      onChange={(e) => update('showPostDate', e.target.checked)}
-                      className="rounded text-indigo-500 focus:ring-indigo-400 w-3.5 h-3.5"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">תאריך אירוע</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(formData.showPostTag ?? true)}
-                      onChange={(e) => update('showPostTag', e.target.checked)}
-                      className="rounded text-indigo-500 focus:ring-indigo-400 w-3.5 h-3.5"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">תגית / קטגוריה</span>
-                  </label>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(formData.showReadTime ?? true)}
-                      onChange={(e) => update('showReadTime', e.target.checked)}
-                      className="rounded text-indigo-500 focus:ring-indigo-400 w-3.5 h-3.5"
-                    />
-                    <span className="text-slate-700 dark:text-slate-300">זמן קריאה משוער</span>
-                  </label>
+              {/* Object Scale */}
+              <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-zinc-300">סקאלת גודל אובייקטים ומרווחים (Object Scale)</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'compact', label: 'קומפקטי', desc: 'כרטיסים הדוקים' },
+                    { id: 'normal', label: 'מאוזן', desc: 'סטנדרטי ונקי' },
+                    { id: 'large', label: 'מרווח', desc: 'כרטיסים עשירים' },
+                  ].map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => handleUpdate({ objectScale: s.id as any })}
+                      className={`p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                        (localConfig.objectScale || 'normal') === s.id
+                          ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                          : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-xs">{s.label}</span>
+                      <span className="text-[10px] opacity-75">{s.desc}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Sizing & Buttons */}
+              {/* Button Shape & Size */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    קנה מידה לאובייקטים (Object Scale)
-                  </label>
-                  <select
-                    value={formData.objectScale || 'normal'}
-                    onChange={(e) => update('objectScale', e.target.value as any)}
-                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="auto">אוטומטי (לפי הפריסה)</option>
-                    <option value="compact">קומפקטי ומדויק</option>
-                    <option value="normal">סטנדרטי מאוזן</option>
-                    <option value="large">גדול ומודגש</option>
-                    <option value="massive">ענק ומסיבי (Eye-Catching)</option>
-                  </select>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">צורת כפתורים ותגיות</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'rounded', label: 'מעוגל' },
+                      { id: 'pill', label: 'קפסולה' },
+                      { id: 'sharp', label: 'חד 0px' },
+                    ].map((b) => (
+                      <button
+                        key={b.id}
+                        type="button"
+                        onClick={() => handleUpdate({ buttonShape: b.id as any })}
+                        className={`p-1.5 rounded-lg border text-xs text-center transition cursor-pointer ${
+                          (localConfig.buttonShape || 'rounded') === b.id
+                            ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                            : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {b.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div>
-                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                    צורת כפתורי פעולה
-                  </label>
-                  <select
-                    value={formData.buttonShape || 'rounded'}
-                    onChange={(e) => update('buttonShape', e.target.value as any)}
-                    className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200"
-                  >
-                    <option value="auto">אוטומטי (לפי הפריסה)</option>
-                    <option value="pill">קפסולה עגולה (Pill)</option>
-                    <option value="rounded">מעוגל מודרני (Rounded)</option>
-                    <option value="sharp">חד 90° (Sharp Brutalist)</option>
-                    <option value="chiseled">מסותת טקטי (Chiseled)</option>
-                  </select>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">גודל כפתור הנעה לפעולה</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'sm', label: 'קטן' },
+                      { id: 'md', label: 'בינוני' },
+                      { id: 'lg', label: 'גדול' },
+                    ].map((sz) => (
+                      <button
+                        key={sz.id}
+                        type="button"
+                        onClick={() => handleUpdate({ buttonSize: sz.id as any })}
+                        className={`p-1.5 rounded-lg border text-xs text-center transition cursor-pointer ${
+                          (localConfig.buttonSize || 'md') === sz.id
+                            ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                            : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                        }`}
+                      >
+                        {sz.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
+            </div>
+          )}
+        </div>
 
-              {/* Global CTA button */}
-              <div className="bg-white dark:bg-slate-850 p-3 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-2">
+        {/* Accordion 2: כותרות, תגית עליונה והנעה לפעולה */}
+        <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
+          <button
+            type="button"
+            onClick={() => toggleAccordion('headings')}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+          >
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-indigo-400" />
+              <span>2. כותרות, תגית עליונה והנעה לפעולה</span>
+            </div>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-200 ${
+                openAccordion === 'headings' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
+              }`}
+            />
+          </button>
+
+          {openAccordion === 'headings' && (
+            <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
+              <PageBuilderInput
+                label="כותרת ראשית של האזור"
+                value={localConfig.title || ''}
+                placeholder="עדכונים ואירועים אחרונים"
+                onChange={(e) => handleUpdate({ title: resolveInputValue(e) })}
+              />
+
+              <PageBuilderInput
+                label="תת-כותרת / תגית"
+                value={localConfig.subtitle || ''}
+                placeholder="כל מה שחדש וקורה בפעילות ובקהילה"
+                onChange={(e) => handleUpdate({ subtitle: resolveInputValue(e) })}
+              />
+
+              <PageBuilderTextarea
+                label="תיאור מורחב / פסקה"
+                value={localConfig.description || ''}
+                rows={2}
+                placeholder="הסבר קצר על מהות העדכונים..."
+                onChange={(e) => handleUpdate({ description: resolveInputValue(e) })}
+              />
+
+              {/* CTA Button Settings */}
+              <div className="pt-2 border-t border-white/10 flex flex-col gap-2.5">
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
                     type="checkbox"
-                    checked={Boolean(formData.showCtaButton ?? true)}
-                    onChange={(e) => update('showCtaButton', e.target.checked)}
-                    className="rounded text-indigo-500 focus:ring-indigo-400 w-4 h-4"
+                    checked={Boolean(localConfig.showCtaButton)}
+                    onChange={(e) => handleUpdate({ showCtaButton: e.target.checked })}
+                    className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-zinc-700 bg-zinc-800"
                   />
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    הצג כפתור הנעה לפעולה ראשי (CTA) בתחתית האזור
-                  </span>
+                  <span className="text-xs font-semibold text-zinc-200">הצג כפתור קריאה לפעולה בתחתית</span>
                 </label>
 
-                {(formData.showCtaButton ?? true) && (
+                {localConfig.showCtaButton && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                     <PageBuilderInput
-                      label="טקסט הכפתור"
-                      value={formData.ctaText || ''}
-                      onChange={(e) => update('ctaText', e.target.value)}
+                      label="טקסט כפתור"
+                      value={localConfig.ctaText || ''}
                       placeholder="לכל האירועים והחדשות"
+                      onChange={(e) => handleUpdate({ ctaText: resolveInputValue(e) })}
                     />
                     <PageBuilderInput
-                      label="קישור הכפתור (URL / עוגן)"
-                      value={formData.ctaUrl || ''}
-                      onChange={(e) => update('ctaUrl', e.target.value)}
-                      placeholder="#events או קישור מלא"
-                      dir="ltr"
+                      label="קישור כפתור (URL)"
+                      value={localConfig.ctaUrl || ''}
+                      placeholder="#contact או כתובת דף"
+                      onChange={(e) => handleUpdate({ ctaUrl: resolveInputValue(e) })}
                     />
                   </div>
                 )}
@@ -817,205 +785,269 @@ export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({ config
           )}
         </div>
 
-        {/* 3. TEXT BACKGROUND OVERLAY ACCORDION */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40 transition-all">
+        {/* Accordion 3: רקע תמונה מאחורי הטקסט ואפקטי מעבר */}
+        <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleSection('text_bg')}
-            className="w-full p-3 flex items-center justify-between text-right hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
+            onClick={() => toggleAccordion('textBg')}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Layers className="w-4 h-4 text-pink-500" />
-              <div>
-                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                  3. רקע תמונה מתקדם לטקסט / אזור (Text Background)
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  שכבת רקע עם 5 אפקטים עוברים מתקדמים
-                </span>
-              </div>
+              <ImageIcon className="w-4 h-4 text-indigo-400" />
+              <span>3. רקע תמונה מאחורי הטקסט ואפקטי מעבר</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                openSections.text_bg ? 'rotate-180' : ''
+              className={`w-4 h-4 transition-transform duration-200 ${
+                openAccordion === 'textBg' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
               }`}
             />
           </button>
 
-          {openSections.text_bg && (
-            <div className="p-3.5 pt-1 space-y-3.5 border-t border-slate-200/80 dark:border-slate-800">
-              <label className="flex items-center gap-2 cursor-pointer bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700">
+          {openAccordion === 'textBg' && (
+            <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
+              <label className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={Boolean(formData.textBgEnabled)}
-                  onChange={(e) => update('textBgEnabled', e.target.checked)}
-                  className="rounded text-indigo-500 focus:ring-indigo-400 w-4 h-4"
+                  checked={Boolean(localConfig.textBgEnabled)}
+                  onChange={(e) => handleUpdate({ textBgEnabled: e.target.checked })}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 border-zinc-700 bg-zinc-800"
                 />
-                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                  הפעל תמונת רקע מאחורי הכותרות או אזור הפוסטים
-                </span>
+                <span className="text-xs font-semibold text-zinc-200">הפעל רקע תמונה אינטראקטיבי</span>
               </label>
 
-              {formData.textBgEnabled && (
-                <div className="space-y-3 bg-white dark:bg-slate-850 p-3 rounded-2xl border border-slate-200 dark:border-slate-700">
+              {localConfig.textBgEnabled && (
+                <>
                   <PageBuilderImageUpload
-                    label="תמונת רקע"
-                    value={formData.textBgImageUrl || ''}
-                    onChange={(url) => update('textBgImageUrl', url)}
+                    label="תמונת רקע אינטראקטיבית"
+                    value={localConfig.textBgImageUrl || ''}
+                    onChange={(url) => handleUpdate({ textBgImageUrl: url })}
                   />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* 5 Hover Effects */}
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-xs font-semibold text-zinc-300">אפקט מעבר מרחף (Hover Effect)</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                      {[
+                        { id: 'zoom-glow', label: 'זום והילה (Zoom Glow)' },
+                        { id: 'shimmer-sweep', label: 'ברק חולף (Shimmer)' },
+                        { id: 'float-parallax', label: 'ריחוף קל (Float)' },
+                        { id: 'blur-reveal', label: 'מטושטש לחד (Blur)' },
+                        { id: 'gradient-shift', label: 'מעבר צבע (Shift)' },
+                      ].map((eff) => (
+                        <button
+                          key={eff.id}
+                          type="button"
+                          onClick={() => handleUpdate({ textBgEffect: eff.id as HeroTextBgEffect })}
+                          className={`p-2 rounded-xl border text-center text-xs transition cursor-pointer ${
+                            (localConfig.textBgEffect || 'zoom-glow') === eff.id
+                              ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {eff.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     <PageBuilderColorPicker
                       label="צבע שכבת כיסוי (Overlay Color)"
-                      value={formData.textBgOverlayColor || '#000000'}
-                      onChange={(c) => update('textBgOverlayColor', c)}
+                      value={localConfig.textBgOverlayColor || '#000000'}
+                      onChange={(color) => handleUpdate({ textBgOverlayColor: color })}
                     />
 
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        אטימות שכבת כיסוי: {formData.textBgOverlayOpacity ?? 60}%
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-semibold text-zinc-300">
+                        שקיפות שכבת כיסוי: {localConfig.textBgOverlayOpacity ?? 60}%
                       </label>
                       <input
                         type="range"
                         min="0"
                         max="100"
-                        value={formData.textBgOverlayOpacity ?? 60}
-                        onChange={(e) => update('textBgOverlayOpacity', Number(e.target.value))}
-                        className="w-full accent-indigo-500"
+                        value={localConfig.textBgOverlayOpacity ?? 60}
+                        onChange={(e) => handleUpdate({ textBgOverlayOpacity: Number(e.target.value) })}
+                        className="w-full accent-indigo-500 mt-2"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        אפקט עובר (Hover / Reveal Effect)
-                      </label>
-                      <select
-                        value={formData.textBgEffect || 'zoom-glow'}
-                        onChange={(e) => update('textBgEffect', e.target.value as HeroTextBgEffect)}
-                        className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200"
-                      >
-                        <option value="zoom-glow">זום וזוהר עדין (Zoom & Glow)</option>
-                        <option value="shimmer-sweep">ברק נע מתכתי (Shimmer Sweep)</option>
-                        <option value="float-parallax">ציפה תלת-ממדית (Float Parallax)</option>
-                        <option value="blur-reveal">חשיפה מטשטוש (Blur Reveal)</option>
-                        <option value="gradient-shift">שינוי גרדיאנט דינמי (Gradient Shift)</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        תחולת הרקע (Scope)
-                      </label>
-                      <select
-                        value={formData.textBgScope || 'text-card'}
-                        onChange={(e) => update('textBgScope', e.target.value as any)}
-                        className="w-full text-xs bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-slate-800 dark:text-slate-200"
-                      >
-                        <option value="text-card">כרטיס הכותרות בלבד</option>
-                        <option value="full-section">כל האזור מקצה לקצה</option>
-                      </select>
+                  <div className="flex flex-col gap-1.5 pt-1">
+                    <label className="text-xs font-semibold text-zinc-300">היקף תחולת רקע התמונה</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {[
+                        { id: 'text-card', label: 'על כרטיס האזור בלבד' },
+                        { id: 'whole-section', label: 'על כל שטח האזור' },
+                      ].map((sc) => (
+                        <button
+                          key={sc.id}
+                          type="button"
+                          onClick={() => handleUpdate({ textBgScope: sc.id as any })}
+                          className={`p-2 rounded-xl border text-center text-xs transition cursor-pointer ${
+                            (localConfig.textBgScope || 'text-card') === sc.id
+                              ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          }`}
+                        >
+                          {sc.label}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           )}
         </div>
 
-        {/* 4. POSTS & EVENTS MANAGEMENT ACCORDION */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40 transition-all">
+        {/* Accordion 4: ניהול פוסטים, אירועים ועדכונים */}
+        <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleSection('posts')}
-            className="w-full p-3 flex items-center justify-between text-right hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
+            onClick={() => toggleAccordion('posts')}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-emerald-500" />
-              <div>
-                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                  4. ניהול פוסטים ואירועים ({(formData.customPages || []).length})
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  הוספה, עריכת תכנים, תמונות, תאריכים ותגיות
-                </span>
-              </div>
+              <Calendar className="w-4 h-4 text-indigo-400" />
+              <span>4. ניהול פוסטים ואירועים ({localConfig.customPages?.length || 0})</span>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleAddPost();
-                }}
-                className="px-2 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-xs"
-              >
-                <Plus className="w-3 h-3" />
-                <span>הוסף פוסט</span>
-              </button>
-              <ChevronDown
-                className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                  openSections.posts ? 'rotate-180' : ''
-                }`}
-              />
-            </div>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform duration-200 ${
+                openAccordion === 'posts' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
+              }`}
+            />
           </button>
 
-          {openSections.posts && (
-            <div className="p-3.5 pt-1 space-y-3.5 border-t border-slate-200/80 dark:border-slate-800">
-              <PageBuilderInput
-                label="כותרת ראשית של האזור"
-                value={formData.title || ''}
-                onChange={(e) => update('title', e.target.value)}
-                placeholder="למשל: עדכונים ואירועים אחרונים"
-              />
+          {openAccordion === 'posts' && (
+            <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
+              {/* Display Metadata Toggles */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pb-2 border-b border-white/10 text-[11px]">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localConfig.showPostExcerpt)}
+                    onChange={(e) => handleUpdate({ showPostExcerpt: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 border-zinc-700 bg-zinc-800"
+                  />
+                  <span>תקציר ידיעה</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localConfig.showPostDate)}
+                    onChange={(e) => handleUpdate({ showPostDate: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 border-zinc-700 bg-zinc-800"
+                  />
+                  <span>תאריך פרסום</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localConfig.showPostTag)}
+                    onChange={(e) => handleUpdate({ showPostTag: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 border-zinc-700 bg-zinc-800"
+                  />
+                  <span>תגית קטגוריה</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localConfig.showPostAuthor)}
+                    onChange={(e) => handleUpdate({ showPostAuthor: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 border-zinc-700 bg-zinc-800"
+                  />
+                  <span>שם המחבר</span>
+                </label>
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localConfig.showReadTime)}
+                    onChange={(e) => handleUpdate({ showReadTime: e.target.checked })}
+                    className="w-3.5 h-3.5 rounded text-indigo-600 border-zinc-700 bg-zinc-800"
+                  />
+                  <span>זמן קריאה</span>
+                </label>
+              </div>
 
-              <PageBuilderTextarea
-                label="תיאור משנה של האזור"
-                value={formData.description || ''}
-                onChange={(e) => update('description', e.target.value)}
-                rows={2}
-                placeholder="למשל: כל מה שחדש וקורה בפעילות ובקהילה שלנו"
-              />
+              {/* Posts Header with Add Button */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-xs font-bold text-zinc-300">רשימת פוסטים ואירועים</span>
+                <button
+                  type="button"
+                  onClick={handleAddPost}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>הוסף פוסט</span>
+                </button>
+              </div>
 
-              {/* POST ITEMS LIST (VERTICAL ROWS) */}
-              <div className="flex flex-col gap-2.5 pt-2">
-                {(formData.customPages || []).map((post, idx) => {
-                  const isEditing = editingPostId === post.id;
+              {/* Posts List */}
+              <div className="flex flex-col gap-2.5">
+                {localConfig.customPages?.map((post, idx) => {
+                  const isExpanded = expandedPostId === (post.id || String(idx));
                   return (
                     <div
-                      key={post.id}
-                      className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-850 overflow-hidden shadow-xs transition-all"
+                      key={post.id || idx}
+                      className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition"
                     >
-                      <div className="flex items-center justify-between p-3 bg-slate-50/80 dark:bg-slate-800/80">
-                        <div className="flex items-center gap-2.5">
-                          <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-[10px] font-mono text-slate-600 dark:text-slate-300 flex items-center justify-center font-bold">
-                            {idx + 1}
-                          </span>
-                          <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white line-clamp-1">
-                            {post.title || 'ללא כותרת'}
-                          </span>
-                          {post.isFeatured && (
-                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold">
-                              מוביל
-                            </span>
+                      {/* Post Item Header */}
+                      <div className="p-2.5 flex items-center justify-between gap-2 hover:bg-white/5">
+                        <div
+                          className="flex items-center gap-2 flex-1 cursor-pointer truncate"
+                          onClick={() =>
+                            setExpandedPostId(isExpanded ? null : post.id || String(idx))
+                          }
+                        >
+                          {post.imageUrl ? (
+                            <img
+                              src={post.imageUrl}
+                              alt=""
+                              className="w-8 h-8 rounded-lg object-cover shrink-0 border border-white/10"
+                            />
+                          ) : (
+                            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                              <Calendar className="w-3.5 h-3.5" />
+                            </div>
                           )}
+                          <div className="flex flex-col truncate">
+                            <span className="text-xs font-bold text-white truncate">
+                              {post.title || `פוסט #${idx + 1}`}
+                            </span>
+                            <div className="flex items-center gap-1.5 text-[10px] text-zinc-400">
+                              {post.tag && <span className="text-indigo-400">{post.tag}</span>}
+                              {post.date && <span>• {post.date}</span>}
+                              {post.isFeatured && (
+                                <span className="text-amber-400 font-bold">★ מוביל</span>
+                              )}
+                            </div>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-1">
+                        {/* Quick Controls */}
+                        <div className="flex items-center gap-1 shrink-0">
                           <button
                             type="button"
-                            onClick={() => setEditingPostId(isEditing ? null : post.id)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
-                            title="ערוך פוסט"
+                            disabled={idx === 0}
+                            onClick={() => handleMovePost(idx, 'up')}
+                            className="p-1 rounded-lg text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                            title="הזז למעלה"
                           >
-                            <Edit2 className="w-3.5 h-3.5" />
+                            <ChevronUp className="w-3.5 h-3.5" />
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleDeletePost(post.id)}
-                            className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+                            disabled={idx === (localConfig.customPages?.length || 0) - 1}
+                            onClick={() => handleMovePost(idx, 'down')}
+                            className="p-1 rounded-lg text-zinc-400 hover:text-white disabled:opacity-30 cursor-pointer"
+                            title="הזז למטה"
+                          >
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePost(idx)}
+                            className="p-1 rounded-lg text-zinc-400 hover:text-red-400 transition cursor-pointer"
                             title="מחק פוסט"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1023,87 +1055,83 @@ export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({ config
                         </div>
                       </div>
 
-                      {isEditing && (
-                        <div className="p-3.5 border-t border-slate-200 dark:border-slate-700 space-y-3 bg-white dark:bg-slate-900">
+                      {/* Post Item Expanded Content */}
+                      {isExpanded && (
+                        <div className="p-3 border-t border-white/10 space-y-3 bg-black/40">
                           <PageBuilderInput
-                            label="כותרת הפוסט"
-                            value={post.title}
-                            onChange={(e) => handleUpdatePost(post.id, { title: e.target.value })}
+                            label="כותרת הפוסט / האירוע"
+                            value={post.title || ''}
+                            placeholder="כותרת הידיעה"
+                            onChange={(e) => handlePostChange(idx, 'title', resolveInputValue(e))}
                           />
 
                           <PageBuilderTextarea
-                            label="תקציר הפוסט"
+                            label="תקציר הידיעה"
                             value={post.excerpt || ''}
-                            onChange={(e) => handleUpdatePost(post.id, { excerpt: e.target.value })}
                             rows={2}
+                            placeholder="תקציר קצר שיופיע בכרטיס..."
+                            onChange={(e) => handlePostChange(idx, 'excerpt', resolveInputValue(e))}
                           />
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <PageBuilderInput
-                              label="תאריך"
-                              value={post.date || ''}
-                              onChange={(e) => handleUpdatePost(post.id, { date: e.target.value })}
-                              placeholder="15 באוגוסט 2026"
-                            />
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <PageBuilderInput
                               label="תגית / קטגוריה"
                               value={post.tag || ''}
-                              onChange={(e) => handleUpdatePost(post.id, { tag: e.target.value })}
-                              placeholder="אירועים / חדשות / פיתוח"
+                              placeholder="אירועים, חדשות..."
+                              onChange={(e) => handlePostChange(idx, 'tag', resolveInputValue(e))}
+                            />
+                            <PageBuilderInput
+                              label="תאריך להצגה"
+                              value={post.date || ''}
+                              placeholder="היום, 15 באוגוסט..."
+                              onChange={(e) => handlePostChange(idx, 'date', resolveInputValue(e))}
+                            />
+                            <PageBuilderInput
+                              label="זמן קריאה (בדקות)"
+                              value={String(post.readTimeMinutes || 3)}
+                              placeholder="3"
+                              onChange={(e) =>
+                                handlePostChange(
+                                  idx,
+                                  'readTimeMinutes',
+                                  parseInt(resolveInputValue(e)) || 3
+                                )
+                              }
                             />
                           </div>
 
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <PageBuilderInput
-                              label="זמן קריאה משוער (בדקות)"
-                              type="number"
-                              value={String(post.readTimeMinutes || 3)}
+                              label="שם המחבר / הנהלה"
+                              value={post.authorName || ''}
+                              placeholder="צוות הארגון"
                               onChange={(e) =>
-                                handleUpdatePost(post.id, {
-                                  readTimeMinutes: Number(e.target.value) || 1,
-                                })
+                                handlePostChange(idx, 'authorName', resolveInputValue(e))
                               }
                             />
                             <PageBuilderInput
-                              label="מחבר הפוסט"
-                              value={post.authorName || ''}
-                              onChange={(e) => handleUpdatePost(post.id, { authorName: e.target.value })}
-                              placeholder="צוות המערכת"
+                              label="קישור לכתבה / עמוד מלא"
+                              value={post.linkUrl || ''}
+                              placeholder="# או כתובת דף"
+                              onChange={(e) => handlePostChange(idx, 'linkUrl', resolveInputValue(e))}
                             />
                           </div>
 
                           <PageBuilderImageUpload
-                            label="תמונה ראשית לפוסט"
-                            value={post.imageUrl || ''}
-                            onChange={(url) => handleUpdatePost(post.id, { imageUrl: url })}
+                            label="תמונת פוסט ראשית"
+                            value={post.imageUrl}
+                            onChange={(url) => handlePostChange(idx, 'imageUrl', url)}
                           />
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <PageBuilderInput
-                              label="קישור לכתבה מלאה"
-                              value={post.linkUrl || ''}
-                              onChange={(e) => handleUpdatePost(post.id, { linkUrl: e.target.value })}
-                              placeholder="https://..."
-                              dir="ltr"
-                            />
-                            <PageBuilderInput
-                              label="טקסט כפתור הקריאה"
-                              value={post.ctaButtonText || 'קרא את הכתבה המלאה'}
-                              onChange={(e) =>
-                                handleUpdatePost(post.id, { ctaButtonText: e.target.value })
-                              }
-                            />
-                          </div>
 
                           <label className="flex items-center gap-2 cursor-pointer pt-1">
                             <input
                               type="checkbox"
                               checked={Boolean(post.isFeatured)}
-                              onChange={(e) => handleUpdatePost(post.id, { isFeatured: e.target.checked })}
-                              className="rounded text-amber-500 focus:ring-amber-400 w-3.5 h-3.5"
+                              onChange={(e) => handlePostChange(idx, 'isFeatured', e.target.checked)}
+                              className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400 border-zinc-700 bg-zinc-800"
                             />
-                            <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                              סמן כפוסט מוביל (Featured Spotlight)
+                            <span className="text-xs font-semibold text-zinc-200">
+                              סמן כפוסט מוביל (מוגדש בספוטלייט)
                             </span>
                           </label>
                         </div>
@@ -1116,141 +1144,61 @@ export const LivePostsGridEditor: React.FC<LivePostsGridEditorProps> = ({ config
           )}
         </div>
 
-        {/* 5. COLORS AND ANCHOR ACCORDION */}
-        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden bg-slate-50/50 dark:bg-slate-900/40 transition-all">
+        {/* Accordion 5: צבעי מיתוג וכרטיסים */}
+        <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleSection('colors')}
-            className="w-full p-3 flex items-center justify-between text-right hover:bg-slate-100/60 dark:hover:bg-slate-800/60 transition-colors"
+            onClick={() => toggleAccordion('colors')}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
           >
             <div className="flex items-center gap-2">
-              <Palette className="w-4 h-4 text-cyan-500" />
-              <div>
-                <span className="font-bold text-xs sm:text-sm text-slate-800 dark:text-slate-200">
-                  5. צבעים מותאמים אישית ומזהה עוגן
-                </span>
-                <span className="text-[10px] text-slate-500 block">
-                  צבעי רקע, כותרות, כרטיסים ועוגן ניווט
-                </span>
-              </div>
+              <Palette className="w-4 h-4 text-indigo-400" />
+              <span>5. צבעי מיתוג וכרטיסים</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-                openSections.colors ? 'rotate-180' : ''
+              className={`w-4 h-4 transition-transform duration-200 ${
+                openAccordion === 'colors' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
               }`}
             />
           </button>
 
-          {openSections.colors && (
-            <div className="p-3.5 pt-1 space-y-3.5 border-t border-slate-200/80 dark:border-slate-800">
+          {openAccordion === 'colors' && (
+            <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <PageBuilderColorPicker
-                  label="צבע רקע כרטיסי פוסט"
-                  value={formData.cardBackgroundColor || ''}
-                  onChange={(c) => update('cardBackgroundColor', c)}
+                  label="צבע רקע כללי של האזור"
+                  value={localConfig.backgroundColor || 'transparent'}
+                  onChange={(color) => handleUpdate({ backgroundColor: color })}
                 />
-                <PageBuilderColorPicker
-                  label="צבע רקע כללי לאזור"
-                  value={formData.backgroundColor || 'transparent'}
-                  onChange={(c) => update('backgroundColor', c)}
-                />
-              </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <PageBuilderColorPicker
+                  label="צבע רקע כרטיסי הפוסטים"
+                  value={localConfig.cardBackgroundColor || ''}
+                  onChange={(color) => handleUpdate({ cardBackgroundColor: color })}
+                />
+
+                <PageBuilderColorPicker
+                  label="צבע הדגשה / Accent"
+                  value={localConfig.accentColor || '#4f46e5'}
+                  onChange={(color) => handleUpdate({ accentColor: color })}
+                />
+
                 <PageBuilderColorPicker
                   label="צבע כותרת ראשית"
-                  value={formData.titleColor || ''}
-                  onChange={(c) => update('titleColor', c)}
+                  value={localConfig.titleColor || ''}
+                  onChange={(color) => handleUpdate({ titleColor: color })}
                 />
+
                 <PageBuilderColorPicker
-                  label="צבע תיאור"
-                  value={formData.descriptionColor || ''}
-                  onChange={(c) => update('descriptionColor', c)}
+                  label="צבע תיאור מורחב"
+                  value={localConfig.descriptionColor || ''}
+                  onChange={(color) => handleUpdate({ descriptionColor: color })}
                 />
               </div>
-
-              <PageBuilderInput
-                label="מזהה עוגן (Anchor ID)"
-                value={formData.anchorId || 'livePosts'}
-                onChange={(e) => update('anchorId', e.target.value)}
-                placeholder="livePosts"
-                dir="ltr"
-              />
             </div>
           )}
         </div>
       </div>
-
-      {/* FOOTER BAR WITH SAVE / DIRTY STATUS */}
-      <div className="p-3 bg-slate-50/90 dark:bg-slate-900/90 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2">
-        <div className="text-xs text-slate-500">
-          {isDirty ? (
-            <span className="text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-indigo-500 animate-ping inline-block" />
-              ישנם שינויים שלא נשמרו
-            </span>
-          ) : (
-            <span className="text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
-              <Check className="w-3.5 h-3.5" />
-              הכל שמור ומסונכרן
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2">
-          {onClose && (
-            <button
-              type="button"
-              onClick={handleClose}
-              className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors"
-            >
-              ביטול
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className="px-4 py-1.5 rounded-xl text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/20 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-1.5"
-          >
-            <Save className="w-3.5 h-3.5" />
-            <span>{isSaving ? 'שומר...' : 'שמור והחל'}</span>
-          </button>
-        </div>
-      </div>
-
-      {/* UNSAVED CHANGES CONFIRMATION MODAL */}
-      {showUnsavedConfirm && (
-        <div className="absolute inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-850 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl max-w-sm w-full text-right space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 dark:text-white">
-              האם לצאת ללא שמירה?
-            </h4>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              ביצעת שינויים באזור הפוסטים והאירועים שטרם נשמרו. יציאה כעת תבטל את השינויים הללו.
-            </p>
-            <div className="flex items-center justify-end gap-2 pt-2">
-              <button
-                type="button"
-                onClick={() => setShowUnsavedConfirm(false)}
-                className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
-              >
-                המשך בעריכה
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowUnsavedConfirm(false);
-                  if (onClose) onClose();
-                }}
-                className="px-3 py-1.5 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-sm"
-              >
-                צא ללא שמירה
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

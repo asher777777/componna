@@ -370,6 +370,28 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'livePosts': {
+      const tenantPreset = brand.designTokens?.defaultStylePreset;
+      if (tenantPreset) {
+        cloned.layout = tenantPreset as any;
+      } else {
+        cloned.layout = cloned.layout || 'standard';
+      }
+      cloned.title = companyName ? `עדכונים ואירועים אחרונים מ-${companyName}` : (cloned.title || 'עדכונים ואירועים אחרונים');
+      cloned.subtitle = slogan || cloned.subtitle || 'כל מה שחדש וקורה בפעילות ובקהילה שלנו';
+      cloned.description = uvp || cloned.description || 'הישארו מעודכנים בכל הפעילויות, ההרצאות, האירועים והחדשות.';
+      cloned.ctaText = cloned.ctaText || 'לכל האירועים והחדשות';
+      cloned.ctaUrl = buildWhatsAppUrl(whatsapp, `היי, קראתי על העדכונים של ${companyName} ואשמח לשמוע פרטים נוספים`);
+      cloned.displayMode = cloned.displayMode || 'grid';
+      cloned.objectScale = cloned.objectScale || 'normal';
+      cloned.buttonShape = cloned.buttonShape || 'rounded';
+      cloned.buttonSize = cloned.buttonSize || 'md';
+      if (primaryColor) {
+        cloned.accentColor = primaryColor;
+      }
+      break;
+    }
+
     case 'testimonials': {
       cloned.title = headings.testimonialsHeading || `מה מספרים עלינו?`;
       cloned.subtitle = headings.testimonialsSubtitle || 'עדויות ומשובים מהשטח';

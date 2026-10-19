@@ -32,6 +32,7 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
     cardBackgroundColor,
     titleColor,
     descriptionColor,
+    accentColor,
     layout = 'standard',
     displayMode = 'grid',
     objectScale = 'normal',
@@ -588,6 +589,7 @@ export const LivePostsGridSection: React.FC<{ config: LivePostsGridSectionConfig
       <div className="mt-8 sm:mt-12 flex justify-center">
         <a
           href={ctaUrl || '#'}
+          style={accentColor ? { backgroundColor: accentColor } : undefined}
           className={`inline-flex items-center gap-2 ${resolvedButtonShapeClass} ${resolvedButtonSizeClass} ${buttonColorClasses} transition-all duration-300 hover:scale-[1.02] active:scale-[0.98] group`}
         >
           <span>{ctaText}</span>

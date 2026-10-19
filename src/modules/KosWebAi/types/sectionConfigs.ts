@@ -731,6 +731,7 @@ export interface LivePostsGridSectionConfig extends BaseSectionConfig {
   descriptionColor?: string;
   badge?: string;
   badgeColor?: string;
+  accentColor?: string;
 
   // Layout & Styling Presets
   layout?: LivePostsLayoutPreset;
