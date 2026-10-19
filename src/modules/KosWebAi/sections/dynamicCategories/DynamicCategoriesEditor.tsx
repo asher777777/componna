@@ -69,6 +69,7 @@ export interface ArchivePageOption {
   defaultTitle: string;
   defaultSubtitle: string;
   iconName: string;
+  brandKey?: 'articles' | 'events' | 'courses' | 'videos' | 'community' | 'services' | 'posts' | 'fundraising' | 'checkout';
 }
 
 export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
@@ -79,6 +80,7 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'מאמרים ושיעורים',
     defaultSubtitle: 'כנסו לעולם התוכן והידע המעמיק שלנו',
     iconName: 'MessageSquare',
+    brandKey: 'articles',
   },
   {
     key: 'event',
@@ -87,6 +89,7 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'כנסים ואירועים',
     defaultSubtitle: 'האירועים והמפגשים המכוננים של השנה',
     iconName: 'Heart',
+    brandKey: 'events',
   },
   {
     key: 'course',
@@ -95,6 +98,7 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'קורסי הכשרה ואקדמיה',
     defaultSubtitle: 'בואו לבנות ולהבנות עם ליווי מקצועי',
     iconName: 'Briefcase',
+    brandKey: 'courses',
   },
   {
     key: 'youtube_post',
@@ -103,6 +107,7 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'הפודקאסט והוידאו שלנו',
     defaultSubtitle: 'שיחות עומק, הרצאות ושידורים חיים מרתקים',
     iconName: 'Mic',
+    brandKey: 'videos',
   },
   {
     key: 'community',
@@ -111,6 +116,7 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'מועדון הקהילה והנטוורקינג',
     defaultSubtitle: 'הטבות בלעדיות ומעגלי שיח פעילים',
     iconName: 'BookOpen',
+    brandKey: 'community',
   },
   {
     key: 'fundraising',
@@ -119,6 +125,25 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'שותפות וגיוס המונים',
     defaultSubtitle: 'יחד מגיעים אל היעד ומגדילים עשייה',
     iconName: 'Heart',
+    brandKey: 'fundraising',
+  },
+  {
+    key: 'service_product',
+    label: 'ארכיון שירותים ומוצרים (KOSASS)',
+    slug: 'kosass',
+    defaultTitle: 'קטלוג השירותים והפתרונות',
+    defaultSubtitle: 'מעטפת שירותים מקצועית בהתאמה אישית מלאה',
+    iconName: 'Sparkles',
+    brandKey: 'services',
+  },
+  {
+    key: 'posts_general',
+    label: 'ארכיון פוסטים ועמודים כלליים (/p/)',
+    slug: 'p',
+    defaultTitle: 'מאגר הפוסטים והעדכונים',
+    defaultSubtitle: 'כל הפוסטים, הטיפים והעדכונים השוטפים שלנו',
+    iconName: 'BookOpen',
+    brandKey: 'posts',
   },
   {
     key: 'checkout',
@@ -127,6 +152,7 @@ export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
     defaultTitle: 'המוצרים והחבילות שלנו',
     defaultSubtitle: 'רכישה ישירה ומאובטחת בתנאים מועדפים',
     iconName: 'Sparkles',
+    brandKey: 'checkout',
   },
 ];
 
@@ -628,13 +654,23 @@ export const DynamicCategoriesEditor: React.FC<DynamicCategoriesEditorProps> = (
                         const selectedKey = e.target.value;
                         const archiveOpt = ARCHIVE_PAGE_OPTIONS.find((a) => a.key === selectedKey);
                         if (archiveOpt) {
+                          // Dynamic Brand DNA UI Vocabulary Hydration:
+                          // Pulls category title and description directly from the tenant's brandDna.uiVocabulary
+                          const brandVocab = brandDna?.uiVocabulary;
+                          const brandCatKey = archiveOpt.brandKey;
+                          const dynamicTitle =
+                            (brandCatKey && brandVocab?.categoryTitles?.[brandCatKey]) ||
+                            archiveOpt.defaultTitle;
+                          const dynamicSubtitle =
+                            (brandCatKey && brandVocab?.categoryDescriptions?.[brandCatKey]) ||
+                            archiveOpt.defaultSubtitle;
+
                           handleUpdateCategory(idx, {
                             archiveCategoryKey: archiveOpt.key,
                             archiveSlug: archiveOpt.slug,
                             linkUrl: `/${archiveOpt.slug}`,
-                            // If title was default or empty, set default archive title (customizable!)
-                            title: cat.title === 'קטגוריה חדשה' || !cat.title ? archiveOpt.defaultTitle : cat.title,
-                            subtitle: !cat.subtitle ? archiveOpt.defaultSubtitle : cat.subtitle,
+                            title: dynamicTitle,
+                            subtitle: dynamicSubtitle,
                             iconName: archiveOpt.iconName,
                           });
                         } else {
@@ -645,7 +681,7 @@ export const DynamicCategoriesEditor: React.FC<DynamicCategoriesEditorProps> = (
                         }
                       }}
                       className="w-full bg-black/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
-                      title="בחירת עמוד ארכיון לשיוך (מציג כברירת מחדל את שם הארכיון הניתן לשינוי)"
+                      title="בחירת עמוד ארכיון לשיוך (ממלא אוטומטית כברירת מחדל את השם והתיאור הניתנים לעריכה)"
                     >
                       <option value="" className="bg-slate-900 text-zinc-400">
                         -- בחירה מתוך עמודי הארכיון (הזנה ידנית / ללא שיוך) --

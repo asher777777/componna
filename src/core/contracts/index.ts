@@ -1007,6 +1007,28 @@ export interface BrandUiVocabulary {
     galleryHeading?: string;
     gallerySubtitle?: string;
   };
+  categoryTitles?: {
+    articles?: string;
+    events?: string;
+    courses?: string;
+    videos?: string;
+    community?: string;
+    services?: string;
+    posts?: string;
+    fundraising?: string;
+    checkout?: string;
+  };
+  categoryDescriptions?: {
+    articles?: string;
+    events?: string;
+    courses?: string;
+    videos?: string;
+    community?: string;
+    services?: string;
+    posts?: string;
+    fundraising?: string;
+    checkout?: string;
+  };
 }
 
 export interface BrandDna {

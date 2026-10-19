@@ -24,7 +24,7 @@ export const BrandUiVocabularyEditor: React.FC = () => {
   const { tenantId } = useTenantScope();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isBulkSyncing, setIsBulkSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'buttons' | 'placeholders' | 'headings'>('buttons');
+  const [activeTab, setActiveTab] = useState<'buttons' | 'placeholders' | 'headings' | 'categories'>('buttons');
   const [lastActionNotice, setLastActionNotice] = useState<string | null>(null);
 
   // Compute live vocabulary with fallback to gender-aware defaults
@@ -94,6 +94,24 @@ export const BrandUiVocabularyEditor: React.FC = () => {
       sectionHeadings: {
         ...headings,
         [headingKey]: value,
+      },
+    });
+  };
+
+  const updateCategoryTitle = (key: keyof NonNullable<BrandUiVocabulary['categoryTitles']>, value: string) => {
+    updateUiVocabulary({
+      categoryTitles: {
+        ...(effectiveVocab.categoryTitles || {}),
+        [key]: value,
+      },
+    });
+  };
+
+  const updateCategoryDescription = (key: keyof NonNullable<BrandUiVocabulary['categoryDescriptions']>, value: string) => {
+    updateUiVocabulary({
+      categoryDescriptions: {
+        ...(effectiveVocab.categoryDescriptions || {}),
+        [key]: value,
       },
     });
   };
@@ -219,6 +237,19 @@ export const BrandUiVocabularyEditor: React.FC = () => {
         >
           <Type className="w-3.5 h-3.5" />
           <span>כותרות אזורי תוכן</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('categories')}
+          className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-medium transition-all ${
+            activeTab === 'categories'
+              ? 'bg-indigo-600 text-white shadow'
+              : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
+          }`}
+        >
+          <Compass className="w-3.5 h-3.5" />
+          <span>שמות ותיאורי קטגוריות וארכיונים</span>
         </button>
       </div>
 
@@ -537,6 +568,57 @@ export const BrandUiVocabularyEditor: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 4: Categories & Archives Titles and Descriptions */}
+      {activeTab === 'categories' && (
+        <div className="space-y-4">
+          <p className="text-xs text-slate-400">
+            הגדרת שמות הקטגוריות והתיאורים הקצרים שלהן כפי שיוזנו אוטומטית בעת בחירה באזור הקטגוריות.
+            בלחיצה על "דיוק ויצירת שפה עם AI", מנוע ה-AI ינסח שמות ותיאורים מותאמים אישית לטננט זה ללא נתוני דמה.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {[
+              { key: 'articles' as const, label: 'מאמרים ותוכן (KOSINFO)', slug: 'kosinfo' },
+              { key: 'events' as const, label: 'כנסים ואירועים (KOSEVENT)', slug: 'kosevent' },
+              { key: 'courses' as const, label: 'קורסים והכשרות (KOSCOURSE)', slug: 'koscourse' },
+              { key: 'videos' as const, label: 'וידאו ושידורים (KOSVIDIO)', slug: 'kosvidio' },
+              { key: 'community' as const, label: 'קהילות ומועדון (KOSCOMMUNITY)', slug: 'koscommunity' },
+              { key: 'services' as const, label: 'שירותים ומוצרים (KOSASS)', slug: 'kosass' },
+              { key: 'posts' as const, label: 'פוסטים ועדכונים (/p/)', slug: 'p' },
+              { key: 'fundraising' as const, label: 'גיוס כספים (KOSFUNRISE)', slug: 'kosfunrise' },
+              { key: 'checkout' as const, label: 'מרכז סליקה (KOSCHECKOUT)', slug: 'koscheckout' },
+            ].map((cat) => (
+              <div key={cat.key} className="space-y-2 bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/50">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-indigo-400">{cat.label}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">/{cat.slug}</span>
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 block mb-1">שם הקטגוריה</label>
+                  <input
+                    type="text"
+                    value={effectiveVocab.categoryTitles?.[cat.key] || ''}
+                    onChange={(e) => updateCategoryTitle(cat.key, e.target.value)}
+                    placeholder="שם מותאם אישית..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-slate-300 block mb-1">תיאור קצר</label>
+                  <input
+                    type="text"
+                    value={effectiveVocab.categoryDescriptions?.[cat.key] || ''}
+                    onChange={(e) => updateCategoryDescription(cat.key, e.target.value)}
+                    placeholder="תיאור קצר ומזמין..."
+                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

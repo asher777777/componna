@@ -1526,6 +1526,28 @@ export function buildDefaultBrandUiVocabulary(brand: BrandDna): BrandUiVocabular
       galleryHeading: 'גלריית עשייה ופרויקטים',
       gallerySubtitle: 'הצצה לפעילות וליצירה שלנו',
     },
+    categoryTitles: {
+      articles: 'מאמרים ושיעורים',
+      events: 'כנסים ואירועים',
+      courses: 'קורסי הכשרה ואקדמיה',
+      videos: 'הפודקאסט והוידאו שלנו',
+      community: 'מועדון הקהילה והחברים',
+      services: 'קטלוג השירותים והפתרונות',
+      posts: 'מאגר הפוסטים והעדכונים',
+      fundraising: 'שותפות וגיוס המונים',
+      checkout: 'המוצרים והחבילות שלנו',
+    },
+    categoryDescriptions: {
+      articles: 'כנסו לעולם התוכן והידע המעמיק שלנו',
+      events: 'האירועים והמפגשים המכוננים של השנה',
+      courses: 'בואו לבנות ולהבנות עם ליווי מקצועי צמוד',
+      videos: 'שיחות עומק, הרצאות ושידורים חיים מרתקים',
+      community: 'הטבות בלעדיות ומעגלי שיח פעילים',
+      services: 'מעטפת שירותים מקצועית בהתאמה אישית מלאה',
+      posts: 'כל הפוסטים, הטיפים והעדכונים השוטפים שלנו',
+      fundraising: 'יחד מגיעים אל היעד ומגדילים עשייה משותפת',
+      checkout: 'רכישה ישירה ומאובטחת בתנאים מועדפים',
+    },
   };
 }
 
@@ -1557,6 +1579,14 @@ export async function generateBrandUiVocabulary(
           sectionHeadings: {
             ...fallback.sectionHeadings,
             ...(res.sectionHeadings || {}),
+          },
+          categoryTitles: {
+            ...fallback.categoryTitles,
+            ...(res.categoryTitles || {}),
+          },
+          categoryDescriptions: {
+            ...fallback.categoryDescriptions,
+            ...(res.categoryDescriptions || {}),
           },
         },
       };
