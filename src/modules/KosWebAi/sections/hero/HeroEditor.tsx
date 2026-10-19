@@ -3,7 +3,12 @@ import { HeroSectionConfig, HeroLayoutPreset, HeroTextBgEffect } from '../../typ
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
-import { BrandDnaContract } from '../../../../core/contracts';
+import { BrandDnaContract, AiTextAssistantContract } from '../../../../core/contracts';
+import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../../core/tenant';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { PageBuilderConfig } from '../../types/pageBuilder.types';
+import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
 import {
   Save,
   X,
@@ -22,9 +27,18 @@ import {
   BarChart3,
   Layers,
   Wand2,
-  Info,
-  Eye,
+  Loader2,
+  Bold,
+  Italic,
+  Underline,
+  AlignRight,
+  AlignCenter,
+  AlignLeft,
+  Link as LinkIcon,
+  Globe,
+  FileText,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 
 export type HeroEditorAccordionSection =
   | 'layouts'
@@ -135,15 +149,26 @@ export const HeroEditor: React.FC<{
   onClose?: () => void;
 }> = ({ config, onChange, onClose }) => {
   const { getCapability } = useHostCapabilities();
-  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const brandDna = resolveLiveBrandDna(rawBrandDna);
+  const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
+  const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
 
   // Local state mirroring CRM Contact360Modal & PageSettingsDrawer
   const [formData, setFormData] = useState<HeroSectionConfig>({ ...config });
   const [initialData, setInitialData] = useState<HeroSectionConfig>({ ...config });
 
-  // Accordion state: closed by default just like PageSettingsDrawer & Contact360Modal
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+  // Exclusive Accordion state: closed by default, only 1 open at a time
+  const [openSection, setOpenSection] = useState<HeroEditorAccordionSection | null>(null);
+  const [openNestedSection, setOpenNestedSection] = useState<string | null>(null);
   const [hoveredLayoutId, setHoveredLayoutId] = useState<HeroLayoutPreset | null>(null);
+
+  // Tenant Pages list for CTA button destination selector
+  const [tenantPages, setTenantPages] = useState<PageBuilderConfig[]>([]);
+
+  // AI loading per field
+  const [aiLoadingField, setAiLoadingField] = useState<string | null>(null);
 
   const [isSaving, setIsSaving] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
@@ -161,6 +186,29 @@ export const HeroEditor: React.FC<{
   useEffect(() => {
     setFormData({ ...config });
   }, [config]);
+
+  // Load tenant published pages
+  useEffect(() => {
+    let mounted = true;
+    pageBuilderFirestore.getAllPages(db || null, tenantId)
+      .then((pages) => {
+        if (mounted && pages) {
+          const published = pages.filter((p) => p.published !== false);
+          published.sort((a, b) => {
+            if (a.isHomePage) return -1;
+            if (b.isHomePage) return 1;
+            return (a.pageTitle || '').localeCompare(b.pageTitle || '');
+          });
+          setTenantPages(published);
+        }
+      })
+      .catch((err) => {
+        console.warn('[HeroEditor] Failed to load tenant pages:', err);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [db, tenantId]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -180,7 +228,57 @@ export const HeroEditor: React.FC<{
   };
 
   const toggleSection = (section: HeroEditorAccordionSection) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    setOpenSection((prev) => (prev === section ? null : section));
+    setOpenNestedSection(null); // Reset nested accordion on main tab toggle
+  };
+
+  const toggleNestedSection = (id: string) => {
+    setOpenNestedSection((prev) => (prev === id ? null : id));
+  };
+
+  // AI Text Enhancement with Agent Contract and Brand DNA
+  const handleEnhanceTextWithAi = async (
+    fieldKey: 'title' | 'subtitle' | 'description' | 'announcementBadge' | 'imageBadge',
+    instruction: string
+  ) => {
+    if (!aiAssistant) {
+      showNotification('סוכן ה-AI אינו זמין כעת');
+      return;
+    }
+    let currentText = '';
+    if (fieldKey === 'announcementBadge') {
+      currentText = formData.announcementBadge?.text || '';
+    } else if (fieldKey === 'imageBadge') {
+      currentText = formData.imageBadge?.text || '';
+    } else {
+      currentText = (formData as any)[fieldKey] || '';
+    }
+
+    setAiLoadingField(fieldKey);
+    try {
+      const voiceHint = brandDna.voice?.powerWords?.slice(0, 3).join(', ') || '';
+      const brandSummary = brandDna.identity?.slogan || brandDna.audience?.mainUvp || '';
+      const res = await aiAssistant.enhanceText({
+        originalText: currentText,
+        instruction: `${instruction}. מילות כוח מותגיות: ${voiceHint}. תמצית מותג: ${brandSummary}. פנייה: ${brandDna.voice?.genderAddressing || 'direct'}.`,
+        brandDna,
+      });
+      if (res && res.text) {
+        if (fieldKey === 'announcementBadge') {
+          updateField('announcementBadge', { ...(formData.announcementBadge || {}), text: res.text });
+        } else if (fieldKey === 'imageBadge') {
+          updateField('imageBadge', { ...(formData.imageBadge || {}), text: res.text });
+        } else {
+          updateField(fieldKey, res.text);
+        }
+        showNotification('הטקסט שופר בהצלחה באמצעות סוכן ה-AI של המותג');
+      }
+    } catch (err) {
+      console.warn('[HeroEditor] AI Enhance failed:', err);
+      showNotification('שגיאה בשיפור הטקסט עם AI');
+    } finally {
+      setAiLoadingField(null);
+    }
   };
 
   // Updates both local state and live preview immediately
@@ -539,12 +637,12 @@ export const HeroEditor: React.FC<{
             </div>
             <ChevronDown
               className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                openSections['layouts'] ? 'rotate-180' : ''
+                openSection === 'layouts' ? 'rotate-180' : ''
               }`}
             />
           </button>
 
-          {openSections['layouts'] && (
+          {openSection === 'layouts' && (
             <div
               className={`p-3 border-t space-y-3 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
@@ -665,12 +763,12 @@ export const HeroEditor: React.FC<{
             </div>
             <ChevronDown
               className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                openSections['text_bg'] ? 'rotate-180' : ''
+                openSection === 'text_bg' ? 'rotate-180' : ''
               }`}
             />
           </button>
 
-          {openSections['text_bg'] && (
+          {openSection === 'text_bg' && (
             <div
               className={`p-3 border-t space-y-2.5 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
@@ -796,7 +894,7 @@ export const HeroEditor: React.FC<{
           )}
         </div>
 
-        {/* TAB 3: כותרות, טקסטים ותגית הכרזה (Content) */}
+        {/* TAB 3: כותרות, טקסטים, תגית הכרזה וטיפוגרפיה (Content) */}
         <div
           className={`w-full flex flex-col rounded-2xl border overflow-hidden transition-all ${
             isDarkMode ? 'border-white/5 bg-[#141414]' : 'border-slate-200 bg-slate-50/70'
@@ -817,122 +915,350 @@ export const HeroEditor: React.FC<{
               >
                 <Type className="w-3.5 h-3.5" />
               </div>
-              <span>כותרות, תיאור ותגית הכרזה עליונה</span>
+              <span>כותרות, תיאור, תגית הכרזה וטיפוגרפיה</span>
             </div>
             <ChevronDown
               className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                openSections['content'] ? 'rotate-180' : ''
+                openSection === 'content' ? 'rotate-180' : ''
               }`}
             />
           </button>
 
-          {openSections['content'] && (
+          {openSection === 'content' && (
             <div
-              className={`p-3 border-t space-y-2 text-xs animate-fadeIn ${
+              className={`p-3 border-t space-y-3 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
               }`}
             >
-              <div className="space-y-0.5">
-                <label className="text-[10px] font-bold text-amber-500 block">
-                  כותרת ראשית של העמוד (H1)
-                </label>
-                <input
-                  type="text"
-                  value={formData.title || ''}
-                  onChange={(e) => updateField('title', e.target.value)}
-                  placeholder="כותרת ראשית בולטת..."
-                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                    isDarkMode
-                      ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                      : 'bg-white border-amber-500/60 text-slate-900'
-                  }`}
-                />
-              </div>
-
-              <div className="space-y-0.5">
-                <label className="text-[10px] font-bold text-amber-500 block">
-                  תת-כותרת מודגשת (Subtitle)
-                </label>
-                <input
-                  type="text"
-                  value={formData.subtitle || ''}
-                  onChange={(e) => updateField('subtitle', e.target.value)}
-                  placeholder="משפט מיקוד קצר..."
-                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                    isDarkMode
-                      ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                      : 'bg-white border-amber-500/60 text-slate-900'
-                  }`}
-                />
-              </div>
-
-              <div className="space-y-0.5">
-                <label className="text-[10px] font-bold text-amber-500 block">
-                  פסקת תיאור והסבר
-                </label>
-                <textarea
-                  rows={2}
-                  value={formData.description || ''}
-                  onChange={(e) => updateField('description', e.target.value)}
-                  placeholder="תיאור מפורט..."
-                  className={`w-full border rounded-xl p-2 text-xs font-normal focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none ${
-                    isDarkMode
-                      ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                      : 'bg-white border-amber-500/60 text-slate-900'
-                  }`}
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                <div className="space-y-0.5">
-                  <label className="text-[10px] font-bold text-amber-500 block">
-                    תגית הכרזה עליונה (Announcement Pill)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.announcementBadge?.text || ''}
-                    onChange={(e) =>
-                      updateField('announcementBadge', {
-                        ...(formData.announcementBadge || {}),
-                        text: e.target.value,
-                      })
-                    }
-                    placeholder="למשל: שחרור רשמי 2026"
-                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                      isDarkMode
-                        ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                        : 'bg-white border-amber-500/60 text-slate-900'
-                    }`}
+              {/* Nested Accordion 1: Text Fields with AI Assist (Icons & Tooltips) */}
+              <div className="border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => toggleNestedSection('text_fields')}
+                  className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold text-zinc-300 hover:text-white hover:bg-white/5 transition cursor-pointer"
+                  title="עריכת טקסטים ושיפור עם סוכן ה-AI"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                    <span>טקסטים ושדות תוכן (עם סוכן AI)</span>
+                  </span>
+                  <ChevronDown
+                    className={clsx(
+                      'w-3.5 h-3.5 transition-transform duration-200',
+                      openNestedSection === 'text_fields' ? 'rotate-180 text-amber-400' : 'text-zinc-500'
+                    )}
                   />
-                </div>
-                <div className="space-y-0.5">
-                  <label className="text-[10px] font-bold text-amber-500 block">
-                    קישור התגית (URL / עוגן)
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.announcementBadge?.url || ''}
-                    onChange={(e) =>
-                      updateField('announcementBadge', {
-                        ...(formData.announcementBadge || { text: 'חדש' }),
-                        url: e.target.value,
-                      })
-                    }
-                    placeholder="#about"
-                    dir="ltr"
-                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                      isDarkMode
-                        ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                        : 'bg-white border-amber-500/60 text-slate-900'
-                    }`}
+                </button>
+
+                {openNestedSection === 'text_fields' && (
+                  <div className="p-3 border-t border-white/10 space-y-2.5 bg-black/20">
+                    {/* Title field with AI */}
+                    <div className="space-y-0.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[10px] font-bold text-amber-500 block">
+                          כותרת ראשית של העמוד (H1)
+                        </label>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={formData.title || ''}
+                          onChange={(e) => updateField('title', e.target.value)}
+                          placeholder="כותרת ראשית בולטת..."
+                          className={`flex-1 border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                            isDarkMode
+                              ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                              : 'bg-white border-amber-500/60 text-slate-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceTextWithAi('title', 'נסח כותרת ראשית שיווקית חדה וסוחפת')}
+                          className="p-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 cursor-pointer transition shrink-0"
+                          title="שפר כותרת באמצעות סוכן ה-AI של המותג"
+                        >
+                          {aiLoadingField === 'title' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Subtitle field with AI */}
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-bold text-amber-500 block">
+                        תת-כותרת מודגשת (Subtitle)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={formData.subtitle || ''}
+                          onChange={(e) => updateField('subtitle', e.target.value)}
+                          placeholder="משפט מיקוד קצר..."
+                          className={`flex-1 border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                            isDarkMode
+                              ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                              : 'bg-white border-amber-500/60 text-slate-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceTextWithAi('subtitle', 'נסח תת-כותרת שיווקית חזקה וסוחפת המביעה את עיקר הערך')}
+                          className="p-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 cursor-pointer transition shrink-0"
+                          title="שפר תת-כותרת באמצעות סוכן ה-AI של המותג"
+                        >
+                          {aiLoadingField === 'subtitle' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Description field with AI */}
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-bold text-amber-500 block">
+                        פסקת תיאור והסבר
+                      </label>
+                      <div className="flex items-start gap-1.5">
+                        <textarea
+                          rows={2}
+                          value={formData.description || ''}
+                          onChange={(e) => updateField('description', e.target.value)}
+                          placeholder="תיאור מפורט..."
+                          className={`flex-1 border rounded-xl p-2 text-xs font-normal focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none ${
+                            isDarkMode
+                              ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                              : 'bg-white border-amber-500/60 text-slate-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceTextWithAi('description', 'נסח פסקת תיאור מנצחת ומשכנעת לאזור ההירו המותאמת לשפת המותג')}
+                          className="p-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 cursor-pointer transition shrink-0 mt-1"
+                          title="שפר תיאור באמצעות סוכן ה-AI של המותג"
+                        >
+                          {aiLoadingField === 'description' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Wand2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Announcement Badge with AI */}
+                    <div className="space-y-0.5 pt-1">
+                      <label className="text-[10px] font-bold text-amber-500 block">
+                        תגית הכרזה עליונה (Announcement Pill)
+                      </label>
+                      <div className="flex items-center gap-1.5">
+                        <input
+                          type="text"
+                          value={formData.announcementBadge?.text || ''}
+                          onChange={(e) =>
+                            updateField('announcementBadge', {
+                              ...(formData.announcementBadge || {}),
+                              text: e.target.value,
+                            })
+                          }
+                          placeholder="למשל: שחרור רשמי 2026"
+                          className={`flex-1 border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                            isDarkMode
+                              ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                              : 'bg-white border-amber-500/60 text-slate-900'
+                          }`}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleEnhanceTextWithAi('announcementBadge', 'נסח תגית הכרזה קצרה ומושכת תשומת לב')}
+                          className="p-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 cursor-pointer transition shrink-0"
+                          title="שפר תגית באמצעות סוכן ה-AI של המותג"
+                        >
+                          {aiLoadingField === 'announcementBadge' ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-0.5">
+                      <label className="text-[10px] font-bold text-amber-500 block">
+                        קישור התגית (URL / עוגן)
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.announcementBadge?.url || ''}
+                        onChange={(e) =>
+                          updateField('announcementBadge', {
+                            ...(formData.announcementBadge || { text: 'חדש' }),
+                            url: e.target.value,
+                          })
+                        }
+                        placeholder="#about"
+                        dir="ltr"
+                        className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                          isDarkMode
+                            ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                            : 'bg-white border-amber-500/60 text-slate-900'
+                        }`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Nested Accordion 2: Typography & Alignment Controls (Icons & Tooltips ONLY) */}
+              <div className="border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => toggleNestedSection('typography')}
+                  className="w-full px-3 py-2 flex items-center justify-between text-[11px] font-semibold text-zinc-300 hover:text-white hover:bg-white/5 transition cursor-pointer"
+                  title="שליטה מלאה בגודל, משקל ויישור פונטים"
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Type className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>עריכת פונטים וטיפוגרפיה (אייקונים וטולטיפים בלבד)</span>
+                  </span>
+                  <ChevronDown
+                    className={clsx(
+                      'w-3.5 h-3.5 transition-transform duration-200',
+                      openNestedSection === 'typography' ? 'rotate-180 text-amber-400' : 'text-zinc-500'
+                    )}
                   />
-                </div>
+                </button>
+
+                {openNestedSection === 'typography' && (
+                  <div className="p-3 border-t border-white/10 space-y-3 bg-black/20">
+                    {/* Alignments & Font Weights Toolbar (Icons with Tooltips) */}
+                    <div className="flex items-center justify-between gap-1 flex-wrap">
+                      {/* Alignment Toolbar */}
+                      <div className="flex items-center gap-1 border border-white/10 p-1 rounded-xl bg-white/5">
+                        <button
+                          type="button"
+                          onClick={() => updateField('titleAlignment', 'right')}
+                          className={clsx(
+                            'p-1.5 rounded-lg cursor-pointer transition',
+                            (formData.titleAlignment || 'right') === 'right' ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-white'
+                          )}
+                          title="יישור לימין"
+                        >
+                          <AlignRight className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateField('titleAlignment', 'center')}
+                          className={clsx(
+                            'p-1.5 rounded-lg cursor-pointer transition',
+                            (formData.titleAlignment || 'right') === 'center' ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-white'
+                          )}
+                          title="יישור למרכז"
+                        >
+                          <AlignCenter className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateField('titleAlignment', 'left')}
+                          className={clsx(
+                            'p-1.5 rounded-lg cursor-pointer transition',
+                            (formData.titleAlignment || 'right') === 'left' ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-white'
+                          )}
+                          title="יישור לשמאל"
+                        >
+                          <AlignLeft className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Font Weight Toolbar */}
+                      <div className="flex items-center gap-1 border border-white/10 p-1 rounded-xl bg-white/5">
+                        <button
+                          type="button"
+                          onClick={() => updateField('titleFontWeight', formData.titleFontWeight === 'black' ? 'bold' : 'black')}
+                          className={clsx(
+                            'p-1.5 rounded-lg cursor-pointer transition',
+                            formData.titleFontWeight === 'black' ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-white'
+                          )}
+                          title="עובי כותרת ענק (Black / Ultra Bold)"
+                        >
+                          <Bold className="w-3.5 h-3.5 stroke-[3]" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => updateField('titleFontWeight', formData.titleFontWeight === 'bold' ? 'normal' : 'bold')}
+                          className={clsx(
+                            'p-1.5 rounded-lg cursor-pointer transition',
+                            (!formData.titleFontWeight || formData.titleFontWeight === 'bold') ? 'bg-amber-500 text-black' : 'text-zinc-400 hover:text-white'
+                          )}
+                          title="עובי כותרת רגיל-מודגש (Bold)"
+                        >
+                          <Bold className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Font Size Scales */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-amber-500 font-bold">
+                        <span>גודל כותרת ראשית (Scale)</span>
+                        <span className="font-mono">{formData.titleFontSize || 'auto'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {(['auto', 'sm', 'md', 'lg', 'xl', '2xl'] as const).map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => updateField('titleFontSize', sz)}
+                            className={clsx(
+                              'px-2 py-1 rounded-lg border text-[10px] cursor-pointer transition font-mono',
+                              (formData.titleFontSize || 'auto') === sz
+                                ? 'bg-amber-500 border-amber-400 text-black font-bold'
+                                : 'border-white/10 text-zinc-400 hover:text-white'
+                            )}
+                            title={`גודל כותרת ${sz}`}
+                          >
+                            {sz}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-amber-500 font-bold">
+                        <span>גודל פסקת תיאור</span>
+                        <span className="font-mono">{formData.descriptionFontSize || 'auto'}</span>
+                      </div>
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {(['auto', 'sm', 'md', 'lg', 'xl'] as const).map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => updateField('descriptionFontSize', sz)}
+                            className={clsx(
+                              'px-2 py-1 rounded-lg border text-[10px] cursor-pointer transition font-mono',
+                              (formData.descriptionFontSize || 'auto') === sz
+                                ? 'bg-amber-500 border-amber-400 text-black font-bold'
+                                : 'border-white/10 text-zinc-400 hover:text-white'
+                            )}
+                            title={`גודל תיאור ${sz}`}
+                          >
+                            {sz}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
         </div>
 
-        {/* TAB 4: כפתורי הנעה לפעולה (CTAs, צורה וגודל) */}
+        {/* TAB 4: כפתורי הנעה לפעולה (CTAs, צורה, גודל וחיבור לקולקציית עמודי הטננט) */}
         <div
           className={`w-full flex flex-col rounded-2xl border overflow-hidden transition-all ${
             isDarkMode ? 'border-white/5 bg-[#141414]' : 'border-slate-200 bg-slate-50/70'
@@ -953,18 +1279,18 @@ export const HeroEditor: React.FC<{
               >
                 <MousePointerClick className="w-3.5 h-3.5" />
               </div>
-              <span>כפתורי הנעה לפעולה (צורה, גודל וקישורים)</span>
+              <span>כפתורי הנעה לפעולה (צורה, גודל וחיבור לעמודי טננט)</span>
             </div>
             <ChevronDown
               className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                openSections['buttons'] ? 'rotate-180' : ''
+                openSection === 'buttons' ? 'rotate-180' : ''
               }`}
             />
           </button>
 
-          {openSections['buttons'] && (
+          {openSection === 'buttons' && (
             <div
-              className={`p-3 border-t space-y-2.5 text-xs animate-fadeIn ${
+              className={`p-3 border-t space-y-3 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
               }`}
             >
@@ -1022,86 +1348,180 @@ export const HeroEditor: React.FC<{
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-amber-500 block">כפתור ראשי – טקסט וקישור</label>
-                  <input
-                    type="text"
-                    value={formData.primaryButton?.text || ''}
-                    onChange={(e) =>
-                      updateField('primaryButton', {
-                        ...(formData.primaryButton || { url: '#' }),
-                        text: e.target.value,
-                      })
-                    }
-                    placeholder="התחל עכשיו"
-                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                      isDarkMode
-                        ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                        : 'bg-white border-amber-500/60 text-slate-900'
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    value={formData.primaryButton?.url || ''}
-                    onChange={(e) =>
-                      updateField('primaryButton', {
-                        ...(formData.primaryButton || { text: 'התחל' }),
-                        url: e.target.value,
-                      })
-                    }
-                    placeholder="#contact"
-                    dir="ltr"
-                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                      isDarkMode
-                        ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                        : 'bg-white border-amber-500/60 text-slate-900'
-                    }`}
-                  />
+              {/* Primary Button Settings + Tenant Pages Selector */}
+              <div
+                className={`p-2.5 rounded-xl border space-y-2 ${
+                  isDarkMode ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                    <MousePointerClick className="w-3 h-3" />
+                    <span>כפתור ראשי (Primary CTA)</span>
+                  </label>
+                  <span className="text-[9px] text-zinc-400">קישור ישיר לעמוד טננט</span>
                 </div>
 
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-amber-500 block">כפתור משני – טקסט וקישור</label>
-                  <input
-                    type="text"
-                    value={formData.secondaryButton?.text || ''}
-                    onChange={(e) =>
-                      updateField('secondaryButton', {
-                        ...(formData.secondaryButton || { url: '#' }),
-                        text: e.target.value,
-                      })
-                    }
-                    placeholder="לפרטים נוספים"
-                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                      isDarkMode
-                        ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                        : 'bg-white border-amber-500/60 text-slate-900'
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    value={formData.secondaryButton?.url || ''}
-                    onChange={(e) =>
-                      updateField('secondaryButton', {
-                        ...(formData.secondaryButton || { text: 'פרטים' }),
-                        url: e.target.value,
-                      })
-                    }
-                    placeholder="#about"
-                    dir="ltr"
-                    className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                      isDarkMode
-                        ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
-                        : 'bg-white border-amber-500/60 text-slate-900'
-                    }`}
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-0.5">
+                    <input
+                      type="text"
+                      value={formData.primaryButton?.text || ''}
+                      onChange={(e) =>
+                        updateField('primaryButton', {
+                          ...(formData.primaryButton || { url: '#' }),
+                          text: e.target.value,
+                        })
+                      }
+                      placeholder="טקסט כפתור (למשל: התחל עכשיו)"
+                      className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        isDarkMode
+                          ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                          : 'bg-white border-amber-500/60 text-slate-900'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Tenant Published Pages Selector */}
+                  <div className="space-y-0.5">
+                    <select
+                      value={formData.primaryButton?.url || ''}
+                      onChange={(e) =>
+                        updateField('primaryButton', {
+                          ...(formData.primaryButton || { text: 'התחל' }),
+                          url: e.target.value,
+                        })
+                      }
+                      className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        isDarkMode
+                          ? 'bg-[#181818] border-amber-500/60 text-white'
+                          : 'bg-white border-amber-500/60 text-slate-900'
+                      }`}
+                    >
+                      <option value="">-- בחר יעד מעמודי הטננט --</option>
+                      {tenantPages.map((page) => {
+                        const targetUrl = page.isHomePage ? '/' : `/${page.slug || page.pageId}`;
+                        return (
+                          <option key={page.pageId} value={targetUrl}>
+                            📄 {page.pageTitle} {page.isHomePage ? '(דף הבית)' : `(${targetUrl})`}
+                          </option>
+                        );
+                      })}
+                      <option value="#contact">⚓ טופס יצירת קשר (#contact)</option>
+                      <option value="#about">⚓ אודות (#about)</option>
+                      <option value="#services">⚓ שירותים (#services)</option>
+                    </select>
+                  </div>
                 </div>
+
+                <input
+                  type="text"
+                  value={formData.primaryButton?.url || ''}
+                  onChange={(e) =>
+                    updateField('primaryButton', {
+                      ...(formData.primaryButton || { text: 'התחל' }),
+                      url: e.target.value,
+                    })
+                  }
+                  placeholder="או הזן כתובת URL מותאמת אישית (למשל: https://...)"
+                  dir="ltr"
+                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                    isDarkMode
+                      ? 'bg-transparent border-white/10 text-zinc-300 placeholder-zinc-600'
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}
+                />
+              </div>
+
+              {/* Secondary Button Settings + Tenant Pages Selector */}
+              <div
+                className={`p-2.5 rounded-xl border space-y-2 ${
+                  isDarkMode ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-amber-400 flex items-center gap-1">
+                    <MousePointerClick className="w-3 h-3" />
+                    <span>כפתור משני (Secondary CTA)</span>
+                  </label>
+                  <span className="text-[9px] text-zinc-400">קישור ישיר לעמוד טננט</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-0.5">
+                    <input
+                      type="text"
+                      value={formData.secondaryButton?.text || ''}
+                      onChange={(e) =>
+                        updateField('secondaryButton', {
+                          ...(formData.secondaryButton || { url: '#' }),
+                          text: e.target.value,
+                        })
+                      }
+                      placeholder="טקסט כפתור (למשל: לפרטים נוספים)"
+                      className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        isDarkMode
+                          ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                          : 'bg-white border-amber-500/60 text-slate-900'
+                      }`}
+                    />
+                  </div>
+
+                  {/* Tenant Published Pages Selector */}
+                  <div className="space-y-0.5">
+                    <select
+                      value={formData.secondaryButton?.url || ''}
+                      onChange={(e) =>
+                        updateField('secondaryButton', {
+                          ...(formData.secondaryButton || { text: 'פרטים' }),
+                          url: e.target.value,
+                        })
+                      }
+                      className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                        isDarkMode
+                          ? 'bg-[#181818] border-amber-500/60 text-white'
+                          : 'bg-white border-amber-500/60 text-slate-900'
+                      }`}
+                    >
+                      <option value="">-- בחר יעד מעמודי הטננט --</option>
+                      {tenantPages.map((page) => {
+                        const targetUrl = page.isHomePage ? '/' : `/${page.slug || page.pageId}`;
+                        return (
+                          <option key={page.pageId} value={targetUrl}>
+                            📄 {page.pageTitle} {page.isHomePage ? '(דף הבית)' : `(${targetUrl})`}
+                          </option>
+                        );
+                      })}
+                      <option value="#about">⚓ אודות (#about)</option>
+                      <option value="#pricing">⚓ מחירים וחבילות (#pricing)</option>
+                      <option value="#faq">⚓ שאלות ותשובות (#faq)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <input
+                  type="text"
+                  value={formData.secondaryButton?.url || ''}
+                  onChange={(e) =>
+                    updateField('secondaryButton', {
+                      ...(formData.secondaryButton || { text: 'פרטים' }),
+                      url: e.target.value,
+                    })
+                  }
+                  placeholder="או הזן כתובת URL מותאמת אישית (למשל: https://...)"
+                  dir="ltr"
+                  className={`w-full border rounded-xl px-2.5 py-1.5 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                    isDarkMode
+                      ? 'bg-transparent border-white/10 text-zinc-300 placeholder-zinc-600'
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}
+                />
               </div>
             </div>
           )}
         </div>
 
-        {/* TAB 5: תמונת Showcase והוכחה חברתית (Media & Social Proof) */}
+        {/* TAB 5: תמונת Showcase, תגית צפה והוכחה חברתית (Media & Showcase) */}
         <div
           className={`w-full flex flex-col rounded-2xl border overflow-hidden transition-all ${
             isDarkMode ? 'border-white/5 bg-[#141414]' : 'border-slate-200 bg-slate-50/70'
@@ -1122,27 +1542,88 @@ export const HeroEditor: React.FC<{
               >
                 <ImageIcon className="w-3.5 h-3.5" />
               </div>
-              <span>תמונת Showcase והוכחה חברתית (Avatars)</span>
+              <span>תמונת Showcase, תגית צפה והוכחה חברתית</span>
             </div>
             <ChevronDown
               className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                openSections['media_metrics'] ? 'rotate-180' : ''
+                openSection === 'media_metrics' ? 'rotate-180' : ''
               }`}
             />
           </button>
 
-          {openSections['media_metrics'] && (
+          {openSection === 'media_metrics' && (
             <div
-              className={`p-3 border-t space-y-2.5 text-xs animate-fadeIn ${
+              className={`p-3 border-t space-y-3 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'
               }`}
             >
               <PageBuilderImageUpload
-                label="תמונת Showcase ראשית של ההירו"
+                label="תמונת Showcase ראשית של ההירו (בחירה מ-KOSCLOUD)"
                 value={formData.imageSrc}
                 onChange={(url) => updateField('imageSrc', url)}
               />
 
+              {/* Floating Image Badge (pill on top/bottom of image frame) with AI */}
+              <div
+                className={`p-2.5 rounded-xl border space-y-2 ${
+                  isDarkMode ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-rose-400" />
+                    <span>תגית צפה על גבי התמונה (Image Floating Badge)</span>
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={formData.imageBadge?.visible ?? true}
+                    onChange={(e) =>
+                      updateField('imageBadge', {
+                        ...(formData.imageBadge || { text: 'עיצוב בוטיק מותאם אישית' }),
+                        visible: e.target.checked,
+                      })
+                    }
+                    className="w-4 h-4 rounded text-amber-500 bg-transparent border-amber-500/60 cursor-pointer"
+                  />
+                </div>
+
+                {formData.imageBadge?.visible !== false && (
+                  <div className="space-y-1 pt-1">
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={formData.imageBadge?.text || ''}
+                        onChange={(e) =>
+                          updateField('imageBadge', {
+                            ...(formData.imageBadge || { visible: true }),
+                            text: e.target.value,
+                          })
+                        }
+                        placeholder="טקסט התגית הצפה (למשל: עיצוב בוטיק מותאם אישית)..."
+                        className={`flex-1 border rounded-xl px-2.5 py-1.5 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                          isDarkMode
+                            ? 'bg-transparent border-amber-500/60 text-white placeholder-zinc-500'
+                            : 'bg-white border-amber-500/60 text-slate-900'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleEnhanceTextWithAi('imageBadge', 'נסח תגית צפה קצרה, יוקרתית וממוקדת עבור תמונת ההירו')}
+                        className="p-1.5 rounded-xl border border-amber-500/40 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 cursor-pointer transition shrink-0"
+                        title="שפר תגית צפה עם סוכן AI"
+                      >
+                        {aiLoadingField === 'imageBadge' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Sparkles className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Social Proof Avatars */}
               <div
                 className={`flex items-center justify-between p-2 rounded-xl border ${
                   isDarkMode ? 'bg-white/5 border-white/5' : 'bg-slate-50 border-slate-200'
@@ -1213,12 +1694,12 @@ export const HeroEditor: React.FC<{
             </div>
             <ChevronDown
               className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
-                openSections['colors'] ? 'rotate-180' : ''
+                openSection === 'colors' ? 'rotate-180' : ''
               }`}
             />
           </button>
 
-          {openSections['colors'] && (
+          {openSection === 'colors' && (
             <div
               className={`p-3 border-t space-y-2 text-xs animate-fadeIn ${
                 isDarkMode ? 'bg-[#111] border-white/5' : 'bg-white border-slate-200'

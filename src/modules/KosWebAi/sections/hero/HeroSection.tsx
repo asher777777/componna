@@ -86,8 +86,14 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     }
   })();
 
-  // Object scale classes (Title H1 + Description)
+  // Object scale & typography classes
   const getTitleScaleClass = (defaultClass: string) => {
+    if (titleFontSize === 'text-2xl') return 'text-xl sm:text-2xl';
+    if (titleFontSize === 'text-3xl') return 'text-2xl sm:text-3xl';
+    if (titleFontSize === 'text-4xl') return 'text-3xl sm:text-4xl';
+    if (titleFontSize === 'text-5xl') return 'text-4xl sm:text-5xl';
+    if (titleFontSize === 'text-6xl') return 'text-4xl sm:text-6xl';
+    if (titleFontSize === 'text-7xl') return 'text-5xl sm:text-7xl';
     if (objectScale === 'compact') return 'text-3xl sm:text-4xl md:text-5xl';
     if (objectScale === 'normal') return 'text-4xl sm:text-5xl md:text-6xl';
     if (objectScale === 'large') return 'text-4xl sm:text-6xl md:text-7xl';
@@ -95,7 +101,31 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     return defaultClass;
   };
 
+  const getTitleWeightClass = (defaultWeight: string) => {
+    if (titleFontWeight === 'font-normal') return 'font-normal';
+    if (titleFontWeight === 'font-medium') return 'font-medium';
+    if (titleFontWeight === 'font-semibold') return 'font-semibold';
+    if (titleFontWeight === 'font-bold') return 'font-bold';
+    if (titleFontWeight === 'font-extrabold') return 'font-extrabold';
+    if (titleFontWeight === 'font-black') return 'font-black';
+    return defaultWeight;
+  };
+
+  const getSubtitleScaleClass = (defaultClass: string) => {
+    if (subtitleFontSize === 'text-xs') return 'text-xs';
+    if (subtitleFontSize === 'text-sm') return 'text-sm';
+    if (subtitleFontSize === 'text-base') return 'text-base';
+    if (subtitleFontSize === 'text-lg') return 'text-lg';
+    if (subtitleFontSize === 'text-xl') return 'text-xl';
+    return defaultClass;
+  };
+
   const getDescScaleClass = (defaultClass: string) => {
+    if (descriptionFontSize === 'text-xs') return 'text-xs max-w-xl';
+    if (descriptionFontSize === 'text-sm') return 'text-sm max-w-xl';
+    if (descriptionFontSize === 'text-base') return 'text-base max-w-2xl';
+    if (descriptionFontSize === 'text-lg') return 'text-lg sm:text-xl max-w-2xl';
+    if (descriptionFontSize === 'text-xl') return 'text-xl sm:text-2xl max-w-3xl';
     if (objectScale === 'compact') return 'text-sm sm:text-base max-w-xl';
     if (objectScale === 'normal') return 'text-base sm:text-lg max-w-2xl';
     if (objectScale === 'large') return 'text-lg sm:text-xl md:text-2xl max-w-3xl';
@@ -257,7 +287,11 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
               <h1
                 className={clsx(
                   getTitleScaleClass('text-4xl sm:text-5xl md:text-6xl lg:text-7xl'),
-                  'font-extrabold tracking-tight leading-[1.15] max-w-4xl drop-shadow-sm',
+                  getTitleWeightClass('font-extrabold'),
+                  titleAlignment === 'right' && 'text-right',
+                  titleAlignment === 'left' && 'text-left',
+                  (!titleAlignment || titleAlignment === 'center') && 'text-center',
+                  'tracking-tight leading-[1.15] max-w-4xl drop-shadow-sm',
                   textBgEnabled ? 'text-white' : 'text-slate-900 dark:text-white'
                 )}
                 style={{ color: titleColor }}
@@ -268,7 +302,11 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
               {subtitle && (
                 <p
                   className={clsx(
-                    'text-sm sm:text-base font-bold mt-4 tracking-wide',
+                    getSubtitleScaleClass('text-sm sm:text-base'),
+                    'font-bold mt-4 tracking-wide',
+                    titleAlignment === 'right' && 'text-right',
+                    titleAlignment === 'left' && 'text-left',
+                    (!titleAlignment || titleAlignment === 'center') && 'text-center',
                     textBgEnabled ? 'text-indigo-200' : 'text-indigo-600 dark:text-indigo-400'
                   )}
                 >
@@ -281,6 +319,9 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
                 <p
                   className={clsx(
                     getDescScaleClass('text-base sm:text-lg md:text-xl max-w-2xl'),
+                    titleAlignment === 'right' && 'text-right',
+                    titleAlignment === 'left' && 'text-left',
+                    (!titleAlignment || titleAlignment === 'center') && 'text-center',
                     'leading-relaxed font-normal mt-6',
                     textBgEnabled ? 'text-slate-200' : 'text-slate-600 dark:text-slate-300'
                   )}
@@ -378,7 +419,11 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
         <h1
           className={clsx(
             getTitleScaleClass('text-3xl sm:text-5xl lg:text-6xl'),
-            'font-bold tracking-normal leading-[1.22]',
+            getTitleWeightClass('font-bold'),
+            titleAlignment === 'center' && 'text-center',
+            titleAlignment === 'left' && 'text-left',
+            (!titleAlignment || titleAlignment === 'right') && !isStack && 'text-right',
+            'tracking-normal leading-[1.22]',
             textBgEnabled ? 'text-white' : 'text-rose-950 dark:text-rose-50'
           )}
           style={{ color: titleColor }}
@@ -389,7 +434,11 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
         {subtitle && (
           <p
             className={clsx(
-              'text-sm sm:text-base font-medium mt-3 tracking-wide',
+              getSubtitleScaleClass('text-sm sm:text-base'),
+              'font-medium mt-3 tracking-wide',
+              titleAlignment === 'center' && 'text-center',
+              titleAlignment === 'left' && 'text-left',
+              (!titleAlignment || titleAlignment === 'right') && !isStack && 'text-right',
               textBgEnabled ? 'text-rose-200' : 'text-rose-600 dark:text-rose-300'
             )}
           >
@@ -401,6 +450,9 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
           <p
             className={clsx(
               getDescScaleClass('text-base sm:text-lg max-w-xl'),
+              titleAlignment === 'center' && 'text-center',
+              titleAlignment === 'left' && 'text-left',
+              (!titleAlignment || titleAlignment === 'right') && !isStack && 'text-right',
               'leading-[1.8] font-normal mt-5',
               textBgEnabled ? 'text-rose-100/90' : 'text-stone-600 dark:text-rose-100/75'
             )}

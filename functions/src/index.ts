@@ -301,10 +301,13 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
         instanceId: incomingInstanceId || 'unknown',
         sender: body.senderData?.chatId || body.senderData?.sender || null,
         messageText: body.messageData?.textMessageData?.textMessage ||
+          body.messageData?.extendedTextMessageData?.text ||
           body.messageData?.extendedTextMessageData?.textMessage ||
+          body.messageData?.fileMessageData?.caption ||
           body.messageData?.buttonsResponseMessageData?.selectedDisplayText ||
           body.messageData?.buttonsResponseMessageData?.selectedButtonId ||
-          body.messageData?.listResponseMessageData?.title || null,
+          body.messageData?.listResponseMessageData?.title ||
+          body.textMessage || null,
         status,
         detail: detail || null,
         timestamp: Date.now(),
@@ -343,17 +346,24 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
 
   const messageText = 
     body.messageData?.textMessageData?.textMessage ||
+    body.messageData?.extendedTextMessageData?.text ||
     body.messageData?.extendedTextMessageData?.textMessage ||
+    body.messageData?.fileMessageData?.caption ||
     body.messageData?.buttonsResponseMessageData?.selectedDisplayText ||
     body.messageData?.buttonsResponseMessageData?.selectedButtonId ||
     body.messageData?.listResponseMessageData?.title ||
+    body.messageData?.listResponseMessageData?.description ||
+    body.textMessage ||
     '';
   const sender = body.senderData?.sender;
-  const targetChatId = body.senderData?.chatId || sender;
-  const senderName = body.senderData?.senderName || body.senderData?.senderContactName || '';
+  const targetChatId = body.senderData?.chatId || sender || body.chatId;
+  const senderName = body.senderData?.senderName || body.senderData?.senderContactName || body.senderName || '';
   
   if (!messageText || !targetChatId) {
-    await logWebhookEvent(resolvedTenantId, 'Ignored: No text or targetChatId');
+    await logWebhookEvent(resolvedTenantId, 'Ignored: No text or targetChatId', {
+      rawMessageData: body.messageData,
+      rawSenderData: body.senderData
+    });
     res.status(200).send('No text or targetChatId');
     return;
   }
@@ -707,8 +717,9 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
         contents,
         generationConfig: {
           temperature: triggeredBot.temperature || 0.7,
-          maxOutputTokens: 250,
-        }
+          maxOutputTokens: 1000,
+          thinkingConfig: { thinkingBudget: 0 }
+        } as any
       });
       replyText = result.response.text()?.trim() || '';
 
