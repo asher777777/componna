@@ -6,6 +6,7 @@ import {
   DynamicListingSortBy,
   DynamicListingLogicCondition,
 } from '../../types/sectionConfigs';
+import { BrandDnaContract } from '../../../../core/contracts';
 import {
   Search,
   ArrowLeft,
@@ -97,7 +98,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
   const effectiveSlogan = brandDnaData?.identity?.slogan || '';
 
   const effectiveBadge =
-    badge ||
+    configuredBadge ||
     (source === 'archives'
       ? 'ארכיונים ומאגרים'
       : source === 'media' || (source as string) === 'media_gallery'
@@ -107,7 +108,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
       : '• תוכן מובחר •');
 
   const effectiveTitle =
-    title ||
+    configuredTitle ||
     (source === 'archives'
       ? (effectiveCompanyName ? `נתיבי הארכיונים והמאגרים • ${effectiveCompanyName}` : 'נתיבי הארכיונים והמאגרים')
       : source === 'media' || (source as string) === 'media_gallery'
@@ -117,7 +118,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
       : 'מאגר התוכן והמידע');
 
   const effectiveSubtitle =
-    subtitle ||
+    configuredSubtitle ||
     (source === 'archives'
       ? 'גישה ישירה ומהירה לכל אזורי הארכיונים, מאגרי המידע והתיעוד'
       : source === 'media' || (source as string) === 'media_gallery'
