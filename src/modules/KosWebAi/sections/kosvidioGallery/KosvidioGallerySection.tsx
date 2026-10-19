@@ -8,7 +8,7 @@ import {
   KosvidioGalleryViewMode,
   HeroTextBgEffect,
 } from '../../types/sectionConfigs';
-import { getCategoryFromPage } from '../../types/pageBuilder.types';
+import { getCategoryFromPage, PAGE_CATEGORIES, PageCategory } from '../../types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
 import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
@@ -94,6 +94,195 @@ function formatNumber(num?: number): string {
   if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
   if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
   return num.toLocaleString('he-IL');
+}
+
+function cleanPageTitle(val?: string): string {
+  if (!val || typeof val !== 'string') return '';
+  return val
+    .replace(/\s*-\s*Kosvidio$/i, '')
+    .replace(/\s*-\s*KosTube$/i, '')
+    .replace(/\s*\|\s*Kosvidio$/i, '')
+    .replace(/\s*\|\s*KosTube$/i, '')
+    .replace(/\s*-\s*KOSVIDIO$/i, '')
+    .replace(/\s*\|\s*KOSVIDIO$/i, '')
+    .trim();
+}
+
+function extractVideoTitleFromPage(p: any): string {
+  if (!p) return 'סרטון וידאו';
+  const sections = Object.values(p.sections || {}) as any[];
+  const vidSec = sections.find(
+    (s) => s && (s.type === 'kosvidio' || s.type === 'videoGallery' || s.type === 'videoEngagement')
+  );
+  if (vidSec?.title && typeof vidSec.title === 'string' && vidSec.title.trim()) {
+    return cleanPageTitle(vidSec.title.trim());
+  }
+  if (vidSec?.videoTitle && typeof vidSec.videoTitle === 'string' && vidSec.videoTitle.trim()) {
+    return cleanPageTitle(vidSec.videoTitle.trim());
+  }
+  if (p.seoSettings?.title && typeof p.seoSettings.title === 'string' && p.seoSettings.title.trim()) {
+    return cleanPageTitle(p.seoSettings.title.trim());
+  }
+  if (p.pageTitle && typeof p.pageTitle === 'string' && p.pageTitle.trim()) {
+    return cleanPageTitle(p.pageTitle.trim());
+  }
+  const aboutSec = sections.find(
+    (s) => s && (s.type === 'about' || s.type === 'hero' || s.type === 'richContent')
+  );
+  if (aboutSec?.title && typeof aboutSec.title === 'string' && aboutSec.title.trim()) {
+    return cleanPageTitle(aboutSec.title.trim());
+  }
+  return 'סרטון וידאו';
+}
+
+function extractVideoDescriptionFromPage(p: any): string {
+  if (!p) return '';
+  if (
+    p.seoSettings?.description &&
+    typeof p.seoSettings.description === 'string' &&
+    p.seoSettings.description.trim()
+  ) {
+    return p.seoSettings.description.trim();
+  }
+  if (
+    p.seoSettings?.aiKnowledgeSummary &&
+    typeof p.seoSettings.aiKnowledgeSummary === 'string' &&
+    p.seoSettings.aiKnowledgeSummary.trim()
+  ) {
+    return p.seoSettings.aiKnowledgeSummary.trim();
+  }
+  const sections = Object.values(p.sections || {}) as any[];
+  const vidSec = sections.find((s) => s && (s.type === 'kosvidio' || s.type === 'videoGallery'));
+  if (
+    vidSec?.shortDescription &&
+    typeof vidSec.shortDescription === 'string' &&
+    vidSec.shortDescription.trim()
+  ) {
+    return vidSec.shortDescription.trim();
+  }
+  if (vidSec?.description && typeof vidSec.description === 'string' && vidSec.description.trim()) {
+    return vidSec.description.trim();
+  }
+  if (
+    vidSec?.longDescriptionMarkdown &&
+    typeof vidSec.longDescriptionMarkdown === 'string' &&
+    vidSec.longDescriptionMarkdown.trim()
+  ) {
+    return vidSec.longDescriptionMarkdown.trim().slice(0, 180);
+  }
+  const aboutSec = sections.find((s) => s && (s.type === 'about' || s.type === 'richContent'));
+  if (aboutSec?.subtitle && typeof aboutSec.subtitle === 'string' && aboutSec.subtitle.trim()) {
+    return aboutSec.subtitle.trim();
+  }
+  if (aboutSec?.description && typeof aboutSec.description === 'string' && aboutSec.description.trim()) {
+    return aboutSec.description.trim();
+  }
+  if (aboutSec?.content && typeof aboutSec.content === 'string' && aboutSec.content.trim()) {
+    const plain = aboutSec.content.replace(/<[^>]*>/g, '').trim();
+    if (plain) return plain.slice(0, 180);
+  }
+  return '';
+}
+
+function extractVideoBadgeFromPage(p: any): string {
+  if (!p) return 'וידאו';
+  if (p.badge && typeof p.badge === 'string' && p.badge.trim()) {
+    return p.badge.trim();
+  }
+  const sections = Object.values(p.sections || {}) as any[];
+  const vidSec = sections.find(
+    (s) => s && (s.type === 'kosvidio' || s.type === 'videoGallery' || s.type === 'videoEngagement')
+  );
+  if (vidSec?.badge && typeof vidSec.badge === 'string' && vidSec.badge.trim()) {
+    return vidSec.badge.trim();
+  }
+  if (
+    vidSec?.category &&
+    typeof vidSec.category === 'string' &&
+    vidSec.category.trim() &&
+    !vidSec.category.includes('KOSVIDIO')
+  ) {
+    return vidSec.category.trim();
+  }
+  if (Array.isArray(vidSec?.tags) && vidSec.tags.length > 0) {
+    const firstTag = vidSec.tags.find(
+      (t: any) => typeof t === 'string' && t.trim() && !t.includes('KOSVIDIO')
+    );
+    if (firstTag) return firstTag.trim();
+  }
+  if (Array.isArray(p.seoSettings?.keywords) && p.seoSettings.keywords.length > 0) {
+    const firstKeyword = p.seoSettings.keywords.find(
+      (k: any) => typeof k === 'string' && k.trim() && !k.includes('KOSVIDIO')
+    );
+    if (firstKeyword) return firstKeyword.trim();
+  }
+  if (p.pageCategory && PAGE_CATEGORIES[p.pageCategory as PageCategory]) {
+    return PAGE_CATEGORIES[p.pageCategory as PageCategory].shortLabel;
+  }
+  return 'וידאו';
+}
+
+function extractVideoTitleFromTubePage(d: any): string {
+  if (!d) return 'סרטון וידאו';
+  const raw = d.h1 || d.metaTitle || d.title || d.seoTitle || '';
+  return cleanPageTitle(raw) || 'סרטון וידאו';
+}
+
+function extractVideoDescriptionFromTubePage(d: any): string {
+  if (!d) return '';
+  if (d.executiveSummary && typeof d.executiveSummary === 'string' && d.executiveSummary.trim()) {
+    return d.executiveSummary.trim();
+  }
+  if (d.metaDescription && typeof d.metaDescription === 'string' && d.metaDescription.trim()) {
+    return d.metaDescription.trim();
+  }
+  if (d.summary && typeof d.summary === 'string' && d.summary.trim()) {
+    return d.summary.trim();
+  }
+  if (d.articleContent && typeof d.articleContent === 'string' && d.articleContent.trim()) {
+    const plain = d.articleContent.replace(/<[^>]*>/g, '').trim();
+    if (plain) return plain.slice(0, 180);
+  }
+  return '';
+}
+
+function extractVideoBadgeFromTubePage(d: any): string {
+  if (!d) return 'וידאו';
+  if (d.badge && typeof d.badge === 'string' && d.badge.trim()) return d.badge.trim();
+  if (
+    d.category &&
+    typeof d.category === 'string' &&
+    d.category.trim() &&
+    !d.category.includes('KOSVIDIO')
+  ) {
+    return d.category.trim();
+  }
+  if (Array.isArray(d.tags) && d.tags.length > 0) {
+    const t = d.tags.find((tag: any) => typeof tag === 'string' && tag.trim() && !tag.includes('KOSVIDIO'));
+    if (t) return t.trim();
+  }
+  if (Array.isArray(d.focusKeywords) && d.focusKeywords.length > 0) {
+    const kw = d.focusKeywords.find((k: any) => typeof k === 'string' && k.trim());
+    if (kw) return kw.trim();
+  }
+  return 'וידאו';
+}
+
+function extractVideoBadgeFromTubeVideo(d: any): string {
+  if (!d) return 'וידאו';
+  if (
+    d.category &&
+    typeof d.category === 'string' &&
+    d.category.trim() &&
+    !d.category.includes('KOSVIDIO')
+  ) {
+    return d.category.trim();
+  }
+  if (Array.isArray(d.tags) && d.tags.length > 0) {
+    const t = d.tags.find((tag: any) => typeof tag === 'string' && tag.trim() && !tag.includes('KOSVIDIO'));
+    if (t) return t.trim();
+  }
+  return 'וידאו';
 }
 
 export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionConfig }> = ({ config }) => {
@@ -463,28 +652,34 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
       const seenYoutubeIds = new Set<string>();
       const tenantPrefix = isMaster ? 'tenants/_master' : `tenants/${effTenant}`;
 
+      // 1. Primary source: Firestore mod_kos_tube_pages under current tenant
       try {
         const tubePagesRef = collection(db, `${tenantPrefix}/${SYSTEM_COLLECTIONS.KOS_TUBE_PAGES}`);
         const tubePagesSnap = await getDocs(tubePagesRef);
         tubePagesSnap.forEach((docSnap) => {
           const d = docSnap.data() as any;
           if (!d) return;
-          const ytId = extractYouTubeId(d.youtubeVideoId);
+          const ytId = extractYouTubeId(d.youtubeVideoId || docSnap.id);
           if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) return;
           seenYoutubeIds.add(ytId);
+
+          const title = extractVideoTitleFromTubePage(d);
+          const description = extractVideoDescriptionFromTubePage(d);
+          const badge = extractVideoBadgeFromTubePage(d);
+
           collected.push({
             id: `tube_page_${docSnap.id}`,
-            title: d.seoTitle || d.title || `סרטון של ${brandCompanyName || 'הערוץ'}`,
-            subtitle: brandCompanyName,
-            description: d.summary || d.metaDescription || '',
+            title,
+            subtitle: d.slug || '',
+            description,
             youtubeVideoId: ytId,
             thumbnailUrl: d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
             kosvidioSlug: d.slug || `kosvidio-${ytId}`,
-            viewsCount: Number(d.viewsCount || 150),
-            likesCount: Number(d.likesCount || 30),
+            viewsCount: Number(d.viewCount || d.viewsCount || 150),
+            likesCount: Number(d.likeCount || d.likesCount || 30),
             publishedAt: d.publishedAt || d.createdAt || '',
-            category: d.category || brandCompanyName || 'וידאו',
-            tags: Array.isArray(d.tags) ? d.tags : ['וידאו', brandCompanyName].filter(Boolean),
+            category: badge,
+            tags: Array.isArray(d.tags) ? d.tags : [badge],
             featured: collected.length === 0,
           });
         });
@@ -492,6 +687,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         // ignore
       }
 
+      // 2. Secondary source: Tenant PageBuilder pages dedicated to videos
       try {
         const allPages = await pageBuilderFirestore.getAllPages(db, effTenant);
         const videoPages = (allPages || []).filter((p) => {
@@ -500,31 +696,51 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
           const slugLower = String(p.slug || '').toLowerCase();
           if (pageId.startsWith('home_')) return false;
           const cat = getCategoryFromPage(p);
+          const hasVideoSection = Object.values(p.sections || {}).some(
+            (s: any) =>
+              s &&
+              (s.type === 'kosvidio' ||
+                s.type === 'videoGallery' ||
+                s.type === 'flowPlayer' ||
+                s.type === 'videoEngagement')
+          );
           return (
             pageId.startsWith('page_kosvidio_') ||
             cat === 'youtube_post' ||
             slugLower.startsWith('kosvidio-') ||
-            slugLower.startsWith('kostube-')
+            slugLower.startsWith('kostube-') ||
+            slugLower.startsWith('video-') ||
+            hasVideoSection
           );
         });
 
         for (const p of videoPages) {
           const vidSec = Object.values(p.sections || {}).find(
-            (s: any) => s && (s.type === 'kosvidio' || s.type === 'videoGallery' || s.type === 'videoEngagement')
+            (s: any) =>
+              s &&
+              (s.type === 'kosvidio' ||
+                s.type === 'videoGallery' ||
+                s.type === 'flowPlayer' ||
+                s.type === 'videoEngagement')
           ) as any;
           const pageIdSuffix = String(p.pageId || '').replace(/^page_kosvidio_/, '');
           const ytId =
             extractYouTubeId(vidSec?.youtubeVideoId) ||
             extractYouTubeId(vidSec?.videoUrl) ||
+            extractYouTubeId(p.slug) ||
             extractYouTubeId(pageIdSuffix);
           if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) continue;
           seenYoutubeIds.add(ytId);
 
+          const title = extractVideoTitleFromPage(p);
+          const description = extractVideoDescriptionFromPage(p);
+          const badge = extractVideoBadgeFromPage(p);
+
           collected.push({
             id: p.pageId || `page_${p.slug}`,
-            title: vidSec?.title || p.pageTitle || `סרטון של ${brandCompanyName || 'הערוץ'}`,
-            subtitle: brandCompanyName,
-            description: vidSec?.shortDescription || vidSec?.description || p.seoSettings?.description || '',
+            title,
+            subtitle: p.slug || '',
+            description,
             youtubeVideoId: ytId,
             videoUrl: vidSec?.videoUrl,
             thumbnailUrl:
@@ -533,11 +749,49 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
             viewsCount: Number(vidSec?.viewsCount || p.viewsCount || 120),
             likesCount: Number(vidSec?.likesCount || 24),
             publishedAt: vidSec?.publishedDateText || p.updatedAt || '',
-            category: brandCompanyName || 'וידאו',
-            tags: ['וידאו', brandCompanyName].filter(Boolean),
+            category: badge,
+            tags: Array.isArray(vidSec?.tags) && vidSec.tags.length > 0 ? vidSec.tags : [badge],
             featured: collected.length === 0,
           });
         }
+      } catch {
+        // ignore
+      }
+
+      // 3. Tertiary source: Processed videos in mod_kos_tube_videos
+      try {
+        const tubeVideosRef = collection(db, `${tenantPrefix}/${SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS}`);
+        const tubeVideosSnap = await getDocs(tubeVideosRef);
+        tubeVideosSnap.forEach((docSnap) => {
+          const d = docSnap.data() as any;
+          if (!d) return;
+          const rawYt = d.youtubeVideoId || docSnap.id.replace(/^vid_/, '');
+          const ytId = extractYouTubeId(rawYt);
+          if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) return;
+          seenYoutubeIds.add(ytId);
+
+          const idKey = `tube_vid_${docSnap.id}`;
+          const title = cleanPageTitle(d.title) || 'סרטון ערוץ';
+          const description = d.description || '';
+          const badge = extractVideoBadgeFromTubeVideo(d);
+
+          collected.push({
+            id: idKey,
+            title,
+            subtitle: d.channelTitle || '',
+            description,
+            youtubeVideoId: ytId,
+            thumbnailUrl: d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+            kosvidioSlug: d.seoPageSlug || d.slug || `kosvidio-${ytId}`,
+            duration: d.duration || '',
+            viewsCount: Number(d.viewCount || d.viewsCount || 100),
+            likesCount: Number(d.likeCount || d.likesCount || 18),
+            publishedAt: d.publishedAt || '',
+            category: badge,
+            tags: Array.isArray(d.tags) ? d.tags : [badge],
+            featured: collected.length === 0,
+          });
+        });
       } catch {
         // ignore
       }
@@ -674,7 +928,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
             style={{ backgroundColor: `${effectiveAccent}e6` }}
           >
             <Video className="w-3 h-3" />
-            <span>{video.category || effectiveChannelName || 'וידאו'}</span>
+            <span>{video.category || 'וידאו'}</span>
           </span>
 
           {video.duration && (
@@ -1033,7 +1287,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
                       </div>
 
                       <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
-                        <span>{video.category || effectiveChannelName || 'וידאו'}</span>
+                        <span>{video.category || 'וידאו'}</span>
                         <a
                           href={slugHref}
                           onClick={(e) => e.stopPropagation()}
@@ -1076,7 +1330,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
                     <div>
                       <div className="flex flex-wrap items-center gap-2 mb-1.5">
                         <span className={clsx('px-2.5 py-0.5 text-[10px] font-bold', theme.tag)}>
-                          #{idx + 1} • {video.category || effectiveChannelName || 'וידאו'}
+                          #{idx + 1} • {video.category || 'וידאו'}
                         </span>
                         {video.duration && (
                           <span className="text-[11px] text-slate-400 font-mono">
@@ -1175,7 +1429,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
                     <div>
                       <div className="mb-3">{renderVideoPlayerOrThumbnail(vid, false)}</div>
                       <span className={clsx('px-2.5 py-0.5 text-[10px] font-bold mb-1.5 inline-block', theme.tag)}>
-                        {vid.category || effectiveChannelName || 'וידאו'}
+                        {vid.category || 'וידאו'}
                       </span>
                       <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2">
                         {vid.title}

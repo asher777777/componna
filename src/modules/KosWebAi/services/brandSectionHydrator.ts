@@ -427,8 +427,12 @@ export function hydrateSectionWithBrandDna(
       if (primaryColor) {
         cloned.accentColor = primaryColor;
       }
-      // Never inject dummy/mock videos; videos are loaded from the tenant's real video collection
-      cloned.items = [];
+      // Keep existing configured video items intact
+      cloned.items = Array.isArray(baseConfig?.items)
+        ? baseConfig.items
+        : Array.isArray(cloned.items)
+          ? cloned.items
+          : [];
       break;
     }
 
