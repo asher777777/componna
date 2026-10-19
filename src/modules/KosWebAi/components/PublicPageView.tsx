@@ -12,7 +12,11 @@ import { pageAnalyticsService } from '../services/pageAnalyticsService';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
-import { createDynamicSectionConfig } from '../services/brandSectionHydrator';
+import { doc, getDoc } from 'firebase/firestore';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
+import { createDynamicSectionConfig, resolveLiveBrandDna } from '../services/brandSectionHydrator';
+import { buildPageConfigFromVideo } from '../generators/videoPageBuilder';
+import { kosTubeFirestore } from '../../KosTube/services/kosTubeFirestore';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
 import { TenantAuthService } from '../../KosTenantProvisioner/services/tenantAuthService';
@@ -52,15 +56,9 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
       const archivePrefixes = [
         'p', 'page', 'to',
         'kosinfo', 'kosevent', 'koscheckout', 'koscommunity', 'kosfunrise', 'koscourse',
-        'kosass', 'kosvidio'
+        'kosass'
       ];
       const firstPart = parts[0].toLowerCase();
-      if (parts.length >= 2 && archivePrefixes.includes(firstPart)) {
-        if (firstPart === 'p' || firstPart === 'page' || firstPart === 'to') {
-          return parts.slice(1).join('/');
-        }
-        return `${firstPart}-${parts.slice(1).join('/')}`;
-      }
       if (firstPart === 'kosvidio') {
         if (parts.length >= 2) {
           return parts.slice(1).join('/');
@@ -69,6 +67,12 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
       }
       if (firstPart.startsWith('kosvidio-')) {
         return parts[0].slice('kosvidio-'.length);
+      }
+      if (parts.length >= 2 && archivePrefixes.includes(firstPart)) {
+        if (firstPart === 'p' || firstPart === 'page' || firstPart === 'to') {
+          return parts.slice(1).join('/');
+        }
+        return `${firstPart}-${parts.slice(1).join('/')}`;
       }
       if (archivePrefixes.some((pref) => firstPart.startsWith(`${pref}-`))) {
         return parts[0];
@@ -565,6 +569,73 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
               }
             } catch (tenantSearchErr) {
               console.warn('[PublicPageView] Tenant lookup failed:', tenantSearchErr);
+            }
+          }
+
+          // If still not found, check if this page exists in KosTube mod_kos_tube_pages
+          if (!foundPage && db) {
+            try {
+              const effTenant = tenantId || '_master';
+              const targetSlug = cleanTarget || target;
+              let tubePage = await kosTubeFirestore.getSeoPageBySlug(db, effTenant, targetSlug);
+              if (!tubePage && targetSlug !== target) {
+                tubePage = await kosTubeFirestore.getSeoPageBySlug(db, effTenant, target);
+              }
+              if (!tubePage) {
+                const candidates = [
+                  `page_${targetSlug}`,
+                  `page_${target}`,
+                  `page_kosvidio_${targetSlug}`,
+                  `page_kosvidio_${target}`,
+                ];
+                for (const docId of candidates) {
+                  const s = await getDoc(doc(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.KOS_TUBE_PAGES, docId));
+                  if (s.exists()) {
+                    tubePage = s.data() as any;
+                    break;
+                  }
+                }
+              }
+
+              if (tubePage) {
+                let liveBrand: any = null;
+                try {
+                  const bDoc = await getDoc(doc(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC));
+                  if (bDoc.exists()) liveBrand = bDoc.data();
+                } catch {}
+                const synthBrand = resolveLiveBrandDna(liveBrand, effTenant);
+                const generatedConfig = buildPageConfigFromVideo({
+                  video: {
+                    youtubeVideoId: tubePage.youtubeVideoId,
+                    title: tubePage.h1 || tubePage.metaTitle || 'וידאו',
+                    description: tubePage.metaDescription || tubePage.executiveSummary || '',
+                    thumbnailUrl: `https://i.ytimg.com/vi/${tubePage.youtubeVideoId}/hqdefault.jpg`,
+                    viewCount: Number(tubePage.viewCount || 0),
+                    likeCount: Number(tubePage.likeCount || 0),
+                  },
+                  channelTitle: tubePage.channelTitle,
+                  brandDna: synthBrand,
+                  aiData: {
+                    h1: tubePage.h1,
+                    metaTitle: tubePage.metaTitle,
+                    metaDescription: tubePage.metaDescription,
+                    articleContent: tubePage.articleContent,
+                    executiveSummary: tubePage.executiveSummary,
+                    keyTakeaways: tubePage.keyTakeaways,
+                    faqs: tubePage.faqs,
+                    callToAction: tubePage.callToAction,
+                    tags: tubePage.tags,
+                    slug: tubePage.slug,
+                  },
+                  customSlug: tubePage.slug,
+                });
+
+                // Persist to PageBuilder Firestore collection so subsequent requests load instantaneously
+                await pageBuilderFirestore.savePage(generatedConfig, db, effTenant);
+                foundPage = generatedConfig;
+              }
+            } catch (tubeErr) {
+              console.warn('[PublicPageView] KosTube fallback lookup error:', tubeErr);
             }
           }
         } else {

@@ -621,6 +621,7 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosvidio/:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             {/* Archive Direct Public Routes */}
             <Route path="/kosinfo" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosinfo/*" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
