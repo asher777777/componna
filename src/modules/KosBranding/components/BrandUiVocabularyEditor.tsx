@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { generateBrandUiVocabulary, buildDefaultBrandUiVocabulary } from '../services/brandCopilotService';
 import { BrandUiVocabulary } from '../types/brandDna';
@@ -28,8 +28,31 @@ export const BrandUiVocabularyEditor: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'buttons' | 'placeholders' | 'headings' | 'categories'>('buttons');
   const [lastActionNotice, setLastActionNotice] = useState<string | null>(null);
 
-  // Compute live vocabulary with fallback to gender-aware defaults
-  const effectiveVocab: BrandUiVocabulary = brandDna.uiVocabulary || buildDefaultBrandUiVocabulary(brandDna);
+  // Compute live vocabulary with fallback to gender-aware defaults for all nested objects
+  const defaultVocab = useMemo(() => buildDefaultBrandUiVocabulary(brandDna), [brandDna]);
+  const effectiveVocab: BrandUiVocabulary = useMemo(() => {
+    const custom = brandDna.uiVocabulary || {};
+    return {
+      ...defaultVocab,
+      ...custom,
+      sectionHeadings: {
+        ...defaultVocab.sectionHeadings,
+        ...(custom.sectionHeadings || {}),
+      },
+      categoryTitles: {
+        ...defaultVocab.categoryTitles,
+        ...(custom.categoryTitles || {}),
+      },
+      categoryDescriptions: {
+        ...defaultVocab.categoryDescriptions,
+        ...(custom.categoryDescriptions || {}),
+      },
+      archiveSeoDescriptions: {
+        ...defaultVocab.archiveSeoDescriptions,
+        ...(custom.archiveSeoDescriptions || {}),
+      },
+    };
+  }, [brandDna.uiVocabulary, defaultVocab]);
   const headings = effectiveVocab.sectionHeadings || {};
 
   const showNotice = (msg: string) => {

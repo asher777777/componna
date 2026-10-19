@@ -262,6 +262,18 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           ...(prev.uiVocabulary?.sectionHeadings || {}),
           ...(partial.sectionHeadings || {}),
         },
+        categoryTitles: {
+          ...(prev.uiVocabulary?.categoryTitles || {}),
+          ...(partial.categoryTitles || {}),
+        },
+        categoryDescriptions: {
+          ...(prev.uiVocabulary?.categoryDescriptions || {}),
+          ...(partial.categoryDescriptions || {}),
+        },
+        archiveSeoDescriptions: {
+          ...(prev.uiVocabulary?.archiveSeoDescriptions || {}),
+          ...(partial.archiveSeoDescriptions || {}),
+        },
       },
     }));
   }, [markLocalEdit]);
