@@ -561,6 +561,18 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
             return next;
           });
         }}
+        onApplyGlobalOverride={(result) => {
+          setConfig((prev) => {
+            const next = {
+              ...prev,
+              globalSettings: result.globalSettings,
+              sections: result.sections,
+              designSnapshots: result.designSnapshots,
+            };
+            if (onSaveConfig) onSaveConfig(next);
+            return next;
+          });
+        }}
       />
 
       <PublishPageModal

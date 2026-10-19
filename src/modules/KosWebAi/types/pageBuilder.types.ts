@@ -173,10 +173,13 @@ export interface BaseSectionConfig {
 }
 
 export type PageCategory =
-  | 'service_product'
   | 'info_content'
   | 'event'
+  | 'checkout'
+  | 'community'
   | 'fundraising'
+  | 'course'
+  | 'service_product'
   | 'youtube_post'
   | 'general';
 
@@ -191,23 +194,90 @@ export interface PageCategoryConfig {
   filterBadgeStyle: string;
 }
 
-export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
-  service_product: {
-    key: 'service_product',
-    slugPrefix: 'KOSASS',
-    slugPrefixLower: 'kosass',
-    label: 'עמודי שירות / מוצר',
-    shortLabel: 'שירות / מוצר',
-    description: 'הצעות ערך, מכירת מוצרים, חבילות שירותים, מחירונים וטפסי תשלום',
-    badgeStyle: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
-    filterBadgeStyle: 'bg-blue-600 text-white',
+export interface ArchiveTemplateSpec {
+  category: PageCategory;
+  name: string;
+  slugPrefix: string;
+  sections: SectionType[];
+  description: string;
+  defaultTitle: string;
+  defaultSubtitle: string;
+  keywords: string[];
+}
+
+export const ARCHIVE_7_SECTIONS_SPECS: Record<
+  'info_content' | 'event' | 'checkout' | 'community' | 'fundraising' | 'course',
+  ArchiveTemplateSpec
+> = {
+  info_content: {
+    category: 'info_content',
+    name: 'עמודי תוכן ומאמרים',
+    slugPrefix: 'kosinfo',
+    sections: ['hero', 'richContent', 'statsBento', 'faq', 'testimonials', 'community', 'contact'],
+    description: 'מבנה עשיר של 7 אזורים למאמרים, מדריכים ומרכז ידע עם מעורבות גבוהה',
+    defaultTitle: 'מדריך מעשי ותוכן מקצועי',
+    defaultSubtitle: 'תובנות מעמיקות, כלים ומתודולוגיות מוכחות',
+    keywords: ['תוכן', 'מאמר', 'מדריך', 'ידע מקצועי', 'בלוג'],
   },
+  event: {
+    category: 'event',
+    name: 'עמודי אירועים וכנסים',
+    slugPrefix: 'kosevent',
+    sections: ['hero', 'timer', 'eventRsvp', 'richContent', 'statsBento', 'faq', 'contact'],
+    description: 'מבנה 7 אזורים מלא לכנסים והשקות כולל ספירה לאחור, RSVP, לו"ז ודרכי הגעה',
+    defaultTitle: 'כנס שנתי ואירוע קהילה',
+    defaultSubtitle: 'הבטיחו את מקומכם באירוע המרכזי של השנה',
+    keywords: ['אירוע', 'כנס', 'RSVP', 'וובינר', 'הרשמה'],
+  },
+  checkout: {
+    category: 'checkout',
+    name: 'דפי סליקה ותשלום',
+    slugPrefix: 'koscheckout',
+    sections: ['hero', 'pricing', 'smartForm', 'timer', 'testimonials', 'faq', 'contact'],
+    description: 'משפך סליקה ממיר ב-7 אזורים: הצעת ערך, מחירון, טופס סליקה מאובטח, טיימר וביקורות',
+    defaultTitle: 'הצטרפות והסדרת תשלום מאובטח',
+    defaultSubtitle: 'הצעה מיוחדת לזמן מוגבל • סליקה מהירה בתקן אבטחה מחמיר',
+    keywords: ['סליקה', 'תשלום', 'רכישה', 'מחירון', 'הזמנה מאובטחת'],
+  },
+  community: {
+    category: 'community',
+    name: 'דפי קהילה ומועדון',
+    slugPrefix: 'koscommunity',
+    sections: ['hero', 'community', 'statsBento', 'livePosts', 'testimonials', 'faq', 'contact'],
+    description: 'מתחם 7 אזורים לקהילות ומועדוני לקוחות: הטבות, חברים, פוסטים חיים והרשמה',
+    defaultTitle: 'קהילת המובילים והמקצוענים',
+    defaultSubtitle: 'נטוורקינג, הטבות בלעדיות ותוכן סגור לחברים בלבד',
+    keywords: ['קהילה', 'מועדון חברים', 'נטוורקינג', 'חברות', 'VIP'],
+  },
+  fundraising: {
+    category: 'fundraising',
+    name: 'דפי קמפיין לגיוס',
+    slugPrefix: 'kosfunrise',
+    sections: ['campaignHeader', 'hero', 'campaignTiers', 'campaignDonors', 'statsBento', 'faq', 'contact'],
+    description: 'מערך גיוס המונים ב-7 אזורים: מד יעד, סיפור מרגש, מדרגות תרומה, קיר תורמים וסעיף 46',
+    defaultTitle: 'קמפיין שותפות וגיוס תרומות',
+    defaultSubtitle: 'ביחד מגיעים אל היעד • כל תרומה מוכפלת ומוכרת למס',
+    keywords: ['תרומות', 'קמפיין', 'גיוס המונים', 'סעיף 46', 'שותפות'],
+  },
+  course: {
+    category: 'course',
+    name: 'דפי קורסים והכשרות',
+    slugPrefix: 'koscourse',
+    sections: ['hero', 'mainContent', 'statsBento', 'pricing', 'testimonials', 'faq', 'contact'],
+    description: 'דף קורס מקצועי ב-7 אזורים: סילבוס, באנר תוכן מודגש, נתונים, מסלולים והרשמה',
+    defaultTitle: 'התכנית המקיפה להכשרה מקצועית',
+    defaultSubtitle: 'סילבוס מעשי, פרויקטים מהשטח וליווי צמוד עד להצלחה',
+    keywords: ['קורס', 'סדנה', 'הכשרה', 'לימודים', 'אקדמיה', 'סילבוס'],
+  },
+};
+
+export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
   info_content: {
     key: 'info_content',
     slugPrefix: 'KOSINFO',
     slugPrefixLower: 'kosinfo',
-    label: 'עמוד מידע ותוכן',
-    shortLabel: 'מידע ותוכן',
+    label: 'עמודי תוכן ומאמרים',
+    shortLabel: 'תוכן ומאמרים',
     description: 'מאמרים, מרכז ידע, מדריכים, תוכן מקצועי ומידע כללי',
     badgeStyle: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     filterBadgeStyle: 'bg-emerald-600 text-white',
@@ -216,11 +286,31 @@ export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
     key: 'event',
     slugPrefix: 'KOSEVENT',
     slugPrefixLower: 'kosevent',
-    label: 'עמודי אירועים',
+    label: 'עמודי אירועים וכנסים',
     shortLabel: 'אירועים',
     description: 'כנסים, השקות, הרשמות RSVP, חיבור CRM, תשלום, יומן ודרכי הגעה',
     badgeStyle: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
     filterBadgeStyle: 'bg-amber-600 text-white',
+  },
+  checkout: {
+    key: 'checkout',
+    slugPrefix: 'KOSCHECKOUT',
+    slugPrefixLower: 'koscheckout',
+    label: 'דפי סליקה ותשלום',
+    shortLabel: 'סליקה ותשלום',
+    description: 'עמודי רכישה וסליקה, הצעות ערך, מחירונים, סליקה מאובטחת וטיימרים',
+    badgeStyle: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    filterBadgeStyle: 'bg-blue-600 text-white',
+  },
+  community: {
+    key: 'community',
+    slugPrefix: 'KOSCOMMUNITY',
+    slugPrefixLower: 'koscommunity',
+    label: 'דפי קהילה ומועדון',
+    shortLabel: 'קהילה',
+    description: 'מועדוני לקוחות, קהילות מקצועיות, הטבות בלעדיות, שיח חי והרשמה',
+    badgeStyle: 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20',
+    filterBadgeStyle: 'bg-purple-600 text-white',
   },
   fundraising: {
     key: 'fundraising',
@@ -231,6 +321,26 @@ export const PAGE_CATEGORIES: Record<PageCategory, PageCategoryConfig> = {
     description: 'קמפיינים לגיוס תרומות, מדרגות נתינה, קיר תורמים ומד התקדמות',
     badgeStyle: 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20',
     filterBadgeStyle: 'bg-rose-600 text-white',
+  },
+  course: {
+    key: 'course',
+    slugPrefix: 'KOSCOURSE',
+    slugPrefixLower: 'koscourse',
+    label: 'דפי קורסים והכשרות',
+    shortLabel: 'קורסים',
+    description: 'קורסים דיגיטליים, תכניות הכשרה, סילבוס מודולרי, מסלולי לימוד והרשמה',
+    badgeStyle: 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20',
+    filterBadgeStyle: 'bg-indigo-600 text-white',
+  },
+  service_product: {
+    key: 'service_product',
+    slugPrefix: 'KOSASS',
+    slugPrefixLower: 'kosass',
+    label: 'עמודי שירות / מוצר',
+    shortLabel: 'שירות / מוצר',
+    description: 'הצעות ערך, מכירת מוצרים, חבילות שירותים, מחירונים וטפסי תשלום',
+    badgeStyle: 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
+    filterBadgeStyle: 'bg-cyan-600 text-white',
   },
   youtube_post: {
     key: 'youtube_post',
@@ -260,6 +370,25 @@ export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?:
   const s = (page.slug || '').toLowerCase();
   const pid = (page.pageId || '').toLowerCase();
   if (
+    s.startsWith('koscheckout') ||
+    s.startsWith('checkout-') ||
+    s.startsWith('pay-')
+  ) return 'checkout';
+  if (
+    s.startsWith('koscommunity') ||
+    s.startsWith('koscomm') ||
+    s.startsWith('community-') ||
+    s.startsWith('comm-')
+  ) return 'community';
+  if (
+    s.startsWith('koscourse') ||
+    s.startsWith('course-') ||
+    s.startsWith('academy-')
+  ) return 'course';
+  if (s.startsWith('kosinfo') || s.startsWith('info-') || s.startsWith('article-') || s.startsWith('content-')) return 'info_content';
+  if (s.startsWith('kosevent') || s.startsWith('event-')) return 'event';
+  if (s.startsWith('kosfunrise') || s.startsWith('campaign-') || s.startsWith('camp_')) return 'fundraising';
+  if (
     s.startsWith('kosass') ||
     s.startsWith('service-') ||
     s.startsWith('product-') ||
@@ -267,9 +396,6 @@ export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?:
     s.startsWith('srv-') ||
     Boolean(page.sections?.painPoints?.visible && page.sections?.targetAudiences?.visible)
   ) return 'service_product';
-  if (s.startsWith('kosinfo') || s.startsWith('info-') || s.startsWith('article-')) return 'info_content';
-  if (s.startsWith('kosevent') || s.startsWith('event-')) return 'event';
-  if (s.startsWith('kosfunrise') || s.startsWith('campaign-') || s.startsWith('camp_')) return 'fundraising';
   if (
     s.startsWith('kosvidio') ||
     s.startsWith('kostube') ||

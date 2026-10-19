@@ -41,8 +41,15 @@ import { CookieConsentBanner } from './CookieConsentBanner';
 import { syncBrandDnaFromLegalSettings } from '../generators/legalPagesGenerator';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../../core/tenant';
+import {
+  applyStylePresetToPage,
+  resetPageToBrandInitialState,
+  STYLE_GLOBAL_THEMES,
+  PRESET_TITLE_MAP,
+} from '../services/pageStylePresetService';
+import { PageBuilderConfig } from '../types/pageBuilder.types';
 
-interface PageSettingsDrawerProps {
+export interface PageSettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   globalSettings: GlobalPageSettings;
@@ -56,6 +63,11 @@ interface PageSettingsDrawerProps {
   onUpdateSections?: (sections: Record<string, any>) => void;
   designSnapshots?: PageDesignSnapshot[];
   onUpdateDesignSnapshots?: (snapshots: PageDesignSnapshot[]) => void;
+  onApplyGlobalOverride?: (result: {
+    globalSettings: GlobalPageSettings;
+    sections: Record<string, any>;
+    designSnapshots: PageDesignSnapshot[];
+  }) => void;
 }
 
 export type SettingsAccordionSection = 'general' | 'globalStyle' | 'design' | 'seo' | 'analytics' | 'contact' | 'cookies';
@@ -126,67 +138,6 @@ const GLOBAL_STYLE_PRESETS: Array<{
   },
 ];
 
-const PRESET_TITLE_MAP: Record<string, string> = {
-  standard: 'סטנדרטי ומאוזן (Standard)',
-  feminine: 'נשי ורך (Feminine)',
-  masculine: 'גברי ועוצמתי (Masculine)',
-  spiritual: 'רוחני ועדין (Spiritual)',
-  sharp: 'חד וטכנולוגי (Sharp)',
-  analytical: 'אנליטי ומדעי (Analytical)',
-};
-
-
-const STYLE_GLOBAL_THEMES: Record<TenantStylePreset, Partial<GlobalPageSettings>> = {
-  standard: {
-    primaryColor: '#6366f1',
-    secondaryColor: '#0ea5e9',
-    buttonBgColor: '#6366f1',
-    buttonTextColor: '#ffffff',
-    borderRadius: 'md',
-    buttonStyle: 'gradient',
-  },
-  feminine: {
-    primaryColor: '#ec4899',
-    secondaryColor: '#f43f5e',
-    buttonBgColor: '#ec4899',
-    buttonTextColor: '#ffffff',
-    borderRadius: 'full',
-    buttonStyle: 'gradient',
-  },
-  masculine: {
-    primaryColor: '#2563eb',
-    secondaryColor: '#0284c7',
-    buttonBgColor: '#2563eb',
-    buttonTextColor: '#ffffff',
-    borderRadius: 'md',
-    buttonStyle: 'solid',
-  },
-  spiritual: {
-    primaryColor: '#8b5cf6',
-    secondaryColor: '#d946ef',
-    buttonBgColor: '#8b5cf6',
-    buttonTextColor: '#ffffff',
-    borderRadius: 'lg',
-    buttonStyle: 'glass',
-  },
-  sharp: {
-    primaryColor: '#06b6d4',
-    secondaryColor: '#0891b2',
-    buttonBgColor: '#06b6d4',
-    buttonTextColor: '#ffffff',
-    borderRadius: 'none',
-    buttonStyle: 'outline',
-  },
-  analytical: {
-    primaryColor: '#10b981',
-    secondaryColor: '#06b6d4',
-    buttonBgColor: '#10b981',
-    buttonTextColor: '#ffffff',
-    borderRadius: 'sm',
-    buttonStyle: 'solid',
-  },
-};
-
 export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   isOpen,
   onClose,
@@ -201,6 +152,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   onUpdateSections,
   designSnapshots = [],
   onUpdateDesignSnapshots,
+  onApplyGlobalOverride,
 }) => {
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
@@ -258,7 +210,6 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
 
   // Apply Global Style Override with Automatic Snapshot
   const handleApplyGlobalStyleOverride = () => {
-    // Collect active sections from state or props
     let sourceSections = { ...currentSections };
     if (Object.keys(sourceSections).length === 0) {
       if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
@@ -277,168 +228,118 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       return;
     }
 
-    // 1. Create automatic snapshot before override
-    const now = new Date();
-    const formattedDate = now.toLocaleDateString('he-IL', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
-
-    const newSnapshot: PageDesignSnapshot = {
-      id: `snap_${Date.now()}`,
-      timestamp: now.toISOString(),
-      createdAtFormatted: formattedDate,
-      label: `לפני דריסה ל-${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset}`,
-      preset: selectedStylePreset,
-      sections: JSON.parse(JSON.stringify(sourceSections)),
-      theme: formDataGlobal.theme,
+    const dummyPage: PageBuilderConfig = {
+      pageId: 'current',
+      pageTitle: displayName,
+      slug: 'current',
+      published: true,
+      globalSettings: formDataGlobal,
+      seoSettings: formDataSeo,
+      sectionOrder: sectionKeys,
+      sections: sourceSections,
+      designSnapshots: localSnapshots,
     };
 
-    const nextSnapshots = [newSnapshot, ...localSnapshots];
-    setLocalSnapshots(nextSnapshots);
-    if (onUpdateDesignSnapshots) {
-      onUpdateDesignSnapshots(nextSnapshots);
-    }
+    const { updatedPage, snapshot } = applyStylePresetToPage(dummyPage, selectedStylePreset);
+    const nextSnapshots = updatedPage.designSnapshots || [snapshot, ...localSnapshots];
+    const nextGlobal = updatedPage.globalSettings || formDataGlobal;
+    const nextSections = updatedPage.sections || sourceSections;
 
-    // 2. Mutate sections to match selected style preset
-    const nextSections: Record<string, any> = {};
-    let updatedCount = 0;
-
-    for (const key of sectionKeys) {
-      const sec = { ...sourceSections[key] };
-      const sType = sec.type;
-
-      // Never modify header layout when applying content style presets
-      if (sType === 'header') {
-        nextSections[key] = sec;
-        continue;
-      }
-
-      // Layout preset for compatible sections
-      if (
-        sType === 'hero' ||
-        sType === 'richContent' ||
-        sType === 'faq' ||
-        sType === 'contact' ||
-        sType === 'timer' ||
-        sType === 'livePosts' ||
-        sType === 'kosvidio' ||
-        sType === 'videoGallery' ||
-        sType === 'imageListing' ||
-        sType === 'videoEngagement' ||
-        sType === 'courseBanner'
-      ) {
-        sec.layout = selectedStylePreset;
-      }
-
-      // Timer shapes
-      if (sType === 'timer') {
-        if (selectedStylePreset === 'feminine') sec.boxShape = 'flower';
-        else if (selectedStylePreset === 'masculine') sec.boxShape = 'shield';
-        else if (selectedStylePreset === 'spiritual') sec.boxShape = 'lotus';
-        else if (selectedStylePreset === 'sharp') sec.boxShape = 'sharp';
-        else if (selectedStylePreset === 'analytical') sec.boxShape = 'hud';
-        else sec.boxShape = 'rounded';
-      }
-
-      // Hero style and button shapes
-      if (sType === 'hero') {
-        sec.layout = selectedStylePreset;
-        if (selectedStylePreset === 'feminine') {
-          sec.heroStyle = 'mesh-glow';
-          sec.buttonShape = 'pill';
-        } else if (selectedStylePreset === 'masculine') {
-          sec.heroStyle = 'card';
-          sec.buttonShape = 'rounded';
-        } else if (selectedStylePreset === 'sharp') {
-          sec.heroStyle = 'minimal';
-          sec.buttonShape = 'square';
-        } else if (selectedStylePreset === 'spiritual') {
-          sec.heroStyle = 'mesh-glow';
-          sec.buttonShape = 'pill';
-        } else if (selectedStylePreset === 'analytical') {
-          sec.heroStyle = 'modern';
-          sec.buttonShape = 'rounded';
-        } else {
-          sec.heroStyle = 'classic';
-          sec.buttonShape = 'auto';
-        }
-      }
-
-      // Testimonials layout
-      if (sType === 'testimonials') {
-        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'carousel';
-        else if (selectedStylePreset === 'sharp') sec.layout = 'masonry';
-        else sec.layout = 'grid';
-      }
-
-      // StatsBento layout
-      if (sType === 'statsBento') {
-        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'cards-3';
-        else if (selectedStylePreset === 'masculine') sec.layout = 'row-4';
-        else sec.layout = 'bento-4';
-      }
-
-      // Community layout
-      if (sType === 'community') {
-        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'card';
-        else if (selectedStylePreset === 'masculine') sec.layout = 'classic';
-        else sec.layout = 'modern';
-      }
-
-      // LandingSection layout
-      if (sType === 'landingSection') {
-        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'centered';
-        else if (selectedStylePreset === 'sharp') sec.layout = 'card';
-        else sec.layout = 'split';
-      }
-
-      nextSections[key] = sec;
-      updatedCount++;
-    }
-
-    // 3. Update Global Settings with style theme tokens
-    const styleTokens = STYLE_GLOBAL_THEMES[selectedStylePreset];
-    const newGlobalSettings: GlobalPageSettings = {
-      ...formDataGlobal,
-      ...styleTokens,
-    };
-
-    // Clean up any previously polluted preset dark backgrounds or text colors that broke day/night mode
-    const corruptedDarkBgs = ['#140c12', '#080c14', '#0c0716', '#05070a', '#04120e', '#0a0a0c', '#000000'];
-    if (newGlobalSettings.backgroundColor && corruptedDarkBgs.includes(newGlobalSettings.backgroundColor.toLowerCase())) {
-      delete newGlobalSettings.backgroundColor;
-    }
-    const corruptedTextColors = ['#fff1f2', '#f8fafc', '#faf5ff', '#ecfeff', '#ecfdf5', '#ffffff'];
-    if (newGlobalSettings.textColor && corruptedTextColors.includes(newGlobalSettings.textColor.toLowerCase())) {
-      delete newGlobalSettings.textColor;
-    }
-
-    setFormDataGlobal(newGlobalSettings);
-    onUpdateGlobalSettings(newGlobalSettings);
-
-    // 4. Update sections in state and invoke callback
+    setFormDataGlobal(nextGlobal);
     setCurrentSections(nextSections);
-    if (onUpdateSections) {
-      onUpdateSections(nextSections);
+    setLocalSnapshots(nextSnapshots);
+
+    if (onApplyGlobalOverride) {
+      onApplyGlobalOverride({
+        globalSettings: nextGlobal,
+        sections: nextSections,
+        designSnapshots: nextSnapshots,
+      });
+    } else {
+      if (onUpdateDesignSnapshots) onUpdateDesignSnapshots(nextSnapshots);
+      onUpdateGlobalSettings(nextGlobal);
+      if (onUpdateSections) onUpdateSections(nextSections);
     }
 
-    // 5. Broadcast event across system
     window.dispatchEvent(
       new CustomEvent('kos_page_sections_updated', {
         detail: {
           sections: nextSections,
           preset: selectedStylePreset,
-          globalSettings: newGlobalSettings,
+          globalSettings: nextGlobal,
         },
       })
     );
 
-    showNotification(`הסגנון ${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset} הוחל בהצלחה על ${updatedCount} אזורים ועיצוב העמוד! נשמרה גרסת שחזור.`);
+    showNotification(`הסגנון ${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset} הוחל בהצלחה על כל אזורי העמוד! נשמרה גרסת שחזור.`);
+  };
+
+  // Reset current page to Brand DNA initial state with automatic snapshot
+  const handleResetPageToBrand = () => {
+    if (!brandDna) {
+      showNotification('לא נמצאו נתוני Brand DNA לטננט זה');
+      return;
+    }
+    if (!window.confirm('האם אתה בטוח שברצונך לאפס עמוד זה להגדרות המיתוג הראשוניות? גרסת גיבוי מלאה של העיצוב הקיים תישמר אוטומטית.')) {
+      return;
+    }
+
+    let sourceSections = { ...currentSections };
+    if (Object.keys(sourceSections).length === 0) {
+      if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
+        sourceSections = { ...sections };
+      } else if (Array.isArray(pageSections) && pageSections.length > 0) {
+        pageSections.forEach((s: any, idx: number) => {
+          const id = s.id || `section_${idx}`;
+          sourceSections[id] = s;
+        });
+      }
+    }
+
+    const dummyPage: PageBuilderConfig = {
+      pageId: 'current',
+      pageTitle: displayName,
+      slug: 'current',
+      published: true,
+      globalSettings: formDataGlobal,
+      seoSettings: formDataSeo,
+      sectionOrder: Object.keys(sourceSections),
+      sections: sourceSections,
+      designSnapshots: localSnapshots,
+    };
+
+    const { updatedPage, snapshot } = resetPageToBrandInitialState(dummyPage, brandDna);
+    const nextSnapshots = updatedPage.designSnapshots || [snapshot, ...localSnapshots];
+    const nextGlobal = updatedPage.globalSettings || formDataGlobal;
+    const nextSections = updatedPage.sections || sourceSections;
+
+    setFormDataGlobal(nextGlobal);
+    setCurrentSections(nextSections);
+    setLocalSnapshots(nextSnapshots);
+
+    if (onApplyGlobalOverride) {
+      onApplyGlobalOverride({
+        globalSettings: nextGlobal,
+        sections: nextSections,
+        designSnapshots: nextSnapshots,
+      });
+    } else {
+      if (onUpdateDesignSnapshots) onUpdateDesignSnapshots(nextSnapshots);
+      onUpdateGlobalSettings(nextGlobal);
+      if (onUpdateSections) onUpdateSections(nextSections);
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: nextSections,
+          preset: (brandDna.designTokens?.defaultStylePreset as TenantStylePreset) || 'standard',
+          globalSettings: nextGlobal,
+        },
+      })
+    );
+
+    showNotification('העמוד אופס בהצלחה לשפת המיתוג הראשונית! גרסת העיצוב הקודם נשמרה.');
   };
 
   // Create Manual Design Snapshot
@@ -515,21 +416,16 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
 
     const nextSnapshots = [safetySnapshot, ...localSnapshots];
     setLocalSnapshots(nextSnapshots);
-    if (onUpdateDesignSnapshots) {
-      onUpdateDesignSnapshots(nextSnapshots);
-    }
 
     const restoredSections = JSON.parse(JSON.stringify(snapshot.sections));
     setCurrentSections(restoredSections);
-    if (onUpdateSections) {
-      onUpdateSections(restoredSections);
-    }
 
+    let restoredGlobal = { ...formDataGlobal };
     if (snapshot.preset && PRESET_TITLE_MAP[snapshot.preset]) {
       setSelectedStylePreset(snapshot.preset as TenantStylePreset);
       const styleTokens = STYLE_GLOBAL_THEMES[snapshot.preset as TenantStylePreset];
       if (styleTokens) {
-        const restoredGlobal: GlobalPageSettings = {
+        restoredGlobal = {
           ...formDataGlobal,
           ...styleTokens,
         };
@@ -542,8 +438,19 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
           delete restoredGlobal.textColor;
         }
         setFormDataGlobal(restoredGlobal);
-        onUpdateGlobalSettings(restoredGlobal);
       }
+    }
+
+    if (onApplyGlobalOverride) {
+      onApplyGlobalOverride({
+        globalSettings: restoredGlobal,
+        sections: restoredSections,
+        designSnapshots: nextSnapshots,
+      });
+    } else {
+      if (onUpdateDesignSnapshots) onUpdateDesignSnapshots(nextSnapshots);
+      onUpdateGlobalSettings(restoredGlobal);
+      if (onUpdateSections) onUpdateSections(restoredSections);
     }
 
     window.dispatchEvent(
@@ -551,6 +458,7 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
         detail: {
           sections: restoredSections,
           preset: snapshot.preset,
+          globalSettings: restoredGlobal,
         },
       })
     );
@@ -1237,6 +1145,19 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
                   >
                     <Bookmark className="w-3.5 h-3.5" />
                     <span>שמור גרסת עיצוב נוכחית (Snapshot)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleResetPageToBrand}
+                    className={`w-full py-2 px-3 rounded-xl font-bold text-xs border flex items-center justify-center gap-1.5 cursor-pointer transition-all ${
+                      isDarkMode
+                        ? 'bg-indigo-500/10 hover:bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
+                        : 'bg-indigo-50 hover:bg-indigo-100 border-indigo-200 text-indigo-700'
+                    }`}
+                  >
+                    <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>אפס עמוד זה לשפת המיתוג הראשונית (Brand DNA)</span>
                   </button>
                 </div>
 

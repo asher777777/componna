@@ -31,6 +31,7 @@ import {
   FlagshipRepeaterItem,
   FlagshipFaqItem,
   FlagshipSeoData,
+  FlagshipSectionTitles,
 } from '../types/brandDna';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { PageBuilderContract, MediaPickerContract } from '../../../core/contracts';
@@ -392,6 +393,7 @@ export const CoreServicesEditor: React.FC = () => {
           targetAudiences: generated.targetAudiences,
           competitiveAdvantages: generated.competitiveAdvantages,
           faqs: generated.faqs,
+          sectionTitles: generated.sectionTitles,
           seo: generated.seo,
         };
 
@@ -580,6 +582,16 @@ const CoreServiceDetailModal: React.FC<{
     setDraft((prev) => ({ ...prev, [field]: value }));
   };
 
+  const updateSectionTitle = (field: keyof FlagshipSectionTitles, value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      sectionTitles: {
+        ...(prev.sectionTitles || {}),
+        [field]: value,
+      },
+    }));
+  };
+
   const updateSeoField = <K extends keyof FlagshipSeoData>(field: K, value: FlagshipSeoData[K]) => {
     setDraft((prev) => ({
       ...prev,
@@ -616,6 +628,7 @@ const CoreServiceDetailModal: React.FC<{
           targetAudiences: generated.targetAudiences,
           competitiveAdvantages: generated.competitiveAdvantages,
           faqs: generated.faqs,
+          sectionTitles: generated.sectionTitles || prev.sectionTitles,
           seo: {
             ...(prev.seo || {}),
             ...generated.seo,
@@ -850,6 +863,33 @@ const CoreServiceDetailModal: React.FC<{
 
             {openSection === 'general' && (
               <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl border border-indigo-200/50 dark:border-indigo-800/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-indigo-900 dark:text-indigo-200 block">
+                      תגית / סאב-טייטל לאזור אודות
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.aboutSubtitle || ''}
+                      onChange={(e) => updateSectionTitle('aboutSubtitle', e.target.value)}
+                      placeholder="לדוגמה: הכירו את השירות מקרוב"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-indigo-900 dark:text-indigo-200 block">
+                      כותרת ראשית מעוצבת לאזור אודות
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.aboutHeading || ''}
+                      onChange={(e) => updateSectionTitle('aboutHeading', e.target.value)}
+                      placeholder="לדוגמה: המסע שלך מתחיל כאן"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                </div>
+
                 <div className="space-y-1.5">
                   <label className="text-xs font-black text-slate-700 dark:text-slate-300 block">
                     שם השירות והסלוגן (Name & Slogan)
@@ -932,6 +972,33 @@ const CoreServiceDetailModal: React.FC<{
 
             {openSection === 'painPoints' && (
               <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-rose-50/60 dark:bg-rose-950/30 rounded-xl border border-rose-200/50 dark:border-rose-800/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-rose-900 dark:text-rose-200 block">
+                      תגית / סאב-טייטל לאזור האתגרים
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.painPointsSubtitle || ''}
+                      onChange={(e) => updateSectionTitle('painPointsSubtitle', e.target.value)}
+                      placeholder="לדוגמה: עוגן בתוך שגרת החול"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-rose-900 dark:text-rose-200 block">
+                      כותרת ראשית לאזור האתגרים (בטוב טעם)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.painPointsHeading || ''}
+                      onChange={(e) => updateSectionTitle('painPointsHeading', e.target.value)}
+                      placeholder="לדוגמה: האתגרים שאנו פותרות יחד"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
                 <RepeaterSection
                   title="רשימת נקודות כאב ופתרונן"
                   countBadge={`${(draft.painPoints || []).length} / 6`}
@@ -997,6 +1064,33 @@ const CoreServiceDetailModal: React.FC<{
 
             {openSection === 'targetAudiences' && (
               <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-blue-50/60 dark:bg-blue-950/30 rounded-xl border border-blue-200/50 dark:border-blue-800/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-blue-900 dark:text-blue-200 block">
+                      תגית / סאב-טייטל לקהלי היעד
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.targetAudiencesSubtitle || ''}
+                      onChange={(e) => updateSectionTitle('targetAudiencesSubtitle', e.target.value)}
+                      placeholder="לדוגמה: המרחב שמחכה לך"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-blue-900 dark:text-blue-200 block">
+                      כותרת ראשית לאזור קהלי היעד
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.targetAudiencesHeading || ''}
+                      onChange={(e) => updateSectionTitle('targetAudiencesHeading', e.target.value)}
+                      placeholder="לדוגמה: למי נתפר המסע הייחודי הזה?"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+
                 <RepeaterSection
                   title="רשימת קהלי היעד"
                   countBadge={`${(draft.targetAudiences || []).length} / 3`}
@@ -1062,6 +1156,33 @@ const CoreServiceDetailModal: React.FC<{
 
             {openSection === 'competitiveAdvantages' && (
               <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-xl border border-amber-200/50 dark:border-amber-800/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-900 dark:text-amber-200 block">
+                      תגית / סאב-טייטל לאזור המעלות והיתרונות
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.advantagesSubtitle || ''}
+                      onChange={(e) => updateSectionTitle('advantagesSubtitle', e.target.value)}
+                      placeholder="לדוגמה: הבשורה שלנו עבורך"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-900 dark:text-amber-200 block">
+                      כותרת ראשית מעוצבת למעלות והיתרונות
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.advantagesHeading || ''}
+                      onChange={(e) => updateSectionTitle('advantagesHeading', e.target.value)}
+                      placeholder="לדוגמה: המעלות והעוצמה הייחודית של המרחב שלנו"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
                 <RepeaterSection
                   title="רשימת יתרונות תחרותיים"
                   countBadge={`${(draft.competitiveAdvantages || []).length} / 6`}

@@ -1,4 +1,4 @@
-import { BrandDna } from '../types/brandDna';
+import { BrandDna, FlagshipSectionTitles } from '../types/brandDna';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import {
   dispatchBrandSummaryParagraphToKosai,
@@ -427,6 +427,27 @@ export function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company:
     ? aiQuestionsRaw.split('|').map((q) => q.trim()).filter(Boolean)
     : [];
 
+  const headingsBlock = sections.SECTION_HEADINGS || '';
+  const getHeadingVal = (key: string) => {
+    const m = new RegExp(`^${key}:\\s*(.*)$`, 'm').exec(headingsBlock);
+    return m ? m[1].trim() : '';
+  };
+
+  const sectionTitles: FlagshipSectionTitles = {
+    aboutSubtitle: getHeadingVal('ABOUT_SUBTITLE') || undefined,
+    aboutHeading: getHeadingVal('ABOUT_HEADING') || undefined,
+    painPointsSubtitle: getHeadingVal('PAIN_POINTS_SUBTITLE') || undefined,
+    painPointsHeading: getHeadingVal('PAIN_POINTS_HEADING') || undefined,
+    targetAudiencesSubtitle: getHeadingVal('TARGET_AUDIENCES_SUBTITLE') || undefined,
+    targetAudiencesHeading: getHeadingVal('TARGET_AUDIENCES_HEADING') || undefined,
+    advantagesSubtitle: getHeadingVal('ADVANTAGES_SUBTITLE') || undefined,
+    advantagesHeading: getHeadingVal('ADVANTAGES_HEADING') || undefined,
+    faqSubtitle: getHeadingVal('FAQ_SUBTITLE') || undefined,
+    faqHeading: getHeadingVal('FAQ_HEADING') || undefined,
+    contactSubtitle: getHeadingVal('CONTACT_SUBTITLE') || undefined,
+    contactHeading: getHeadingVal('CONTACT_HEADING') || undefined,
+  };
+
   return {
     nameAndSlogan: sections.NAME_AND_SLOGAN || '',
     shortDescription: sections.SHORT_DESCRIPTION || '',
@@ -435,6 +456,7 @@ export function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company:
     targetAudiences,
     competitiveAdvantages,
     faqs: faqLines,
+    sectionTitles,
     seo: {
       slug: cleanSeoSlug ? `kosass/${cleanSeoSlug}` : undefined,
       metaTitle,
@@ -445,6 +467,40 @@ export function parseDelimitedFlagshipText(raw: any, cleanIdea: string, company:
       aiEntitySchemaType: 'Product',
       aiBotIndexingEnabled: true,
     },
+  };
+}
+
+export function buildDefaultSectionTitles(brand: BrandDna, cleanIdea: string, company: string): FlagshipSectionTitles {
+  const isFemale = brand.voice?.genderAddressing === 'female';
+  if (isFemale) {
+    return {
+      aboutSubtitle: 'הכירי את המרחב מקרוב',
+      aboutHeading: `אודות ${cleanIdea}`,
+      painPointsSubtitle: 'עוגן בתוך שגרת החול',
+      painPointsHeading: 'האתגרים שאנו פוגשות ופותרות יחד איתך',
+      targetAudiencesSubtitle: 'המרחב שמחכה לך',
+      targetAudiencesHeading: 'למי נתפר המסע הייחודי הזה?',
+      advantagesSubtitle: 'הבשורה שלנו עבורך',
+      advantagesHeading: `המעלות והעוצמה במרחב של ${company}`,
+      faqSubtitle: 'בגובה העיניים ובחום נשי',
+      faqHeading: 'כל מה שחשוב לך לדעת לקראת היציאה לדרך',
+      contactSubtitle: 'אנחנו כאן באהבה לכל שאלה והתייעצות',
+      contactHeading: `מוזמנת להצטרף ל-${cleanIdea}`,
+    };
+  }
+  return {
+    aboutSubtitle: 'הכירו מקרוב',
+    aboutHeading: `אודות ${cleanIdea}`,
+    painPointsSubtitle: 'מענה שלם לאתגרי השגרה',
+    painPointsHeading: 'האתגרים שבהם אנו מעניקים מענה שלם',
+    targetAudiencesSubtitle: 'התאמה אישית מלאה',
+    targetAudiencesHeading: 'למי מתאים המענה במיוחד?',
+    advantagesSubtitle: 'הבשורה שלנו עבורכם',
+    advantagesHeading: `המעלות והעוגנים הייחודיים ב-${company}`,
+    faqSubtitle: 'בגובה העיניים ושקיפות מלאה',
+    faqHeading: 'כל מה שחשוב לדעת לקראת היציאה לדרך',
+    contactSubtitle: 'אנו זמינים לכל שאלה והתייעצות מקצועית',
+    contactHeading: `מוזמנים להצטרף ל-${cleanIdea}`,
   };
 }
 
@@ -528,6 +584,7 @@ export async function generateAiFlagshipProduct(
   targetAudiences: Array<{ id: string; title: string; text: string; icon?: string }>;
   competitiveAdvantages: Array<{ id: string; title: string; text: string; icon?: string }>;
   faqs: Array<{ id: string; question: string; answer: string; icon?: string }>;
+  sectionTitles?: FlagshipSectionTitles;
   seo: {
     slug?: string;
     metaTitle?: string;
@@ -613,6 +670,22 @@ export async function generateAiFlagshipProduct(
       const competitiveAdvantages = normalizeRepeaterHelper(res.competitiveAdvantages, 6, 'adv', DEFAULT_ADVANTAGE_ICONS, defaultAdvantageFallbacks);
       const faqs = normalizeFaqsHelper(res.faqs, DEFAULT_FAQ_ICONS, defaultFaqFallbacks);
 
+      const defaultTitles = buildDefaultSectionTitles(brand, cleanIdea, company);
+      const sectionTitles: FlagshipSectionTitles = {
+        aboutSubtitle: res.sectionTitles?.aboutSubtitle || defaultTitles.aboutSubtitle,
+        aboutHeading: res.sectionTitles?.aboutHeading || defaultTitles.aboutHeading,
+        painPointsSubtitle: res.sectionTitles?.painPointsSubtitle || defaultTitles.painPointsSubtitle,
+        painPointsHeading: res.sectionTitles?.painPointsHeading || defaultTitles.painPointsHeading,
+        targetAudiencesSubtitle: res.sectionTitles?.targetAudiencesSubtitle || defaultTitles.targetAudiencesSubtitle,
+        targetAudiencesHeading: res.sectionTitles?.targetAudiencesHeading || defaultTitles.targetAudiencesHeading,
+        advantagesSubtitle: res.sectionTitles?.advantagesSubtitle || defaultTitles.advantagesSubtitle,
+        advantagesHeading: res.sectionTitles?.advantagesHeading || defaultTitles.advantagesHeading,
+        faqSubtitle: res.sectionTitles?.faqSubtitle || defaultTitles.faqSubtitle,
+        faqHeading: res.sectionTitles?.faqHeading || defaultTitles.faqHeading,
+        contactSubtitle: res.sectionTitles?.contactSubtitle || defaultTitles.contactSubtitle,
+        contactHeading: res.sectionTitles?.contactHeading || defaultTitles.contactHeading,
+      };
+
       const painPointSolved =
         res.painPointSolved ||
         painPoints.map((p) => `${p.title}: ${p.text}`).join(' | ');
@@ -655,6 +728,7 @@ export async function generateAiFlagshipProduct(
         targetAudiences,
         competitiveAdvantages,
         faqs,
+        sectionTitles,
         seo,
       };
     }
@@ -678,6 +752,7 @@ export async function generateAiFlagshipProduct(
     targetAudiences: fallbackTargetAudiences,
     competitiveAdvantages: fallbackAdvantages,
     faqs: fallbackFaqs,
+    sectionTitles: buildDefaultSectionTitles(brand, cleanIdea, company),
     seo: {
       metaTitle: `${cleanIdea} | ${company}`,
       metaDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,
@@ -709,6 +784,7 @@ export async function generateAiCoreService(
   targetAudiences: Array<{ id: string; title: string; text: string; icon?: string }>;
   competitiveAdvantages: Array<{ id: string; title: string; text: string; icon?: string }>;
   faqs: Array<{ id: string; question: string; answer: string; icon?: string }>;
+  sectionTitles?: FlagshipSectionTitles;
   seo: {
     slug?: string;
     metaTitle?: string;
@@ -806,6 +882,22 @@ export async function generateAiCoreService(
         res.competitiveAdvantage ||
         competitiveAdvantages.map((c) => `${c.title}: ${c.text}`).join(' | ');
 
+      const defaultTitles = buildDefaultSectionTitles(brand, cleanIdea, company);
+      const sectionTitles: FlagshipSectionTitles = {
+        aboutSubtitle: res.sectionTitles?.aboutSubtitle || defaultTitles.aboutSubtitle,
+        aboutHeading: res.sectionTitles?.aboutHeading || defaultTitles.aboutHeading,
+        painPointsSubtitle: res.sectionTitles?.painPointsSubtitle || defaultTitles.painPointsSubtitle,
+        painPointsHeading: res.sectionTitles?.painPointsHeading || defaultTitles.painPointsHeading,
+        targetAudiencesSubtitle: res.sectionTitles?.targetAudiencesSubtitle || defaultTitles.targetAudiencesSubtitle,
+        targetAudiencesHeading: res.sectionTitles?.targetAudiencesHeading || defaultTitles.targetAudiencesHeading,
+        advantagesSubtitle: res.sectionTitles?.advantagesSubtitle || defaultTitles.advantagesSubtitle,
+        advantagesHeading: res.sectionTitles?.advantagesHeading || defaultTitles.advantagesHeading,
+        faqSubtitle: res.sectionTitles?.faqSubtitle || defaultTitles.faqSubtitle,
+        faqHeading: res.sectionTitles?.faqHeading || defaultTitles.faqHeading,
+        contactSubtitle: res.sectionTitles?.contactSubtitle || defaultTitles.contactSubtitle,
+        contactHeading: res.sectionTitles?.contactHeading || defaultTitles.contactHeading,
+      };
+
       const rawSeo = res.seo && typeof res.seo === 'object' ? res.seo : {};
       const seo = {
         slug: String(rawSeo.slug || '').trim() || undefined,
@@ -834,6 +926,7 @@ export async function generateAiCoreService(
         targetAudiences,
         competitiveAdvantages,
         faqs,
+        sectionTitles,
         seo,
       };
     }
@@ -857,6 +950,7 @@ export async function generateAiCoreService(
     targetAudiences: fallbackTargetAudiences,
     competitiveAdvantages: fallbackAdvantages,
     faqs: fallbackFaqs,
+    sectionTitles: buildDefaultSectionTitles(brand, cleanIdea, company),
     seo: {
       metaTitle: `${cleanIdea} | ${company}`,
       metaDescription: `מעטפת מקצועית, חמה ומותאמת אישית עבור ${cleanIdea} מבית ${company}.`,

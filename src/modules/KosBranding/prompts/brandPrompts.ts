@@ -229,16 +229,54 @@ export function generateDeterministicBrandSummary(brand: BrandDna): string {
 /**
  * בונה הקשר מערכתי ממוקד וחסכוני בטוקנים על בסיס פסקת תמצית המותג המסכמת (Brand Essence)
  */
-export function BUILD_BRAND_SYSTEM_CONTEXT(brand: BrandDna, moduleRole: string = 'שיווק, תוכן ומיתוג'): string {
-  const company = brand.identity?.companyName || 'העסק';
+export function BUILD_BRAND_SYSTEM_CONTEXT(brand: BrandDna, moduleRole: string = 'אסטרטג מותג, מומחה SEO/AIO וקופירייטר בכיר'): string {
+  const { identity, voice, audience, trust } = brand;
+  const company = identity?.companyName || 'העסק';
   const summary = brand.brandSummaryParagraph?.trim() || generateDeterministicBrandSummary(brand);
+  const purpose = identity?.organizationPurpose || '';
+  const slogan = identity?.slogan || '';
+  const vision = identity?.companyVision || identity?.shortVision || '';
+  const uvp = audience?.mainUvp || '';
+  const audiences = (audience?.targetAudiences || []).join(', ');
+  const personas = (audience?.personas || []).map((p) => `${p.name} (כאב: ${p.mainPain}, יעד: ${p.dreamOutcome})`).join('; ');
+
+  const isFemale = voice?.genderAddressing === 'female';
+  const addressingInstruction = isFemale
+    ? 'פנייה מגדרית קריטית: חובה לכתוב בפנייה ישירה ומעצימה בלשון נקבה בלבד (נשים, אחיות, גלי, תוכלי, עבורך, בואי, מרחב נשי) בחמימות, אמפתיה וכבוד עמוק.'
+    : voice?.genderAddressing === 'male'
+      ? 'פנייה מגדרית: פנייה בלשון זכר.'
+      : 'פנייה מגדרית: לשון רבים/פנייה משולבת ומכבדת.';
+
+  const personalityInfo = voice?.personality
+    ? `מדדי אישיות המותג: רשמיות ${voice.personality.formality}/5, חמימות ${voice.personality.warmth}/5, יוקרה ${voice.personality.luxury}/5, אנרגיה ${voice.personality.energy}/5.`
+    : '';
+
+  const sectorInfo = voice?.sectorCompliance && voice.sectorCompliance !== 'general'
+    ? `רגישות מגזרית/ערכית: ${voice.sectorCompliance}.`
+    : voice?.shabbatObservant
+      ? 'רגישות מגזרית: שמירת שבת ומסורת ישראל, כבוד לעולם התורה והערכים היהודיים.'
+      : '';
 
   return [
-    `תפקידך: "${moduleRole}" עבור "${company}".`,
-    `תמצית מותג מסכמת (Brand Essence):`,
+    `אתה פועל בתפקיד "${moduleRole}" עבור המותג "${company}".`,
+    `תמצית המותג והחזון (Brand Essence):`,
     summary,
-    brand.voice?.powerWords?.length ? `מילות מפתח מנחות: ${brand.voice.powerWords.join(', ')}.` : '',
-    brand.voice?.forbiddenWords?.length ? `מילים אסורות: ${brand.voice.forbiddenWords.join(', ')}.` : '',
+    purpose ? `תכלית ויעוד הארגון: ${purpose}` : '',
+    slogan ? `סלוגן רשמי: "${slogan}"` : '',
+    vision ? `חזון מעמיק: ${vision}` : '',
+    uvp ? `הצעת ערך ייחודית (UVP): ${uvp}` : '',
+    audiences ? `קהלי יעד מוגדרים: ${audiences}` : '',
+    personas ? `פרסונות ליבה: ${personas}` : '',
+    addressingInstruction,
+    personalityInfo,
+    sectorInfo,
+    voice?.powerWords?.length ? `מילות עוצמה ומפתח חובה לשילוב טבעי: ${voice.powerWords.join(', ')}.` : '',
+    voice?.forbiddenWords?.length ? `מילים וביטויים אסורים לשימוש: ${voice.forbiddenWords.join(', ')}.` : '',
+    `\nדגש איכות עליון - קופירייטינג בטוב טעם (Taste & Brand Distinction):`,
+    `1. כל כותרת, תגית, משפט ותיאור חייבים להיות מנוסחים בעברית רהוטה, עשירה ומעוררת השראה, התואמת ב-100% את רוח המותג ואת הגדרות המיתוג שלו.`,
+    `2. איסור מוחלט על כותרות גנריות, מכניות ומנוכרות!`,
+    `   - חל איסור מוחלט להשתמש בקלישאות שחוקות כמו: "למה לבחור בנו?", "היתרונות והמעלות של השירות", "היתרונות והמעלות של המוצר", "נקודות הכאב שלנו", "קהלי היעד שלנו", "מוצר מנצח", "חבילה מובילה".`,
+    `   - במקום זאת, נסח כותרות ותגיות מלאות נשמה, יופי, בידול וחיבור אנושי המשקפות בטוב טעם את השליחות של ${company}.`,
   ].filter(Boolean).join('\n');
 }
 
@@ -268,6 +306,20 @@ export function BUILD_FLAGSHIP_PRODUCT_PROMPT(
 
 ===LONG_DESCRIPTION===
 [תיאור ארוך, עשיר ומפורט (4-6 משפטים) המספר את סיפור המוצר, החוויה והערך העמוק שהוא מעניק]
+
+===SECTION_HEADINGS===
+ABOUT_SUBTITLE: [תגית/סאב-טייטל מעודן לאזור האודות, לדוגמה: "מפגש חי עם פנימיות התורה" או "החיבור הפנימי שלך"]
+ABOUT_HEADING: [כותרת ראשית מעצימה לאזור האודות, לדוגמה: "לצלול אל מעיינות החכמה והנפש"]
+PAIN_POINTS_SUBTITLE: [תגית מעודנת לאזור האתגרים והמענה, לדוגמה: "עוגן בתוך שגרת החול" או "מענה לעומס היומיומי"]
+PAIN_POINTS_HEADING: [כותרת ראשית חמה ומלאת אמפתיה, ללא המילים 'נקודות כאב', לדוגמה: "האתגרים שאנו פוגשות ופותרות יחד"]
+TARGET_AUDIENCES_SUBTITLE: [תגית מזמינה לאזור ההתאמה, לדוגמה: "המרחב שמחכה לך"]
+TARGET_AUDIENCES_HEADING: [כותרת ראשית מחבקת לקהל היעד, לדוגמה: "למי נתפר המסע הייחודי הזה?"]
+ADVANTAGES_SUBTITLE: [תגית יוקרתית ומעודנת (חל איסור מוחלט על 'למה לבחור בנו?'), לדוגמה: "הבשורה שלנו עבורך" או "עוגנים של שקט וביטחון"]
+ADVANTAGES_HEADING: [כותרת ראשית מעצימה ומנוסחת בטוב טעם (חל איסור מוחלט על 'היתרונות והמעלות של השירות/המוצר'), לדוגמה: "המעלות והעוצמה הייחודית של המרחב שלנו"]
+FAQ_SUBTITLE: [תגית לאזור השאלות, לדוגמה: "בגובה העיניים וברוגע"]
+FAQ_HEADING: [כותרת ראשית לאזור השאלות והתשובות, לדוגמה: "כל מה שחשוב לך לדעת לקראת היציאה לדרך"]
+CONTACT_SUBTITLE: [תגית לאזור יצירת הקשר, לדוגמה: "צעד ראשון של התחדשות"]
+CONTACT_HEADING: [כותרת ראשית מזמינה ומחבקת, לדוגמה: "מוזמנת לפתוח דלת וליצור איתנו קשר אישי"]
 
 ===PAIN_POINTS===
 1. [כותרת קצרה של נקודת כאב 1] | [פירוט מעמיק ב-2 משפטים כיצד המוצר פותר את הכאב הזה]
@@ -339,6 +391,20 @@ export function BUILD_CORE_SERVICE_PROMPT(
 
 ===LONG_DESCRIPTION===
 [תיאור ארוך, עשיר ומפורט (4-6 משפטים) עבור אזור התוכן/אודות בעמוד הנחיתה, המספר את סיפור השירות, החוויה והערך העמוק שהוא מעניק]
+
+===SECTION_HEADINGS===
+ABOUT_SUBTITLE: [תגית/סאב-טייטל מעודן לאזור האודות, לדוגמה: "מפגש חי עם פנימיות התורה" או "החיבור הפנימי שלך"]
+ABOUT_HEADING: [כותרת ראשית מעצימה לאזור האודות, לדוגמה: "לצלול אל מעיינות החכמה והנפש"]
+PAIN_POINTS_SUBTITLE: [תגית מעודנת לאזור האתגרים והמענה, לדוגמה: "עוגן בתוך שגרת החול" או "מענה לעומס היומיומי"]
+PAIN_POINTS_HEADING: [כותרת ראשית חמה ומלאת אמפתיה, ללא המילים 'נקודות כאב', לדוגמה: "האתגרים שאנו פוגשות ופותרות יחד"]
+TARGET_AUDIENCES_SUBTITLE: [תגית מזמינה לאזור ההתאמה, לדוגמה: "המרחב שמחכה לך"]
+TARGET_AUDIENCES_HEADING: [כותרת ראשית מחבקת לקהל היעד, לדוגמה: "למי נתפר המסע הייחודי הזה?"]
+ADVANTAGES_SUBTITLE: [תגית יוקרתית ומעודנת (חל איסור מוחלט על 'למה לבחור בנו?'), לדוגמה: "הבשורה שלנו עבורך" או "עוגנים של שקט וביטחון"]
+ADVANTAGES_HEADING: [כותרת ראשית מעצימה ומנוסחת בטוב טעם (חל איסור מוחלט על 'היתרונות והמעלות של השירות/המוצר'), לדוגמה: "המעלות והעוצמה הייחודית של המרחב שלנו"]
+FAQ_SUBTITLE: [תגית לאזור השאלות, לדוגמה: "בגובה העיניים וברוגע"]
+FAQ_HEADING: [כותרת ראשית לאזור השאלות והתשובות, לדוגמה: "כל מה שחשוב לך לדעת לקראת היציאה לדרך"]
+CONTACT_SUBTITLE: [תגית לאזור יצירת הקשר, לדוגמה: "צעד ראשון של התחדשות"]
+CONTACT_HEADING: [כותרת ראשית מזמינה ומחבקת, לדוגמה: "מוזמנת לפתוח דלת וליצור איתנו קשר אישי"]
 
 ===PAIN_POINTS===
 1. [כותרת קצרה של נקודת כאב 1 שהשירות פותר] | [פירוט מעמיק ב-2 משפטים כיצד השירות פותר את הכאב הזה]

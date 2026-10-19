@@ -30,6 +30,7 @@ import {
   FlagshipRepeaterItem,
   FlagshipFaqItem,
   FlagshipSeoData,
+  FlagshipSectionTitles,
 } from '../types/brandDna';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { PageBuilderContract, MediaPickerContract } from '../../../core/contracts';
@@ -344,6 +345,7 @@ export const FlagshipProductsEditor: React.FC = () => {
         targetAudiences: result.targetAudiences || [],
         competitiveAdvantages: result.competitiveAdvantages || [],
         faqs: result.faqs || [],
+        sectionTitles: result.sectionTitles,
         seo: result.seo || {},
         imageUrl: '',
         galleryImages: [],
@@ -577,6 +579,7 @@ const FlagshipProductModal: React.FC<{
         'יתרון'
       ),
       faqs: ensureFaqItems(p.faqs, 10),
+      sectionTitles: p.sectionTitles || {},
       seo: {
         slug: p.seo?.slug || p.linkedPageSlug || '',
         metaTitle: p.seo?.metaTitle || `${p.nameAndSlogan || ''} | ${brandDna.identity?.companyName || ''}`.trim(),
@@ -662,6 +665,16 @@ const FlagshipProductModal: React.FC<{
 
   const updateField = <K extends keyof FlagshipProduct>(field: K, value: FlagshipProduct[K]) => {
     setDraft((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const updateSectionTitle = (field: keyof FlagshipSectionTitles, value: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      sectionTitles: {
+        ...(prev.sectionTitles || {}),
+        [field]: value,
+      },
+    }));
   };
 
   const updateSeoField = <K extends keyof FlagshipSeoData>(field: K, value: FlagshipSeoData[K]) => {
@@ -1049,6 +1062,33 @@ const FlagshipProductModal: React.FC<{
 
             {openSection === 'painPoints' && (
               <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-rose-50/60 dark:bg-rose-950/30 rounded-xl border border-rose-200/50 dark:border-rose-800/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-rose-900 dark:text-rose-200 block">
+                      תגית / סאב-טייטל לאזור האתגרים
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.painPointsSubtitle || ''}
+                      onChange={(e) => updateSectionTitle('painPointsSubtitle', e.target.value)}
+                      placeholder="לדוגמה: עוגן בתוך שגרת החול"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-rose-900 dark:text-rose-200 block">
+                      כותרת ראשית לאזור האתגרים (בטוב טעם)
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.painPointsHeading || ''}
+                      onChange={(e) => updateSectionTitle('painPointsHeading', e.target.value)}
+                      placeholder="לדוגמה: האתגרים שאנו פותרות יחד"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-rose-500"
+                    />
+                  </div>
+                </div>
+
                 <RepeaterBlockEditor
                   title="נקודות הכאב שהמוצר פותר"
                   subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 6 נקודות כאב)"
@@ -1149,6 +1189,33 @@ const FlagshipProductModal: React.FC<{
 
             {openSection === 'competitiveAdvantages' && (
               <div className="p-3.5 sm:p-5 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/40 dark:bg-slate-950/40 space-y-4 animate-in fade-in duration-150">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 bg-amber-50/60 dark:bg-amber-950/30 rounded-xl border border-amber-200/50 dark:border-amber-800/50">
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-900 dark:text-amber-200 block">
+                      תגית / סאב-טייטל לאזור המעלות והיתרונות
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.advantagesSubtitle || ''}
+                      onChange={(e) => updateSectionTitle('advantagesSubtitle', e.target.value)}
+                      placeholder="לדוגמה: הבשורה שלנו עבורך"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-900 dark:text-amber-200 block">
+                      כותרת ראשית מעוצבת למעלות והיתרונות
+                    </label>
+                    <input
+                      type="text"
+                      value={draft.sectionTitles?.advantagesHeading || ''}
+                      onChange={(e) => updateSectionTitle('advantagesHeading', e.target.value)}
+                      placeholder="לדוגמה: המעלות והעוצמה הייחודית של המרחב שלנו"
+                      className="w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:border-amber-500"
+                    />
+                  </div>
+                </div>
+
                 <RepeaterBlockEditor
                   title="היתרונות והמעלות על פני המתחרים"
                   subtitle="שדות טקסט מורחבים וחוזרים עם אייקונים (מומלץ: 6 יתרונות בולטים)"

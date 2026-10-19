@@ -1,6 +1,8 @@
 import React from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { BorderRadiusStyle, ButtonStyleType, TenantStylePreset } from '../types/brandDna';
+import { useTenantScope } from '../../../core/tenant';
+import { eventBus } from '../../../core/bridge/EventBus';
 import {
   Palette,
   Type,
@@ -14,6 +16,9 @@ import {
   Compass,
   Cpu,
   Layers,
+  Wand2,
+  RotateCcw,
+  CheckCircle2,
 } from 'lucide-react';
 
 const FONT_OPTIONS = [
@@ -145,7 +150,59 @@ const TENANT_STYLE_OPTIONS: Array<{
 
 export const DesignTokensSection: React.FC = () => {
   const { brandDna, updateDesignTokens } = useBrandDna();
+  const { tenantId } = useTenantScope();
   const tokens = brandDna.designTokens;
+
+  const [isApplying, setIsApplying] = React.useState(false);
+  const [actionFeedback, setActionFeedback] = React.useState<{ type: 'success' | 'info'; text: string } | null>(null);
+
+  const handleApplyToAllPages = () => {
+    const currentPreset = tokens.defaultStylePreset || 'standard';
+    setIsApplying(true);
+    try {
+      eventBus.publish('brand:apply_style_to_all_pages', {
+        tenantId: tenantId || 'default',
+        preset: currentPreset,
+      });
+      window.dispatchEvent(
+        new CustomEvent('kos_brand_apply_all_pages', {
+          detail: { tenantId: tenantId || 'default', preset: currentPreset },
+        })
+      );
+      setActionFeedback({
+        type: 'success',
+        text: 'הסגנון הוחל בהצלחה על כל עמודי האתר! גרסאות קודמות נשמרו אוטומטית בהיסטוריית העמודים.',
+      });
+      setTimeout(() => setActionFeedback(null), 5000);
+    } finally {
+      setIsApplying(false);
+    }
+  };
+
+  const handleResetAllPages = () => {
+    if (!window.confirm('האם אתה בטוח שברצונך לאפס את כל עמודי האתר לשפת המיתוג הראשונית? גרסה של העיצוב הקיים תישמר אוטומטית כגיבוי.')) {
+      return;
+    }
+    setIsApplying(true);
+    try {
+      eventBus.publish('brand:reset_all_pages', {
+        tenantId: tenantId || 'default',
+        brandDna,
+      });
+      window.dispatchEvent(
+        new CustomEvent('kos_brand_reset_all_pages', {
+          detail: { tenantId: tenantId || 'default', brandDna },
+        })
+      );
+      setActionFeedback({
+        type: 'info',
+        text: 'כל עמודי האתר אופסו בהצלחה לשפת המיתוג הראשונית! גרסאות קודמות נשמרו בגיבוי.',
+      });
+      setTimeout(() => setActionFeedback(null), 5000);
+    } finally {
+      setIsApplying(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -491,6 +548,53 @@ export const DesignTokensSection: React.FC = () => {
               </button>
             );
           })}
+        </div>
+
+        {/* Action Banner & Multi-Page Sync Buttons */}
+        <div className="pt-4 border-t border-slate-700/60 space-y-3">
+          <div className="p-3.5 bg-slate-900/80 border border-slate-700/70 rounded-xl text-xs space-y-1.5 text-slate-300 leading-relaxed">
+            <div className="flex items-center gap-2 font-bold text-amber-400">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>שמירת גרסאות אוטומטית וברירת מחדל לכל עמוד עתידי</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              כל עמוד חדש שייווצר יתחיל בסגנון ובפריסה שנבחרו כאן. בלחיצה על הכפתורים מטה, תוכל להחיל את הסגנון על כל העמודים הקיימים באתר או לאפס אותם לשפת המותג. בכל פעולה נוצרת אוטומטית גרסת שחזור בהיסטוריית העמודים.
+            </p>
+          </div>
+
+          {actionFeedback && (
+            <div
+              className={`p-3 rounded-xl border text-xs font-bold text-center animate-fadeIn ${
+                actionFeedback.type === 'success'
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                  : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+              }`}
+            >
+              {actionFeedback.text}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              disabled={isApplying}
+              onClick={handleApplyToAllPages}
+              className="py-3 px-4 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Wand2 className="w-4 h-4" />
+              <span>החל סגנון מותג זה על כל עמודי האתר</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isApplying}
+              onClick={handleResetAllPages}
+              className="py-3 px-4 rounded-xl font-bold text-xs bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RotateCcw className="w-4 h-4 text-indigo-400" />
+              <span>אפס את כל העמודים למצב ראשוני</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

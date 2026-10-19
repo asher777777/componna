@@ -49,25 +49,28 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
 
     const extractFromParts = (parts: string[]): string => {
       if (parts.length === 0) return '';
-      if (parts.length >= 2 && (parts[0] === 'p' || parts[0] === 'page' || parts[0] === 'to' || parts[0] === 'kosass')) {
-        return parts.slice(1).join('/');
+      const archivePrefixes = [
+        'p', 'page', 'to',
+        'kosinfo', 'kosevent', 'koscheckout', 'koscommunity', 'kosfunrise', 'koscourse',
+        'kosass', 'kosvidio'
+      ];
+      const firstPart = parts[0].toLowerCase();
+      if (parts.length >= 2 && archivePrefixes.includes(firstPart)) {
+        if (firstPart === 'p' || firstPart === 'page' || firstPart === 'to') {
+          return parts.slice(1).join('/');
+        }
+        return `${firstPart}-${parts.slice(1).join('/')}`;
       }
-      if (parts[0] === 'kosvidio') {
+      if (firstPart === 'kosvidio') {
         if (parts.length >= 2) {
           return parts.slice(1).join('/');
         }
         return 'kosvidio';
       }
-      if (parts[0].startsWith('kosvidio-')) {
+      if (firstPart.startsWith('kosvidio-')) {
         return parts[0].slice('kosvidio-'.length);
       }
-      if (parts[0] === 'kosass') {
-        if (parts.length >= 2) {
-          return parts.slice(1).join('/');
-        }
-        return 'kosass';
-      }
-      if (parts[0].startsWith('kosass-')) {
+      if (archivePrefixes.some((pref) => firstPart.startsWith(`${pref}-`))) {
         return parts[0];
       }
       return parts.join('/');
@@ -460,14 +463,15 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
 
         if (resolvedSlug) {
           const target = resolvedSlug.toLowerCase().trim();
-          const cleanTarget = target.replace(/^(kosvidio|kosass)[-/]/, '');
+          const archivePrefixRegex = /^(kosinfo|kosevent|koscheckout|koscommunity|kosfunrise|koscourse|kosass|kosvidio)[-/]/i;
+          const cleanTarget = target.replace(archivePrefixRegex, '');
 
           const stripBrandAndPrefix = (s: string) =>
             (s || '')
               .toLowerCase()
               .trim()
-              .replace(/^(kosvidio|kosass)[-/]/, '')
-              .replace(/^(kushan|kosun)[-/]/, '')
+              .replace(archivePrefixRegex, '')
+              .replace(/^(kushan|kosun)[-/]/i, '')
               .replace(/^-+|-+$/g, '');
 
           const normTarget = stripBrandAndPrefix(target);
@@ -1009,6 +1013,19 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           setPage((prev) => {
             if (!prev) return prev;
             const next = { ...prev, designSnapshots: updatedSnapshots };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+            return next;
+          });
+        }}
+        onApplyGlobalOverride={(result) => {
+          setPage((prev) => {
+            if (!prev) return prev;
+            const next = {
+              ...prev,
+              globalSettings: result.globalSettings,
+              sections: result.sections,
+              designSnapshots: result.designSnapshots,
+            };
             pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
             return next;
           });

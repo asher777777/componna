@@ -68,7 +68,35 @@ export const TenantAppResolver: React.FC = () => {
       return false;
     }
     const pathname = window.location.pathname;
-    const isPublicPage = pathname.startsWith('/p/') || pathname.startsWith('/page/') || pathname.startsWith('/preview/') || pathname.startsWith('/tube/') || pathname.startsWith('/to/') || pathname === '/kosvidio' || pathname.startsWith('/kosvidio/') || pathname === '/kosass' || pathname.startsWith('/kosass/') || pathname.startsWith('/kosass-');
+    const isPublicPage =
+      pathname.startsWith('/p/') ||
+      pathname.startsWith('/page/') ||
+      pathname.startsWith('/preview/') ||
+      pathname.startsWith('/tube/') ||
+      pathname.startsWith('/to/') ||
+      pathname === '/kosvidio' ||
+      pathname.startsWith('/kosvidio/') ||
+      pathname === '/kosass' ||
+      pathname.startsWith('/kosass/') ||
+      pathname.startsWith('/kosass-') ||
+      pathname === '/kosinfo' ||
+      pathname.startsWith('/kosinfo/') ||
+      pathname.startsWith('/kosinfo-') ||
+      pathname === '/kosevent' ||
+      pathname.startsWith('/kosevent/') ||
+      pathname.startsWith('/kosevent-') ||
+      pathname === '/koscheckout' ||
+      pathname.startsWith('/koscheckout/') ||
+      pathname.startsWith('/koscheckout-') ||
+      pathname === '/koscommunity' ||
+      pathname.startsWith('/koscommunity/') ||
+      pathname.startsWith('/koscommunity-') ||
+      pathname === '/kosfunrise' ||
+      pathname.startsWith('/kosfunrise/') ||
+      pathname.startsWith('/kosfunrise-') ||
+      pathname === '/koscourse' ||
+      pathname.startsWith('/koscourse/') ||
+      pathname.startsWith('/koscourse-');
     if (isPublicPage) {
       return true;
     }

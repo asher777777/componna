@@ -540,21 +540,103 @@ export function hydrateSectionWithBrandDna(
 
   // Apply tenant default style preset if specified
   if (brand.designTokens?.defaultStylePreset) {
-    const defaultPreset = brand.designTokens.defaultStylePreset;
-    if (!cloned.layout || cloned.layout === 'standard') {
-      cloned.layout = defaultPreset;
-    }
-    if (type === 'timer' && (!cloned.boxShape || cloned.boxShape === 'rounded')) {
-      if (defaultPreset === 'feminine') cloned.boxShape = 'flower';
-      else if (defaultPreset === 'masculine') cloned.boxShape = 'shield';
-      else if (defaultPreset === 'spiritual') cloned.boxShape = 'lotus';
-      else if (defaultPreset === 'sharp') cloned.boxShape = 'sharp';
-      else if (defaultPreset === 'analytical') cloned.boxShape = 'hud';
-      else if (defaultPreset === 'standard') cloned.boxShape = 'rounded';
-    }
+    applyStylePresetToSection(cloned, brand.designTokens.defaultStylePreset as any);
   }
 
   return cloned;
+}
+
+/**
+ * Apply layout, shapes, heroStyle, buttonShape and styling of a style preset to a single section.
+ * Preserves Header layout intact according to user configuration.
+ */
+export function applyStylePresetToSection(sec: any, preset: string): any {
+  if (!sec) return sec;
+  const sType = sec.type;
+
+  // Never alter header layout when applying content style presets
+  if (sType === 'header') {
+    return sec;
+  }
+
+  // Hero style and button shapes
+  if (sType === 'hero') {
+    sec.layout = preset;
+    if (preset === 'feminine') {
+      sec.heroStyle = 'mesh-glow';
+      sec.buttonShape = 'pill';
+    } else if (preset === 'masculine') {
+      sec.heroStyle = 'card';
+      sec.buttonShape = 'rounded';
+    } else if (preset === 'sharp') {
+      sec.heroStyle = 'minimal';
+      sec.buttonShape = 'square';
+    } else if (preset === 'spiritual') {
+      sec.heroStyle = 'mesh-glow';
+      sec.buttonShape = 'pill';
+    } else if (preset === 'analytical') {
+      sec.heroStyle = 'modern';
+      sec.buttonShape = 'rounded';
+    } else {
+      sec.heroStyle = 'classic';
+      sec.buttonShape = 'auto';
+    }
+    return sec;
+  }
+
+  // Timer shapes
+  if (sType === 'timer') {
+    sec.layout = preset;
+    if (preset === 'feminine') sec.boxShape = 'flower';
+    else if (preset === 'masculine') sec.boxShape = 'shield';
+    else if (preset === 'spiritual') sec.boxShape = 'lotus';
+    else if (preset === 'sharp') sec.boxShape = 'sharp';
+    else if (preset === 'analytical') sec.boxShape = 'hud';
+    else sec.boxShape = 'rounded';
+    return sec;
+  }
+
+  // Standard compatible sections
+  if (
+    sType === 'contact' ||
+    sType === 'faq' ||
+    sType === 'richContent' ||
+    sType === 'livePosts' ||
+    sType === 'kosvidio' ||
+    sType === 'videoGallery' ||
+    sType === 'imageListing' ||
+    sType === 'videoEngagement' ||
+    sType === 'courseBanner'
+  ) {
+    sec.layout = preset;
+    return sec;
+  }
+
+  // Testimonials layout
+  if (sType === 'testimonials') {
+    sec.layout = (preset === 'feminine' || preset === 'spiritual') ? 'carousel' : (preset === 'sharp' ? 'masonry' : 'grid');
+    return sec;
+  }
+
+  // StatsBento layout
+  if (sType === 'statsBento') {
+    sec.layout = (preset === 'feminine' || preset === 'spiritual') ? 'cards-3' : (preset === 'masculine' ? 'row-4' : 'bento-4');
+    return sec;
+  }
+
+  // Community layout
+  if (sType === 'community') {
+    sec.layout = (preset === 'feminine' || preset === 'spiritual') ? 'card' : (preset === 'masculine' ? 'classic' : 'modern');
+    return sec;
+  }
+
+  // LandingSection layout
+  if (sType === 'landingSection') {
+    sec.layout = (preset === 'feminine' || preset === 'spiritual') ? 'centered' : (preset === 'sharp' ? 'card' : 'split');
+    return sec;
+  }
+
+  return sec;
 }
 
 /**

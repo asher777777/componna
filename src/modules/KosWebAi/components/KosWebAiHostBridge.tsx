@@ -21,6 +21,8 @@ import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
 import { KosvidioGalleryItem } from '../types/sectionConfigs';
+import { applyStylePresetToAllTenantPages, resetAllTenantPagesToBrand } from '../services/pageStylePresetService';
+import { TenantStylePreset } from '../../../core/contracts';
 
 export const KosWebAiHostBridge: React.FC = () => {
   const { registerCapability, unregisterCapability, getCapability } = useHostCapabilities();
@@ -446,9 +448,51 @@ export const KosWebAiHostBridge: React.FC = () => {
     registerCapability('community-webpage', contract);
     registerCapability('page-builder', pageBuilderContract);
 
+    // Dynamic brand style sync for all tenant pages
+    const handleApplyAll = async (data: { preset: TenantStylePreset; tenantId: string }) => {
+      const targetTenant = data.tenantId || tenantId || '_master';
+      try {
+        console.log(`[KosWebAiHostBridge] Applying style preset "${data.preset}" to all pages of tenant "${targetTenant}"...`);
+        const res = await applyStylePresetToAllTenantPages(db || null, targetTenant, data.preset);
+        console.log(`[KosWebAiHostBridge] Successfully applied to ${res.updatedCount} pages.`);
+      } catch (err) {
+        console.error('[KosWebAiHostBridge] Error applying style preset to all pages:', err);
+      }
+    };
+
+    const handleResetAll = async (data: { tenantId: string; brandDna?: any }) => {
+      const targetTenant = data.tenantId || tenantId || '_master';
+      try {
+        console.log(`[KosWebAiHostBridge] Resetting all pages of tenant "${targetTenant}" to brand initial state...`);
+        const liveBrandDna = data.brandDna || resolveLiveBrandDna(null, targetTenant);
+        const res = await resetAllTenantPagesToBrand(db || null, targetTenant, liveBrandDna);
+        console.log(`[KosWebAiHostBridge] Successfully reset ${res.updatedCount} pages.`);
+      } catch (err) {
+        console.error('[KosWebAiHostBridge] Error resetting pages to brand:', err);
+      }
+    };
+
+    const unsubApply = eventBus.subscribe('brand:apply_style_to_all_pages', handleApplyAll);
+    const unsubReset = eventBus.subscribe('brand:reset_all_pages', handleResetAll);
+
+    const onWinApply = (e: any) => {
+      if (e?.detail?.preset) {
+        handleApplyAll({ preset: e.detail.preset, tenantId: e.detail.tenantId });
+      }
+    };
+    const onWinReset = (e: any) => {
+      handleResetAll({ tenantId: e?.detail?.tenantId });
+    };
+    window.addEventListener('kos_brand_apply_all_pages', onWinApply);
+    window.addEventListener('kos_brand_reset_all_pages', onWinReset);
+
     return () => {
       unregisterCapability('community-webpage');
       unregisterCapability('page-builder');
+      unsubApply();
+      unsubReset();
+      window.removeEventListener('kos_brand_apply_all_pages', onWinApply);
+      window.removeEventListener('kos_brand_reset_all_pages', onWinReset);
     };
   }, [db, tenantId, registerCapability, unregisterCapability]);
 

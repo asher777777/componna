@@ -21,6 +21,7 @@ export type {
   FlagshipRepeaterItem,
   FlagshipFaqItem,
   FlagshipSeoData,
+  FlagshipSectionTitles,
   BusinessPackage,
 } from '../../../core/contracts';
 

@@ -142,7 +142,7 @@ export async function dispatchFlagshipProductToKosai(
   const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
     systemInstruction: systemContext,
     responseMimeType: 'text/plain',
-    maxOutputTokens: 2500,
+    maxOutputTokens: 3500,
     apiKey: options?.apiKey,
     tenantId: options?.tenantId,
   });
@@ -161,7 +161,7 @@ export async function dispatchCoreServiceToKosai(
   const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
     systemInstruction: systemContext,
     responseMimeType: 'text/plain',
-    maxOutputTokens: 2500,
+    maxOutputTokens: 3500,
     apiKey: options?.apiKey,
     tenantId: options?.tenantId,
   });
@@ -266,7 +266,7 @@ export async function dispatchAudienceAndPersonasFromEssenceToKosai(
   const result = await kosaiBrandContract.generateEntityItem(userPrompt, {
     systemInstruction: systemContext,
     responseMimeType: 'application/json',
-    maxOutputTokens: 2500,
+    maxOutputTokens: 3500,
     apiKey: options?.apiKey,
     tenantId: options?.tenantId,
   });

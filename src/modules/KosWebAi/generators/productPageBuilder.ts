@@ -160,6 +160,18 @@ export function buildPageConfigFromFlagshipProduct(
         .join('')
     : '';
 
+  const isFemale = brandDna?.voice?.genderAddressing === 'female';
+  const defaultAboutSub = isFemale ? 'הכירי את המרחב מקרוב' : 'הכירו לעומק';
+  const defaultPainSub = isFemale ? 'עוגן בתוך שגרת החול' : 'מענה שלם לאתגרי השגרה';
+  const defaultPainHead = isFemale ? 'האתגרים שאנו פוגשות ופותרות יחד איתך' : 'האתגרים שבהם אנו מעניקים מענה שלם';
+  const defaultAudienceSub = isFemale ? 'המרחב שמחכה לך' : 'התאמה אישית מלאה';
+  const defaultAudienceHead = isFemale ? 'למי נתפר המסע הייחודי הזה?' : 'למי מתאים המענה במיוחד?';
+  const defaultAdvantageSub = isFemale ? 'הבשורה שלנו עבורך' : 'הייחוד והעוצמה שלנו';
+  const defaultAdvantageHead = companyName ? `המעלות והבידול המובילים ב-${companyName}` : 'המעלות והעוגנים הייחודיים שלנו';
+  const defaultFaqSub = isFemale ? 'כל מה שחשוב לך לדעת' : `כל מה שחשוב לדעת על ${mainTitle}`;
+  const defaultFaqHead = 'שאלות ותשובות';
+  const defaultContactTitle = isFemale ? `מוזמנת להצטרף ל-${mainTitle}` : `מעוניינים להצטרף ל-${mainTitle}?`;
+  const defaultContactSub = product.shortDescription || (isFemale ? 'אנחנו כאן באהבה לכל שאלה והתייעצות' : 'השאירו פרטים ונחזור אליכם עם כל המידע');
   const sections: Record<string, any> = {
     header: {
       id: 'header',
@@ -212,8 +224,8 @@ export function buildPageConfigFromFlagshipProduct(
       adminTitle: 'אודות / תוכן מעוצב',
       visible: Boolean(longDescHtml),
       anchorId: 'sec-about',
-      subtitle: 'הכירו לעומק',
-      heading: `אודות ${mainTitle}`,
+      subtitle: product.sectionTitles?.aboutSubtitle || defaultAboutSub,
+      heading: product.sectionTitles?.aboutHeading || `אודות ${mainTitle}`,
       body: longDescHtml,
       layout: 'highlight-box',
     },
@@ -222,8 +234,8 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'richContent',
       visible: painPoints.length > 0,
       anchorId: 'sec-pain-points',
-      subtitle: 'האתגרים שאנו פותרים',
-      heading: 'נקודות הכאב שהמוצר פותר עבורכם',
+      subtitle: product.sectionTitles?.painPointsSubtitle || defaultPainSub,
+      heading: product.sectionTitles?.painPointsHeading || defaultPainHead,
       body: '',
       layout: 'cards-grid-3',
       items: painPoints.map((p, idx) => ({
@@ -239,8 +251,8 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'richContent',
       visible: targetAudiences.length > 0,
       anchorId: 'sec-target-audiences',
-      subtitle: 'למי זה מתאים?',
-      heading: 'קהלי היעד שלנו',
+      subtitle: product.sectionTitles?.targetAudiencesSubtitle || defaultAudienceSub,
+      heading: product.sectionTitles?.targetAudiencesHeading || defaultAudienceHead,
       body: '',
       layout: 'cards-grid-3',
       items: targetAudiences.map((a, idx) => ({
@@ -256,8 +268,8 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'richContent',
       visible: competitiveAdvantages.length > 0,
       anchorId: 'sec-advantages',
-      subtitle: 'למה לבחור בנו?',
-      heading: 'היתרונות והמעלות של המוצר',
+      subtitle: product.sectionTitles?.advantagesSubtitle || defaultAdvantageSub,
+      heading: product.sectionTitles?.advantagesHeading || defaultAdvantageHead,
       body: '',
       layout: 'cards-grid-3',
       items: competitiveAdvantages.map((c, idx) => ({
@@ -287,8 +299,8 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'faq',
       visible: faqs.length > 0,
       anchorId: 'sec-faq',
-      title: 'שאלות ותשובות נפוצות',
-      subtitle: `כל מה שחשוב לדעת על ${mainTitle}`,
+      title: product.sectionTitles?.faqHeading || defaultFaqHead,
+      subtitle: product.sectionTitles?.faqSubtitle || defaultFaqSub,
       showSearchBar: true,
       showContactCard: true,
       whatsappContact: contactWhatsApp,
@@ -304,8 +316,8 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'contact',
       visible: true,
       anchorId: 'sec-contact',
-      title: `מעוניינים להצטרף ל-${mainTitle}?`,
-      subtitle: product.shortDescription || 'השאירו פרטים ונחזור אליכם עם כל המידע',
+      title: product.sectionTitles?.contactHeading || defaultContactTitle,
+      subtitle: product.sectionTitles?.contactSubtitle || defaultContactSub,
       phone: contactPhone,
       email: contactEmail,
       address: officeAddress,
@@ -649,6 +661,19 @@ export function buildPageConfigFromCoreService(
       ? `<p>${service.shortDescription.trim()}</p>`
       : '';
 
+  const isFemale = brandDna?.voice?.genderAddressing === 'female';
+  const defaultAboutSub = isFemale ? 'הכירי את המרחב מקרוב' : 'הכירו לעומק';
+  const defaultPainSub = isFemale ? 'עוגן בתוך שגרת החול' : 'מענה שלם לאתגרי השגרה';
+  const defaultPainHead = isFemale ? 'האתגרים שאנו פוגשות ופותרות יחד איתך' : 'האתגרים שבהם אנו מעניקים מענה שלם';
+  const defaultAudienceSub = isFemale ? 'המרחב שמחכה לך' : 'התאמה אישית מלאה';
+  const defaultAudienceHead = isFemale ? 'למי נתפר המסע הייחודי הזה?' : 'למי מתאים המענה במיוחד?';
+  const defaultAdvantageSub = isFemale ? 'הבשורה שלנו עבורך' : 'הייחוד והעוצמה שלנו';
+  const defaultAdvantageHead = companyName ? `המעלות והבידול המובילים ב-${companyName}` : 'המעלות והעוגנים הייחודיים שלנו';
+  const defaultFaqSub = isFemale ? 'כל מה שחשוב לך לדעת' : `כל מה שחשוב לדעת על ${mainTitle}`;
+  const defaultFaqHead = 'שאלות ותשובות';
+  const defaultContactTitle = isFemale ? `מוזמנת להצטרף ל-${mainTitle}` : `מעוניינים להצטרף ל-${mainTitle}?`;
+  const defaultContactSub = service.shortDescription || (isFemale ? 'אנחנו כאן באהבה לכל שאלה והתייעצות' : 'השאירו פרטים ונחזור אליכם עם כל המידע');
+
   const sections: Record<string, any> = {
     header: {
       id: 'header',
@@ -702,8 +727,8 @@ export function buildPageConfigFromCoreService(
       adminTitle: 'אודות / תוכן מעוצב',
       visible: Boolean(longDescHtml),
       anchorId: 'sec-about',
-      subtitle: 'הכירו את השירות מקרוב',
-      heading: `אודות ${mainTitle}`,
+      subtitle: service.sectionTitles?.aboutSubtitle || defaultAboutSub,
+      heading: service.sectionTitles?.aboutHeading || `אודות ${mainTitle}`,
       body: longDescHtml,
       layout: 'highlight-box',
     },
@@ -712,8 +737,8 @@ export function buildPageConfigFromCoreService(
       type: 'richContent',
       visible: painPoints.length > 0,
       anchorId: 'sec-pain-points',
-      subtitle: 'האתגרים שאנו פותרים',
-      heading: 'נקודות הכאב שהשירות פותר עבורכם',
+      subtitle: service.sectionTitles?.painPointsSubtitle || defaultPainSub,
+      heading: service.sectionTitles?.painPointsHeading || defaultPainHead,
       body: '',
       layout: 'cards-grid-3',
       items: painPoints.map((p, idx) => ({
@@ -729,8 +754,8 @@ export function buildPageConfigFromCoreService(
       type: 'richContent',
       visible: targetAudiences.length > 0,
       anchorId: 'sec-target-audiences',
-      subtitle: 'למי השירות מתאים?',
-      heading: 'קהלי היעד שלנו',
+      subtitle: service.sectionTitles?.targetAudiencesSubtitle || defaultAudienceSub,
+      heading: service.sectionTitles?.targetAudiencesHeading || defaultAudienceHead,
       body: '',
       layout: 'cards-grid-3',
       items: targetAudiences.map((a, idx) => ({
@@ -746,8 +771,8 @@ export function buildPageConfigFromCoreService(
       type: 'richContent',
       visible: competitiveAdvantages.length > 0,
       anchorId: 'sec-advantages',
-      subtitle: 'למה לבחור בנו?',
-      heading: 'היתרונות והמעלות של השירות',
+      subtitle: service.sectionTitles?.advantagesSubtitle || defaultAdvantageSub,
+      heading: service.sectionTitles?.advantagesHeading || defaultAdvantageHead,
       body: '',
       layout: 'cards-grid-3',
       items: competitiveAdvantages.map((c, idx) => ({
@@ -777,8 +802,8 @@ export function buildPageConfigFromCoreService(
       type: 'faq',
       visible: faqs.length > 0,
       anchorId: 'sec-faq',
-      title: 'שאלות ותשובות נפוצות',
-      subtitle: `כל מה שחשוב לדעת על ${mainTitle}`,
+      title: service.sectionTitles?.faqHeading || defaultFaqHead,
+      subtitle: service.sectionTitles?.faqSubtitle || defaultFaqSub,
       showSearchBar: true,
       showContactCard: true,
       whatsappContact: contactWhatsApp,
@@ -794,8 +819,8 @@ export function buildPageConfigFromCoreService(
       type: 'contact',
       visible: true,
       anchorId: 'sec-contact',
-      title: `מעוניינים ב-${mainTitle}?`,
-      subtitle: service.shortDescription || 'השאירו פרטים ונחזור אליכם לשיחת ייעוץ והתאמה אישית',
+      title: service.sectionTitles?.contactHeading || defaultContactTitle,
+      subtitle: service.sectionTitles?.contactSubtitle || defaultContactSub,
       phone: contactPhone,
       email: contactEmail,
       address: officeAddress,

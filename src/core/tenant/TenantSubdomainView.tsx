@@ -414,6 +414,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     const handleHomeChange = (e: any) => {
       const changed = e?.detail?.tenantId;
       if (!changed || changed === tenantRecord.subdomain) {
+        if (e?.detail?.page) {
+          const enriched = ensureHeaderSection(e.detail.page);
+          setHomePageConfig(enriched);
+          setCurrentPageConfig(enriched);
+          return;
+        }
         loadTenantHomePage();
       }
     };
@@ -672,6 +678,41 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       return next;
     });
   }, [db, tenantRecord.subdomain]);
+
+  const handleApplyGlobalOverride = useCallback((result: {
+    globalSettings: any;
+    sections: Record<string, any>;
+    designSnapshots: any[];
+  }) => {
+    setCurrentPageConfig((prev) => {
+      if (!prev) return prev;
+      const next: PageBuilderConfig = {
+        ...prev,
+        globalSettings: result.globalSettings,
+        sections: result.sections,
+        designSnapshots: result.designSnapshots,
+      };
+      pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+      return next;
+    });
+  }, [db, tenantRecord.subdomain]);
+
+  useEffect(() => {
+    const handlePageSectionsUpdated = (e: any) => {
+      const detail = e?.detail;
+      if (!detail) return;
+      setCurrentPageConfig((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          sections: detail.sections || prev.sections,
+          ...(detail.globalSettings ? { globalSettings: detail.globalSettings } : {}),
+        };
+      });
+    };
+    window.addEventListener('kos_page_sections_updated', handlePageSectionsUpdated);
+    return () => window.removeEventListener('kos_page_sections_updated', handlePageSectionsUpdated);
+  }, []);
 
   const effectivePageConfig = React.useMemo(() => {
     if (!currentPageConfig) return homePageConfig ? ensureHeaderSection(homePageConfig) : null;
@@ -994,6 +1035,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
             return next;
           });
         }}
+        onApplyGlobalOverride={handleApplyGlobalOverride}
         pageTitle={effectivePageConfig?.pageTitle}
         pageSections={effectivePageConfig?.sections ? Object.values(effectivePageConfig.sections) : []}
         isEditing={isEditing}

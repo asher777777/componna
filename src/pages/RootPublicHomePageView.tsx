@@ -328,7 +328,21 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       }
     });
 
-    return () => unsub();
+    const handlePageSectionsUpdated = (e: any) => {
+      const detail = e?.detail;
+      if (!detail) return;
+      setCurrentPageConfig((prev) => ({
+        ...prev,
+        sections: detail.sections || prev.sections,
+        ...(detail.globalSettings ? { globalSettings: detail.globalSettings } : {}),
+      }));
+    };
+    window.addEventListener('kos_page_sections_updated', handlePageSectionsUpdated);
+
+    return () => {
+      unsub();
+      window.removeEventListener('kos_page_sections_updated', handlePageSectionsUpdated);
+    };
   }, [db]);
 
   const effectivePageConfig = React.useMemo(() => {
@@ -365,6 +379,39 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       {/* KosWebAi Official Frontend Dock (Full Front Monopoly, zero control center interference) */}
       <KosWebAiFrontDock
         pageId={effectivePageConfig.pageId}
+        pageConfig={effectivePageConfig}
+        globalSettings={effectivePageConfig.globalSettings}
+        seoSettings={effectivePageConfig.seoSettings}
+        sections={effectivePageConfig.sections}
+        designSnapshots={effectivePageConfig.designSnapshots}
+        pageTitle={effectivePageConfig.pageTitle}
+        onUpdateGlobalSettings={handleUpdateGlobalSettings}
+        onUpdateSections={(updatedSections) => {
+          setCurrentPageConfig((prev) => {
+            const next = { ...prev, sections: updatedSections };
+            pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+            return next;
+          });
+        }}
+        onUpdateDesignSnapshots={(updatedSnapshots) => {
+          setCurrentPageConfig((prev) => {
+            const next = { ...prev, designSnapshots: updatedSnapshots };
+            pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+            return next;
+          });
+        }}
+        onApplyGlobalOverride={(result) => {
+          setCurrentPageConfig((prev) => {
+            const next = {
+              ...prev,
+              globalSettings: result.globalSettings,
+              sections: result.sections,
+              designSnapshots: result.designSnapshots,
+            };
+            pageBuilderFirestore.savePage(next, db, ROOT_TENANT_ID).catch(console.warn);
+            return next;
+          });
+        }}
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}

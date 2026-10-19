@@ -195,11 +195,35 @@ export const WorkbenchApp: React.FC = () => {
     location.pathname === '/kosass' ||
     location.pathname.startsWith('/kosass/') ||
     location.pathname.startsWith('/kosass-') ||
+    location.pathname === '/kosinfo' ||
+    location.pathname.startsWith('/kosinfo/') ||
+    location.pathname.startsWith('/kosinfo-') ||
+    location.pathname === '/kosevent' ||
+    location.pathname.startsWith('/kosevent/') ||
+    location.pathname.startsWith('/kosevent-') ||
+    location.pathname === '/koscheckout' ||
+    location.pathname.startsWith('/koscheckout/') ||
+    location.pathname.startsWith('/koscheckout-') ||
+    location.pathname === '/koscommunity' ||
+    location.pathname.startsWith('/koscommunity/') ||
+    location.pathname.startsWith('/koscommunity-') ||
+    location.pathname === '/kosfunrise' ||
+    location.pathname.startsWith('/kosfunrise/') ||
+    location.pathname.startsWith('/kosfunrise-') ||
+    location.pathname === '/koscourse' ||
+    location.pathname.startsWith('/koscourse/') ||
+    location.pathname.startsWith('/koscourse-') ||
     location.hash.startsWith('#/p/') ||
     location.hash.startsWith('#/to/') ||
     location.hash.startsWith('#/tube/') ||
     location.hash.startsWith('#/kosvidio') ||
     location.hash.startsWith('#/kosass') ||
+    location.hash.startsWith('#/kosinfo') ||
+    location.hash.startsWith('#/kosevent') ||
+    location.hash.startsWith('#/koscheckout') ||
+    location.hash.startsWith('#/koscommunity') ||
+    location.hash.startsWith('#/kosfunrise') ||
+    location.hash.startsWith('#/koscourse') ||
     location.hash.startsWith('#/page/');
 
   const isHomePage = location.pathname === '/';
@@ -410,6 +434,37 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            {/* Archive Direct Public Routes */}
+            <Route path="/kosinfo" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosinfo/*" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosinfo-:slug" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosinfo/:slug" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/kosevent" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosevent/*" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosevent-:slug" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosevent/:slug" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/koscheckout" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscheckout/*" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscheckout-:slug" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscheckout/:slug" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/koscommunity" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscommunity/*" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscommunity-:slug" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscommunity/:slug" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/kosfunrise" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosfunrise/*" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosfunrise-:slug" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosfunrise/:slug" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/koscourse" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscourse/*" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscourse-:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscourse/:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
@@ -565,6 +620,36 @@ export const WorkbenchApp: React.FC = () => {
             <Route path="/kosvidio" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView slug="kosvidio" /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio/*" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/kosvidio-:slug" element={<ModuleErrorBoundary moduleName="עמוד וידאו Kosvidio"><Suspense fallback={<ModuleLoadingFallback moduleName="עמוד וידאו Kosvidio" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            {/* Archive Direct Public Routes */}
+            <Route path="/kosinfo" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosinfo/*" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosinfo-:slug" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosinfo/:slug" element={<ModuleErrorBoundary moduleName="ארכיון תוכן KOSINFO"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון תוכן KOSINFO" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/kosevent" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosevent/*" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosevent-:slug" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosevent/:slug" element={<ModuleErrorBoundary moduleName="ארכיון אירועים KOSEVENT"><Suspense fallback={<ModuleLoadingFallback moduleName="ארכיון אירועים KOSEVENT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/koscheckout" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscheckout/*" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscheckout-:slug" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscheckout/:slug" element={<ModuleErrorBoundary moduleName="דפי סליקה KOSCHECKOUT"><Suspense fallback={<ModuleLoadingFallback moduleName="דפי סליקה KOSCHECKOUT" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/koscommunity" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscommunity/*" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscommunity-:slug" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscommunity/:slug" element={<ModuleErrorBoundary moduleName="קהילות KOSCOMMUNITY"><Suspense fallback={<ModuleLoadingFallback moduleName="קהילות KOSCOMMUNITY" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/kosfunrise" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosfunrise/*" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosfunrise-:slug" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/kosfunrise/:slug" element={<ModuleErrorBoundary moduleName="קמפיין גיוס KOSFUNRISE"><Suspense fallback={<ModuleLoadingFallback moduleName="קמפיין גיוס KOSFUNRISE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+
+            <Route path="/koscourse" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscourse/*" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscourse-:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
+            <Route path="/koscourse/:slug" element={<ModuleErrorBoundary moduleName="קורסים KOSCOURSE"><Suspense fallback={<ModuleLoadingFallback moduleName="קורסים KOSCOURSE" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/:slug" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/p/*" element={<ModuleErrorBoundary moduleName="תצוגה ציבורית"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגה ציבורית" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />
             <Route path="/to/:slug" element={<ModuleErrorBoundary moduleName="תצוגת קהילה"><Suspense fallback={<ModuleLoadingFallback moduleName="תצוגת קהילה" />}><PublicPageView /></Suspense></ModuleErrorBoundary>} />

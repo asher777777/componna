@@ -30,6 +30,11 @@ export interface KosWebAiFrontDockProps {
   onUpdateSections?: (sections: Record<string, any>) => void;
   designSnapshots?: PageDesignSnapshot[];
   onUpdateDesignSnapshots?: (snapshots: PageDesignSnapshot[]) => void;
+  onApplyGlobalOverride?: (result: {
+    globalSettings: GlobalPageSettings;
+    sections: Record<string, any>;
+    designSnapshots: PageDesignSnapshot[];
+  }) => void;
 }
 
 /**
@@ -58,6 +63,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
   onUpdateSections,
   designSnapshots: propDesignSnapshots,
   onUpdateDesignSnapshots,
+  onApplyGlobalOverride,
 }) => {
   const { db } = useSystemConnection();
   const [isSeoDrawerOpen, setIsSeoDrawerOpen] = useState(false);
@@ -135,6 +141,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
       setLocalGlobalSettings(updated);
       if (onUpdateGlobalSettings) {
         onUpdateGlobalSettings(updated);
+        return;
       }
       if (resolvedPage) {
         const next = { ...resolvedPage, globalSettings: updated };
@@ -149,6 +156,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
       setLocalSeoSettings(updated);
       if (onUpdateSeoSettings) {
         onUpdateSeoSettings(updated);
+        return;
       }
       if (resolvedPage) {
         const next = { ...resolvedPage, seoSettings: updated };
@@ -156,6 +164,34 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
       }
     },
     [onUpdateSeoSettings, resolvedPage, db, tenantId]
+  );
+
+  const handleApplyGlobalOverride = useCallback(
+    (result: {
+      globalSettings: GlobalPageSettings;
+      sections: Record<string, any>;
+      designSnapshots: PageDesignSnapshot[];
+    }) => {
+      setLocalGlobalSettings(result.globalSettings);
+      if (onApplyGlobalOverride) {
+        onApplyGlobalOverride(result);
+        return;
+      }
+      if (onUpdateGlobalSettings) onUpdateGlobalSettings(result.globalSettings);
+      if (onUpdateSections) onUpdateSections(result.sections);
+      if (onUpdateDesignSnapshots) onUpdateDesignSnapshots(result.designSnapshots);
+
+      if (!onApplyGlobalOverride && !onUpdateGlobalSettings && !onUpdateSections && resolvedPage) {
+        const next: PageBuilderConfig = {
+          ...resolvedPage,
+          globalSettings: result.globalSettings,
+          sections: result.sections,
+          designSnapshots: result.designSnapshots,
+        };
+        pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+      }
+    },
+    [onApplyGlobalOverride, onUpdateGlobalSettings, onUpdateSections, onUpdateDesignSnapshots, resolvedPage, db, tenantId]
   );
 
   return (
@@ -185,6 +221,7 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         onUpdateSections={(updatedSections) => {
           if (onUpdateSections) {
             onUpdateSections(updatedSections);
+            return;
           }
           if (resolvedPage) {
             const next = { ...resolvedPage, sections: updatedSections };
@@ -195,12 +232,14 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         onUpdateDesignSnapshots={(updatedSnapshots) => {
           if (onUpdateDesignSnapshots) {
             onUpdateDesignSnapshots(updatedSnapshots);
+            return;
           }
           if (resolvedPage) {
             const next = { ...resolvedPage, designSnapshots: updatedSnapshots };
             pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
           }
         }}
+        onApplyGlobalOverride={handleApplyGlobalOverride}
       />
     </>
   );

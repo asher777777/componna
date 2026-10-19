@@ -161,22 +161,6 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
             </button>
             <button
               type="button"
-              onClick={() => setSelectedCategory('service_product')}
-              className={clsx(
-                'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
-                selectedCategory === 'service_product'
-                  ? 'bg-blue-600 text-white shadow-sm'
-                  : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
-              )}
-              title="עמודי שירות / מוצר (KOSASS)"
-            >
-              <span>KOSASS</span>
-              <span className="text-[10px] opacity-75">
-                ({pages.filter((p) => getCategoryFromPage(p) === 'service_product').length})
-              </span>
-            </button>
-            <button
-              type="button"
               onClick={() => setSelectedCategory('info_content')}
               className={clsx(
                 'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
@@ -209,6 +193,38 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
             </button>
             <button
               type="button"
+              onClick={() => setSelectedCategory('checkout')}
+              className={clsx(
+                'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+                selectedCategory === 'checkout'
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400'
+              )}
+              title="דפי סליקה ומכירה (KOSCHECKOUT)"
+            >
+              <span>KOSCHECKOUT</span>
+              <span className="text-[10px] opacity-75">
+                ({pages.filter((p) => getCategoryFromPage(p) === 'checkout').length})
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('community')}
+              className={clsx(
+                'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+                selectedCategory === 'community'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-400'
+              )}
+              title="דפי קהילה ומועדון (KOSCOMMUNITY)"
+            >
+              <span>KOSCOMMUNITY</span>
+              <span className="text-[10px] opacity-75">
+                ({pages.filter((p) => getCategoryFromPage(p) === 'community').length})
+              </span>
+            </button>
+            <button
+              type="button"
               onClick={() => setSelectedCategory('fundraising')}
               className={clsx(
                 'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
@@ -221,6 +237,38 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
               <span>KOSFUNRISE</span>
               <span className="text-[10px] opacity-75">
                 ({pages.filter((p) => getCategoryFromPage(p) === 'fundraising').length})
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('course')}
+              className={clsx(
+                'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+                selectedCategory === 'course'
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              )}
+              title="דפי קורסים והכשרות (KOSCOURSE)"
+            >
+              <span>KOSCOURSE</span>
+              <span className="text-[10px] opacity-75">
+                ({pages.filter((p) => getCategoryFromPage(p) === 'course').length})
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelectedCategory('service_product')}
+              className={clsx(
+                'px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1',
+                selectedCategory === 'service_product'
+                  ? 'bg-cyan-600 text-white shadow-sm'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-cyan-600 dark:hover:text-cyan-400'
+              )}
+              title="עמודי שירות / מוצר (KOSASS)"
+            >
+              <span>KOSASS</span>
+              <span className="text-[10px] opacity-75">
+                ({pages.filter((p) => getCategoryFromPage(p) === 'service_product').length})
               </span>
             </button>
             <button

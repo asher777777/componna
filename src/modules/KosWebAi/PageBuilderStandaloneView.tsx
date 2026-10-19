@@ -216,29 +216,47 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       sections: SectionType[];
       keywords: string[];
     }> = {
-      service_product: {
-        title: 'עמוד שירות / מוצר חדש',
-        slugPrefix: 'kosass',
-        sections: ['hero', 'richContent', 'pricing', 'smartForm', 'contact'],
-        keywords: ['שירותים', 'מוצרים', 'הצעת מחיר'],
-      },
       info_content: {
         title: 'עמוד מידע ותוכן חדש',
         slugPrefix: 'kosinfo',
-        sections: ['hero', 'richContent', 'faq', 'contact'],
-        keywords: ['מאמרים', 'מדריכים', 'מידע מקצועי'],
+        sections: ['hero', 'richContent', 'statsBento', 'faq', 'testimonials', 'community', 'contact'],
+        keywords: ['מאמרים', 'מדריכים', 'מידע מקצועי', 'תוכן', 'בלוג'],
       },
       event: {
-        title: 'עמוד אירוע חדש',
+        title: 'עמוד אירוע וכנס חדש',
         slugPrefix: 'kosevent',
-        sections: ['hero', 'timer', 'eventRsvp', 'contact'],
+        sections: ['hero', 'timer', 'eventRsvp', 'richContent', 'statsBento', 'faq', 'contact'],
         keywords: ['אירוע', 'כנס', 'הרשמה', 'RSVP', 'Waze'],
+      },
+      checkout: {
+        title: 'דף סליקה ותשלום מאובטח',
+        slugPrefix: 'koscheckout',
+        sections: ['hero', 'pricing', 'smartForm', 'timer', 'testimonials', 'faq', 'contact'],
+        keywords: ['סליקה', 'תשלום', 'רכישה', 'מחירון', 'הזמנה מאובטחת'],
+      },
+      community: {
+        title: 'עמוד קהילה ומועדון חברים',
+        slugPrefix: 'koscommunity',
+        sections: ['hero', 'community', 'statsBento', 'livePosts', 'testimonials', 'faq', 'contact'],
+        keywords: ['קהילה', 'מועדון חברים', 'נטוורקינג', 'חברות', 'VIP'],
       },
       fundraising: {
         title: 'קמפיין גיוס כספים ושגרירים',
         slugPrefix: 'kosfunrise',
-        sections: ['campaignHeader', 'campaignTiers', 'campaignDonors', 'contact'],
-        keywords: ['תרומות', 'קמפיין', 'שגרירים', 'גיוס כספים'],
+        sections: ['campaignHeader', 'hero', 'campaignTiers', 'campaignDonors', 'statsBento', 'faq', 'contact'],
+        keywords: ['תרומות', 'קמפיין', 'שגרירים', 'גיוס כספים', 'סעיף 46'],
+      },
+      course: {
+        title: 'עמוד קורס והכשרה מקצועית',
+        slugPrefix: 'koscourse',
+        sections: ['hero', 'mainContent', 'statsBento', 'pricing', 'testimonials', 'faq', 'contact'],
+        keywords: ['קורס', 'סדנה', 'הכשרה', 'לימודים', 'אקדמיה', 'סילבוס'],
+      },
+      service_product: {
+        title: 'עמוד שירות / מוצר חדש',
+        slugPrefix: 'kosass',
+        sections: ['hero', 'pricing', 'smartForm', 'timer', 'testimonials', 'faq', 'contact'],
+        keywords: ['שירותים', 'מוצרים', 'הצעת מחיר', 'סליקה'],
       },
       youtube_post: {
         title: 'עמוד פוסט וידאו KosTube',
@@ -247,9 +265,9 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         keywords: ['וידאו', 'יוטיוב', 'KosTube', 'תוכן'],
       },
       general: {
-        title: 'דף נחיתה חדש',
+        title: 'דף נחיתה כללי',
         slugPrefix: 'p',
-        sections: ['hero', 'richContent', 'contact'],
+        sections: ['hero', 'richContent', 'statsBento', 'pricing', 'testimonials', 'faq', 'contact'],
         keywords: ['דף נחיתה', 'קמונה'],
       },
     };
@@ -318,7 +336,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           builtSections.eventRsvp.crmGroupName = options.crmGroupName || finalTitle;
         }
       }
-    } else if (category === 'service_product') {
+    } else if (category === 'service_product' || category === 'checkout') {
       if (builtSections.pricing && options.servicePrice) {
         const sPrice = options.servicePrice;
         builtSections.pricing.packages = (builtSections.pricing.packages || []).map((pkg: any, idx: number) => {
@@ -334,10 +352,38 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         });
       }
       if (builtSections.smartForm) {
-        builtSections.smartForm.sectionTitle = `הזמנת ${finalTitle} / השארת פרטים`;
+        builtSections.smartForm.sectionTitle = `סליקה מאובטחת - ${finalTitle}`;
         if (options.servicePrice) {
-          builtSections.smartForm.sectionSubtitle = `מחיר שירות / מוצר: ₪${options.servicePrice} | מלאו את הפרטים ונחזור אליכם בהקדם`;
+          builtSections.smartForm.sectionSubtitle = `סכום לתשלום: ₪${options.servicePrice} | מלאו את הפרטים והשלימו את הרכישה במיידי`;
         }
+      }
+    } else if (category === 'community') {
+      if (builtSections.community) {
+        builtSections.community.title = `הטבות בלעדיות לחברי ${finalTitle}`;
+        if (options.description) {
+          builtSections.community.subtitle = options.description;
+        }
+      }
+    } else if (category === 'course') {
+      if (builtSections.mainContent) {
+        builtSections.mainContent.title = `תכנית הלימודים: ${finalTitle}`;
+        if (options.description) {
+          builtSections.mainContent.subtitle = options.description;
+        }
+      }
+      if (builtSections.pricing && options.servicePrice) {
+        const sPrice = options.servicePrice;
+        builtSections.pricing.title = 'מסלולי הרשמה לקורס';
+        builtSections.pricing.packages = (builtSections.pricing.packages || []).map((pkg: any, idx: number) => {
+          if (idx === 1 || pkg.isFeatured) {
+            return {
+              ...pkg,
+              priceMonthly: `₪${sPrice}`,
+              name: `מסלול מורחב: ${finalTitle}`,
+            };
+          }
+          return pkg;
+        });
       }
     } else if (category === 'fundraising') {
       if (builtSections.campaignHeader) {

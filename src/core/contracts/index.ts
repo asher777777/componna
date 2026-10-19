@@ -645,7 +645,9 @@ export interface CoreEventMap {
   };
   'player:interaction': { videoId: string; eventType: string; timestamp: number };
   'brand:updated': { brandDna: BrandDna; updatedAt: string };
-  'brand:logo_updated': { logoUrl: string; updatedAt: string };
+  'brand:apply_style_to_all_pages': { preset: TenantStylePreset; tenantId: string; updatedAt?: string };
+  'brand:reset_all_pages': { tenantId: string; brandDna?: BrandDna; updatedAt?: string };
+  'brand:logo_updated': { logoUrl: string; updatedAt?: string };
   'brand:vibe_image_added': { imageUrl: string; updatedAt: string };
   'brand:service_slug_updated': { serviceName: string; slug: string; pageId?: string };
   'campaign:page_created': { campaignId: string; slug: string; publicUrl: string };
@@ -901,6 +903,21 @@ export interface FlagshipSeoData {
   aiBotIndexingEnabled?: boolean;
 }
 
+export interface FlagshipSectionTitles {
+  aboutSubtitle?: string;
+  aboutHeading?: string;
+  painPointsSubtitle?: string;
+  painPointsHeading?: string;
+  targetAudiencesSubtitle?: string;
+  targetAudiencesHeading?: string;
+  advantagesSubtitle?: string;
+  advantagesHeading?: string;
+  faqSubtitle?: string;
+  faqHeading?: string;
+  contactSubtitle?: string;
+  contactHeading?: string;
+}
+
 export interface FlagshipProduct {
   id: string;
   nameAndSlogan: string;
@@ -916,6 +933,7 @@ export interface FlagshipProduct {
   competitiveAdvantages?: FlagshipRepeaterItem[];
   faqs?: FlagshipFaqItem[];
   seo?: FlagshipSeoData;
+  sectionTitles?: FlagshipSectionTitles;
   linkedPageId?: string;
   linkedPageSlug?: string;
 }
@@ -1034,6 +1052,7 @@ export interface CreatePageFromProductOptions {
     targetAudiences?: FlagshipRepeaterItem[];
     competitiveAdvantages?: FlagshipRepeaterItem[];
     faqs?: FlagshipFaqItem[];
+    sectionTitles?: FlagshipSectionTitles;
     seo?: FlagshipSeoData;
     linkedPageId?: string;
     linkedPageSlug?: string;

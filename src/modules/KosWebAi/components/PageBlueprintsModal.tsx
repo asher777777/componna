@@ -15,7 +15,11 @@ import {
   LayoutTemplate,
   Layers,
   Video,
+  BookOpen,
+  Calendar,
+  CreditCard,
 } from 'lucide-react';
+import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 
 import { hydrateBlueprintWithBrandDna } from '../blueprints/pageBlueprints';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -44,18 +48,24 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
+      case 'BookOpen':
+        return <BookOpen className="w-5 h-5 text-emerald-400" />;
+      case 'Calendar':
+        return <Calendar className="w-5 h-5 text-amber-400" />;
+      case 'CreditCard':
+        return <CreditCard className="w-5 h-5 text-blue-400" />;
+      case 'Users':
+        return <Users className="w-5 h-5 text-purple-400" />;
+      case 'Heart':
+        return <Heart className="w-5 h-5 text-rose-400" />;
+      case 'GraduationCap':
+        return <GraduationCap className="w-5 h-5 text-indigo-400" />;
+      case 'Video':
+        return <Video className="w-5 h-5 text-red-500" />;
       case 'Zap':
         return <Zap className="w-5 h-5 text-amber-400" />;
       case 'MapPin':
         return <MapPin className="w-5 h-5 text-emerald-400" />;
-      case 'GraduationCap':
-        return <GraduationCap className="w-5 h-5 text-purple-400" />;
-      case 'Users':
-        return <Users className="w-5 h-5 text-pink-400" />;
-      case 'Heart':
-        return <Heart className="w-5 h-5 text-rose-400" />;
-      case 'Video':
-        return <Video className="w-5 h-5 text-red-500" />;
       default:
         return <LayoutTemplate className="w-5 h-5 text-indigo-400" />;
     }
@@ -85,7 +95,7 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
             <div>
               <h2 className="text-xl font-black text-white">ספריית תבניות פרימיום (Page Blueprints)</h2>
               <p className="text-xs text-slate-400">
-                תבניות ארכיטקטורה מוכנות מראש לטעינה בלחיצה אחת – כל תבנית כוללת שלד אזורים מחובר ומותאם אישית.
+                תבניות ארכיטקטורה מוכנות מראש לטעינה בלחיצה אחת – כל תבנית כוללת שלד 7 אזורים מחובר ומותאם אישית לנתיב הארכיון.
               </p>
             </div>
           </div>
@@ -103,18 +113,20 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
         <div className="px-6 py-3 border-b border-slate-800/60 bg-slate-900/20 flex items-center gap-2 overflow-x-auto">
           {[
             { id: 'all', label: `כל התבניות (${PAGE_BLUEPRINTS.length})` },
-            { id: 'video', label: 'וידאו ויוטיוב (Kosvidio)' },
-            { id: 'sales', label: 'מכירה והשקה' },
+            { id: 'content', label: 'עמודי תוכן (KOSINFO)' },
+            { id: 'events', label: 'עמודי אירועים (KOSEVENT)' },
+            { id: 'checkout', label: 'דפי סליקה (KOSCHECKOUT)' },
+            { id: 'community', label: 'דפי קהילה (KOSCOMMUNITY)' },
+            { id: 'campaign', label: 'דפי קמפיין (KOSFUNRISE)' },
+            { id: 'courses', label: 'דפי קורסים (KOSCOURSE)' },
+            { id: 'video', label: 'וידאו יוטיוב (Kosvidio)' },
             { id: 'geo', label: 'שירות מקומי ו-SEO' },
-            { id: 'authority', label: 'מאמר ידע וסמכות' },
-            { id: 'community', label: 'קהילה והרשמה' },
-            { id: 'campaign', label: 'קמפיין וגיוס' },
           ].map((cat) => (
             <button
               key={cat.id}
               type="button"
               onClick={() => setSelectedCategory(cat.id)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
                 selectedCategory === cat.id
                   ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20'
                   : 'bg-slate-900 text-slate-400 hover:text-white border border-slate-800'
@@ -156,9 +168,9 @@ export const PageBlueprintsModal: React.FC<PageBlueprintsModalProps> = ({
                     {bp.sectionTypes.map((sec, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] text-slate-300 font-mono"
+                        className="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-800 text-[10px] text-slate-300 font-medium"
                       >
-                        {sec}
+                        {(SECTION_REGISTRY as Record<string, any>)[sec]?.name || sec}
                       </span>
                     ))}
                   </div>
