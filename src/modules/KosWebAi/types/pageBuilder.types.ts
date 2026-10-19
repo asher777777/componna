@@ -320,7 +320,7 @@ export interface ArchiveTemplateSpec {
 }
 
 export const ARCHIVE_7_SECTIONS_SPECS: Record<
-  'info_content' | 'event' | 'checkout' | 'community' | 'fundraising' | 'course' | 'service_product' | 'youtube_post',
+  'info_content' | 'event' | 'checkout' | 'community' | 'fundraising' | 'course' | 'service_product' | 'youtube_post' | 'general',
   ArchiveTemplateSpec
 > = {
   info_content: {
@@ -402,6 +402,16 @@ export const ARCHIVE_7_SECTIONS_SPECS: Record<
     defaultTitle: 'מרכז הוידאו, ההרצאות והשידורים החיים',
     defaultSubtitle: 'כל התכנים, הניתוחים והשידורים המרתקים במקום אחד',
     keywords: ['וידאו', 'יוטיוב', 'שידורים חיים', 'הרצאות', 'VOD', 'Kosvidio'],
+  },
+  general: {
+    category: 'general',
+    name: 'פוסטים ועדכונים',
+    slugPrefix: 'p',
+    sections: ['hero', 'dynamicListing', 'richContent', 'statsBento', 'faq', 'testimonials', 'contact'],
+    description: 'ארכיון פוסטים, עדכונים ועמודי תוכן כלליים מבית המותג',
+    defaultTitle: 'פוסטים, עדכונים וחדשות',
+    defaultSubtitle: 'כל העדכונים, הפוסטים והפרסומים האחרונים',
+    keywords: ['פוסטים', 'עדכונים', 'חדשות', 'פרסומים'],
   },
 };
 

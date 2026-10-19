@@ -71,10 +71,18 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
         return parts[0].slice('kosvidio-'.length);
       }
       if (parts.length >= 2 && archivePrefixes.includes(firstPart)) {
-        if (firstPart === 'p' || firstPart === 'page' || firstPart === 'to') {
+        if (firstPart === 'page' || firstPart === 'to') {
           return parts.slice(1).join('/');
         }
+        if (firstPart === 'p') {
+          // If there's an actual sub-slug after /p/ (e.g. /p/my-post), return the sub-slug
+          const subSlug = parts.slice(1).join('/');
+          return subSlug || 'p';
+        }
         return `${firstPart}-${parts.slice(1).join('/')}`;
+      }
+      if (firstPart === 'p' || firstPart === 'posts') {
+        return 'p';
       }
       if (archivePrefixes.some((pref) => firstPart.startsWith(`${pref}-`))) {
         return parts[0];
@@ -437,7 +445,7 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
 
         if (resolvedSlug) {
           const target = resolvedSlug.toLowerCase().trim();
-          const archivePrefixRegex = /^(kosinfo|kosevent|koscheckout|koscommunity|kosfunrise|koscourse|kosass|kosvidio)[-/]/i;
+          const archivePrefixRegex = /^(kosinfo|kosevent|koscheckout|koscommunity|kosfunrise|koscourse|kosass|kosvidio|posts|p)[-/]/i;
           const cleanTarget = target.replace(archivePrefixRegex, '');
 
           const stripBrandAndPrefix = (s: string) =>

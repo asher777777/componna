@@ -84,11 +84,34 @@ export const isPublicContentPath = (path: string): boolean => {
     p === '/kosass' ||
     p.startsWith('/kosass/') ||
     p.startsWith('/kosass-') ||
+    p === '/p' ||
+    p === '/p/' ||
     p.startsWith('/p/') ||
+    p === '/posts' ||
+    p.startsWith('/posts/') ||
+    p === '/page' ||
     p.startsWith('/page/') ||
     p.startsWith('/preview/') ||
     p.startsWith('/tube/') ||
-    p.startsWith('/to/')
+    p.startsWith('/to/') ||
+    p === '/kosinfo' ||
+    p.startsWith('/kosinfo/') ||
+    p.startsWith('/kosinfo-') ||
+    p === '/kosevent' ||
+    p.startsWith('/kosevent/') ||
+    p.startsWith('/kosevent-') ||
+    p === '/koscheckout' ||
+    p.startsWith('/koscheckout/') ||
+    p.startsWith('/koscheckout-') ||
+    p === '/koscommunity' ||
+    p.startsWith('/koscommunity/') ||
+    p.startsWith('/koscommunity-') ||
+    p === '/kosfunrise' ||
+    p.startsWith('/kosfunrise/') ||
+    p.startsWith('/kosfunrise-') ||
+    p === '/koscourse' ||
+    p.startsWith('/koscourse/') ||
+    p.startsWith('/koscourse-')
   ) {
     return true;
   }
@@ -906,7 +929,11 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
               <Route path="/kosvidio" element={<PublicPageView />} />
               <Route path="/kosvidio/:slug" element={<PublicPageView />} />
               <Route path="/kosvidio/*" element={<PublicPageView />} />
+              <Route path="/p" element={<PublicPageView />} />
               <Route path="/p/:slug" element={<PublicPageView />} />
+              <Route path="/posts" element={<PublicPageView />} />
+              <Route path="/posts/:slug" element={<PublicPageView />} />
+              <Route path="/page" element={<PublicPageView />} />
               <Route path="/page/:slug" element={<PublicPageView />} />
               <Route path="/preview/:slug" element={<PublicPageView />} />
               <Route path="/tube/:slug" element={<PublicPageView />} />

@@ -69,7 +69,12 @@ export const TenantAppResolver: React.FC = () => {
     }
     const pathname = window.location.pathname;
     const isPublicPage =
+      pathname === '/p' ||
+      pathname === '/p/' ||
       pathname.startsWith('/p/') ||
+      pathname === '/posts' ||
+      pathname.startsWith('/posts/') ||
+      pathname === '/page' ||
       pathname.startsWith('/page/') ||
       pathname.startsWith('/preview/') ||
       pathname.startsWith('/tube/') ||

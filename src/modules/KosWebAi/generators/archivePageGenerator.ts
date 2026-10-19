@@ -23,6 +23,8 @@ export const ARCHIVE_SLUG_MAP: Record<string, PageCategory> = {
   kosfunrise: 'fundraising',
   koscourse: 'course',
   kosass: 'service_product',
+  p: 'general',
+  posts: 'general',
 };
 
 export type ArchiveVocabKey = 'articles' | 'events' | 'courses' | 'videos' | 'community' | 'services' | 'posts' | 'fundraising' | 'checkout';
@@ -124,9 +126,9 @@ export function buildArchivePageConfig(
     checkout: 'checkout',
     fundraising: 'fundraising',
     home: 'articles',
-    general: 'articles',
+    general: 'posts',
   };
-  const vKey = vocabKeyMap[category] || 'articles';
+  const vKey = vocabKeyMap[category] || 'posts';
   const customTitle = (brand.uiVocabulary?.categoryTitles as any)?.[vKey];
   const customSubtitle = (brand.uiVocabulary?.categoryDescriptions as any)?.[vKey];
   const customSeoDesc = (brand.uiVocabulary?.archiveSeoDescriptions as any)?.[vKey];
@@ -435,9 +437,9 @@ export function sanitizeArchivePageWithBrandDna(
     checkout: 'checkout',
     fundraising: 'fundraising',
     home: 'articles',
-    general: 'articles',
+    general: 'posts',
   };
-  const vKey = vocabKeyMap[category] || 'articles';
+  const vKey = vocabKeyMap[category] || 'posts';
   const customTitle = (brand.uiVocabulary?.categoryTitles as any)?.[vKey];
   const customSubtitle = (brand.uiVocabulary?.categoryDescriptions as any)?.[vKey];
   const customSeoDesc = (brand.uiVocabulary?.archiveSeoDescriptions as any)?.[vKey];
