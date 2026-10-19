@@ -1389,6 +1389,26 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
 
           {openAccordion === 'tab-videos' && (
             <div className="p-4 pt-1 border-t border-white/10 space-y-3.5 text-xs">
+              {/* Max Videos Setting */}
+              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
+                <div>
+                  <div className="font-bold text-white text-xs">כמות סרטונים להצגה</div>
+                  <div className="text-[10px] text-slate-400">
+                    הגבלת כמות הסרטונים שיוצגו בגלריה
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    value={formData.maxVideos || 12}
+                    onChange={(e) => updateField('maxVideos', parseInt(e.target.value, 10) || 12)}
+                    className="w-20 bg-[#181818] border border-white/15 text-white rounded-xl px-3 py-1.5 text-xs text-center outline-none focus:border-red-500 font-bold"
+                  />
+                </div>
+              </div>
+
               {/* Top Action to pull real tenant videos */}
               <div className="flex items-center justify-between gap-2 p-3 rounded-xl bg-white/5 border border-white/10">
                 <div>

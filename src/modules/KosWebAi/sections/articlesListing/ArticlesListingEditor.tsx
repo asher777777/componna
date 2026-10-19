@@ -531,19 +531,34 @@ export const ArticlesListingEditor: React.FC<ArticlesListingEditorProps> = ({
               </label>
             </div>
 
-            {/* Sort Dropdown */}
-            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
-              <span className="text-[11px] text-zinc-400">סדר הצגת הפריטים:</span>
-              <select
-                value={config.sortBy || 'date-desc'}
-                onChange={(e) => handleUpdate({ sortBy: e.target.value as any })}
-                className="bg-black/30 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none"
-              >
-                <option value="date-desc">תאריך: מהחדש לישן</option>
-                <option value="title-asc">שם: א' עד ת'</option>
-                <option value="title-desc">שם: ת' עד א'</option>
-                <option value="manual">סדר ברירת מחדל</option>
-              </select>
+            {/* Sort & Max Items Controls */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10 items-center">
+              <div>
+                <span className="text-[11px] text-zinc-400 block mb-1">סדר הצגת הפריטים:</span>
+                <select
+                  value={config.sortBy || 'date-desc'}
+                  onChange={(e) => handleUpdate({ sortBy: e.target.value as any })}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                >
+                  <option value="date-desc">תאריך: מהחדש לישן</option>
+                  <option value="title-asc">שם: א' עד ת'</option>
+                  <option value="title-desc">שם: ת' עד א'</option>
+                  <option value="manual">סדר ברירת מחדל</option>
+                </select>
+              </div>
+
+              <div>
+                <span className="text-[11px] text-zinc-400 block mb-1">כמות מאמרים להצגה:</span>
+                <input
+                  type="number"
+                  min="1"
+                  max="48"
+                  value={config.maxItems || 12}
+                  onChange={(e) => handleUpdate({ maxItems: parseInt(e.target.value, 10) || 12 })}
+                  className="w-full bg-black/30 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none"
+                  title="הגדרת כמות הפוסטים או המאמרים שיוצגו בליסטינג"
+                />
+              </div>
             </div>
           </div>
         )}

@@ -471,19 +471,20 @@ export function sanitizeArchivePageWithBrandDna(
       },
     };
   } else {
+    // Only set defaults if user hasn't customized them
     sections[heroId] = {
       ...sections[heroId],
-      title: archiveTitle,
-      subtitle: archiveSubtitle,
-      description: archiveDescription,
+      title: sections[heroId].title || archiveTitle,
+      subtitle: sections[heroId].subtitle || archiveSubtitle,
+      description: sections[heroId].description || archiveDescription,
     };
   }
   sections[heroId] = {
     ...sections[heroId],
-    layout: (preset === 'masculine' || preset === 'feminine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
+    layout: sections[heroId].layout || ((preset === 'masculine' || preset === 'feminine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
       ? preset
-      : 'bento-hero',
-    heroStyle: preset === 'feminine' || preset === 'spiritual'
+      : 'bento-hero'),
+    heroStyle: sections[heroId].heroStyle || (preset === 'feminine' || preset === 'spiritual'
       ? 'mesh-glow'
       : preset === 'masculine'
       ? 'card'
@@ -491,15 +492,15 @@ export function sanitizeArchivePageWithBrandDna(
       ? 'minimal'
       : preset === 'analytical'
       ? 'modern'
-      : 'mesh-glow',
-    buttonShape: borderRadius === 'none'
+      : 'mesh-glow'),
+    buttonShape: sections[heroId].buttonShape || (borderRadius === 'none'
       ? 'square'
       : borderRadius === 'full'
       ? 'pill'
-      : 'rounded',
-    primaryButtonColor: buttonBgColor,
-    secondaryButtonColor: secondaryColor,
-    accentColor: primaryColor,
+      : 'rounded'),
+    primaryButtonColor: sections[heroId].primaryButtonColor || buttonBgColor,
+    secondaryButtonColor: sections[heroId].secondaryButtonColor || secondaryColor,
+    accentColor: sections[heroId].accentColor || primaryColor,
   };
   applyStylePresetToSection(sections[heroId], preset);
 
@@ -521,15 +522,15 @@ export function sanitizeArchivePageWithBrandDna(
     }
     sections[listingId] = {
       ...sections[listingId],
-      title: archiveTitle || sections[listingId].title,
-      subtitle: archiveSubtitle || sections[listingId].subtitle,
-      channelName: companyName,
-      channelSlogan: slogan,
-      channelAvatarUrl: logoUrl,
-      accentColor: primaryColor,
-      showCtaButton: false,
-      ctaButtonText: '',
-      layout: (preset === 'feminine' || preset === 'spiritual') ? 'featured_carousel' : (preset === 'sharp' ? 'grid' : 'featured_carousel'),
+      title: sections[listingId].title || archiveTitle,
+      subtitle: sections[listingId].subtitle || archiveSubtitle,
+      channelName: sections[listingId].channelName || companyName,
+      channelSlogan: sections[listingId].channelSlogan || slogan,
+      channelAvatarUrl: sections[listingId].channelAvatarUrl || logoUrl,
+      accentColor: sections[listingId].accentColor || primaryColor,
+      showCtaButton: sections[listingId].showCtaButton ?? false,
+      ctaButtonText: sections[listingId].ctaButtonText ?? '',
+      layout: sections[listingId].layout || ((preset === 'feminine' || preset === 'spiritual') ? 'featured_carousel' : (preset === 'sharp' ? 'grid' : 'featured_carousel')),
     };
     applyStylePresetToSection(sections[listingId], preset);
   } else if (category === 'event' || slug === 'kosevent') {
@@ -549,13 +550,13 @@ export function sanitizeArchivePageWithBrandDna(
     }
     sections[listingId] = {
       ...sections[listingId],
-      title: archiveTitle,
-      subtitle: archiveSubtitle,
-      filterCategory: 'event',
-      stylePreset: preset,
-      showSearchBar: true,
-      cardEffect: 'lift-shadow',
-      defaultCtaText: brand.uiVocabulary?.primaryCta || 'לפרטים והצטרפות',
+      title: sections[listingId].title || archiveTitle,
+      subtitle: sections[listingId].subtitle || archiveSubtitle,
+      filterCategory: sections[listingId].filterCategory || 'event',
+      stylePreset: sections[listingId].stylePreset || preset,
+      showSearchBar: sections[listingId].showSearchBar ?? true,
+      cardEffect: sections[listingId].cardEffect || 'lift-shadow',
+      defaultCtaText: sections[listingId].defaultCtaText || brand.uiVocabulary?.primaryCta || 'לפרטים והצטרפות',
     };
     applyStylePresetToSection(sections[listingId], preset);
   } else if (category === 'info_content' || slug === 'kosinfo') {
@@ -573,14 +574,14 @@ export function sanitizeArchivePageWithBrandDna(
     }
     sections[listingId] = {
       ...sections[listingId],
-      title: archiveTitle,
-      subtitle: archiveSubtitle,
-      layout: (preset === 'feminine' || preset === 'masculine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
+      title: sections[listingId].title || archiveTitle,
+      subtitle: sections[listingId].subtitle || archiveSubtitle,
+      layout: sections[listingId].layout || ((preset === 'feminine' || preset === 'masculine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
         ? preset
-        : 'standard',
-      topCtaText: 'לכל המאמרים',
-      topCtaUrl: '#sec-listing',
-      showTopCta: false,
+        : 'standard'),
+      topCtaText: sections[listingId].topCtaText || 'לכל המאמרים',
+      topCtaUrl: sections[listingId].topCtaUrl || '#sec-listing',
+      showTopCta: sections[listingId].showTopCta ?? false,
     };
     applyStylePresetToSection(sections[listingId], preset);
   } else {
@@ -601,13 +602,13 @@ export function sanitizeArchivePageWithBrandDna(
     }
     sections[listingId] = {
       ...sections[listingId],
-      title: archiveTitle,
-      subtitle: archiveSubtitle,
-      filterCategory: category,
-      stylePreset: preset,
-      showCategoryFilter: true,
-      showSearchBar: true,
-      layout: preset === 'feminine'
+      title: sections[listingId].title || archiveTitle,
+      subtitle: sections[listingId].subtitle || archiveSubtitle,
+      filterCategory: sections[listingId].filterCategory || category,
+      stylePreset: sections[listingId].stylePreset || preset,
+      showCategoryFilter: sections[listingId].showCategoryFilter ?? true,
+      showSearchBar: sections[listingId].showSearchBar ?? true,
+      layout: sections[listingId].layout || (preset === 'feminine'
         ? 'snap-carousel'
         : preset === 'masculine'
         ? 'bento-showcase'
@@ -617,8 +618,8 @@ export function sanitizeArchivePageWithBrandDna(
         ? 'masonry'
         : preset === 'analytical'
         ? 'editorial-list'
-        : 'bento-showcase',
-      boxShape: preset === 'feminine'
+        : 'bento-showcase'),
+      boxShape: sections[listingId].boxShape || (preset === 'feminine'
         ? 'flower'
         : preset === 'masculine'
         ? 'shield'
@@ -628,19 +629,24 @@ export function sanitizeArchivePageWithBrandDna(
         ? 'sharp'
         : preset === 'analytical'
         ? 'hud'
-        : 'rounded',
-      buttonShape: borderRadius === 'none'
+        : 'rounded'),
+      buttonShape: sections[listingId].buttonShape || (borderRadius === 'none'
         ? 'square'
         : borderRadius === 'full'
         ? 'pill'
-        : 'rounded',
-      accentColor: primaryColor,
+        : 'rounded'),
+      accentColor: sections[listingId].accentColor || primaryColor,
     };
     applyStylePresetToSection(sections[listingId], preset);
   }
 
-  // Strictly enforce sectionOrder: ONLY Header, Hero, and the matching Listing!
-  const finalSectionOrder = ['header-1', heroId, listingId];
+  // Respect user customizations: preserve any custom sections added, reordered or modified by the user,
+  // while ensuring Header, Hero, and the designated Listing exist.
+  const existingOrder = page.sectionOrder && page.sectionOrder.length > 0 ? page.sectionOrder : ['header-1', heroId, listingId];
+  const finalSectionOrder = [...existingOrder];
+  if (!finalSectionOrder.includes('header-1')) finalSectionOrder.unshift('header-1');
+  if (!finalSectionOrder.includes(heroId)) finalSectionOrder.splice(1, 0, heroId);
+  if (!finalSectionOrder.includes(listingId)) finalSectionOrder.push(listingId);
 
   return {
     ...page,

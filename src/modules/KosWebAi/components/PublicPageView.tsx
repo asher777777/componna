@@ -643,14 +643,14 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
 
         if (isMounted) {
           if (foundPage) {
-            // If this is an archive page, enforce Hero + Listing only and inject live visual language tokens from collection
+            // If this is an archive page, apply brand visual language defaults while respecting user custom sections & edits
             if (foundPage.isArchivePage || isArchiveSlug(foundPage.slug)) {
               try {
                 const effTenant = tenantId || '_master';
                 const liveBrand = await loadBrandDna(db || undefined, effTenant);
                 foundPage = sanitizeArchivePageWithBrandDna(foundPage, liveBrand, effTenant);
               } catch (err) {
-                console.warn('[PublicPageView] Failed sanitizing archive page with live Brand DNA:', err);
+                console.warn('[PublicPageView] Failed syncing archive page with live Brand DNA:', err);
               }
             }
 

@@ -267,8 +267,12 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
       return 0;
     });
 
+    if (config.maxItems && config.maxItems > 0) {
+      return result.slice(0, config.maxItems);
+    }
+
     return result;
-  }, [dynamicArticles, activeTag, searchQuery, sortBy]);
+  }, [dynamicArticles, activeTag, searchQuery, sortBy, config.maxItems]);
 
   return (
     <section

@@ -1685,6 +1685,7 @@ export interface ArticlesListingSectionConfig extends BaseSectionConfig {
   showCategoryFilter?: boolean;
   selectedTagFilter?: string;
   sortBy?: 'date-desc' | 'date-asc' | 'title-asc' | 'title-desc' | 'manual';
+  maxItems?: number;
 
   // Button micro-copy defaults
   cardCtaText?: string; // "למאמר המלא"
