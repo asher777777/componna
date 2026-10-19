@@ -80,7 +80,12 @@ export function getTenantPublicMediaUrl(item?: Partial<MediaItem>, preferredHost
   }
 
   if (!mediaPath) return '';
-  return `${domain}/media/${encodeURIComponent(mediaPath)}`;
+  // Encode individual path segments to keep forward slashes intact for Firebase Hosting /media/** rewrite
+  const cleanPath = mediaPath
+    .split('/')
+    .map((seg) => encodeURIComponent(seg))
+    .join('/');
+  return `${domain}/media/${cleanPath}`;
 }
 
 /**

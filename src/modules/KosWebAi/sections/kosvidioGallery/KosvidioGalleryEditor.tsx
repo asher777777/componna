@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { clsx } from 'clsx';
 import { collection, getDocs } from 'firebase/firestore';
 import {
   KosvidioGallerySectionConfig,
@@ -48,6 +49,7 @@ import {
   ExternalLink,
   Clock,
   Eye,
+  EyeOff,
   ThumbsUp,
 } from 'lucide-react';
 
@@ -1212,21 +1214,42 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
 
               {/* Bottom CTA Button */}
               <div className="pt-2 border-t border-white/10 space-y-3">
-                <span className="font-bold text-amber-300 block text-xs">כפתור הנעה לפעולה תחתון</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <PageBuilderInput
-                    label="טקסט כפתור תחתון"
-                    value={localConfig.ctaButtonText || ''}
-                    onChange={(e) => update('ctaButtonText', resolveInputValue(e))}
-                    placeholder="לכל סרטוני הערוץ"
-                  />
-                  <PageBuilderInput
-                    label="קישור כפתור תחתון"
-                    value={localConfig.ctaButtonUrl || ''}
-                    onChange={(e) => update('ctaButtonUrl', resolveInputValue(e))}
-                    placeholder="/kosvidio"
-                  />
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-amber-300 block text-xs">כפתור הנעה לפעולה תחתון</span>
+                  <button
+                    type="button"
+                    onClick={() => update('showCtaButton', localConfig.showCtaButton === false ? true : false)}
+                    className={clsx(
+                      'p-1.5 rounded-lg border transition cursor-pointer flex items-center justify-center',
+                      localConfig.showCtaButton === false
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                        : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-500/30'
+                    )}
+                    title={localConfig.showCtaButton === false ? 'הכפתור מוסתר (לחץ להצגה)' : 'הכפתור מוצג (לחץ להסתרה)'}
+                  >
+                    {localConfig.showCtaButton === false ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
                 </div>
+                {localConfig.showCtaButton !== false && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 animate-in fade-in">
+                    <PageBuilderInput
+                      label="טקסט כפתור תחתון"
+                      value={localConfig.ctaButtonText || ''}
+                      onChange={(e) => update('ctaButtonText', resolveInputValue(e))}
+                      placeholder="לכל סרטוני הערוץ"
+                    />
+                    <PageBuilderInput
+                      label="קישור כפתור תחתון"
+                      value={localConfig.ctaButtonUrl || ''}
+                      onChange={(e) => update('ctaButtonUrl', resolveInputValue(e))}
+                      placeholder="/kosvidio"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}

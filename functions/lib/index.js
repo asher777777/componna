@@ -1429,11 +1429,17 @@ exports.mediaProxy = functions.https.onRequest((req, res) => {
                 res.status(400).send('Missing media file path');
                 return;
             }
-            // 3. Resolve bucket storage path
+            // 3. Resolve bucket storage path cleanly
             let storagePath = rawPath;
+            // Strip leading slashes
+            storagePath = storagePath.replace(/^\/+/, '');
             if (tenantId && tenantId !== '_master') {
                 if (!storagePath.startsWith(`tenants/${tenantId}/`)) {
-                    storagePath = `tenants/${tenantId}/media/${storagePath.replace(/^sdo_media_vault\//, '')}`;
+                    // If path already starts with tenants/anotherTenant, keep it as is, otherwise prefix
+                    if (!storagePath.startsWith('tenants/')) {
+                        const cleanSubPath = storagePath.replace(/^sdo_media_vault\//, '').replace(/^media\//, '');
+                        storagePath = `tenants/${tenantId}/media/${cleanSubPath}`;
+                    }
                 }
             }
             else {
@@ -1442,11 +1448,21 @@ exports.mediaProxy = functions.https.onRequest((req, res) => {
                 }
             }
             const bucket = admin.storage().bucket('glowmanage.firebasestorage.app');
-            const file = bucket.file(storagePath);
-            const [exists] = await file.exists();
+            let file = bucket.file(storagePath);
+            let [exists] = await file.exists();
             if (!exists) {
-                // Fallback: check legacy vault path
-                const legacyFile = bucket.file(`sdo_media_vault/${rawPath.replace(/^.*[\\/]/, '')}`);
+                // Fallback 1: check if file exists with plain clean name in tenant or root vault
+                const fileNameOnly = rawPath.replace(/^.*[\\/]/, '');
+                if (tenantId && tenantId !== '_master') {
+                    const tenantAltFile = bucket.file(`tenants/${tenantId}/media/${fileNameOnly}`);
+                    const [tenantAltExists] = await tenantAltFile.exists();
+                    if (tenantAltExists) {
+                        serveStorageFile(tenantAltFile, req, res);
+                        return;
+                    }
+                }
+                // Fallback 2: check legacy vault path
+                const legacyFile = bucket.file(`sdo_media_vault/${fileNameOnly}`);
                 const [legacyExists] = await legacyFile.exists();
                 if (legacyExists) {
                     serveStorageFile(legacyFile, req, res);
@@ -1467,9 +1483,14 @@ async function serveStorageFile(file, req, res) {
     try {
         const [metadata] = await file.getMetadata();
         const contentType = metadata.contentType || 'application/octet-stream';
+        const contentLength = metadata.size;
         res.setHeader('Content-Type', contentType);
+        if (contentLength) {
+            res.setHeader('Content-Length', contentLength);
+        }
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Expose-Headers', 'Content-Length, Content-Type, X-Kosun-Tenant-Media');
         res.setHeader('X-Kosun-Tenant-Media', 'true');
         if (req.method === 'HEAD') {
             res.status(200).end();

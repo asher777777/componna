@@ -1470,6 +1470,7 @@ export interface KosvidioGallerySectionConfig extends BaseSectionConfig {
   accentColor?: string;
   cardBgColor?: string;
   items: KosvidioGalleryItem[];
+  showCtaButton?: boolean;
   ctaButtonText?: string;
   ctaButtonUrl?: string;
 

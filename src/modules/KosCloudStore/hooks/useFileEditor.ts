@@ -163,8 +163,8 @@ export function useFileEditor() {
             sourceModule: item.sourceModule,
             sourceModuleLabel: item.sourceModuleLabel,
           };
-          await addMediaItems([newItem], [blob]);
-          return newItem;
+          const uploadedItems = await addMediaItems([newItem], [blob]);
+          return (uploadedItems && uploadedItems[0]) ? uploadedItems[0] : newItem;
         } else {
           const updatedItem: MediaItem = {
             ...item,
@@ -218,8 +218,8 @@ export function useFileEditor() {
             tags: [...(item.tags || []), 'ללא_רקע'],
             sourceModule: item.sourceModule,
           };
-          await addMediaItems([newItem], [result.blob]);
-          return newItem;
+          const uploadedItems = await addMediaItems([newItem], [result.blob]);
+          return (uploadedItems && uploadedItems[0]) ? uploadedItems[0] : newItem;
         } else {
           const updatedItem: MediaItem = {
             ...item,

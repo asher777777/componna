@@ -350,6 +350,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
     accentColor,
     cardBgColor = '#111827',
     items = [],
+    showCtaButton = true,
     ctaButtonText,
     ctaButtonUrl = '/kosvidio',
 
@@ -1471,7 +1472,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         )}
 
         {/* Bottom CTA to main video library */}
-        {effectiveCtaText && (
+        {showCtaButton && effectiveCtaText && (
           <div className="pt-4 flex justify-center">
             <a
               href={buildVideoHref(ctaButtonUrl)}

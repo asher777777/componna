@@ -476,8 +476,8 @@ export class FileCompressionService {
   /**
    * Format bytes into readable string (Bytes, KB, MB, GB, TB)
    */
-  public static formatBytes(bytes: number, decimals: number = 1): string {
-    if (!bytes || bytes === 0) return '0 Bytes';
+  public static formatBytes(bytes?: number, decimals: number = 1): string {
+    if (bytes === undefined || bytes === null || isNaN(bytes) || bytes <= 0) return 'קובץ מדיה';
     const k = 1024;
     const dm = decimals < 0 ? 0 : decimals;
     const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];

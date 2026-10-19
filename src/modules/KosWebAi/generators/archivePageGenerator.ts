@@ -223,6 +223,8 @@ export function buildArchivePageConfig(
       channelSlogan: slogan,
       channelAvatarUrl: logoUrl,
       accentColor: primaryColor,
+      showCtaButton: false,
+      ctaButtonText: '',
       items: [],
     };
     sections[listingId] = applyStylePresetToSection(galBase, preset);
@@ -525,6 +527,8 @@ export function sanitizeArchivePageWithBrandDna(
       channelSlogan: slogan,
       channelAvatarUrl: logoUrl,
       accentColor: primaryColor,
+      showCtaButton: false,
+      ctaButtonText: '',
       layout: (preset === 'feminine' || preset === 'spiritual') ? 'featured_carousel' : (preset === 'sharp' ? 'grid' : 'featured_carousel'),
     };
     applyStylePresetToSection(sections[listingId], preset);
