@@ -117,13 +117,7 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
     window.location.hostname.endsWith('.local')
   );
 
-  const [firebaseAuthed, setFirebaseAuthed] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const savedRole = localStorage.getItem('sdo_user_role');
-      if (savedRole === 'admin' || savedRole === 'editor') return true;
-    }
-    return false;
-  });
+  const [firebaseAuthed, setFirebaseAuthed] = useState<boolean>(false);
 
   useEffect(() => {
     if (!firebaseApp) return;
@@ -132,7 +126,13 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
         const isEmailAdmin = isPlatformAdminEmail(state.email);
         const role = await fetchUserRole(state.uid!, firebaseApp, tenantId);
         const cachedRole = getCachedUserRole(state.uid!);
-        const isOwner = Boolean(tenantId && state.email.toLowerCase().includes(tenantId.toLowerCase()));
+        const isOwner = Boolean(
+          tenantId && 
+          tenantId !== '_master' && 
+          tenantId !== ROOT_TENANT_ID && 
+          (state.email.toLowerCase().startsWith(`${tenantId.toLowerCase()}@`) ||
+           state.email.toLowerCase().includes(tenantId.toLowerCase()))
+        );
         const isAuth = Boolean(
           isEmailAdmin ||
           role === 'admin' ||
@@ -140,61 +140,28 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
           cachedRole === 'admin' ||
           isOwner
         );
-        if (isAuth) {
-          setFirebaseAuthed(true);
-          if (tenantId) {
-            try {
-              localStorage.setItem(`tenant_admin_${tenantId}`, 'true');
-              localStorage.setItem(`tenant_admin_auth_${tenantId}`, 'true');
-            } catch {}
-          }
-        }
+        setFirebaseAuthed(isAuth);
+      } else {
+        setFirebaseAuthed(false);
       }
     });
     return () => unsub();
   }, [firebaseApp, tenantId]);
 
-  const hasAdminQuery = typeof window !== 'undefined' && Boolean(
-    searchParams.get('edit') === 'true' ||
-    searchParams.get('admin') === 'true' ||
-    searchParams.get('mode') === 'admin' ||
-    window.location.hash.includes('edit') ||
-    window.location.hash.includes('admin')
-  );
-
-  useEffect(() => {
-    if (hasAdminQuery && tenantId) {
-      try {
-        localStorage.setItem(`tenant_admin_${tenantId}`, 'true');
-        localStorage.setItem(`tenant_admin_auth_${tenantId}`, 'true');
-        sessionStorage.setItem(`tenant_admin_${tenantId}`, 'true');
-        sessionStorage.setItem(`tenant_admin_auth_${tenantId}`, 'true');
-      } catch {}
-    }
-  }, [hasAdminQuery, tenantId]);
-
   const isTenantAuthed = Boolean(
-    isLocal ||
     firebaseAuthed ||
     (tenantId && TenantAuthService.isTenantAuthenticated(tenantId)) ||
-    (typeof window !== 'undefined' && (
-      sessionStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
-      sessionStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true' ||
-      localStorage.getItem(`tenant_admin_${tenantId}`) === 'true' ||
-      localStorage.getItem(`tenant_admin_auth_${tenantId}`) === 'true' ||
-      sessionStorage.getItem('kosun_super_admin_bypass') === 'true' ||
-      localStorage.getItem('kosun_super_admin_bypass') === 'true' ||
-      sessionStorage.getItem('tenant_admin_auth') === 'true' ||
-      localStorage.getItem('tenant_admin_auth') === 'true'
-    ))
+    (typeof window !== 'undefined' && sessionStorage.getItem('kosun_super_admin_bypass') === 'true')
   );
 
-  const isAuthorized = Boolean(
-    isTenantAuthed ||
-    hasAdminQuery ||
-    isEditing ||
-    isLocal
-  );
+  const isAuthorized = Boolean(isTenantAuthed);
+
+  // If not authorized, edit mode is strictly barred
+  useEffect(() => {
+    if (!isAuthorized && isEditing) {
+      setIsEditing(false);
+    }
+  }, [isAuthorized, isEditing]);
 
   // Quick Login Modal State for Unauthenticated Page Visitors
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -232,16 +199,17 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
   useEffect(() => {
     const handleEditChange = (e: any) => {
       if (e?.detail?.isEditMode !== undefined) {
+        if (!isAuthorized && e.detail.isEditMode) return;
         setIsEditing(Boolean(e.detail.isEditMode));
       }
     };
     window.addEventListener('kosun_edit_mode_changed', handleEditChange);
     return () => window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
-  }, []);
+  }, [isAuthorized]);
 
   // Notify KOSAI AI agent and system of edit mode toggle
   const toggleEditMode = async () => {
-    if (!page) return;
+    if (!isAuthorized || !page) return;
     if (isEditing) {
       setIsSaving(true);
       try {

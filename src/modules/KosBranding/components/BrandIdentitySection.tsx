@@ -620,7 +620,25 @@ export const BrandIdentitySection: React.FC = () => {
       </div>
 
       {/* 2. Vibe Images & Brand Media Gallery Section */}
-      <div className="bg-white dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/60 rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-colors">
+      <div
+        onDragOver={handleVibeDragOver}
+        onDragLeave={handleVibeDragLeave}
+        onDrop={handleVibeDrop}
+        className={`border rounded-2xl p-4 sm:p-5 shadow-sm dark:shadow-lg space-y-4 transition-all ${
+          isVibeDragging
+            ? 'border-2 border-dashed border-teal-500 bg-teal-50/50 dark:bg-teal-950/30'
+            : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700/60'
+        }`}
+      >
+        <input
+          ref={vibeFileInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          onChange={handleDirectVibeUpload}
+          className="hidden"
+        />
+
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-500/10 border border-teal-200 dark:border-teal-500/20 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0">
@@ -631,19 +649,40 @@ export const BrandIdentitySection: React.FC = () => {
                 תמונות אווירה 
                 <Tooltip text="תמונות אלו ישמשו את ה-AI כשהוא בונה עבורך דפי נחיתה או שולח הודעות עשירות בווייב של המותג." />
               </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">מאגר התמונות המרכזי של המותג</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                מאגר התמונות המרכזי של המותג • ניתן לגרור תמונות ישירות לכאן
+              </p>
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={handleAddVibeImagesFromGallery}
-            className="text-xs px-3.5 py-2 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 dark:bg-teal-600/20 dark:hover:bg-teal-600/30 dark:border-teal-500/30 dark:text-teal-300 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm"
-          >
-            <FolderOpen className="w-4 h-4" />
-            בחר מגלריית המדיה
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => vibeFileInputRef.current?.click()}
+              className="text-xs px-3.5 py-2 bg-slate-100 hover:bg-slate-200 border border-slate-300 text-slate-700 dark:bg-slate-800 dark:hover:bg-slate-700 dark:border-slate-700 dark:text-slate-300 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+              title="העלה תמונות ישירות מהמחשב"
+            >
+              <UploadCloud className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span>העלאה מהמחשב</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleAddVibeImagesFromGallery}
+              className="text-xs px-3.5 py-2 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 dark:bg-teal-600/20 dark:hover:bg-teal-600/30 dark:border-teal-500/30 dark:text-teal-300 rounded-xl font-bold flex items-center justify-center gap-1.5 transition-colors shadow-sm cursor-pointer"
+            >
+              <FolderOpen className="w-4 h-4" />
+              <span>בחר מגלריית המדיה</span>
+            </button>
+          </div>
         </div>
+
+        {isUploadingVibe && (
+          <div className="flex items-center justify-center gap-2 p-3 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-600 dark:text-teal-400 text-xs font-bold animate-pulse">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span>מעלה תמונות אווירה לענן ומעדכן את המותג בזמן אמת...</span>
+          </div>
+        )}
 
         {/* Vibe Images Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 pt-2">
@@ -675,14 +714,17 @@ export const BrandIdentitySection: React.FC = () => {
           ))}
 
           {/* Add Image Card */}
-          <button
-            type="button"
-            onClick={handleAddVibeImagesFromGallery}
-            className="rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-400 dark:hover:border-teal-500/50 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/50 dark:hover:bg-slate-900 text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-300 flex flex-col items-center justify-center aspect-video transition-all text-xs font-semibold gap-1 p-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>הוסף תמונה</span>
-          </button>
+          <div className="relative group rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-teal-400 dark:hover:border-teal-500/50 bg-slate-50 hover:bg-slate-100 dark:bg-slate-900/50 dark:hover:bg-slate-900 text-slate-500 hover:text-teal-600 dark:text-slate-400 dark:hover:text-teal-300 flex flex-col items-center justify-center aspect-video transition-all text-xs font-semibold gap-1 p-2">
+            <button
+              type="button"
+              onClick={handleAddVibeImagesFromGallery}
+              className="w-full h-full flex flex-col items-center justify-center gap-1 cursor-pointer"
+              title="בחר מהגלריה או העלה מהמחשב"
+            >
+              <Plus className="w-4 h-4" />
+              <span>הוסף תמונה</span>
+            </button>
+          </div>
         </div>
       </div>
 

@@ -31,6 +31,7 @@ import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaItem } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 export const MediaFileInspector: React.FC = () => {
   const {
@@ -65,11 +66,45 @@ export const MediaFileInspector: React.FC = () => {
   const { getCapability } = useHostCapabilities();
   const brandContract = getCapability<BrandDnaContract>('brand-dna');
   const brandDna = brandContract?.getBrandDna();
-  const isCurrentLogo = Boolean(focusedItem?.url && brandDna?.identity?.logoUrl === focusedItem.url);
-  const isInVibeImages = Boolean(focusedItem?.url && (brandDna?.identity?.vibeImages || []).includes(focusedItem.url));
+
+  const [liveVibeImages, setLiveVibeImages] = useState<string[]>(() => brandDna?.identity?.vibeImages || []);
+  const [liveLogoUrl, setLiveLogoUrl] = useState<string>(() => brandDna?.identity?.logoUrl || '');
+
+  useEffect(() => {
+    const unsubAdded = eventBus.subscribe('brand:vibe_image_added', (data: any) => {
+      if (data?.imageUrl) {
+        setLiveVibeImages((prev) => Array.from(new Set([...prev, data.imageUrl])));
+      }
+    });
+    const unsubBrandUpdated = eventBus.subscribe('brand:updated', (data: any) => {
+      if (data?.brandDna?.identity) {
+        setLiveVibeImages(data.brandDna.identity.vibeImages || []);
+        setLiveLogoUrl(data.brandDna.identity.logoUrl || '');
+      }
+    });
+    const unsubLogo = eventBus.subscribe('brand:logo_updated', (data: any) => {
+      if (data?.logoUrl) setLiveLogoUrl(data.logoUrl);
+    });
+    return () => {
+      unsubAdded();
+      unsubBrandUpdated();
+      unsubLogo();
+    };
+  }, []);
+
+  const isCurrentLogo = Boolean(
+    focusedItem?.url &&
+      (liveLogoUrl === focusedItem.url || brandDna?.identity?.logoUrl === focusedItem.url)
+  );
+  const isInVibeImages = Boolean(
+    focusedItem?.url &&
+      (liveVibeImages.includes(focusedItem.url) ||
+        (brandDna?.identity?.vibeImages || []).includes(focusedItem.url))
+  );
 
   const handleSetAsBrandLogo = async () => {
     if (!focusedItem || !brandContract?.setLogoUrl) return;
+    setLiveLogoUrl(focusedItem.url);
     await brandContract.setLogoUrl(focusedItem.url);
     setFeedbackMsg('הוגדר כלוגו המותג ב-Brand DNA');
     setTimeout(() => setFeedbackMsg(null), 3000);
@@ -77,6 +112,7 @@ export const MediaFileInspector: React.FC = () => {
 
   const handleAddToBrandVibe = async () => {
     if (!focusedItem || !brandContract?.addVibeImage) return;
+    setLiveVibeImages((prev) => Array.from(new Set([...prev, focusedItem.url])));
     await brandContract.addVibeImage(focusedItem.url);
     setFeedbackMsg('נוסף לתמונות האווירה ב-Brand DNA');
     setTimeout(() => setFeedbackMsg(null), 3000);

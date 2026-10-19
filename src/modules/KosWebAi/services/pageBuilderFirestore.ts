@@ -14,8 +14,16 @@ function resolveDb(db?: Firestore | null): Firestore | null {
   return db || defaultFirestoreDb || null;
 }
 
-function resolveEffectiveTenant(tenantId?: string): string {
-  if (!tenantId || tenantId === ROOT_TENANT_ID || tenantId === '_master') {
+export function resolveEffectiveTenant(tenantId?: string): string {
+  if (
+    !tenantId ||
+    tenantId === ROOT_TENANT_ID ||
+    tenantId === '_master' ||
+    tenantId === 'default' ||
+    tenantId === 'master' ||
+    tenantId === 'undefined' ||
+    tenantId === 'null'
+  ) {
     return ROOT_TENANT_ID;
   }
   return tenantId;
@@ -273,9 +281,15 @@ export const pageBuilderFirestore = {
       createdAt: sanitizedConfig.createdAt || now,
     };
 
-    // Save in localStorage
+    // Save in localStorage (instantaneous cache update without network roundtrip)
     try {
-      const localPages = await this.getAllPages(effDb, eff);
+      let localPages: PageBuilderConfig[] = [];
+      const saved = localStorage.getItem(storeKey);
+      if (saved) {
+        try {
+          localPages = JSON.parse(saved);
+        } catch {}
+      }
       const existingIdx = localPages.findIndex((p) => p.pageId === pageId);
       if (existingIdx >= 0) {
         localPages[existingIdx] = payload;

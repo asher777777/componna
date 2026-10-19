@@ -21,12 +21,10 @@ export class TenantAuthService {
     const masterBypass = sessionStorage.getItem('kosun_super_admin_bypass') === 'true';
     if (masterBypass) return true;
 
-    // Strict authentication: Only return true if an explicit tenant login has succeeded
+    // Strict authentication: Only return true if an explicit tenant login has succeeded in this session
     return (
       sessionStorage.getItem(`tenant_admin_auth_${cleanSub}`) === 'true' ||
-      sessionStorage.getItem(`tenant_admin_${cleanSub}`) === 'true' ||
-      localStorage.getItem(`tenant_admin_auth_${cleanSub}`) === 'true' ||
-      localStorage.getItem(`tenant_admin_${cleanSub}`) === 'true'
+      sessionStorage.getItem(`tenant_admin_${cleanSub}`) === 'true'
     );
   }
 

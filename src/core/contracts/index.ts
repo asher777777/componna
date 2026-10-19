@@ -662,6 +662,7 @@ export interface CoreEventMap {
   'brand:reset_all_pages': { tenantId: string; brandDna?: BrandDna; updatedAt?: string };
   'brand:logo_updated': { logoUrl: string; updatedAt?: string };
   'brand:vibe_image_added': { imageUrl: string; updatedAt: string };
+  'brand:vibe_images_updated': { vibeImages: string[]; updatedAt?: string };
   'brand:service_slug_updated': { serviceName: string; slug: string; pageId?: string };
   'campaign:page_created': { campaignId: string; slug: string; publicUrl: string };
   'whatsapp:status:viewed': { phone: string; statusId: string };

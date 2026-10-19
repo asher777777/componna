@@ -110,13 +110,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
 
   // Authentication State
   const [authState, setAuthState] = useState<AuthState | null>(null);
-  const [isAdminOrEditor, setIsAdminOrEditor] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const savedRole = localStorage.getItem('sdo_user_role');
-      if (savedRole === 'admin' || savedRole === 'editor') return true;
-    }
-    return false;
-  });
+  const [isAdminOrEditor, setIsAdminOrEditor] = useState<boolean>(false);
   const [isTenantAuthed, setIsTenantAuthed] = useState<boolean>(() => {
     if (effectiveTenantId) {
       return TenantAuthService.isTenantAuthenticated(effectiveTenantId);

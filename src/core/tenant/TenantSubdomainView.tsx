@@ -114,9 +114,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     if (params.get('mode') === 'public' || params.get('public') === 'true') {
       return 'public';
     }
-    if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
-      return 'admin';
-    }
     // Known module or admin routes strictly default to admin mode
     if (isKnownModuleOrAdminRoute(pathname)) {
       return 'admin';
@@ -125,45 +122,25 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     if (pathname === '/' || pathname === '' || isPublicContentPath(pathname)) {
       return 'public';
     }
-    if (sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true') {
+    if (sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' || sessionStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true') {
       return 'admin';
     }
-    return 'admin';
+    return 'public';
   });
 
-  const [isEditing, setIsEditing] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const p = new URLSearchParams(window.location.search);
-      return p.get('edit') === 'true';
-    }
-    return false;
-  });
-
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     sessionStorage.setItem(`tenant_view_mode_${tenantRecord.subdomain}`, mode);
-    if (mode === 'admin') {
-      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
-      try {
-        localStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
-        localStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
-      } catch {}
-    }
   }, [mode, tenantRecord.subdomain]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     if (params.get('mode') === 'public' || params.get('public') === 'true') {
       setMode('public');
-    } else if (params.get('mode') === 'admin' || params.get('admin') === 'true' || params.get('edit') === 'true') {
+    } else if (params.get('mode') === 'admin' || params.get('admin') === 'true') {
       setMode('admin');
-      sessionStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
-      sessionStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
-      try {
-        localStorage.setItem(`tenant_admin_auth_${tenantRecord.subdomain}`, 'true');
-        localStorage.setItem(`tenant_admin_${tenantRecord.subdomain}`, 'true');
-      } catch {}
     } else if (isKnownModuleOrAdminRoute(location.pathname)) {
       setMode('admin');
     } else if (isPublicContentPath(location.pathname) && !params.get('admin') && !params.get('mode')) {
@@ -220,8 +197,11 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       .catch(() => {});
   }, [db, tenantRecord.subdomain]);
 
+  const [firebaseAuthState, setFirebaseAuthState] = useState<any>(null);
+
   useEffect(() => {
     const unsub = subscribeToAuth(undefined, (state) => {
+      setFirebaseAuthState(state);
       if (state.role) {
         setCurrentUserRole(state.role);
       }
@@ -450,6 +430,30 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   }, [db, tenantRecord.subdomain]);
 
   const [authVersion, setAuthVersion] = useState(0);
+
+  const isAuthenticated = TenantAuthService.isTenantAuthenticated(tenantRecord.subdomain);
+
+  const isFirebaseTenantOwner = Boolean(
+    firebaseAuthState?.user && (
+      (firebaseAuthState.email && isPlatformAdminEmail(firebaseAuthState.email)) ||
+      currentUserRole === 'admin' ||
+      currentUserRole === 'editor' ||
+      (firebaseAuthState.email && tenantRecord.ownerEmail && firebaseAuthState.email.toLowerCase() === tenantRecord.ownerEmail.toLowerCase()) ||
+      (firebaseAuthState.email && firebaseAuthState.email.toLowerCase().startsWith(`${tenantRecord.subdomain.toLowerCase()}@`))
+    )
+  );
+
+  const isTenantAuthed = Boolean(isAuthenticated || isFirebaseTenantOwner);
+
+  const isAuthorizedToEdit = Boolean(!isContentSubscriber && isTenantAuthed);
+
+  // If not authorized to edit, edit mode is strictly barred
+  useEffect(() => {
+    if (!isAuthorizedToEdit && isEditing) {
+      setIsEditing(false);
+    }
+  }, [isAuthorizedToEdit, isEditing]);
+
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
   const [isKosNevOpen, setIsKosNevOpen] = useState(false);
   useEffect(() => {
@@ -491,6 +495,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   };
 
   const toggleEditMode = useCallback(async () => {
+    if (!isAuthorizedToEdit) return;
     if (isEditing) {
       setIsSaving(true);
       try {
@@ -508,7 +513,7 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       setIsEditing(true);
       window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
     }
-  }, [isEditing, currentPageConfig, db, tenantRecord.subdomain]);
+  }, [isAuthorizedToEdit, isEditing, currentPageConfig, db, tenantRecord.subdomain]);
 
   const handleUpdateSection = useCallback((sectionId: string, updatedData: any) => {
     setCurrentPageConfig((prev) => {
@@ -728,10 +733,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     );
   }
 
-  const isAuthenticated = TenantAuthService.isTenantAuthenticated(tenantRecord.subdomain);
-
   // 2. ADMIN LOGIN GUARD: Check tenant admin authentication
-  if (mode === 'admin' && !isAuthenticated) {
+  if (mode === 'admin' && !isTenantAuthed) {
     return (
       <TenantAdminLoginView
         tenantRecord={tenantRecord}
@@ -945,23 +948,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
   }
 
   // 2. PUBLIC MODE (Visitor Landing Page / Live On-Page Editor for Owners)
-  const isAuthorizedToEdit = Boolean(
-    !isContentSubscriber && (
-      isAuthenticated ||
-      isEditing ||
-      (typeof window !== 'undefined' && (
-        sessionStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
-        sessionStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
-        localStorage.getItem(`tenant_admin_${tenantRecord.subdomain}`) === 'true' ||
-        localStorage.getItem(`tenant_admin_auth_${tenantRecord.subdomain}`) === 'true' ||
-        new URLSearchParams(window.location.search).get('edit') === 'true' ||
-        new URLSearchParams(window.location.search).get('admin') === 'true' ||
-        new URLSearchParams(window.location.search).get('mode') === 'admin' ||
-        window.location.hash.includes('edit') ||
-        window.location.hash.includes('admin')
-      ))
-    )
-  );
 
   if (isPublicContentPath(location.pathname)) {
     return (
