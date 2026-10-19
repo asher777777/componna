@@ -10,6 +10,11 @@ import {
   Activity,
   TrendingUp,
   Sparkles,
+  Quote,
+  Compass,
+  Milestone,
+  CheckCircle2,
+  Target,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -21,6 +26,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     body = '',
     imageSrc,
     layout = 'standard',
+    contentLayout,
     objectScale = 'auto',
     buttonShape = 'auto',
     buttonSize = 'auto',
@@ -49,12 +55,30 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
   const normalizedLayout: RichContentLayoutPreset =
     !layout || layout === 'current' ? 'standard' : layout;
 
+  const effectiveContentMode =
+    contentLayout ||
+    (normalizedLayout === 'split-story' ||
+    normalizedLayout === 'quote-hero' ||
+    normalizedLayout === 'timeline-vision' ||
+    normalizedLayout === 'bento-about' ||
+    normalizedLayout === 'two-columns' ||
+    normalizedLayout === 'highlight-box' ||
+    normalizedLayout === 'cards-grid-3' ||
+    normalizedLayout === 'cards-grid-2'
+      ? normalizedLayout
+      : 'standard');
+
   const isCurrentLayout =
     normalizedLayout === 'standard' ||
     normalizedLayout === 'two-columns' ||
     normalizedLayout === 'highlight-box' ||
     normalizedLayout === 'cards-grid-3' ||
-    normalizedLayout === 'cards-grid-2';
+    normalizedLayout === 'cards-grid-2' ||
+    normalizedLayout === 'split-story' ||
+    normalizedLayout === 'quote-hero' ||
+    normalizedLayout === 'timeline-vision' ||
+    normalizedLayout === 'bento-about' ||
+    Boolean(contentLayout);
 
   const effectiveBgImage =
     textBgImageUrl ||
@@ -287,7 +311,90 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
               'bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-3xl p-8 sm:p-12 shadow-2xl backdrop-blur-xl'
           )}
         >
-          {isStack ? (
+          {effectiveContentMode === 'split-story' ? (
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
+              <div className="lg:col-span-7 flex flex-col gap-6 text-right">
+                {wrapTextWithOptionalBg(mainContentBody)}
+              </div>
+              <div className="lg:col-span-5 relative">
+                {imageSrc ? (
+                  <div className="relative rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-white/10 shadow-2xl group">
+                    <img
+                      src={imageSrc}
+                      alt={heading}
+                      className="w-full h-[440px] object-cover group-hover:scale-105 transition-transform duration-700"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                    <div className="absolute bottom-6 right-6 left-6 p-4 rounded-2xl bg-black/60 backdrop-blur-md border border-white/15 text-white">
+                      <div className="flex items-center gap-2 text-amber-400 text-xs font-bold mb-1">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>תמצית החזון והשליחות</span>
+                      </div>
+                      <p className="text-xs text-slate-200 line-clamp-2">
+                        {subtitle || heading}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-[2.5rem] bg-gradient-to-br from-amber-500/10 via-slate-900/60 to-indigo-500/10 border border-white/10 shadow-2xl flex flex-col justify-center min-h-[350px]">
+                    <Quote className="w-12 h-12 text-amber-400 mb-4 opacity-70" />
+                    <p className="text-xl sm:text-2xl font-bold text-white leading-relaxed italic mb-4">
+                      ״{subtitle || heading}״
+                    </p>
+                    <span className="text-xs text-amber-400 font-bold uppercase tracking-wider">
+                      החזון והשליחות המנחים אותנו
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : effectiveContentMode === 'quote-hero' ? (
+            <div className="max-w-4xl mx-auto text-center flex flex-col items-center gap-6">
+              <div className="w-14 h-14 rounded-3xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/10">
+                <Quote className="w-7 h-7" />
+              </div>
+              {wrapTextWithOptionalBg(mainContentBody)}
+            </div>
+          ) : effectiveContentMode === 'timeline-vision' ? (
+            <div className="max-w-5xl mx-auto flex flex-col gap-10">
+              <div className="text-center max-w-3xl mx-auto flex flex-col items-center gap-4">
+                {wrapTextWithOptionalBg(mainContentBody)}
+              </div>
+              <div className="relative mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative z-10">
+                  {(hasItems ? items : [
+                    { id: '1', title: '1. החזון והיסודות', text: 'הגדרת השליחות והערכים המרכזיים המובילים את פעילותנו.', icon: 'Compass' },
+                    { id: '2', title: '2. צמיחה ועשייה', text: 'פיתוח מתמיד, חיבור לקהילה ומתן מענה מקצועי ללא פשרות.', icon: 'Activity' },
+                    { id: '3', title: '3. העתיד והיעדים', text: 'הרחבת ההשפעה, חדשנות פורצת דרך והובלת הסטנדרט קדימה.', icon: 'Sparkles' }
+                  ]).map((it, idx) => (
+                    <div key={it.id || idx} className="p-6 rounded-3xl bg-white/90 dark:bg-slate-900/90 border border-slate-200 dark:border-white/10 shadow-xl flex flex-col items-center text-center gap-3 hover:border-amber-500/40 transition-all">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/30 flex items-center justify-center font-bold text-base">
+                        <DynamicIcon name={it.icon || 'Sparkles'} className="w-6 h-6" />
+                      </div>
+                      <h4 className="text-base font-extrabold text-slate-900 dark:text-white">{it.title}</h4>
+                      <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{it.text || it.description}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          ) : effectiveContentMode === 'bento-about' ? (
+            <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+              <div className="lg:col-span-7 p-8 sm:p-10 rounded-[2.5rem] bg-gradient-to-br from-white dark:from-slate-900/90 dark:via-slate-900/70 dark:to-slate-950 border border-slate-200 dark:border-white/10 shadow-2xl flex flex-col justify-between gap-6">
+                {wrapTextWithOptionalBg(mainContentBody)}
+              </div>
+              <div className="lg:col-span-5 rounded-[2.5rem] overflow-hidden border border-slate-200 dark:border-white/10 shadow-2xl relative min-h-[300px]">
+                {imageSrc ? (
+                  <img src={imageSrc} alt={heading} className="w-full h-full object-cover" />
+                ) : (
+                  <div className="w-full h-full bg-gradient-to-tr from-amber-500/20 to-indigo-500/20 flex flex-col items-center justify-center p-8 text-center min-h-[300px]">
+                    <Sparkles className="w-12 h-12 text-amber-400 mb-3" />
+                    <p className="text-lg font-bold text-white">מחויבים לאיכות ולחזון</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : isStack ? (
             <div className="flex flex-col gap-8">
               {pos === 'top' && currentImageBlock}
               {wrapTextWithOptionalBg(mainContentBody)}
@@ -309,7 +416,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
             </div>
           )}
 
-          {hasItems && (
+          {hasItems && effectiveContentMode !== 'timeline-vision' && (
             <div
               className={clsx(
                 'grid gap-6 mt-2',

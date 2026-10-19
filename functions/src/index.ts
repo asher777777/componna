@@ -309,42 +309,63 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
   const normPhone = cleanDigits.startsWith('972') ? '0' + cleanDigits.slice(3) : cleanDigits;
 
   try {
-    // 1. Fetch API Keys with Multi-Tenant and Root Fallbacks
+    // 1. Fetch API Keys with Dynamic Multi-Tenant Resolution
+    const incomingInstanceId = String(body.instanceData?.idInstance || '').trim();
+    let resolvedTenantId = '_master';
     let apiKeys: any = {};
-    try {
-      const masterDoc = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
-      if (masterDoc.exists) {
-        apiKeys = masterDoc.data() || {};
+
+    if (incomingInstanceId) {
+      try {
+        const tenantsSnap = await db.collection('tenants').get();
+        for (const tDoc of tenantsSnap.docs) {
+          const tKeysDoc = await db.collection('tenants').doc(tDoc.id).collection('settings').doc('api_keys').get();
+          if (tKeysDoc.exists && String(tKeysDoc.data()?.greenApiInstanceId || '').trim() === incomingInstanceId) {
+            resolvedTenantId = tDoc.id;
+            apiKeys = tKeysDoc.data() || {};
+            break;
+          }
+        }
+      } catch (err) {
+        console.warn('[whatsappWebhook] Error matching tenant by instance ID:', err);
       }
-    } catch (e) {
-      console.warn('Error reading master api_keys:', e);
+    }
+
+    if (!apiKeys.greenApiToken || (!apiKeys.googleAiApiKey && !apiKeys.geminiApiKey)) {
+      try {
+        const masterDoc = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
+        if (masterDoc.exists) {
+          apiKeys = { ...masterDoc.data(), ...apiKeys };
+        }
+      } catch (e) {
+        console.warn('Error reading master api_keys:', e);
+      }
     }
 
     if (!apiKeys.googleAiApiKey && !apiKeys.geminiApiKey) {
       try {
         const rootDoc = await db.collection('settings').doc('api_keys').get();
-        if (rootDoc.exists) Object.assign(apiKeys, rootDoc.data() || {});
+        if (rootDoc.exists) apiKeys = { ...rootDoc.data(), ...apiKeys };
       } catch (e) {}
     }
 
     if (!apiKeys.googleAiApiKey && !apiKeys.geminiApiKey) {
       try {
         const globalDoc = await db.collection('system_settings').doc('global').get();
-        if (globalDoc.exists) Object.assign(apiKeys, globalDoc.data()?.apiKeys || {});
+        if (globalDoc.exists) apiKeys = { ...globalDoc.data()?.apiKeys, ...apiKeys };
       } catch (e) {}
     }
 
     const geminiKey = apiKeys.googleAiApiKey || apiKeys.geminiApiKey;
-    const greenApiInstanceId = apiKeys.greenApiInstanceId || body.instanceData?.idInstance;
+    const greenApiInstanceId = incomingInstanceId || apiKeys.greenApiInstanceId;
     const greenApiToken = apiKeys.greenApiToken;
 
     if (!geminiKey || !greenApiInstanceId || !greenApiToken) {
       console.warn('Missing keys for WhatsApp AI Bot:', {
+        resolvedTenantId,
         hasGeminiKey: Boolean(geminiKey),
         hasInstanceId: Boolean(greenApiInstanceId),
         hasToken: Boolean(greenApiToken)
       });
-      // Acknowledge with 200 so Green API does not enter an infinite retry storm
       res.status(200).send('Missing keys - acknowledged');
       return;
     }
@@ -357,59 +378,79 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
       chatHistory = chatDoc.data()?.messages || [];
     }
 
-    // 3. Detect Bot Trigger (only if it's the start of a conversation, or if the bot is already engaged)
+    // 3. Load active bots from resolved tenant, master tenant, and collectionGroup
+    // Support both canonical KOSUN26 `kos_whatsup_ai_bots` and legacy `whatsapp_ai_bots`
+    const botDocsList: any[] = [];
+    const botCollections = ['kos_whatsup_ai_bots', 'whatsapp_ai_bots'];
+
+    for (const col of botCollections) {
+      try {
+        const tenantSnap = await db.collection('tenants').doc(resolvedTenantId).collection(col).get();
+        tenantSnap.forEach(d => {
+          const data = d.data();
+          if (data && data.isActive !== false && !botDocsList.some(b => b.id === (data.id || d.id))) {
+            botDocsList.push({ ...data, id: data.id || d.id, tenantId: resolvedTenantId });
+          }
+        });
+      } catch (e) {}
+    }
+
+    if (resolvedTenantId !== '_master') {
+      for (const col of botCollections) {
+        try {
+          const masterSnap = await db.collection('tenants').doc('_master').collection(col).get();
+          masterSnap.forEach(d => {
+            const data = d.data();
+            if (data && data.isActive !== false && !botDocsList.some(b => b.id === (data.id || d.id))) {
+              botDocsList.push({ ...data, id: data.id || d.id, tenantId: '_master' });
+            }
+          });
+        } catch (e) {}
+      }
+    }
+
+    for (const col of botCollections) {
+      try {
+        const groupSnap = await db.collectionGroup(col).get();
+        groupSnap.forEach(d => {
+          const data = d.data();
+          if (data && data.isActive !== false && !botDocsList.some(b => b.id === (data.id || d.id))) {
+            botDocsList.push({ ...data, id: data.id || d.id });
+          }
+        });
+      } catch (e) {}
+    }
+
+    for (const col of botCollections) {
+      try {
+        const rootSnap = await db.collection(col).get();
+        rootSnap.forEach(d => {
+          const data = d.data();
+          if (data && data.isActive !== false && !botDocsList.some(b => b.id === (data.id || d.id))) {
+            botDocsList.push({ ...data, id: data.id || d.id });
+          }
+        });
+      } catch (e) {}
+    }
+
     let triggeredBot: any = null;
     let activeBotId = chatDoc.data()?.botId;
 
-    // Load active bots from master tenant, root and collectionGroup (without where clause to avoid missing index errors)
-    const botDocsList: any[] = [];
-    try {
-      const masterSnap = await db.collection('tenants').doc('_master').collection('whatsapp_ai_bots').get();
-      masterSnap.forEach(d => {
-        const data = d.data();
-        if (data && data.isActive !== false) {
-          botDocsList.push({ ...data, id: data.id || d.id });
-        }
-      });
-    } catch (e) {
-      console.warn('Error querying master bots:', e);
-    }
-
-    try {
-      const groupSnap = await db.collectionGroup('whatsapp_ai_bots').get();
-      groupSnap.forEach(d => {
-        const data = d.data();
-        if (data && data.isActive !== false && !botDocsList.some(b => b.id === (data.id || d.id))) {
-          botDocsList.push({ ...data, id: data.id || d.id });
-        }
-      });
-    } catch (e) {
-      console.warn('Error querying collectionGroup bots:', e);
-    }
-
-    // If bot was already engaged in this chat, keep using it
-    if (activeBotId) {
-      triggeredBot = botDocsList.find(b => b.id === activeBotId) || null;
-    }
-    
-    // Otherwise check for keyword triggers in whatsapp_ai_bots
-    if (!triggeredBot) {
-      for (const bot of botDocsList) {
-        if (bot.triggerType === 'all') {
+    // STEP 3A: Check explicit KEYWORD triggers FIRST!
+    // This guarantees the bot responds to search words even if a previous conversation existed
+    for (const bot of botDocsList) {
+      if (bot.triggerType === 'keyword' && (bot.triggerKeywords || bot.keywords)) {
+        const kws = bot.triggerKeywords || bot.keywords;
+        const matchResult = matchKeywords(messageText, kws, bot.matchMode || 'contains');
+        if (matchResult.isMatch) {
           triggeredBot = bot;
+          console.log(`[whatsappWebhook] Keyword matched "${matchResult.matchedKeyword}" for bot: ${bot.name} (${bot.id})`);
           break;
-        } else if (bot.triggerType === 'keyword' && (bot.triggerKeywords || bot.keywords)) {
-          const kws = bot.triggerKeywords || bot.keywords;
-          const matchResult = matchKeywords(messageText, kws, bot.matchMode || 'contains');
-          if (matchResult.isMatch) {
-            triggeredBot = bot;
-            break;
-          }
         }
       }
     }
 
-    // Check Kosai Engine Rules with WhatsApp Triggers if still no bot triggered
+    // STEP 3B: Check Kosai Engine Rules with WhatsApp keyword triggers
     if (!triggeredBot) {
       try {
         const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').get();
@@ -417,16 +458,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
           const rule = doc.data();
           if (rule?.isActive !== false && rule?.whatsappTrigger?.enabled) {
             const trigger = rule.whatsappTrigger;
-            if (trigger.triggerType === 'all') {
-              triggeredBot = {
-                id: `kosai_${doc.id}`,
-                name: trigger.botDisplayName || rule.name,
-                systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                model: 'gemini-3.8-flash-lite',
-                temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
-              };
-              break;
-            } else if (trigger.triggerType === 'keyword' && (trigger.keywords || trigger.triggerKeywords)) {
+            if (trigger.triggerType === 'keyword' && (trigger.keywords || trigger.triggerKeywords)) {
               const kws = trigger.keywords || trigger.triggerKeywords;
               const matchResult = matchKeywords(messageText, kws, trigger.matchMode || 'contains');
               if (matchResult.isMatch) {
@@ -434,7 +466,7 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
                   id: `kosai_${doc.id}`,
                   name: trigger.botDisplayName || rule.name,
                   systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
-                  model: 'gemini-3.8-flash-lite',
+                  model: 'gemini-3.8-flash',
                   temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
                 };
                 break;
@@ -443,8 +475,44 @@ export const whatsappWebhook = functions.https.onRequest((req, res) => {
           }
         }
       } catch (err) {
-        console.warn('Error querying kosai rules for triggers:', err);
+        console.warn('Error querying kosai rules for keyword triggers:', err);
       }
+    }
+
+    // STEP 3C: If no keyword matched, but the chat was already engaged with an active bot, continue with it
+    if (!triggeredBot && activeBotId) {
+      triggeredBot = botDocsList.find(b => b.id === activeBotId) || null;
+    }
+
+    // STEP 3D: If still no bot triggered, check for bots configured to catch 'all' messages
+    if (!triggeredBot) {
+      for (const bot of botDocsList) {
+        if (bot.triggerType === 'all') {
+          triggeredBot = bot;
+          break;
+        }
+      }
+    }
+
+    // STEP 3E: Fallback to Kosai 'all' triggers
+    if (!triggeredBot) {
+      try {
+        const kosaiRulesSnap = await db.collectionGroup('mod_kosai_rules').get();
+        for (const doc of kosaiRulesSnap.docs) {
+          const rule = doc.data();
+          if (rule?.isActive !== false && rule?.whatsappTrigger?.enabled && rule.whatsappTrigger.triggerType === 'all') {
+            const trigger = rule.whatsappTrigger;
+            triggeredBot = {
+              id: `kosai_${doc.id}`,
+              name: trigger.botDisplayName || rule.name,
+              systemPrompt: rule.systemPromptAddon || 'אתה נציג שירות ומכירות אינטליגנטי של קושאן.',
+              model: 'gemini-3.8-flash',
+              temperature: (rule.toneOfVoice?.creativity ?? 50) / 100
+            };
+            break;
+          }
+        }
+      } catch (err) {}
     }
 
     if (!triggeredBot) {

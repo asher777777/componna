@@ -615,6 +615,17 @@ export interface PricingSectionConfig extends BaseSectionConfig {
   packages: PricingPackageItem[];
 }
 
+export type RichContentDisplayMode =
+  | 'standard'
+  | 'two-columns'
+  | 'highlight-box'
+  | 'split-story'
+  | 'quote-hero'
+  | 'timeline-vision'
+  | 'bento-about'
+  | 'cards-grid-3'
+  | 'cards-grid-2';
+
 export type RichContentLayoutPreset =
   | 'feminine'
   | 'masculine'
@@ -626,7 +637,11 @@ export type RichContentLayoutPreset =
   | 'two-columns'
   | 'highlight-box'
   | 'cards-grid-3'
-  | 'cards-grid-2';
+  | 'cards-grid-2'
+  | 'split-story'
+  | 'quote-hero'
+  | 'timeline-vision'
+  | 'bento-about';
 
 export interface RichContentItem {
   id: string;
@@ -644,6 +659,7 @@ export interface RichContentSectionConfig extends BaseSectionConfig {
   body: string;
   imageSrc?: string;
   layout?: RichContentLayoutPreset;
+  contentLayout?: RichContentDisplayMode;
   objectScale?: 'auto' | 'compact' | 'normal' | 'large' | 'massive';
   buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp' | 'chiseled';
   buttonSize?: 'auto' | 'sm' | 'md' | 'lg' | 'xl';

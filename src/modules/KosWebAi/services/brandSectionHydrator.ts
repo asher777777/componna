@@ -523,6 +523,57 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'richContent': {
+      const companyVision = brand.identity?.companyVision;
+      const shortVision = brand.identity?.shortVision;
+      const orgPurpose = brand.identity?.organizationPurpose;
+      const summary = (brand as any).brandSummaryParagraph;
+
+      cloned.heading = headings.aboutHeading || (companyName ? `אודות ${companyName}` : 'אודותינו והחזון שלנו');
+      cloned.subtitle = headings.aboutSubtitle || shortVision || slogan || 'החזון, הערכים והשליחות שלנו';
+
+      if (brand.designTokens?.defaultStylePreset) {
+        cloned.layout = brand.designTokens.defaultStylePreset;
+      }
+
+      const visionParagraph = companyVision || shortVision || orgPurpose;
+      const purposeParagraph = orgPurpose || uvp || summary;
+
+      if (visionParagraph || purposeParagraph) {
+        const parts: string[] = [];
+        if (visionParagraph) {
+          parts.push(`<p class="text-lg font-semibold leading-relaxed"><strong>החזון שלנו:</strong> ${visionParagraph}</p>`);
+        }
+        if (purposeParagraph && purposeParagraph !== visionParagraph) {
+          parts.push(`<p class="leading-relaxed">${purposeParagraph}</p>`);
+        }
+        if (slogan) {
+          parts.push(`<blockquote class="border-r-4 border-amber-500 pr-4 italic my-3 text-slate-300">״${slogan}״</blockquote>`);
+        }
+        cloned.body = parts.join('');
+      }
+
+      if (primaryColor) {
+        cloned.primaryButtonColor = primaryColor;
+      }
+      if (brand.designTokens?.textColorH1) {
+        cloned.headingColor = brand.designTokens.textColorH1;
+      }
+      if (brand.designTokens?.textColor) {
+        cloned.bodyColor = brand.designTokens.textColor;
+      }
+
+      if (services.length > 0 && Array.isArray(cloned.items) && cloned.items.length === 0) {
+        cloned.items = services.slice(0, 3).map((srv, idx) => ({
+          id: `item_brand_${idx}`,
+          title: srv,
+          text: `פתרון מקצועי ואיכותי מבית ${companyName}`,
+          icon: idx === 0 ? 'Sparkles' : idx === 1 ? 'Shield' : 'Heart',
+        }));
+      }
+      break;
+    }
+
     case 'cta': {
       cloned.title = headings.painPointsHeading || `מוכנים להתקדם עם ${companyName}?`;
       cloned.subtitle = headings.painPointsSubtitle || slogan;
