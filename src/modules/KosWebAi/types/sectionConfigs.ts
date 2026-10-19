@@ -159,9 +159,24 @@ export interface LogoMarqueeSectionConfig extends BaseSectionConfig {
   logos: LogoMarqueeItem[];
 }
 
+export type StatsBentoLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'bento-4'
+  | 'row-4'
+  | 'cards-3';
+
+export type StatsBentoViewMode = 'grid-4' | 'bento-4' | 'cards-3';
+
 export interface StatsBentoItem {
   id: string;
   number: string;
+  prefix?: string;
   suffix?: string;
   label: string;
   description?: string;
@@ -174,7 +189,32 @@ export interface StatsBentoSectionConfig extends BaseSectionConfig {
   type: 'statsBento';
   title?: string;
   subtitle?: string;
-  layout?: 'bento-4' | 'row-4' | 'cards-3';
+  description?: string;
+  badge?: string;
+  layout?: StatsBentoLayoutPreset;
+  viewMode?: StatsBentoViewMode;
+  objectScale?: 'compact' | 'normal' | 'spacious' | 'auto';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'sharp';
+  buttonSize?: 'auto' | 'sm' | 'md' | 'lg';
+  titleColor?: string;
+  subtitleColor?: string;
+  descriptionColor?: string;
+  cardBackgroundColor?: string;
+  accentColor?: string;
+
+  // CTA button support
+  showCtaButton?: boolean;
+  ctaButtonText?: string;
+  ctaButtonUrl?: string;
+
+  // Background image with overlay and hover effect
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
+
   stats: StatsBentoItem[];
 }
 
@@ -1182,6 +1222,13 @@ export interface DynamicListingItem {
   price?: string;
 }
 
+export type DynamicListingStylePreset = 'standard' | 'feminine' | 'masculine' | 'spiritual' | 'sharp' | 'analytical';
+export type StylePresetName = DynamicListingStylePreset;
+export type CardBoxShape = 'rounded' | 'flower' | 'heart' | 'shield' | 'lotus' | 'sharp' | 'hud';
+export type ControlsOrder = 'search-first' | 'categories-first';
+export type ButtonShape = 'auto' | 'pill' | 'rounded' | 'square';
+export type ObjectScale = 'compact' | 'normal' | 'expanded' | 'prominent' | 'standard';
+
 export interface DynamicListingSectionConfig extends BaseSectionConfig {
   type: 'dynamicListing';
   title?: string;
@@ -1198,6 +1245,7 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   searchPlaceholder?: string;
   effectStyle?: 'border-beam' | 'glow-hover' | 'tilt-3d' | 'subtle';
   collectionLimit?: number;
+  maxItems?: number;
   items: DynamicListingItem[];
   primaryButton?: {
     text: string;
@@ -1205,11 +1253,11 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   };
   cardBgColor?: string;
   titleColor?: string;
-  stylePreset?: 'standard' | 'feminine' | 'masculine' | 'spiritual' | 'sharp' | 'analytical';
-  boxShape?: 'rounded' | 'flower' | 'heart' | 'shield' | 'lotus' | 'sharp' | 'hud';
-  controlsOrder?: 'search-first' | 'categories-first';
-  buttonShape?: 'auto' | 'pill' | 'rounded' | 'square';
-  objectScale?: 'compact' | 'normal' | 'expanded';
+  stylePreset?: DynamicListingStylePreset;
+  boxShape?: CardBoxShape;
+  controlsOrder?: ControlsOrder;
+  buttonShape?: ButtonShape;
+  objectScale?: ObjectScale;
   accentColor?: string;
 }
 

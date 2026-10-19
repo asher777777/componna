@@ -483,11 +483,10 @@ export const ContactEditor: React.FC<ContactEditorProps> = ({
                         : 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
                   }`}
                 >
-                  <div className="flex items-center gap-1">
-                    <span className="text-[10px] font-black opacity-75">{def.letter}.</span>
-                    <IconComp className="w-4 h-4 shrink-0" />
+                  <div className="flex items-center gap-1 justify-center py-1">
+                    <span className="text-[11px] font-black opacity-75">{def.letter}.</span>
+                    <IconComp className="w-5 h-5 shrink-0" />
                   </div>
-                  <span className="text-[10px] font-bold truncate max-w-full">{def.shortLabel}</span>
                 </button>
               </div>
             );

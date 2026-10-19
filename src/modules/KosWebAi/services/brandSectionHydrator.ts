@@ -329,19 +329,25 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'statsBento': {
-      cloned.title = headings.advantagesHeading || `היתרונות המובילים של ${companyName}`;
-      cloned.description = headings.advantagesSubtitle || uvp;
-      if (services.length > 0 && Array.isArray(cloned.items)) {
-        cloned.items = cloned.items.map((item: any, idx: number) => {
-          if (services[idx]) {
-            return {
-              ...item,
-              title: services[idx],
-              description: `פתרון מתקדם מבית ${companyName} המבטיח מקצועיות ותוצאות מוכחות.`,
-            };
-          }
-          return item;
-        });
+      cloned.title = companyName ? `המדדים והתוצאות של ${companyName}` : 'התוצאות מדברות בעד עצמן';
+      cloned.subtitle = slogan || 'היקף המחקרים, הקריאות והערך המקצועי';
+      cloned.badge = companyName ? `• ${companyName} METRICS •` : '• מדדי ביצוע מובילים •';
+      cloned.description = uvp || `הנתונים והמדדים המרכזיים שמניעים את ההצלחה והתוצאות המוכחות של ${companyName}.`;
+      cloned.layout = cloned.layout || 'standard';
+      cloned.viewMode = cloned.viewMode || 'grid-4';
+      cloned.objectScale = cloned.objectScale || 'normal';
+      cloned.buttonShape = cloned.buttonShape || 'rounded';
+      cloned.buttonSize = cloned.buttonSize || 'md';
+      if (primaryColor) {
+        cloned.accentColor = primaryColor;
+      }
+      if (!Array.isArray(cloned.stats) || cloned.stats.length === 0) {
+        cloned.stats = [
+          { id: '1', number: '99.8', suffix: '%', label: 'שביעות רצון לקוחות', description: `מדד שירות מעולה מבית ${companyName}`, color: 'emerald', icon: 'Heart' },
+          { id: '2', number: '12,500', prefix: '+', suffix: '', label: 'משתמשים פעילים', description: 'קהילה בצמיחה מתמדת', color: 'indigo', icon: 'Users' },
+          { id: '3', number: '3.4', prefix: 'x', suffix: '', label: 'גידול ממוצע בהמרות', description: 'תוצאה מוכחת לכל לקוח', color: 'purple', icon: 'TrendingUp' },
+          { id: '4', number: '24/7', suffix: '', label: 'תמיכה וליווי אישי', description: 'מענה אנושי מהיר בוואטסאפ', color: 'amber', icon: 'Sparkles' },
+        ];
       }
       break;
     }

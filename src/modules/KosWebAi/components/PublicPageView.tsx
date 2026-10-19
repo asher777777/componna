@@ -16,7 +16,8 @@ import { doc, getDoc } from 'firebase/firestore';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { createDynamicSectionConfig, resolveLiveBrandDna } from '../services/brandSectionHydrator';
 import { buildPageConfigFromVideo } from '../generators/videoPageBuilder';
-import { isArchiveSlug, resolveOrGenerateArchivePage } from '../generators/archivePageGenerator';
+import { isArchiveSlug, resolveOrGenerateArchivePage, sanitizeArchivePageWithBrandDna } from '../generators/archivePageGenerator';
+import { loadBrandDna } from '../../KosBranding/services/brandDnaFirestore';
 import { kosTubeFirestore } from '../../KosTube/services/kosTubeFirestore';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../core/contracts';
@@ -650,8 +651,7 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
               const effectiveDb = db || null;
               if (effectiveDb) {
                 try {
-                  const bDoc = await getDoc(doc(effectiveDb, 'tenants', effTenant, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC));
-                  if (bDoc.exists()) liveBrand = bDoc.data();
+                  liveBrand = await loadBrandDna(effectiveDb, effTenant);
                 } catch {}
               }
               const archiveConfig = await resolveOrGenerateArchivePage(archiveSlugToUse, effectiveDb, effTenant, liveBrand);
@@ -667,6 +667,17 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
 
         if (isMounted) {
           if (foundPage) {
+            // If this is an archive page, enforce Hero + Listing only and inject live visual language tokens from collection
+            if (foundPage.isArchivePage || isArchiveSlug(foundPage.slug)) {
+              try {
+                const effTenant = tenantId || '_master';
+                const liveBrand = await loadBrandDna(db || undefined, effTenant);
+                foundPage = sanitizeArchivePageWithBrandDna(foundPage, liveBrand, effTenant);
+              } catch (err) {
+                console.warn('[PublicPageView] Failed sanitizing archive page with live Brand DNA:', err);
+              }
+            }
+
             const pageWithHeader = ensureHeaderSection(foundPage);
             setPage(pageWithHeader);
             // Update document title and browser tab favicon dynamically from Page SEO

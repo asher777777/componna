@@ -17,6 +17,12 @@ import {
   ExternalLink,
   Layers,
   Check,
+  Heart,
+  Shield,
+  Flower2,
+  Sun,
+  Compass,
+  Cpu,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
@@ -45,6 +51,12 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     cardBgColor,
     titleColor,
     filterCategory,
+    stylePreset = 'standard',
+    boxShape,
+    controlsOrder = 'categories-first',
+    buttonShape = 'auto',
+    objectScale = 'normal',
+    accentColor,
   } = config;
 
   // Search & Filter States
@@ -428,6 +440,182 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     }
   };
 
+  const effectiveBoxShape = useMemo(() => {
+    if (boxShape) return boxShape;
+    if (stylePreset === 'feminine') return 'flower';
+    if (stylePreset === 'masculine') return 'shield';
+    if (stylePreset === 'spiritual') return 'lotus';
+    if (stylePreset === 'sharp') return 'sharp';
+    if (stylePreset === 'analytical') return 'hud';
+    return 'rounded';
+  }, [boxShape, stylePreset]);
+
+  const effectiveButtonShape = useMemo(() => {
+    if (buttonShape && buttonShape !== 'auto') return buttonShape;
+    if (stylePreset === 'feminine' || stylePreset === 'spiritual') return 'pill';
+    if (stylePreset === 'sharp') return 'square';
+    if (stylePreset === 'analytical') return 'rounded';
+    return 'rounded';
+  }, [buttonShape, stylePreset]);
+
+  const ShapeIcon = useMemo(() => {
+    switch (effectiveBoxShape) {
+      case 'flower': return Flower2;
+      case 'heart': return Heart;
+      case 'shield': return Shield;
+      case 'lotus': return Sun;
+      case 'sharp': return Compass;
+      case 'hud': return Cpu;
+      default: return Sparkles;
+    }
+  }, [effectiveBoxShape]);
+
+  const getCardShapeClasses = (isSpotlight = false) => {
+    switch (effectiveBoxShape) {
+      case 'flower':
+        return clsx(
+          isSpotlight
+            ? 'rounded-[3rem] rounded-tr-2xl rounded-bl-2xl'
+            : 'rounded-[2.2rem] rounded-tr-xl rounded-bl-xl',
+          'border border-pink-300/40 dark:border-pink-500/30 shadow-xl shadow-pink-500/5 hover:border-pink-400 hover:shadow-pink-500/15'
+        );
+      case 'heart':
+        return clsx(
+          isSpotlight
+            ? 'rounded-t-[3.5rem] rounded-b-3xl'
+            : 'rounded-t-[2.5rem] rounded-b-2xl',
+          'border border-rose-400/40 dark:border-rose-500/30 shadow-xl shadow-rose-500/5 hover:border-rose-400'
+        );
+      case 'shield':
+        return clsx(
+          isSpotlight
+            ? 'rounded-t-2xl rounded-b-[3.5rem]'
+            : 'rounded-t-xl rounded-b-[2.5rem]',
+          'border-2 border-amber-500/40 dark:border-amber-500/50 bg-zinc-950/90 shadow-2xl shadow-amber-500/10 hover:border-amber-400'
+        );
+      case 'lotus':
+        return clsx(
+          isSpotlight
+            ? 'rounded-[3rem] rounded-tl-md rounded-br-md'
+            : 'rounded-[2.2rem] rounded-tl-sm rounded-br-sm',
+          'border border-purple-500/30 bg-purple-950/20 backdrop-blur-xl shadow-xl shadow-purple-500/5 hover:border-purple-400'
+        );
+      case 'sharp':
+        return 'rounded-none border-2 border-slate-900 dark:border-white shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] dark:shadow-[6px_6px_0px_0px_rgba(255,255,255,0.25)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] dark:hover:shadow-[8px_8px_0px_0px_rgba(255,255,255,0.35)]';
+      case 'hud':
+        return 'rounded-none border border-emerald-500/60 bg-slate-950/90 shadow-xl shadow-emerald-500/10 [clip-path:polygon(0_0,calc(100%-16px)_0,100%_16px,100%_100%,16px_100%,0_calc(100%-16px))] hover:border-emerald-400';
+      case 'rounded':
+      default:
+        return 'rounded-3xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl';
+    }
+  };
+
+  const getCategoryPillClasses = (isActive: boolean) => {
+    switch (effectiveBoxShape) {
+      case 'flower':
+      case 'heart':
+        return clsx(
+          'px-4 py-2 rounded-full text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5',
+          isActive
+            ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md shadow-pink-500/30 scale-[1.03]'
+            : 'bg-white dark:bg-slate-900/90 text-slate-600 dark:text-slate-300 hover:text-pink-600 dark:hover:text-pink-300 border border-pink-200/60 dark:border-pink-900/40'
+        );
+      case 'shield':
+        return clsx(
+          'px-4 py-2 rounded-lg text-xs sm:text-sm font-black whitespace-nowrap transition-all duration-200 cursor-pointer border-2 uppercase tracking-wide flex items-center gap-1.5',
+          isActive
+            ? 'bg-amber-500 text-black border-amber-400 shadow-md shadow-amber-500/30 scale-[1.03]'
+            : 'bg-zinc-900 text-zinc-300 hover:text-white border-zinc-700 hover:border-amber-500/60'
+        );
+      case 'lotus':
+        return clsx(
+          'px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer flex items-center gap-1.5 backdrop-blur-md',
+          isActive
+            ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30 border border-purple-400 scale-[1.03]'
+            : 'bg-purple-950/30 text-purple-200 hover:text-white border border-purple-500/30 hover:border-purple-400'
+        );
+      case 'sharp':
+        return clsx(
+          'px-4 py-2 rounded-none text-xs sm:text-sm font-mono uppercase font-black whitespace-nowrap transition-all duration-200 cursor-pointer border-2',
+          isActive
+            ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 border-slate-900 dark:border-white shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.3)]'
+            : 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white border-slate-900 dark:border-white hover:bg-slate-100 dark:hover:bg-slate-800'
+        );
+      case 'hud':
+        return clsx(
+          'px-4 py-2 rounded-sm text-xs sm:text-sm font-mono whitespace-nowrap transition-all duration-200 cursor-pointer border uppercase',
+          isActive
+            ? 'bg-emerald-600 text-white border-emerald-400 shadow-md shadow-emerald-500/30 scale-[1.02]'
+            : 'bg-slate-950/80 text-emerald-400 border-emerald-500/40 hover:border-emerald-400'
+        );
+      case 'rounded':
+      default:
+        return clsx(
+          'px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer',
+          isActive
+            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
+            : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800'
+        );
+    }
+  };
+
+  const getSearchInputClasses = () => {
+    switch (effectiveBoxShape) {
+      case 'flower':
+      case 'heart':
+        return 'rounded-full border-pink-300 dark:border-pink-900/60 focus:ring-pink-500 focus:border-pink-500';
+      case 'shield':
+        return 'rounded-lg border-2 border-zinc-700 focus:border-amber-500 focus:ring-amber-500';
+      case 'lotus':
+        return 'rounded-2xl border-purple-400/40 dark:border-purple-800/60 focus:ring-purple-500';
+      case 'sharp':
+        return 'rounded-none border-2 border-slate-900 dark:border-white focus:ring-0 font-mono shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] dark:shadow-[3px_3px_0px_0px_rgba(255,255,255,0.2)]';
+      case 'hud':
+        return 'rounded-sm border border-emerald-500/60 focus:ring-emerald-500 font-mono text-emerald-400';
+      case 'rounded':
+      default:
+        return 'rounded-xl border-slate-200 dark:border-slate-800 focus:ring-indigo-500';
+    }
+  };
+
+  const getCardBadgeClasses = () => {
+    switch (effectiveBoxShape) {
+      case 'flower':
+      case 'heart':
+        return 'rounded-full bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-sm';
+      case 'shield':
+        return 'rounded-md bg-amber-500 text-black font-black uppercase text-[10px] tracking-wider';
+      case 'lotus':
+        return 'rounded-xl bg-purple-600 text-white shadow-sm';
+      case 'sharp':
+        return 'rounded-none border border-black dark:border-white bg-black dark:bg-white text-white dark:text-black font-mono text-[10px] uppercase';
+      case 'hud':
+        return 'rounded-sm border border-emerald-500/60 bg-emerald-950/80 text-emerald-300 font-mono text-[10px]';
+      case 'rounded':
+      default:
+        return 'rounded-full bg-indigo-600 text-white';
+    }
+  };
+
+  const getButtonShapeClasses = () => {
+    const shape = buttonShape && buttonShape !== 'auto' ? buttonShape : (
+      effectiveBoxShape === 'flower' || effectiveBoxShape === 'heart' || effectiveBoxShape === 'lotus'
+        ? 'pill'
+        : effectiveBoxShape === 'sharp'
+        ? 'square'
+        : 'rounded'
+    );
+    switch (shape) {
+      case 'pill':
+        return 'rounded-full';
+      case 'square':
+        return 'rounded-none shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]';
+      case 'rounded':
+      default:
+        return 'rounded-2xl';
+    }
+  };
+
   return (
     <section
       id={anchorId}
@@ -444,7 +632,23 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
         {/* Header Section */}
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto gap-3">
           {badge && (
-            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-bold mb-1 shadow-sm">
+            <div
+              className={clsx(
+                'inline-flex items-center gap-1.5 px-3.5 py-1 text-xs font-bold mb-1 shadow-sm transition-all',
+                effectiveBoxShape === 'flower' || effectiveBoxShape === 'heart'
+                  ? 'rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-600 dark:text-pink-300'
+                  : effectiveBoxShape === 'shield'
+                  ? 'rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-black'
+                  : effectiveBoxShape === 'lotus'
+                  ? 'rounded-2xl bg-purple-500/10 border border-purple-500/30 text-purple-600 dark:text-purple-300'
+                  : effectiveBoxShape === 'sharp'
+                  ? 'rounded-none border-2 border-slate-900 dark:border-white text-slate-900 dark:text-white font-mono uppercase'
+                  : effectiveBoxShape === 'hud'
+                  ? 'rounded-sm bg-emerald-500/10 border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-mono'
+                  : 'rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300'
+              )}
+            >
+              <ShapeIcon className="w-3.5 h-3.5" />
               <span>{badge}</span>
             </div>
           )}
@@ -465,9 +669,14 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
           )}
         </div>
 
-        {/* Filters and Search Bar Row */}
+        {/* Filters and Search Bar Row (controlsOrder allows reversing order between categories and search) */}
         {(showCategoryFilter || showSearchBar) && (
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800/60">
+          <div
+            className={clsx(
+              'flex flex-col md:flex-row items-center justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800/60',
+              controlsOrder === 'search-first' && 'md:flex-row-reverse'
+            )}
+          >
             {/* Category Pills */}
             {showCategoryFilter && categoriesList.length > 1 && (
               <div className="flex items-center gap-2 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 scrollbar-none">
@@ -476,12 +685,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                     key={cat}
                     type="button"
                     onClick={() => setSelectedCategory(cat)}
-                    className={clsx(
-                      'px-4 py-2 rounded-xl text-xs sm:text-sm font-bold whitespace-nowrap transition-all duration-200 cursor-pointer',
-                      selectedCategory === cat
-                        ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/25 scale-[1.02]'
-                        : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white border border-slate-200 dark:border-slate-800'
-                    )}
+                    className={getCategoryPillClasses(selectedCategory === cat)}
                   >
                     {cat === 'all' ? 'הכל' : cat}
                   </button>
@@ -498,7 +702,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={searchPlaceholder}
-                  className="w-full pr-10 pl-4 py-2.5 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs sm:text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm"
+                  className={clsx(
+                    'w-full pr-10 pl-4 py-2.5 bg-white dark:bg-slate-900 border text-xs sm:text-sm text-slate-900 dark:text-white outline-none shadow-sm transition-all',
+                    getSearchInputClasses()
+                  )}
                 />
                 {searchQuery && (
                   <button
@@ -533,8 +740,9 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               <div
                 onClick={() => handleCardClick(filteredItems[0])}
                 className={clsx(
-                  'group md:col-span-2 relative rounded-3xl overflow-hidden p-6 sm:p-8 flex flex-col justify-end min-h-[380px] sm:min-h-[460px] cursor-pointer shadow-2xl transition-all duration-300 border border-slate-200 dark:border-slate-800 hover:shadow-indigo-500/10',
-                  effectStyle === 'border-beam' && 'before:absolute before:inset-0 before:rounded-3xl before:border before:border-indigo-500/40'
+                  'group md:col-span-2 relative overflow-hidden p-6 sm:p-8 flex flex-col justify-end min-h-[380px] sm:min-h-[460px] cursor-pointer shadow-2xl transition-all duration-300',
+                  getCardShapeClasses(true),
+                  effectStyle === 'border-beam' && 'before:absolute before:inset-0 before:border before:border-indigo-500/40'
                 )}
                 style={{ backgroundColor: cardBgColor }}
               >
@@ -550,12 +758,12 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                 <div className="relative z-10 flex flex-col gap-3">
                   <div className="flex items-center gap-2 flex-wrap">
                     {filteredItems[0].category && (
-                      <span className="px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold shadow-md">
+                      <span className={clsx('px-3 py-1 text-xs font-bold shadow-md', getCardBadgeClasses())}>
                         {filteredItems[0].category}
                       </span>
                     )}
                     {filteredItems[0].badge && (
-                      <span className="px-3 py-1 rounded-full bg-amber-500/90 text-white text-xs font-bold backdrop-blur-md">
+                      <span className={clsx('px-3 py-1 text-xs font-bold backdrop-blur-md', getCardBadgeClasses())}>
                         {filteredItems[0].badge}
                       </span>
                     )}
@@ -590,7 +798,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               <div
                 key={item.id}
                 onClick={() => handleCardClick(item)}
-                className="group relative rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:-translate-y-1"
+                className={clsx(
+                  'group relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl flex flex-col justify-between cursor-pointer transition-all duration-300 hover:-translate-y-1',
+                  getCardShapeClasses(false)
+                )}
                 style={{ backgroundColor: cardBgColor }}
               >
                 <div className="aspect-[16/10] w-full overflow-hidden relative">
@@ -601,12 +812,12 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60 group-hover:opacity-40 transition-opacity" />
                   {item.category && (
-                    <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold border border-white/10">
+                    <span className={clsx('absolute top-3 right-3 px-2.5 py-1 text-[11px] font-bold shadow-sm', getCardBadgeClasses())}>
                       {item.category}
                     </span>
                   )}
                   {item.price && (
-                    <span className="absolute bottom-3 left-3 px-3 py-1 rounded-xl bg-indigo-600 text-white text-xs font-black shadow-lg">
+                    <span className={clsx('absolute bottom-3 left-3 px-3 py-1 text-xs font-black shadow-lg', getCardBadgeClasses())}>
                       {item.price}
                     </span>
                   )}
@@ -648,7 +859,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               <div
                 key={item.id}
                 onClick={() => handleCardClick(item)}
-                className="group relative rounded-3xl overflow-hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/50 shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between cursor-pointer"
+                className={clsx(
+                  'group relative overflow-hidden bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/80 dark:border-slate-800/80 hover:border-indigo-500/50 shadow-xl hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-300 hover:-translate-y-1.5 flex flex-col justify-between cursor-pointer',
+                  getCardShapeClasses(false)
+                )}
                 style={{ backgroundColor: cardBgColor }}
               >
                 <div>
@@ -661,19 +875,19 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-40 group-hover:opacity-20 transition-opacity" />
 
                     {item.badge && (
-                      <span className="absolute top-3.5 right-3.5 px-3 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold shadow-md">
+                      <span className={clsx('absolute top-3.5 right-3.5 px-3 py-1 text-xs font-bold shadow-md', getCardBadgeClasses())}>
                         {item.badge}
                       </span>
                     )}
 
                     {item.category && !item.badge && (
-                      <span className="absolute top-3.5 right-3.5 px-2.5 py-1 rounded-full bg-slate-900/85 backdrop-blur-md text-white text-[11px] font-bold border border-white/10">
+                      <span className={clsx('absolute top-3.5 right-3.5 px-2.5 py-1 text-[11px] font-bold shadow-sm', getCardBadgeClasses())}>
                         {item.category}
                       </span>
                     )}
 
                     {item.price && (
-                      <span className="absolute bottom-3 left-3 px-3 py-1 rounded-xl bg-emerald-600 text-white text-xs font-black shadow-lg">
+                      <span className={clsx('absolute bottom-3 left-3 px-3 py-1 text-xs font-black shadow-lg', getCardBadgeClasses())}>
                         {item.price}
                       </span>
                     )}
@@ -744,7 +958,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                 <div
                   key={item.id}
                   onClick={() => handleCardClick(item)}
-                  className="snap-start shrink-0 w-[280px] sm:w-[320px] md:w-[360px] rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between"
+                  className={clsx(
+                    'snap-start shrink-0 w-[280px] sm:w-[320px] md:w-[360px] overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col justify-between',
+                    getCardShapeClasses(false)
+                  )}
                   style={{ backgroundColor: cardBgColor }}
                 >
                   <div className={clsx('w-full overflow-hidden relative', getAspectClass(aspectRatio))}>
@@ -754,12 +971,12 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                       className="w-full h-full object-cover hover:scale-105 transition-transform duration-500"
                     />
                     {item.category && (
-                      <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold border border-white/10">
+                      <span className={clsx('absolute top-3 right-3 px-2.5 py-1 text-[11px] font-bold shadow-sm', getCardBadgeClasses())}>
                         {item.category}
                       </span>
                     )}
                     {item.price && (
-                      <span className="absolute bottom-3 left-3 px-3 py-1 rounded-xl bg-indigo-600 text-white text-xs font-black shadow-lg">
+                      <span className={clsx('absolute bottom-3 left-3 px-3 py-1 text-xs font-black shadow-lg', getCardBadgeClasses())}>
                         {item.price}
                       </span>
                     )}
@@ -798,7 +1015,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
         ========================================================================= */}
         {layout === 'editorial-list' && filteredItems.length > 0 && (
           <div
-            className="relative flex flex-col divide-y divide-slate-200 dark:divide-slate-800 border-y border-slate-200 dark:border-slate-800"
+            className="relative flex flex-col divide-y divide-slate-200 dark:divide-slate-800 border-y border-slate-200 dark:divide-slate-800"
             onMouseMove={handleMouseMove}
           >
             {filteredItems.map((item, idx) => (
@@ -807,7 +1024,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                 onClick={() => handleCardClick(item)}
                 onMouseEnter={() => setHoveredItem(item)}
                 onMouseLeave={() => setHoveredItem(null)}
-                className="group py-5 sm:py-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/60 px-4 rounded-2xl cursor-pointer"
+                className={clsx(
+                  'group py-5 sm:py-7 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 transition-colors hover:bg-slate-50 dark:hover:bg-slate-900/60 px-4 cursor-pointer',
+                  effectiveBoxShape === 'sharp' ? 'rounded-none' : effectiveBoxShape === 'hud' ? 'rounded-sm' : 'rounded-2xl'
+                )}
               >
                 <div className="flex items-center gap-4 sm:gap-6 flex-grow">
                   <span className="text-xs sm:text-sm font-mono text-slate-400 font-bold w-6 shrink-0">
@@ -834,7 +1054,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
 
                 <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
                   {item.category && (
-                    <span className="px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-xs font-semibold">
+                    <span className={clsx('px-3 py-1 text-xs font-semibold', getCardBadgeClasses())}>
                       {item.category}
                     </span>
                   )}
@@ -873,7 +1093,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               <div
                 key={item.id}
                 onClick={() => handleCardClick(item)}
-                className="break-inside-avoid group relative rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col"
+                className={clsx(
+                  'break-inside-avoid group relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer flex flex-col',
+                  getCardShapeClasses(false)
+                )}
                 style={{ backgroundColor: cardBgColor }}
               >
                 <div className="relative w-full overflow-hidden">
@@ -884,7 +1107,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent opacity-30 group-hover:opacity-10 transition-opacity" />
                   {item.category && (
-                    <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-900/80 backdrop-blur-md text-white text-[11px] font-bold border border-white/10">
+                    <span className={clsx('absolute top-3 right-3 px-2.5 py-1 text-[11px] font-bold shadow-sm', getCardBadgeClasses())}>
                       {item.category}
                     </span>
                   )}
@@ -915,7 +1138,10 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
           <div className="flex justify-center mt-6">
             <a
               href={primaryButton.url || '#'}
-              className="inline-flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-xl shadow-indigo-600/20 transition-all hover:scale-105"
+              className={clsx(
+                'inline-flex items-center gap-2 px-8 py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-xl shadow-indigo-600/20 transition-all hover:scale-105',
+                getButtonShapeClasses()
+              )}
             >
               <span>{primaryButton.text}</span>
               <ArrowLeft className="w-4 h-4" />

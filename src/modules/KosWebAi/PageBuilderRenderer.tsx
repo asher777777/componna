@@ -543,7 +543,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           if (!reg || !reg.editorComponent) return null;
           const EditorComponent = reg.editorComponent;
 
-          if (sec.type === 'hero' || sec.type === 'richContent' || sec.type === 'faq' || sec.type === 'contact' || sec.type === 'imageListing' || sec.type === 'videoGallery' || sec.type === 'timer' || sec.type === 'livePosts' || sec.type === 'kosvidio' || sec.type === 'mainContent' || sec.type === 'videoEngagement' || sec.type === 'kosvidioGallery') {
+          if (sec.type === 'hero' || sec.type === 'richContent' || sec.type === 'faq' || sec.type === 'contact' || sec.type === 'imageListing' || sec.type === 'videoGallery' || sec.type === 'timer' || sec.type === 'livePosts' || sec.type === 'kosvidio' || sec.type === 'mainContent' || sec.type === 'videoEngagement' || sec.type === 'kosvidioGallery' || sec.type === 'statsBento') {
             return (
               <div
                 className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-300 font-sans"

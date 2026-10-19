@@ -226,10 +226,16 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const updateDesignTokens = useCallback((partial: Partial<BrandDesignTokens>) => {
     markLocalEdit();
-    setBrandDna((prev) => ({
-      ...prev,
-      designTokens: { ...prev.designTokens, ...partial },
-    }));
+    setBrandDna((prev) => {
+      const next = {
+        ...prev,
+        designTokens: { ...prev.designTokens, ...partial },
+      };
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: partial }));
+      }
+      return next;
+    });
   }, [markLocalEdit]);
 
   const updateUiVocabulary = useCallback((partial: Partial<BrandUiVocabulary>) => {
