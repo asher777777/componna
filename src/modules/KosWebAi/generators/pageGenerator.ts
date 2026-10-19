@@ -389,15 +389,17 @@ export const pageGenerator = {
         if (Array.isArray(rawSections) && rawSections.length >= 2) {
           generatedSectionsData = rawSections;
         } else {
-          throw new Error('ה-AI החזיר תוצאה קצרה מדי או חסרת נתונים מספיקים כדי להרכיב עמוד שלם.');
+          console.warn('[pageGenerator] AI returned short structure, engaging resilient skeleton fallback');
+          generatedSectionsData = this.getFullSkeletonFallback(userPrompt, companyName, slogan, effectiveDna);
         }
       }
     } catch (err: any) {
-      throw new Error(err.message || 'שגיאה כללית התרחשה במהלך העבודה מול בינת ה-AI.');
+      console.warn('[pageGenerator] AI call error, engaging resilient skeleton fallback:', err);
+      generatedSectionsData = this.getFullSkeletonFallback(userPrompt, companyName, slogan, effectiveDna);
     }
 
     if (!generatedSectionsData || generatedSectionsData.length < 2) {
-      throw new Error('שגיאה בתבנית שחזרה מה-AI - התקבלו פחות מאזורים נדרשים במבנה העמוד.');
+      generatedSectionsData = this.getFullSkeletonFallback(userPrompt, companyName, slogan, effectiveDna);
     }
 
     // Auto-supplement missing essential sections if less than 4 sections were returned

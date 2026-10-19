@@ -12,13 +12,13 @@ import { pageBuilderFirestore } from './services/pageBuilderFirestore';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../core/tenant';
 import { useHostCapabilities } from '../../core/bridge/HostCapabilitiesContext';
-import { BrandDnaContract } from '../../core/contracts';
+import { BrandDnaContract, TenantStylePreset } from '../../core/contracts';
 import { Layers, Edit3, Sparkles } from 'lucide-react';
 import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderProvider } from './context/PageBuilderContext';
 import { KosaiProvider } from '../kosai-engine';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
-import { applyLayoutArchetypeToPage } from './services/pageStylePresetService';
+import { applyLayoutArchetypeToPage, STYLE_GLOBAL_THEMES } from './services/pageStylePresetService';
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
 import { eventBus } from '../../core/bridge/EventBus';
 import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
@@ -438,6 +438,9 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       }
     }
 
+    const tenantDefaultPreset = (liveBrandDna?.designTokens?.defaultStylePreset as TenantStylePreset) || 'standard';
+    const styleTokens = STYLE_GLOBAL_THEMES[tenantDefaultPreset] || {};
+
     let newPage: PageBuilderConfig = {
       ...baseInitial,
       pageId: newId,
@@ -451,10 +454,21 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       globalSettings: {
         ...baseInitial.globalSettings,
         siteTitle: finalTitle,
+        theme: tenantDefaultPreset,
         layoutArchetype: options.layoutArchetype || (category === 'home' ? 'bento_hub' : undefined),
-        primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
-        companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
-        fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+        primaryColor: liveBrandDna?.designTokens?.primaryColor || styleTokens.primaryColor || '#6366f1',
+        secondaryColor: liveBrandDna?.designTokens?.secondaryColor || styleTokens.secondaryColor || '#0ea5e9',
+        buttonBgColor: liveBrandDna?.designTokens?.buttonBgColor || styleTokens.buttonBgColor || liveBrandDna?.designTokens?.primaryColor || '#6366f1',
+        buttonTextColor: liveBrandDna?.designTokens?.buttonTextColor || styleTokens.buttonTextColor || '#ffffff',
+        borderRadius: (liveBrandDna?.designTokens?.borderRadius as any) || styleTokens.borderRadius || 'md',
+        buttonStyle: (liveBrandDna?.designTokens?.buttonStyle as any) || styleTokens.buttonStyle || 'gradient',
+        fontFamily: liveBrandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+        companyName: liveBrandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
+        slogan: liveBrandDna?.identity?.slogan || '',
+        contactPhone: liveBrandDna?.trust?.contactPhone || '',
+        contactWhatsApp: liveBrandDna?.trust?.whatsappSupportNumber || '',
+        contactEmail: liveBrandDna?.trust?.contactEmail || '',
+        address: liveBrandDna?.trust?.officeAddress || '',
       },
       seoSettings: {
         title: `${finalTitle} | ${PAGE_CATEGORIES[category]?.label || 'דף נחיתה'}`,

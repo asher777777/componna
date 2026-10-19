@@ -83,6 +83,74 @@ const BUTTON_STYLES: Array<{ id: ButtonStyleType; label: string }> = [
   { id: 'glass', label: 'זכוכית (Glassmorphism)' },
 ];
 
+export const STYLE_PRESET_TOKEN_DEFAULTS: Record<
+  TenantStylePreset,
+  {
+    primaryColor: string;
+    secondaryColor: string;
+    backgroundColor: string;
+    buttonBgColor: string;
+    buttonTextColor: string;
+    borderRadius: BorderRadiusStyle;
+    buttonStyle: ButtonStyleType;
+  }
+> = {
+  masculine: {
+    primaryColor: '#2563eb',
+    secondaryColor: '#0284c7',
+    backgroundColor: '#0f172a',
+    buttonBgColor: '#2563eb',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'md',
+    buttonStyle: 'solid',
+  },
+  feminine: {
+    primaryColor: '#ec4899',
+    secondaryColor: '#f43f5e',
+    backgroundColor: '#18181b',
+    buttonBgColor: '#ec4899',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'full',
+    buttonStyle: 'gradient',
+  },
+  spiritual: {
+    primaryColor: '#8b5cf6',
+    secondaryColor: '#d946ef',
+    backgroundColor: '#18181b',
+    buttonBgColor: '#8b5cf6',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'lg',
+    buttonStyle: 'glass',
+  },
+  sharp: {
+    primaryColor: '#06b6d4',
+    secondaryColor: '#0891b2',
+    backgroundColor: '#0f172a',
+    buttonBgColor: '#06b6d4',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'none',
+    buttonStyle: 'outline',
+  },
+  analytical: {
+    primaryColor: '#10b981',
+    secondaryColor: '#06b6d4',
+    backgroundColor: '#064e3b',
+    buttonBgColor: '#10b981',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'sm',
+    buttonStyle: 'solid',
+  },
+  standard: {
+    primaryColor: '#6366f1',
+    secondaryColor: '#0ea5e9',
+    backgroundColor: '#0f172a',
+    buttonBgColor: '#6366f1',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'md',
+    buttonStyle: 'gradient',
+  },
+};
+
 const TENANT_STYLE_OPTIONS: Array<{
   id: TenantStylePreset;
   title: string;
@@ -93,13 +161,13 @@ const TENANT_STYLE_OPTIONS: Array<{
   accentColor: string;
 }> = [
   {
-    id: 'standard',
-    title: 'סטנדרטי ומאוזן (Standard)',
-    subtitle: 'נקי, יציב, מודרני וניטרלי',
-    description: 'מבנה קלאסי ומאוזן, פינות מעוגלות רגילות, קריאות מקסימלית והתאמה מושלמת לכל עסק ושירות.',
-    badge: 'מומלץ לעסקים כלליים',
-    icon: Layers,
-    accentColor: '#6366f1',
+    id: 'masculine',
+    title: 'גברי ועוצמתי (Masculine)',
+    subtitle: 'חד, עמוק, מסגרות מודגשות וחוזק',
+    description: 'גווני כחול נייבי עמוקים, ניגודיות גבוהה, צורות מגן (Shield), קווים ישרים ומשקל טיפוגרפי כבד.',
+    badge: 'מתאים לכושר, אבטחה, פיננסים ונדל״ן',
+    icon: Shield,
+    accentColor: '#2563eb',
   },
   {
     id: 'feminine',
@@ -109,15 +177,6 @@ const TENANT_STYLE_OPTIONS: Array<{
     badge: 'מתאים לביוטי, טיפוח, נשים וסדנאות',
     icon: Heart,
     accentColor: '#ec4899',
-  },
-  {
-    id: 'masculine',
-    title: 'גברי ועוצמתי (Masculine)',
-    subtitle: 'חד, עמוק, מסגרות מודגשות וחוזק',
-    description: 'גווני כחול נייבי עמוקים, ניגודיות גבוהה, צורות מגן (Shield), קווים ישרים ומשקל טיפוגרפי כבד.',
-    badge: 'מתאים לכושר, אבטחה, פיננסים ונדל״ן',
-    icon: Shield,
-    accentColor: '#2563eb',
   },
   {
     id: 'spiritual',
@@ -146,6 +205,15 @@ const TENANT_STYLE_OPTIONS: Array<{
     icon: Cpu,
     accentColor: '#10b981',
   },
+  {
+    id: 'standard',
+    title: 'סטנדרטי ומאוזן (Standard)',
+    subtitle: 'נקי, יציב, מודרני וניטרלי',
+    description: 'מבנה קלאסי ומאוזן, פינות מעוגלות רגילות, קריאות מקסימלית והתאמה מושלמת לכל עסק ושירות.',
+    badge: 'מומלץ לעסקים כלליים',
+    icon: Layers,
+    accentColor: '#6366f1',
+  },
 ];
 
 export const DesignTokensSection: React.FC = () => {
@@ -155,6 +223,36 @@ export const DesignTokensSection: React.FC = () => {
 
   const [isApplying, setIsApplying] = React.useState(false);
   const [actionFeedback, setActionFeedback] = React.useState<{ type: 'success' | 'info'; text: string } | null>(null);
+
+  const handleSelectPreset = (presetId: TenantStylePreset) => {
+    const defaults = STYLE_PRESET_TOKEN_DEFAULTS[presetId];
+    updateDesignTokens({
+      defaultStylePreset: presetId,
+      borderRadius: defaults.borderRadius,
+      buttonStyle: defaults.buttonStyle,
+    });
+    setActionFeedback({
+      type: 'info',
+      text: `סגנון ${TENANT_STYLE_OPTIONS.find((s) => s.id === presetId)?.title || presetId} נקבע כסגנון קבוע לכל עמודי KWB!`,
+    });
+    setTimeout(() => setActionFeedback(null), 4000);
+  };
+
+  const handleApplyPresetColors = (presetId: TenantStylePreset) => {
+    const defaults = STYLE_PRESET_TOKEN_DEFAULTS[presetId];
+    updateDesignTokens({
+      primaryColor: defaults.primaryColor,
+      secondaryColor: defaults.secondaryColor,
+      backgroundColor: defaults.backgroundColor,
+      buttonBgColor: defaults.buttonBgColor,
+      buttonTextColor: defaults.buttonTextColor,
+    });
+    setActionFeedback({
+      type: 'success',
+      text: `פלטת הצבעים עודכנה בהתאם לסגנון ${TENANT_STYLE_OPTIONS.find((s) => s.id === presetId)?.title || presetId}!`,
+    });
+    setTimeout(() => setActionFeedback(null), 4000);
+  };
 
   const handleApplyToAllPages = () => {
     const currentPreset = tokens.defaultStylePreset || 'standard';
@@ -215,14 +313,261 @@ export const DesignTokensSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Palette Presets */}
+      {/* 1. Tenant Default Style Preset - Front & Center */}
+      <div className="bg-slate-800/80 border-2 border-amber-500/40 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-700/60">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 flex items-center justify-center text-slate-950 shadow-lg shadow-amber-500/20 shrink-0">
+              <Wand2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h3 className="text-base sm:text-lg font-black text-white">1. שפת הסגנון המובילה לכל עמודי האתר (Tenant Style Preset)</h3>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30">
+                  קבוע לכל עמודי KWB
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                בחר אחד מ-6 הסגנונות הקבועים (גברי, נשי, רוחני, חד, אנליטי או סטנדרטי) שישמשו כסגנון ברירת מחדל אחיד לכל עמודי האתר, דפי הנחיתה והטפסים.
+              </p>
+            </div>
+          </div>
+          <span className="text-[11px] font-mono text-slate-400 shrink-0 self-start sm:self-center">
+            שפת מותג פעילה: <strong className="text-amber-400">{TENANT_STYLE_OPTIONS.find(s => s.id === (tokens.defaultStylePreset || 'standard'))?.title}</strong>
+          </span>
+        </div>
+
+        {/* 6 Style Cards Grid - 2 columns on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {TENANT_STYLE_OPTIONS.map((style) => {
+            const Icon = style.icon;
+            const isSelected = (tokens.defaultStylePreset || 'standard') === style.id;
+            return (
+              <button
+                key={style.id}
+                type="button"
+                onClick={() => handleSelectPreset(style.id)}
+                className={`w-full p-4 rounded-2xl border text-right transition-all flex items-start justify-between cursor-pointer group ${
+                  isSelected
+                    ? 'bg-amber-500/15 border-amber-500 shadow-md shadow-amber-500/10 ring-2 ring-amber-500/30'
+                    : 'bg-slate-900/60 border-slate-700/60 hover:bg-slate-900/90 hover:border-slate-600'
+                }`}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105"
+                    style={{
+                      backgroundColor: `${style.accentColor}18`,
+                      borderColor: `${style.accentColor}40`,
+                      color: style.accentColor,
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-black ${isSelected ? 'text-amber-300' : 'text-white'}`}>
+                        {style.title}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                        {style.badge}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-300">
+                      {style.subtitle}
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed">
+                      {style.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 mr-3 mt-1">
+                  <div
+                    className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-400 text-black shadow-sm shadow-amber-400/30'
+                        : 'border-slate-600 bg-slate-800 text-transparent'
+                    }`}
+                  >
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Live Interactive Preview Box */}
+        {(() => {
+          const currentPreset = tokens.defaultStylePreset || 'standard';
+          const presetObj = TENANT_STYLE_OPTIONS.find((s) => s.id === currentPreset) || TENANT_STYLE_OPTIONS[0];
+          const radiusClass =
+            tokens.borderRadius === 'none'
+              ? 'rounded-none'
+              : tokens.borderRadius === 'sm'
+              ? 'rounded-md'
+              : tokens.borderRadius === 'lg'
+              ? 'rounded-2xl'
+              : tokens.borderRadius === 'full'
+              ? 'rounded-full'
+              : 'rounded-xl';
+
+          const buttonRadiusClass =
+            tokens.borderRadius === 'none'
+              ? 'rounded-none'
+              : tokens.borderRadius === 'sm'
+              ? 'rounded'
+              : tokens.borderRadius === 'lg'
+              ? 'rounded-xl'
+              : tokens.borderRadius === 'full'
+              ? 'rounded-full'
+              : 'rounded-lg';
+
+          return (
+            <div className="p-4 bg-slate-900/90 border border-slate-700/80 rounded-2xl space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-bold text-slate-300 flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                  תצוגה מקדימה חיה של רכיב KWB בסגנון {presetObj.title}:
+                </span>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20 font-bold">
+                  יוחל אוטומטית על כל דף חדש ב-KWB
+                </span>
+              </div>
+
+              <div
+                className={`p-4 sm:p-5 border transition-all ${radiusClass}`}
+                style={{
+                  backgroundColor: tokens.backgroundColor || '#0f172a',
+                  borderColor: `${tokens.primaryColor || '#6366f1'}40`,
+                }}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border shadow-sm"
+                        style={{
+                          backgroundColor: `${tokens.primaryColor || '#6366f1'}20`,
+                          borderColor: tokens.primaryColor || '#6366f1',
+                          color: tokens.primaryColor || '#6366f1',
+                        }}
+                      >
+                        {presetObj.badge}
+                      </span>
+                      <span className="text-xs text-slate-400 font-mono">/p/demo-kwb-page</span>
+                    </div>
+
+                    <h4
+                      className="text-sm sm:text-base font-black text-white"
+                      style={{
+                        color: tokens.textColorH1 || '#ffffff',
+                        fontFamily: tokens.fontFamily || 'Heebo, sans-serif',
+                      }}
+                    >
+                      כותרת עמוד נחיתה / מוצר לדוגמה בסגנון {presetObj.subtitle}
+                    </h4>
+
+                    <p className="text-xs text-slate-400 max-w-md">
+                      טפסים, ספירה לאחור, כרטיסי תמחור ורשימות עמודים יאמצו את סגנון {presetObj.title} באופן קבוע.
+                    </p>
+                  </div>
+
+                  <div className="shrink-0 flex flex-col gap-2 items-start sm:items-end">
+                    <button
+                      type="button"
+                      className={`px-5 py-2.5 font-black text-xs transition-all shadow-md ${buttonRadiusClass}`}
+                      style={{
+                        backgroundColor:
+                          tokens.buttonStyle === 'outline'
+                            ? 'transparent'
+                            : tokens.buttonStyle === 'glass'
+                            ? `${tokens.buttonBgColor || '#6366f1'}30`
+                            : tokens.buttonBgColor || '#6366f1',
+                        color: tokens.buttonTextColor || '#ffffff',
+                        border:
+                          tokens.buttonStyle === 'outline'
+                            ? `2px solid ${tokens.buttonBgColor || '#6366f1'}`
+                            : tokens.buttonStyle === 'glass'
+                            ? `1px solid ${tokens.buttonBgColor || '#6366f1'}60`
+                            : 'none',
+                        backdropFilter: tokens.buttonStyle === 'glass' ? 'blur(8px)' : undefined,
+                      }}
+                    >
+                      כפתור פעולה לדוגמה
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleApplyPresetColors(currentPreset)}
+                      className="text-[11px] text-amber-400 hover:text-amber-300 underline font-bold transition-colors cursor-pointer"
+                    >
+                      החל פלטת צבעים מומלצת של סגנון זה
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Action Banner & Multi-Page Sync Buttons */}
+        <div className="pt-4 border-t border-slate-700/60 space-y-3">
+          <div className="p-3.5 bg-slate-900/80 border border-slate-700/70 rounded-xl text-xs space-y-1.5 text-slate-300 leading-relaxed">
+            <div className="flex items-center gap-2 font-bold text-amber-400">
+              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>שמירת גרסאות אוטומטית וברירת מחדל לכל עמוד עתידי</span>
+            </div>
+            <p className="text-[11px] text-slate-400">
+              כל עמוד חדש שייווצר יתחיל בסגנון ובפריסה שנבחרו כאן. בלחיצה על הכפתורים מטה, תוכל להחיל את הסגנון על כל העמודים הקיימים באתר או לאפס אותם לשפת המותג. בכל פעולה נוצרת אוטומטית גרסת שחזור בהיסטוריית העמודים.
+            </p>
+          </div>
+
+          {actionFeedback && (
+            <div
+              className={`p-3 rounded-xl border text-xs font-bold text-center animate-fadeIn ${
+                actionFeedback.type === 'success'
+                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
+                  : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
+              }`}
+            >
+              {actionFeedback.text}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              type="button"
+              disabled={isApplying}
+              onClick={handleApplyToAllPages}
+              className="py-3 px-4 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <Wand2 className="w-4 h-4" />
+              <span>החל סגנון מותג זה על כל עמודי האתר</span>
+            </button>
+
+            <button
+              type="button"
+              disabled={isApplying}
+              onClick={handleResetAllPages}
+              className="py-3 px-4 rounded-xl font-bold text-xs bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <RotateCcw className="w-4 h-4 text-indigo-400" />
+              <span>אפס את כל העמודים למצב ראשוני</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Palette Presets */}
       <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-pink-500/10 border border-pink-500/20 flex items-center justify-center text-pink-400">
             <Palette className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">פלטת צבעים גלובלית (Brand Palette)</h3>
+            <h3 className="text-base font-bold text-white">2. פלטת צבעים גלובלית (Brand Palette)</h3>
             <p className="text-xs text-slate-400">בחר ערכת צבעים מוכנה או התאם ידנית כל צבע</p>
           </div>
         </div>
@@ -382,14 +727,14 @@ export const DesignTokensSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Typography & Font Family */}
+      {/* 3. Typography & Font Family */}
       <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
             <Type className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="text-base font-bold text-white">טיפוגרפיה וגופן ראשי</h3>
+            <h3 className="text-base font-bold text-white">3. טיפוגרפיה וגופן ראשי</h3>
             <p className="text-xs text-slate-400">בחר את הגופן העברי שיוחל על דפי הנחיתה, הטפסים ודפי הסליקה</p>
           </div>
         </div>
@@ -420,13 +765,13 @@ export const DesignTokensSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 3. Shape, Border Radius & Button Style */}
+      {/* 4. Shape, Border Radius & Button Style */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Border Radius */}
         <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center gap-2 text-white font-bold text-sm">
             <Maximize2 className="w-4 h-4 text-emerald-400" />
-            <span>רדיוס פינות (Border Radius)</span>
+            <span>4.1 רדיוס פינות (Border Radius)</span>
           </div>
           <div className="flex flex-col space-y-2">
             {RADIUS_OPTIONS.map((r) => (
@@ -451,7 +796,7 @@ export const DesignTokensSection: React.FC = () => {
         <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-3">
           <div className="flex items-center gap-2 text-white font-bold text-sm">
             <Sparkles className="w-4 h-4 text-purple-400" />
-            <span>סגנון כפתורי פעולה (CTA Style)</span>
+            <span>4.2 סגנון כפתורי פעולה (CTA Style)</span>
           </div>
           <div className="flex flex-col space-y-2">
             {BUTTON_STYLES.map((btn) => (
@@ -473,130 +818,6 @@ export const DesignTokensSection: React.FC = () => {
         </div>
       </div>
 
-      {/* 4. Tenant Default Style Preset */}
-      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-              <Sparkles className="w-5 h-5" />
-            </div>
-            <div>
-              <h3 className="text-base font-bold text-white">סגנון ברירת מחדל לטננט (Default Style Preset)</h3>
-              <p className="text-xs text-slate-400">בחר את שפת העיצוב שתוגדר כברירת המחדל של כל האזורים, דפי הנחיתה והטפסים במותג</p>
-            </div>
           </div>
-          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
-            סנכרון גלובלי
-          </span>
-        </div>
-
-        <div className="flex flex-col space-y-2.5">
-          {TENANT_STYLE_OPTIONS.map((style) => {
-            const Icon = style.icon;
-            const isSelected = (tokens.defaultStylePreset || 'standard') === style.id;
-            return (
-              <button
-                key={style.id}
-                type="button"
-                onClick={() => updateDesignTokens({ defaultStylePreset: style.id })}
-                className={`w-full p-4 rounded-2xl border text-right transition-all flex items-start justify-between cursor-pointer group ${
-                  isSelected
-                    ? 'bg-amber-500/15 border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
-                    : 'bg-slate-900/60 border-slate-700/60 hover:bg-slate-900/90 hover:border-slate-600'
-                }`}
-              >
-                <div className="flex items-start gap-3.5">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105"
-                    style={{
-                      backgroundColor: `${style.accentColor}18`,
-                      borderColor: `${style.accentColor}40`,
-                      color: style.accentColor,
-                    }}
-                  >
-                    <Icon className="w-5 h-5" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className={`text-xs font-black ${isSelected ? 'text-amber-300' : 'text-white'}`}>
-                        {style.title}
-                      </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
-                        {style.badge}
-                      </span>
-                    </div>
-                    <div className="text-[11px] font-bold text-slate-300">
-                      {style.subtitle}
-                    </div>
-                    <p className="text-[11px] text-slate-400 leading-relaxed max-w-xl">
-                      {style.description}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="shrink-0 mr-3 mt-1">
-                  <div
-                    className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
-                      isSelected
-                        ? 'border-amber-400 bg-amber-400 text-black shadow-sm shadow-amber-400/30'
-                        : 'border-slate-600 bg-slate-800 text-transparent'
-                    }`}
-                  >
-                    <Check className="w-3 h-3 stroke-[3]" />
-                  </div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Action Banner & Multi-Page Sync Buttons */}
-        <div className="pt-4 border-t border-slate-700/60 space-y-3">
-          <div className="p-3.5 bg-slate-900/80 border border-slate-700/70 rounded-xl text-xs space-y-1.5 text-slate-300 leading-relaxed">
-            <div className="flex items-center gap-2 font-bold text-amber-400">
-              <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
-              <span>שמירת גרסאות אוטומטית וברירת מחדל לכל עמוד עתידי</span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              כל עמוד חדש שייווצר יתחיל בסגנון ובפריסה שנבחרו כאן. בלחיצה על הכפתורים מטה, תוכל להחיל את הסגנון על כל העמודים הקיימים באתר או לאפס אותם לשפת המותג. בכל פעולה נוצרת אוטומטית גרסת שחזור בהיסטוריית העמודים.
-            </p>
-          </div>
-
-          {actionFeedback && (
-            <div
-              className={`p-3 rounded-xl border text-xs font-bold text-center animate-fadeIn ${
-                actionFeedback.type === 'success'
-                  ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300'
-                  : 'bg-indigo-500/20 border-indigo-500/40 text-indigo-300'
-              }`}
-            >
-              {actionFeedback.text}
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              disabled={isApplying}
-              onClick={handleApplyToAllPages}
-              className="py-3 px-4 rounded-xl font-bold text-xs bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center gap-2 shadow-lg shadow-amber-500/10 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <Wand2 className="w-4 h-4" />
-              <span>החל סגנון מותג זה על כל עמודי האתר</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={isApplying}
-              onClick={handleResetAllPages}
-              className="py-3 px-4 rounded-xl font-bold text-xs bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
-            >
-              <RotateCcw className="w-4 h-4 text-indigo-400" />
-              <span>אפס את כל העמודים למצב ראשוני</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
   );
 };

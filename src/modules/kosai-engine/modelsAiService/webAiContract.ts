@@ -49,7 +49,7 @@ export const kosaiWebAiContract = {
   ): Promise<KosaiContractResult<any>> {
     return executeKosaiAi('KosWebAi', prompt, {
       model: 'gemini-3.8-flash-lite',
-      maxOutputTokens: 2500,
+      maxOutputTokens: 4000,
       systemInstruction,
       responseMimeType: 'application/json',
       temperature: 0.7,

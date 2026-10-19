@@ -1,3 +1,5 @@
+import { TenantStylePreset } from '../../../core/contracts';
+
 export type SectionType =
   | 'header'
   | 'hero'  | 'testimonials'
@@ -52,7 +54,7 @@ export interface GlobalPageSettings {
   companyName?: string;
   legalEntityId?: string; // ח.פ / ע.מ / מספר תאגיד
   slogan?: string;
-  theme?: 'navy' | 'modern' | 'dark' | 'emerald' | 'purple' | 'sunset' | 'light-minimal' | 'cyber-neon';
+  theme?: TenantStylePreset | 'navy' | 'modern' | 'dark' | 'emerald' | 'purple' | 'sunset' | 'light-minimal' | 'cyber-neon';
   layoutArchetype?: LayoutArchetype;
   headerLayout?: 'capsule-floating' | 'classic' | 'centered' | 'minimal' | 'transparent' | 'floating-glass';
   headerSticky?: boolean;

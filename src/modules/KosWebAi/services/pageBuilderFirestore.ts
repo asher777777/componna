@@ -525,6 +525,21 @@ export const pageBuilderFirestore = {
       if (brand.designTokens?.secondaryColor) {
         clonedConfig.globalSettings.secondaryColor = brand.designTokens.secondaryColor;
       }
+      if (brand.designTokens?.defaultStylePreset) {
+        clonedConfig.globalSettings.theme = brand.designTokens.defaultStylePreset;
+      }
+      if (brand.designTokens?.borderRadius) {
+        clonedConfig.globalSettings.borderRadius = brand.designTokens.borderRadius as any;
+      }
+      if (brand.designTokens?.buttonStyle) {
+        clonedConfig.globalSettings.buttonStyle = brand.designTokens.buttonStyle as any;
+      }
+      if (brand.designTokens?.buttonBgColor) {
+        clonedConfig.globalSettings.buttonBgColor = brand.designTokens.buttonBgColor;
+      }
+      if (brand.designTokens?.fontFamily) {
+        clonedConfig.globalSettings.fontFamily = brand.designTokens.fontFamily;
+      }
       if (brand.trust?.contactPhone) {
         clonedConfig.globalSettings.contactPhone = brand.trust.contactPhone;
       }
