@@ -588,9 +588,10 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
     key: K,
     val: KosvidioGallerySectionConfig[K]
   ) => {
+    const cleanVal = typeof val === 'object' && val !== null ? sanitizeSectionConfig(val) : val;
     setLocalConfig((prev) => ({
       ...prev,
-      [key]: val,
+      [key]: cleanVal,
     }));
     setIsDirty(true);
   };
@@ -708,8 +709,9 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
   };
 
   const handleUpdateItem = (id: string, patch: Partial<KosvidioGalleryItem>) => {
+    const cleanPatch = sanitizeSectionConfig(patch);
     const baseList = cleanCustomItems.length > 0 ? cleanCustomItems : tenantVideos;
-    const next = baseList.map((item) => (item.id === id ? { ...item, ...patch } : item));
+    const next = baseList.map((item) => (item.id === id ? { ...item, ...cleanPatch } : item));
     update('items', next);
   };
 
