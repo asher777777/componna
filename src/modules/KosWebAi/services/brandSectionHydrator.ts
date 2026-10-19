@@ -671,8 +671,110 @@ export function hydrateSectionWithBrandDna(
           { id: 'cat_4', title: 'מאמרים ושיעורים', subtitle: 'כנסו לעולם התוכן והידע', iconName: 'MessageSquare', linkUrl: '#articles' }
         );
       }
-
       cloned.categories = catItems;
+      break;
+    }
+
+    case 'articlesListing': {
+      cloned.title = companyName ? `מרכז הידע והתוכן של ${companyName}` : (headings.aboutHeading || 'מרכז הידע והתוכן');
+      cloned.subtitle = slogan || 'מאמרים, שיעורים ומדריכים מעמיקים';
+      cloned.badge = companyName ? `• ${companyName} •` : '• מאמרים אחרונים •';
+      cloned.topCtaText = uiVocab.primaryCta || 'למרכז התוכן';
+      cloned.topCtaUrl = '#content';
+      cloned.cardCtaText = 'למאמר המלא';
+
+      // Zero Mock Data Policy: build article items from Brand DNA services, vision or default articles
+      const articleItems: any[] = [];
+      if (services.length > 0) {
+        services.slice(0, 4).forEach((srv: any, idx: number) => {
+          const srvTitle = typeof srv === 'string' ? srv : srv.name || srv.title || `מאמר ${idx + 1}`;
+          const srvAuthor = companyName || 'מערכת התוכן';
+          const tags = ['כללי', 'הורות ומשפחה', 'העצמה וביטחון', 'זוגיות'];
+          articleItems.push({
+            id: `art_brand_${idx}`,
+            title: srvTitle,
+            subtitle: srvAuthor,
+            tag: tags[idx % tags.length],
+            imageUrl: typeof srv === 'object' && srv.imageUrl ? srv.imageUrl : '',
+            linkUrl: '#',
+            ctaText: 'למאמר המלא',
+          });
+        });
+      }
+
+      if (articleItems.length === 0) {
+        articleItems.push(
+          {
+            id: 'art_1',
+            title: '״כל משבריך וגליך עלי עברו״',
+            subtitle: companyName || 'הרב אוהד תירוש',
+            tag: 'כללי',
+            imageUrl: '',
+            linkUrl: '#article-1',
+            ctaText: 'למאמר המלא',
+          },
+          {
+            id: 'art_2',
+            title: 'אחרי החגים',
+            subtitle: companyName || 'הרב אוהד תירוש',
+            tag: 'כללי',
+            imageUrl: '',
+            linkUrl: '#article-2',
+            ctaText: 'למאמר המלא',
+          },
+          {
+            id: 'art_3',
+            title: 'מהחגים לחיים',
+            subtitle: companyName || 'הרב אוהד תירוש',
+            tag: 'כללי',
+            imageUrl: '',
+            linkUrl: '#article-3',
+            ctaText: 'למאמר המלא',
+          },
+          {
+            id: 'art_4',
+            title: 'בנחת',
+            subtitle: companyName || 'הרב אוהד תירוש',
+            tag: 'הורות ומשפחה',
+            imageUrl: '',
+            linkUrl: '#article-4',
+            ctaText: 'למאמר המלא',
+          }
+        );
+      }
+
+      cloned.items = articleItems;
+      break;
+    }
+
+    case 'eventsListing': {
+      cloned.title = headings.aboutHeading || (companyName ? `אירועים והכשרות מבית ${companyName}` : 'אירועים, קורסים והכשרות');
+      cloned.subtitle = headings.aboutSubtitle || slogan || 'גלו את מגוון המפגשים, הסדנאות והאירועים הקרובים והבטיחו את מקומכם';
+      cloned.badge = companyName ? `• אירועי ${companyName} •` : '• לוח אירועים והכשרות •';
+      cloned.defaultCtaText = uiVocab.primaryCta || 'לפרטים והצטרפות';
+
+      // Zero Mock Data Policy: derive starter items from Brand DNA services, vision or leave for dynamic page fetching
+      const eventItems: any[] = [];
+      if (services.length > 0) {
+        services.slice(0, 3).forEach((srv: any, idx: number) => {
+          const srvTitle = typeof srv === 'string' ? srv : srv.name || srv.title || `סדנה ומפגש ${idx + 1}`;
+          const srvSub = typeof srv === 'object' && srv.description ? srv.description : `הכשרה מעשית ומעמיקה מבית ${companyName}`;
+          eventItems.push({
+            id: `evt_brand_${idx}`,
+            title: srvTitle,
+            subtitle: srvSub,
+            badge: idx === 0 ? 'ההרשמה בעיצומה' : 'מחזור חדש',
+            imageUrl: typeof srv === 'object' && srv.imageUrl ? srv.imageUrl : '',
+            dayAndTime: 'בימי ראשון 20:00-22:30',
+            locationFormat: address ? `היברידי: זום ו-${address}` : 'מפגש מקוון בזום',
+            startDateText: 'בקרוב',
+            sessionsCount: `${(idx + 1) * 4} מפגשים`,
+            linkUrl: '#',
+            ctaText: uiVocab.primaryCta || 'לפרטים והצטרפות',
+          });
+        });
+      }
+      cloned.items = eventItems;
       break;
     }
 

@@ -1530,4 +1530,169 @@ export interface DynamicCategoriesSectionConfig extends BaseSectionConfig {
   bgMediaOverlayOpacity?: number;
 }
 
+// ============================================================================
+// EVENTS LISTING SECTION CONFIGURATION (יוצר האזורים - ליסטינג אירועים דינמי)
+// ============================================================================
+
+export type EventImageMaskShape = 'arch' | 'oval' | 'flower' | 'heart' | 'rounded' | 'sharp' | 'hud';
+export type EventListingCardLayout = 'classic-card' | 'split-arch' | 'horizontal-pill' | 'minimal-compact';
+export type EventListingSource = 'auto-pages' | 'manual' | 'all';
+export type EventListingStylePreset = 'standard' | 'feminine' | 'masculine' | 'spiritual' | 'sharp' | 'analytical';
+
+export interface EventListingItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  excerpt?: string;
+  imageUrl: string;
+  badge?: string; // כגון "ההרשמה למחזור תשפ״ז בעיצומה" / "מתחילים מחדש"
+  
+  // נתוני זמן ומקום מסונכרנים
+  dayAndTime?: string; // כגון "בימי ראשון 20:00-22:30" / "בימי שלישי 09:00-12:15"
+  locationFormat?: string; // כגון "היברידי: בזום ופרונטלי, מרכז חיבה, ירושלים" / "בזום >>" / "מבנה עתיקות באשקלון"
+  startDateText?: string; // כגון "כ״א חשון תשפ״ז • 1.11.2026" / "כ״ד אלול - י״ב תשרי"
+  sessionsCount?: string; // כגון "10 מפגשים" / "4 מפגשים חינמיים" / "25 מפגשים"
+  
+  // מרצים ומנחים
+  instructor?: string; // כגון "עם הרב אוהד תירוש"
+  
+  // כפתור וקישור
+  linkUrl?: string; // קישור לעמוד האירוע או ל-RSVP
+  ctaText?: string; // כגון "לפרטים והצטרפות"
+  actionType?: 'link' | 'modal' | 'scroll';
+}
+
+export interface EventsListingSectionConfig extends BaseSectionConfig {
+  type: 'eventsListing';
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  descriptionHtml?: string;
+
+  // Source & Loading
+  source?: EventListingSource;
+  filterCategory?: string; // e.g. 'event' | 'course' | 'workshop'
+  collectionLimit?: number;
+
+  // Layout & Visual Card Masks
+  cardLayout?: EventListingCardLayout; // 'split-arch' (עיצוב התמונה השנייה) / 'classic-card' (עיצוב התמונה הראשונה)
+  imageMaskShape?: EventImageMaskShape; // arch (קשת עליונה), oval (אליפסה), flower, heart, rounded, sharp, hud
+  gridColumns?: 2 | 3 | 4;
+  stylePreset?: EventListingStylePreset;
+
+  // Visual Effects
+  cardEffect?: 'glow-hover' | 'border-beam' | 'tilt-3d' | 'lift-shadow' | 'none';
+
+  // Items List
+  items?: EventListingItem[];
+
+  // Micro-copy / CTAs
+  defaultCtaText?: string;
+
+  // Filter & Search Controls
+  showSearchBar?: boolean;
+  searchPlaceholder?: string;
+  showCategoryFilter?: boolean;
+
+  // Typography Controls
+  titleFontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  titleFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+  titleColor?: string;
+  titleItalic?: boolean;
+  titleUnderline?: boolean;
+  titleAlignment?: 'right' | 'center' | 'left';
+
+  cardTitleFontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
+  cardTitleFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  cardTitleColor?: string;
+
+  cardSubtitleFontSize?: 'xs' | 'sm' | 'base';
+  cardSubtitleColor?: string;
+
+  // Background and Styling
+  backgroundColor?: string;
+  cardBackgroundColor?: string;
+  accentColor?: string;
+  borderColor?: string;
+
+  // Cloud Media Background
+  bgMediaUrl?: string;
+  bgMediaType?: 'image' | 'video';
+  bgMediaOverlayColor?: string;
+  bgMediaOverlayOpacity?: number;
+}
+
+// ============================================================================
+// ARTICLES & CONTENT LISTING SECTION CONFIGURATION (יוצר האזורים - ליסטינג תוכן ומאמרים)
+// ============================================================================
+
+export type ArticlesListingLayoutPreset =
+  | 'standard'
+  | 'feminine'
+  | 'masculine'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical';
+
+export interface ArticleCardItem {
+  id: string;
+  title: string;
+  subtitle?: string; // e.g. "הרב אוהד תירוש" / author
+  tag?: string; // e.g. "כללי", "הורות ומשפחה"
+  tagColor?: string;
+  imageUrl?: string; // Selected from KOSCLOUD
+  linkUrl: string;
+  ctaText?: string; // e.g. "למאמר המלא"
+}
+
+export interface ArticlesListingSectionConfig extends BaseSectionConfig {
+  type: 'articlesListing';
+  title?: string; // e.g. "מרכז הידע והתוכן של בנין שלם"
+  subtitle?: string;
+  badge?: string;
+  descriptionHtml?: string; // WYSIWYG
+  layout?: ArticlesListingLayoutPreset;
+
+  // Header CTA button (e.g. "למרכז התוכן")
+  topCtaText?: string;
+  topCtaUrl?: string;
+  showTopCta?: boolean;
+
+  // Articles source and items
+  source?: 'tenant_pages' | 'manual';
+  items: ArticleCardItem[];
+
+  // Button micro-copy defaults
+  cardCtaText?: string; // "למאמר המלא"
+  cardCtaBgColor?: string; // Coral/Orange #ea580c / #f97316
+
+  // Typography Controls
+  titleFontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  titleFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+  titleColor?: string;
+  titleItalic?: boolean;
+  titleUnderline?: boolean;
+  titleAlignment?: 'right' | 'center' | 'left';
+
+  cardTitleFontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
+  cardTitleFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  cardTitleColor?: string;
+
+  cardSubtitleFontSize?: 'xs' | 'sm' | 'base';
+  cardSubtitleColor?: string;
+
+  // Background and Styling
+  backgroundColor?: string;
+  cardBackgroundColor?: string; // e.g. light mint / soft cyan #eaf4f4
+  accentColor?: string;
+  borderColor?: string;
+
+  // Cloud Media Background
+  bgMediaUrl?: string;
+  bgMediaType?: 'image' | 'video';
+  bgMediaOverlayColor?: string;
+  bgMediaOverlayOpacity?: number;
+}
+
+
 

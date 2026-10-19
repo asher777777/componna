@@ -32,6 +32,8 @@ import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
 import { FutureContentSection } from '../sections/futureContent/FutureContentSection';
 import { DynamicCategoriesSection } from '../sections/dynamicCategories/DynamicCategoriesSection';
+import { ArticlesListingSection } from '../sections/articlesListing/ArticlesListingSection';
+import { EventsListingSection } from '../sections/eventsListing/EventsListingSection';
 
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
@@ -42,6 +44,8 @@ import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
 import { FutureContentEditor } from '../sections/futureContent/FutureContentEditor';
 import { DynamicCategoriesEditor } from '../sections/dynamicCategories/DynamicCategoriesEditor';
+import { ArticlesListingEditor } from '../sections/articlesListing/ArticlesListingEditor';
+import { EventsListingEditor } from '../sections/eventsListing/EventsListingEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
@@ -103,6 +107,7 @@ import {
   BarChart3,
   CalendarCheck2,
   Smartphone,
+  BookOpen,
 } from 'lucide-react';
 
 export interface SectionDefinition {
@@ -1236,6 +1241,147 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
           subtitle: 'כנסו לעולם התוכן והידע',
           iconName: 'MessageSquare',
           linkUrl: '#articles',
+        },
+      ],
+    },
+  },
+
+  articlesListing: {
+    type: 'articlesListing',
+    name: 'ליסטינג עמודי תוכן ומאמרים',
+    category: 'content',
+    description: 'מרכז ידע ותוכן מעוצב עם כותרת מימין וכפתור למרכז התוכן משמאל, כרטיסי מאמר עם תגיות וכפתור למאמר המלא',
+    icon: BookOpen,
+    viewComponent: ArticlesListingSection as any,
+    editorComponent: ArticlesListingEditor as any,
+    defaultConfig: {
+      type: 'articlesListing',
+      visible: true,
+      anchorId: 'articles',
+      title: 'מרכז הידע והתוכן',
+      subtitle: 'מאמרים, שיעורים ומדריכים מעמיקים',
+      topCtaText: 'למרכז התוכן',
+      topCtaUrl: '#content',
+      showTopCta: true,
+      layout: 'standard',
+      titleFontSize: '3xl',
+      titleFontWeight: 'bold',
+      titleAlignment: 'right',
+      cardTitleFontSize: 'xl',
+      cardTitleFontWeight: 'bold',
+      cardCtaText: 'למאמר המלא',
+      cardCtaBgColor: '#ea580c',
+      backgroundColor: 'transparent',
+      cardBackgroundColor: '#eaf4f4',
+      items: [
+        {
+          id: 'art_1',
+          title: '״כל משבריך וגליך עלי עברו״',
+          subtitle: 'הרב אוהד תירוש',
+          tag: 'כללי',
+          imageUrl: '',
+          linkUrl: '#article-1',
+          ctaText: 'למאמר המלא',
+        },
+        {
+          id: 'art_2',
+          title: 'אחרי החגים',
+          subtitle: 'הרב אוהד תירוש',
+          tag: 'כללי',
+          imageUrl: '',
+          linkUrl: '#article-2',
+          ctaText: 'למאמר המלא',
+        },
+        {
+          id: 'art_3',
+          title: 'מהחגים לחיים',
+          subtitle: 'הרב אוהד תירוש',
+          tag: 'כללי',
+          imageUrl: '',
+          linkUrl: '#article-3',
+          ctaText: 'למאמר המלא',
+        },
+        {
+          id: 'art_4',
+          title: 'בנחת',
+          subtitle: 'הרב אוהד תירוש',
+          tag: 'הורות ומשפחה',
+          imageUrl: '',
+          linkUrl: '#article-4',
+          ctaText: 'למאמר המלא',
+        },
+      ],
+    },
+  },
+
+  eventsListing: {
+    type: 'eventsListing',
+    name: 'ליסטינג אירועים דינמי',
+    description: 'כרטיסי אירועים, סדנאות והכשרות עם מסכות תמונה מיוחדות (קשת, אליפסה, פרח), סנכרון זמנים ומיקומים מלא ו-6 סגנונות מותג',
+    category: 'content',
+    icon: CalendarCheck2,
+    viewComponent: EventsListingSection as any,
+    editorComponent: EventsListingEditor as any,
+    defaultConfig: {
+      type: 'eventsListing',
+      visible: true,
+      title: 'אירועים, קורסים והכשרות',
+      subtitle: 'גלו את מגוון המפגשים, הסדנאות והאירועים הקרובים והבטיחו את מקומכם',
+      badge: '• לוח אירועים והכשרות •',
+      source: 'auto-pages',
+      cardLayout: 'classic-card',
+      imageMaskShape: 'arch',
+      gridColumns: 3,
+      stylePreset: 'standard',
+      cardEffect: 'lift-shadow',
+      defaultCtaText: 'לפרטים והצטרפות',
+      titleFontSize: '3xl',
+      titleFontWeight: 'extrabold',
+      titleAlignment: 'center',
+      cardTitleFontSize: 'xl',
+      cardTitleFontWeight: 'bold',
+      backgroundColor: 'transparent',
+      cardBackgroundColor: '#ffffff',
+      accentColor: '#0284c7',
+      items: [
+        {
+          id: 'evt_1',
+          title: 'קורס הכשרת מדריכי חתנים',
+          subtitle: 'ללוות, לחבר, ללמד • קורס הכשרה למדריכי חתנים מתוך תשתית אמונית והלכתית',
+          badge: 'ההרשמה למחזור תשפ״ז בעיצומה',
+          dayAndTime: 'בימי ראשון 20:00-22:30',
+          locationFormat: 'היברידי: בזום ופרונטלי, מרכז חיבה, ירושלים',
+          startDateText: 'כ״א חשון תשפ״ז • 1.11.2026',
+          sessionsCount: '10 מפגשים',
+          imageUrl: '',
+          linkUrl: '#sec-eventRsvp',
+          ctaText: 'לפרטים והצטרפות',
+        },
+        {
+          id: 'evt_2',
+          title: 'קורס הכשרת מדריכות כלות',
+          subtitle: 'ללוות כלות יד ביד אל תחילת זוגיות מתוך קדושה ושמחה',
+          badge: 'ההרשמה למחזור תשפ״ז בעיצומה',
+          dayAndTime: 'בימי שלישי 09:00-12:15',
+          locationFormat: 'היברידי: בזום ופרונטלי, מרכז חיבה, ירושלים',
+          startDateText: 'ט׳ חשון תשפ״ז • 20.10.2026',
+          sessionsCount: '25 מפגשים',
+          imageUrl: '',
+          linkUrl: '#sec-eventRsvp',
+          ctaText: 'לפרטים והצטרפות',
+        },
+        {
+          id: 'evt_3',
+          title: 'נפגשות על הדרך',
+          subtitle: 'ארבעה מפגשים למבקשות זוגיות בגילאי 20-30',
+          badge: 'מתחילים מחדש',
+          dayAndTime: 'בימי רביעי 19:30-21:00',
+          locationFormat: 'מבנה עתיקות באשקלון',
+          startDateText: 'כ״ב בכסלו • 2.12.26',
+          sessionsCount: '4 מפגשים',
+          imageUrl: '',
+          linkUrl: '#sec-eventRsvp',
+          ctaText: 'לפרטים והצטרפות',
         },
       ],
     },
