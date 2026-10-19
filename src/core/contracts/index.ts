@@ -666,7 +666,7 @@ export interface CoreEventMap {
   'campaign:page_created': { campaignId: string; slug: string; publicUrl: string };
   'whatsapp:status:viewed': { phone: string; statusId: string };
   'whatsapp:message:sent': { phone: string; text?: string; message?: string; source?: string };
-  'whatsapp:send': { phone: string; text?: string; message?: string; mediaUrl?: string };
+  'whatsapp:send': { phone: string; text?: string; message?: string; mediaUrl?: string; fileName?: string };
 
   'landing_page:generated_from_doc': {
     sourceFileId: string;

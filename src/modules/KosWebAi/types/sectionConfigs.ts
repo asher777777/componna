@@ -1205,6 +1205,12 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   };
   cardBgColor?: string;
   titleColor?: string;
+  stylePreset?: 'standard' | 'feminine' | 'masculine' | 'spiritual' | 'sharp' | 'analytical';
+  boxShape?: 'rounded' | 'flower' | 'heart' | 'shield' | 'lotus' | 'sharp' | 'hud';
+  controlsOrder?: 'search-first' | 'categories-first';
+  buttonShape?: 'auto' | 'pill' | 'rounded' | 'square';
+  objectScale?: 'compact' | 'normal' | 'expanded';
+  accentColor?: string;
 }
 
 export type FutureContentMode = 'prism-bento' | 'kinetic-editorial' | 'floating-islands';

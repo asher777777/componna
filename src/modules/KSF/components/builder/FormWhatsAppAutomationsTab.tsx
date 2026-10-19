@@ -13,6 +13,7 @@ import {
   getSavedWhatsAppTemplates,
   saveWhatsAppTemplate,
   deleteWhatsAppTemplate,
+  DEFAULT_WHATSAPP_TEMPLATES,
 } from '../../services/whatsappTemplateStorageService';
 import {
   generateBrandedWhatsAppTemplates,
@@ -1065,7 +1066,7 @@ export const FormWhatsAppAutomationsTab: React.FC<FormWhatsAppAutomationsTabProp
                         >
                           החל על התרחיש
                         </button>
-                        {!DEFAULT_WHATSAPP_TEMPLATES.some((d) => d.id === tpl.id) && (
+                        {!DEFAULT_WHATSAPP_TEMPLATES.some((d: SavedWhatsAppTemplate) => d.id === tpl.id) && (
                           <button
                             type="button"
                             onClick={() => handleDeleteTemplate(tpl.id)}

@@ -613,6 +613,49 @@ export function applyStylePresetToSection(sec: any, preset: string): any {
     return sec;
   }
 
+  // DynamicListing layout & shapes
+  if (sType === 'dynamicListing') {
+    sec.stylePreset = preset;
+    if (preset === 'feminine') {
+      sec.layout = 'snap-carousel';
+      sec.boxShape = 'flower';
+      sec.effectStyle = 'glow-hover';
+      sec.buttonShape = 'pill';
+      sec.controlsOrder = 'categories-first';
+    } else if (preset === 'masculine') {
+      sec.layout = 'bento-showcase';
+      sec.boxShape = 'shield';
+      sec.effectStyle = 'border-beam';
+      sec.buttonShape = 'rounded';
+      sec.controlsOrder = 'search-first';
+    } else if (preset === 'spiritual') {
+      sec.layout = 'snap-carousel';
+      sec.boxShape = 'lotus';
+      sec.effectStyle = 'subtle';
+      sec.buttonShape = 'pill';
+      sec.controlsOrder = 'categories-first';
+    } else if (preset === 'sharp') {
+      sec.layout = 'masonry';
+      sec.boxShape = 'sharp';
+      sec.effectStyle = 'tilt-3d';
+      sec.buttonShape = 'square';
+      sec.controlsOrder = 'search-first';
+    } else if (preset === 'analytical') {
+      sec.layout = 'editorial-list';
+      sec.boxShape = 'hud';
+      sec.effectStyle = 'border-beam';
+      sec.buttonShape = 'rounded';
+      sec.controlsOrder = 'search-first';
+    } else {
+      sec.layout = 'bento-showcase';
+      sec.boxShape = 'rounded';
+      sec.effectStyle = 'border-beam';
+      sec.buttonShape = 'auto';
+      sec.controlsOrder = 'categories-first';
+    }
+    return sec;
+  }
+
   // Standard compatible sections
   if (
     sType === 'contact' ||
