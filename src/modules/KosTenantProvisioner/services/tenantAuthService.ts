@@ -199,6 +199,7 @@ export class TenantAuthService {
     localStorage.setItem(`tenant_admin_auth_${cleanSub}`, 'true');
     localStorage.setItem(`tenant_admin_${cleanSub}`, 'true');
     localStorage.setItem(`tenant_admin_user_${cleanSub}`, cleanUser);
+    window.dispatchEvent(new CustomEvent('kosun_tenant_auth_changed', { detail: { subdomain: cleanSub, authed: true } }));
 
     return {
       success: true,

@@ -408,11 +408,22 @@ export const MediaFileInspector: React.FC = () => {
         {selectionMode && onSelectMedia && (
           <button
             type="button"
-            onClick={() => onSelectMedia([focusedItem])}
+            onClick={() => {
+              if (selectedIds.length > 1) {
+                const itemsToSelect = mediaItems.filter((i) => selectedIds.includes(i.id));
+                onSelectMedia(itemsToSelect);
+              } else {
+                onSelectMedia([focusedItem]);
+              }
+            }}
             className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-yellow-500 via-amber-500 to-yellow-400 hover:from-yellow-400 hover:to-amber-400 text-black text-xs font-black shadow-lg shadow-yellow-500/25 flex items-center justify-center space-x-1.5 rtl:space-x-reverse transition-all active:scale-95 cursor-pointer mb-2"
           >
             <Check className="w-4 h-4 text-black" />
-            <span>בחר קובץ זה לשימוש</span>
+            <span>
+              {selectedIds.length > 1
+                ? `בחר ${selectedIds.length} קבצים נבחרים לשימוש`
+                : 'בחר קובץ זה לשימוש'}
+            </span>
           </button>
         )}
 
