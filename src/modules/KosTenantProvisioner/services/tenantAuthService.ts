@@ -21,14 +21,7 @@ export class TenantAuthService {
     const masterBypass = sessionStorage.getItem('kosun_super_admin_bypass') === 'true';
     if (masterBypass) return true;
 
-    // In local development, localhost is associated with the master tenant (_master)
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.hostname.endsWith('.local');
-    if (isLocal && (cleanSub === ROOT_TENANT_ID || cleanSub === 'master' || cleanSub === '_master')) {
-      return true;
-    }
-
+    // Strict authentication: Only return true if an explicit tenant login has succeeded
     return (
       sessionStorage.getItem(`tenant_admin_auth_${cleanSub}`) === 'true' ||
       sessionStorage.getItem(`tenant_admin_${cleanSub}`) === 'true' ||
@@ -49,6 +42,7 @@ export class TenantAuthService {
     localStorage.removeItem(`tenant_admin_auth_${cleanSub}`);
     localStorage.removeItem(`tenant_admin_${cleanSub}`);
     localStorage.removeItem(`tenant_admin_user_${cleanSub}`);
+    window.dispatchEvent(new CustomEvent('kosun_tenant_auth_changed', { detail: { subdomain: cleanSub, authed: false } }));
   }
 
   /**

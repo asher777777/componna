@@ -47,6 +47,8 @@ export const MediaFileInspector: React.FC = () => {
     theme,
     selectionMode,
     onSelectMedia,
+    selectedIds,
+    mediaItems,
     openAiImageGenerator,
     openImageEditor,
     openDocViewer,
