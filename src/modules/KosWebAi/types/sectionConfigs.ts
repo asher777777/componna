@@ -1469,4 +1469,65 @@ export interface KosvidioGallerySectionConfig extends BaseSectionConfig {
   textBgScope?: 'text-card' | 'full-section';
 }
 
+export type DynamicCategoriesLayoutPreset =
+  | 'standard'
+  | 'feminine'
+  | 'masculine'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical';
+
+export interface DynamicCategoryCardItem {
+  id: string;
+  title: string;
+  subtitle?: string;
+  iconName: string; // Lucide icon name, e.g. Mic, Heart, Briefcase, MessageSquare
+  iconUrl?: string; // Optional custom SVG or media uploaded via KOSCLOUD
+  linkUrl: string;
+  badge?: string;
+  highlightText?: string;
+}
+
+export interface DynamicCategoriesSectionConfig extends BaseSectionConfig {
+  type: 'dynamicCategories';
+  title?: string;
+  subtitle?: string;
+  badge?: string;
+  descriptionHtml?: string; // WYSIWYG
+  layout?: DynamicCategoriesLayoutPreset;
+  
+  // Dynamic categories items
+  categories: DynamicCategoryCardItem[];
+
+  // Icon motion effect
+  iconMotionEffect?: 'bounce-gentle' | 'pulse-slow' | 'float-subtle' | 'wiggle' | 'scale-hover' | 'none';
+
+  // Typography Controls
+  titleFontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
+  titleFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold' | 'extrabold';
+  titleColor?: string;
+  titleItalic?: boolean;
+  titleUnderline?: boolean;
+  titleAlignment?: 'right' | 'center' | 'left';
+
+  cardTitleFontSize?: 'sm' | 'base' | 'lg' | 'xl' | '2xl';
+  cardTitleFontWeight?: 'normal' | 'medium' | 'semibold' | 'bold';
+  cardTitleColor?: string;
+
+  cardSubtitleFontSize?: 'xs' | 'sm' | 'base';
+  cardSubtitleColor?: string;
+
+  // Background and Styling
+  backgroundColor?: string;
+  cardBackgroundColor?: string;
+  accentColor?: string;
+  borderColor?: string;
+  
+  // Cloud Media Background
+  bgMediaUrl?: string;
+  bgMediaType?: 'image' | 'video';
+  bgMediaOverlayColor?: string;
+  bgMediaOverlayOpacity?: number;
+}
+
 

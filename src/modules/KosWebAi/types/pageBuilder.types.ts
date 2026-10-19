@@ -31,6 +31,7 @@ export type SectionType =
   | 'videoEngagement'
   | 'tiktokHero'
   | 'dynamicListing'
+  | 'dynamicCategories'
   | 'futureContent2027';
 
 export interface CookieConsentSettings {

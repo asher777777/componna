@@ -31,6 +31,7 @@ import { VideoEngagementSection } from '../sections/videoEngagement/VideoEngagem
 import { TiktokHeroSection } from '../sections/tiktokHero/TiktokHeroSection';
 import { DynamicListingSection } from '../sections/dynamicListing/DynamicListingSection';
 import { FutureContentSection } from '../sections/futureContent/FutureContentSection';
+import { DynamicCategoriesSection } from '../sections/dynamicCategories/DynamicCategoriesSection';
 
 // Editors
 import { HeaderEditor } from '../sections/header/HeaderEditor';
@@ -40,6 +41,7 @@ import { VideoEngagementEditor } from '../sections/videoEngagement/VideoEngageme
 import { TiktokHeroEditor } from '../sections/tiktokHero/TiktokHeroEditor';
 import { DynamicListingEditor } from '../sections/dynamicListing/DynamicListingEditor';
 import { FutureContentEditor } from '../sections/futureContent/FutureContentEditor';
+import { DynamicCategoriesEditor } from '../sections/dynamicCategories/DynamicCategoriesEditor';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
@@ -1180,6 +1182,62 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       comments: [],
       backgroundColor: 'transparent',
       accentColor: '#ef4444',
+    },
+  },
+
+  dynamicCategories: {
+    type: 'dynamicCategories',
+    name: 'קטגוריות דינמיות ואינטראקטיביות',
+    category: 'content',
+    description: 'מתחם קטגוריות מעוצב (כיפות עגולות/ארכיטקטורה מותאמת) עם אייקונים זזים, כותרות ברורות ומדיה מ-KOSCLOUD',
+    icon: LayoutGrid,
+    viewComponent: DynamicCategoriesSection as any,
+    editorComponent: DynamicCategoriesEditor as any,
+    defaultConfig: {
+      type: 'dynamicCategories',
+      visible: true,
+      anchorId: 'categories',
+      title: 'המתחמים והקטגוריות שלנו',
+      subtitle: 'גלו את מגוון השירותים, הפודקאסטים, ההכשרות והאירועים',
+      badge: '• מתחמים מובילים •',
+      layout: 'standard',
+      iconMotionEffect: 'bounce-gentle',
+      titleFontSize: '3xl',
+      titleFontWeight: 'bold',
+      titleAlignment: 'center',
+      cardTitleFontSize: 'xl',
+      cardTitleFontWeight: 'bold',
+      backgroundColor: 'transparent',
+      categories: [
+        {
+          id: 'cat_1',
+          title: 'הפודקאסט שלנו',
+          subtitle: 'שיחות עומק מרתקות',
+          iconName: 'Mic',
+          linkUrl: '#podcast',
+        },
+        {
+          id: 'cat_2',
+          title: 'כנסים ואירועים',
+          subtitle: 'האירוע המכונן של השנה',
+          iconName: 'Heart',
+          linkUrl: '#events',
+        },
+        {
+          id: 'cat_3',
+          title: 'קורסים והכשרות',
+          subtitle: 'בואו לבנות ולהבנות',
+          iconName: 'Briefcase',
+          linkUrl: '#courses',
+        },
+        {
+          id: 'cat_4',
+          title: 'מאמרים ושיעורים',
+          subtitle: 'כנסו לעולם התוכן והידע',
+          iconName: 'MessageSquare',
+          linkUrl: '#articles',
+        },
+      ],
     },
   },
 };

@@ -640,6 +640,42 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'dynamicCategories': {
+      cloned.title = headings.aboutHeading || (companyName ? `המתחמים והשירותים של ${companyName}` : 'המתחמים והקטגוריות שלנו');
+      cloned.subtitle = headings.aboutSubtitle || slogan || 'גלו את מגוון השירותים, הפודקאסטים, ההכשרות והאירועים';
+      cloned.badge = companyName ? `• ${companyName} •` : '• קטגוריות נבחרות •';
+
+      // Zero Mock Data Policy: build categories from Brand DNA services, annualEvents, or default structure
+      const catItems: any[] = [];
+      if (services.length > 0) {
+        services.slice(0, 4).forEach((srv: any, idx: number) => {
+          const srvTitle = typeof srv === 'string' ? srv : srv.name || srv.title || `שירות ${idx + 1}`;
+          const srvSub = typeof srv === 'object' && srv.description ? srv.description : `מענה מקצועי מבית ${companyName}`;
+          const icons = ['Mic', 'Heart', 'Briefcase', 'MessageSquare'];
+          catItems.push({
+            id: `cat_brand_${idx}`,
+            title: srvTitle,
+            subtitle: srvSub,
+            iconName: icons[idx % icons.length],
+            linkUrl: '#',
+          });
+        });
+      }
+
+      if (catItems.length === 0) {
+        // High-level brand categories matching the design pattern
+        catItems.push(
+          { id: 'cat_1', title: 'הפודקאסט שלנו', subtitle: 'שיחות עומק מרתקות', iconName: 'Mic', linkUrl: '#podcast' },
+          { id: 'cat_2', title: 'כנסים ואירועים', subtitle: 'האירוע המכונן של השנה', iconName: 'Heart', linkUrl: '#events' },
+          { id: 'cat_3', title: 'קורסים והכשרות', subtitle: 'בואו לבנות ולהבנות', iconName: 'Briefcase', linkUrl: '#courses' },
+          { id: 'cat_4', title: 'מאמרים ושיעורים', subtitle: 'כנסו לעולם התוכן והידע', iconName: 'MessageSquare', linkUrl: '#articles' }
+        );
+      }
+
+      cloned.categories = catItems;
+      break;
+    }
+
     default: {
       // General fallbacks for common fields across any section type
       if ('companyName' in cloned && !cloned.companyName) cloned.companyName = companyName;
