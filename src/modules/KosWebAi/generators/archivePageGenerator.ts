@@ -25,6 +25,8 @@ export const ARCHIVE_SLUG_MAP: Record<string, PageCategory> = {
   kosass: 'service_product',
 };
 
+export type ArchiveVocabKey = 'articles' | 'events' | 'courses' | 'videos' | 'community' | 'services' | 'posts' | 'fundraising' | 'checkout';
+
 /**
  * Array of all supported archive slugs
  */
@@ -111,8 +113,30 @@ export function buildArchivePageConfig(
   const slug = spec.slugPrefix.toLowerCase();
   const pageId = `page_archive_${slug}_${tenantId}`;
 
-  const fullTitle = `${spec.defaultTitle} | ${companyName}`;
-  const fullDesc = `${spec.description} מבית ${companyName}. ${slogan}`;
+  // Resolve Vocab Key for category
+  const vocabKeyMap: Record<PageCategory, ArchiveVocabKey> = {
+    info_content: 'articles',
+    event: 'events',
+    course: 'courses',
+    youtube_post: 'videos',
+    community: 'community',
+    service_product: 'services',
+    checkout: 'checkout',
+    fundraising: 'fundraising',
+    home: 'articles',
+    general: 'articles',
+  };
+  const vKey = vocabKeyMap[category] || 'articles';
+  const customTitle = (brand.uiVocabulary?.categoryTitles as any)?.[vKey];
+  const customSubtitle = (brand.uiVocabulary?.categoryDescriptions as any)?.[vKey];
+  const customSeoDesc = (brand.uiVocabulary?.archiveSeoDescriptions as any)?.[vKey];
+
+  const archiveTitle = customTitle || spec.defaultTitle;
+  const archiveSubtitle = customSubtitle || spec.defaultSubtitle;
+  const archiveDescription = customSeoDesc || `${spec.description} מבית ${companyName}. ${slogan}`;
+
+  const fullTitle = `${archiveTitle} | ${companyName}`;
+  const fullDesc = archiveDescription;
 
   // Archive pages strictly contain ONLY Header, Hero, and the matching Listing
   const sectionOrder: string[] = ['header-1'];
@@ -143,9 +167,9 @@ export function buildArchivePageConfig(
   const heroBase = {
     ...SECTION_REGISTRY.hero.defaultConfig,
     id: heroId,
-    title: spec.defaultTitle,
-    subtitle: spec.defaultSubtitle,
-    description: fullDesc,
+    title: archiveTitle,
+    subtitle: archiveSubtitle,
+    description: archiveDescription,
     badgeText: spec.name,
     layout: (preset === 'masculine' || preset === 'feminine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
       ? preset
@@ -180,15 +204,15 @@ export function buildArchivePageConfig(
   sections[heroId] = applyStylePresetToSection(heroBase, preset);
 
   // 3. Category-Specific Listing Section ONLY
-  if (category === 'youtube_post') {
+  if (category === 'youtube_post' || slug === 'kosvidio') {
     const listingId = 'kosvidioGallery-1';
     sectionOrder.push(listingId);
     const galBase = {
       ...SECTION_REGISTRY.kosvidioGallery.defaultConfig,
       id: listingId,
       anchorId: 'sec-listing',
-      title: 'ספריית הוידאו, ההרצאות והשידורים החיים',
-      subtitle: 'צפייה ישירה, הדרכות מוקלטות וניתוחים מעמיקים',
+      title: archiveTitle || 'ספריית הוידאו, ההרצאות והשידורים החיים',
+      subtitle: archiveSubtitle || 'צפייה ישירה, הדרכות מוקלטות וניתוחים מעמיקים',
       badge: 'וידאו חי • VOD',
       source: 'tenant_kosvidio',
       layout: (preset === 'feminine' || preset === 'spiritual') ? 'featured_carousel' : (preset === 'sharp' ? 'grid' : 'featured_carousel'),
@@ -200,15 +224,55 @@ export function buildArchivePageConfig(
       items: [],
     };
     sections[listingId] = applyStylePresetToSection(galBase, preset);
+  } else if (category === 'event' || slug === 'kosevent') {
+    const listingId = 'eventsListing-1';
+    sectionOrder.push(listingId);
+    const evtBase = {
+      ...SECTION_REGISTRY.eventsListing.defaultConfig,
+      id: listingId,
+      anchorId: 'sec-listing',
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
+      badge: spec.name,
+      source: 'auto-pages',
+      filterCategory: 'event',
+      stylePreset: preset,
+      showSearchBar: true,
+      searchPlaceholder: `חיפוש אירוע, סדנה או כנס...`,
+      cardEffect: 'lift-shadow',
+      defaultCtaText: brand.uiVocabulary?.primaryCta || 'לפרטים והצטרפות',
+      items: [],
+    };
+    sections[listingId] = applyStylePresetToSection(evtBase, preset);
+  } else if (category === 'info_content' || slug === 'kosinfo') {
+    const listingId = 'articlesListing-1';
+    sectionOrder.push(listingId);
+    const artBase = {
+      ...SECTION_REGISTRY.articlesListing.defaultConfig,
+      id: listingId,
+      anchorId: 'sec-listing',
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
+      badge: spec.name,
+      layout: (preset === 'feminine' || preset === 'masculine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
+        ? preset
+        : 'standard',
+      topCtaText: 'לכל המאמרים',
+      topCtaUrl: '#sec-listing',
+      showTopCta: false,
+      items: [],
+    };
+    sections[listingId] = applyStylePresetToSection(artBase, preset);
   } else {
+    // Other categories: community, course, service_product, checkout, fundraising
     const listingId = 'dynamicListing-1';
     sectionOrder.push(listingId);
     const listBase = {
       ...SECTION_REGISTRY.dynamicListing.defaultConfig,
       id: listingId,
       anchorId: 'sec-listing',
-      title: spec.defaultTitle,
-      subtitle: spec.defaultSubtitle,
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
       badge: spec.name,
       source: 'pages',
       filterCategory: category,
@@ -360,15 +424,37 @@ export function sanitizeArchivePageWithBrandDna(
     };
   }
 
+  // Resolve Vocab Key for category
+  const vocabKeyMap: Record<PageCategory, ArchiveVocabKey> = {
+    info_content: 'articles',
+    event: 'events',
+    course: 'courses',
+    youtube_post: 'videos',
+    community: 'community',
+    service_product: 'services',
+    checkout: 'checkout',
+    fundraising: 'fundraising',
+    home: 'articles',
+    general: 'articles',
+  };
+  const vKey = vocabKeyMap[category] || 'articles';
+  const customTitle = (brand.uiVocabulary?.categoryTitles as any)?.[vKey];
+  const customSubtitle = (brand.uiVocabulary?.categoryDescriptions as any)?.[vKey];
+  const customSeoDesc = (brand.uiVocabulary?.archiveSeoDescriptions as any)?.[vKey];
+
+  const archiveTitle = customTitle || spec.defaultTitle;
+  const archiveSubtitle = customSubtitle || spec.defaultSubtitle;
+  const archiveDescription = customSeoDesc || `${spec.description} מבית ${companyName}. ${slogan}`;
+
   // 2. Find or create Hero
   const heroId = page.sectionOrder?.find((id) => id.startsWith('hero') || sections[id]?.type === 'hero') || `hero-${slug}`;
   if (!sections[heroId]) {
     sections[heroId] = {
       ...SECTION_REGISTRY.hero.defaultConfig,
       id: heroId,
-      title: spec.defaultTitle,
-      subtitle: spec.defaultSubtitle,
-      description: `${spec.description} מבית ${companyName}. ${slogan}`,
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
+      description: archiveDescription,
       badgeText: spec.name,
       buttonsVisible: true,
       primaryButton: {
@@ -379,6 +465,13 @@ export function sanitizeArchivePageWithBrandDna(
         text: 'יצירת קשר מהיר בוואטסאפ',
         url: `https://wa.me/${contactWhatsApp.replace(/[^0-9]/g, '')}`,
       },
+    };
+  } else {
+    sections[heroId] = {
+      ...sections[heroId],
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
+      description: archiveDescription,
     };
   }
   sections[heroId] = {
@@ -406,20 +499,17 @@ export function sanitizeArchivePageWithBrandDna(
   };
   applyStylePresetToSection(sections[heroId], preset);
 
-  // 3. Find or create Listing
-  const isVideoCategory = category === 'youtube_post' || slug === 'kosvidio';
-  const listingId = isVideoCategory
-    ? page.sectionOrder?.find((id) => id.startsWith('kosvidioGallery') || sections[id]?.type === 'kosvidioGallery') || 'kosvidioGallery-1'
-    : page.sectionOrder?.find((id) => id.startsWith('dynamicListing') || sections[id]?.type === 'dynamicListing') || 'dynamicListing-1';
-
-  if (isVideoCategory) {
+  // 3. Find or create Listing based on category
+  let listingId: string;
+  if (category === 'youtube_post' || slug === 'kosvidio') {
+    listingId = page.sectionOrder?.find((id) => id.startsWith('kosvidioGallery') || sections[id]?.type === 'kosvidioGallery') || 'kosvidioGallery-1';
     if (!sections[listingId]) {
       sections[listingId] = {
         ...SECTION_REGISTRY.kosvidioGallery.defaultConfig,
         id: listingId,
         anchorId: 'sec-listing',
-        title: 'ספריית הוידאו, ההרצאות והשידורים החיים',
-        subtitle: 'צפייה ישירה, הדרכות מוקלטות וניתוחים מעמיקים',
+        title: archiveTitle || 'ספריית הוידאו, ההרצאות והשידורים החיים',
+        subtitle: archiveSubtitle || 'צפייה ישירה, הדרכות מוקלטות וניתוחים מעמיקים',
         badge: 'וידאו חי • VOD',
         source: 'tenant_kosvidio',
         items: [],
@@ -427,6 +517,8 @@ export function sanitizeArchivePageWithBrandDna(
     }
     sections[listingId] = {
       ...sections[listingId],
+      title: archiveTitle || sections[listingId].title,
+      subtitle: archiveSubtitle || sections[listingId].subtitle,
       channelName: companyName,
       channelSlogan: slogan,
       channelAvatarUrl: logoUrl,
@@ -434,14 +526,67 @@ export function sanitizeArchivePageWithBrandDna(
       layout: (preset === 'feminine' || preset === 'spiritual') ? 'featured_carousel' : (preset === 'sharp' ? 'grid' : 'featured_carousel'),
     };
     applyStylePresetToSection(sections[listingId], preset);
+  } else if (category === 'event' || slug === 'kosevent') {
+    listingId = page.sectionOrder?.find((id) => id.startsWith('eventsListing') || sections[id]?.type === 'eventsListing') || 'eventsListing-1';
+    if (!sections[listingId]) {
+      sections[listingId] = {
+        ...SECTION_REGISTRY.eventsListing.defaultConfig,
+        id: listingId,
+        anchorId: 'sec-listing',
+        title: archiveTitle,
+        subtitle: archiveSubtitle,
+        badge: spec.name,
+        source: 'auto-pages',
+        filterCategory: 'event',
+        items: [],
+      };
+    }
+    sections[listingId] = {
+      ...sections[listingId],
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
+      filterCategory: 'event',
+      stylePreset: preset,
+      showSearchBar: true,
+      cardEffect: 'lift-shadow',
+      defaultCtaText: brand.uiVocabulary?.primaryCta || 'לפרטים והצטרפות',
+    };
+    applyStylePresetToSection(sections[listingId], preset);
+  } else if (category === 'info_content' || slug === 'kosinfo') {
+    listingId = page.sectionOrder?.find((id) => id.startsWith('articlesListing') || sections[id]?.type === 'articlesListing') || 'articlesListing-1';
+    if (!sections[listingId]) {
+      sections[listingId] = {
+        ...SECTION_REGISTRY.articlesListing.defaultConfig,
+        id: listingId,
+        anchorId: 'sec-listing',
+        title: archiveTitle,
+        subtitle: archiveSubtitle,
+        badge: spec.name,
+        items: [],
+      };
+    }
+    sections[listingId] = {
+      ...sections[listingId],
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
+      layout: (preset === 'feminine' || preset === 'masculine' || preset === 'spiritual' || preset === 'sharp' || preset === 'analytical')
+        ? preset
+        : 'standard',
+      topCtaText: 'לכל המאמרים',
+      topCtaUrl: '#sec-listing',
+      showTopCta: false,
+    };
+    applyStylePresetToSection(sections[listingId], preset);
   } else {
+    // Other categories: community, course, service_product, checkout, fundraising
+    listingId = page.sectionOrder?.find((id) => id.startsWith('dynamicListing') || sections[id]?.type === 'dynamicListing') || 'dynamicListing-1';
     if (!sections[listingId]) {
       sections[listingId] = {
         ...SECTION_REGISTRY.dynamicListing.defaultConfig,
         id: listingId,
         anchorId: 'sec-listing',
-        title: spec.defaultTitle,
-        subtitle: spec.defaultSubtitle,
+        title: archiveTitle,
+        subtitle: archiveSubtitle,
         badge: spec.name,
         source: 'pages',
         filterCategory: category,
@@ -450,8 +595,12 @@ export function sanitizeArchivePageWithBrandDna(
     }
     sections[listingId] = {
       ...sections[listingId],
+      title: archiveTitle,
+      subtitle: archiveSubtitle,
       filterCategory: category,
       stylePreset: preset,
+      showCategoryFilter: true,
+      showSearchBar: true,
       layout: preset === 'feminine'
         ? 'snap-carousel'
         : preset === 'masculine'

@@ -16,6 +16,7 @@ import {
   Loader2,
   SlidersHorizontal,
   Compass,
+  FolderArchive,
 } from 'lucide-react';
 
 export const BrandUiVocabularyEditor: React.FC = () => {
@@ -111,6 +112,15 @@ export const BrandUiVocabularyEditor: React.FC = () => {
     updateUiVocabulary({
       categoryDescriptions: {
         ...(effectiveVocab.categoryDescriptions || {}),
+        [key]: value,
+      },
+    });
+  };
+
+  const updateArchiveSeoDescription = (key: keyof NonNullable<BrandUiVocabulary['archiveSeoDescriptions']>, value: string) => {
+    updateUiVocabulary({
+      archiveSeoDescriptions: {
+        ...(effectiveVocab.archiveSeoDescriptions || {}),
         [key]: value,
       },
     });
@@ -248,8 +258,8 @@ export const BrandUiVocabularyEditor: React.FC = () => {
               : 'text-slate-400 hover:text-slate-200 hover:bg-slate-900/40'
           }`}
         >
-          <Compass className="w-3.5 h-3.5" />
-          <span>שמות ותיאורי קטגוריות וארכיונים</span>
+          <FolderArchive className="w-3.5 h-3.5" />
+          <span>ארכיון (עמודי ארכיון וקטגוריות)</span>
         </button>
       </div>
 
@@ -596,8 +606,8 @@ export const BrandUiVocabularyEditor: React.FC = () => {
       {activeTab === 'categories' && (
         <div className="space-y-4">
           <p className="text-xs text-slate-400">
-            הגדרת שמות הקטגוריות והתיאורים הקצרים שלהן כפי שיוזנו אוטומטית בעת בחירה באזור הקטגוריות.
-            בלחיצה על "דיוק ויצירת שפה עם AI", מנוע ה-AI ינסח שמות ותיאורים מותאמים אישית לטננט זה ללא נתוני דמה.
+            הגדרת תוכן ברירת המחדל הממותג עבור כל אחד מהארכיונים והקטגוריות (כותרת ממותגת, תיאור קצר ממוקד ותיאור ארוך עבור SEO).
+            נתונים אלו מוזרקים אוטומטית לעמודי הארכיון ולאזור הקטגוריות, ומנוסחים בהתאם לשפת המותג ללא נתוני דמה.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -612,30 +622,45 @@ export const BrandUiVocabularyEditor: React.FC = () => {
               { key: 'fundraising' as const, label: 'גיוס כספים (KOSFUNRISE)', slug: 'kosfunrise' },
               { key: 'checkout' as const, label: 'מרכז סליקה (KOSCHECKOUT)', slug: 'koscheckout' },
             ].map((cat) => (
-              <div key={cat.key} className="space-y-2 bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/50">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-indigo-400">{cat.label}</span>
-                  <span className="text-[10px] text-slate-500 font-mono">/{cat.slug}</span>
-                </div>
-                <div>
-                  <label className="text-[11px] text-slate-300 block mb-1">שם הקטגוריה</label>
-                  <input
-                    type="text"
-                    value={effectiveVocab.categoryTitles?.[cat.key] || ''}
-                    onChange={(e) => updateCategoryTitle(cat.key, e.target.value)}
-                    placeholder="שם מותאם אישית..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] text-slate-300 block mb-1">תיאור קצר</label>
-                  <input
-                    type="text"
-                    value={effectiveVocab.categoryDescriptions?.[cat.key] || ''}
-                    onChange={(e) => updateCategoryDescription(cat.key, e.target.value)}
-                    placeholder="תיאור קצר ומזמין..."
-                    className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
-                  />
+              <div key={cat.key} className="space-y-2 bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/50 flex flex-col justify-between">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between pb-1.5 border-b border-slate-700/40">
+                    <span className="text-xs font-bold text-indigo-400 flex items-center gap-1.5">
+                      <FolderArchive className="w-3.5 h-3.5 text-indigo-400" />
+                      {cat.label}
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">/{cat.slug}</span>
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-300 block mb-1">כותרת ממותגת (שם הארכיון)</label>
+                    <input
+                      type="text"
+                      value={effectiveVocab.categoryTitles?.[cat.key] || ''}
+                      onChange={(e) => updateCategoryTitle(cat.key, e.target.value)}
+                      placeholder="כותרת ממותגת..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-300 block mb-1">תיאור קצר וממוקד</label>
+                    <input
+                      type="text"
+                      value={effectiveVocab.categoryDescriptions?.[cat.key] || ''}
+                      onChange={(e) => updateCategoryDescription(cat.key, e.target.value)}
+                      placeholder="תיאור קצר ומזמין..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] text-slate-300 block mb-1">תיאור ארוך עבור SEO ו-Hero</label>
+                    <textarea
+                      rows={3}
+                      value={effectiveVocab.archiveSeoDescriptions?.[cat.key] || ''}
+                      onChange={(e) => updateArchiveSeoDescription(cat.key, e.target.value)}
+                      placeholder="תיאור מעמיק וממותג לקידום אורגני והסבר על הארכיון..."
+                      className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500 resize-none leading-relaxed"
+                    />
+                  </div>
                 </div>
               </div>
             ))}

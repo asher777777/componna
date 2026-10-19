@@ -1031,6 +1031,17 @@ export interface BrandUiVocabulary {
     fundraising?: string;
     checkout?: string;
   };
+  archiveSeoDescriptions?: {
+    articles?: string;
+    events?: string;
+    courses?: string;
+    videos?: string;
+    community?: string;
+    services?: string;
+    posts?: string;
+    fundraising?: string;
+    checkout?: string;
+  };
 }
 
 export interface BrandDna {

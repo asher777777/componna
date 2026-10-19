@@ -1554,6 +1554,17 @@ export function buildDefaultBrandUiVocabulary(brand: BrandDna): BrandUiVocabular
       fundraising: 'יחד מגיעים אל היעד ומגדילים עשייה משותפת',
       checkout: 'רכישה ישירה ומאובטחת בתנאים מועדפים',
     },
+    archiveSeoDescriptions: {
+      articles: `מאגר המאמרים, שיעורי התוכן והידע המקצועי מבית ${companyName}. תובנות מעמיקות, כלים מעשיים ומתודולוגיות מובילות.`,
+      events: `לוח הכנסים, המפגשים, הסדנאות והאירועים של ${companyName}. הבטיחו את מקומכם באירועים המכוננים של השנה.`,
+      courses: `האקדמיה הדיגיטלית ומסלולי ההכשרה המקצועיים של ${companyName}. סילבוס מעשי, פרויקטים מהשטח וליווי צמוד להצלחה.`,
+      videos: `מרכז השידורים, הפודקאסטים וסרטוני הוידאו מבית ${companyName}. שיחות עומק, הרצאות וניתוחים מעמיקים לצפייה ישירה.`,
+      community: `מועדון החברים, מעגלי השיח והקהילה הפעילה של ${companyName}. שיתופי פעולה, הטבות בלעדיות ותוכן ייחודי לחברים.`,
+      services: `קטלוג השירותים והפתרונות המקיפים של ${companyName}. מעטפת מקצועית בהתאמה אישית לתוצאות עסקיות מוכחות.`,
+      posts: `כל הפוסטים, הטיפים, המדריכים והעדכונים השוטפים של ${companyName}. הישארו מעודכנים בכל החידושים והתובנות מהשטח.`,
+      fundraising: `מרכז גיוס המונים ושותפות קהילתית של ${companyName}. יחד מגדילים את מעגלי ההשפעה, העשייה והנתינה.`,
+      checkout: `מרכז ההזמנות, החבילות והרכישה המאובטחת של ${companyName}. רכישה מהירה ונוחה בתקני האבטחה המחמירים ביותר.`,
+    },
   };
 }
 
@@ -1593,6 +1604,10 @@ export async function generateBrandUiVocabulary(
           categoryDescriptions: {
             ...fallback.categoryDescriptions,
             ...(res.categoryDescriptions || {}),
+          },
+          archiveSeoDescriptions: {
+            ...fallback.archiveSeoDescriptions,
+            ...(res.archiveSeoDescriptions || {}),
           },
         },
       };
