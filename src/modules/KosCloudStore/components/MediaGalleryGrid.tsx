@@ -719,6 +719,8 @@ export const MediaGalleryGrid: React.FC = () => {
     filters,
     setFilters,
     selectedIds,
+    setSelectedIds,
+    maxSelectCount,
     toggleSelect,
     setPreviewItem,
     setConverterItem,
@@ -847,13 +849,19 @@ export const MediaGalleryGrid: React.FC = () => {
     setTimeout(() => setSyncStatusMsg(null), 5000);
   };
 
-  // Click item: in selectionMode, focus item and open inspector so user can view/edit or click select.
+  // Click item: in selectionMode, focus item and select/toggle it.
   // Double-click or clicking "בחר קובץ" in inspector immediately confirms selection.
   const handleItemClick = (item: MediaItem) => {
     if (editingItemId === item.id) return;
     setFocusedItem(item);
     setIsInspectorOpen(true);
-    if (!selectionMode) {
+    if (selectionMode) {
+      if (maxSelectCount === 1) {
+        setSelectedIds([item.id]);
+      } else {
+        toggleSelect(item.id);
+      }
+    } else {
       setPreviewItem(item);
     }
   };
