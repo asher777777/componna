@@ -312,7 +312,7 @@ export function resolveApiKeysFor(input: ApiKeysResolutionInput, moduleId?: stri
     ...DEFAULT_API_KEYS,
     ...input.tenantKeys,
     // Clause ה: AI key is always taken through master collection if available
-    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || localFallbackKey || envFallbackKey || '',
+    googleAiApiKey: masterAiKey || input.tenantKeys.googleAiApiKey || envFallbackKey || '',
     // YouTube Data API v3 key: always inherited from Master collection for subdomains
     youtubeApiKey: masterYoutubeKey || input.tenantKeys.youtubeApiKey || '',
     // TikTok Developer Platform Keys: always inherited from Master collection so subdomains route through it
