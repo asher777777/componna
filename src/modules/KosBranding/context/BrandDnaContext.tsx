@@ -193,9 +193,9 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ...prev,
         identity: { ...prev.identity, ...partial },
       };
-      if (partial.logoUrl !== undefined) {
+      if (partial.logoUrl !== undefined || partial.vibeImages !== undefined) {
         saveBrandDna(updated, db, tenantId).catch((err) =>
-          console.warn('[BrandDNA] Auto-save logo failed:', err)
+          console.warn('[BrandDNA] Auto-save identity failed:', err)
         );
       }
       return updated;
@@ -203,6 +203,19 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (partial.logoUrl !== undefined) {
       eventBus.publish('brand:logo_updated', {
         logoUrl: partial.logoUrl,
+        updatedAt: new Date().toISOString(),
+      });
+    }
+    if (partial.vibeImages !== undefined) {
+      eventBus.publish('brand:vibe_images_updated', {
+        vibeImages: partial.vibeImages,
+        updatedAt: new Date().toISOString(),
+      });
+      eventBus.publish('brand:updated', {
+        brandDna: {
+          ...brandDnaRef.current,
+          identity: { ...brandDnaRef.current.identity, vibeImages: partial.vibeImages },
+        },
         updatedAt: new Date().toISOString(),
       });
     }
@@ -304,35 +317,57 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const addVibeImage = useCallback(async (url: string): Promise<boolean> => {
     markLocalEdit();
+    let updatedDna: BrandDna = brandDnaRef.current;
     setBrandDna((prev) => {
       const existing = prev.identity.vibeImages || [];
       if (existing.includes(url)) return prev;
-      return {
+      const updated = {
         ...prev,
         identity: {
           ...prev.identity,
           vibeImages: [...existing, url],
         },
       };
+      updatedDna = updated;
+      saveBrandDna(updated, db, tenantId).catch((err) =>
+        console.warn('[BrandDNA] Save vibeImage failed:', err)
+      );
+      return updated;
     });
     eventBus.publish('brand:vibe_image_added', {
       imageUrl: url,
       updatedAt: new Date().toISOString(),
     });
+    eventBus.publish('brand:updated', {
+      brandDna: updatedDna,
+      updatedAt: new Date().toISOString(),
+    });
     return true;
-  }, [markLocalEdit]);
+  }, [db, tenantId, markLocalEdit]);
 
   const removeVibeImage = useCallback(async (url: string): Promise<boolean> => {
     markLocalEdit();
-    setBrandDna((prev) => ({
-      ...prev,
-      identity: {
-        ...prev.identity,
-        vibeImages: (prev.identity.vibeImages || []).filter((img) => img !== url),
-      },
-    }));
+    let updatedDna: BrandDna = brandDnaRef.current;
+    setBrandDna((prev) => {
+      const updated = {
+        ...prev,
+        identity: {
+          ...prev.identity,
+          vibeImages: (prev.identity.vibeImages || []).filter((img) => img !== url),
+        },
+      };
+      updatedDna = updated;
+      saveBrandDna(updated, db, tenantId).catch((err) =>
+        console.warn('[BrandDNA] Save removeVibeImage failed:', err)
+      );
+      return updated;
+    });
+    eventBus.publish('brand:updated', {
+      brandDna: updatedDna,
+      updatedAt: new Date().toISOString(),
+    });
     return true;
-  }, [markLocalEdit]);
+  }, [db, tenantId, markLocalEdit]);
 
   const updateBrandSummaryParagraph = useCallback(async (paragraph: string): Promise<boolean> => {
     markLocalEdit();

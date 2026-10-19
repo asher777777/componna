@@ -29,7 +29,7 @@ import { PublicPageView } from '../../modules/KosWebAi/components/PublicPageView
 import { TenantAdminLoginView } from './TenantAdminLoginView';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { SubscriberPortalView } from '../../modules/KosSubscribed/components/SubscriberPortalView';
-import { subscribeToAuth } from '../../services/firebaseAuth';
+import { subscribeToAuth, isPlatformAdminEmail } from '../../services/firebaseAuth';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { Sun, Moon, LogOut, ChevronLeft, Check } from 'lucide-react';
 

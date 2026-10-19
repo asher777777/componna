@@ -8,6 +8,8 @@ import { pageBuilderFirestore, ensureHeaderSection } from '../modules/KosWebAi/s
 import { SECTION_REGISTRY } from '../modules/KosWebAi/registry/sectionRegistry';
 import { eventBus } from '../core/bridge/EventBus';
 import { CapabilitySlot } from '../core/bridge/CapabilitySlot';
+import { subscribeToAuth, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../services/firebaseAuth';
+import { TenantAuthService } from '../modules/KosTenantProvisioner/services/tenantAuthService';
 
 import { useKosai } from '../modules/kosai-engine';
 
@@ -20,8 +22,42 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   pageConfig,
   onEnterDevWorkbench,
 }) => {
-  const { db } = useSystemConnection();
+  const { db, firebaseApp } = useSystemConnection();
   const { setPageSections } = useKosai();
+
+  // Strict Tenant & Platform Admin Authentication Check
+  const [isAuthorized, setIsAuthorized] = useState<boolean>(() => {
+    return TenantAuthService.isTenantAuthenticated(ROOT_TENANT_ID);
+  });
+
+  useEffect(() => {
+    if (!firebaseApp) return;
+    const unsub = subscribeToAuth(firebaseApp, async (state) => {
+      if (state.user && state.email) {
+        const isPlatformAdmin = isPlatformAdminEmail(state.email);
+        const role = await fetchUserRole(state.uid!, firebaseApp, ROOT_TENANT_ID);
+        const cachedRole = getCachedUserRole(state.uid!);
+        const allowed = isPlatformAdmin || role === 'admin' || role === 'editor' || cachedRole === 'admin';
+        setIsAuthorized(allowed);
+      } else {
+        const isTenantAuth = TenantAuthService.isTenantAuthenticated(ROOT_TENANT_ID);
+        setIsAuthorized(isTenantAuth);
+      }
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  useEffect(() => {
+    const handleAuthChange = () => {
+      setIsAuthorized(TenantAuthService.isTenantAuthenticated(ROOT_TENANT_ID));
+    };
+    window.addEventListener('kosun_tenant_auth_changed', handleAuthChange);
+    window.addEventListener('storage', handleAuthChange);
+    return () => {
+      window.removeEventListener('kosun_tenant_auth_changed', handleAuthChange);
+      window.removeEventListener('storage', handleAuthChange);
+    };
+  }, []);
 
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('kosun_theme') as 'light' | 'dark') || 
@@ -30,14 +66,15 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
 
   // Manage mutable page configuration for live on-page edits
   const [currentPageConfig, setCurrentPageConfig] = useState<PageBuilderConfig>(() => ensureHeaderSection(pageConfig));
-  const [isEditing, setIsEditing] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const p = new URLSearchParams(window.location.search);
-      return p.get('edit') === 'true';
-    }
-    return false;
-  });
+  const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  // If not authorized, edit mode is strictly barred
+  useEffect(() => {
+    if (!isAuthorized && isEditing) {
+      setIsEditing(false);
+    }
+  }, [isAuthorized, isEditing]);
 
   // Sync active sections to KOSAI agent so it can focus directly on target sections
   useEffect(() => {
@@ -82,6 +119,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
 
   // Notify KOSAI AI agent and system components of edit mode toggle
   const toggleEditMode = useCallback(async () => {
+    if (!isAuthorized) return;
     if (isEditing) {
       // Save changes before exiting edit mode
       setIsSaving(true);
@@ -415,7 +453,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         isEditing={isEditing}
         onToggleEditMode={toggleEditMode}
         isSaving={isSaving}
-        isAuthorized={true}
+        isAuthorized={isAuthorized}
       />
     </div>
   );

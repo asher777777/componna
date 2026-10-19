@@ -112,13 +112,12 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   const [authState, setAuthState] = useState<AuthState | null>(null);
   const [isAdminOrEditor, setIsAdminOrEditor] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
-      const h = window.location.hostname;
-      if (h === 'localhost' || h === '127.0.0.1' || h.endsWith('.local')) return true;
+      const savedRole = localStorage.getItem('sdo_user_role');
+      if (savedRole === 'admin' || savedRole === 'editor') return true;
     }
     return false;
   });
   const [isTenantAuthed, setIsTenantAuthed] = useState<boolean>(() => {
-    if (isLocal) return true;
     if (effectiveTenantId) {
       return TenantAuthService.isTenantAuthenticated(effectiveTenantId);
     }
@@ -158,34 +157,48 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
     return isPublic ? 'front' : 'backoffice';
   }, [mode, location.pathname, location.search]);
 
-  // Auth Subscription
+  // Auth Subscription: strictly validates authenticated role
   useEffect(() => {
-    if (isLocal) {
-      setIsAdminOrEditor(true);
-      return;
-    }
     if (!firebaseApp) return;
     const unsub = subscribeToAuth(firebaseApp, async (state) => {
       setAuthState(state);
       if (state.user && state.email) {
-        const role = await fetchUserRole(state.uid!, firebaseApp);
-        const allowed = role === 'admin' || role === 'editor' || getCachedUserRole(state.uid!) === 'admin' || isPlatformAdminEmail(state.email);
+        const isPlatformAdmin = isPlatformAdminEmail(state.email);
+        const role = await fetchUserRole(state.uid!, firebaseApp, effectiveTenantId);
+        const cachedRole = getCachedUserRole(state.uid!);
+        const isTenantOwner = Boolean(
+          effectiveTenantId && 
+          effectiveTenantId !== ROOT_TENANT_ID &&
+          (state.email.toLowerCase().startsWith(`${effectiveTenantId.toLowerCase()}@`) ||
+           state.email.toLowerCase().includes(effectiveTenantId.toLowerCase()))
+        );
+        const allowed = isPlatformAdmin || role === 'admin' || role === 'editor' || cachedRole === 'admin' || isTenantOwner;
         setIsAdminOrEditor(allowed);
       } else {
         setIsAdminOrEditor(false);
       }
     });
     return () => unsub();
-  }, [firebaseApp, isLocal]);
+  }, [firebaseApp, effectiveTenantId]);
 
-  // Tenant Auth Session check
+  // Tenant Auth Session check with live event listener
   useEffect(() => {
-    if (isLocal) {
-      setIsTenantAuthed(true);
-    } else if (effectiveTenantId) {
-      setIsTenantAuthed(TenantAuthService.isTenantAuthenticated(effectiveTenantId));
-    }
-  }, [effectiveTenantId, isLocal, location.search]);
+    const updateTenantAuth = () => {
+      if (effectiveTenantId) {
+        setIsTenantAuthed(TenantAuthService.isTenantAuthenticated(effectiveTenantId));
+      } else {
+        setIsTenantAuthed(false);
+      }
+    };
+
+    updateTenantAuth();
+    window.addEventListener('kosun_tenant_auth_changed', updateTenantAuth);
+    window.addEventListener('storage', updateTenantAuth);
+    return () => {
+      window.removeEventListener('kosun_tenant_auth_changed', updateTenantAuth);
+      window.removeEventListener('storage', updateTenantAuth);
+    };
+  }, [effectiveTenantId]);
 
   // Listen to external theme changes
   useEffect(() => {
@@ -299,7 +312,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   };
 
   // Check if current user is Tenant Manager / Admin (Strict Multi-Tenant Control)
-  const isTenantManager = Boolean(isAdminOrEditor || isRootTenant || isLocal);
+  const isTenantManager = Boolean(isAdminOrEditor || isTenantAuthed);
 
   // Toggle Dashboard Live Edit (Tenant Manager Only) - In-Place Live Editing!
   const handleToggleDashboardEdit = (e: React.MouseEvent) => {
@@ -330,26 +343,25 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   // STRICT AUTH GATEKEEPER
   // The floating dock appears ONLY when the user is authenticated on the domain/subdomain.
   // Regular visitors/public guests see ZERO floating menus.
-  const hasAdminQuery = typeof window !== 'undefined' && Boolean(
-    new URLSearchParams(window.location.search).get('edit') === 'true' ||
-    new URLSearchParams(window.location.search).get('admin') === 'true' ||
-    new URLSearchParams(window.location.search).get('mode') === 'admin'
-  );
-
   const isSuperAdminBypass = typeof window !== 'undefined' && sessionStorage.getItem('kosun_super_admin_bypass') === 'true';
 
   const isAuthorized = Boolean(
     propIsAuthorized !== undefined
-      ? (propIsAuthorized || isAdminOrEditor || isTenantAuthed || isEditing)
+      ? propIsAuthorized
       : (
           isAdminOrEditor ||
           isTenantAuthed ||
-          isSuperAdminBypass ||
-          (hasAdminQuery && (isAdminOrEditor || isTenantAuthed)) ||
-          isEditing ||
-          isLocal
+          isSuperAdminBypass
         )
   );
+
+  // If not authorized, ensure edit mode is strictly disabled
+  useEffect(() => {
+    if (!isAuthorized) {
+      if (internalIsEditing) setInternalIsEditing(false);
+      if (isDashboardEditing) setIsDashboardEditing(false);
+    }
+  }, [isAuthorized, internalIsEditing, isDashboardEditing]);
 
   if (isGlobalFallback && hasExplicitDock) {
     return null;

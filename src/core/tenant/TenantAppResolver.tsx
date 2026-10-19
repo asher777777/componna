@@ -137,15 +137,6 @@ export const TenantAppResolver: React.FC = () => {
       const isSubdomainHost = Boolean(extractSubdomainFromHost(hostname));
       const hasLocalSessionTenant = isLocal && Boolean(sessionStorage.getItem('kosun_active_tenant_id') && sessionStorage.getItem('kosun_active_tenant_id') !== ROOT_TENANT_ID);
       if (isSubdomainHost || hasLocalSessionTenant) {
-        const detectedSub = extractSubdomainFromHost(hostname) || sessionStorage.getItem('kosun_active_tenant_id');
-        if (detectedSub && (p.has('admin') || p.get('mode') === 'admin' || p.get('edit') === 'true')) {
-          try {
-            sessionStorage.setItem(`tenant_admin_${detectedSub}`, 'true');
-            sessionStorage.setItem(`tenant_admin_auth_${detectedSub}`, 'true');
-            localStorage.setItem(`tenant_admin_${detectedSub}`, 'true');
-            localStorage.setItem(`tenant_admin_auth_${detectedSub}`, 'true');
-          } catch {}
-        }
         if (p.has('tenant') || p.has('mode') || p.has('admin')) {
           p.delete('tenant');
           p.delete('mode');

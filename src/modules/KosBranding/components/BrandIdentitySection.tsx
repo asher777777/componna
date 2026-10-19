@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { OrganizationType } from '../types/brandDna';
 import { extractDominantColorsFromImage } from '../services/colorExtractor';
 import { rephraseTextWithBrandAi, generateBrandSummaryParagraph } from '../services/geminiBrandPrompt';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { MediaPickerContract } from '../../../core/contracts';
@@ -47,9 +48,14 @@ const Tooltip: React.FC<{ text: string }> = ({ text }) => <SmartTooltip text={te
 
 export const BrandIdentitySection: React.FC = () => {
   const { brandDna, updateIdentity, updateDesignTokens, setLogoUrl, updateBrandSummaryParagraph } = useBrandDna();
-  const { apiKeys } = useSystemConnection();
+  const { apiKeys, firebaseApp } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
   const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+
+  const vibeFileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingVibe, setIsUploadingVibe] = useState(false);
+  const [isVibeDragging, setIsVibeDragging] = useState(false);
 
   const [isExtractingColors, setIsExtractingColors] = useState(false);
   const [extractedColorsList, setExtractedColorsList] = useState<string[]>([]);
@@ -131,11 +137,88 @@ export const BrandIdentitySection: React.FC = () => {
         multiple: true,
       });
       if (selected) {
-        const urls = Array.isArray(selected) ? selected : [selected];
-        const existing = brandDna.identity.vibeImages || [];
-        const newImages = [...existing, ...urls.filter((u) => !existing.includes(u))];
-        updateIdentity({ vibeImages: newImages });
+        const rawUrls = Array.isArray(selected) ? selected : [selected];
+        const cleanUrls = rawUrls
+          .map((u: any) => (typeof u === 'string' ? u : u?.url))
+          .filter((u: any) => typeof u === 'string' && u.trim().length > 0);
+        if (cleanUrls.length > 0) {
+          const existing = brandDna.identity.vibeImages || [];
+          const newImages = [...existing, ...cleanUrls.filter((u) => !existing.includes(u))];
+          updateIdentity({ vibeImages: newImages });
+        }
       }
+    } else {
+      alert('רכיב גלריית המדיה אינו זמין כעת.');
+    }
+  };
+
+  const processVibeFiles = async (fileList: File[]) => {
+    if (!fileList || fileList.length === 0) return;
+    setIsUploadingVibe(true);
+    const newUrls: string[] = [];
+
+    for (const file of fileList) {
+      if (!file.type.startsWith('image/')) continue;
+      if (firebaseApp) {
+        try {
+          const { getStorage, ref, uploadBytesResumable, getDownloadURL } = await import('firebase/storage');
+          const bucket = firebaseApp.options.storageBucket || 'glowmanage.firebasestorage.app';
+          const storage = getStorage(firebaseApp, bucket.startsWith('gs://') ? bucket : `gs://${bucket}`);
+          const safeName = file.name.replace(/[\\/:*?"<>|]/g, '_').trim();
+          const storagePath = `tenants/${tenantId || '_master'}/media/${Date.now()}_${safeName}`;
+          const storageRef = ref(storage, storagePath);
+          const uploadTask = await uploadBytesResumable(storageRef, file);
+          const downloadUrl = await getDownloadURL(uploadTask.ref);
+          newUrls.push(downloadUrl);
+        } catch (err) {
+          console.warn('[BrandIdentity] Storage upload error, falling back to data URL:', err);
+          const dataUrl = await new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve(ev.target?.result as string);
+            reader.readAsDataURL(file);
+          });
+          if (dataUrl) newUrls.push(dataUrl);
+        }
+      } else {
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = (ev) => resolve(ev.target?.result as string);
+          reader.readAsDataURL(file);
+        });
+        if (dataUrl) newUrls.push(dataUrl);
+      }
+    }
+
+    if (newUrls.length > 0) {
+      const existing = brandDna.identity.vibeImages || [];
+      const newImages = [...existing, ...newUrls.filter((u) => !existing.includes(u))];
+      updateIdentity({ vibeImages: newImages });
+    }
+    setIsUploadingVibe(false);
+  };
+
+  const handleDirectVibeUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    await processVibeFiles(Array.from(files));
+    if (vibeFileInputRef.current) vibeFileInputRef.current.value = '';
+  };
+
+  const handleVibeDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsVibeDragging(true);
+  };
+
+  const handleVibeDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsVibeDragging(false);
+  };
+
+  const handleVibeDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsVibeDragging(false);
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      await processVibeFiles(Array.from(e.dataTransfer.files));
     }
   };
 
