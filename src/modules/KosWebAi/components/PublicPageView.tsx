@@ -977,6 +977,24 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         }}
         pageTitle={page.pageTitle}
         pageSections={Object.values(page.sections || {})}
+        sections={page.sections}
+        onUpdateSections={(updatedSections) => {
+          setPage((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, sections: updatedSections };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+            return next;
+          });
+        }}
+        designSnapshots={page.designSnapshots}
+        onUpdateDesignSnapshots={(updatedSnapshots) => {
+          setPage((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, designSnapshots: updatedSnapshots };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+            return next;
+          });
+        }}
       />
 
       {/* Discrete admin portal entry button on public video / content pages */}

@@ -70,6 +70,7 @@ export function createTenantInitialBrandDna(
       fontFamily: 'Heebo, sans-serif',
       borderRadius: 'md',
       buttonStyle: 'gradient',
+      defaultStylePreset: 'standard',
     },
     trust: {
       legalEntityId: '',

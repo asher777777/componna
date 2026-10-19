@@ -201,6 +201,22 @@ export const BrandDashboardSection: React.FC<BrandDashboardSectionProps> = ({
                       <span className="text-xs font-mono font-semibold" dir="ltr">{brandDna.designTokens.secondaryColor}</span>
                     </div>
                   </div>
+                  <div className="col-span-2 pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
+                    <div>
+                      <span className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider">סגנון ברירת מחדל לטננט</span>
+                      <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
+                        {brandDna.designTokens.defaultStylePreset === 'feminine' ? 'נשי ורך (Feminine)' :
+                         brandDna.designTokens.defaultStylePreset === 'masculine' ? 'גברי ועוצמתי (Masculine)' :
+                         brandDna.designTokens.defaultStylePreset === 'spiritual' ? 'רוחני ועדין (Spiritual)' :
+                         brandDna.designTokens.defaultStylePreset === 'sharp' ? 'חד וטכנולוגי (Sharp)' :
+                         brandDna.designTokens.defaultStylePreset === 'analytical' ? 'אנליטי ומדעי (Analytical)' :
+                         'סטנדרטי ומאוזן (Standard)'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-500 dark:text-indigo-400 border border-indigo-500/20">
+                      שפה אחידה במערכת
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>

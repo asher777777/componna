@@ -839,6 +839,8 @@ export interface BrandAudience {
   commonObjections: ObjectionItem[];
 }
 
+export type TenantStylePreset = 'feminine' | 'masculine' | 'standard' | 'spiritual' | 'sharp' | 'analytical';
+
 export interface BrandDesignTokens {
   primaryColor: string;
   secondaryColor: string;
@@ -851,6 +853,7 @@ export interface BrandDesignTokens {
   fontFamily: string;
   borderRadius: BorderRadiusStyle;
   buttonStyle: ButtonStyleType;
+  defaultStylePreset?: TenantStylePreset;
 }
 
 export interface BrandTrustAndCheckout {

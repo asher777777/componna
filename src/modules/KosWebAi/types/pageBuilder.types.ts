@@ -282,6 +282,16 @@ export function getCategoryFromPage(page?: { pageCategory?: PageCategory; slug?:
   return 'general';
 }
 
+export interface PageDesignSnapshot {
+  id: string;
+  timestamp: string;
+  label: string;
+  preset: string;
+  sections: Record<string, any>;
+  theme?: string;
+  createdAtFormatted?: string;
+}
+
 export interface PageBuilderConfig {
   pageId: string;
   pageTitle: string;
@@ -301,6 +311,7 @@ export interface PageBuilderConfig {
   seoSettings: SeoSettings;
   sectionOrder: string[];
   sections: Record<string, any>;
+  designSnapshots?: PageDesignSnapshot[];
   lastModified?: number;
   createdAt?: string;
   updatedAt?: string;

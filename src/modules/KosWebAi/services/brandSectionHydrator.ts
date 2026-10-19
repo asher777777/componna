@@ -527,6 +527,22 @@ export function hydrateSectionWithBrandDna(
     }
   }
 
+  // Apply tenant default style preset if specified
+  if (brand.designTokens?.defaultStylePreset) {
+    const defaultPreset = brand.designTokens.defaultStylePreset;
+    if (!cloned.layout || cloned.layout === 'standard') {
+      cloned.layout = defaultPreset;
+    }
+    if (type === 'timer' && (!cloned.boxShape || cloned.boxShape === 'rounded')) {
+      if (defaultPreset === 'feminine') cloned.boxShape = 'flower';
+      else if (defaultPreset === 'masculine') cloned.boxShape = 'shield';
+      else if (defaultPreset === 'spiritual') cloned.boxShape = 'lotus';
+      else if (defaultPreset === 'sharp') cloned.boxShape = 'sharp';
+      else if (defaultPreset === 'analytical') cloned.boxShape = 'hud';
+      else if (defaultPreset === 'standard') cloned.boxShape = 'rounded';
+    }
+  }
+
   return cloned;
 }
 

@@ -173,6 +173,20 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         onUpdateSeoSettings={handleUpdateSeo}
         pageTitle={pageTitle || resolvedPage?.pageTitle || 'עמוד'}
         pageSections={pageSections || (resolvedPage?.sections ? Object.values(resolvedPage.sections) : [])}
+        sections={resolvedPage?.sections}
+        onUpdateSections={(updatedSections) => {
+          if (resolvedPage) {
+            const next = { ...resolvedPage, sections: updatedSections };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+          }
+        }}
+        designSnapshots={resolvedPage?.designSnapshots}
+        onUpdateDesignSnapshots={(updatedSnapshots) => {
+          if (resolvedPage) {
+            const next = { ...resolvedPage, designSnapshots: updatedSnapshots };
+            pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
+          }
+        }}
       />
     </>
   );

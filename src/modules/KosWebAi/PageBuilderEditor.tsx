@@ -533,6 +533,10 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         onOpenGeoDrawer={() => setIsGeoDrawerOpen(true)}
         pageTitle={config.pageTitle}
         pageSections={Object.values(config.sections || {})}
+        sections={config.sections}
+        onUpdateSections={(updatedSections) => setConfig({ ...config, sections: updatedSections })}
+        designSnapshots={config.designSnapshots}
+        onUpdateDesignSnapshots={(updatedSnapshots) => setConfig({ ...config, designSnapshots: updatedSnapshots })}
       />
 
       <PublishPageModal

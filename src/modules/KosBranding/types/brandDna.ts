@@ -4,6 +4,7 @@ export type {
   SectorCompliance,
   BorderRadiusStyle,
   ButtonStyleType,
+  TenantStylePreset,
   PersonaItem,
   ObjectionItem,
   BrandIdentity,
@@ -116,6 +117,7 @@ export const DEFAULT_BRAND_DNA: BrandDna = {
     fontFamily: 'Heebo, sans-serif',
     borderRadius: 'md',
     buttonStyle: 'gradient',
+    defaultStylePreset: 'standard',
   },
   trust: {
     legalEntityId: '516000000',

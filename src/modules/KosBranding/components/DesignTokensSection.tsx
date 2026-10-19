@@ -1,6 +1,6 @@
 import React from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
-import { BorderRadiusStyle, ButtonStyleType } from '../types/brandDna';
+import { BorderRadiusStyle, ButtonStyleType, TenantStylePreset } from '../types/brandDna';
 import {
   Palette,
   Type,
@@ -8,6 +8,12 @@ import {
   Sparkles,
   Info,
   Check,
+  Heart,
+  Shield,
+  Flower2,
+  Compass,
+  Cpu,
+  Layers,
 } from 'lucide-react';
 
 const FONT_OPTIONS = [
@@ -70,6 +76,71 @@ const BUTTON_STYLES: Array<{ id: ButtonStyleType; label: string }> = [
   { id: 'gradient', label: 'גרדיאנט (Gradient)' },
   { id: 'outline', label: 'מסגרת (Outline)' },
   { id: 'glass', label: 'זכוכית (Glassmorphism)' },
+];
+
+const TENANT_STYLE_OPTIONS: Array<{
+  id: TenantStylePreset;
+  title: string;
+  subtitle: string;
+  description: string;
+  badge: string;
+  icon: React.ComponentType<{ className?: string }>;
+  accentColor: string;
+}> = [
+  {
+    id: 'standard',
+    title: 'סטנדרטי ומאוזן (Standard)',
+    subtitle: 'נקי, יציב, מודרני וניטרלי',
+    description: 'מבנה קלאסי ומאוזן, פינות מעוגלות רגילות, קריאות מקסימלית והתאמה מושלמת לכל עסק ושירות.',
+    badge: 'מומלץ לעסקים כלליים',
+    icon: Layers,
+    accentColor: '#6366f1',
+  },
+  {
+    id: 'feminine',
+    title: 'נשי ורך (Feminine)',
+    subtitle: 'עדינות, עגלגלות, רכות ופרחוניות',
+    description: 'פלטות פסטל ורודות, פינות פיל מעוגלות מלאות, צורות לב ופרח, צלליות מפוזרות ואסתטיקה אלגנטית.',
+    badge: 'מתאים לביוטי, טיפוח, נשים וסדנאות',
+    icon: Heart,
+    accentColor: '#ec4899',
+  },
+  {
+    id: 'masculine',
+    title: 'גברי ועוצמתי (Masculine)',
+    subtitle: 'חד, עמוק, מסגרות מודגשות וחוזק',
+    description: 'גווני כחול נייבי עמוקים, ניגודיות גבוהה, צורות מגן (Shield), קווים ישרים ומשקל טיפוגרפי כבד.',
+    badge: 'מתאים לכושר, אבטחה, פיננסים ונדל״ן',
+    icon: Shield,
+    accentColor: '#2563eb',
+  },
+  {
+    id: 'spiritual',
+    title: 'רוחני ועדין (Spiritual)',
+    subtitle: 'שלווה, רוגע, לוטוס והשראה',
+    description: 'גווני סגול ולבנדר מרגיעים, הילות רכות, צורות לוטוס (Lotus), עומק מדיטטיבי ואווירה פיוטית.',
+    badge: 'מתאים ליוגה, טיפול, רוחניות וקהילות',
+    icon: Flower2,
+    accentColor: '#8b5cf6',
+  },
+  {
+    id: 'sharp',
+    title: 'חד וטכנולוגי (Sharp)',
+    subtitle: 'מינימליזם הייטקיסטי, זוויות 90 מעלות ודיוק',
+    description: 'ללא רדיוס פינות (0px), גרידים גיאומטריים חדים, זוויות ישרות, הדגשות טורקיז/ציאן וקווים חתוכים.',
+    badge: 'מתאים לתוכנה, סטארט-אפים, סייבר וטכנולוגיה',
+    icon: Compass,
+    accentColor: '#06b6d4',
+  },
+  {
+    id: 'analytical',
+    title: 'אנליטי ומדעי (Analytical)',
+    subtitle: 'נתונים, מדדים, ממשק HUD וגרפים',
+    description: 'מסגרות טכנולוגיות עם פינות חתוכות (HUD), הדגשות ירוק אמרלד, מוניטורים חיים והצגת מידע ברורה.',
+    badge: 'מתאים לדאטה, אנליטיקה, רפואה ומחקר',
+    icon: Cpu,
+    accentColor: '#10b981',
+  },
 ];
 
 export const DesignTokensSection: React.FC = () => {
@@ -342,6 +413,84 @@ export const DesignTokensSection: React.FC = () => {
               </button>
             ))}
           </div>
+        </div>
+      </div>
+
+      {/* 4. Tenant Default Style Preset */}
+      <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-5 shadow-lg space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">סגנון ברירת מחדל לטננט (Default Style Preset)</h3>
+              <p className="text-xs text-slate-400">בחר את שפת העיצוב שתוגדר כברירת המחדל של כל האזורים, דפי הנחיתה והטפסים במותג</p>
+            </div>
+          </div>
+          <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/20">
+            סנכרון גלובלי
+          </span>
+        </div>
+
+        <div className="flex flex-col space-y-2.5">
+          {TENANT_STYLE_OPTIONS.map((style) => {
+            const Icon = style.icon;
+            const isSelected = (tokens.defaultStylePreset || 'standard') === style.id;
+            return (
+              <button
+                key={style.id}
+                type="button"
+                onClick={() => updateDesignTokens({ defaultStylePreset: style.id })}
+                className={`w-full p-4 rounded-2xl border text-right transition-all flex items-start justify-between cursor-pointer group ${
+                  isSelected
+                    ? 'bg-amber-500/15 border-amber-500 shadow-md shadow-amber-500/10 ring-1 ring-amber-500/30'
+                    : 'bg-slate-900/60 border-slate-700/60 hover:bg-slate-900/90 hover:border-slate-600'
+                }`}
+              >
+                <div className="flex items-start gap-3.5">
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-transform group-hover:scale-105"
+                    style={{
+                      backgroundColor: `${style.accentColor}18`,
+                      borderColor: `${style.accentColor}40`,
+                      color: style.accentColor,
+                    }}
+                  >
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-xs font-black ${isSelected ? 'text-amber-300' : 'text-white'}`}>
+                        {style.title}
+                      </span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 border border-white/10 text-slate-300">
+                        {style.badge}
+                      </span>
+                    </div>
+                    <div className="text-[11px] font-bold text-slate-300">
+                      {style.subtitle}
+                    </div>
+                    <p className="text-[11px] text-slate-400 leading-relaxed max-w-xl">
+                      {style.description}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="shrink-0 mr-3 mt-1">
+                  <div
+                    className={`w-5 h-5 rounded-full border flex items-center justify-center transition-all ${
+                      isSelected
+                        ? 'border-amber-400 bg-amber-400 text-black shadow-sm shadow-amber-400/30'
+                        : 'border-slate-600 bg-slate-800 text-transparent'
+                    }`}
+                  >
+                    <Check className="w-3 h-3 stroke-[3]" />
+                  </div>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
