@@ -46,13 +46,12 @@ export async function executeCloudAi<T = any>(
   const model = options.model || 'gemini-3.8-flash';
   const timeoutMs = options.timeoutMs || 45000;
 
-  // Resolve API Key: provided key > master tenant key > tenant key > local fallback
+  // Resolve API Key: provided key > master tenant key > tenant key > env fallback
   const state = getTenantApiKeysState();
   const effectiveApiKey = (
     options.apiKey ||
     state.masterKeys?.googleAiApiKey ||
     state.tenantKeys?.googleAiApiKey ||
-    (typeof window !== 'undefined' ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '') : '') ||
     (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
     ''
   ).trim();

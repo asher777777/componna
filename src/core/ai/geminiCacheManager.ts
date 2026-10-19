@@ -63,7 +63,6 @@ export async function createExplicitContextCache(
     options.apiKey ||
     state.masterKeys?.googleAiApiKey ||
     state.tenantKeys?.googleAiApiKey ||
-    (typeof window !== 'undefined' ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '') : '') ||
     (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
     ''
   ).trim();
@@ -137,7 +136,6 @@ export async function deleteExplicitContextCache(
     apiKey ||
     state.masterKeys?.googleAiApiKey ||
     state.tenantKeys?.googleAiApiKey ||
-    (typeof window !== 'undefined' ? (localStorage.getItem('googleAiApiKey') || localStorage.getItem('geminiApiKey') || '') : '') ||
     (typeof import.meta !== 'undefined' && (import.meta as any).env?.VITE_GEMINI_API_KEY) ||
     ''
   ).trim();
