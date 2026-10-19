@@ -56,10 +56,21 @@ async function sendGreenApiMessage(params: GreenSendParams): Promise<{ idMessage
  * Helper providing green-api send methods for internal components
  */
 export function getGreenApiService() {
-  const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
+  const formCreds = getModuleGreenApiCredentials('smart-form-builder');
+  const whatsCreds = getModuleGreenApiCredentials('KosWhatsUp');
+  const instanceId = (whatsCreds.instanceId || formCreds.instanceId || '').trim();
+  const token = (whatsCreds.token || formCreds.token || '').trim();
+
   return {
     isConfigured: () => Boolean(instanceId && token),
     sendMessage: async (params: { chatId: string; message: string; mediaUrl?: string; fileName?: string }) => {
+      eventBus.publish('whatsapp:send', {
+        phone: params.chatId,
+        message: params.message,
+        mediaUrl: params.mediaUrl,
+        fileName: params.fileName,
+      });
+
       return sendGreenApiMessage({
         instanceId,
         token,
@@ -93,8 +104,11 @@ export async function processSubmissionWhatsAppAutomations(params: {
   }
 
   const logs: FormWhatsAppDeliveryLog[] = [];
-  const { instanceId, token } = getModuleGreenApiCredentials('smart-form-builder');
-  const targetDb = customFirestore || db;
+  const formCreds = getModuleGreenApiCredentials('smart-form-builder');
+  const whatsCreds = getModuleGreenApiCredentials('KosWhatsUp');
+  const instanceId = (whatsCreds.instanceId || formCreds.instanceId || '').trim();
+  const token = (whatsCreds.token || formCreds.token || '').trim();
+  const targetDb = customFirestore;
 
   const conta_phone =
     rawAnswers['conta_phone'] ||

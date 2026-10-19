@@ -7,6 +7,8 @@ export * from './services/aiFormService';
 export * from './services/formStorageService';
 export * from './services/submissionStorageService';
 export * from './services/whatsappTemplateService';
+export * from './services/whatsappTemplateStorageService';
+export * from './services/aiWhatsAppTemplateService';
 export * from './services/formWhatsAppService';
 export * from './context/SmartFormContext';
 export * from './context/useSmartForm';
