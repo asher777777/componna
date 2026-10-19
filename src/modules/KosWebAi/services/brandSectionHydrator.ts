@@ -406,21 +406,28 @@ export function hydrateSectionWithBrandDna(
 
     case 'kosvidioGallery': {
       cloned.source = cloned.source || 'tenant_kosvidio';
-      cloned.layout = cloned.layout || 'spotlight-grid';
+      cloned.layout = cloned.layout || 'standard';
+      cloned.viewMode = cloned.viewMode || 'spotlight-grid';
+      cloned.objectScale = cloned.objectScale || 'normal';
+      cloned.buttonShape = cloned.buttonShape || 'rounded';
+      cloned.buttonSize = cloned.buttonSize || 'md';
+      cloned.badge = companyName ? `• ${companyName} VIDEO •` : '• ספריית וידאו חכמה •';
       cloned.title = companyName ? `ספריית הוידאו והתוכן של ${companyName}` : 'ספריית הוידאו והתוכן';
-      cloned.subtitle = slogan || '';
+      cloned.subtitle = slogan || 'סרטונים, הדרכות ותוכן בלעדי';
       cloned.description =
         uvp ||
         (companyName
-          ? `צפו בסרטונים, בהדרכות ובתכנים של ${companyName} המקושרים ישירות לעמודי ה-KOSVIDIO של המותג.`
-          : '');
+          ? `צפו בסרטונים, בהדרכות ובתכנים המובילים של ${companyName}.`
+          : 'סרטונים, הדרכות ותוכן בלעדי');
       cloned.channelName = companyName;
       cloned.channelSlogan = slogan;
       cloned.channelAvatarUrl = logoUrl;
+      cloned.ctaButtonText = companyName ? `לכל הסרטונים של ${companyName}` : 'לכל הסרטונים וההדרכות';
+      cloned.ctaButtonUrl = '/kosvidio';
       if (primaryColor) {
         cloned.accentColor = primaryColor;
       }
-      // Never inject dummy/mock videos; videos are loaded from the tenant's real KOSVIDIO collection
+      // Never inject dummy/mock videos; videos are loaded from the tenant's real video collection
       cloned.items = [];
       break;
     }

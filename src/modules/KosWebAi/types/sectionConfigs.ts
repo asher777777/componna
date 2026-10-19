@@ -1267,13 +1267,27 @@ export interface FutureContentSectionConfig extends BaseSectionConfig {
   textColor?: string;
 }
 
-export type KosvidioGalleryLayout =
+export type KosvidioGalleryLayoutPreset =
+  | 'feminine'
+  | 'masculine'
+  | 'standard'
+  | 'current'
+  | 'spiritual'
+  | 'sharp'
+  | 'analytical'
+  | 'spotlight-grid'
+  | 'stacked-list'
+  | 'horizontal-scroll';
+
+export type KosvidioGalleryLayout = KosvidioGalleryLayoutPreset;
+
+export type KosvidioGalleryViewMode =
   | 'spotlight-grid'     // פריסה א: וידאו גדול ותחתיו כמה קטנים
   | 'stacked-list'       // רשימה זה תחת זה
   | 'horizontal-scroll'; // גלריה עם גלילה אופקית ללא גלישה
 
 export type KosvidioGallerySource =
-  | 'tenant_kosvidio'    // משיכה דינמית מקולקציית הטננט (KOSVIDIO / KosTube / עמודי וידאו)
+  | 'tenant_kosvidio'    // משיכה דינמית מקולקציית הטננט (עמודי וידאו / סרטוני ערוץ)
   | 'brand_services'     // משיכה דינמית משירותי המותג ב-DNA
   | 'custom';            // ניהול ידני של רשימת הסרטונים
 
@@ -1313,6 +1327,10 @@ export interface KosvidioGallerySectionConfig extends BaseSectionConfig {
   subtitle?: string;
   description?: string;
   layout: KosvidioGalleryLayout;
+  viewMode?: KosvidioGalleryViewMode;
+  objectScale?: 'compact' | 'normal' | 'spacious';
+  buttonShape?: 'pill' | 'rounded' | 'square';
+  buttonSize?: 'sm' | 'md' | 'lg';
   allowVisitorLayoutSwitch?: boolean;
   source: KosvidioGallerySource;
   logicRules?: KosvidioGalleryLogicRules;
@@ -1328,6 +1346,14 @@ export interface KosvidioGallerySectionConfig extends BaseSectionConfig {
   items: KosvidioGalleryItem[];
   ctaButtonText?: string;
   ctaButtonUrl?: string;
+
+  /** רקע של תמונה מאחורי הטקסט/הכרטיס עם שכבת רקע ואפקט עובר */
+  textBgEnabled?: boolean;
+  textBgImageUrl?: string;
+  textBgOverlayColor?: string;
+  textBgOverlayOpacity?: number;
+  textBgEffect?: HeroTextBgEffect;
+  textBgScope?: 'text-card' | 'full-section';
 }
 
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { KosunUniversalDock } from '../../../components/Navigation/KosunUniversalDock';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
-import { GlobalPageSettings, SeoSettings, PageBuilderConfig } from '../types/pageBuilder.types';
+import { GlobalPageSettings, SeoSettings, PageBuilderConfig, PageDesignSnapshot } from '../types/pageBuilder.types';
 import { pageBuilderFirestore } from '../services/pageBuilderFirestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
@@ -26,6 +26,10 @@ export interface KosWebAiFrontDockProps {
   onUpdateSeoSettings?: (updated: SeoSettings) => void;
   pageTitle?: string;
   pageSections?: any[];
+  sections?: Record<string, any>;
+  onUpdateSections?: (sections: Record<string, any>) => void;
+  designSnapshots?: PageDesignSnapshot[];
+  onUpdateDesignSnapshots?: (snapshots: PageDesignSnapshot[]) => void;
 }
 
 /**
@@ -50,6 +54,10 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
   onUpdateSeoSettings,
   pageTitle,
   pageSections,
+  sections: propSections,
+  onUpdateSections,
+  designSnapshots: propDesignSnapshots,
+  onUpdateDesignSnapshots,
 }) => {
   const { db } = useSystemConnection();
   const [isSeoDrawerOpen, setIsSeoDrawerOpen] = useState(false);
@@ -173,15 +181,21 @@ export const KosWebAiFrontDock: React.FC<KosWebAiFrontDockProps> = ({
         onUpdateSeoSettings={handleUpdateSeo}
         pageTitle={pageTitle || resolvedPage?.pageTitle || 'עמוד'}
         pageSections={pageSections || (resolvedPage?.sections ? Object.values(resolvedPage.sections) : [])}
-        sections={resolvedPage?.sections}
+        sections={propSections || resolvedPage?.sections}
         onUpdateSections={(updatedSections) => {
+          if (onUpdateSections) {
+            onUpdateSections(updatedSections);
+          }
           if (resolvedPage) {
             const next = { ...resolvedPage, sections: updatedSections };
             pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);
           }
         }}
-        designSnapshots={resolvedPage?.designSnapshots}
+        designSnapshots={propDesignSnapshots || resolvedPage?.designSnapshots}
         onUpdateDesignSnapshots={(updatedSnapshots) => {
+          if (onUpdateDesignSnapshots) {
+            onUpdateDesignSnapshots(updatedSnapshots);
+          }
           if (resolvedPage) {
             const next = { ...resolvedPage, designSnapshots: updatedSnapshots };
             pageBuilderFirestore.savePage(next, db, tenantId).catch(console.warn);

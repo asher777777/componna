@@ -4,7 +4,9 @@ import { collection, getDocs } from 'firebase/firestore';
 import {
   KosvidioGallerySectionConfig,
   KosvidioGalleryItem,
-  KosvidioGalleryLayout,
+  KosvidioGalleryLayoutPreset,
+  KosvidioGalleryViewMode,
+  HeroTextBgEffect,
 } from '../../types/sectionConfigs';
 import { getCategoryFromPage } from '../../types/pageBuilder.types';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
@@ -68,7 +70,7 @@ function isDummyVideoItem(item?: Partial<KosvidioGalleryItem> | null): boolean {
   return false;
 }
 
-function buildKosvidioHref(slugOrUrl?: string): string {
+function buildVideoHref(slugOrUrl?: string): string {
   if (!slugOrUrl) return '/kosvidio';
   let clean = slugOrUrl.trim().replace(/^\/?p\//i, '').replace(/^\/+/, '');
   if (!clean || clean.toLowerCase() === 'kosvidio') {
@@ -135,12 +137,16 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
   const brandPrimaryColor = liveBrand?.designTokens?.primaryColor || '#ef4444';
 
   const {
-    anchorId = 'kosvidio-gallery',
-    badge = 'KOSVIDIO • גלריית וידאו חכמה',
+    anchorId = 'video-library',
+    badge,
     title,
     subtitle,
     description,
-    layout: initialLayout = 'spotlight-grid',
+    layout: rawLayout = 'standard',
+    viewMode: rawViewMode = 'spotlight-grid',
+    objectScale = 'normal',
+    buttonShape = 'rounded',
+    buttonSize = 'md',
     allowVisitorLayoutSwitch = false,
     source = 'tenant_kosvidio',
     logicRules,
@@ -155,8 +161,15 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
     accentColor,
     cardBgColor = '#111827',
     items = [],
-    ctaButtonText = 'לכל סרטוני הערוץ (KOSVIDIO)',
+    ctaButtonText,
     ctaButtonUrl = '/kosvidio',
+
+    textBgEnabled,
+    textBgImageUrl,
+    textBgOverlayColor = '#000000',
+    textBgOverlayOpacity = 60,
+    textBgEffect = 'zoom-glow',
+    textBgScope = 'text-card',
   } = config;
 
   // Cleanse any accidental _master text leakage when running on a subdomain tenant
@@ -188,30 +201,248 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
     cleanedDescription ||
     brandUvp ||
     (brandCompanyName
-      ? `צפו בסרטונים, בהדרכות ובמאמרי הוידאו של ${brandCompanyName} המקושרים ישירות לעמודי ה-KOSVIDIO של העסק.`
-      : '');
+      ? `צפו בסרטונים, בהדרכות ובמאמרי הוידאו המובילים של ${brandCompanyName}.`
+      : 'סרטונים, הדרכות ותוכן בלעדי');
   const effectiveChannelName = cleanedChannelName || brandCompanyName;
   const effectiveChannelSlogan = cleanedChannelSlogan || brandSlogan;
   const effectiveChannelAvatar = cleanedAvatarUrl || brandLogoUrl;
-  const effectiveAccent = accentColor || brandPrimaryColor || '#ef4444';
+
+  const effectiveBadge =
+    badge || (brandCompanyName ? `• ${brandCompanyName} VIDEO •` : '• ספריית וידאו חכמה •');
+  const effectiveCtaText =
+    ctaButtonText || (brandCompanyName ? `לכל הסרטונים של ${brandCompanyName}` : 'לכל סרטוני הערוץ');
+
+  // Determine layout style preset vs view mode
+  const effectiveLayoutStyle: 'feminine' | 'masculine' | 'standard' | 'spiritual' | 'sharp' | 'analytical' = useMemo(() => {
+    if (
+      rawLayout === 'feminine' ||
+      rawLayout === 'masculine' ||
+      rawLayout === 'spiritual' ||
+      rawLayout === 'sharp' ||
+      rawLayout === 'analytical'
+    ) {
+      return rawLayout;
+    }
+    return 'standard';
+  }, [rawLayout]);
+
+  const initialViewMode: 'spotlight-grid' | 'stacked-list' | 'horizontal-scroll' = useMemo(() => {
+    if (rawLayout === 'spotlight-grid' || rawLayout === 'stacked-list' || rawLayout === 'horizontal-scroll') {
+      return rawLayout;
+    }
+    return rawViewMode || 'spotlight-grid';
+  }, [rawLayout, rawViewMode]);
+
+  const [activeLayout, setActiveLayout] = useState<'spotlight-grid' | 'stacked-list' | 'horizontal-scroll'>(initialViewMode);
+
+  useEffect(() => {
+    setActiveLayout(initialViewMode);
+  }, [initialViewMode]);
+
+  // Style Themes
+  const getThemeClasses = () => {
+    switch (effectiveLayoutStyle) {
+      case 'feminine':
+        return {
+          wrapper: 'font-sans',
+          badge: 'bg-rose-500/15 text-rose-300 border-rose-400/30 rounded-full px-4 py-1.5 shadow-sm',
+          title: 'font-serif text-rose-50 drop-shadow-sm',
+          subtitle: 'text-rose-200/80',
+          card: 'bg-gradient-to-b from-rose-950/40 via-slate-950 to-slate-950 border border-rose-500/20 hover:border-rose-400/50 rounded-[2.2rem] shadow-[0_15px_40px_rgba(244,63,94,0.12)]',
+          spotlightCard: 'rounded-[2.5rem] border border-rose-500/30 shadow-[0_20px_50px_rgba(244,63,94,0.2)]',
+          videoThumbRadius: 'rounded-[2rem]',
+          tag: 'bg-rose-500/15 text-rose-300 border border-rose-500/30 rounded-full',
+          playBtn: 'rounded-full bg-gradient-to-tr from-rose-600 to-pink-500 shadow-[0_0_30px_rgba(244,63,94,0.6)]',
+          accent: '#f43f5e',
+          channelBadge: 'border-rose-400/30 bg-rose-950/60 rounded-full',
+        };
+      case 'masculine':
+        return {
+          wrapper: 'font-sans',
+          badge: 'bg-amber-500/15 text-amber-300 border-amber-500/40 rounded-lg px-3.5 py-1 uppercase tracking-wider',
+          title: 'font-black tracking-tight text-white drop-shadow-md',
+          subtitle: 'text-slate-300 font-medium',
+          card: 'bg-gradient-to-b from-zinc-900 via-zinc-950 to-black border-2 border-zinc-800 hover:border-amber-500/60 rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.85)]',
+          spotlightCard: 'rounded-2xl border-2 border-amber-500/40 shadow-[0_25px_60px_rgba(0,0,0,0.9)]',
+          videoThumbRadius: 'rounded-xl',
+          tag: 'bg-zinc-800 text-amber-300 border border-amber-500/30 rounded-md font-bold',
+          playBtn: 'rounded-xl bg-gradient-to-tr from-amber-600 to-yellow-500 shadow-[0_0_30px_rgba(245,158,11,0.6)]',
+          accent: '#f59e0b',
+          channelBadge: 'border-amber-500/40 bg-zinc-900 rounded-xl',
+        };
+      case 'spiritual':
+        return {
+          wrapper: 'font-sans',
+          badge: 'bg-emerald-500/15 text-emerald-300 border-emerald-400/30 rounded-full px-4 py-1.5',
+          title: 'font-light tracking-wide text-emerald-50 drop-shadow-sm',
+          subtitle: 'text-emerald-200/70',
+          card: 'bg-gradient-to-b from-emerald-950/40 to-slate-950 border border-emerald-500/20 hover:border-emerald-400/50 rounded-[2.5rem] shadow-[0_15px_45px_rgba(16,185,129,0.12)]',
+          spotlightCard: 'rounded-[2.8rem] border border-emerald-500/30 shadow-[0_20px_55px_rgba(16,185,129,0.18)]',
+          videoThumbRadius: 'rounded-[2.2rem]',
+          tag: 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 rounded-full',
+          playBtn: 'rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 shadow-[0_0_30px_rgba(16,185,129,0.5)]',
+          accent: '#10b981',
+          channelBadge: 'border-emerald-400/30 bg-emerald-950/60 rounded-full',
+        };
+      case 'sharp':
+        return {
+          wrapper: 'font-sans',
+          badge: 'bg-cyan-950/80 text-cyan-300 border-2 border-cyan-500/60 rounded-none px-3 py-1 font-mono text-[10px]',
+          title: 'font-mono font-black tracking-tighter text-white drop-shadow-[0_0_15px_rgba(6,182,212,0.4)]',
+          subtitle: 'text-cyan-200/80 font-mono text-xs',
+          card: 'bg-black border-2 border-cyan-500/30 hover:border-cyan-400 rounded-none shadow-[0_0_25px_rgba(6,182,212,0.18)]',
+          spotlightCard: 'rounded-none border-2 border-cyan-400 shadow-[0_0_35px_rgba(6,182,212,0.3)]',
+          videoThumbRadius: 'rounded-none',
+          tag: 'bg-cyan-950 text-cyan-300 border border-cyan-500/50 rounded-none font-mono text-[10px]',
+          playBtn: 'rounded-none bg-cyan-500 text-black shadow-[0_0_30px_rgba(6,182,212,0.8)]',
+          accent: '#06b6d4',
+          channelBadge: 'border-cyan-500/60 bg-black rounded-none',
+        };
+      case 'analytical':
+        return {
+          wrapper: 'font-sans',
+          badge: 'bg-blue-950/60 text-blue-300 border border-blue-500/40 rounded-md px-3 py-1 font-mono text-xs',
+          title: 'font-extrabold tracking-tight text-white border-r-4 border-blue-500 pr-3',
+          subtitle: 'text-slate-400 font-mono text-xs',
+          card: 'bg-slate-900/90 border border-slate-700/80 hover:border-blue-400/60 rounded-lg shadow-md',
+          spotlightCard: 'rounded-xl border border-blue-500/40 shadow-xl',
+          videoThumbRadius: 'rounded-lg',
+          tag: 'bg-slate-800 text-blue-300 border border-blue-600/40 rounded-md font-mono text-[11px]',
+          playBtn: 'rounded-lg bg-blue-600 text-white shadow-[0_0_25px_rgba(37,99,235,0.5)]',
+          accent: '#3b82f6',
+          channelBadge: 'border-blue-500/40 bg-slate-900 rounded-md',
+        };
+      case 'standard':
+      default:
+        return {
+          wrapper: 'font-sans',
+          badge: 'bg-indigo-500/15 text-indigo-300 border-indigo-400/30 rounded-full px-4 py-1.5',
+          title: 'font-black tracking-tight text-white',
+          subtitle: 'text-slate-300',
+          card: 'bg-slate-900/80 border border-slate-800 hover:border-indigo-500/40 rounded-2xl shadow-xl',
+          spotlightCard: 'rounded-3xl border border-white/10 shadow-2xl',
+          videoThumbRadius: 'rounded-2xl',
+          tag: 'bg-slate-800 text-slate-200 border border-slate-700 rounded-lg',
+          playBtn: 'rounded-full bg-red-600 text-white shadow-[0_0_35px_rgba(239,68,68,0.6)]',
+          accent: '#ef4444',
+          channelBadge: 'border-slate-800 bg-slate-900 rounded-2xl',
+        };
+    }
+  };
+
+  const theme = getThemeClasses();
+  const effectiveAccent = accentColor || brandPrimaryColor || theme.accent;
+
+  // Scale settings
+  const getScaleClasses = () => {
+    switch (objectScale) {
+      case 'compact':
+        return {
+          headerGap: 'space-y-2 mb-6',
+          titleSize: 'text-2xl sm:text-3xl',
+          subSize: 'text-xs sm:text-sm',
+          cardPadding: 'p-3',
+          cardGrid: 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3',
+          cardTitle: 'text-xs font-bold line-clamp-1',
+          cardDesc: 'text-[11px] line-clamp-1',
+          iconSize: 'w-3.5 h-3.5',
+          spotlightPlay: 'w-14 h-14',
+          itemPlay: 'w-10 h-10',
+        };
+      case 'spacious':
+        return {
+          headerGap: 'space-y-4 mb-12',
+          titleSize: 'text-4xl sm:text-5xl md:text-6xl',
+          subSize: 'text-base sm:text-lg',
+          cardPadding: 'p-5 sm:p-6',
+          cardGrid: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6',
+          cardTitle: 'text-base sm:text-lg font-black line-clamp-2',
+          cardDesc: 'text-sm line-clamp-3',
+          iconSize: 'w-5 h-5',
+          spotlightPlay: 'w-24 h-24',
+          itemPlay: 'w-16 h-16',
+        };
+      case 'normal':
+      default:
+        return {
+          headerGap: 'space-y-3 mb-8',
+          titleSize: 'text-3xl sm:text-4xl md:text-5xl',
+          subSize: 'text-sm sm:text-base',
+          cardPadding: 'p-4',
+          cardGrid: 'grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4',
+          cardTitle: 'text-sm sm:text-base font-bold line-clamp-2',
+          cardDesc: 'text-xs line-clamp-2',
+          iconSize: 'w-4 h-4',
+          spotlightPlay: 'w-20 h-20',
+          itemPlay: 'w-14 h-14',
+        };
+    }
+  };
+  const scale = getScaleClasses();
+
+  // Button Shape
+  const getButtonShapeClass = () => {
+    if (buttonShape === 'pill') return 'rounded-full';
+    if (buttonShape === 'square') return 'rounded-none';
+    if (buttonShape === 'rounded') return 'rounded-2xl';
+    switch (effectiveLayoutStyle) {
+      case 'feminine':
+      case 'spiritual':
+        return 'rounded-full';
+      case 'masculine':
+        return 'rounded-xl';
+      case 'sharp':
+        return 'rounded-none';
+      case 'analytical':
+        return 'rounded-lg';
+      default:
+        return 'rounded-2xl';
+    }
+  };
+
+  // Button Size
+  const getButtonSizeClass = () => {
+    switch (buttonSize) {
+      case 'sm':
+        return 'px-4 py-2 text-xs';
+      case 'lg':
+        return 'px-8 py-4 text-base font-black';
+      case 'md':
+      default:
+        return 'px-6 py-3 text-sm font-bold';
+    }
+  };
+
+  // Text Background Hover Effect
+  const getTextBgEffectClass = (eff: HeroTextBgEffect) => {
+    switch (eff) {
+      case 'zoom-glow':
+        return 'group-hover/textbg:scale-105 group-hover/textbg:brightness-110 transition-all duration-700';
+      case 'shimmer-sweep':
+        return 'after:absolute after:inset-0 after:bg-gradient-to-r after:from-transparent after:via-white/25 after:to-transparent after:-translate-x-full group-hover/textbg:after:translate-x-full after:transition-transform after:duration-1000';
+      case 'float-parallax':
+        return 'group-hover/textbg:-translate-y-1 group-hover/textbg:scale-[1.01] transition-all duration-500';
+      case 'blur-reveal':
+        return 'blur-[2px] group-hover/textbg:blur-0 transition-all duration-500';
+      case 'gradient-shift':
+        return 'group-hover/textbg:contrast-125 transition-all duration-700';
+      default:
+        return 'transition-transform duration-500 group-hover/textbg:scale-105';
+    }
+  };
 
   const cleanCustomItems = useMemo(
     () => (Array.isArray(items) ? items.filter((item) => !isDummyVideoItem(item)) : []),
     [items]
   );
 
-  const [activeLayout, setActiveLayout] = useState<KosvidioGalleryLayout>(initialLayout);
   const [rawResolvedItems, setRawResolvedItems] = useState<KosvidioGalleryItem[]>(cleanCustomItems);
   const [selectedVideoId, setSelectedVideoId] = useState<string | null>(null);
   const [playingVideoId, setPlayingVideoId] = useState<string | null>(null);
 
   const horizontalScrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setActiveLayout(initialLayout);
-  }, [initialLayout]);
-
-  // Dynamic collection fetching from Tenant KOSVIDIO / KosTube / Pages (Strictly Real Videos Only)
+  // Dynamic collection fetching from Tenant Videos (Strictly Real Videos Only)
   useEffect(() => {
     let isMounted = true;
 
@@ -223,52 +454,45 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         return;
       }
 
-      // Pull from tenant's real KOSVIDIO collections (mod_kos_tube_pages, kos_web_ai_documents, mod_kos_tube_videos)
+      if (!db) {
+        if (isMounted) setRawResolvedItems(cleanCustomItems);
+        return;
+      }
+
       const collected: KosvidioGalleryItem[] = [];
       const seenYoutubeIds = new Set<string>();
-      const seenDocIds = new Set<string>();
+      const tenantPrefix = isMaster ? 'tenants/_master' : `tenants/${effTenant}`;
 
       try {
-        const tenantPrefix = isMaster ? 'tenants/_master' : `tenants/${effTenant}`;
+        const tubePagesRef = collection(db, `${tenantPrefix}/${SYSTEM_COLLECTIONS.KOS_TUBE_PAGES}`);
+        const tubePagesSnap = await getDocs(tubePagesRef);
+        tubePagesSnap.forEach((docSnap) => {
+          const d = docSnap.data() as any;
+          if (!d) return;
+          const ytId = extractYouTubeId(d.youtubeVideoId);
+          if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) return;
+          seenYoutubeIds.add(ytId);
+          collected.push({
+            id: `tube_page_${docSnap.id}`,
+            title: d.seoTitle || d.title || `סרטון של ${brandCompanyName || 'הערוץ'}`,
+            subtitle: brandCompanyName,
+            description: d.summary || d.metaDescription || '',
+            youtubeVideoId: ytId,
+            thumbnailUrl: d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
+            kosvidioSlug: d.slug || `kosvidio-${ytId}`,
+            viewsCount: Number(d.viewsCount || 150),
+            likesCount: Number(d.likesCount || 30),
+            publishedAt: d.publishedAt || d.createdAt || '',
+            category: d.category || brandCompanyName || 'וידאו',
+            tags: Array.isArray(d.tags) ? d.tags : ['וידאו', brandCompanyName].filter(Boolean),
+            featured: collected.length === 0,
+          });
+        });
+      } catch {
+        // ignore
+      }
 
-        // 1. Primary source: Firestore mod_kos_tube_pages under current tenant
-        if (db) {
-          try {
-            const tubePagesRef = collection(db, `${tenantPrefix}/${SYSTEM_COLLECTIONS.KOS_TUBE_PAGES}`);
-            const tubePagesSnap = await getDocs(tubePagesRef);
-            tubePagesSnap.forEach((docSnap) => {
-              const d = docSnap.data() as any;
-              if (!d) return;
-              const ytId = extractYouTubeId(d.youtubeVideoId);
-              if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId)) return;
-              if (seenYoutubeIds.has(ytId)) return;
-              seenYoutubeIds.add(ytId);
-
-              const idKey = `tube_page_${docSnap.id}`;
-              seenDocIds.add(idKey);
-              collected.push({
-                id: idKey,
-                title: d.seoTitle || d.title || 'סרטון KOSVIDIO',
-                subtitle: brandCompanyName || effectiveChannelName,
-                description: d.summary || d.metaDescription || '',
-                youtubeVideoId: ytId,
-                thumbnailUrl:
-                  d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
-                kosvidioSlug: d.slug || ytId,
-                viewsCount: Number(d.viewsCount || 150),
-                likesCount: Number(d.likesCount || 30),
-                publishedAt: d.publishedAt || d.createdAt || '',
-                category: d.category || 'KOSVIDIO',
-                tags: Array.isArray(d.tags) ? d.tags : ['KOSVIDIO'],
-                featured: collected.length === 0,
-              });
-            });
-          } catch {
-            // Ignore if collection does not exist yet
-          }
-        }
-
-        // 2. Secondary source: Tenant PageBuilder pages dedicated to KOSVIDIO
+      try {
         const allPages = await pageBuilderFirestore.getAllPages(db, effTenant);
         const videoPages = (allPages || []).filter((p) => {
           if (!p || p.isHomePage) return false;
@@ -285,94 +509,41 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         });
 
         for (const p of videoPages) {
-          const kosvidioSec = Object.values(p.sections || {}).find(
-            (s: any) => s && s.type === 'kosvidio'
+          const vidSec = Object.values(p.sections || {}).find(
+            (s: any) => s && (s.type === 'kosvidio' || s.type === 'videoGallery' || s.type === 'videoEngagement')
           ) as any;
           const pageIdSuffix = String(p.pageId || '').replace(/^page_kosvidio_/, '');
           const ytId =
-            extractYouTubeId(kosvidioSec?.youtubeVideoId) ||
-            extractYouTubeId(kosvidioSec?.videoUrl) ||
+            extractYouTubeId(vidSec?.youtubeVideoId) ||
+            extractYouTubeId(vidSec?.videoUrl) ||
             extractYouTubeId(pageIdSuffix);
-          if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId)) continue;
-          if (seenYoutubeIds.has(ytId)) continue;
+          if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId) || seenYoutubeIds.has(ytId)) continue;
           seenYoutubeIds.add(ytId);
 
-          const itemId = p.pageId || `page_${p.slug}`;
-          seenDocIds.add(itemId);
           collected.push({
-            id: itemId,
-            title: kosvidioSec?.title || p.pageTitle || 'סרטון KOSVIDIO',
-            subtitle:
-              cleanConfigText(kosvidioSec?.channelName) || brandCompanyName || effectiveChannelName,
-            description:
-              kosvidioSec?.shortDescription ||
-              p.seoSettings?.description ||
-              (brandCompanyName ? `עמוד וידאו ומאמר מתוך ${brandCompanyName}` : ''),
+            id: p.pageId || `page_${p.slug}`,
+            title: vidSec?.title || p.pageTitle || `סרטון של ${brandCompanyName || 'הערוץ'}`,
+            subtitle: brandCompanyName,
+            description: vidSec?.shortDescription || vidSec?.description || p.seoSettings?.description || '',
             youtubeVideoId: ytId,
-            videoUrl: kosvidioSec?.videoUrl,
+            videoUrl: vidSec?.videoUrl,
             thumbnailUrl:
               p.seoSettings?.ogImage || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
             kosvidioSlug: p.slug || `kosvidio-${ytId}`,
-            viewsCount: Number(kosvidioSec?.viewsCount || p.viewsCount || 120),
-            likesCount: Number(kosvidioSec?.likesCount || 24),
-            publishedAt: kosvidioSec?.publishedDateText || p.updatedAt || '',
-            category: 'KOSVIDIO',
-            tags: Array.isArray(kosvidioSec?.tags)
-              ? kosvidioSec.tags
-              : ['KOSVIDIO', brandCompanyName].filter(Boolean),
+            viewsCount: Number(vidSec?.viewsCount || p.viewsCount || 120),
+            likesCount: Number(vidSec?.likesCount || 24),
+            publishedAt: vidSec?.publishedDateText || p.updatedAt || '',
+            category: brandCompanyName || 'וידאו',
+            tags: ['וידאו', brandCompanyName].filter(Boolean),
             featured: collected.length === 0,
           });
         }
-
-        // 3. Tertiary source: Processed videos in mod_kos_tube_videos not yet added
-        if (db) {
-          try {
-            const tubeVideosRef = collection(db, `${tenantPrefix}/${SYSTEM_COLLECTIONS.KOS_TUBE_VIDEOS}`);
-            const tubeVideosSnap = await getDocs(tubeVideosRef);
-            tubeVideosSnap.forEach((docSnap) => {
-              const d = docSnap.data() as any;
-              if (!d || d.status !== 'processed') return;
-              const ytId = extractYouTubeId(d.youtubeVideoId || docSnap.id.replace(/^vid_/, ''));
-              if (!ytId || DUMMY_YOUTUBE_IDS.has(ytId)) return;
-              if (seenYoutubeIds.has(ytId)) return;
-              seenYoutubeIds.add(ytId);
-
-              const idKey = `tube_vid_${docSnap.id}`;
-              seenDocIds.add(idKey);
-              collected.push({
-                id: idKey,
-                title: d.title || 'סרטון ערוץ',
-                subtitle: d.channelTitle || brandCompanyName || effectiveChannelName,
-                description: d.description || '',
-                youtubeVideoId: ytId,
-                thumbnailUrl:
-                  d.thumbnailUrl || `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`,
-                kosvidioSlug: d.seoPageSlug || d.slug || ytId,
-                duration: d.duration || '',
-                viewsCount: Number(d.viewCount || d.viewsCount || 100),
-                likesCount: Number(d.likeCount || d.likesCount || 18),
-                publishedAt: d.publishedAt || '',
-                category: 'KOSVIDIO',
-                tags: Array.isArray(d.tags) ? d.tags : ['KOSVIDIO'],
-                featured: collected.length === 0,
-              });
-            });
-          } catch {
-            // Ignore if collection does not exist yet
-          }
-        }
-      } catch (err) {
-        console.warn('[KosvidioGallerySection] Dynamic fetch error:', err);
+      } catch {
+        // ignore
       }
 
-      if (!isMounted) return;
-
-      if (collected.length > 0) {
-        setRawResolvedItems(collected);
-      } else if (cleanCustomItems.length > 0) {
-        setRawResolvedItems(cleanCustomItems);
-      } else {
-        setRawResolvedItems([]);
+      if (isMounted) {
+        setRawResolvedItems(collected.length > 0 ? collected : cleanCustomItems);
       }
     }
 
@@ -380,103 +551,87 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
     return () => {
       isMounted = false;
     };
-  }, [source, db, effTenant, isMaster, cleanCustomItems, brandCompanyName, effectiveChannelName]);
+  }, [db, effTenant, isMaster, source, brandCompanyName, cleanCustomItems]);
 
-  // Apply logical rules (filterTag, filterKeyword, minViews, sortBy, and maxVideos limit)
-  const displayedVideos = useMemo(() => {
+  // Apply logic filtering & sorting
+  const finalVideos = useMemo(() => {
     let list = [...rawResolvedItems];
 
-    const rules = logicRules || {};
-    const effectiveLimit = Number(rules.maxVideos || maxVideos || 6);
-
-    if (rules.filterTag && rules.filterTag.trim() !== '') {
-      const tagNeedle = rules.filterTag.trim().toLowerCase();
+    if (logicRules?.filterKeyword && logicRules.filterKeyword.trim()) {
+      const q = logicRules.filterKeyword.trim().toLowerCase();
       list = list.filter(
         (v) =>
-          v.category?.toLowerCase().includes(tagNeedle) ||
-          v.tags?.some((t) => t.toLowerCase().includes(tagNeedle)) ||
-          v.title?.toLowerCase().includes(tagNeedle)
+          v.title?.toLowerCase().includes(q) ||
+          v.description?.toLowerCase().includes(q) ||
+          v.tags?.some((t) => t.toLowerCase().includes(q))
       );
     }
 
-    if (rules.filterKeyword && rules.filterKeyword.trim() !== '') {
-      const kw = rules.filterKeyword.trim().toLowerCase();
-      list = list.filter(
-        (v) =>
-          v.title?.toLowerCase().includes(kw) ||
-          v.subtitle?.toLowerCase().includes(kw) ||
-          v.description?.toLowerCase().includes(kw)
-      );
+    if (logicRules?.filterTag && logicRules.filterTag.trim()) {
+      const t = logicRules.filterTag.trim().toLowerCase();
+      list = list.filter((v) => v.tags?.some((tag) => tag.toLowerCase() === t));
     }
 
-    if (typeof rules.minViews === 'number' && rules.minViews > 0) {
-      list = list.filter((v) => (v.viewsCount || 0) >= rules.minViews!);
+    if (typeof logicRules?.minViews === 'number' && logicRules.minViews > 0) {
+      list = list.filter((v) => Number(v.viewsCount || 0) >= (logicRules.minViews || 0));
     }
 
-    const sortMode = rules.sortBy || 'newest';
-    if (sortMode === 'most_views') {
-      list.sort((a, b) => (b.viewsCount || 0) - (a.viewsCount || 0));
-    } else if (sortMode === 'most_likes') {
-      list.sort((a, b) => (b.likesCount || 0) - (a.likesCount || 0));
-    } else if (sortMode === 'title_asc') {
-      list.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'he'));
-    }
+    const sortBy = logicRules?.sortBy || 'newest';
+    list.sort((a, b) => {
+      if (sortBy === 'most_views') {
+        return Number(b.viewsCount || 0) - Number(a.viewsCount || 0);
+      }
+      if (sortBy === 'most_likes') {
+        return Number(b.likesCount || 0) - Number(a.likesCount || 0);
+      }
+      if (sortBy === 'title_asc') {
+        return (a.title || '').localeCompare(b.title || '', 'he');
+      }
+      return 0;
+    });
 
-    return list.slice(0, Math.max(1, effectiveLimit));
+    const limit = logicRules?.maxVideos || maxVideos || 6;
+    return list.slice(0, limit);
   }, [rawResolvedItems, logicRules, maxVideos]);
 
-  // Active spotlight video (defaults to first video in displayedVideos)
   const activeSpotlightVideo = useMemo(() => {
-    if (displayedVideos.length === 0) return null;
     if (selectedVideoId) {
-      const found = displayedVideos.find((v) => v.id === selectedVideoId);
+      const found = finalVideos.find((v) => v.id === selectedVideoId);
       if (found) return found;
     }
-    return displayedVideos[0];
-  }, [displayedVideos, selectedVideoId]);
-
-  const subVideos = useMemo(() => {
-    if (displayedVideos.length <= 1) return [];
-    const activeId = activeSpotlightVideo?.id;
-    return displayedVideos.filter((v) => v.id !== activeId);
-  }, [displayedVideos, activeSpotlightVideo]);
+    const feat = finalVideos.find((v) => v.featured);
+    return feat || finalVideos[0] || null;
+  }, [finalVideos, selectedVideoId]);
 
   const handleSelectVideo = (video: KosvidioGalleryItem, autoPlay = true) => {
-    if (clickBehavior === 'navigate_slug' && video.kosvidioSlug) {
-      window.location.href = buildKosvidioHref(video.kosvidioSlug);
-      return;
-    }
     setSelectedVideoId(video.id);
     if (autoPlay) {
       setPlayingVideoId(video.id);
     }
-  };
-
-  const scrollHorizontal = (dir: 'right' | 'left') => {
-    if (!horizontalScrollRef.current) return;
-    const distance = dir === 'left' ? -380 : 380;
-    horizontalScrollRef.current.scrollBy({ left: distance, behavior: 'smooth' });
+    if (clickBehavior === 'navigate_slug' && video.kosvidioSlug) {
+      window.location.href = buildVideoHref(video.kosvidioSlug);
+    }
   };
 
   const getThumbnail = (v: KosvidioGalleryItem) => {
-    if (v.thumbnailUrl && v.thumbnailUrl.trim() !== '') return v.thumbnailUrl;
+    if (v.thumbnailUrl) return v.thumbnailUrl;
     const ytId = extractYouTubeId(v.youtubeVideoId || v.videoUrl);
     if (ytId) return `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
-    return 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80';
+    return 'https://images.unsplash.com/photo-1518173946687-a4c8a383392e?auto=format&fit=crop&w=800&q=80';
   };
 
-  const renderVideoEmbedOrThumbnail = (
+  const renderVideoPlayerOrThumbnail = (
     video: KosvidioGalleryItem,
     isLargeSpotlight = false
   ) => {
-    const isPlaying = playingVideoId === video.id;
     const ytId = extractYouTubeId(video.youtubeVideoId || video.videoUrl);
+    const isPlaying = playingVideoId === video.id;
     const thumb = getThumbnail(video);
-    const slugHref = buildKosvidioHref(video.kosvidioSlug || 'Kosvidio');
+    const slugHref = buildVideoHref(video.kosvidioSlug);
 
     if (isPlaying && ytId) {
       return (
-        <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <div className={clsx("relative w-full aspect-video bg-black overflow-hidden shadow-2xl", theme.videoThumbRadius)}>
           <iframe
             src={`https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`}
             title={video.title}
@@ -490,7 +645,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
 
     if (isPlaying && video.videoUrl) {
       return (
-        <div className="relative w-full aspect-video bg-black rounded-2xl overflow-hidden shadow-2xl">
+        <div className={clsx("relative w-full aspect-video bg-black overflow-hidden shadow-2xl", theme.videoThumbRadius)}>
           <video src={video.videoUrl} controls autoPlay className="w-full h-full object-cover" />
         </div>
       );
@@ -499,7 +654,10 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
     return (
       <div
         onClick={() => handleSelectVideo(video, true)}
-        className="group relative w-full aspect-video bg-slate-900 rounded-2xl overflow-hidden cursor-pointer select-none"
+        className={clsx(
+          "group relative w-full aspect-video bg-slate-900 overflow-hidden cursor-pointer select-none",
+          theme.videoThumbRadius
+        )}
       >
         <img
           src={thumb}
@@ -512,11 +670,11 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         {/* Top Badges */}
         <div className="absolute top-3 right-3 left-3 flex items-center justify-between gap-2 pointer-events-none">
           <span
-            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold text-white shadow-lg backdrop-blur-md"
+            className={clsx("inline-flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold text-white shadow-lg backdrop-blur-md", theme.tag)}
             style={{ backgroundColor: `${effectiveAccent}e6` }}
           >
             <Video className="w-3 h-3" />
-            <span>{video.category || 'KOSVIDIO'}</span>
+            <span>{video.category || effectiveChannelName || 'וידאו'}</span>
           </span>
 
           {video.duration && (
@@ -531,15 +689,15 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         <div className="absolute inset-0 flex items-center justify-center">
           <div
             className={clsx(
-              'rounded-full flex items-center justify-center text-white shadow-2xl transition-all duration-300 group-hover:scale-110',
-              isLargeSpotlight ? 'w-20 h-20' : 'w-14 h-14'
+              'flex items-center justify-center text-white shadow-2xl transition-all duration-300 group-hover:scale-110',
+              theme.playBtn,
+              isLargeSpotlight ? scale.spotlightPlay : scale.itemPlay
             )}
             style={{
-              backgroundColor: effectiveAccent,
               boxShadow: `0 0 35px ${effectiveAccent}80`,
             }}
           >
-            <Play className={clsx('fill-current ml-0.5', isLargeSpotlight ? 'w-8 h-8' : 'w-6 h-6')} />
+            <Play className={clsx('fill-current ml-0.5', isLargeSpotlight ? 'w-8 h-8' : 'w-5 h-5')} />
           </div>
         </div>
 
@@ -547,7 +705,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         {isLargeSpotlight && (
           <div className="absolute bottom-4 right-4 left-4 flex flex-wrap items-end justify-between gap-3 pointer-events-none">
             <div className="max-w-2xl">
-              <span className="inline-block text-xs font-semibold text-red-300 mb-1">
+              <span className="inline-block text-xs font-semibold text-white/80 mb-1">
                 נגן ראשי • לחצו להפעלה מהירה
               </span>
               <h3 className="text-xl sm:text-2xl md:text-3xl font-black text-white leading-tight drop-shadow-md">
@@ -557,9 +715,12 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
             <a
               href={slugHref}
               onClick={(e) => e.stopPropagation()}
-              className="pointer-events-auto inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold backdrop-blur-md border border-white/20 transition"
+              className={clsx(
+                "pointer-events-auto inline-flex items-center gap-1.5 px-4 py-2 bg-white/15 hover:bg-white/25 text-white text-xs font-bold backdrop-blur-md border border-white/20 transition",
+                getButtonShapeClass()
+              )}
             >
-              <span>לעמוד KOSVIDIO המלא</span>
+              <span>לצפייה בסרטון המלא</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>
@@ -568,452 +729,318 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
     );
   };
 
+  const scrollHorizontal = (dir: 'left' | 'right') => {
+    if (!horizontalScrollRef.current) return;
+    const delta = dir === 'left' ? -340 : 340;
+    horizontalScrollRef.current.scrollBy({ left: delta, behavior: 'smooth' });
+  };
+
   return (
     <section
       id={anchorId}
-      className="relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden transition-colors"
-      style={{ backgroundColor: backgroundColor || '#090d16' }}
+      className={clsx('relative w-full py-12 sm:py-16 md:py-20 px-4 sm:px-6 lg:px-8 text-right overflow-hidden', theme.wrapper)}
+      style={{ backgroundColor }}
       dir="rtl"
     >
-      {/* Ambient Decorative Glow */}
-      <div
-        className="pointer-events-none absolute -top-32 right-1/4 w-[480px] h-[480px] rounded-full blur-[130px] opacity-20"
-        style={{ backgroundColor: effectiveAccent }}
-      />
+      {/* Full-Section Background Image with Overlay & Effect */}
+      {textBgEnabled && textBgImageUrl && textBgScope === 'full-section' && (
+        <div className="absolute inset-0 pointer-events-none z-0 overflow-hidden">
+          <img
+            src={textBgImageUrl}
+            alt=""
+            className={clsx('w-full h-full object-cover', getTextBgEffectClass(textBgEffect))}
+          />
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundColor: textBgOverlayColor,
+              opacity: (textBgOverlayOpacity ?? 60) / 100,
+            }}
+          />
+        </div>
+      )}
 
-      <div className="relative z-10 max-w-7xl mx-auto flex flex-col gap-10">
+      <div className="relative z-10 max-w-7xl mx-auto space-y-8">
         {/* Section Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div className="max-w-3xl space-y-3 text-right">
-            {badge && (
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 backdrop-blur-md">
-                <Sparkles className="w-3.5 h-3.5" style={{ color: effectiveAccent }} />
-                <span className="text-xs font-bold tracking-wide text-slate-200">{badge}</span>
+        <div className={clsx('relative flex flex-col items-center text-center max-w-3xl mx-auto group/textbg', scale.headerGap)}>
+          {/* Card-scoped background image */}
+          {textBgEnabled && textBgImageUrl && textBgScope === 'text-card' && (
+            <div className="absolute inset-0 -m-6 rounded-3xl overflow-hidden pointer-events-none z-0">
+              <img
+                src={textBgImageUrl}
+                alt=""
+                className={clsx('w-full h-full object-cover', getTextBgEffectClass(textBgEffect))}
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  backgroundColor: textBgOverlayColor,
+                  opacity: (textBgOverlayOpacity ?? 60) / 100,
+                }}
+              />
+            </div>
+          )}
+
+          <div className="relative z-10 flex flex-col items-center">
+            {effectiveBadge && (
+              <div className={clsx('inline-flex items-center gap-2 mb-3 backdrop-blur-md', theme.badge)}>
+                <Sparkles className="w-3.5 h-3.5" />
+                <span className="font-bold">{effectiveBadge}</span>
               </div>
             )}
 
             <h2
-              className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight leading-tight"
-              style={{ color: titleColor || '#ffffff' }}
+              className={clsx('font-black tracking-tight leading-tight', scale.titleSize, theme.title)}
+              style={{ color: titleColor }}
             >
               {effectiveTitle}
             </h2>
 
             {effectiveSubtitle && (
-              <p className="text-base sm:text-lg font-bold" style={{ color: effectiveAccent }}>
+              <p
+                className={clsx('mt-2 font-medium leading-relaxed max-w-2xl', scale.subSize, theme.subtitle)}
+                style={{ color: descriptionColor }}
+              >
                 {effectiveSubtitle}
               </p>
             )}
 
             {effectiveDescription && (
               <p
-                className="text-sm sm:text-base leading-relaxed max-w-2xl"
-                style={{ color: descriptionColor || '#94a3b8' }}
+                className="text-xs sm:text-sm mt-1 max-w-xl leading-relaxed text-slate-400"
+                style={{ color: descriptionColor ? `${descriptionColor}cc` : undefined }}
               >
                 {effectiveDescription}
               </p>
             )}
           </div>
-
-          {/* Right/Left Controls: Brand Channel Badge & Optional Visitor Layout Switcher */}
-          <div className="flex flex-wrap items-center gap-3 self-start md:self-end">
-            {/* Brand Channel Identity Pill */}
-            <a
-              href={buildKosvidioHref(ctaButtonUrl)}
-              className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition group"
-            >
-              <img
-                src={effectiveChannelAvatar}
-                alt={effectiveChannelName}
-                className="w-9 h-9 rounded-full object-contain bg-slate-900 p-0.5 border border-white/15"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/images/kosun-official-logo.png';
-                }}
-              />
-              <div className="text-right">
-                <div className="flex items-center gap-1.5 text-xs font-bold text-white">
-                  <span>{effectiveChannelName}</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-sky-400" />
-                </div>
-                <div className="text-[11px] text-slate-400">{effectiveChannelSlogan}</div>
-              </div>
-            </a>
-
-            {/* Optional Visitor Layout Switcher */}
-            {allowVisitorLayoutSwitch && (
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-900/90 border border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setActiveLayout('spotlight-grid')}
-                  className={clsx(
-                    'p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer',
-                    activeLayout === 'spotlight-grid'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  )}
-                  title="וידאו גדול ותחתיו קטנים"
-                >
-                  <LayoutGrid className="w-4 h-4" />
-                  <span className="hidden sm:inline">ראשי + רשת</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveLayout('stacked-list')}
-                  className={clsx(
-                    'p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer',
-                    activeLayout === 'stacked-list'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  )}
-                  title="רשימה זה תחת זה"
-                >
-                  <List className="w-4 h-4" />
-                  <span className="hidden sm:inline">רשימה אנכית</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setActiveLayout('horizontal-scroll')}
-                  className={clsx(
-                    'p-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer',
-                    activeLayout === 'horizontal-scroll'
-                      ? 'bg-white/15 text-white shadow'
-                      : 'text-slate-400 hover:text-white'
-                  )}
-                  title="גלילה אופקית ללא גלישה"
-                >
-                  <Columns className="w-4 h-4" />
-                  <span className="hidden sm:inline">גלילה אופקית</span>
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
-        {/* Active Filter Pill Notification if logicRules are active */}
-        {(logicRules?.filterTag || logicRules?.minViews) && (
-          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 border border-white/10">
-              <Filter className="w-3 h-3 text-amber-400" />
-              <span>סינון דינמי פעיל: מציג עד {displayedVideos.length} סרטונים נבחרים</span>
-            </span>
-            {logicRules?.filterTag && (
-              <span className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-slate-300">
-                תגית: #{logicRules.filterTag}
-              </span>
-            )}
+        {/* Channel Branding Pill */}
+        {effectiveChannelName && (
+          <div className="flex justify-center -mt-2">
+            <div
+              className={clsx(
+                'inline-flex items-center gap-3 px-4 py-2 border backdrop-blur-md shadow-sm',
+                theme.channelBadge
+              )}
+            >
+              {effectiveChannelAvatar && (
+                <img
+                  src={effectiveChannelAvatar}
+                  alt={effectiveChannelName}
+                  className="w-7 h-7 rounded-full object-cover border border-white/20 shadow-sm"
+                />
+              )}
+              <div className="text-right">
+                <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <span>{effectiveChannelName}</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-sky-400 fill-sky-400/20" />
+                </div>
+                {effectiveChannelSlogan && (
+                  <div className="text-[11px] text-slate-400 line-clamp-1">
+                    {effectiveChannelSlogan}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         )}
 
-        {/* LAYOUT A: SPOTLIGHT GRID (וידאו גדול ותחתיו כמה קטנים) */}
-        {activeLayout === 'spotlight-grid' && activeSpotlightVideo && (
-          <div className="flex flex-col gap-8">
-            {/* Big Featured Video Card */}
-            <div
-              className="rounded-3xl p-4 sm:p-6 border border-white/10 shadow-2xl transition-all"
-              style={{ backgroundColor: cardBgColor || '#111827' }}
-            >
-              {renderVideoEmbedOrThumbnail(activeSpotlightVideo, true)}
+        {/* Visitor Layout Switcher (3 View Modes) */}
+        {allowVisitorLayoutSwitch && (
+          <div className="flex items-center justify-center gap-2 pb-2">
+            <div className="inline-flex items-center p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-md">
+              <button
+                type="button"
+                onClick={() => setActiveLayout('spotlight-grid')}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                  activeLayout === 'spotlight-grid'
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>וידאו מרכזי וכרטיסים</span>
+              </button>
 
-              <div className="mt-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 pt-4 border-t border-white/10">
-                <div className="space-y-1.5 max-w-3xl">
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                    <span className="inline-flex items-center gap-1 text-slate-300 font-semibold">
-                      <Eye className="w-3.5 h-3.5 text-sky-400" />
-                      {formatNumber(activeSpotlightVideo.viewsCount)} צפיות
-                    </span>
-                    <span className="inline-flex items-center gap-1 text-slate-300 font-semibold">
-                      <ThumbsUp className="w-3.5 h-3.5 text-emerald-400" />
-                      {formatNumber(activeSpotlightVideo.likesCount)} אהבו
-                    </span>
-                    {activeSpotlightVideo.publishedAt && (
-                      <span>• {activeSpotlightVideo.publishedAt}</span>
+              <button
+                type="button"
+                onClick={() => setActiveLayout('stacked-list')}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                  activeLayout === 'stacked-list'
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>רשימה עשירה</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveLayout('horizontal-scroll')}
+                className={clsx(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer',
+                  activeLayout === 'horizontal-scroll'
+                    ? 'bg-white text-slate-950 shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                )}
+              >
+                <Columns className="w-3.5 h-3.5" />
+                <span>גלריה אופקית</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Empty State */}
+        {finalVideos.length === 0 && (
+          <div className="p-12 rounded-3xl bg-slate-900/40 border border-slate-800/80 text-center max-w-xl mx-auto space-y-3">
+            <Video className="w-10 h-10 text-slate-600 mx-auto" />
+            <h4 className="text-base font-bold text-white">אין סרטונים זמינים כרגע</h4>
+            <p className="text-xs text-slate-400">
+              הוסיפו סרטונים דרך מודל העריכה או חברו את ערוץ הוידאו של {brandCompanyName || 'העסק'}.
+            </p>
+          </div>
+        )}
+
+        {/* VIEW MODE A: Spotlight Grid */}
+        {finalVideos.length > 0 && activeLayout === 'spotlight-grid' && (
+          <div className="space-y-6">
+            {/* Main Spotlight Video */}
+            {activeSpotlightVideo && (
+              <div
+                className={clsx('overflow-hidden p-3 sm:p-4 transition-all', theme.spotlightCard)}
+                style={{ backgroundColor: cardBgColor }}
+              >
+                {renderVideoPlayerOrThumbnail(activeSpotlightVideo, true)}
+
+                <div className="pt-4 px-2 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-black text-white">
+                      {activeSpotlightVideo.title}
+                    </h3>
+                    {activeSpotlightVideo.description && (
+                      <p className="text-xs sm:text-sm text-slate-400 mt-1 line-clamp-2 max-w-3xl">
+                        {activeSpotlightVideo.description}
+                      </p>
                     )}
                   </div>
-                  <h3 className="text-xl sm:text-2xl font-extrabold text-white">
-                    {activeSpotlightVideo.title}
-                  </h3>
-                  {activeSpotlightVideo.description && (
-                    <p className="text-sm text-slate-300 leading-relaxed line-clamp-2">
-                      {activeSpotlightVideo.description}
-                    </p>
-                  )}
-                </div>
 
-                <div className="flex flex-wrap items-center gap-3 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => handleSelectVideo(activeSpotlightVideo, true)}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-lg transition hover:opacity-95 cursor-pointer"
-                    style={{ backgroundColor: effectiveAccent }}
-                  >
-                    <Play className="w-4 h-4 fill-current" />
-                    <span>נגן סרטון עכשיו</span>
-                  </button>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {typeof activeSpotlightVideo.viewsCount === 'number' && (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                        <Eye className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{formatNumber(activeSpotlightVideo.viewsCount)} צפיות</span>
+                      </span>
+                    )}
 
-                  <a
-                    href={buildKosvidioHref(activeSpotlightVideo.kosvidioSlug || 'Kosvidio')}
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs sm:text-sm font-bold border border-white/15 transition"
-                  >
-                    <span>עבור לעמוד KOSVIDIO</span>
-                    <ExternalLink className="w-4 h-4" />
-                  </a>
-                </div>
-              </div>
-            </div>
+                    {typeof activeSpotlightVideo.likesCount === 'number' && (
+                      <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                        <ThumbsUp className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{formatNumber(activeSpotlightVideo.likesCount)}</span>
+                      </span>
+                    )}
 
-            {/* Smaller Videos Underneath */}
-            {subVideos.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                {subVideos.map((vid) => {
-                  const thumb = getThumbnail(vid);
-                  const slugHref = buildKosvidioHref(vid.kosvidioSlug || 'Kosvidio');
-                  return (
-                    <div
-                      key={vid.id}
-                      onClick={() => handleSelectVideo(vid, true)}
-                      className="group rounded-2xl overflow-hidden border border-white/10 hover:border-white/25 transition-all duration-300 flex flex-col cursor-pointer shadow-lg hover:-translate-y-1"
-                      style={{ backgroundColor: cardBgColor || '#111827' }}
+                    <a
+                      href={buildVideoHref(activeSpotlightVideo.kosvidioSlug)}
+                      className={clsx(
+                        'inline-flex items-center gap-1.5 font-bold text-white shadow transition-transform hover:-translate-y-0.5',
+                        getButtonShapeClass(),
+                        getButtonSizeClass()
+                      )}
+                      style={{ backgroundColor: effectiveAccent }}
                     >
-                      <div className="relative aspect-video bg-slate-900 overflow-hidden">
-                        <img
-                          src={thumb}
-                          alt={vid.title}
-                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          loading="lazy"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                        <div className="absolute inset-0 flex items-center justify-center opacity-90 group-hover:opacity-100 transition">
-                          <div
-                            className="w-12 h-12 rounded-full flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110"
-                            style={{ backgroundColor: effectiveAccent }}
-                          >
-                            <Play className="w-5 h-5 fill-current ml-0.5" />
-                          </div>
-                        </div>
-                        {vid.duration && (
-                          <span className="absolute bottom-2.5 left-2.5 px-2 py-0.5 rounded bg-black/80 text-white text-[10px] font-mono">
-                            {vid.duration}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="p-4 flex-1 flex flex-col justify-between gap-3">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center justify-between text-[11px] text-slate-400">
-                            <span className="font-semibold" style={{ color: effectiveAccent }}>
-                              {vid.category || 'KOSVIDIO'}
-                            </span>
-                            <span className="inline-flex items-center gap-1">
-                              <Eye className="w-3 h-3" />
-                              {formatNumber(vid.viewsCount)}
-                            </span>
-                          </div>
-                          <h4 className="text-base font-bold text-white line-clamp-2 group-hover:text-amber-300 transition-colors">
-                            {vid.title}
-                          </h4>
-                          {vid.description && (
-                            <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                              {vid.description}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="pt-2 border-t border-white/5 flex items-center justify-between">
-                          <span className="text-[11px] text-slate-400 font-medium">
-                            לחץ להפעלה בנגן הראשי
-                          </span>
-                          <a
-                            href={slugHref}
-                            onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition"
-                          >
-                            <span>לעמוד הוידאו</span>
-                            <ArrowLeft className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+                      <span>לצפייה בסרטון</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
-        )}
 
-        {/* LAYOUT B: STACKED LIST (רשימה זה תחת זה) */}
-        {activeLayout === 'stacked-list' && (
-          <div className="flex flex-col gap-6 max-w-5xl mx-auto w-full">
-            {displayedVideos.map((vid, idx) => {
-              const slugHref = buildKosvidioHref(vid.kosvidioSlug || 'Kosvidio');
-              return (
-                <div
-                  key={vid.id}
-                  className="rounded-3xl p-4 sm:p-6 border border-white/10 hover:border-white/20 transition-all shadow-xl flex flex-col md:flex-row gap-6 items-stretch"
-                  style={{ backgroundColor: cardBgColor || '#111827' }}
-                >
-                  {/* Video Player / Thumbnail column */}
-                  <div className="w-full md:w-5/12 lg:w-1/2 shrink-0">
-                    {renderVideoEmbedOrThumbnail(vid, false)}
-                  </div>
+            {/* Sub Grid Cards */}
+            <div className={clsx('grid', scale.cardGrid)}>
+              {finalVideos.map((video, idx) => {
+                const isSelected = activeSpotlightVideo?.id === video.id;
+                const ytId = extractYouTubeId(video.youtubeVideoId || video.videoUrl);
+                const thumb = getThumbnail(video);
+                const slugHref = buildVideoHref(video.kosvidioSlug);
 
-                  {/* Details column */}
-                  <div className="flex-1 flex flex-col justify-between py-1 text-right space-y-4">
-                    <div className="space-y-2.5">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
-                          className="px-2.5 py-0.5 rounded-full text-[11px] font-bold text-white"
-                          style={{ backgroundColor: effectiveAccent }}
-                        >
-                          #{idx + 1} • {vid.category || 'KOSVIDIO'}
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                          <Eye className="w-3.5 h-3.5 text-sky-400" />
-                          {formatNumber(vid.viewsCount)} צפיות
-                        </span>
-                        <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                          <ThumbsUp className="w-3.5 h-3.5 text-emerald-400" />
-                          {formatNumber(vid.likesCount)}
-                        </span>
-                      </div>
-
-                      <h3 className="text-xl sm:text-2xl font-extrabold text-white leading-snug">
-                        {vid.title}
-                      </h3>
-
-                      {vid.subtitle && (
-                        <p className="text-xs font-bold text-slate-300">{vid.subtitle}</p>
-                      )}
-
-                      {vid.description && (
-                        <p className="text-sm text-slate-400 leading-relaxed line-clamp-3">
-                          {vid.description}
-                        </p>
-                      )}
-
-                      {Array.isArray(vid.tags) && vid.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 pt-1">
-                          {vid.tags.slice(0, 4).map((t, i) => (
-                            <span
-                              key={i}
-                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-white/5 text-slate-300 text-[11px] border border-white/5"
-                            >
-                              <Tag className="w-2.5 h-2.5 text-slate-400" />
-                              {t}
-                            </span>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="pt-3 border-t border-white/10 flex flex-wrap items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleSelectVideo(vid, true)}
-                        className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white transition cursor-pointer"
-                        style={{ backgroundColor: effectiveAccent }}
-                      >
-                        <Play className="w-3.5 h-3.5 fill-current" />
-                        <span>נגן סרטון במקום</span>
-                      </button>
-
-                      <a
-                        href={slugHref}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white text-xs font-bold border border-white/10 transition"
-                      >
-                        <span>לעמוד הוידאו (KOSVIDIO)</span>
-                        <ExternalLink className="w-3.5 h-3.5" />
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* LAYOUT C: HORIZONTAL SCROLL WITHOUT PAGE OVERFLOW (גלריה עם גלילה אופקית ללא גלישה) */}
-        {activeLayout === 'horizontal-scroll' && (
-          <div className="relative w-full max-w-full overflow-hidden">
-            {/* Navigation Buttons */}
-            <div className="flex items-center justify-between mb-4">
-              <div className="text-xs font-semibold text-slate-400">
-                החליקו ימינה או שמאלה לצפייה ב-{displayedVideos.length} סרטוני הגלריה
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => scrollHorizontal('right')}
-                  className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition cursor-pointer"
-                  aria-label="גלול ימינה"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => scrollHorizontal('left')}
-                  className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition cursor-pointer"
-                  aria-label="גלול שמאלה"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Contained Horizontal Track (Zero Page Overflow) */}
-            <div
-              ref={horizontalScrollRef}
-              className="flex gap-5 overflow-x-auto snap-x snap-mandatory pb-4 pt-1 px-1 max-w-full [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-            >
-              {displayedVideos.map((vid) => {
-                const slugHref = buildKosvidioHref(vid.kosvidioSlug || 'Kosvidio');
                 return (
                   <div
-                    key={vid.id}
-                    className="snap-start shrink-0 w-[85vw] sm:w-[360px] md:w-[400px] rounded-3xl overflow-hidden border border-white/10 hover:border-white/25 transition-all flex flex-col justify-between shadow-xl"
-                    style={{ backgroundColor: cardBgColor || '#111827' }}
+                    key={video.id || idx}
+                    onClick={() => handleSelectVideo(video, true)}
+                    className={clsx(
+                      'group transition-all duration-300 overflow-hidden cursor-pointer flex flex-col',
+                      theme.card,
+                      scale.cardPadding,
+                      isSelected && 'ring-2 ring-red-500 shadow-2xl scale-[1.01]'
+                    )}
+                    style={{ backgroundColor: cardBgColor }}
                   >
-                    <div className="p-3 pb-0">{renderVideoEmbedOrThumbnail(vid, false)}</div>
+                    <div className={clsx('relative aspect-video overflow-hidden bg-slate-950 mb-3', theme.videoThumbRadius)}>
+                      <img
+                        src={thumb}
+                        alt={video.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors" />
 
-                    <div className="p-5 flex-1 flex flex-col justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between text-xs text-slate-400">
-                          <span className="font-bold" style={{ color: effectiveAccent }}>
-                            {vid.category || 'KOSVIDIO'}
-                          </span>
-                          <span className="inline-flex items-center gap-1">
-                            <Eye className="w-3.5 h-3.5 text-sky-400" />
-                            {formatNumber(vid.viewsCount)} צפיות
-                          </span>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div
+                          className={clsx(
+                            'flex items-center justify-center text-white shadow-lg transition-transform group-hover:scale-110',
+                            theme.playBtn,
+                            scale.itemPlay
+                          )}
+                          style={{
+                            boxShadow: `0 0 20px ${effectiveAccent}66`,
+                          }}
+                        >
+                          <Play className="w-4 h-4 fill-current ml-0.5" />
                         </div>
+                      </div>
 
-                        <h3 className="text-lg font-extrabold text-white line-clamp-2">
-                          {vid.title}
-                        </h3>
+                      {video.duration && (
+                        <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-md bg-black/80 text-[10px] font-mono text-white">
+                          {video.duration}
+                        </span>
+                      )}
 
-                        {vid.description && (
-                          <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">
-                            {vid.description}
+                      {/* Video index counter in analytical style */}
+                      {effectiveLayoutStyle === 'analytical' && (
+                        <span className="absolute top-2 right-2 px-2 py-0.5 rounded bg-blue-950/90 text-[10px] font-mono text-blue-300 border border-blue-600/50">
+                          #{String(idx + 1).padStart(2, '0')}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex-1 flex flex-col justify-between">
+                      <div>
+                        <h4 className={clsx('text-white group-hover:text-amber-300 transition-colors', scale.cardTitle)}>
+                          {video.title}
+                        </h4>
+                        {video.description && (
+                          <p className={clsx('text-slate-400 mt-1', scale.cardDesc)}>
+                            {video.description}
                           </p>
                         )}
                       </div>
 
-                      <div className="pt-3 border-t border-white/10 flex items-center justify-between gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleSelectVideo(vid, true)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-white transition cursor-pointer"
-                          style={{ backgroundColor: effectiveAccent }}
-                        >
-                          <Play className="w-3.5 h-3.5 fill-current" />
-                          <span>הפעל וידאו</span>
-                        </button>
-
+                      <div className="pt-3 mt-3 border-t border-white/5 flex items-center justify-between text-[11px] text-slate-400">
+                        <span>{video.category || effectiveChannelName || 'וידאו'}</span>
                         <a
                           href={slugHref}
-                          className="inline-flex items-center gap-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition"
+                          onClick={(e) => e.stopPropagation()}
+                          className="hover:text-white flex items-center gap-1 font-bold text-sky-400"
                         >
-                          <span>לעמוד KOSVIDIO</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
+                          <span>עמוד מלא</span>
+                          <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
                     </div>
@@ -1024,19 +1051,188 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
           </div>
         )}
 
-        {/* Bottom CTA to main KOSVIDIO hub */}
-        {ctaButtonText && (
+        {/* VIEW MODE B: Stacked List */}
+        {finalVideos.length > 0 && activeLayout === 'stacked-list' && (
+          <div className="space-y-4 max-w-5xl mx-auto">
+            {finalVideos.map((video, idx) => {
+              const ytId = extractYouTubeId(video.youtubeVideoId || video.videoUrl);
+              const thumb = getThumbnail(video);
+              const slugHref = buildVideoHref(video.kosvidioSlug);
+
+              return (
+                <div
+                  key={video.id || idx}
+                  className={clsx(
+                    'p-4 sm:p-5 flex flex-col md:flex-row items-center gap-5 transition-all duration-300 group',
+                    theme.card
+                  )}
+                  style={{ backgroundColor: cardBgColor }}
+                >
+                  <div className="w-full md:w-80 shrink-0">
+                    {renderVideoPlayerOrThumbnail(video, false)}
+                  </div>
+
+                  <div className="flex-1 w-full flex flex-col justify-between space-y-3">
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                        <span className={clsx('px-2.5 py-0.5 text-[10px] font-bold', theme.tag)}>
+                          #{idx + 1} • {video.category || effectiveChannelName || 'וידאו'}
+                        </span>
+                        {video.duration && (
+                          <span className="text-[11px] text-slate-400 font-mono">
+                            משך: {video.duration}
+                          </span>
+                        )}
+                        {typeof video.viewsCount === 'number' && (
+                          <span className="text-[11px] text-slate-400">
+                            • {formatNumber(video.viewsCount)} צפיות
+                          </span>
+                        )}
+                      </div>
+
+                      <h3 className="text-base sm:text-lg font-black text-white group-hover:text-amber-300 transition-colors">
+                        {video.title}
+                      </h3>
+
+                      {video.description && (
+                        <p className="text-xs sm:text-sm text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {video.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-2 flex flex-wrap items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectVideo(video, true)}
+                        className={clsx(
+                          'inline-flex items-center gap-1.5 font-bold text-white shadow transition-all cursor-pointer',
+                          getButtonShapeClass(),
+                          getButtonSizeClass()
+                        )}
+                        style={{ backgroundColor: effectiveAccent }}
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>נגן סרטון</span>
+                      </button>
+
+                      <a
+                        href={slugHref}
+                        className={clsx(
+                          'inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-slate-200 bg-white/10 hover:bg-white/20 border border-white/15 transition',
+                          getButtonShapeClass()
+                        )}
+                      >
+                        <span>לעמוד הסרטון המלא</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* VIEW MODE C: Horizontal Scroll */}
+        {finalVideos.length > 0 && activeLayout === 'horizontal-scroll' && (
+          <div className="relative group/carousel">
+            {/* Scroll Navigation Arrows */}
+            <button
+              type="button"
+              onClick={() => scrollHorizontal('right')}
+              className="absolute right-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-slate-700 text-white flex items-center justify-center shadow-2xl transition cursor-pointer"
+              title="גלול ימינה"
+            >
+              <ChevronRight className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => scrollHorizontal('left')}
+              className="absolute left-0 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-slate-950/90 hover:bg-slate-900 border border-slate-700 text-white flex items-center justify-center shadow-2xl transition cursor-pointer"
+              title="גלול שמאלה"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+
+            <div
+              ref={horizontalScrollRef}
+              className="flex items-stretch gap-4 sm:gap-5 overflow-x-auto no-scrollbar py-3 px-8 snap-x snap-mandatory scroll-smooth"
+            >
+              {finalVideos.map((vid, idx) => {
+                const slugHref = buildVideoHref(vid.kosvidioSlug);
+                return (
+                  <div
+                    key={vid.id || idx}
+                    className={clsx(
+                      'w-72 sm:w-80 shrink-0 snap-start flex flex-col justify-between overflow-hidden transition-all duration-300 group',
+                      theme.card,
+                      scale.cardPadding
+                    )}
+                    style={{ backgroundColor: cardBgColor }}
+                  >
+                    <div>
+                      <div className="mb-3">{renderVideoPlayerOrThumbnail(vid, false)}</div>
+                      <span className={clsx('px-2.5 py-0.5 text-[10px] font-bold mb-1.5 inline-block', theme.tag)}>
+                        {vid.category || effectiveChannelName || 'וידאו'}
+                      </span>
+                      <h4 className="text-sm sm:text-base font-bold text-white group-hover:text-amber-300 transition-colors line-clamp-2">
+                        {vid.title}
+                      </h4>
+                      {vid.description && (
+                        <p className="text-xs text-slate-400 mt-1 line-clamp-2 leading-relaxed">
+                          {vid.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-3 mt-3 border-t border-white/10 flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectVideo(vid, true)}
+                        className={clsx(
+                          'inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white transition cursor-pointer',
+                          getButtonShapeClass()
+                        )}
+                        style={{ backgroundColor: effectiveAccent }}
+                      >
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>הפעל וידאו</span>
+                      </button>
+
+                      <a
+                        href={slugHref}
+                        className="inline-flex items-center gap-1 text-xs font-bold text-sky-400 hover:text-sky-300 transition"
+                      >
+                        <span>לצפייה בסרטון</span>
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Bottom CTA to main video library */}
+        {effectiveCtaText && (
           <div className="pt-4 flex justify-center">
             <a
-              href={buildKosvidioHref(ctaButtonUrl)}
-              className="inline-flex items-center gap-2.5 px-7 py-3.5 rounded-2xl text-sm font-black text-white shadow-xl transition-transform hover:-translate-y-0.5"
+              href={buildVideoHref(ctaButtonUrl)}
+              className={clsx(
+                'inline-flex items-center gap-2.5 text-sm font-black text-white shadow-xl transition-transform hover:-translate-y-0.5',
+                getButtonShapeClass(),
+                getButtonSizeClass()
+              )}
               style={{
                 backgroundColor: effectiveAccent,
                 boxShadow: `0 10px 30px -5px ${effectiveAccent}66`,
               }}
             >
               <Video className="w-4 h-4" />
-              <span>{ctaButtonText}</span>
+              <span>{effectiveCtaText}</span>
               <ArrowLeft className="w-4 h-4" />
             </a>
           </div>

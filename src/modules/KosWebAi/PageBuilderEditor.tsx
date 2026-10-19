@@ -527,16 +527,40 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         globalSettings={config.globalSettings}
-        onUpdateGlobalSettings={(updated) => setConfig({ ...config, globalSettings: updated })}
+        onUpdateGlobalSettings={(updated) => {
+          setConfig((prev) => {
+            const next = { ...prev, globalSettings: updated };
+            if (onSaveConfig) onSaveConfig(next);
+            return next;
+          });
+        }}
         seoSettings={config.seoSettings}
-        onUpdateSeoSettings={(updated) => setConfig({ ...config, seoSettings: updated })}
+        onUpdateSeoSettings={(updated) => {
+          setConfig((prev) => {
+            const next = { ...prev, seoSettings: updated };
+            if (onSaveConfig) onSaveConfig(next);
+            return next;
+          });
+        }}
         onOpenGeoDrawer={() => setIsGeoDrawerOpen(true)}
         pageTitle={config.pageTitle}
         pageSections={Object.values(config.sections || {})}
         sections={config.sections}
-        onUpdateSections={(updatedSections) => setConfig({ ...config, sections: updatedSections })}
+        onUpdateSections={(updatedSections) => {
+          setConfig((prev) => {
+            const next = { ...prev, sections: updatedSections };
+            if (onSaveConfig) onSaveConfig(next);
+            return next;
+          });
+        }}
         designSnapshots={config.designSnapshots}
-        onUpdateDesignSnapshots={(updatedSnapshots) => setConfig({ ...config, designSnapshots: updatedSnapshots })}
+        onUpdateDesignSnapshots={(updatedSnapshots) => {
+          setConfig((prev) => {
+            const next = { ...prev, designSnapshots: updatedSnapshots };
+            if (onSaveConfig) onSaveConfig(next);
+            return next;
+          });
+        }}
       />
 
       <PublishPageModal

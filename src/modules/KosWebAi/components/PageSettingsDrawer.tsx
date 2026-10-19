@@ -135,6 +135,58 @@ const PRESET_TITLE_MAP: Record<string, string> = {
   analytical: 'אנליטי ומדעי (Analytical)',
 };
 
+
+const STYLE_GLOBAL_THEMES: Record<TenantStylePreset, Partial<GlobalPageSettings>> = {
+  standard: {
+    primaryColor: '#6366f1',
+    secondaryColor: '#0ea5e9',
+    buttonBgColor: '#6366f1',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'md',
+    buttonStyle: 'gradient',
+  },
+  feminine: {
+    primaryColor: '#ec4899',
+    secondaryColor: '#f43f5e',
+    buttonBgColor: '#ec4899',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'full',
+    buttonStyle: 'gradient',
+  },
+  masculine: {
+    primaryColor: '#2563eb',
+    secondaryColor: '#0284c7',
+    buttonBgColor: '#2563eb',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'md',
+    buttonStyle: 'solid',
+  },
+  spiritual: {
+    primaryColor: '#8b5cf6',
+    secondaryColor: '#d946ef',
+    buttonBgColor: '#8b5cf6',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'lg',
+    buttonStyle: 'glass',
+  },
+  sharp: {
+    primaryColor: '#06b6d4',
+    secondaryColor: '#0891b2',
+    buttonBgColor: '#06b6d4',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'none',
+    buttonStyle: 'outline',
+  },
+  analytical: {
+    primaryColor: '#10b981',
+    secondaryColor: '#06b6d4',
+    buttonBgColor: '#10b981',
+    buttonTextColor: '#ffffff',
+    borderRadius: 'sm',
+    buttonStyle: 'solid',
+  },
+};
+
 export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   isOpen,
   onClose,
@@ -161,6 +213,35 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
     return tenantDefaultPreset;
   });
 
+  // Track active sections from either 'sections' map or 'pageSections' array
+  const [currentSections, setCurrentSections] = useState<Record<string, any>>(() => {
+    if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
+      return { ...sections };
+    }
+    if (Array.isArray(pageSections) && pageSections.length > 0) {
+      const map: Record<string, any> = {};
+      pageSections.forEach((s: any, idx: number) => {
+        const id = s.id || `section_${idx}`;
+        map[id] = s;
+      });
+      return map;
+    }
+    return {};
+  });
+
+  useEffect(() => {
+    if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
+      setCurrentSections({ ...sections });
+    } else if (Array.isArray(pageSections) && pageSections.length > 0) {
+      const map: Record<string, any> = {};
+      pageSections.forEach((s: any, idx: number) => {
+        const id = s.id || `section_${idx}`;
+        map[id] = s;
+      });
+      setCurrentSections(map);
+    }
+  }, [sections, pageSections]);
+
   const [localSnapshots, setLocalSnapshots] = useState<PageDesignSnapshot[]>(designSnapshots || []);
   useEffect(() => {
     if (designSnapshots) {
@@ -177,14 +258,22 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
 
   // Apply Global Style Override with Automatic Snapshot
   const handleApplyGlobalStyleOverride = () => {
-    if (!sections || !onUpdateSections) {
-      showNotification('לא ניתן לעדכן אזורים: חסר חיבור לאזורי העמוד');
-      return;
+    // Collect active sections from state or props
+    let sourceSections = { ...currentSections };
+    if (Object.keys(sourceSections).length === 0) {
+      if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
+        sourceSections = { ...sections };
+      } else if (Array.isArray(pageSections) && pageSections.length > 0) {
+        pageSections.forEach((s: any, idx: number) => {
+          const id = s.id || `section_${idx}`;
+          sourceSections[id] = s;
+        });
+      }
     }
 
-    const sectionKeys = Object.keys(sections);
+    const sectionKeys = Object.keys(sourceSections);
     if (sectionKeys.length === 0) {
-      showNotification('אין אזורים פעילים בעמוד לדריסה');
+      showNotification('לא נמצאו אזורים פעילים בעמוד להחלת הסגנון');
       return;
     }
 
@@ -205,7 +294,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       createdAtFormatted: formattedDate,
       label: `לפני דריסה ל-${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset}`,
       preset: selectedStylePreset,
-      sections: JSON.parse(JSON.stringify(sections)),
+      sections: JSON.parse(JSON.stringify(sourceSections)),
+      theme: formDataGlobal.theme,
     };
 
     const nextSnapshots = [newSnapshot, ...localSnapshots];
@@ -214,35 +304,158 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       onUpdateDesignSnapshots(nextSnapshots);
     }
 
-    // 2. Mutate each section layout to match selected preset
-    const nextSections = { ...sections };
+    // 2. Mutate sections to match selected style preset
+    const nextSections: Record<string, any> = {};
     let updatedCount = 0;
 
     for (const key of sectionKeys) {
-      const sec = { ...nextSections[key] };
-      sec.layout = selectedStylePreset;
+      const sec = { ...sourceSections[key] };
+      const sType = sec.type;
 
-      // Timer specific box shapes
-      if (sec.type === 'timer') {
+      // Never modify header layout when applying content style presets
+      if (sType === 'header') {
+        nextSections[key] = sec;
+        continue;
+      }
+
+      // Layout preset for compatible sections
+      if (
+        sType === 'hero' ||
+        sType === 'richContent' ||
+        sType === 'faq' ||
+        sType === 'contact' ||
+        sType === 'timer' ||
+        sType === 'livePosts' ||
+        sType === 'kosvidio' ||
+        sType === 'videoGallery' ||
+        sType === 'imageListing' ||
+        sType === 'videoEngagement' ||
+        sType === 'courseBanner'
+      ) {
+        sec.layout = selectedStylePreset;
+      }
+
+      // Timer shapes
+      if (sType === 'timer') {
         if (selectedStylePreset === 'feminine') sec.boxShape = 'flower';
         else if (selectedStylePreset === 'masculine') sec.boxShape = 'shield';
         else if (selectedStylePreset === 'spiritual') sec.boxShape = 'lotus';
         else if (selectedStylePreset === 'sharp') sec.boxShape = 'sharp';
         else if (selectedStylePreset === 'analytical') sec.boxShape = 'hud';
-        else if (selectedStylePreset === 'standard') sec.boxShape = 'rounded';
+        else sec.boxShape = 'rounded';
+      }
+
+      // Hero style and button shapes
+      if (sType === 'hero') {
+        sec.layout = selectedStylePreset;
+        if (selectedStylePreset === 'feminine') {
+          sec.heroStyle = 'mesh-glow';
+          sec.buttonShape = 'pill';
+        } else if (selectedStylePreset === 'masculine') {
+          sec.heroStyle = 'card';
+          sec.buttonShape = 'rounded';
+        } else if (selectedStylePreset === 'sharp') {
+          sec.heroStyle = 'minimal';
+          sec.buttonShape = 'square';
+        } else if (selectedStylePreset === 'spiritual') {
+          sec.heroStyle = 'mesh-glow';
+          sec.buttonShape = 'pill';
+        } else if (selectedStylePreset === 'analytical') {
+          sec.heroStyle = 'modern';
+          sec.buttonShape = 'rounded';
+        } else {
+          sec.heroStyle = 'classic';
+          sec.buttonShape = 'auto';
+        }
+      }
+
+      // Testimonials layout
+      if (sType === 'testimonials') {
+        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'carousel';
+        else if (selectedStylePreset === 'sharp') sec.layout = 'masonry';
+        else sec.layout = 'grid';
+      }
+
+      // StatsBento layout
+      if (sType === 'statsBento') {
+        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'cards-3';
+        else if (selectedStylePreset === 'masculine') sec.layout = 'row-4';
+        else sec.layout = 'bento-4';
+      }
+
+      // Community layout
+      if (sType === 'community') {
+        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'card';
+        else if (selectedStylePreset === 'masculine') sec.layout = 'classic';
+        else sec.layout = 'modern';
+      }
+
+      // LandingSection layout
+      if (sType === 'landingSection') {
+        if (selectedStylePreset === 'feminine' || selectedStylePreset === 'spiritual') sec.layout = 'centered';
+        else if (selectedStylePreset === 'sharp') sec.layout = 'card';
+        else sec.layout = 'split';
       }
 
       nextSections[key] = sec;
       updatedCount++;
     }
 
-    onUpdateSections(nextSections);
-    showNotification(`הסגנון ${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset} הוחל על ${updatedCount} אזורים! נשמרה גרסת שחזור.`);
+    // 3. Update Global Settings with style theme tokens
+    const styleTokens = STYLE_GLOBAL_THEMES[selectedStylePreset];
+    const newGlobalSettings: GlobalPageSettings = {
+      ...formDataGlobal,
+      ...styleTokens,
+    };
+
+    // Clean up any previously polluted preset dark backgrounds or text colors that broke day/night mode
+    const corruptedDarkBgs = ['#140c12', '#080c14', '#0c0716', '#05070a', '#04120e', '#0a0a0c', '#000000'];
+    if (newGlobalSettings.backgroundColor && corruptedDarkBgs.includes(newGlobalSettings.backgroundColor.toLowerCase())) {
+      delete newGlobalSettings.backgroundColor;
+    }
+    const corruptedTextColors = ['#fff1f2', '#f8fafc', '#faf5ff', '#ecfeff', '#ecfdf5', '#ffffff'];
+    if (newGlobalSettings.textColor && corruptedTextColors.includes(newGlobalSettings.textColor.toLowerCase())) {
+      delete newGlobalSettings.textColor;
+    }
+
+    setFormDataGlobal(newGlobalSettings);
+    onUpdateGlobalSettings(newGlobalSettings);
+
+    // 4. Update sections in state and invoke callback
+    setCurrentSections(nextSections);
+    if (onUpdateSections) {
+      onUpdateSections(nextSections);
+    }
+
+    // 5. Broadcast event across system
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: nextSections,
+          preset: selectedStylePreset,
+          globalSettings: newGlobalSettings,
+        },
+      })
+    );
+
+    showNotification(`הסגנון ${PRESET_TITLE_MAP[selectedStylePreset] || selectedStylePreset} הוחל בהצלחה על ${updatedCount} אזורים ועיצוב העמוד! נשמרה גרסת שחזור.`);
   };
 
   // Create Manual Design Snapshot
   const handleCreateManualSnapshot = () => {
-    if (!sections) {
+    let sourceSections = { ...currentSections };
+    if (Object.keys(sourceSections).length === 0) {
+      if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
+        sourceSections = { ...sections };
+      } else if (Array.isArray(pageSections) && pageSections.length > 0) {
+        pageSections.forEach((s: any, idx: number) => {
+          const id = s.id || `section_${idx}`;
+          sourceSections[id] = s;
+        });
+      }
+    }
+
+    if (Object.keys(sourceSections).length === 0) {
       showNotification('לא נמצאו אזורים לשמירה');
       return;
     }
@@ -262,7 +475,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       createdAtFormatted: formattedDate,
       label: `גיבוי עיצוב ידני (${PRESET_TITLE_MAP[selectedStylePreset] || 'נוכחי'})`,
       preset: selectedStylePreset,
-      sections: JSON.parse(JSON.stringify(sections)),
+      sections: JSON.parse(JSON.stringify(sourceSections)),
+      theme: formDataGlobal.theme,
     };
 
     const nextSnapshots = [newSnapshot, ...localSnapshots];
@@ -275,8 +489,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
 
   // Restore Version Snapshot
   const handleRestoreSnapshot = (snapshot: PageDesignSnapshot) => {
-    if (!snapshot.sections || !onUpdateSections) {
-      showNotification('שגיאה בשחזור גרסת העיצוב');
+    if (!snapshot.sections) {
+      showNotification('שגיאה בשחזור גרסת העיצוב: חסר מידע בגרסה');
       return;
     }
 
@@ -295,7 +509,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       }),
       label: `לפני שחזור לגרסה מ-${snapshot.createdAtFormatted || snapshot.timestamp}`,
       preset: selectedStylePreset,
-      sections: JSON.parse(JSON.stringify(sections || {})),
+      sections: JSON.parse(JSON.stringify(currentSections)),
+      theme: formDataGlobal.theme,
     };
 
     const nextSnapshots = [safetySnapshot, ...localSnapshots];
@@ -304,10 +519,42 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       onUpdateDesignSnapshots(nextSnapshots);
     }
 
-    onUpdateSections(JSON.parse(JSON.stringify(snapshot.sections)));
+    const restoredSections = JSON.parse(JSON.stringify(snapshot.sections));
+    setCurrentSections(restoredSections);
+    if (onUpdateSections) {
+      onUpdateSections(restoredSections);
+    }
+
     if (snapshot.preset && PRESET_TITLE_MAP[snapshot.preset]) {
       setSelectedStylePreset(snapshot.preset as TenantStylePreset);
+      const styleTokens = STYLE_GLOBAL_THEMES[snapshot.preset as TenantStylePreset];
+      if (styleTokens) {
+        const restoredGlobal: GlobalPageSettings = {
+          ...formDataGlobal,
+          ...styleTokens,
+        };
+        const corruptedDarkBgs = ['#140c12', '#080c14', '#0c0716', '#05070a', '#04120e', '#0a0a0c', '#000000'];
+        if (restoredGlobal.backgroundColor && corruptedDarkBgs.includes(restoredGlobal.backgroundColor.toLowerCase())) {
+          delete restoredGlobal.backgroundColor;
+        }
+        const corruptedTextColors = ['#fff1f2', '#f8fafc', '#faf5ff', '#ecfeff', '#ecfdf5', '#ffffff'];
+        if (restoredGlobal.textColor && corruptedTextColors.includes(restoredGlobal.textColor.toLowerCase())) {
+          delete restoredGlobal.textColor;
+        }
+        setFormDataGlobal(restoredGlobal);
+        onUpdateGlobalSettings(restoredGlobal);
+      }
     }
+
+    window.dispatchEvent(
+      new CustomEvent('kos_page_sections_updated', {
+        detail: {
+          sections: restoredSections,
+          preset: snapshot.preset,
+        },
+      })
+    );
+
     showNotification(`העיצוב שוחזר בהצלחה לגרסה מתאריך ${snapshot.createdAtFormatted || 'קודמת'}!`);
   };
 
@@ -343,12 +590,12 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   const [auditRecommendations, setAuditRecommendations] = useState<string[]>(seoSettings.googleAuditRecommendations || []);
   const [auditScore, setAuditScore] = useState<number | null>(seoSettings.googleAuditScore || null);
 
-  // Dynamic Light / Dark mode sync from document element (default: dark)
+  // Dynamic Light / Dark mode sync from document element and theme events
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     if (typeof document !== 'undefined') {
-      return document.documentElement.classList.contains('dark') || true;
+      return document.documentElement.classList.contains('dark') || localStorage.getItem('kosun_theme') === 'dark';
     }
-    return true;
+    return false;
   });
 
   useEffect(() => {
@@ -360,11 +607,19 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   }, [globalSettings, seoSettings]);
 
   useEffect(() => {
+    const handleThemeChange = (e: any) => {
+      const isDark = document.documentElement.classList.contains('dark') || e?.detail?.theme === 'dark';
+      setIsDarkMode(isDark);
+    };
+    window.addEventListener('kosun_theme_changed', handleThemeChange);
     const observer = new MutationObserver(() => {
       setIsDarkMode(document.documentElement.classList.contains('dark'));
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
+    return () => {
+      window.removeEventListener('kosun_theme_changed', handleThemeChange);
+      observer.disconnect();
+    };
   }, []);
 
   // Check if user made unsaved changes

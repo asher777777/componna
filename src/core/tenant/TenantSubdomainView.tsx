@@ -976,6 +976,24 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
             return next;
           });
         }}
+        sections={effectivePageConfig?.sections}
+        onUpdateSections={(updatedSections) => {
+          setCurrentPageConfig((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, sections: updatedSections };
+            pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+            return next;
+          });
+        }}
+        designSnapshots={effectivePageConfig?.designSnapshots}
+        onUpdateDesignSnapshots={(updatedSnapshots) => {
+          setCurrentPageConfig((prev) => {
+            if (!prev) return prev;
+            const next = { ...prev, designSnapshots: updatedSnapshots };
+            pageBuilderFirestore.savePage(next, db, tenantRecord.subdomain).catch(console.warn);
+            return next;
+          });
+        }}
         pageTitle={effectivePageConfig?.pageTitle}
         pageSections={effectivePageConfig?.sections ? Object.values(effectivePageConfig.sections) : []}
         isEditing={isEditing}

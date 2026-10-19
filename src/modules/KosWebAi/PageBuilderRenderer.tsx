@@ -80,10 +80,13 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   // Recognizes common dark palette defaults so light mode can render freely
   const defaultDarkBgList = [
     '#0a0a0c', '#090a0f', '#09090b', '#041017', '#0c0714', '#0f0728', 
-    '#07090e', '#08080a', '#060608', '#000000', '#050505', '#111827', '#0f172a'
+    '#07090e', '#08080a', '#060608', '#000000', '#050505', '#111827', '#0f172a',
+    '#140c12', '#080c14', '#0c0716', '#05070a', '#04120e'
   ];
+  const isCurrentlyDark = typeof document !== 'undefined' ? document.documentElement.classList.contains('dark') : true;
   const isDefaultDarkBg = !globalSettings.backgroundColor || defaultDarkBgList.includes(globalSettings.backgroundColor.toLowerCase());
-  const customBgColor = !isDefaultDarkBg ? globalSettings.backgroundColor : undefined;
+  // In light (day) mode, never apply a dark custom background color to prevent contrast and theme inversion bugs
+  const customBgColor = (!isDefaultDarkBg && isCurrentlyDark) ? globalSettings.backgroundColor : undefined;
 
   const customStyle: React.CSSProperties = {
     ['--primary' as any]: globalSettings.primaryColor || '#6366f1',
@@ -539,7 +542,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           if (!reg || !reg.editorComponent) return null;
           const EditorComponent = reg.editorComponent;
 
-          if (sec.type === 'hero' || sec.type === 'richContent' || sec.type === 'faq' || sec.type === 'contact' || sec.type === 'imageListing' || sec.type === 'videoGallery' || sec.type === 'timer' || sec.type === 'livePosts' || sec.type === 'kosvidio' || sec.type === 'mainContent' || sec.type === 'videoEngagement') {
+          if (sec.type === 'hero' || sec.type === 'richContent' || sec.type === 'faq' || sec.type === 'contact' || sec.type === 'imageListing' || sec.type === 'videoGallery' || sec.type === 'timer' || sec.type === 'livePosts' || sec.type === 'kosvidio' || sec.type === 'mainContent' || sec.type === 'videoEngagement' || sec.type === 'kosvidioGallery') {
             return (
               <div
                 className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-4 animate-in fade-in duration-300 font-sans"

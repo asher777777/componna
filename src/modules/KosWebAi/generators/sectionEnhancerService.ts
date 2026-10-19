@@ -137,7 +137,7 @@ export const sectionEnhancerService = {
     // 3. LAYOUT & BENTO SUGGESTIONS
     const layoutSuggestions: SectionAiSuggestion[] = [];
 
-    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'livePosts' || sectionType === 'kosvidio' || sectionType === 'mainContent' || sectionType === 'videoEngagement') {
+    if (sectionType === 'hero' || sectionType === 'richContent' || sectionType === 'faq' || sectionType === 'contact' || sectionType === 'imageListing' || sectionType === 'videoGallery' || sectionType === 'timer' || sectionType === 'livePosts' || sectionType === 'kosvidio' || sectionType === 'mainContent' || sectionType === 'videoEngagement' || sectionType === 'kosvidioGallery') {
       layoutSuggestions.push(
         {
           id: `${sectionType}-layout-feminine`,
@@ -194,6 +194,38 @@ export const sectionEnhancerService = {
           prompt: 'עצב את האזור בפריסה אנליטית (analytical) מבוססת נתונים עם מדדי KPI ומסוף טלמטריה.',
         }
       );
+
+      if (sectionType === 'kosvidioGallery') {
+        layoutSuggestions.push(
+          {
+            id: 'kosvidio-gallery-spotlight',
+            tab: 'layout',
+            title: 'תצוגה א׳: וידאו מרכזי גדול ותחתיו כרטיסים (Spotlight Grid)',
+            description: 'נגן וידאו מרכזי גדול בראש האזור ומתחתיו כרטיסי וידאו קטנים המתחלפים בלחיצה.',
+            badge: 'מומלץ לערוץ תוכן',
+            iconName: 'Sparkles',
+            prompt: 'הגדר את פריסת גלריית הוידאו ל-spotlight-grid עם וידאו ראשי גדול ותחתיו כרטיסי משנה.',
+          },
+          {
+            id: 'kosvidio-gallery-stacked',
+            tab: 'layout',
+            title: 'תצוגה ב׳: רשימת סרטונים זה תחת זה (Stacked List)',
+            description: 'רשימה אנכית עשירה בפרטים עם תצוגה מקדימה וקישור ישיר לעמוד הסרטון המלא.',
+            badge: 'רשימה אנכית',
+            iconName: 'Layers',
+            prompt: 'הגדר את פריסת גלריית הוידאו ל-stacked-list ברשימה אנכית נקייה.',
+          },
+          {
+            id: 'kosvidio-gallery-horizontal',
+            tab: 'layout',
+            title: 'תצוגה ג׳: גלריה עם גלילה אופקית ללא גלישה (Horizontal Scroll)',
+            description: 'קרוסלת וידאו אופקית חלקה ותחומה ללא גלישת עמוד.',
+            badge: 'גלילה אופקית',
+            iconName: 'Compass',
+            prompt: 'הגדר את פריסת גלריית הוידאו ל-horizontal-scroll עם גלילה אופקית ללא גלישה.',
+          }
+        );
+      }
     } else if (sectionType === 'pricing') {
       layoutSuggestions.push(
         {
@@ -315,36 +347,6 @@ export const sectionEnhancerService = {
           badge: 'מרחבי וגמיש',
           iconName: 'Compass',
           prompt: 'הגדר את פריסת האזור ל-floating-islands עם כרטיסים צפים ומודאל הרחבה עשיר.',
-        }
-      );
-    } else if (sectionType === 'kosvidioGallery') {
-      layoutSuggestions.push(
-        {
-          id: 'kosvidio-gallery-spotlight',
-          tab: 'layout',
-          title: 'פריסה א׳: וידאו גדול ותחתיו כמה קטנים (Spotlight Grid)',
-          description: 'נגן וידאו מרכזי גדול בראש האזור ומתחתיו כרטיסי וידאו קטנים המקושרים ל-KOSVIDIO.',
-          badge: 'מומלץ KOSVIDIO',
-          iconName: 'Sparkles',
-          prompt: 'הגדר את פריסת גלריית הוידאו ל-spotlight-grid עם וידאו ראשי גדול ותחתיו כרטיסי משנה.',
-        },
-        {
-          id: 'kosvidio-gallery-stacked',
-          tab: 'layout',
-          title: 'פריסה ב׳: רשימת סרטונים זה תחת זה (Stacked List)',
-          description: 'רשימה אנכית עשירה בפרטים עם תצוגה מקדימה וקישור ישיר לעמוד ה-KOSVIDIO.',
-          badge: 'רשימה אנכית',
-          iconName: 'Layers',
-          prompt: 'הגדר את פריסת גלריית הוידאו ל-stacked-list ברשימה אנכית נקייה.',
-        },
-        {
-          id: 'kosvidio-gallery-horizontal',
-          tab: 'layout',
-          title: 'פריסה ג׳: גלריה עם גלילה אופקית ללא גלישה (Horizontal Scroll)',
-          description: 'קרוסלת וידאו אופקית חלקה ותחומה ללא גלישת עמוד.',
-          badge: 'גלילה אופקית',
-          iconName: 'Compass',
-          prompt: 'הגדר את פריסת גלריית הוידאו ל-horizontal-scroll עם גלילה אופקית ללא גלישה.',
         }
       );
     } else {
@@ -972,25 +974,49 @@ Return ONLY the raw updated JSON object.`;
         changes.push('רענון פריטי התוכן והשירותים מתוך טאב השירותים במיתוג');
       }
     } else if (sectionType === 'kosvidioGallery') {
+      if (prompt.includes('feminine') || prompt.includes('נשי')) {
+        updated.layout = 'feminine';
+        changes.push('שודרג לפריסת גלריית וידאו נשית (רכה ורוז-גולד עם קשתות)');
+      } else if (prompt.includes('masculine') || prompt.includes('גברי')) {
+        updated.layout = 'masculine';
+        changes.push('שודרג לפריסת גלריית וידאו גברית (פחם, זהב פליז ומסגרת פלדה)');
+      } else if (prompt.includes('spiritual') || prompt.includes('רוחני')) {
+        updated.layout = 'spiritual';
+        changes.push('שודרג לפריסת גלריית וידאו רוחנית (מרווה, מנטה ושלווה)');
+      } else if (prompt.includes('sharp') || prompt.includes('חד')) {
+        updated.layout = 'sharp';
+        changes.push('שודרג לפריסת גלריית וידאו חדה (הייטק, ציאן ניאון ו-90 מעלות)');
+      } else if (prompt.includes('analytical') || prompt.includes('אנליטי')) {
+        updated.layout = 'analytical';
+        changes.push('שודרג לפריסת גלריית וידאו אנליטית (אינדקס נתונים #01 וסדר קטלוגי)');
+      } else if (prompt.includes('standard') || prompt.includes('current') || prompt.includes('עכשווי')) {
+        updated.layout = 'standard';
+        changes.push('שודרג לפריסת גלריית וידאו עכשווית');
+      }
+
+      if (prompt.includes('spotlight-grid') || prompt.includes('גדול')) {
+        updated.viewMode = 'spotlight-grid';
+        changes.push('מעבר לתצוגה א׳: וידאו מרכזי גדול ותחתיו כרטיסים');
+      } else if (prompt.includes('stacked-list') || prompt.includes('רשימה')) {
+        updated.viewMode = 'stacked-list';
+        changes.push('מעבר לתצוגת רשימה זה תחת זה');
+      } else if (prompt.includes('horizontal-scroll') || prompt.includes('אופקית')) {
+        updated.viewMode = 'horizontal-scroll';
+        changes.push('מעבר לתצוגת גלריה עם גלילה אופקית ללא גלישה');
+      }
+
       updated.title = company ? `ספריית הוידאו והתוכן של ${company}` : 'ספריית הוידאו והתוכן';
-      updated.subtitle = slogan;
+      updated.subtitle = slogan || 'סרטונים, הדרכות ותוכן בלעדי';
+      updated.badge = company ? `• ${company} VIDEO •` : '• ספריית וידאו חכמה •';
       updated.description =
-        uvp || (company ? `צפו בסרטונים המובילים של ${company} המקושרים ישירות לעמודי ה-KOSVIDIO של העסק.` : '');
+        uvp || (company ? `צפו בסרטונים ובהדרכות המובילים של ${company}.` : 'סרטונים, הדרכות ותוכן בלעדי');
       updated.channelName = company;
       updated.channelSlogan = slogan;
       updated.source = 'tenant_kosvidio';
+      updated.ctaButtonText = company ? `לכל הסרטונים של ${company}` : 'לכל הסרטונים וההדרכות';
+      updated.ctaButtonUrl = '/kosvidio';
       updated.items = [];
-      if (prompt.includes('spotlight-grid') || prompt.includes('גדול')) {
-        updated.layout = 'spotlight-grid';
-        changes.push('מעבר לפריסה א׳: וידאו גדול ותחתיו כמה קטנים');
-      } else if (prompt.includes('stacked-list') || prompt.includes('רשימה')) {
-        updated.layout = 'stacked-list';
-        changes.push('מעבר לפריסת רשימה זה תחת זה');
-      } else if (prompt.includes('horizontal-scroll') || prompt.includes('אופקית')) {
-        updated.layout = 'horizontal-scroll';
-        changes.push('מעבר לפריסת גלריה עם גלילה אופקית ללא גלישה');
-      }
-      changes.push(`סנכרון כותרות הגלריה מתוך מיתוג הטננט (${company}) וחיבור לקולקציית ה-KOSVIDIO`);
+      changes.push(`סנכרון כותרות ספריית הוידאו מתוך מיתוג ${company}`);
     } else {
       updated.title = `${updated.title || 'שדרוג אזור'} – ${company}`;
       updated.subtitle = uvp;
