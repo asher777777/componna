@@ -1402,8 +1402,8 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                     type="number"
                     min="1"
                     max="60"
-                    value={formData.maxVideos || 12}
-                    onChange={(e) => updateField('maxVideos', parseInt(e.target.value, 10) || 12)}
+                    value={localConfig.maxVideos || 12}
+                    onChange={(e) => update('maxVideos', parseInt(e.target.value, 10) || 12)}
                     className="w-20 bg-[#181818] border border-white/15 text-white rounded-xl px-3 py-1.5 text-xs text-center outline-none focus:border-red-500 font-bold"
                   />
                 </div>
