@@ -123,8 +123,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       }
 
       const all = await pageBuilderFirestore.getAllPages(db, tenantId);
-      // Clean up any historical dummy values if present in stored pages
-      const sanitized = all.map((p) => {
+      // Clean up any historical dummy values or accidental event objects in stored pages
+      const sanitized = all.map((p) => sanitizeSectionConfig(p)).map((p) => {
         let pCopy = { ...p };
         let wasCleaned = false;
         if (pCopy.viewsCount === 1420 && pCopy.leadsCount === 38) {
@@ -166,7 +166,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         if (data?.brandDna) {
           await syncLegalPagesWithBrandDna(db, tenantId, data.brandDna);
           const refreshed = await pageBuilderFirestore.getAllPages(db, tenantId);
-          setPages(refreshed);
+          setPages(refreshed.map((p) => sanitizeSectionConfig(p)));
         }
       } catch (err) {
         console.warn('[PageBuilder] Two-way legal pages sync on brand update error:', err);
@@ -177,10 +177,11 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
 
   // Save current page handler
   const handleSavePage = async (updated: PageBuilderConfig) => {
-    setCurrentPage(updated);
-    await pageBuilderFirestore.savePage(updated, db, tenantId);
+    const clean = sanitizeSectionConfig(updated);
+    setCurrentPage(clean);
+    await pageBuilderFirestore.savePage(clean, db, tenantId);
     const all = await pageBuilderFirestore.getAllPages(db, tenantId);
-    setPages(all);
+    setPages(all.map((p) => sanitizeSectionConfig(p)));
   };
 
   // Convert page to interactive video funnel
