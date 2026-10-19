@@ -1538,7 +1538,7 @@ export interface DynamicCategoriesSectionConfig extends BaseSectionConfig {
 
 export type EventImageMaskShape = 'arch' | 'oval' | 'flower' | 'heart' | 'rounded' | 'sharp' | 'hud';
 export type EventListingCardLayout = 'classic-card' | 'split-arch' | 'horizontal-pill' | 'minimal-compact';
-export type EventListingSource = 'auto-pages' | 'manual' | 'all';
+export type EventListingSource = 'auto-pages' | 'manual' | 'selected-pages' | 'all';
 export type EventListingStylePreset = 'standard' | 'feminine' | 'masculine' | 'spiritual' | 'sharp' | 'analytical';
 
 export interface EventListingItem {
@@ -1573,7 +1573,8 @@ export interface EventsListingSectionConfig extends BaseSectionConfig {
 
   // Source & Loading
   source?: EventListingSource;
-  filterCategory?: string; // e.g. 'event' | 'course' | 'workshop'
+  selectedPageIds?: string[]; // בחירה דינמית של עמודים ספציפיים מכל סוגי העמודים
+  filterCategory?: string; // e.g. 'all' | 'event' | 'course' | 'workshop'
   collectionLimit?: number;
 
   // Layout & Visual Card Masks

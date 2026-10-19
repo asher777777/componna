@@ -40,7 +40,8 @@ export const EventsListingSection: React.FC<{ config: EventsListingSectionConfig
     badge = '• לוח אירועים והכשרות •',
     descriptionHtml,
     source = 'auto-pages',
-    filterCategory = 'event',
+    selectedPageIds = [],
+    filterCategory = 'all',
     cardLayout = 'classic-card', // 'classic-card' | 'split-arch'
     imageMaskShape = 'arch', // 'arch' | 'oval' | 'flower' | 'heart' | 'rounded' | 'sharp' | 'hud'
     gridColumns = 3,
@@ -76,7 +77,7 @@ export const EventsListingSection: React.FC<{ config: EventsListingSectionConfig
   const [resolvedItems, setResolvedItems] = useState<EventListingItem[]>(items && items.length > 0 ? items : []);
   const [loading, setLoading] = useState(false);
 
-  // Dynamic automatic loading of pages tagged with event / course / workshop if source === 'auto-pages'
+  // Dynamic loading of pages (From all page types, or selected specific pages, or auto-filter)
   useEffect(() => {
     if (source === 'manual') {
       if (items && items.length > 0) setResolvedItems(items);
@@ -90,54 +91,80 @@ export const EventsListingSection: React.FC<{ config: EventsListingSectionConfig
         const tenantId = resolveCurrentTenantId() || ROOT_TENANT_ID;
         const allPages = await pageBuilderFirestore.getAllPages(null, tenantId);
         
-        // Find pages that are published and belong to event/course categories or have eventRsvp section
-        const eventPages = (allPages || []).filter((p) => {
+        // Filter pages based on mode: selectedPageIds, category, or all pages
+        const targetPages = (allPages || []).filter((p) => {
           if (!p.published && !p.isHomePage) return false;
-          const cat = p.pageCategory || '';
-          const hasEventSection = p.sections && Object.values(p.sections).some((s: any) => s?.type === 'eventRsvp' || s?.type === 'eventsListing');
-          return cat === 'event' || cat === 'course' || cat === 'community' || hasEventSection;
+          
+          // Specific selected pages mode
+          if (source === 'selected-pages' && selectedPageIds && selectedPageIds.length > 0) {
+            return selectedPageIds.includes(p.pageId);
+          }
+
+          // Category filter if specified and not 'all'
+          if (filterCategory && filterCategory !== 'all') {
+            const cat = p.pageCategory || '';
+            const hasEventSection = p.sections && Object.values(p.sections).some((s: any) => s?.type === 'eventRsvp' || s?.type === 'eventsListing');
+            if (filterCategory === 'event') return cat === 'event' || hasEventSection;
+            return cat === filterCategory;
+          }
+
+          // In auto-pages / all: include all pages, prioritizing those with event or rich content
+          return true;
         });
 
-        if (eventPages.length > 0 && isMounted) {
-          const mapped: EventListingItem[] = eventPages.map((p, idx) => {
+        if (targetPages.length > 0 && isMounted) {
+          const mapped: EventListingItem[] = targetPages.map((p, idx) => {
             const sections = p.sections ? Object.values(p.sections) : [];
             const eventRsvpSec: any = sections.find((s: any) => s?.type === 'eventRsvp');
             const heroSec: any = sections.find((s: any) => s?.type === 'hero');
 
-            // Location format resolution
-            const locFormat = eventRsvpSec?.locationAddress
-              ? `${eventRsvpSec?.locationName || ''} • ${eventRsvpSec?.locationAddress}`
-              : eventRsvpSec?.locationName || 'מפגש היברידי / מקוון';
+            // Location format resolution - ONLY if exists in eventRsvp
+            let locFormat = '';
+            if (eventRsvpSec?.locationAddress) {
+              locFormat = `${eventRsvpSec?.locationName ? `${eventRsvpSec.locationName} • ` : ''}${eventRsvpSec.locationAddress}`;
+            } else if (eventRsvpSec?.locationName) {
+              locFormat = eventRsvpSec.locationName;
+            }
 
-            // Day and time resolution
-            const dayTime = eventRsvpSec?.eventTime
-              ? `${eventRsvpSec?.eventDate || ''} | ${eventRsvpSec?.eventTime}${eventRsvpSec?.eventEndTime ? ` - ${eventRsvpSec?.eventEndTime}` : ''}`
-              : 'מועד מפורט בעמוד האירוע';
+            // Day and time resolution - ONLY if exists in eventRsvp
+            let dayTime = '';
+            if (eventRsvpSec?.eventTime || eventRsvpSec?.eventDate) {
+              const datePart = eventRsvpSec?.eventDate || '';
+              const timePart = eventRsvpSec?.eventTime
+                ? `${eventRsvpSec.eventTime}${eventRsvpSec?.eventEndTime ? ` - ${eventRsvpSec.eventEndTime}` : ''}`
+                : '';
+              dayTime = [datePart, timePart].filter(Boolean).join(' | ');
+            }
 
+            // Extract photo: 1. SEO ogImage, 2. Hero image, 3. Site logo
             const photo =
+              p.seoSettings?.ogImage ||
               heroSec?.imageSrc ||
               heroSec?.imageUrl ||
               p.globalSettings?.siteLogoUrl ||
               '';
 
+            // Extract Title & Subtitle: Strictly from SEO settings first, with fallback to pageTitle
+            const itemTitle = p.seoSettings?.title || p.pageTitle || eventRsvpSec?.eventTitle || 'עמוד תוכן';
+            const itemSubtitle = p.seoSettings?.description || eventRsvpSec?.subtitle || heroSec?.subtitle || '';
+
             return {
-              id: p.pageId || `event-page-${idx}`,
-              title: p.pageTitle || eventRsvpSec?.eventTitle || 'אירוע קהילתי',
-              subtitle: p.seoSettings?.description || eventRsvpSec?.subtitle || heroSec?.subtitle || '',
+              id: p.pageId || `page-${idx}`,
+              title: itemTitle,
+              subtitle: itemSubtitle,
               excerpt: eventRsvpSec?.description || '',
               imageUrl: photo,
-              badge: eventRsvpSec?.badge || (p.pageCategory === 'course' ? 'מחזור חדש' : 'ההרשמה בעיצומה'),
-              dayAndTime: dayTime,
-              locationFormat: locFormat,
-              startDateText: eventRsvpSec?.eventDate || 'קרוב',
-              sessionsCount: 'מפגשים מרוכזים',
+              badge: eventRsvpSec?.badge || (p.pageCategory === 'course' ? 'מחזור חדש' : p.pageCategory === 'event' ? 'אירוע קרוב' : ''),
+              dayAndTime: dayTime || undefined,
+              locationFormat: locFormat || undefined,
+              startDateText: eventRsvpSec?.eventDate || undefined,
+              sessionsCount: eventRsvpSec ? 'מפגשים מרוכזים' : undefined,
               linkUrl: p.publishedUrl || p.publicUrl || `/${p.slug}`,
               ctaText: defaultCtaText,
               actionType: 'link',
             };
           });
 
-          // Zero Mock Data Policy: If pages found, set them. If manual items exist and no pages found, use manual items.
           setResolvedItems(mapped);
         } else if (items && items.length > 0 && isMounted) {
           setResolvedItems(items);
@@ -153,7 +180,7 @@ export const EventsListingSection: React.FC<{ config: EventsListingSectionConfig
     return () => {
       isMounted = false;
     };
-  }, [source, defaultCtaText]);
+  }, [source, selectedPageIds, filterCategory, defaultCtaText]);
 
   // If items prop directly passed in manual mode or updated by editor
   useEffect(() => {
@@ -446,27 +473,35 @@ export const EventsListingSection: React.FC<{ config: EventsListingSectionConfig
                       </p>
                     )}
 
-                    {/* Time & Sessions Summary inside card */}
-                    <div className="mt-3 pt-3 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-col gap-1 text-[11px] text-zinc-600 dark:text-zinc-400 font-medium">
-                      {item.sessionsCount && (
-                        <div className="flex items-center gap-1.5 font-bold text-zinc-800 dark:text-zinc-200">
-                          <Users className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
-                          <span>{item.sessionsCount}</span>
-                        </div>
-                      )}
-                      {item.startDateText && (
-                        <div className="flex items-center gap-1.5">
-                          <Calendar className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
-                          <span>{item.startDateText}</span>
-                        </div>
-                      )}
-                      {item.dayAndTime && (
-                        <div className="flex items-center gap-1.5">
-                          <Clock className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
-                          <span>{item.dayAndTime}</span>
-                        </div>
-                      )}
-                    </div>
+                    {/* Time & Sessions Summary inside card - מוצג רק אם קיים לפחות נתון אחד */}
+                    {(item.sessionsCount || item.startDateText || item.dayAndTime) && (
+                      <div className="mt-3 pt-3 border-t border-zinc-200/60 dark:border-zinc-800/60 flex flex-col gap-1 text-[11px] text-zinc-600 dark:text-zinc-400 font-medium">
+                        {item.sessionsCount && (
+                          <div className="flex items-center gap-1.5 font-bold text-zinc-800 dark:text-zinc-200">
+                            <Users className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
+                            <span>{item.sessionsCount}</span>
+                          </div>
+                        )}
+                        {item.startDateText && (
+                          <div className="flex items-center gap-1.5">
+                            <Calendar className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
+                            <span>{item.startDateText}</span>
+                          </div>
+                        )}
+                        {item.dayAndTime && (
+                          <div className="flex items-center gap-1.5">
+                            <Clock className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
+                            <span>{item.dayAndTime}</span>
+                          </div>
+                        )}
+                        {item.locationFormat && (
+                          <div className="flex items-center gap-1.5">
+                            <MapPin className={clsx('w-3.5 h-3.5 shrink-0', presetStyle.metaIconColor)} />
+                            <span className="line-clamp-1">{item.locationFormat}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* Left side: Masked Image Arch */}
@@ -591,40 +626,57 @@ export const EventsListingSection: React.FC<{ config: EventsListingSectionConfig
                   )}
                 </div>
 
-                {/* Event Metadata 3-Columns Grid (מתי | מיקום/כתובת | תאריך התחלה ומפגשים) */}
-                <div className={clsx('grid grid-cols-3 border-t text-center py-3.5 px-2 bg-zinc-50/60 dark:bg-zinc-950/40', presetStyle.dividerColor)}>
-                  {/* Column 1: Time / Schedule */}
-                  <div className="px-1 flex flex-col items-center justify-start gap-1">
-                    <Calendar className={clsx('w-4 h-4', presetStyle.metaIconColor)} />
-                    <span className="text-[10px] text-zinc-400 font-semibold">מתי</span>
-                    <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 leading-tight">
-                      {item.dayAndTime || 'מועד גמיש'}
-                    </span>
-                  </div>
+                {/* Event Metadata Columns Grid (מתי | מיקום/כתובת | תאריך התחלה ומפגשים) - נסתר אוטומטית אם אין נתוני אירוע */}
+                {(item.dayAndTime || item.locationFormat || item.startDateText || item.sessionsCount) && (
+                  <div className={clsx('grid border-t text-center py-3.5 px-2 bg-zinc-50/60 dark:bg-zinc-950/40', {
+                    'grid-cols-3': Boolean(item.dayAndTime && item.locationFormat && (item.startDateText || item.sessionsCount)),
+                    'grid-cols-2': [Boolean(item.dayAndTime), Boolean(item.locationFormat), Boolean(item.startDateText || item.sessionsCount)].filter(Boolean).length === 2,
+                    'grid-cols-1': [Boolean(item.dayAndTime), Boolean(item.locationFormat), Boolean(item.startDateText || item.sessionsCount)].filter(Boolean).length === 1,
+                  }, presetStyle.dividerColor)}>
+                    {/* Column 1: Time / Schedule */}
+                    {item.dayAndTime && (
+                      <div className="px-1 flex flex-col items-center justify-start gap-1">
+                        <Calendar className={clsx('w-4 h-4', presetStyle.metaIconColor)} />
+                        <span className="text-[10px] text-zinc-400 font-semibold">מתי</span>
+                        <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 leading-tight">
+                          {item.dayAndTime}
+                        </span>
+                      </div>
+                    )}
 
-                  {/* Column 2: Location / Format (היברידי, כתובת, זום) */}
-                  <div className={clsx('px-1 flex flex-col items-center justify-start gap-1 border-r border-l', presetStyle.dividerColor)}>
-                    <MapPin className={clsx('w-4 h-4', presetStyle.metaIconColor)} />
-                    <span className="text-[10px] text-zinc-400 font-semibold">מיקום / פורמט</span>
-                    <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 leading-tight line-clamp-2">
-                      {item.locationFormat || 'היברידי'}
-                    </span>
-                  </div>
+                    {/* Column 2: Location / Format (היברידי, כתובת, זום) */}
+                    {item.locationFormat && (
+                      <div className={clsx('px-1 flex flex-col items-center justify-start gap-1', {
+                        'border-r border-l': Boolean(item.dayAndTime && (item.startDateText || item.sessionsCount)),
+                        'border-r': Boolean(item.dayAndTime && !(item.startDateText || item.sessionsCount)),
+                      }, presetStyle.dividerColor)}>
+                        <MapPin className={clsx('w-4 h-4', presetStyle.metaIconColor)} />
+                        <span className="text-[10px] text-zinc-400 font-semibold">מיקום / פורמט</span>
+                        <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 leading-tight line-clamp-2">
+                          {item.locationFormat}
+                        </span>
+                      </div>
+                    )}
 
-                  {/* Column 3: Starting Date & Sessions */}
-                  <div className="px-1 flex flex-col items-center justify-start gap-1">
-                    <Clock className={clsx('w-4 h-4', presetStyle.metaIconColor)} />
-                    <span className="text-[10px] text-zinc-400 font-semibold">מתחילים ב</span>
-                    <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 leading-tight">
-                      {item.startDateText || 'בקרוב'}
-                    </span>
-                    {item.sessionsCount && (
-                      <span className="text-[10px] font-medium text-zinc-500">
-                        {item.sessionsCount}
-                      </span>
+                    {/* Column 3: Starting Date & Sessions */}
+                    {(item.startDateText || item.sessionsCount) && (
+                      <div className="px-1 flex flex-col items-center justify-start gap-1">
+                        <Clock className={clsx('w-4 h-4', presetStyle.metaIconColor)} />
+                        <span className="text-[10px] text-zinc-400 font-semibold">מתחילים ב</span>
+                        {item.startDateText && (
+                          <span className="text-[11px] font-bold text-zinc-800 dark:text-zinc-200 leading-tight">
+                            {item.startDateText}
+                          </span>
+                        )}
+                        {item.sessionsCount && (
+                          <span className="text-[10px] font-medium text-zinc-500">
+                            {item.sessionsCount}
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                </div>
+                )}
 
                 {/* Bottom Action CTA Button */}
                 <div className="p-4 sm:p-5 pt-3">

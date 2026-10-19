@@ -12,6 +12,8 @@ import { RichContentWysiwygEditor } from '../richContent/RichContentWysiwygEdito
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract, AiTextAssistantContract } from '../../../../core/contracts';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import {
   Palette,
   Type,
@@ -88,6 +90,39 @@ export const EventsListingEditor: React.FC<EventsListingEditorProps> = ({
   const rawBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
   const brandDna = resolveLiveBrandDna(rawBrandDna);
   const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
+
+  // Tenant Pages dynamic lookup for selection menu
+  const [availablePages, setAvailablePages] = useState<Array<{ pageId: string; pageTitle: string; pageCategory?: string; slug: string }>>([]);
+  const [loadingPages, setLoadingPages] = useState(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    const loadPages = async () => {
+      setLoadingPages(true);
+      try {
+        const tenantId = resolveCurrentTenantId() || ROOT_TENANT_ID;
+        const pages = await pageBuilderFirestore.getAllPages(null, tenantId);
+        if (isMounted) {
+          setAvailablePages(
+            (pages || []).map((p) => ({
+              pageId: p.pageId,
+              pageTitle: p.seoSettings?.title || p.pageTitle || p.slug,
+              pageCategory: p.pageCategory || 'general',
+              slug: p.slug,
+            }))
+          );
+        }
+      } catch (err) {
+        console.warn('EventsListingEditor: failed to load pages for selector', err);
+      } finally {
+        if (isMounted) setLoadingPages(false);
+      }
+    };
+    loadPages();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Accordion State - ALL CLOSED BY DEFAULT, EXCLUSIVE
   const [openMainAccordion, setOpenMainAccordion] = useState<string | null>(null);
@@ -620,29 +655,89 @@ export const EventsListingEditor: React.FC<EventsListingEditorProps> = ({
 
         {openMainAccordion === 'items' && (
           <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/40">
-            {/* Dynamic auto-load toggle from Pages */}
-            <div className="flex items-center justify-between p-2 rounded-xl bg-white/5 border border-white/10">
-              <div className="flex items-center gap-2">
-                <FolderArchive className="w-4 h-4 text-sky-400" />
-                <span className="text-[11px] text-zinc-300">שאיבה דינמית מעמודי אירועים</span>
+            {/* Source Mode Selector: Auto Pages vs Selected Pages vs Manual */}
+            <div className="space-y-2 p-2.5 rounded-xl bg-white/5 border border-white/10">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-zinc-300">מקור נתוני האזור:</span>
+                <span className="text-[10px] text-zinc-500">שאיבה דינמית מעמודים והגדרות SEO</span>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  handleUpdate({
-                    source: config.source === 'manual' ? 'auto-pages' : 'manual',
-                  })
-                }
-                className={clsx(
-                  'px-2.5 py-1 rounded-lg border text-[11px] font-bold cursor-pointer transition',
-                  (config.source || 'auto-pages') === 'auto-pages'
-                    ? 'border-sky-500 bg-sky-500/20 text-sky-400'
-                    : 'border-white/10 bg-white/5 text-zinc-400'
-                )}
-                title="טען אוטומטית עמודי אירועים ו-RSVP של הטננט או נהל ידנית"
-              >
-                {(config.source || 'auto-pages') === 'auto-pages' ? 'פעיל (אוטומטי)' : 'ידני בלבד'}
-              </button>
+              <div className="grid grid-cols-3 gap-1.5">
+                {[
+                  { id: 'auto-pages', title: 'שאיבה אוטומטית' },
+                  { id: 'selected-pages', title: 'בחירת עמודים' },
+                  { id: 'manual', title: 'הזנה ידנית' },
+                ].map((srcOption) => (
+                  <button
+                    key={srcOption.id}
+                    type="button"
+                    onClick={() => handleUpdate({ source: srcOption.id as any })}
+                    className={clsx(
+                      'py-1.5 px-2 rounded-lg border text-[11px] font-semibold text-center cursor-pointer transition',
+                      (config.source || 'auto-pages') === srcOption.id
+                        ? 'border-sky-500 bg-sky-500/20 text-sky-400 font-bold'
+                        : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                    )}
+                    title={srcOption.title}
+                  >
+                    {srcOption.title}
+                  </button>
+                ))}
+              </div>
+
+              {/* Dynamic Pages Multi-Select Dropdown if source === 'selected-pages' */}
+              {config.source === 'selected-pages' && (
+                <div className="mt-2.5 pt-2.5 border-t border-white/10 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-amber-400">
+                      בחירת עמודים מהמערכת (כותרת, SEO ותמונה):
+                    </span>
+                    <span className="text-[10px] text-zinc-500">
+                      נבחרו: {(config.selectedPageIds || []).length}
+                    </span>
+                  </div>
+
+                  {loadingPages ? (
+                    <div className="p-3 text-center text-zinc-400 text-xs flex items-center justify-center gap-1.5">
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>טוען רשימת עמודים...</span>
+                    </div>
+                  ) : availablePages.length === 0 ? (
+                    <p className="text-[11px] text-zinc-500">לא נמצאו עמודים קיימים בטננט.</p>
+                  ) : (
+                    <div className="max-h-48 overflow-y-auto space-y-1 pr-1 border border-white/10 rounded-lg p-1.5 bg-black/40">
+                      {availablePages.map((page) => {
+                        const isSelected = (config.selectedPageIds || []).includes(page.pageId);
+                        return (
+                          <button
+                            key={page.pageId}
+                            type="button"
+                            onClick={() => {
+                              const currentSelected = config.selectedPageIds || [];
+                              const nextSelected = isSelected
+                                ? currentSelected.filter((id) => id !== page.pageId)
+                                : [...currentSelected, page.pageId];
+                              handleUpdate({ selectedPageIds: nextSelected });
+                            }}
+                            className={clsx(
+                              'w-full p-2 rounded-lg text-right text-xs flex items-center justify-between transition cursor-pointer',
+                              isSelected
+                                ? 'bg-sky-500/20 text-white border border-sky-500/40 font-bold'
+                                : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-zinc-200 border border-transparent'
+                            )}
+                            title={`קטגוריה: ${page.pageCategory} • נתיב: /${page.slug}`}
+                          >
+                            <div className="flex flex-col text-right truncate">
+                              <span className="truncate">{page.pageTitle}</span>
+                              <span className="text-[10px] text-zinc-500">/{page.slug} ({page.pageCategory})</span>
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-sky-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* List of items */}
