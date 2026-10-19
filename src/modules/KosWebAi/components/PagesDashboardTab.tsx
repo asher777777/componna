@@ -51,6 +51,8 @@ interface PagesDashboardTabProps {
   onEnsureLegalPages?: () => Promise<void>;
   onEnsureArchivePages?: () => Promise<void>;
   onOpenAnalyticsHub?: () => void;
+  brandDna?: any;
+  tenantId?: string;
 }
 
 export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
@@ -69,6 +71,8 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
   onTogglePublish,
   onOpenShortener,
   onConvertToVideo,
+  brandDna,
+  tenantId,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'drafts'>('all');
@@ -716,6 +720,8 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
       <CreatePageWizardModal
         isOpen={isNewPageModalOpen}
         onClose={() => setIsNewPageModalOpen(false)}
+        brandDna={brandDna}
+        tenantId={tenantId}
         onConfirm={async (options) => {
           onNewPage(options);
         }}

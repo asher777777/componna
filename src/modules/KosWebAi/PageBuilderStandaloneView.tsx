@@ -12,7 +12,7 @@ import { pageBuilderFirestore } from './services/pageBuilderFirestore';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { useTenantScope } from '../../core/tenant';
 import { useHostCapabilities } from '../../core/bridge/HostCapabilitiesContext';
-import { BrandDnaContract, TenantStylePreset } from '../../core/contracts';
+import { BrandDna, BrandDnaContract, TenantStylePreset } from '../../core/contracts';
 import { Layers, Edit3, Sparkles } from 'lucide-react';
 import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderProvider } from './context/PageBuilderContext';
@@ -21,6 +21,8 @@ import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/bran
 import { applyLayoutArchetypeToPage, STYLE_GLOBAL_THEMES } from './services/pageStylePresetService';
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';
 import { ensureDefaultArchivePages, syncArchivePagesWithBrandDna } from './generators/archivePageGenerator';
+import { loadBrandDna } from '../KosBranding/services/brandDnaFirestore';
+import { getPageBlueprints } from './blueprints/pageBlueprints';
 import { eventBus } from '../../core/bridge/EventBus';
 import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
@@ -28,38 +30,40 @@ import { sanitizeSectionConfig } from './utils/sanitizeConfig';
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';
 
-const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
-  pageId: 'page_main_home',
-  pageTitle: 'עמוד הבית הראשי',
-  slug: 'home',
-  published: true,
-  isHomePage: true,
-  viewsCount: 0,
-  leadsCount: 0,
-  globalSettings: {
-    siteTitle: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
-    companyName: brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
-    slogan: brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת',
-    theme: 'modern',
-    headerLayout: 'capsule-floating',
-    headerSticky: true,
-    isHeaderVisible: true,
-    isFooterVisible: true,
-    primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
-    secondaryColor: brandDna?.designTokens?.secondaryColor || '#0ea5e9',
-    backgroundColor: '#0a0a0c',
-    textColor: '#f8fafc',
-    buttonBgColor: brandDna?.designTokens?.primaryColor || '#6366f1',
-    fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
-    contactWhatsApp: brandDna?.trust?.whatsappSupportNumber || '0526968008',
-    contactPhone: brandDna?.trust?.contactPhone || '052-6968008',
-    contactEmail: brandDna?.trust?.contactEmail || 'ovt5771@gmail.com',
-    address: brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
-  },
-  seoSettings: {
-    title: `${brandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים'} - דפי נחיתה וניהול קהילות`,
-    description: brandDna?.identity?.shortVision || 'פלטפורמה מתקדמת לדפי אינטרנט ואוטומציות דיגיטליות.',
-    keywords: ['דפי נחיתה', 'קהילות', 'שירותים דיגיטליים', 'קמונה'],
+const getInitialCleanPageConfig = (brandDna?: any, tenantId?: string): PageBuilderConfig => {
+  const company = brandDna?.identity?.companyName || (tenantId && tenantId !== '_master' ? tenantId : 'קמונה פתרונות דיגיטליים');
+  return {
+    pageId: 'page_main_home',
+    pageTitle: `${company} - עמוד הבית הראשי`,
+    slug: 'home',
+    published: true,
+    isHomePage: true,
+    viewsCount: 0,
+    leadsCount: 0,
+    globalSettings: {
+      siteTitle: company,
+      companyName: company,
+      slogan: brandDna?.identity?.slogan || 'חדשנות, איכות וצמיחה מתמדת',
+      theme: 'modern',
+      headerLayout: 'capsule-floating',
+      headerSticky: true,
+      isHeaderVisible: true,
+      isFooterVisible: true,
+      primaryColor: brandDna?.designTokens?.primaryColor || '#6366f1',
+      secondaryColor: brandDna?.designTokens?.secondaryColor || '#0ea5e9',
+      backgroundColor: '#0a0a0c',
+      textColor: '#f8fafc',
+      buttonBgColor: brandDna?.designTokens?.primaryColor || '#6366f1',
+      fontFamily: brandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+      contactWhatsApp: brandDna?.trust?.whatsappSupportNumber || '0526968008',
+      contactPhone: brandDna?.trust?.contactPhone || '052-6968008',
+      contactEmail: brandDna?.trust?.contactEmail || 'ovt5771@gmail.com',
+      address: brandDna?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
+    },
+    seoSettings: {
+      title: `${company} - דפי נחיתה וניהול קהילות`,
+      description: brandDna?.identity?.shortVision || 'פלטפורמה מתקדמת לדפי אינטרנט ואוטומציות דיגיטליות.',
+      keywords: ['דפי נחיתה', 'קהילות', 'שירותים דיגיטליים', company],
     geo: {
       enabled: true,
       targetCity: 'תל אביב',
@@ -96,36 +100,50 @@ const getInitialCleanPageConfig = (brandDna?: any): PageBuilderConfig => ({
     geoLocal: { ...SECTION_REGISTRY.geoLocal.defaultConfig, id: 'geoLocal' },
     contact: { ...SECTION_REGISTRY.contact.defaultConfig, id: 'contact' },
   },
-});
+  };
+};
 
 const PageBuilderStandaloneViewInner: React.FC = () => {
   const navigate = useNavigate();
   const { db } = useSystemConnection();
   const { tenantId } = useTenantScope();
   const { getCapability } = useHostCapabilities();
-  const brandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const hostBrandDna = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+  const [brandDna, setBrandDna] = useState<BrandDna | null>(() => hostBrandDna || resolveLiveBrandDna(null, tenantId));
 
   const [viewMode, setViewMode] = useState<'pages' | 'editor' | 'public' | 'analytics-hub'>('pages');
   const [pages, setPages] = useState<PageBuilderConfig[]>([]);
-  const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(() => getInitialCleanPageConfig(brandDna));
+  const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(() => getInitialCleanPageConfig(brandDna, tenantId));
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
   const [isShortenerModalOpen, setIsShortenerModalOpen] = useState(false);
   const [selectedShortPage, setSelectedShortPage] = useState<PageBuilderConfig | null>(null);
 
-  // Load all pages from Firestore / LocalStorage
+  // Load all pages and live Brand DNA from Firestore / LocalStorage
   useEffect(() => {
     const loadData = async () => {
-      // Automatically ensure Terms of Use, Privacy Policy, and 8 Archive Pages exist for this tenant
+      // 1. Fetch live Brand DNA from Firestore collection tenants/{tenantId}/settings/kos_branding_dna
+      let activeBrand = brandDna;
       try {
-        await ensureDefaultLegalPages(db, tenantId, brandDna);
-        await ensureDefaultArchivePages(db, tenantId, brandDna);
+        const liveBrand = await loadBrandDna(db || undefined, tenantId);
+        if (liveBrand) {
+          activeBrand = liveBrand;
+          setBrandDna(liveBrand);
+        }
+      } catch (err) {
+        console.warn('[PageBuilder] loadBrandDna warning:', err);
+      }
+
+      // 2. Automatically ensure Terms of Use, Privacy Policy, and 8 Archive Pages exist for this tenant
+      try {
+        await ensureDefaultLegalPages(db || null, tenantId, activeBrand);
+        await ensureDefaultArchivePages(db || null, tenantId, activeBrand);
       } catch (err) {
         console.warn('[PageBuilder] Auto-ensure default legal/archive pages warning:', err);
       }
 
-      const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+      const all = await pageBuilderFirestore.getAllPages(db || null, tenantId);
       // Clean up any historical dummy values or accidental event objects in stored pages
       const sanitized = all.map((p) => sanitizeSectionConfig(p)).map((p) => {
         let pCopy = { ...p };
@@ -167,9 +185,10 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
     const unsub = eventBus.subscribe('brand:updated', async (data: any) => {
       try {
         if (data?.brandDna) {
-          await syncLegalPagesWithBrandDna(db, tenantId, data.brandDna);
-          await syncArchivePagesWithBrandDna(db, tenantId, data.brandDna);
-          const refreshed = await pageBuilderFirestore.getAllPages(db, tenantId);
+          setBrandDna(data.brandDna);
+          await syncLegalPagesWithBrandDna(db || null, tenantId, data.brandDna);
+          await syncArchivePagesWithBrandDna(db || null, tenantId, data.brandDna);
+          const refreshed = await pageBuilderFirestore.getAllPages(db || null, tenantId);
           setPages(refreshed.map((p) => sanitizeSectionConfig(p)));
         }
       } catch (err) {
@@ -431,56 +450,109 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         builtSections.richContent.heading = finalTitle;
         builtSections.richContent.body = `<p>${options.description}</p>`;
       }
-    } else if (category === 'home') {
-      if (builtSections.dynamicListing) {
-        builtSections.dynamicListing.source = 'all';
-      }
-      if (builtSections.hero && liveBrandDna?.identity?.companyName) {
-        builtSections.hero.title = finalTitle;
-        if (liveBrandDna.identity.slogan) builtSections.hero.subtitle = liveBrandDna.identity.slogan;
-      }
     }
-
     const tenantDefaultPreset = (liveBrandDna?.designTokens?.defaultStylePreset as TenantStylePreset) || 'standard';
     const styleTokens = STYLE_GLOBAL_THEMES[tenantDefaultPreset] || {};
+    const company = liveBrandDna?.identity?.companyName || (tenantId !== '_master' ? tenantId : 'המותג שלנו');
+    const homeDesc = options.description?.trim() || liveBrandDna?.identity?.slogan || 'שער הכניסה הדינמי לכל התכנים, המוצרים, השירותים והאירועים שלנו';
 
-    let newPage: PageBuilderConfig = {
-      ...baseInitial,
-      pageId: newId,
-      pageTitle: finalTitle,
-      slug: finalSlug,
-      pageCategory: category,
-      published: category === 'home',
-      isHomePage: category === 'home' || Boolean(options.isHomePage),
-      viewsCount: 0,
-      leadsCount: 0,
-      globalSettings: {
-        ...baseInitial.globalSettings,
-        siteTitle: finalTitle,
-        theme: tenantDefaultPreset,
-        layoutArchetype: options.layoutArchetype || (category === 'home' ? 'bento_hub' : undefined),
-        primaryColor: liveBrandDna?.designTokens?.primaryColor || styleTokens.primaryColor || '#6366f1',
-        secondaryColor: liveBrandDna?.designTokens?.secondaryColor || styleTokens.secondaryColor || '#0ea5e9',
-        buttonBgColor: liveBrandDna?.designTokens?.buttonBgColor || styleTokens.buttonBgColor || liveBrandDna?.designTokens?.primaryColor || '#6366f1',
-        buttonTextColor: liveBrandDna?.designTokens?.buttonTextColor || styleTokens.buttonTextColor || '#ffffff',
-        borderRadius: (liveBrandDna?.designTokens?.borderRadius as any) || styleTokens.borderRadius || 'md',
-        buttonStyle: (liveBrandDna?.designTokens?.buttonStyle as any) || styleTokens.buttonStyle || 'gradient',
-        fontFamily: liveBrandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
-        companyName: liveBrandDna?.identity?.companyName || 'קמונה פתרונות דיגיטליים',
-        slogan: liveBrandDna?.identity?.slogan || '',
-        contactPhone: liveBrandDna?.trust?.contactPhone || '',
-        contactWhatsApp: liveBrandDna?.trust?.whatsappSupportNumber || '',
-        contactEmail: liveBrandDna?.trust?.contactEmail || '',
-        address: liveBrandDna?.trust?.officeAddress || '',
-      },
-      seoSettings: {
-        title: `${finalTitle} | ${PAGE_CATEGORIES[category]?.label || 'דף נחיתה'}`,
-        description: options.description || `עמוד ${PAGE_CATEGORIES[category]?.label || ''} מקצועי ומעוצב`,
-        keywords: targetTemplate.keywords,
-      },
-      sectionOrder: targetTemplate.sections,
-      sections: builtSections,
-    };
+    let newPage: PageBuilderConfig;
+
+    if (category === 'home') {
+      const blueprints = getPageBlueprints();
+      const homepageBp = blueprints.find((b) => b.id === 'ecosystem-homepage');
+      const baseBpConfig: PageBuilderConfig = homepageBp ? JSON.parse(JSON.stringify(homepageBp.config)) : baseInitial;
+
+      const homeSections: Record<string, any> = {};
+      Object.entries(baseBpConfig.sections || {}).forEach(([sId, secData]) => {
+        homeSections[sId] = hydrateSectionWithBrandDna(secData, liveBrandDna, secData?.type, tenantId);
+      });
+
+      if (homeSections['hero-1']) {
+        homeSections['hero-1'].title = finalTitle || `${company} - עמוד בית ראשי`;
+        homeSections['hero-1'].subtitle = homeDesc;
+      }
+      if (homeSections['directory-1']) {
+        homeSections['directory-1'].source = 'all';
+      }
+
+      newPage = {
+        ...baseBpConfig,
+        pageId: tenantId !== '_master' ? `home_${tenantId}` : 'home_master',
+        pageTitle: finalTitle || `${company} - עמוד בית ראשי`,
+        slug: 'home',
+        pageCategory: 'home',
+        published: true,
+        isHomePage: true,
+        viewsCount: 0,
+        leadsCount: 0,
+        globalSettings: {
+          ...baseBpConfig.globalSettings,
+          companyName: company,
+          siteTitle: `${company} | ${homeDesc}`,
+          slogan: homeDesc,
+          theme: tenantDefaultPreset,
+          layoutArchetype: options.layoutArchetype || 'bento_hub',
+          primaryColor: liveBrandDna?.designTokens?.primaryColor || styleTokens.primaryColor || '#6366f1',
+          secondaryColor: liveBrandDna?.designTokens?.secondaryColor || styleTokens.secondaryColor || '#0ea5e9',
+          buttonBgColor: liveBrandDna?.designTokens?.buttonBgColor || styleTokens.buttonBgColor || '#6366f1',
+          buttonTextColor: liveBrandDna?.designTokens?.buttonTextColor || styleTokens.buttonTextColor || '#ffffff',
+          borderRadius: (liveBrandDna?.designTokens?.borderRadius as any) || styleTokens.borderRadius || 'md',
+          buttonStyle: (liveBrandDna?.designTokens?.buttonStyle as any) || styleTokens.buttonStyle || 'gradient',
+          fontFamily: liveBrandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+          siteLogoUrl: liveBrandDna?.identity?.logoUrl || baseBpConfig.globalSettings?.siteLogoUrl || '',
+          contactPhone: liveBrandDna?.trust?.contactPhone || '',
+          contactWhatsApp: liveBrandDna?.trust?.whatsappSupportNumber || '',
+          contactEmail: liveBrandDna?.trust?.contactEmail || '',
+          address: liveBrandDna?.trust?.officeAddress || '',
+        },
+        seoSettings: {
+          title: `${company} | ${homeDesc}`,
+          description: homeDesc,
+          keywords: ['עמוד בית', 'פורטל', company, 'שירותים', 'מוצרים', 'קהילה'],
+        },
+        sectionOrder: baseBpConfig.sectionOrder || ['header-1', 'hero-1', 'statsBento-1', 'directory-1', 'ecosystem-1', 'community-1', 'testimonials-1', 'faq-1', 'contact-1'],
+        sections: homeSections,
+      };
+    } else {
+      newPage = {
+        ...baseInitial,
+        pageId: newId,
+        pageTitle: finalTitle,
+        slug: finalSlug,
+        pageCategory: category,
+        published: false,
+        isHomePage: false,
+        viewsCount: 0,
+        leadsCount: 0,
+        globalSettings: {
+          ...baseInitial.globalSettings,
+          siteTitle: finalTitle,
+          theme: tenantDefaultPreset,
+          layoutArchetype: options.layoutArchetype,
+          primaryColor: liveBrandDna?.designTokens?.primaryColor || styleTokens.primaryColor || '#6366f1',
+          secondaryColor: liveBrandDna?.designTokens?.secondaryColor || styleTokens.secondaryColor || '#0ea5e9',
+          buttonBgColor: liveBrandDna?.designTokens?.buttonBgColor || styleTokens.buttonBgColor || liveBrandDna?.designTokens?.primaryColor || '#6366f1',
+          buttonTextColor: liveBrandDna?.designTokens?.buttonTextColor || styleTokens.buttonTextColor || '#ffffff',
+          borderRadius: (liveBrandDna?.designTokens?.borderRadius as any) || styleTokens.borderRadius || 'md',
+          buttonStyle: (liveBrandDna?.designTokens?.buttonStyle as any) || styleTokens.buttonStyle || 'gradient',
+          fontFamily: liveBrandDna?.designTokens?.fontFamily || 'Heebo, sans-serif',
+          companyName: company,
+          slogan: liveBrandDna?.identity?.slogan || '',
+          contactPhone: liveBrandDna?.trust?.contactPhone || '',
+          contactWhatsApp: liveBrandDna?.trust?.whatsappSupportNumber || '',
+          contactEmail: liveBrandDna?.trust?.contactEmail || '',
+          address: liveBrandDna?.trust?.officeAddress || '',
+        },
+        seoSettings: {
+          title: `${finalTitle} | ${PAGE_CATEGORIES[category]?.label || 'דף נחיתה'}`,
+          description: options.description || `עמוד ${PAGE_CATEGORIES[category]?.label || ''} מקצועי ומעוצב`,
+          keywords: targetTemplate.keywords,
+        },
+        sectionOrder: targetTemplate.sections,
+        sections: builtSections,
+      };
+    }
 
     // If an archetype is chosen or creating a home page, apply archetype formatting & order
     if (options.layoutArchetype || category === 'home') {
@@ -562,6 +634,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         <PagesDashboardTab
           pages={pages}
           activePageId={currentPage.pageId}
+          brandDna={brandDna}
+          tenantId={tenantId}
           onSelectPage={(page) => {
             setCurrentPage(page);
             setViewMode('editor');
@@ -580,8 +654,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           onConvertToVideo={handleConvertToVideo}
           onEnsureLegalPages={async () => {
             try {
-              await ensureDefaultLegalPages(db, tenantId, brandDna);
-              const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+              await ensureDefaultLegalPages(db || null, tenantId, brandDna);
+              const all = await pageBuilderFirestore.getAllPages(db || null, tenantId);
               setPages(all);
             } catch (err) {
               console.warn('[PageBuilder] Manual legal pages creation error:', err);
@@ -589,8 +663,8 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
           }}
           onEnsureArchivePages={async () => {
             try {
-              await ensureDefaultArchivePages(db, tenantId, brandDna);
-              const all = await pageBuilderFirestore.getAllPages(db, tenantId);
+              await ensureDefaultArchivePages(db || null, tenantId, brandDna);
+              const all = await pageBuilderFirestore.getAllPages(db || null, tenantId);
               setPages(all);
             } catch (err) {
               console.warn('[PageBuilder] Manual archive pages creation error:', err);

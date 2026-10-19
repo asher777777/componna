@@ -34,6 +34,17 @@ export * from './components/MobileMediaPreviewModal';
 export * from './components/MobileUploadFab';
 export * from './components/MobileDriveBottomNav';
 
+// UI Capability Slots Registration (Zero Cross-Module UI Bridge)
+import { registerCapabilityUI } from '../../core/bridge/CapabilitySlot';
+import { MediaPickerModal } from './components/MediaPickerModal';
+import { MediaGalleryGrid } from './components/MediaGalleryGrid';
+import { LuxuryIconsGallery } from './components/LuxuryIconsGallery';
+
+registerCapabilityUI('media-picker', MediaPickerModal);
+registerCapabilityUI('media-gallery', MediaGalleryGrid);
+registerCapabilityUI('luxury-icons-gallery', LuxuryIconsGallery);
+registerCapabilityUI('community-gallery-picker', MediaPickerModal);
+
 export {
   KosCloudStoreStandaloneView,
   KosCloudStoreStandaloneView as default,

@@ -44,3 +44,14 @@ export interface FormWhatsAppDeliveryLog {
   renderedMessage?: string;
   error?: string;
 }
+
+export interface SavedWhatsAppTemplate {
+  id: string;
+  name: string;
+  messageTemplate: string;
+  category?: 'leads' | 'payment' | 'donation' | 'general' | 'branded';
+  tags?: string[];
+  createdAt: string;
+  updatedAt: string;
+  isAiGenerated?: boolean;
+}

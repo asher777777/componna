@@ -3,7 +3,7 @@ import { renderWhatsAppMessage, evaluateRuleCondition } from './whatsappTemplate
 import { getModuleGreenApiCredentials } from '../../../core/connection/tenantApiKeys';
 import { SYSTEM_COLLECTIONS, ScheduledReminderPayload } from '../../../core/contracts';
 import { collection, doc, setDoc, Firestore } from 'firebase/firestore';
-import { db } from '../../../services/firebase';
+import { eventBus } from '../../../core/bridge/EventBus';
 
 interface GreenSendParams {
   instanceId: string;

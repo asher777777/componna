@@ -400,7 +400,29 @@ export async function saveGroupOrCommunityRecord(
 
       if (!pageSnap.exists()) {
         pagePayload.createdAt = new Date().toISOString();
-        pagePayload.sectionOrder = ['videoGallery', 'richContent', 'campaignTiers', 'campaignHeader', 'campaignDonors'];
+        const galleryItems = cleanGallery.map((imgUrl, i) => ({
+          id: `gal_item_${i}`,
+          title: `פעילות קהילתית #${i + 1}`,
+          subtitle: cleanName,
+          thumbnailUrl: imgUrl,
+          youtubeVideoId: '',
+          category: 'קהילה',
+        }));
+        pagePayload.sectionOrder = ['kosvidioGallery', 'richContent', 'campaignTiers', 'campaignHeader', 'campaignDonors'];
+        pagePayload.kosvidioGallery = {
+          id: 'kosvidioGallery-1',
+          type: 'kosvidioGallery',
+          visible: true,
+          anchorId: 'sec-gallery',
+          badge: '• גלריית קהילה •',
+          title: `גלריית הפעילות של קהילת ${cleanName}`,
+          subtitle: 'רגעים, מפגשים ותיעוד מהשטח',
+          layout: 'standard',
+          viewMode: 'spotlight-grid',
+          source: 'custom',
+          items: galleryItems,
+        };
+        // Backward compatibility fallback for legacy viewers
         pagePayload.videoGallery = {
           visible: true,
           anchorId: 'videoGallery',

@@ -8,6 +8,7 @@ import {
   LAYOUT_ARCHETYPES,
 } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
+import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
 import {
   X,
   Sparkles,
@@ -78,6 +79,7 @@ interface CreatePageWizardModalProps {
   onClose: () => void;
   onConfirm: (options: PageCreationOptions) => Promise<void>;
   brandDna?: any;
+  tenantId?: string;
 }
 
 export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
@@ -85,7 +87,9 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
   onClose,
   onConfirm,
   brandDna,
+  tenantId,
 }) => {
+  const effBrand = brandDna || resolveLiveBrandDna(null, tenantId);
   const [step, setStep] = useState<'category' | 'details'>('category');
   const [category, setCategory] = useState<PageCategory>('info_content');
 
@@ -136,9 +140,9 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
     setCategory(cat);
     // Apply smart default titles based on category
     if (cat === 'home') {
-      const company = brandDna?.identity?.companyName || 'קמונה';
+      const company = effBrand?.identity?.companyName || (tenantId && tenantId !== '_master' ? tenantId : 'המותג שלנו');
       setPageTitle(`${company} - עמוד בית ראשי`);
-      setDescription(brandDna?.identity?.slogan || 'שער הכניסה הדינמי לכל התכנים, המוצרים, השירותים והאירועים שלנו');
+      setDescription(effBrand?.identity?.slogan || 'שער הכניסה הדינמי לכל התכנים, המוצרים, השירותים והאירועים שלנו');
       setSlugSuffix('home');
     } else if (cat === 'info_content') {
       setPageTitle('מדריך מקיף ומרכז ידע מקצועי');
@@ -225,6 +229,8 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                   {step === 'category'
                     ? 'בחר את סוג העמוד ליצירת מבנה, סלג וחיבורים מותאמים אישית'
+                    : category === 'home'
+                    ? 'סלג שייווצר: / (עמוד הבית הראשי של הדומיין)'
                     : `סלג שייווצר: /p/${calculatedSlug}`}
                 </p>
               </div>

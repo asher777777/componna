@@ -96,6 +96,16 @@ export const KosWebAiHostBridge: React.FC = () => {
                   { id: 'srv_3', title: 'יוזמות ופרויקטים', description: 'קידום מטרות משותפות יחד', icon: 'Target' },
                 ];
 
+            const rawGallery = options.gallery || options.brandProfile?.gallery || [];
+            const cleanGallery = rawGallery.filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+            const galleryId = `gallery_${Date.now()}`;
+
+            const initialSectionOrder = [heroId, aboutId, servicesId];
+            if (cleanGallery.length > 0) {
+              initialSectionOrder.push(galleryId);
+            }
+            initialSectionOrder.push(ctaId);
+
             pageConfig = {
               pageId,
               pageTitle: options.pageTitle,
@@ -106,7 +116,7 @@ export const KosWebAiHostBridge: React.FC = () => {
               updatedAt: now,
               viewsCount: 0,
               leadsCount: 0,
-              sectionOrder: [heroId, aboutId, servicesId, ctaId],
+              sectionOrder: initialSectionOrder,
               sections: {
                 [heroId]: {
                   id: heroId,
@@ -135,6 +145,30 @@ export const KosWebAiHostBridge: React.FC = () => {
                   subtitle: 'מה מחכה לכם אצלנו בקהילה',
                   body: servicesList.join(' • '),
                 },
+                ...(cleanGallery.length > 0
+                  ? {
+                      [galleryId]: {
+                        id: galleryId,
+                        type: 'kosvidioGallery',
+                        visible: true,
+                        anchorId: 'sec-gallery',
+                        badge: '• גלריית קהילה •',
+                        title: `גלריית הפעילות של קהילת ${options.pageTitle}`,
+                        subtitle: 'רגעים, מפגשים ותיעוד מהשטח',
+                        layout: 'standard',
+                        viewMode: 'spotlight-grid',
+                        source: 'custom',
+                        items: cleanGallery.map((imgUrl, i) => ({
+                          id: `comm_img_${i}`,
+                          title: `פעילות קהילתית #${i + 1}`,
+                          subtitle: options.pageTitle,
+                          thumbnailUrl: imgUrl,
+                          youtubeVideoId: '',
+                          category: 'קהילה',
+                        })),
+                      },
+                    }
+                  : {}),
                 [ctaId]: {
                   id: ctaId,
                   type: 'cta',

@@ -18,6 +18,15 @@ export interface MediaPickerContract {
 
 export type KosCloudStoreContract = MediaPickerContract;
 
+export interface CommunityGalleryContract {
+  openGalleryPicker: (options?: MediaPickerOptions) => Promise<string | string[] | null>;
+  renderGallerySlot?: (props: {
+    gallery: string[];
+    onChange?: (gallery: string[]) => void;
+    editable?: boolean;
+  }) => React.ReactNode;
+}
+
 export * from './collections';
 
 export interface LeadPayload {
@@ -382,6 +391,9 @@ export interface CrmGroupSummary {
   color?: string;
   count?: number;
   description?: string;
+  gallery?: string[];
+  logoUrl?: string;
+  leaderName?: string;
 }
 
 export interface CrmGroupsContract {
@@ -1029,7 +1041,9 @@ export interface CommunityBrandProfile {
   purpose: string;
   vision?: string;
   logoUrl?: string;
+  coverImageUrl?: string;
   services: string[];
+  gallery?: string[];
   colors: {
     primaryColor: string;
     secondaryColor: string;
@@ -1058,6 +1072,7 @@ export interface CommunityWebPageOptions {
   pageTitle: string;
   description?: string;
   brandProfile?: CommunityBrandProfile;
+  gallery?: string[];
   sections?: Record<string, any>;
   sectionOrder?: string[];
   isPublished?: boolean;

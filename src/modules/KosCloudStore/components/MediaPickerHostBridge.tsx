@@ -39,11 +39,13 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
     registerCapability('media-picker', implementation);
     registerCapability('KosCloudStore', implementation);
     registerCapability('cloud-store', implementation);
+    registerCapability('community-gallery', implementation);
 
     return () => {
       unregisterCapability('media-picker');
       unregisterCapability('KosCloudStore');
       unregisterCapability('cloud-store');
+      unregisterCapability('community-gallery');
     };
   }, [openPicker, registerCapability, unregisterCapability]);
 

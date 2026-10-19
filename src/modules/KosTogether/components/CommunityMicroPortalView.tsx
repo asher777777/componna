@@ -17,6 +17,8 @@ import {
   ExternalLink,
   Award,
   ChevronLeft,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 import { SmartGroup, ContactRecord, CommunityPost } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
@@ -65,6 +67,7 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
   const [joinEmail, setJoinEmail] = useState('');
   const [joinSubmitted, setJoinSubmitted] = useState(false);
   const [joining, setJoining] = useState(false);
+  const [selectedLightboxImage, setSelectedLightboxImage] = useState<string | null>(null);
 
   // Community Metrics
   const targetGoal = community.targetGoal || 50000;
@@ -312,15 +315,33 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
               </div>
             )}
 
-            {/* Gallery Previews */}
+            {/* Gallery Previews (KosCloudStore Contract & UI) */}
             {community.gallery && community.gallery.length > 0 && (
-              <div className="space-y-2">
-                <h4 className="text-xs font-black text-slate-700">תמונות מהשטח והפעילות:</h4>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ImageIcon className="w-4 h-4 text-indigo-600" />
+                    <h4 className="text-xs font-black text-slate-800">תמונות מהשטח והפעילות:</h4>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                    {community.gallery.length} תמונות
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                   {community.gallery.map((img, i) => (
-                    <div key={i} className="aspect-video rounded-2xl overflow-hidden border border-slate-200">
-                      <img src={img} alt="קהילה" className="w-full h-full object-cover hover:scale-105 transition-transform" />
-                    </div>
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setSelectedLightboxImage(img)}
+                      className="group relative aspect-video rounded-2xl overflow-hidden border border-slate-200 bg-slate-900 shadow-xs cursor-pointer focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    >
+                      <img src={img} alt={`קהילה ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                      <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="text-[10px] font-bold text-white bg-black/60 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                          הגדל תמונה
+                        </span>
+                      </div>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -555,6 +576,34 @@ export const CommunityMicroPortalView: React.FC<CommunityMicroPortalViewProps> =
           community={community}
           contacts={contacts}
         />
+      )}
+
+      {/* Lightbox Modal for Gallery Images */}
+      {selectedLightboxImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedLightboxImage(null)}
+          dir="rtl"
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border border-white/10"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setSelectedLightboxImage(null)}
+              className="absolute top-3 left-3 z-10 w-9 h-9 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center transition cursor-pointer"
+              title="סגור תצוגה מקדימה"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            <img
+              src={selectedLightboxImage}
+              alt="תצוגת תמונה מוגדלת"
+              className="w-full h-auto max-h-[85vh] object-contain"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

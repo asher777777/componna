@@ -26,6 +26,7 @@ import {
   Eye,
   CheckCircle2,
   Info,
+  Star,
 } from 'lucide-react';
 import { useCrmGroups } from '../context/CrmGroupsContext';
 import { SmartGroup, GroupRule, GroupRuleField, GroupRuleOperator } from '../types';
@@ -35,6 +36,7 @@ import { generateCommunityVision } from '../services/togetherCopilotService';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import {
   MediaPickerContract,
+  CommunityGalleryContract,
   CommunityBrandContract,
   CommunityBrandProfile,
   CommunityWebPageContract,
@@ -59,7 +61,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
   const { getCapability } = useHostCapabilities();
 
   // Contracts through HostCapabilities (Zero cross-module imports)
-  const mediaPicker = getCapability<MediaPickerContract>('media-picker');
+  const mediaPicker = getCapability<MediaPickerContract>('media-picker') || getCapability<MediaPickerContract>('community-gallery');
   const communityBrandContract = getCapability<CommunityBrandContract>('community-brand');
   const communityWebPageContract = getCapability<CommunityWebPageContract>('community-webpage');
 
@@ -159,6 +161,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
               if (brandProfile.vision) setVision(brandProfile.vision);
               if (brandProfile.logoUrl) setLogoUrl(brandProfile.logoUrl);
               if (brandProfile.services && brandProfile.services.length > 0) setServices(brandProfile.services);
+              if (brandProfile.gallery && brandProfile.gallery.length > 0) setGallery(brandProfile.gallery);
               if (brandProfile.colors?.primaryColor) setColor(brandProfile.colors.primaryColor);
               if (brandProfile.colors?.secondaryColor) setSecondaryColor(brandProfile.colors.secondaryColor);
               if (brandProfile.leaderName) setLeaderName(brandProfile.leaderName);
@@ -239,26 +242,62 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
     return contacts.filter((c) => isContactInGroup(c, tempGroup)).length;
   }, [contacts, type, rules, matchType, name, color]);
 
-  // Media Picker Trigger
+  // Media Picker Trigger (Enhanced KOSUN26 Gallery Contract)
   const handlePickLogo = async () => {
-    if (mediaPicker) {
-      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: false });
-      if (selected && typeof selected === 'string') {
-        setLogoUrl(selected);
-      } else if (Array.isArray(selected) && selected.length > 0) {
-        setLogoUrl(selected[0]);
+    if (mediaPicker?.openPicker) {
+      try {
+        const selected = await mediaPicker.openPicker({
+          accept: 'image/*',
+          multiple: false,
+          initialTab: 'icons',
+        });
+        if (selected) {
+          const rawUrl = Array.isArray(selected) ? selected[0] : (typeof selected === 'string' ? selected : (selected as any)?.url);
+          if (rawUrl && typeof rawUrl === 'string' && rawUrl.trim()) {
+            setLogoUrl(rawUrl.trim());
+          }
+        }
+      } catch (err) {
+        console.warn('[GroupEditModal] Logo picker error:', err);
       }
     }
   };
 
   const handlePickGallery = async () => {
-    if (mediaPicker) {
-      const selected = await mediaPicker.openPicker({ accept: 'image/*', multiple: true });
-      if (selected) {
-        const urls = Array.isArray(selected) ? selected : [selected];
-        setGallery((prev) => [...prev, ...(urls.filter(Boolean) as string[])]);
+    if (mediaPicker?.openPicker) {
+      try {
+        const selected = await mediaPicker.openPicker({
+          accept: 'image/*',
+          multiple: true,
+          maxFiles: 12,
+          initialTab: 'gallery',
+        });
+        if (selected) {
+          const rawList = Array.isArray(selected) ? selected : [selected];
+          const urls = rawList
+            .map((item) => (typeof item === 'string' ? item : (item as any)?.url))
+            .filter((u): u is string => typeof u === 'string' && u.trim().length > 0);
+          if (urls.length > 0) {
+            setGallery((prev) => [...prev, ...urls]);
+          }
+        }
+      } catch (err) {
+        console.warn('[GroupEditModal] Gallery picker error:', err);
       }
     }
+  };
+
+  const handleSetMainGalleryImage = (idx: number) => {
+    if (idx <= 0 || idx >= gallery.length) return;
+    setGallery((prev) => {
+      const target = prev[idx];
+      const remaining = prev.filter((_, i) => i !== idx);
+      return [target, ...remaining];
+    });
+  };
+
+  const handleRemoveGalleryImage = (idx: number) => {
+    setGallery((prev) => prev.filter((_, i) => i !== idx));
   };
 
   const handleAddService = () => {
@@ -351,7 +390,9 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
           purpose: purpose.trim() || description.trim(),
           vision: vision.trim(),
           logoUrl,
+          coverImageUrl: gallery[0] || '',
           services,
+          gallery,
           colors: {
             primaryColor: color,
             secondaryColor,
@@ -379,7 +420,9 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
             purpose: purpose.trim(),
             vision: vision.trim(),
             logoUrl,
+            coverImageUrl: gallery[0] || '',
             services,
+            gallery,
             colors: {
               primaryColor: color,
               secondaryColor,
@@ -388,6 +431,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
             contactPhone: contactPhone.trim(),
             contactEmail: contactEmail.trim(),
           },
+          gallery,
           isPublished: true,
         });
       }
@@ -557,7 +601,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                       className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
                     >
                       <FolderOpen className="w-3.5 h-3.5" />
-                      <span>בחר מגלריית המדיה</span>
+                      <span>בחר מסמלי יוקרה או מספריית המדיה</span>
                     </button>
                   )}
                 </div>
@@ -727,40 +771,101 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
                 </div>
               </div>
 
-              {/* Community Media Gallery */}
-              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">גלריית תמונות מהפעילות</span>
-                    <span className="text-[11px] text-slate-500 dark:text-slate-400">תמונות שיופיעו בעמוד הקהילה ובכרטיסי התצוגה</span>
+              {/* Community Media Gallery (KosCloudStore Contract & UI) */}
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/80 space-y-4">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200/60 dark:border-indigo-800/60 flex items-center justify-center shrink-0">
+                      <ImageIcon className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black text-slate-900 dark:text-white block">
+                          גלריית תמונות מהפעילות
+                        </span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                          {gallery.length} תמונות
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400 block">
+                        תמונות מהשטח, אירועים וכנסים שיוצגו בעמוד הקהילה ובפורטל
+                      </span>
+                    </div>
                   </div>
+
                   {mediaPicker && (
                     <button
                       type="button"
                       onClick={handlePickGallery}
-                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 text-xs font-bold flex items-center gap-1.5 transition cursor-pointer"
+                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
                     >
-                      <FolderOpen className="w-3.5 h-3.5" />
-                      <span>בחר מגלריה</span>
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>הוסף תמונות מ-KosCloudStore</span>
                     </button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {gallery.map((imgUrl, idx) => (
-                    <div key={idx} className="relative group rounded-xl overflow-hidden aspect-video bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                      <img src={imgUrl} alt="Gallery" className="w-full h-full object-cover" />
-                      <button
-                        type="button"
-                        onClick={() => setGallery((prev) => prev.filter((_, i) => i !== idx))}
-                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-rose-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="הסר תמונה"
+                {gallery.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 pt-1">
+                    {gallery.map((imgUrl, idx) => (
+                      <div
+                        key={`${imgUrl}_${idx}`}
+                        className="relative group rounded-xl overflow-hidden aspect-video bg-slate-900 border border-slate-200 dark:border-slate-700 shadow-xs"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                        <img src={imgUrl} alt={`קהילה ${idx + 1}`} className="w-full h-full object-cover" />
+                        
+                        {/* Primary Badge */}
+                        {idx === 0 && (
+                          <div className="absolute bottom-1.5 right-1.5 px-2 py-0.5 rounded-md bg-indigo-600/95 text-white text-[10px] font-bold flex items-center gap-1 shadow-xs pointer-events-none">
+                            <Star className="w-3 h-3 fill-amber-300 text-amber-300" />
+                            <span>תמונה ראשית</span>
+                          </div>
+                        )}
+
+                        {/* Action Overlay */}
+                        <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-2">
+                          {idx > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleSetMainGalleryImage(idx)}
+                              className="px-2 py-1 rounded-lg bg-white/90 hover:bg-white text-slate-900 text-[10px] font-bold flex items-center gap-1 transition-transform hover:scale-105"
+                              title="הגדר כתמונה ראשית של הקהילה"
+                            >
+                              <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                              <span>הגדר כראשית</span>
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveGalleryImage(idx)}
+                            className="p-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white transition-transform hover:scale-105"
+                            title="הסר תמונה מהגלריה"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handlePickGallery}
+                    className="w-full h-32 rounded-2xl bg-white dark:bg-slate-900/60 hover:bg-indigo-50/40 dark:hover:bg-slate-800/60 flex flex-col items-center justify-center border-2 border-dashed border-indigo-200 dark:border-indigo-900/60 transition-all gap-2 group cursor-pointer"
+                  >
+                    <div className="w-10 h-10 rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <ImageIcon className="w-5 h-5" />
                     </div>
-                  ))}
-                </div>
+                    <div className="text-center">
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                        בחר תמונות מספריית המדיה KosCloudStore
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        תמונות מאירועים, כנסים, מפגשים ותיעוד מהשטח עבור עמוד הקהילה
+                      </span>
+                    </div>
+                  </button>
+                )}
               </div>
             </div>
           )}

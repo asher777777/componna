@@ -216,16 +216,17 @@ export const pageBuilderFirestore = {
   async getPage(pageId: string, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig | null> {
     const eff = resolveEffectiveTenant(tenantId);
     const collPath = getCollectionName(eff);
-    if (db) {
+    const effDb = resolveDb(db);
+    if (effDb) {
       try {
-        const docRef = doc(db, collPath, pageId);
+        const docRef = doc(effDb, collPath, pageId);
         const snap = await getDoc(docRef);
         if (snap.exists()) {
           return { ...(snap.data() as PageBuilderConfig), pageId: snap.id };
         }
 
         // Auto-migration: check legacy collection doc
-        const legacyDocRef = doc(db, getLegacyCollectionName(eff), pageId);
+        const legacyDocRef = doc(effDb, getLegacyCollectionName(eff), pageId);
         const legacySnap = await getDoc(legacyDocRef);
         if (legacySnap.exists()) {
           const legacyData = { ...(legacySnap.data() as PageBuilderConfig), pageId: legacySnap.id };
@@ -234,7 +235,7 @@ export const pageBuilderFirestore = {
         }
 
         if (eff === ROOT_TENANT_ID) {
-          const rootLegacyRef = doc(db, LEGACY_COLLECTION_NAME, pageId);
+          const rootLegacyRef = doc(effDb, LEGACY_COLLECTION_NAME, pageId);
           const rootLegacySnap = await getDoc(rootLegacyRef);
           if (rootLegacySnap.exists()) {
             const legacyData = { ...(rootLegacySnap.data() as PageBuilderConfig), pageId: rootLegacySnap.id };
@@ -248,7 +249,7 @@ export const pageBuilderFirestore = {
     }
 
     try {
-      const pages = await this.getAllPages(null, tenantId);
+      const pages = await this.getAllPages(effDb, tenantId);
       return pages.find((p) => p.pageId === pageId) || null;
     } catch {}
 
@@ -260,6 +261,7 @@ export const pageBuilderFirestore = {
     const eff = resolveEffectiveTenant(tenantId);
     const collPath = getCollectionName(eff);
     const storeKey = getStorageKey(eff);
+    const effDb = resolveDb(db);
     const sanitizedConfig = ensureHeaderSection(config);
     const pageId = sanitizedConfig.pageId || `page_${Date.now()}`;
     const now = new Date().toISOString();
@@ -273,7 +275,7 @@ export const pageBuilderFirestore = {
 
     // Save in localStorage
     try {
-      const localPages = await this.getAllPages(null, eff);
+      const localPages = await this.getAllPages(effDb, eff);
       const existingIdx = localPages.findIndex((p) => p.pageId === pageId);
       if (existingIdx >= 0) {
         localPages[existingIdx] = payload;
@@ -293,9 +295,9 @@ export const pageBuilderFirestore = {
     } catch {}
 
     // Save in Firestore
-    if (db) {
+    if (effDb) {
       try {
-        const docRef = doc(db, collPath, pageId);
+        const docRef = doc(effDb, collPath, pageId);
         const cleanData = JSON.parse(JSON.stringify(payload));
         await setDoc(docRef, cleanData, { merge: true });
         try { eventBus.publish('pagebuilder:page_saved', { page: payload, tenantId: eff }); } catch {}
@@ -310,8 +312,9 @@ export const pageBuilderFirestore = {
     const eff = resolveEffectiveTenant(tenantId);
     const collPath = getCollectionName(eff);
     const storeKey = getStorageKey(eff);
+    const effDb = resolveDb(db);
     try {
-      const localPages = (await this.getAllPages(null, eff)).filter((p) => p.pageId !== pageId);
+      const localPages = (await this.getAllPages(effDb, eff)).filter((p) => p.pageId !== pageId);
       localStorage.setItem(storeKey, JSON.stringify(localPages));
       if (eff === ROOT_TENANT_ID) {
         localStorage.setItem(LEGACY_STORAGE_KEY_PAGES, JSON.stringify(localPages));
@@ -328,9 +331,9 @@ export const pageBuilderFirestore = {
       }
     } catch {}
 
-    if (db) {
+    if (effDb) {
       try {
-        const docRef = doc(db, collPath, pageId);
+        const docRef = doc(effDb, collPath, pageId);
         await deleteDoc(docRef);
       } catch (err) {
         console.warn('[PageBuilder] Firestore deletePage error:', err);
@@ -341,6 +344,7 @@ export const pageBuilderFirestore = {
   // Duplicate page
   async duplicatePage(sourcePage: PageBuilderConfig, db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig> {
     const eff = resolveEffectiveTenant(tenantId);
+    const effDb = resolveDb(db);
     const newId = `page_${Date.now()}`;
     const duplicated: PageBuilderConfig = {
       ...JSON.parse(JSON.stringify(sourcePage)),
@@ -358,15 +362,16 @@ export const pageBuilderFirestore = {
       updatedAt: new Date().toISOString(),
     };
 
-    await this.savePage(duplicated, db, eff);
+    await this.savePage(duplicated, effDb, eff);
     return duplicated;
   },
 
   // Get active designated homepage config for a tenant (or root)
   async getHomePage(db?: Firestore | null, tenantId?: string): Promise<PageBuilderConfig | null> {
     const eff = resolveEffectiveTenant(tenantId);
+    const effDb = resolveDb(db);
     const storeKey = getStorageKey(eff);
-    const allPages = await this.getAllPages(db, eff);
+    const allPages = await this.getAllPages(effDb, eff);
     if (!allPages || allPages.length === 0) {
       return null;
     }

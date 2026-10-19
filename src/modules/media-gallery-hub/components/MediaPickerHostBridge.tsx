@@ -37,9 +37,11 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
       openPicker,
     };
     registerCapability('media-picker', implementation);
+    registerCapability('community-gallery', implementation);
 
     return () => {
       unregisterCapability('media-picker');
+      unregisterCapability('community-gallery');
     };
   }, [openPicker, registerCapability, unregisterCapability]);
 

@@ -12,6 +12,8 @@ import {
   KosWhatsUpContract
 } from '../../../core/contracts';
 
+import { eventBus } from '../../../core/bridge/EventBus';
+
 export interface WhatsAppContextValue {
   state: GreenApiState;
   setState: (state: GreenApiState) => void;
@@ -27,23 +29,70 @@ export interface WhatsAppContextValue {
 const WhatsAppContext = createContext<WhatsAppContextValue | undefined>(undefined);
 
 export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
-  const { apiKeys } = useSystemConnection();
+  const { apiKeys, getApiKeysForModule, tenantApiKeys } = useSystemConnection();
   const { registerCapability, unregisterCapability } = useHostCapabilities();
 
   const [state, setState] = useState<GreenApiState>('unknown');
   const [chats, setChats] = useState<GreenApiChat[]>([]);
   const [selectedChat, setSelectedChat] = useState<GreenApiChat | null>(null);
 
-  const isConfigured = Boolean(apiKeys.greenApiInstanceId && apiKeys.greenApiToken);
+  // Resolve credentials resilience: Check module-specific KosWhatsUp keys, tenant root keys, then active keys
+  const whatsAppKeys = getApiKeysForModule ? getApiKeysForModule('KosWhatsUp') : apiKeys;
+  const instanceId = (
+    whatsAppKeys?.greenApiInstanceId ||
+    tenantApiKeys?.greenApiInstanceId ||
+    apiKeys?.greenApiInstanceId ||
+    ''
+  ).trim();
+  const token = (
+    whatsAppKeys?.greenApiToken ||
+    tenantApiKeys?.greenApiToken ||
+    apiKeys?.greenApiToken ||
+    ''
+  ).trim();
+  const apiUrl =
+    whatsAppKeys?.greenApiApiUrl ||
+    tenantApiKeys?.greenApiApiUrl ||
+    apiKeys?.greenApiApiUrl;
+
+  const isConfigured = Boolean(instanceId && token);
 
   const greenApi = useMemo(() => {
     if (!isConfigured) return null;
     return new GreenApiService({
-      idInstance: apiKeys.greenApiInstanceId!,
-      apiTokenInstance: apiKeys.greenApiToken!,
-      apiUrl: apiKeys.greenApiApiUrl,
+      idInstance: instanceId,
+      apiTokenInstance: token,
+      apiUrl: apiUrl,
     });
-  }, [isConfigured, apiKeys.greenApiInstanceId, apiKeys.greenApiToken, apiKeys.greenApiApiUrl]);
+  }, [isConfigured, instanceId, token, apiUrl]);
+
+  // Listen to cross-module whatsapp:send eventBus messages
+  useEffect(() => {
+    const unsub = eventBus.subscribe('whatsapp:send', async (payload: any) => {
+      if (!payload || !greenApi) return;
+      try {
+        const rawTarget = payload.chatId || payload.phone || '';
+        const clean = rawTarget.replace(/[^\d@a-z._-]/gi, '');
+        const chatId = clean.includes('@') ? clean : `${clean}@c.us`;
+        const text = payload.message || payload.text || '';
+
+        if (payload.mediaUrl) {
+          await greenApi.sendFileByUrl({
+            chatId,
+            urlFile: payload.mediaUrl,
+            fileName: payload.fileName || 'file',
+            caption: text,
+          });
+        } else if (text) {
+          await greenApi.sendMessage({ chatId, message: text });
+        }
+      } catch (err) {
+        console.warn('[WhatsAppContext] Failed to handle whatsapp:send event:', err);
+      }
+    });
+
+    return () => unsub();
+  }, [greenApi]);
 
   const unreadCount = chats.reduce((acc, chat) => acc + (chat.unreadCount || 0), 0);
 

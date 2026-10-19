@@ -21,6 +21,7 @@ import {
 import { clsx } from 'clsx';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
+import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import { PAGE_CATEGORIES, getCategoryFromPage } from '../../types/pageBuilder.types';
 
@@ -68,8 +69,12 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
       setIsLoadingDynamic(true);
       try {
         const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
-        const brand = resolveLiveBrandDna(null, effTenant);
-        const pages = await pageBuilderFirestore.getAllPages(null, effTenant);
+        let brand = resolveLiveBrandDna(null, effTenant);
+        try {
+          const liveDna = await loadBrandDna(undefined, effTenant);
+          if (liveDna) brand = liveDna;
+        } catch {}
+        const pages = await pageBuilderFirestore.getAllPages(undefined, effTenant);
 
         const pageItems: DynamicListingItem[] = [];
 
@@ -115,7 +120,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
           });
         });
 
-        // 2. Add Brand Products & Services (only if general or checkout/service archives)
+        // 2. Add Brand Products & Services from tenant's Brand DNA
         if (!filterCategory || filterCategory === 'all' || filterCategory === 'checkout' || filterCategory === 'service_product') {
           const products = brand.ecosystem?.products || [];
           products.forEach((prod: any, idx: number) => {
@@ -134,6 +139,27 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               badge: 'מוצר דגל',
               category: 'מוצרי דגל ושירותים',
               linkUrl: pSlug || '#sec-contact',
+              actionType: 'link',
+            });
+          });
+
+          const services = brand.ecosystem?.services || [];
+          services.forEach((srv: any, idx: number) => {
+            if (!srv) return;
+            const sName = typeof srv === 'string' ? srv : (srv.title || srv.name || `שירות ${idx + 1}`);
+            const sDesc = typeof srv === 'string' ? '' : (srv.description || srv.shortDescription || '');
+            const sSlug = typeof srv === 'string' ? '' : (srv.linkedPageSlug ? (srv.linkedPageSlug.startsWith('/') ? srv.linkedPageSlug : `/${srv.linkedPageSlug}`) : `/kosass/srv-${srv.id || idx + 1}`);
+            const sImg = typeof srv === 'string' ? '' : (srv.imageUrl || (srv.galleryImages && srv.galleryImages[0]));
+
+            pageItems.push({
+              id: `brand-srv-${idx + 1}`,
+              title: sName,
+              subtitle: sDesc,
+              excerpt: sDesc,
+              imageUrl: sImg || 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80',
+              badge: 'שירות ליבה',
+              category: 'מוצרי דגל ושירותים',
+              linkUrl: sSlug || '#sec-contact',
               actionType: 'link',
             });
           });
