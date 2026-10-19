@@ -647,10 +647,12 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
             if (isArchiveSlug(targetSlug) || isArchiveSlug(target)) {
               const archiveSlugToUse = isArchiveSlug(targetSlug) ? targetSlug : target;
               let liveBrand: any = null;
-              try {
-                const bDoc = await getDoc(doc(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC));
-                if (bDoc.exists()) liveBrand = bDoc.data();
-              } catch {}
+              if (db) {
+                try {
+                  const bDoc = await getDoc(doc(db, 'tenants', effTenant, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC));
+                  if (bDoc.exists()) liveBrand = bDoc.data();
+                } catch {}
+              }
               const archiveConfig = await resolveOrGenerateArchivePage(archiveSlugToUse, db, effTenant, liveBrand);
               if (archiveConfig) {
                 foundPage = archiveConfig;

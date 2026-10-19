@@ -1,4 +1,5 @@
 import { Firestore, collection, getDocs, doc, getDoc, setDoc, deleteDoc, query, orderBy, updateDoc, increment } from 'firebase/firestore';
+import { db as defaultFirestoreDb } from '../../../services/firebase';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
@@ -8,6 +9,10 @@ import { resolveLiveBrandDna, hydrateSectionWithBrandDna } from './brandSectionH
 
 const DEFAULT_COLLECTION_NAME = SYSTEM_COLLECTIONS.PAGES; // 'kos_web_ai_documents'
 const LEGACY_COLLECTION_NAME = 'mod_pages_documents';
+
+function resolveDb(db?: Firestore | null): Firestore | null {
+  return db || defaultFirestoreDb || null;
+}
 
 function resolveEffectiveTenant(tenantId?: string): string {
   if (!tenantId || tenantId === ROOT_TENANT_ID || tenantId === '_master') {
@@ -130,10 +135,11 @@ export const pageBuilderFirestore = {
     const eff = resolveEffectiveTenant(tenantId);
     const collPath = getCollectionName(eff);
     const storeKey = getStorageKey(eff);
+    const effDb = resolveDb(db);
 
-    if (db) {
+    if (effDb) {
       try {
-        const colRef = collection(db, collPath);
+        const colRef = collection(effDb, collPath);
         const snap = await getDocs(colRef);
         const pages: PageBuilderConfig[] = [];
         snap.forEach((d) => {
@@ -151,7 +157,7 @@ export const pageBuilderFirestore = {
 
         // Auto-migration check: check legacy collection path if new collection is empty
         const legacyPath = getLegacyCollectionName(eff);
-        const legacyRef = collection(db, legacyPath);
+        const legacyRef = collection(effDb, legacyPath);
         const legacySnap = await getDocs(legacyRef);
         const legacyPages: PageBuilderConfig[] = [];
         legacySnap.forEach((d) => {
@@ -160,7 +166,7 @@ export const pageBuilderFirestore = {
         if (legacyPages.length > 0) {
           // Migrate to new collection in background
           for (const lp of legacyPages) {
-            setDoc(doc(db, collPath, lp.pageId), lp, { merge: true }).catch(console.warn);
+            setDoc(doc(effDb, collPath, lp.pageId), lp, { merge: true }).catch(console.warn);
           }
           try {
             localStorage.setItem(storeKey, JSON.stringify(legacyPages));
@@ -173,7 +179,7 @@ export const pageBuilderFirestore = {
 
         // If root tenant and no docs in tenants/_master/mod_pages_documents, check legacy root mod_pages_documents
         if (eff === ROOT_TENANT_ID) {
-          const legacyRootRef = collection(db, LEGACY_COLLECTION_NAME);
+          const legacyRootRef = collection(effDb, LEGACY_COLLECTION_NAME);
           const legacyRootSnap = await getDocs(legacyRootRef);
           const legacyRootPages: PageBuilderConfig[] = [];
           legacyRootSnap.forEach((d) => {
@@ -181,7 +187,7 @@ export const pageBuilderFirestore = {
           });
           if (legacyRootPages.length > 0) {
             for (const lp of legacyRootPages) {
-              setDoc(doc(db, collPath, lp.pageId), lp, { merge: true }).catch(console.warn);
+              setDoc(doc(effDb, collPath, lp.pageId), lp, { merge: true }).catch(console.warn);
             }
             try {
               localStorage.setItem(storeKey, JSON.stringify(legacyRootPages));

@@ -26,8 +26,8 @@ export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: strin
   if (hasProvidedIdentity && provided) {
     const cleanIdentity = { ...baseDefault.identity, ...(provided.identity || {}) };
     if (!isMaster) {
-      if (cleanIdentity.companyName === 'קושאן' || cleanIdentity.companyName === effTenant) {
-        cleanIdentity.companyName = (provided.identity as any)?.brandName || '';
+      if (cleanIdentity.companyName === 'קושאן' || !cleanIdentity.companyName) {
+        cleanIdentity.companyName = (provided.identity as any)?.brandName || effTenant;
       }
       if (cleanIdentity.slogan === 'כל אדם זה נכס') {
         cleanIdentity.slogan = '';
@@ -81,8 +81,8 @@ export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: strin
         ) {
           const cleanIdentity = { ...baseDefault.identity, ...(parsed.identity || {}) };
           if (!isMaster) {
-            if (cleanIdentity.companyName === 'קושאן' || cleanIdentity.companyName === effTenant) {
-              cleanIdentity.companyName = parsed?.identity?.brandName || '';
+            if (cleanIdentity.companyName === 'קושאן' || !cleanIdentity.companyName) {
+              cleanIdentity.companyName = parsed?.identity?.brandName || effTenant;
             }
             if (cleanIdentity.slogan === 'כל אדם זה נכס') {
               cleanIdentity.slogan = '';
@@ -109,7 +109,11 @@ export function resolveLiveBrandDna(provided?: BrandDna | null, tenantId?: strin
     }
   }
 
-  return loadedDna || baseDefault;
+  const result = loadedDna || baseDefault;
+  if (!isMaster && !result.identity?.companyName) {
+    result.identity = { ...result.identity, companyName: effTenant };
+  }
+  return result;
 }
 
 /**

@@ -774,7 +774,7 @@ export function buildArchivePageConfig(
  */
 export async function resolveOrGenerateArchivePage(
   slug: string,
-  db: Firestore | null,
+  db?: Firestore | null,
   tenantId: string = '_master',
   brandDnaInput?: BrandDna | null
 ): Promise<PageBuilderConfig | null> {
@@ -784,7 +784,7 @@ export async function resolveOrGenerateArchivePage(
 
   try {
     // 1. Check if page already exists in Firestore for this tenant
-    const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+    const allPages = await pageBuilderFirestore.getAllPages(db || null, tenantId);
     const existing = allPages.find((p) => {
       const pSlug = (p.slug || '').toLowerCase().trim().replace(/^\/+/, '');
       const pShort = (p.shortSlug || '').toLowerCase().trim().replace(/^\/+/, '');
@@ -799,7 +799,7 @@ export async function resolveOrGenerateArchivePage(
     const archiveConfig = buildArchivePageConfig(category, tenantId, brandDnaInput);
 
     // 3. Persist to Firestore asynchronously so future loads are instantaneous
-    await pageBuilderFirestore.savePage(archiveConfig, db, tenantId);
+    await pageBuilderFirestore.savePage(archiveConfig, db || null, tenantId);
 
     return archiveConfig;
   } catch (err) {
@@ -813,12 +813,12 @@ export async function resolveOrGenerateArchivePage(
  * Ensures all 8 specialized archive pages exist for a tenant in Firestore
  */
 export async function ensureDefaultArchivePages(
-  db: Firestore | null,
+  db?: Firestore | null,
   tenantId: string = '_master',
   brandDnaInput?: BrandDna | null
 ): Promise<PageBuilderConfig[]> {
   try {
-    const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+    const allPages = await pageBuilderFirestore.getAllPages(db || null, tenantId);
     const existingSlugs = new Set(
       allPages.map((p) => (p.slug || '').toLowerCase().trim().replace(/^\/+/, ''))
     );
@@ -828,7 +828,7 @@ export async function ensureDefaultArchivePages(
     for (const [slug, cat] of Object.entries(ARCHIVE_SLUG_MAP)) {
       if (!existingSlugs.has(slug)) {
         const config = buildArchivePageConfig(cat, tenantId, brandDnaInput);
-        await pageBuilderFirestore.savePage(config, db, tenantId);
+        await pageBuilderFirestore.savePage(config, db || null, tenantId);
         archivePages.push(config);
       } else {
         const found = allPages.find(
@@ -849,12 +849,12 @@ export async function ensureDefaultArchivePages(
  * Synchronizes existing archive pages with brand DNA tokens and identity updates
  */
 export async function syncArchivePagesWithBrandDna(
-  db: Firestore | null,
+  db?: Firestore | null,
   tenantId: string = '_master',
   brandDnaInput?: BrandDna | null
 ): Promise<void> {
   try {
-    const allPages = await pageBuilderFirestore.getAllPages(db, tenantId);
+    const allPages = await pageBuilderFirestore.getAllPages(db || null, tenantId);
     const brand = resolveLiveBrandDna(brandDnaInput, tenantId);
     const preset: TenantStylePreset = (brand.designTokens?.defaultStylePreset as TenantStylePreset) || 'standard';
     const styleTokens = STYLE_GLOBAL_THEMES[preset] || {};

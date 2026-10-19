@@ -1,4 +1,5 @@
 import { Firestore, doc, getDoc, setDoc } from 'firebase/firestore';
+import { db as defaultFirestoreDb } from '../../../services/firebase';
 import { BrandDna, DEFAULT_BRAND_DNA } from '../types/brandDna';
 import { SYSTEM_COLLECTIONS } from '../../../core/contracts/collections';
 import { CommunityBrandProfile } from '../../../core/contracts';
@@ -92,11 +93,12 @@ export function createTenantInitialBrandDna(
 export async function loadBrandDna(db?: Firestore, tenantId: string = '_master'): Promise<BrandDna> {
   const isMaster = tenantId === '_master';
   const baseDefault = isMaster ? DEFAULT_BRAND_DNA : createTenantInitialBrandDna(tenantId);
+  const effDb = db || defaultFirestoreDb;
 
   // 1. Try Firestore (tenants/{tenantId}/settings/kos_branding_dna)
-  if (db) {
+  if (effDb) {
     try {
-      const docRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
+      const docRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
       const snap = await getDoc(docRef);
       if (snap.exists()) {
         const data = snap.data() as BrandDna;
@@ -143,7 +145,7 @@ export async function loadBrandDna(db?: Firestore, tenantId: string = '_master')
       }
 
       // Auto-Migration: check legacy doc 'brand_dna' if new 'kos_branding_dna' doesn't exist
-      const legacyDocRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, 'brand_dna');
+      const legacyDocRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, 'brand_dna');
       const legacySnap = await getDoc(legacyDocRef);
       if (legacySnap.exists()) {
         const legacyData = legacySnap.data() as BrandDna;
@@ -254,10 +256,11 @@ export async function saveBrandDna(
     }
   }
 
-  // 2. Save to Firestore if available: tenants/{tenantId}/settings/brand_dna
-  if (db) {
+  // 2. Save to Firestore: tenants/{tenantId}/settings/kos_branding_dna
+  const effDb = db || defaultFirestoreDb;
+  if (effDb) {
     try {
-      const docRef = doc(db, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
+      const docRef = doc(effDb, 'tenants', tenantId, SYSTEM_COLLECTIONS.SETTINGS, SYSTEM_COLLECTIONS.BRAND_DNA_DOC);
       await setDoc(docRef, payload, { merge: true });
       return { success: true };
     } catch (err: any) {
