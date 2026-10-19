@@ -1486,6 +1486,8 @@ export interface DynamicCategoryCardItem {
   linkUrl: string;
   badge?: string;
   highlightText?: string;
+  archiveCategoryKey?: string; // e.g. 'info_content' | 'event' | 'course' | 'community' | 'checkout' | 'youtube_post'
+  archiveSlug?: string; // e.g. 'kosinfo', 'kosevent', 'koscourse', 'kosvidio'
 }
 
 export interface DynamicCategoriesSectionConfig extends BaseSectionConfig {

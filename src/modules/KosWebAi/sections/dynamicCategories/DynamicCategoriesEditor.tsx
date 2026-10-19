@@ -62,6 +62,74 @@ const AVAILABLE_ICONS = [
   { id: 'Activity', label: 'אנליטיקה / דופק', icon: Activity },
 ];
 
+export interface ArchivePageOption {
+  key: string;
+  label: string;
+  slug: string;
+  defaultTitle: string;
+  defaultSubtitle: string;
+  iconName: string;
+}
+
+export const ARCHIVE_PAGE_OPTIONS: ArchivePageOption[] = [
+  {
+    key: 'info_content',
+    label: 'ארכיון מאמרים ותוכן (KOSINFO)',
+    slug: 'kosinfo',
+    defaultTitle: 'מאמרים ושיעורים',
+    defaultSubtitle: 'כנסו לעולם התוכן והידע המעמיק שלנו',
+    iconName: 'MessageSquare',
+  },
+  {
+    key: 'event',
+    label: 'ארכיון כנסים ואירועים (KOSEVENT)',
+    slug: 'kosevent',
+    defaultTitle: 'כנסים ואירועים',
+    defaultSubtitle: 'האירועים והמפגשים המכוננים של השנה',
+    iconName: 'Heart',
+  },
+  {
+    key: 'course',
+    label: 'ארכיון קורסים והכשרות (KOSCOURSE)',
+    slug: 'koscourse',
+    defaultTitle: 'קורסי הכשרה ואקדמיה',
+    defaultSubtitle: 'בואו לבנות ולהבנות עם ליווי מקצועי',
+    iconName: 'Briefcase',
+  },
+  {
+    key: 'youtube_post',
+    label: 'ארכיון וידאו ושידורים (KOSVIDIO)',
+    slug: 'kosvidio',
+    defaultTitle: 'הפודקאסט והוידאו שלנו',
+    defaultSubtitle: 'שיחות עומק, הרצאות ושידורים חיים מרתקים',
+    iconName: 'Mic',
+  },
+  {
+    key: 'community',
+    label: 'ארכיון קהילות ומועדון (KOSCOMMUNITY)',
+    slug: 'koscommunity',
+    defaultTitle: 'מועדון הקהילה והנטוורקינג',
+    defaultSubtitle: 'הטבות בלעדיות ומעגלי שיח פעילים',
+    iconName: 'BookOpen',
+  },
+  {
+    key: 'fundraising',
+    label: 'קמפיינים ותרומות (KOSFUNRISE)',
+    slug: 'kosfunrise',
+    defaultTitle: 'שותפות וגיוס המונים',
+    defaultSubtitle: 'יחד מגיעים אל היעד ומגדילים עשייה',
+    iconName: 'Heart',
+  },
+  {
+    key: 'checkout',
+    label: 'מרכז מוצרים וסליקה (KOSCHECKOUT)',
+    slug: 'koscheckout',
+    defaultTitle: 'המוצרים והחבילות שלנו',
+    defaultSubtitle: 'רכישה ישירה ומאובטחת בתנאים מועדפים',
+    iconName: 'Sparkles',
+  },
+];
+
 export const DynamicCategoriesEditor: React.FC<DynamicCategoriesEditorProps> = ({
   config,
   onChange,
@@ -544,14 +612,61 @@ export const DynamicCategoriesEditor: React.FC<DynamicCategoriesEditorProps> = (
                     </button>
                   </div>
 
-                  {/* Title & Subtitle */}
+                  {/* Select Archive Page Dropdown */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[11px] text-zinc-400">
+                      <span>שיוך לעמוד ארכיון:</span>
+                      {cat.archiveCategoryKey && (
+                        <span className="text-[10px] text-sky-400 font-semibold">
+                          מקושר לארכיון: {ARCHIVE_PAGE_OPTIONS.find((a) => a.key === cat.archiveCategoryKey)?.label || cat.archiveCategoryKey}
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={cat.archiveCategoryKey || ''}
+                      onChange={(e) => {
+                        const selectedKey = e.target.value;
+                        const archiveOpt = ARCHIVE_PAGE_OPTIONS.find((a) => a.key === selectedKey);
+                        if (archiveOpt) {
+                          handleUpdateCategory(idx, {
+                            archiveCategoryKey: archiveOpt.key,
+                            archiveSlug: archiveOpt.slug,
+                            linkUrl: `/${archiveOpt.slug}`,
+                            // If title was default or empty, set default archive title (customizable!)
+                            title: cat.title === 'קטגוריה חדשה' || !cat.title ? archiveOpt.defaultTitle : cat.title,
+                            subtitle: !cat.subtitle ? archiveOpt.defaultSubtitle : cat.subtitle,
+                            iconName: archiveOpt.iconName,
+                          });
+                        } else {
+                          handleUpdateCategory(idx, {
+                            archiveCategoryKey: undefined,
+                            archiveSlug: undefined,
+                          });
+                        }
+                      }}
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                      title="בחירת עמוד ארכיון לשיוך (מציג כברירת מחדל את שם הארכיון הניתן לשינוי)"
+                    >
+                      <option value="" className="bg-slate-900 text-zinc-400">
+                        -- בחירה מתוך עמודי הארכיון (הזנה ידנית / ללא שיוך) --
+                      </option>
+                      {ARCHIVE_PAGE_OPTIONS.map((opt) => (
+                        <option key={opt.key} value={opt.key} className="bg-slate-900 text-white">
+                          📁 {opt.label} ({opt.slug})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Title & Subtitle (Customizable!) */}
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       type="text"
                       value={cat.title}
                       onChange={(e) => handleUpdateCategory(idx, { title: e.target.value })}
-                      placeholder="כותרת הקטגוריה..."
+                      placeholder="שם הארכיון / כותרת הקטגוריה..."
                       className="bg-black/30 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-sky-500"
+                      title="שם הקטגוריה (מוגדר כברירת מחדל לפי שם הארכיון וניתן לשינוי חופשי)"
                     />
                     <input
                       type="text"
@@ -570,6 +685,7 @@ export const DynamicCategoriesEditor: React.FC<DynamicCategoriesEditorProps> = (
                       onChange={(e) => handleUpdateCategory(idx, { linkUrl: e.target.value })}
                       placeholder="כתובת קישור (URL)..."
                       className="bg-black/30 border border-white/10 rounded-xl px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-sky-500"
+                      title="כתובת קישור יעד (מתעדכנת אוטומטית בעת בחירת ארכיון וניתנת לשינוי)"
                     />
                     <select
                       value={cat.iconName}
