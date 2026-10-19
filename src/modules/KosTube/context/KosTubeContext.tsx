@@ -855,6 +855,226 @@ export const KosTubeProvider: React.FC<{ children: React.ReactNode }> = ({ child
           } catch (pbErr) {
             console.warn('[KosTube] pageBuilder capability call warning:', pbErr);
           }
+        } else if (db) {
+          try {
+            const effTenant = tenantId || '_master';
+            const collPath = effTenant === '_master'
+              ? `tenants/_master/${SYSTEM_COLLECTIONS.PAGES}`
+              : `tenants/${effTenant}/${SYSTEM_COLLECTIONS.PAGES}`;
+            const articleHtml = (reviewedData.articleContent || '')
+              .split('\n\n')
+              .map((p: string) => {
+                const trimmed = p.trim();
+                if (!trimmed) return '';
+                if (trimmed.startsWith('### ')) return `<h3 class="text-xl font-bold text-slate-900 dark:text-white mt-6 mb-3">${trimmed.replace(/^###\s*/, '')}</h3>`;
+                if (trimmed.startsWith('## ')) return `<h2 class="text-2xl font-extrabold text-slate-900 dark:text-white mt-8 mb-4">${trimmed.replace(/^##\s*/, '')}</h2>`;
+                if (trimmed.startsWith('* ') || trimmed.startsWith('- ')) {
+                  const items = trimmed.split('\n').map(li => `<li class="mr-4 list-disc text-slate-700 dark:text-slate-300 my-1">${li.replace(/^[\*\-]\s*/, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</li>`).join('');
+                  return `<ul class="my-3 space-y-1">${items}</ul>`;
+                }
+                const withBold = trimmed.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\*(.*?)\*/g, '<em>$1</em>');
+                return `<p class="text-base sm:text-lg leading-relaxed text-slate-700 dark:text-slate-300 mb-4">${withBold}</p>`;
+              })
+              .join('');
+
+            const fallbackFaqItems = Array.isArray(reviewedData.faqs) && reviewedData.faqs.length > 0
+              ? reviewedData.faqs.map((f: any, idx: number) => ({
+                  id: String(idx + 1),
+                  question: f.question || '',
+                  answer: f.answer || '',
+                }))
+              : [];
+
+            const fallbackGalleryItems = videos.map((v, i) => ({
+              id: v.id || `vid-${i}`,
+              title: v.title,
+              subtitle: channel?.title || brandDna?.identity?.companyName || 'קושאן',
+              description: v.description?.slice(0, 140) || '',
+              youtubeVideoId: v.youtubeVideoId,
+              thumbnailUrl: v.thumbnailUrl,
+              kosvidioSlug: 'kosvidio',
+              duration: v.duration || '',
+              viewsCount: Number(v.viewCount || 0),
+              likesCount: Number(v.likeCount || 0),
+              category: 'סרטוני הערוץ',
+              tags: ['וידאו', 'יוטיוב'],
+              featured: i === 0,
+            }));
+
+            const pageConfig = {
+              pageId: pbPageId,
+              pageTitle: `${reviewedData.h1 || video.title} - Kosvidio`,
+              pageCategory: 'youtube_post',
+              slug,
+              shortSlug: slug,
+              publicUrl,
+              published: true,
+              isHomePage: false,
+              viewsCount: 0,
+              leadsCount: 0,
+              globalSettings: {
+                siteTitle: `${reviewedData.h1 || video.title} | ${brandDna?.identity?.companyName || 'קושאן'}`,
+                companyName: brandDna?.identity?.companyName || 'קושאן',
+                slogan: brandDna?.identity?.slogan || 'וידאו חכם ומאמרי SEO מעמיקים',
+                theme: 'dark',
+                headerLayout: 'capsule-floating',
+                headerSticky: true,
+                isHeaderVisible: true,
+                isFooterVisible: true,
+                primaryColor: brandDna?.designTokens?.primaryColor || '#ef4444',
+                secondaryColor: brandDna?.designTokens?.secondaryColor || '#8b5cf6',
+                backgroundColor: '#090a0f',
+                textColor: '#f8fafc',
+                fontFamily: 'Heebo, sans-serif',
+                borderRadius: 'lg',
+                buttonStyle: 'gradient',
+                contactWhatsApp: brandDna?.trust?.whatsappSupportNumber || '',
+                contactPhone: brandDna?.trust?.contactPhone || '',
+                contactEmail: brandDna?.trust?.contactEmail || '',
+                siteLogoUrl: brandDna?.identity?.logoUrl || '',
+              },
+              seoSettings: {
+                title: reviewedData.metaTitle || video.title,
+                description: reviewedData.metaDescription || video.description.slice(0, 160),
+                keywords: reviewedData.tags || ['וידאו', 'יוטיוב', 'SEO', 'AISEO'],
+              },
+              sectionOrder: [
+                'header-1',
+                'kosvidio-1',
+                'videoEngagement-1',
+                'about-1',
+                'sec-takeaways',
+                'faq-1',
+                'sec-cta',
+                'kosvidioGallery-1',
+              ],
+              sections: {
+                'header-1': {
+                  type: 'header',
+                  id: 'header-1',
+                  visible: true,
+                  layout: 'capsule-floating',
+                  sticky: true,
+                  useBrandLogo: true,
+                  showLogoText: true,
+                  logoText: brandDna?.identity?.companyName || 'קושאן',
+                },
+                'kosvidio-1': {
+                  type: 'kosvidio',
+                  id: 'kosvidio-1',
+                  visible: true,
+                  anchorId: 'video',
+                  youtubeVideoId: video.youtubeVideoId,
+                  videoUrl: `https://www.youtube.com/watch?v=${video.youtubeVideoId}`,
+                  title: reviewedData.h1 || video.title,
+                  shortDescription: reviewedData.executiveSummary || '',
+                  shortDescriptionBadge: 'על הסרטון בכמה מילים',
+                  channelName: channel?.title || brandDna?.identity?.companyName || 'קושאן',
+                  channelAvatarUrl: video.thumbnailUrl,
+                  channelSubscribers: '24.5K',
+                  verifiedBadge: true,
+                  viewsCount: Number(video.viewCount || 0),
+                  likesCount: Number(video.likeCount || 0),
+                  commentsCount: 0,
+                  ambientGlow: true,
+                  showTheaterMode: true,
+                  hideInternalEngagement: true,
+                  enableSocialShare: true,
+                  tags: reviewedData.tags || ['וידאו', 'יוטיוב'],
+                  keyTakeaways: (reviewedData.keyTakeaways || []).map((t: any) => typeof t === 'string' ? t : (t?.title ? `${t.title}: ${t.text || ''}` : t?.text || '')),
+                  faqs: fallbackFaqItems,
+                  callToAction: {
+                    title: reviewedData.callToAction?.title || `רוצים תוצאות דומות עם ${brandDna?.identity?.companyName || 'קושאן'}?`,
+                    subtitle: reviewedData.callToAction?.subtitle || 'השאירו פרטים ונשמח לסייע',
+                    buttonText: reviewedData.callToAction?.buttonText || 'צרו קשר עכשיו',
+                    buttonLink: '#sec-cta',
+                  },
+                },
+                'videoEngagement-1': {
+                  type: 'videoEngagement',
+                  id: 'videoEngagement-1',
+                  visible: true,
+                  anchorId: 'engagement',
+                  title: 'אינטראקציה, שיתוף ותגובות',
+                  videoTitle: reviewedData.h1 || video.title,
+                  viewsCount: Number(video.viewCount || 0),
+                  likesCount: Number(video.likeCount || 0),
+                  tags: reviewedData.tags || ['וידאו', 'יוטיוב'],
+                  accentColor: brandDna?.designTokens?.primaryColor || '#ef4444',
+                  allowLikes: true,
+                  allowComments: true,
+                  allowUserComments: true,
+                  enableSocialShare: true,
+                  backgroundColor: 'transparent',
+                },
+                'about-1': {
+                  type: 'about',
+                  id: 'about-1',
+                  visible: true,
+                  anchorId: 'article',
+                  heading: reviewedData.h1 || video.title,
+                  subtitle: reviewedData.executiveSummary || '',
+                  body: `<div class="kosvidio-rich-content space-y-4 font-normal leading-relaxed text-slate-800 dark:text-slate-200">
+                    ${reviewedData.executiveSummary ? `<div class="p-5 mb-6 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-slate-800 dark:text-slate-200 font-medium leading-relaxed shadow-xs"><div class="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1">תמצית התוכן והסרטון:</div>${reviewedData.executiveSummary}</div>` : ''}
+                    ${articleHtml}
+                  </div>`,
+                  layout: 'highlight-box',
+                },
+                'sec-takeaways': {
+                  type: 'richContent',
+                  id: 'sec-takeaways',
+                  visible: (reviewedData.keyTakeaways || []).length > 0,
+                  anchorId: 'takeaways',
+                  heading: 'תובנות מרכזיות ונקודות מפתח',
+                  subtitle: 'עיקרי הדברים והמסקנות החשובות מתוך הסרטון',
+                  body: '',
+                  layout: 'cards-grid-3',
+                },
+                'faq-1': {
+                  type: 'faq',
+                  id: 'faq-1',
+                  visible: fallbackFaqItems.length > 0,
+                  anchorId: 'faq',
+                  title: 'שאלות ותשובות נפוצות',
+                  subtitle: 'תובנות מעמיקות ובירורים מתוך הסרטון',
+                  showSearchBar: true,
+                  showContactCard: false,
+                  items: fallbackFaqItems,
+                },
+                'sec-cta': {
+                  type: 'landingSection',
+                  id: 'sec-cta',
+                  visible: true,
+                  anchorId: 'cta',
+                  headline: reviewedData.callToAction?.title || `רוצים תוצאות דומות עם ${brandDna?.identity?.companyName || 'קושאן'}?`,
+                  subheadline: reviewedData.callToAction?.subtitle || 'השאירו פרטים ונחזור אליכם בהקדם',
+                  description: 'מלאו את הפרטים לקבלת מידע נוסף, ייעוץ אישי והתאמה מדויקת.',
+                  ctaButton: { text: reviewedData.callToAction?.buttonText || 'צרו קשר עכשיו' },
+                },
+                'kosvidioGallery-1': {
+                  type: 'kosvidioGallery',
+                  id: 'kosvidioGallery-1',
+                  visible: true,
+                  anchorId: 'more-videos',
+                  title: 'סרטונים נוספים מהערוץ',
+                  subtitle: channel?.title || brandDna?.identity?.companyName || 'קושאן',
+                  description: `צפו במבחר סרטוני וידאו מתוך ${channel?.title || brandDna?.identity?.companyName || 'קושאן'}`,
+                  layout: 'horizontal-scroll',
+                  source: 'tenant_kosvidio',
+                  items: fallbackGalleryItems,
+                  allowVisitorLayoutSwitch: false,
+                },
+              },
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            };
+
+            await setDoc(doc(db, collPath, pbPageId), pageConfig, { merge: true });
+            publicUrl = `/kosvidio/${slug}`;
+            eventBus.publish('pagebuilder:page_saved' as any, { page: pageConfig, tenantId });
+          } catch (e) {
+            console.warn('[KosTube] Direct save in saveEditedPage warning:', e);
+          }
         }
 
         const pageId = `page_${video.youtubeVideoId || slug}`;
