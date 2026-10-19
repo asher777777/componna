@@ -7,12 +7,17 @@ import {
   exportFormSubmissionsToExcel,
 } from '../services/submissionStorageService';
 import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
+import { useTenantScope } from '../../../core/tenant';
 
 export function useFormSubmissions(
   form: SmartFormDefinition | null,
   customFirestore?: Firestore,
-  collectionName: string = DEFAULT_FORMS_COLLECTION
+  collectionName?: string
 ) {
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+  const effectiveCollectionName =
+    collectionName || getScopedCollectionPath(DEFAULT_FORMS_COLLECTION);
+
   const [submissions, setSubmissions] = useState<SmartFormSubmission[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -32,11 +37,11 @@ export function useFormSubmissions(
         setIsLoading(false);
       },
       customFirestore,
-      collectionName
+      effectiveCollectionName
     );
 
     return () => unsubscribe();
-  }, [form?.id, customFirestore, collectionName]);
+  }, [form?.id, customFirestore, effectiveCollectionName, tenantId]);
 
   const stats: FormAnalyticsStats | null = useMemo(() => {
     if (!form) return null;

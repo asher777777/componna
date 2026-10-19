@@ -75,8 +75,9 @@ export interface FormItemSummary {
 export interface DefaultFormsStatus {
   hasLeadForm: boolean;
   hasPaymentForm: boolean;
+  hasDonationForm?: boolean;
   hasWhatsAppForm: boolean;
-  missingTypes: ('leads' | 'payment' | 'whatsapp')[];
+  missingTypes: ('leads' | 'payment' | 'donation_recurring' | 'whatsapp')[];
 }
 
 export interface FormFieldContract {
@@ -182,7 +183,7 @@ export interface FormBuilderContract {
   saveForm?: (form: any) => Promise<{ id: string; success: boolean }>;
   submitForm?: (payload: FormSubmissionPayload) => Promise<FormSubmissionResult>;
   checkDefaultFormsStatus?: () => Promise<DefaultFormsStatus>;
-  createDefaultForm?: (type: 'leads' | 'payment' | 'whatsapp') => Promise<{ id: string; title: string }>;
+  createDefaultForm?: (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => Promise<{ id: string; title: string }>;
   openBrainstormModal?: () => void;
   openBuilderForForm?: (formId: string) => void;
   renderSubmissionsTable?: (formId: string, formTitle?: string) => React.ReactNode;

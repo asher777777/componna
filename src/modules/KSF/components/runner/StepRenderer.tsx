@@ -13,6 +13,7 @@ export interface StepRendererProps {
   onEnter?: () => void;
   theme?: FormThemeSettings;
   validationError?: string | null;
+  allAnswers?: Record<string, any>;
 }
 
 export const StepRenderer: React.FC<StepRendererProps> = ({
@@ -22,6 +23,7 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
   onEnter,
   theme,
   validationError,
+  allAnswers,
 }) => {
   const accentColor = theme?.accentColor || '#D97706';
   const isVoiceEnabled = theme?.enableVoiceInput !== false;
@@ -521,13 +523,71 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
           </div>
         );
 
-      case 'payment':
+      case 'payment': {
+        const rawAmount =
+          allAnswers?.payment_amount ||
+          allAnswers?.donation_amount ||
+          allAnswers?.amount ||
+          step.defaultValue ||
+          100;
+        const resolvedAmount = Number(rawAmount) || 100;
+        const resolvedClientName =
+          allAnswers?.conta_name ||
+          allAnswers?.name ||
+          allAnswers?.fullName ||
+          allAnswers?.kosun_crm_name ||
+          '';
+        const resolvedPhone =
+          allAnswers?.conta_phone ||
+          allAnswers?.phone ||
+          allAnswers?.kosun_crm_phone ||
+          '';
+        const resolvedEmail =
+          allAnswers?.email ||
+          allAnswers?.kosun_crm_email ||
+          '';
+        const isRecurring =
+          allAnswers?.donation_type === 'recurring_monthly' ||
+          allAnswers?.is_recurring === true;
+        const dedication =
+          allAnswers?.dedication_note ||
+          allAnswers?.dedication ||
+          '';
+
         return (
-          <div className="w-full max-w-xl">
+          <div className="w-full max-w-xl space-y-4">
+            {/* Dynamic Summary Pill */}
+            <div className="p-4 bg-white/70 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-800 rounded-2xl text-right space-y-2 text-xs text-slate-600 dark:text-slate-300 shadow-sm backdrop-blur-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <span className="font-bold text-slate-800 dark:text-slate-200">
+                  {isRecurring ? 'הוראת קבע חודשית (12 חודשים)' : 'תשלום חד-פעמי'}
+                </span>
+                <span className="text-base font-black text-emerald-600 dark:text-emerald-400 font-mono">
+                  ₪{resolvedAmount} {isRecurring ? '/ חודש' : ''}
+                </span>
+              </div>
+              {resolvedClientName && (
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>עבור:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300">{resolvedClientName}</span>
+                </div>
+              )}
+              {dedication && (
+                <div className="flex items-center justify-between text-[11px] text-slate-500">
+                  <span>הקדשה:</span>
+                  <span className="font-medium text-slate-700 dark:text-slate-300 italic">{dedication}</span>
+                </div>
+              )}
+            </div>
+
             <CapabilitySlot
               name="kesher-payment-slot"
               props={{
-                amount: step.defaultValue || 100,
+                amount: resolvedAmount,
+                clientName: resolvedClientName,
+                phone: resolvedPhone,
+                email: resolvedEmail,
+                description: step.title || 'תשלום שאלון KSF',
                 onSuccess: (res: any) => onChange(res.transactionId || 'approved'),
               }}
               fallback={
@@ -541,13 +601,14 @@ export const StepRenderer: React.FC<StepRendererProps> = ({
                   </p>
                   <div className="p-3 bg-indigo-50 dark:bg-indigo-950/40 rounded-xl text-indigo-700 dark:text-indigo-300 text-sm font-black flex items-center justify-center gap-2">
                     <span>סכום לתשלום:</span>
-                    <span className="text-base font-mono">₪{step.defaultValue || 100}</span>
+                    <span className="text-base font-mono">₪{resolvedAmount}</span>
                   </div>
                 </div>
               }
             />
           </div>
         );
+      }
 
       default:
         return (

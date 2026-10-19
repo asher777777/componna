@@ -10,12 +10,18 @@ import {
 } from '../services/formStorageService';
 import { generateSmartFormWithAI, AIBrainstormInput } from '../services/aiFormService';
 import { DEFAULT_FORMS_COLLECTION, DEFAULT_THEME_SETTINGS, DEFAULT_COMPLETION_SETTINGS } from '../config/constants';
+import {
+  TEMPLATE_PAYMENT_CHECKOUT,
+  TEMPLATE_DONATION_RECURRING,
+  TEMPLATE_LEAD_CAPTURE,
+  DEFAULT_KSF_TEMPLATES,
+} from '../config/formTemplates';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { useTenantScope } from '../../../core/tenant';
 import { FormBuilderContract } from '../../../core/contracts';
 import { FormSubmissionsTable } from '../components/analytics/FormSubmissionsTable';
 import { SmartFormRunner } from '../components/runner/SmartFormRunner';
-
 
 export interface SmartFormContextValue {
   forms: SmartFormDefinition[];
@@ -25,11 +31,13 @@ export interface SmartFormContextValue {
   isGeneratingAI: boolean;
   error: string | null;
   collectionName: string;
+  defaultTemplates: SmartFormDefinition[];
   setActiveForm: (form: SmartFormDefinition | null) => void;
   loadFormById: (formId: string) => Promise<SmartFormDefinition | null>;
   saveForm: (form: Partial<SmartFormDefinition>) => Promise<string>;
   deleteForm: (formId: string) => Promise<void>;
   generateFormWithAI: (input: AIBrainstormInput) => Promise<SmartFormDefinition>;
+  createDefaultForm: (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => Promise<{ id: string; title: string }>;
   refreshForms: () => Promise<void>;
 }
 
@@ -45,9 +53,13 @@ export interface SmartFormProviderProps {
 export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
   children,
   customFirestore,
-  collectionName = DEFAULT_FORMS_COLLECTION,
+  collectionName: explicitCollectionName,
   initialFormId,
 }) => {
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+  const effectiveCollectionName =
+    explicitCollectionName || getScopedCollectionPath(DEFAULT_FORMS_COLLECTION);
+
   const [forms, setForms] = useState<SmartFormDefinition[]>([]);
   const [activeForm, setActiveForm] = useState<SmartFormDefinition | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -55,7 +67,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
   const [isGeneratingAI, setIsGeneratingAI] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Subscribe to forms
+  // Subscribe to forms for active tenant
   useEffect(() => {
     setIsLoading(true);
     const unsubscribe = subscribeSmartForms(
@@ -64,37 +76,37 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
         setIsLoading(false);
       },
       customFirestore,
-      collectionName
+      effectiveCollectionName
     );
 
     return () => unsubscribe();
-  }, [customFirestore, collectionName]);
+  }, [customFirestore, effectiveCollectionName, tenantId]);
 
   // Load initial form if specified
   useEffect(() => {
     if (initialFormId) {
-      getSmartFormById(initialFormId, customFirestore, collectionName).then((f) => {
+      getSmartFormById(initialFormId, customFirestore, effectiveCollectionName).then((f) => {
         if (f) setActiveForm(f);
       });
     }
-  }, [initialFormId, customFirestore, collectionName]);
+  }, [initialFormId, customFirestore, effectiveCollectionName]);
 
   const refreshForms = useCallback(async () => {
     setIsLoading(true);
     try {
-      const data = await getSmartForms(customFirestore, collectionName);
+      const data = await getSmartForms(customFirestore, effectiveCollectionName);
       setForms(data);
     } catch (e: any) {
       setError(e.message || 'Error refreshing forms');
     } finally {
       setIsLoading(false);
     }
-  }, [customFirestore, collectionName]);
+  }, [customFirestore, effectiveCollectionName]);
 
   const loadFormById = useCallback(
     async (formId: string) => {
       try {
-        const form = await getSmartFormById(formId, customFirestore, collectionName);
+        const form = await getSmartFormById(formId, customFirestore, effectiveCollectionName);
         if (form) setActiveForm(form);
         return form;
       } catch (e: any) {
@@ -102,7 +114,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
         return null;
       }
     },
-    [customFirestore, collectionName]
+    [customFirestore, effectiveCollectionName]
   );
 
   const saveForm = useCallback(
@@ -110,8 +122,8 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
       setIsSaving(true);
       setError(null);
       try {
-        const id = await saveSmartForm(formData, customFirestore, collectionName);
-        const updated = await getSmartFormById(id, customFirestore, collectionName);
+        const id = await saveSmartForm(formData, customFirestore, effectiveCollectionName);
+        const updated = await getSmartFormById(id, customFirestore, effectiveCollectionName);
         if (updated) setActiveForm(updated);
         return id;
       } catch (e: any) {
@@ -121,14 +133,14 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
         setIsSaving(false);
       }
     },
-    [customFirestore, collectionName]
+    [customFirestore, effectiveCollectionName]
   );
 
   const deleteForm = useCallback(
     async (formId: string) => {
       setIsSaving(true);
       try {
-        await deleteSmartForm(formId, customFirestore, collectionName);
+        await deleteSmartForm(formId, customFirestore, effectiveCollectionName);
         if (activeForm?.id === formId) {
           setActiveForm(null);
         }
@@ -139,7 +151,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
         setIsSaving(false);
       }
     },
-    [activeForm, customFirestore, collectionName]
+    [activeForm, customFirestore, effectiveCollectionName]
   );
 
   const generateFormWithAI = useCallback(
@@ -212,7 +224,8 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
             f.category === 'לידים' ||
             f.title.includes('ליד') ||
             f.title.includes('התאמה') ||
-            f.title.includes('יצירת קשר')
+            f.title.includes('יצירת קשר') ||
+            f.slug.includes('lead')
         );
         const hasPaymentForm = forms.some(
           (f) =>
@@ -220,7 +233,16 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
             f.category === 'סליקה' ||
             f.title.includes('תשלום') ||
             f.title.includes('סליקה') ||
+            f.slug.includes('payment') ||
             f.steps?.some((s) => (s as any).fieldType === 'payment')
+        );
+        const hasDonationForm = forms.some(
+          (f) =>
+            f.category?.includes('תרומ') ||
+            f.category?.includes('קמפיין') ||
+            f.title.includes('תרומ') ||
+            f.title.includes('הוראת קבע') ||
+            f.slug.includes('donation')
         );
         const hasWhatsAppForm = forms.some(
           (f) =>
@@ -229,68 +251,36 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
             f.title.includes('וואטסאפ')
         );
 
-        const missingTypes: ('leads' | 'payment' | 'whatsapp')[] = [];
+        const missingTypes: ('leads' | 'payment' | 'donation_recurring' | 'whatsapp')[] = [];
         if (!hasLeadForm) missingTypes.push('leads');
         if (!hasPaymentForm) missingTypes.push('payment');
+        if (!hasDonationForm) missingTypes.push('donation_recurring');
         if (!hasWhatsAppForm) missingTypes.push('whatsapp');
 
         return {
           hasLeadForm,
           hasPaymentForm,
+          hasDonationForm,
           hasWhatsAppForm,
           missingTypes,
         };
       },
-      createDefaultForm: async (type: 'leads' | 'payment' | 'whatsapp') => {
+      createDefaultForm: async (type: 'leads' | 'payment' | 'donation_recurring' | 'whatsapp') => {
         let newForm: Partial<SmartFormDefinition>;
 
         if (type === 'payment') {
           newForm = {
-            title: 'טופס תשלום וסליקה מהירה (קשר)',
-            slug: 'payment-checkout',
-            description: 'טופס סליקה מאובטח ומחובר ישירות למסוף קשר',
-            category: 'סליקה',
-            status: 'published',
-            isCrmSyncEnabled: true,
-            crmDefaultTags: ['תשלום קשר', 'לקוח משלם'],
-            steps: [
-              {
-                id: 'pay_step_1',
-                order: 1,
-                title: 'מה שמך המלא?',
-                fieldType: 'text',
-                iconName: 'User',
-                required: true,
-                mappingKey: 'kosun_crm_name',
-              },
-              {
-                id: 'pay_step_2',
-                order: 2,
-                title: 'מספר טלפון לקבלת אישור התשלום',
-                fieldType: 'phone',
-                iconName: 'Phone',
-                required: true,
-                mappingKey: 'kosun_crm_phone',
-              },
-              {
-                id: 'pay_step_3',
-                order: 3,
-                title: 'כתובת דוא״ל למשלוח מסמך מס',
-                fieldType: 'email',
-                iconName: 'Mail',
-                required: true,
-                mappingKey: 'kosun_crm_email',
-              },
-              {
-                id: 'pay_step_4',
-                order: 4,
-                title: 'ביצוע תשלום מאובטח במסוף קשר',
-                subtitle: 'סליקת אשראי מאובטחת, ביט או העברה בנקאית',
-                fieldType: 'payment' as any,
-                iconName: 'CreditCard',
-                required: true,
-              },
-            ],
+            ...TEMPLATE_PAYMENT_CHECKOUT,
+            id: `form_pay_${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+        } else if (type === 'donation_recurring') {
+          newForm = {
+            ...TEMPLATE_DONATION_RECURRING,
+            id: `form_don_${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
         } else if (type === 'whatsapp') {
           newForm = {
@@ -310,7 +300,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
                 fieldType: 'text',
                 iconName: 'User',
                 required: true,
-                mappingKey: 'kosun_crm_name',
+                mappingKey: 'conta_name',
               },
               {
                 id: 'wa_step_2',
@@ -320,7 +310,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
                 fieldType: 'phone',
                 iconName: 'MessageSquare',
                 required: true,
-                mappingKey: 'kosun_crm_phone',
+                mappingKey: 'conta_phone',
               },
               {
                 id: 'wa_step_3',
@@ -329,7 +319,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
                 fieldType: 'textarea',
                 iconName: 'FileText',
                 required: false,
-                mappingKey: 'kosun_crm_notes',
+                mappingKey: 'notes',
               },
             ],
             whatsappRules: [
@@ -339,63 +329,23 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
                 enabled: true,
                 conditionType: 'always',
                 recipientType: 'submitter',
-                messageTemplate: 'שלום {{kosun_crm_name}}! קיבלנו את פנייתך בהצלחה ונחזור אליך בהקדם.',
+                messageTemplate: 'שלום {{conta_name}}, תודה רבה על פנייתך! קיבלנו את פרטיך ונציג יחזור אליך בהקדם.',
+                includePdfSummary: false,
               },
             ],
           };
         } else {
           // 'leads'
           newForm = {
-            title: 'טופס רישום לידים והצטרפות',
-            slug: 'lead-registration',
-            description: 'טופס שלב-אחר-שלב לקליטת מתעניינים וסנכרון מלא לכרטיס הלקוח',
-            category: 'לידים',
-            status: 'published',
-            isCrmSyncEnabled: true,
-            crmDefaultTags: ['ליד חדש', 'הצטרפות'],
-            steps: [
-              {
-                id: 'lead_step_1',
-                order: 1,
-                title: 'מה שמך המלא?',
-                fieldType: 'text',
-                iconName: 'User',
-                required: true,
-                mappingKey: 'kosun_crm_name',
-              },
-              {
-                id: 'lead_step_2',
-                order: 2,
-                title: 'מה מספר הנייד שלך לחיוג ולוואטסאפ?',
-                fieldType: 'phone',
-                iconName: 'Phone',
-                required: true,
-                mappingKey: 'kosun_crm_phone',
-              },
-              {
-                id: 'lead_step_3',
-                order: 3,
-                title: 'לאיזה כתובת אימייל לעדכן אותך?',
-                fieldType: 'email',
-                iconName: 'Mail',
-                required: true,
-                mappingKey: 'kosun_crm_email',
-              },
-              {
-                id: 'lead_step_4',
-                order: 4,
-                title: 'שם העסק או החברה שלך (אופציונלי)',
-                fieldType: 'text',
-                iconName: 'Building',
-                required: false,
-                mappingKey: 'kosun_crm_company',
-              },
-            ],
+            ...TEMPLATE_LEAD_CAPTURE,
+            id: `form_lead_${Date.now()}`,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
           };
         }
 
         const createdId = await saveForm(newForm);
-        const fullForm = await getSmartFormById(createdId, customFirestore, collectionName);
+        const fullForm = await getSmartFormById(createdId, customFirestore, effectiveCollectionName);
         if (fullForm) {
           setActiveForm(fullForm);
         }
@@ -416,7 +366,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         } as unknown as SmartFormDefinition);
-        return <FormSubmissionsTable form={targetForm} />;
+        return <FormSubmissionsTable form={targetForm} collectionName={effectiveCollectionName} />;
       },
     };
 
@@ -426,7 +376,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
       unregisterCapability('form-builder');
       unregisterCapability('form-renderer');
     };
-  }, [forms, saveForm, loadFormById, customFirestore, collectionName, registerCapability, unregisterCapability, setActiveForm]);
+  }, [forms, saveForm, loadFormById, customFirestore, effectiveCollectionName, registerCapability, unregisterCapability, setActiveForm]);
 
   // Listen to AI Agent Actions from Kosai Engine (EventBus Bridge)
   useEffect(() => {
@@ -508,7 +458,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
           };
 
           const createdId = await saveForm(newForm);
-          const fullForm = await getSmartFormById(createdId, customFirestore, collectionName);
+          const fullForm = await getSmartFormById(createdId, customFirestore, effectiveCollectionName);
           if (fullForm) {
             setActiveForm(fullForm);
           }
@@ -622,7 +572,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
           };
 
           const savedId = await saveForm(templateForm);
-          const loaded = await getSmartFormById(savedId, customFirestore, collectionName);
+          const loaded = await getSmartFormById(savedId, customFirestore, effectiveCollectionName);
           if (loaded) setActiveForm(loaded);
 
           eventBus.publish('kosai:action_result', {
@@ -659,7 +609,7 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
     });
 
     return () => unsub();
-  }, [activeForm, forms, customFirestore, collectionName, saveForm, setActiveForm]);
+  }, [activeForm, forms, customFirestore, effectiveCollectionName, saveForm, setActiveForm]);
 
 
   return (
@@ -671,12 +621,14 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
         isSaving,
         isGeneratingAI,
         error,
-        collectionName,
+        collectionName: effectiveCollectionName,
+        defaultTemplates: DEFAULT_KSF_TEMPLATES,
         setActiveForm,
         loadFormById,
         saveForm,
         deleteForm,
         generateFormWithAI,
+        createDefaultForm,
         refreshForms,
       }}
     >

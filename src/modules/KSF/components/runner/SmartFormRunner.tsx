@@ -9,6 +9,7 @@ import { FormCompletionScreen } from './FormCompletionScreen';
 import { ArrowLeft, ArrowRight, Loader2, Sparkles } from 'lucide-react';
 import { DEFAULT_FORMS_COLLECTION } from '../../config/constants';
 import { SMART_FORM_TEMPLATES } from '../../config/formTemplates';
+import { useTenantScope } from '../../../../core/tenant';
 
 export interface SmartFormRunnerProps {
   formId?: string;
@@ -30,7 +31,7 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
   formId,
   form: propForm,
   customFirestore,
-  collectionName = DEFAULT_FORMS_COLLECTION,
+  collectionName,
   onComplete,
   previewMode = false,
   className = '',
@@ -41,6 +42,12 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
   submitButtonFontSize,
   submitButtonShape,
 }) => {
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+  const effectiveCollectionName =
+    collectionName && collectionName !== DEFAULT_FORMS_COLLECTION
+      ? collectionName
+      : getScopedCollectionPath(DEFAULT_FORMS_COLLECTION);
+
   const [loadedForm, setLoadedForm] = useState<SmartFormDefinition | null>(propForm || null);
   const [isLoadingForm, setIsLoadingForm] = useState<boolean>(!propForm && !!formId);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -53,7 +60,7 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
 
     if (formId) {
       setIsLoadingForm(true);
-      getSmartFormById(formId, customFirestore, collectionName)
+      getSmartFormById(formId, customFirestore, effectiveCollectionName)
         .then((f) => {
           if (f) {
             setLoadedForm(f);
@@ -70,7 +77,7 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
     } else {
       setLoadedForm(SMART_FORM_TEMPLATES[0] || null);
     }
-  }, [formId, propForm, customFirestore, collectionName]);
+  }, [formId, propForm, customFirestore, effectiveCollectionName, tenantId]);
 
   if (isLoadingForm) {
     return (
@@ -98,7 +105,7 @@ export const SmartFormRunner: React.FC<SmartFormRunnerProps> = ({
     <SmartFormRunnerInner
       form={loadedForm}
       customFirestore={customFirestore}
-      collectionName={collectionName}
+      collectionName={effectiveCollectionName}
       onComplete={onComplete}
       previewMode={previewMode}
       className={className}
@@ -322,6 +329,7 @@ const SmartFormRunnerInner: React.FC<InnerProps> = ({
             onEnter={handleNext}
             theme={theme}
             validationError={validationError}
+            allAnswers={answers}
           />
         </div>
 

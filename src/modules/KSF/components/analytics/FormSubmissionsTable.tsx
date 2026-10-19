@@ -28,13 +28,15 @@ import {
 export interface FormSubmissionsTableProps {
   form: SmartFormDefinition;
   className?: string;
+  collectionName?: string;
 }
 
 export const FormSubmissionsTable: React.FC<FormSubmissionsTableProps> = ({
   form,
   className = '',
+  collectionName,
 }) => {
-  const { submissions, stats, isLoading, exportExcel } = useFormSubmissions(form);
+  const { submissions, stats, isLoading, exportExcel } = useFormSubmissions(form, undefined, collectionName);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSubmission, setSelectedSubmission] = useState<SmartFormSubmission | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
