@@ -24,6 +24,7 @@ import {
   Tablet,
   Smartphone,
   CheckCircle2,
+  Wand2,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
@@ -45,6 +46,7 @@ interface PageBuilderFloatingNavProps {
   onOpenGeo?: () => void;
   onGoToPagesList?: () => void;
   onConvertToVideo?: () => void;
+  onSyncBrandDna?: () => void;
   isDarkMode: boolean;
   onToggleDarkMode: () => void;
   tenantId?: string;
@@ -69,6 +71,7 @@ export const PageBuilderFloatingNav: React.FC<PageBuilderFloatingNavProps> = ({
   onOpenGeo,
   onGoToPagesList,
   onConvertToVideo,
+  onSyncBrandDna,
   isDarkMode,
   onToggleDarkMode,
   tenantId,
@@ -294,6 +297,21 @@ export const PageBuilderFloatingNav: React.FC<PageBuilderFloatingNavProps> = ({
                   <span className="text-[11px] text-slate-400">קטלוג אזורים ו-Bento</span>
                 </button>
 
+
+                {onSyncBrandDna && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsNavModalOpen(false);
+                      onSyncBrandDna();
+                    }}
+                    className="p-4 rounded-2xl bg-slate-900 border border-slate-800 hover:border-indigo-500/40 hover:bg-slate-800 text-right flex flex-col gap-2 transition-all cursor-pointer"
+                  >
+                    <Wand2 className="w-5 h-5 text-indigo-400" />
+                    <span className="text-sm font-bold text-white">רענן לפי מיתוג</span>
+                    <span className="text-[11px] text-slate-400">סנכרון שפת ממשק וכותרות</span>
+                  </button>
+                )}
                 {onOpenBlueprints && (
                   <button
                     type="button"

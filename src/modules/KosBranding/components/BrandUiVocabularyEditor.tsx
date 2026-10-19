@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { useBrandDna } from '../hooks/useBrandDna';
 import { generateBrandUiVocabulary, buildDefaultBrandUiVocabulary } from '../services/brandCopilotService';
 import { BrandUiVocabulary } from '../types/brandDna';
+import { syncAllTenantPagesWithBrandDna } from '../../KosWebAi/services/pageBrandSyncService';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant';
 import {
   MousePointerClick,
   FormInput,
   Type,
   Sparkles,
   RotateCcw,
+  Globe,
   CheckCircle2,
   Loader2,
   SlidersHorizontal,
@@ -16,7 +20,10 @@ import {
 
 export const BrandUiVocabularyEditor: React.FC = () => {
   const { brandDna, updateUiVocabulary } = useBrandDna();
+  const { db } = useSystemConnection();
+  const { tenantId } = useTenantScope();
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isBulkSyncing, setIsBulkSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<'buttons' | 'placeholders' | 'headings'>('buttons');
   const [lastActionNotice, setLastActionNotice] = useState<string | null>(null);
 
@@ -44,6 +51,31 @@ export const BrandUiVocabularyEditor: React.FC = () => {
       showNotice('שגיאה בחיבור ל-AI.');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+
+  const handleBulkSyncAllPages = async () => {
+    if (!window.confirm('האם לעדכן ולסנכרן את שפת הממשק, הכפתורים והכותרות לכל העמודים הקיימים באתר? (גרסת שחזור נשמרת אוטומטית לכל עמוד)')) {
+      return;
+    }
+    setIsBulkSyncing(true);
+    try {
+      const res = await syncAllTenantPagesWithBrandDna(db, tenantId, brandDna);
+      if (res.success) {
+        if (res.totalPages === 0) {
+          showNotice('לא נמצאו עמודים קיימים לטננט זה.');
+        } else {
+          showNotice(`✓ ${res.updatedCount} עמודים עודכנו וסונכרנו בהצלחה עם שפת הממשק!`);
+        }
+      } else {
+        showNotice(res.error || 'שגיאה בסנכרון העמודים.');
+      }
+    } catch (err: any) {
+      console.error('[BrandUiVocabularyEditor] Bulk sync failed:', err);
+      showNotice('שגיאה בסנכרון העמודים.');
+    } finally {
+      setIsBulkSyncing(false);
     }
   };
 
@@ -95,6 +127,20 @@ export const BrandUiVocabularyEditor: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={handleBulkSyncAllPages}
+            disabled={isBulkSyncing}
+            title="עדכן את שפת הממשק, הכפתורים והכותרות בכל העמודים שכבר נוצרו באתר"
+            className="px-3 py-2 rounded-xl bg-slate-900/80 hover:bg-slate-900 border border-indigo-500/30 hover:border-indigo-500/60 text-slate-200 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shadow-sm"
+          >
+            {isBulkSyncing ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+            ) : (
+              <Globe className="w-3.5 h-3.5 text-indigo-400" />
+            )}
+            <span>{isBulkSyncing ? 'מסנכרן עמודים...' : 'סנכרן לכל עמודי האתר'}</span>
+          </button>
           <button
             type="button"
             onClick={handleResetToDefault}

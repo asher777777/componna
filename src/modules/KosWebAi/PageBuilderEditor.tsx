@@ -25,6 +25,7 @@ import { useSystemConnection } from '../../core/connection/SystemConnectionConte
 import { loadBrandDna } from '../KosBranding/services/brandDnaFirestore';
 import { BrandDna } from '../../core/contracts';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
+import { syncSinglePageWithBrandDna } from './services/pageBrandSyncService';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
 import { ArrowUp, ArrowDown, Plus, Sparkles, Layers, Eye, Edit3, Settings2, Globe, Share2, MapPin } from 'lucide-react';
 import { clsx } from 'clsx';

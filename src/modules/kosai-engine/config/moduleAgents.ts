@@ -95,9 +95,16 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
     name: 'סוכן טפסים ושאלונים חכמים (KSF)',
     roleBadge: 'סוכן KSF & KosAi',
     roleDescription: 'אפיון שאלונים מבוססי שלב-אחר-שלב, חיבור לקולקציית ה-CRM וסנכרון לידים',
-    welcomeMessage: 'שלום! אני סוכן KSF של קושאן (KosAi Forms). אני מתמחה בבניית טפסים חכמים עם שאלה אחת בלבד בכל שלב, חיבור מלא לקולקציית ה-CRM וסנכרון לידים ישיר. מה תרצה שנאפיין היום?',
-    inputPlaceholder: 'איך סוכן KSF יכול לסייע באפיון הטופס הבא שלך?',
-    enabledCapabilities: ['ADD_SECTION', 'DEEP_RESEARCH'],
+    welcomeMessage: 'שלום! אני סוכן KSF של קושאן (KosAi Forms). אני מתמחה בבניית טפסים חכמים עם שאלה אחת בלבד בכל שלב, חיבור מלא לקולקציית ה-CRM וסנכרון לידים ישיר. מה תרצה שנאפיין ונקים היום?',
+    inputPlaceholder: 'תאר את הטופס שתרצה שנקים (למשל: טופס רישום מתנדבות, שאלון קליטת לקוח...)',
+    enabledCapabilities: [
+      'CREATE_SMART_FORM',
+      'UPDATE_SMART_FORM',
+      'SAVE_FORM_TEMPLATE',
+      'LOAD_SMART_FORM',
+      'DELETE_SMART_FORM',
+      'DEEP_RESEARCH'
+    ],
     allowedDataSources: [
       SYSTEM_COLLECTIONS.SMART_FORMS,
       SYSTEM_COLLECTIONS.CONTACTS,
@@ -105,11 +112,11 @@ export const MODULE_AGENTS_MAP: Record<string, ModuleAgentMeta> = {
       SYSTEM_COLLECTIONS.BRAND_DNA_DOC
     ],
     systemPrompt: `אתה סוכן הטפסים והשאלונים החכמים (KSF) של קושאן.
-תפקידך לאפיין טפסים ושאלונים ברמת פרימיום:
+תפקידך לאפיין, להקים, לעדכן ולשמור טפסים ושאלונים ברמת פרימיום:
 1. שאלה אחת בלבד בכל שלב (Step-by-Step Luxury Form).
 2. שמות מזהים תקניים ב-CRM (mappingKey): conta_name, conta_phone, email, company, city, tg1, notes.
 3. אפס אימוג'ים - שימוש בלעדי באייקונים וקטוריים יוקרתיים.
-4. סנכרון ישיר לקולקציית contacts ב-Firestore.`
+4. סנכרון ישיר לקולקציית contacts ב-Firestore והקמת טפסים ותבניות בסטודיו KSF באמצעות פעולות CREATE_SMART_FORM, UPDATE_SMART_FORM ו-SAVE_FORM_TEMPLATE.`
   },
   'media-gallery-hub': {
     moduleId: 'media-gallery-hub',

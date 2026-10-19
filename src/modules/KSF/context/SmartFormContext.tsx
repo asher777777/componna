@@ -9,7 +9,8 @@ import {
   getSmartFormById,
 } from '../services/formStorageService';
 import { generateSmartFormWithAI, AIBrainstormInput } from '../services/aiFormService';
-import { DEFAULT_FORMS_COLLECTION } from '../config/constants';
+import { DEFAULT_FORMS_COLLECTION, DEFAULT_THEME_SETTINGS, DEFAULT_COMPLETION_SETTINGS } from '../config/constants';
+import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { FormBuilderContract } from '../../../core/contracts';
 import { FormSubmissionsTable } from '../components/analytics/FormSubmissionsTable';
@@ -426,6 +427,214 @@ export const SmartFormProvider: React.FC<SmartFormProviderProps> = ({
       unregisterCapability('form-renderer');
     };
   }, [forms, saveForm, loadFormById, customFirestore, collectionName, registerCapability, unregisterCapability, setActiveForm]);
+
+  // Listen to AI Agent Actions from Kosai Engine (EventBus Bridge)
+  useEffect(() => {
+    const unsub = eventBus.subscribe('kosai:action', async (event: any) => {
+      if (!event || !event.action) return;
+      const { action, payload } = event;
+
+      try {
+        if (action === 'CREATE_SMART_FORM') {
+          if (!payload) return;
+          const now = new Date().toISOString();
+          const formId = payload.id || `form_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+          const rawSteps = Array.isArray(payload.steps) ? payload.steps : [];
+          const normalizedSteps = rawSteps.map((step: any, idx: number) => ({
+            id: step.id || `step_${idx + 1}`,
+            order: idx + 1,
+            title: step.title || `שאלה ${idx + 1}`,
+            subtitle: step.subtitle || '',
+            fieldType: step.fieldType || 'text',
+            iconName: step.iconName || 'Sparkles',
+            placeholder: step.placeholder || '',
+            required: step.required ?? true,
+            mappingKey: step.mappingKey || `field_${idx + 1}`,
+            options: Array.isArray(step.options) ? step.options : undefined,
+            minRating: step.minRating || 1,
+            maxRating: step.maxRating || 5,
+            minScale: step.minScale || 1,
+            maxScale: step.maxScale || 10,
+            minScaleLabel: step.minScaleLabel || 'נמוך',
+            maxScaleLabel: step.maxScaleLabel || 'גבוה מאוד',
+          }));
+
+          const newForm: SmartFormDefinition = {
+            id: formId,
+            title: payload.title || 'טופס חכם KSF',
+            slug: (payload.slug || payload.title || 'form')
+              .toLowerCase()
+              .replace(/[^\w\u0590-\u05FF]+/g, '-')
+              .slice(0, 40),
+            description: payload.description || '',
+            category: payload.category || 'כללי',
+            tone: payload.tone || 'warm_consulting',
+            toneDescription: payload.toneDescription || '',
+            steps: normalizedSteps,
+            theme: {
+              ...DEFAULT_THEME_SETTINGS,
+              ...(payload.theme || {}),
+            },
+            completion: {
+              ...DEFAULT_COMPLETION_SETTINGS,
+              ...(payload.completion || {}),
+            },
+            createdAt: now,
+            updatedAt: now,
+            createdBy: 'KOSAI Agent',
+            status: payload.status || 'published',
+            viewsCount: 0,
+            startsCount: 0,
+            submissionsCount: 0,
+            isCrmSyncEnabled: payload.isCrmSyncEnabled ?? true,
+            crmDefaultTags: payload.crmDefaultTags || ['KSF', payload.title || 'טופס'],
+            crmDefaultCommunity: payload.crmDefaultCommunity || '',
+            whatsappAutomationEnabled: Boolean(payload.whatsappAutomationEnabled),
+            whatsappRules: payload.whatsappRules || [],
+          };
+
+          const createdId = await saveForm(newForm);
+          const fullForm = await getSmartFormById(createdId, customFirestore, collectionName);
+          if (fullForm) {
+            setActiveForm(fullForm);
+          }
+
+          eventBus.publish('kosai:action_result', {
+            action: 'CREATE_SMART_FORM',
+            success: true,
+            message: `הטופס "${newForm.title}" הוקם בהצלחה עם ${normalizedSteps.length} שלבים ונשמר ב-KSF.`,
+          });
+        } else if (action === 'UPDATE_SMART_FORM') {
+          if (!payload) return;
+          const targetForm = activeForm || (payload.formId ? forms.find((f) => f.id === payload.formId) : null);
+          if (!targetForm) {
+            console.warn('[SmartFormContext] No active form to update');
+            return;
+          }
+
+          let updatedSteps = targetForm.steps;
+          if (Array.isArray(payload.steps)) {
+            updatedSteps = payload.steps.map((step: any, idx: number) => ({
+              id: step.id || `step_${idx + 1}`,
+              order: idx + 1,
+              title: step.title || `שאלה ${idx + 1}`,
+              subtitle: step.subtitle || '',
+              fieldType: step.fieldType || 'text',
+              iconName: step.iconName || 'Sparkles',
+              placeholder: step.placeholder || '',
+              required: step.required ?? true,
+              mappingKey: step.mappingKey || `field_${idx + 1}`,
+              options: Array.isArray(step.options) ? step.options : undefined,
+              minRating: step.minRating || 1,
+              maxRating: step.maxRating || 5,
+              minScale: step.minScale || 1,
+              maxScale: step.maxScale || 10,
+              minScaleLabel: step.minScaleLabel || 'נמוך',
+              maxScaleLabel: step.maxScaleLabel || 'גבוה מאוד',
+            }));
+          }
+
+          const updatedForm: SmartFormDefinition = {
+            ...targetForm,
+            title: payload.title || targetForm.title,
+            description: payload.description !== undefined ? payload.description : targetForm.description,
+            category: payload.category || targetForm.category,
+            tone: payload.tone || targetForm.tone,
+            steps: updatedSteps,
+            theme: {
+              ...targetForm.theme,
+              ...(payload.theme || {}),
+            },
+            completion: {
+              ...targetForm.completion,
+              ...(payload.completion || {}),
+            },
+            isCrmSyncEnabled: payload.isCrmSyncEnabled ?? targetForm.isCrmSyncEnabled,
+            crmDefaultTags: payload.crmDefaultTags || targetForm.crmDefaultTags,
+            whatsappAutomationEnabled:
+              payload.whatsappAutomationEnabled !== undefined
+                ? payload.whatsappAutomationEnabled
+                : targetForm.whatsappAutomationEnabled,
+            updatedAt: new Date().toISOString(),
+          };
+
+          await saveForm(updatedForm);
+          setActiveForm(updatedForm);
+
+          eventBus.publish('kosai:action_result', {
+            action: 'UPDATE_SMART_FORM',
+            success: true,
+            message: `הטופס "${updatedForm.title}" עודכן בהצלחה בסטודיו KSF.`,
+          });
+        } else if (action === 'SAVE_FORM_TEMPLATE') {
+          const targetForm = activeForm || (payload?.formId ? forms.find((f) => f.id === payload.formId) : null);
+          if (!targetForm && !payload?.title) {
+            console.warn('[SmartFormContext] No form available to save as template');
+            return;
+          }
+
+          const baseForm = targetForm || {
+            title: payload.title || 'תבנית טופס חדשה',
+            steps: payload.steps || [],
+            theme: DEFAULT_THEME_SETTINGS,
+            completion: DEFAULT_COMPLETION_SETTINGS,
+            crmDefaultTags: ['תבנית KSF'],
+          };
+
+          const templateTitle = payload.templateName || payload.title || baseForm.title;
+          const existingTags: string[] = (baseForm as any).crmDefaultTags || [];
+          const templateForm: SmartFormDefinition = {
+            ...(baseForm as any),
+            id: `template_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            title: templateTitle,
+            slug: templateTitle.toLowerCase().replace(/[^\w\u0590-\u05FF]+/g, '-').slice(0, 40),
+            category: payload.category || 'תבניות שמורות',
+            status: 'published',
+            crmDefaultTags: Array.from(new Set([...existingTags, 'תבנית KSF', 'תבנית שמורה'])),
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          };
+
+          const savedId = await saveForm(templateForm);
+          const loaded = await getSmartFormById(savedId, customFirestore, collectionName);
+          if (loaded) setActiveForm(loaded);
+
+          eventBus.publish('kosai:action_result', {
+            action: 'SAVE_FORM_TEMPLATE',
+            success: true,
+            message: `התבנית "${templateTitle}" נשמרה בהצלחה במערכת KSF.`,
+          });
+        } else if (action === 'LOAD_SMART_FORM') {
+          if (!payload) return;
+          let matched: SmartFormDefinition | undefined;
+          if (payload.formId) {
+            matched = forms.find((f) => f.id === payload.formId);
+          }
+          if (!matched && payload.title) {
+            matched = forms.find((f) => f.title.toLowerCase().includes(payload.title.toLowerCase()));
+          }
+          if (matched) {
+            setActiveForm(matched);
+            eventBus.publish('kosai:action_result', {
+              action: 'LOAD_SMART_FORM',
+              success: true,
+              message: `הטופס "${matched.title}" נטען לעריכה בסטודיו KSF.`,
+            });
+          }
+        }
+      } catch (err: any) {
+        console.error('[SmartFormContext] Failed to execute kosai action:', action, err);
+        eventBus.publish('kosai:action_result', {
+          action,
+          success: false,
+          message: `שגיאה בביצוע פעולת הטופס: ${err?.message || 'שגיאה לא צפויה'}`,
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [activeForm, forms, customFirestore, collectionName, saveForm, setActiveForm]);
 
 
   return (

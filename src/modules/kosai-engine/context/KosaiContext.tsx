@@ -525,6 +525,13 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (!capabilities.includes('REMOVE_CONTACT_TAGS')) {
           capabilities.push('REMOVE_CONTACT_TAGS');
         }
+      } else if (activeModule.moduleId === 'KSF' || activeModule.moduleId === 'smart-forms' || activeModule.moduleId === 'smart-form') {
+        const ksfCaps = ['CREATE_SMART_FORM', 'UPDATE_SMART_FORM', 'SAVE_FORM_TEMPLATE', 'LOAD_SMART_FORM', 'DELETE_SMART_FORM'];
+        for (const cap of ksfCaps) {
+          if (!capabilities.includes(cap)) {
+            capabilities.push(cap);
+          }
+        }
       }
 
       // Pass conversation history and cachedContentId (Gemini Multi-turn)
@@ -598,7 +605,12 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           'CRM_MERGE_DUPLICATES',
           'CRM_EXPORT_VCARD',
           'CRM_EXPORT_DATA',
-          'CRM_WHATSAPP_DISPATCH'
+          'CRM_WHATSAPP_DISPATCH',
+          'CREATE_SMART_FORM',
+          'UPDATE_SMART_FORM',
+          'SAVE_FORM_TEMPLATE',
+          'LOAD_SMART_FORM',
+          'DELETE_SMART_FORM'
         ];
 
         if (crmAsyncActions.includes(parsed.action)) {
@@ -610,7 +622,7 @@ export const KosaiProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             if (result.pending) return;
             finished = true;
             unsubResult();
-            if (result.message) {
+            if (result.message && result.message !== parsed.message) {
               setMessages(prev => [...prev, {
                 id: `result_${Date.now()}`,
                 role: 'assistant',

@@ -49,7 +49,12 @@ export type KosaiCapability =
   | 'CRM_MERGE_DUPLICATES'
   | 'CRM_EXPORT_VCARD'
   | 'CRM_EXPORT_DATA'
-  | 'CRM_WHATSAPP_DISPATCH';
+  | 'CRM_WHATSAPP_DISPATCH'
+  | 'CREATE_SMART_FORM'
+  | 'UPDATE_SMART_FORM'
+  | 'SAVE_FORM_TEMPLATE'
+  | 'LOAD_SMART_FORM'
+  | 'DELETE_SMART_FORM';
 
 export interface KosaiMessage {
   id: string;
