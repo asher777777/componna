@@ -334,12 +334,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
             }
 
             setMasterApiKeys(resolvedKeys);
-            if (resolvedKeys.googleAiApiKey && resolvedKeys.googleAiApiKey.trim()) {
-              try {
-                localStorage.setItem('googleAiApiKey', resolvedKeys.googleAiApiKey.trim());
-                localStorage.setItem('geminiApiKey', resolvedKeys.googleAiApiKey.trim());
-              } catch {}
-            }
           } else {
             // Check global settings document if master keys doc does not exist yet
             getDoc(doc(db, 'system_settings', 'global')).then((gSnap) => {
@@ -348,12 +342,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
                 if (gData?.apiKeys) {
                   const merged = { ...DEFAULT_API_KEYS, ...gData.apiKeys };
                   setMasterApiKeys(merged);
-                  if (merged.googleAiApiKey && merged.googleAiApiKey.trim()) {
-                    try {
-                      localStorage.setItem('googleAiApiKey', merged.googleAiApiKey.trim());
-                      localStorage.setItem('geminiApiKey', merged.googleAiApiKey.trim());
-                    } catch {}
-                  }
                   return;
                 }
               }
@@ -593,10 +581,6 @@ export const SystemConnectionProvider: React.FC<{ children: React.ReactNode }> =
       if (newKeys.googleAiApiKey && newKeys.googleAiApiKey.trim()) {
         const cleanAiKey = newKeys.googleAiApiKey.trim();
         setMasterApiKeys((prev) => ({ ...prev, googleAiApiKey: cleanAiKey }));
-        try {
-          localStorage.setItem('googleAiApiKey', cleanAiKey);
-          localStorage.setItem('geminiApiKey', cleanAiKey);
-        } catch {}
       }
 
       // Immediately sync masterApiKeys in memory if TikTok keys are modified
