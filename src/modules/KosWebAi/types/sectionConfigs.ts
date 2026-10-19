@@ -1229,12 +1229,15 @@ export type ControlsOrder = 'search-first' | 'categories-first';
 export type ButtonShape = 'auto' | 'pill' | 'rounded' | 'square';
 export type ObjectScale = 'compact' | 'normal' | 'expanded' | 'prominent' | 'standard';
 
+export type DynamicListingSortBy = 'date-desc' | 'date-asc' | 'title-asc' | 'title-desc' | 'manual';
+export type DynamicListingLogicCondition = 'none' | 'only-with-image' | 'only-featured' | 'exclude-tags' | 'hide-hidden-status';
+
 export interface DynamicListingSectionConfig extends BaseSectionConfig {
   type: 'dynamicListing';
   title?: string;
   subtitle?: string;
   badge?: string;
-  source: DynamicListingSource;
+  source: DynamicListingSource | 'media_gallery' | 'archives';
   layout: DynamicListingLayout;
   gridColumns?: 2 | 3 | 4;
   aspectRatio?: '16:9' | '4:3' | '1:1' | '9:16';
@@ -1259,6 +1262,13 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   buttonShape?: ButtonShape;
   objectScale?: ObjectScale;
   accentColor?: string;
+
+  // Sorting, dynamic hiding & logic rules
+  sortBy?: DynamicListingSortBy;
+  hiddenItemIds?: string[];
+  logicRule?: DynamicListingLogicCondition;
+  hideEmptyCategories?: boolean;
+  archivePathFilter?: string; // Optional filter for specific archive paths
 }
 
 export type FutureContentMode = 'prism-bento' | 'kinetic-editorial' | 'floating-islands';

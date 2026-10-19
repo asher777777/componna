@@ -10,6 +10,8 @@ import {
   ControlsOrder,
   ButtonShape,
   ObjectScale,
+  DynamicListingSortBy,
+  DynamicListingLogicCondition,
 } from '../../types/sectionConfigs';
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
@@ -44,6 +46,12 @@ import {
   Square,
   Flower2,
   Cpu,
+  ArrowUpDown,
+  Filter,
+  EyeOff,
+  Eye,
+  FolderArchive,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 export type DynamicListingAccordionSection =
@@ -357,6 +365,15 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
   const removeItem = (index: number) => {
     const newItems = (formData.items || []).filter((_, idx) => idx !== index);
     updateField('items', newItems);
+  };
+
+  const toggleHideItem = (itemId: string) => {
+    const currentHidden = formData.hiddenItemIds || [];
+    const isHidden = currentHidden.includes(itemId);
+    const updated = isHidden
+      ? currentHidden.filter((id) => id !== itemId)
+      : [...currentHidden, itemId];
+    updateField('hiddenItemIds', updated);
   };
 
   const normalizedActivePreset: DynamicListingStylePreset =
@@ -935,7 +952,7 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                 <label className="text-xs font-bold text-zinc-300">סוג מקור התוכן</label>
                 <select
                   value={formData.source || 'pages'}
-                  onChange={(e) => updateField('source', e.target.value as DynamicListingSource)}
+                  onChange={(e) => updateField('source', e.target.value as any)}
                   className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
                     isDarkMode
                       ? 'bg-black border-white/10 text-white'
@@ -943,12 +960,41 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                   }`}
                 >
                   <option value="pages">עמודי תוכן, מאמרים ומדריכים (PAGES - ברירת מחדל)</option>
+                  <option value="media_gallery">ספריית המדיה והקבצים של הטננט (Media Hub Gallery)</option>
+                  <option value="archives">נתיבי הארכיונים והקטגוריות (Archives Hub)</option>
                   <option value="custom">הזנה ידנית מותאמת אישית (Custom Items)</option>
                   <option value="kos_tube">סרטוני וידאו (KOS_TUBE)</option>
                   <option value="campaigns">פרויקטים וקמפיינים (CAMPAIGNS)</option>
-                  <option value="media">גלריית מדיה ותיק עבודות (MEDIA_ITEMS)</option>
                 </select>
               </div>
+
+              {formData.source === 'archives' && (
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                    <FolderArchive className="w-3.5 h-3.5 text-indigo-400" />
+                    <span>סינון נתיב ארכיון ספציפי</span>
+                  </label>
+                  <select
+                    value={formData.archivePathFilter || 'all'}
+                    onChange={(e) => updateField('archivePathFilter', e.target.value)}
+                    className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
+                      isDarkMode
+                        ? 'bg-black border-white/10 text-white'
+                        : 'bg-white border-slate-300 text-slate-900'
+                    }`}
+                  >
+                    <option value="all">כל נתיבי הארכיונים (7 ארכיונים ראשיים)</option>
+                    <option value="info_content">/kosinfo • מרכז התוכן, הידע והמאמרים</option>
+                    <option value="event">/kosevent • לוח האירועים, הכנסים והסדנאות</option>
+                    <option value="checkout">/koscheckout • מרכז המוצרים, החבילות והסליקה</option>
+                    <option value="community">/koscommunity • פורטל הקהילות והמועדונים</option>
+                    <option value="fundraising">/kosfunrise • מרכז הקמפיינים והגיוס</option>
+                    <option value="course">/koscourse • האקדמיה הדיגיטלית ומרכז הקורסים</option>
+                    <option value="service_product">/kosass • קטלוג השירותים והפתרונות</option>
+                    <option value="youtube_post">/kosvidio • מרכז הוידאו והשידורים החיים</option>
+                  </select>
+                </div>
+              )}
 
               {formData.source === 'pages' && (
                 <div className="space-y-1">
@@ -972,7 +1018,52 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                 </div>
               )}
 
-              <div className="space-y-1">
+              {/* Sorting Conditions (סידור לפי תנאים שונים) */}
+              <div className="space-y-1 pt-2 border-t border-white/10">
+                <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <ArrowUpDown className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>סדר הצגת הפריטים (סידור לפי תנאי)</span>
+                </label>
+                <select
+                  value={formData.sortBy || 'date-desc'}
+                  onChange={(e) => updateField('sortBy', e.target.value as DynamicListingSortBy)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
+                    isDarkMode
+                      ? 'bg-black border-white/10 text-white'
+                      : 'bg-white border-slate-300 text-slate-900'
+                  }`}
+                >
+                  <option value="date-desc">תאריך: מהחדש ביותר לישן ביותר</option>
+                  <option value="date-asc">תאריך: מהישן ביותר לחדש ביותר</option>
+                  <option value="title-asc">שם פריט: מא' עד ת' (אלפביתי עולה)</option>
+                  <option value="title-desc">שם פריט: מת' עד א' (אלפביתי יורד)</option>
+                  <option value="manual">סדר ידני מותאם אישית</option>
+                </select>
+              </div>
+
+              {/* Logical Filter / Condition (תנאי לוגי דינמי) */}
+              <div className="space-y-1 pt-2 border-t border-white/10">
+                <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                  <Filter className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>סינון תנאי לוגי (הסתרה אוטומטית לפי כלל)</span>
+                </label>
+                <select
+                  value={formData.logicRule || 'none'}
+                  onChange={(e) => updateField('logicRule', e.target.value as DynamicListingLogicCondition)}
+                  className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
+                    isDarkMode
+                      ? 'bg-black border-white/10 text-white'
+                      : 'bg-white border-slate-300 text-slate-900'
+                  }`}
+                >
+                  <option value="none">הצג את כל הפריטים (ללא תנאי לוגי)</option>
+                  <option value="only-with-image">הצג רק פריטים בעלי תמונה ממשית (הסתר ריקים)</option>
+                  <option value="only-featured">הצג רק פריטים מומלצים / מוצרי דגל (Featured Only)</option>
+                  <option value="exclude-tags">הסתר פריטי טיוטה או פריטים שסומנו כמוסתרים</option>
+                </select>
+              </div>
+
+              <div className="space-y-1 pt-2 border-t border-white/10">
                 <label className="text-xs font-bold text-zinc-300">כמות פריטים מקסימלית להצגה</label>
                 <input
                   type="number"
@@ -1237,6 +1328,29 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                           </div>
 
                           <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleHideItem(item.id);
+                              }}
+                              className={`p-1 rounded-lg transition cursor-pointer ${
+                                (formData.hiddenItemIds || []).includes(item.id)
+                                  ? 'text-amber-400 bg-amber-500/20'
+                                  : 'text-zinc-400 hover:text-white hover:bg-white/10'
+                              }`}
+                              title={
+                                (formData.hiddenItemIds || []).includes(item.id)
+                                  ? 'פריט זה מוסתר - לחץ להצגה'
+                                  : 'הסתר פריט זה מהתצוגה'
+                              }
+                            >
+                              {(formData.hiddenItemIds || []).includes(item.id) ? (
+                                <EyeOff className="w-3.5 h-3.5" />
+                              ) : (
+                                <Eye className="w-3.5 h-3.5" />
+                              )}
+                            </button>
                             <button
                               type="button"
                               onClick={(e) => {

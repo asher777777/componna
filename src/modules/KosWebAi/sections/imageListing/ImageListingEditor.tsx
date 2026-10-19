@@ -412,16 +412,14 @@ export const ImageListingEditor: React.FC<ImageListingEditorProps> = ({
                 <button
                   type="button"
                   onClick={() => handleSelectLayout(layoutDef)}
-                  className={`w-full h-11 rounded-xl flex flex-col items-center justify-center transition-all cursor-pointer border ${
+                  title={layoutDef.title}
+                  className={`w-full h-11 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                     isSelected
                       ? 'bg-amber-500/20 border-amber-500 text-amber-400 shadow-md shadow-amber-500/10'
                       : 'bg-white/5 border-white/5 hover:border-white/20 text-zinc-400 hover:text-white'
                   }`}
                 >
-                  <Icon className="w-4 h-4 mb-0.5" />
-                  <span className="text-[9px] font-bold truncate max-w-[95%]">
-                    {layoutDef.title.split('.')[1]?.trim() || layoutDef.title}
-                  </span>
+                  <Icon className="w-5 h-5" />
                 </button>
 
                 {/* Rich Hover Tooltip */}

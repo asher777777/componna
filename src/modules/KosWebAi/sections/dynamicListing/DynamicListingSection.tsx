@@ -3,6 +3,8 @@ import {
   DynamicListingSectionConfig,
   DynamicListingItem,
   DynamicListingLayout,
+  DynamicListingSortBy,
+  DynamicListingLogicCondition,
 } from '../../types/sectionConfigs';
 import {
   Search,
@@ -23,27 +25,35 @@ import {
   Sun,
   Compass,
   Cpu,
+  ArrowUpDown,
+  Filter,
+  EyeOff,
+  FolderArchive,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
 import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
-import { PAGE_CATEGORIES, getCategoryFromPage } from '../../types/pageBuilder.types';
+import { PAGE_CATEGORIES, getCategoryFromPage, ARCHIVE_7_SECTIONS_SPECS, PageCategory } from '../../types/pageBuilder.types';
+import { ARCHIVE_SLUG_MAP } from '../../generators/archivePageGenerator';
+import { FirestoreMediaService } from '../../../KosCloudStore/services/firestoreMediaService';
+import { db as defaultFirestoreDb } from '../../../../services/firebase';
 
 export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConfig }> = ({ config }) => {
   const {
     anchorId = 'dynamic-listing',
-    title = 'מאגר התוכן והפעילות',
-    subtitle = 'סקירה מעמיקה של כל העדכונים, הפרויקטים והשירותים המובילים',
-    badge = 'תוכן ופעילות',
+    title: configuredTitle,
+    subtitle: configuredSubtitle,
+    badge: configuredBadge,
     source = 'pages',
     layout = 'bento-showcase',
     gridColumns = 3,
     aspectRatio = '16:9',
     showCategoryFilter = true,
     showSearchBar = true,
-    searchPlaceholder = 'חיפוש מהיר בתוכן...',
+    searchPlaceholder = 'חיפוש מהיר בתוכן ובארכיונים...',
     effectStyle = 'border-beam',
     items = [],
     primaryButton,
@@ -57,7 +67,16 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     buttonShape = 'auto',
     objectScale = 'normal',
     accentColor,
+    sortBy = 'date-desc',
+    hiddenItemIds = [],
+    logicRule = 'none',
+    hideEmptyCategories = false,
+    archivePathFilter,
   } = config;
+
+  // Dynamic Light / Dark mode and Brand DNA state
+  const [brandDnaData, setBrandDnaData] = useState<BrandDnaContract | null>(null);
+  const [activeSort, setActiveSort] = useState<DynamicListingSortBy>(sortBy || 'date-desc');
 
   // Search & Filter States
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,6 +86,43 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
   // Dynamic Content Resolution State
   const [dynamicItems, setDynamicItems] = useState<DynamicListingItem[]>(items && items.length > 0 ? items : []);
   const [, setIsLoadingDynamic] = useState<boolean>(false);
+
+  // Sync activeSort if prop changes
+  useEffect(() => {
+    if (sortBy) setActiveSort(sortBy);
+  }, [sortBy]);
+
+  // Dynamic brand language connected text fallbacks
+  const effectiveCompanyName = brandDnaData?.identity?.companyName || '';
+  const effectiveSlogan = brandDnaData?.identity?.slogan || '';
+
+  const effectiveBadge =
+    badge ||
+    (source === 'archives'
+      ? 'ארכיונים ומאגרים'
+      : source === 'media' || (source as string) === 'media_gallery'
+      ? 'ספריית המדיה'
+      : effectiveCompanyName
+      ? `• ${effectiveCompanyName} SHOWCASE •`
+      : '• תוכן מובחר •');
+
+  const effectiveTitle =
+    title ||
+    (source === 'archives'
+      ? (effectiveCompanyName ? `נתיבי הארכיונים והמאגרים • ${effectiveCompanyName}` : 'נתיבי הארכיונים והמאגרים')
+      : source === 'media' || (source as string) === 'media_gallery'
+      ? (effectiveCompanyName ? `ספריית המדיה והקבצים • ${effectiveCompanyName}` : 'ספריית המדיה והקבצים')
+      : effectiveCompanyName
+      ? `מאגר התוכן והמידע של ${effectiveCompanyName}`
+      : 'מאגר התוכן והמידע');
+
+  const effectiveSubtitle =
+    subtitle ||
+    (source === 'archives'
+      ? 'גישה ישירה ומהירה לכל אזורי הארכיונים, מאגרי המידע והתיעוד'
+      : source === 'media' || (source as string) === 'media_gallery'
+      ? 'סקירה מקיפה של סרטונים, תמונות, מסמכים וקבצי המערכת'
+      : effectiveSlogan || 'כל התכנים, המאמרים והמדריכים מרוכזים עבורכם במקום אחד.');
 
   useEffect(() => {
     let isMounted = true;
@@ -82,10 +138,86 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
       try {
         const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
         let brand = resolveLiveBrandDna(null, effTenant);
-        try {
-          const liveDna = await loadBrandDna(undefined, effTenant);
-          if (liveDna) brand = liveDna;
-        } catch {}
+        if (isMounted) setBrandDnaData(brand);
+
+        const company = brand?.identity?.companyName || (effTenant === '_master' ? 'קושאן' : 'המותג שלנו');
+
+        // -------------------------------------------------------------
+        // SOURCE 1: MEDIA GALLERY (ספריית המדיה והקבצים של הטננט)
+        // -------------------------------------------------------------
+        if (source === 'media' || (source as string) === 'media_gallery') {
+          const fetchedMedia = defaultFirestoreDb
+            ? await FirestoreMediaService.fetchMediaItems(defaultFirestoreDb)
+            : [];
+
+          const mediaListingItems: DynamicListingItem[] = fetchedMedia.map((m) => {
+            const isVideo = m.type === 'video';
+            const isDoc = m.type === 'document' || m.type === 'pdf';
+            const catLabel =
+              m.folderName ||
+              m.sourceModuleLabel ||
+              (isVideo ? 'סרטוני וידאו' : isDoc ? 'מסמכים וארכיונים' : 'גלריית תמונות');
+
+            const formattedDate = m.createdAt ? new Date(m.createdAt).toLocaleDateString('he-IL') : undefined;
+
+            return {
+              id: m.id,
+              title: m.name || 'קובץ מדיה',
+              subtitle: m.description || m.sourceModuleLabel || `${m.type.toUpperCase()} • ${m.sizeBytes ? (m.sizeBytes / 1024).toFixed(0) + ' KB' : ''}`,
+              excerpt: m.extractedText ? m.extractedText.slice(0, 150) : m.description || `פריט מספריית המדיה של ${company}`,
+              imageUrl: m.thumbnailUrl || m.url || (isVideo ? 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80' : 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80'),
+              badge: isVideo ? 'וידאו חי' : isDoc ? 'מסמך' : 'מדיה',
+              category: catLabel,
+              date: formattedDate,
+              linkUrl: m.url || '#',
+              actionType: isVideo || isDoc ? 'link' : 'modal',
+            };
+          });
+
+          if (mediaListingItems.length > 0) {
+            if (isMounted) setDynamicItems(mediaListingItems);
+            return;
+          }
+        }
+
+        // -------------------------------------------------------------
+        // SOURCE 2: ARCHIVES (נתיבי הארכיונים והקטגוריות)
+        // -------------------------------------------------------------
+        if ((source as string) === 'archives') {
+          const archiveSpecs = Object.entries(ARCHIVE_7_SECTIONS_SPECS);
+          const archiveListingItems: DynamicListingItem[] = archiveSpecs
+            .filter(([catKey]) => !archivePathFilter || archivePathFilter === 'all' || catKey === archivePathFilter)
+            .map(([catKey, spec], idx) => {
+              const slugPath = `/${spec.slugPrefix}`;
+              const defaultImgs = [
+                'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1540575467063-178a50c2df87?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1556742049-0a67e557229f?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1529156069898-49953e39b3ac?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1532629345422-7515f3d16bb7?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+                'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+              ];
+
+              return {
+                id: `archive-${spec.slugPrefix}-${idx}`,
+                title: `${spec.defaultTitle}`,
+                subtitle: `${spec.defaultSubtitle} • מבית ${company}`,
+                excerpt: spec.description,
+                imageUrl: defaultImgs[idx % defaultImgs.length],
+                badge: `ארכיון • ${spec.slugPrefix}`,
+                category: spec.name,
+                date: 'ארכיון פעיל',
+                linkUrl: slugPath,
+                actionType: 'link',
+              };
+            });
+
+          if (isMounted) setDynamicItems(archiveListingItems);
+          return;
+        }
+
         const pages = await pageBuilderFirestore.getAllPages(undefined, effTenant);
 
         const pageItems: DynamicListingItem[] = [];
@@ -351,7 +483,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     return () => {
       isMounted = false;
     };
-  }, [source, items]);
+  }, [source, items, filterCategory, archivePathFilter]);
 
   // Use dynamic items if available, otherwise config items
   const effectiveItems = dynamicItems && dynamicItems.length > 0 ? dynamicItems : items;
@@ -375,11 +507,34 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     return ['all', ...Array.from(set)];
   }, [config.categories, effectiveItems]);
 
-  // Filtered items by category and search query
+  // Filtered and Sorted items with dynamic logic rules and manual hiding
   const filteredItems = useMemo(() => {
-    return effectiveItems.filter((item) => {
+    let result = effectiveItems.filter((item) => {
+      // 1. Manual Hidden Item IDs Check (הסתרה ידנית מתוך בחירה דינמית)
+      if (hiddenItemIds && hiddenItemIds.includes(item.id)) {
+        return false;
+      }
+
+      // 2. Dynamic Logical Rule Condition (תנאי לוגי)
+      if (logicRule === 'only-with-image') {
+        if (!item.imageUrl || item.imageUrl.includes('placeholder') || item.imageUrl.trim() === '') {
+          return false;
+        }
+      } else if (logicRule === 'only-featured') {
+        if (!item.featured && !item.badge?.includes('דגל') && !item.badge?.includes('מומלץ')) {
+          return false;
+        }
+      } else if (logicRule === 'exclude-tags') {
+        if (item.category?.includes('טיוטה') || item.badge?.includes('מוסתר')) {
+          return false;
+        }
+      }
+
+      // 3. Category match
       const matchesCategory =
         selectedCategory === 'all' || item.category === selectedCategory;
+
+      // 4. Search query match
       const q = searchQuery.toLowerCase().trim();
       const matchesSearch =
         !q ||
@@ -387,9 +542,33 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
         (item.subtitle && item.subtitle.toLowerCase().includes(q)) ||
         (item.excerpt && item.excerpt.toLowerCase().includes(q)) ||
         (item.category && item.category.toLowerCase().includes(q));
+
       return matchesCategory && matchesSearch;
     });
-  }, [effectiveItems, selectedCategory, searchQuery]);
+
+    // 5. Dynamic Sorting Rules (סידור לפי תנאים שונים: תאריך, שם, סדר ידני)
+    result = [...result].sort((a, b) => {
+      if (activeSort === 'title-asc') {
+        return a.title.localeCompare(b.title, 'he');
+      }
+      if (activeSort === 'title-desc') {
+        return b.title.localeCompare(a.title, 'he');
+      }
+      if (activeSort === 'date-asc') {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db = b.date ? new Date(b.date).getTime() : 0;
+        return da - db;
+      }
+      if (activeSort === 'date-desc') {
+        const da = a.date ? new Date(a.date).getTime() : 0;
+        const db = b.date ? new Date(b.date).getTime() : 0;
+        return db - da;
+      }
+      return 0; // 'manual'
+    });
+
+    return result;
+  }, [effectiveItems, selectedCategory, searchQuery, activeSort, hiddenItemIds, logicRule]);
 
   const handleCardClick = (item: DynamicListingItem) => {
     if (item.actionType === 'modal' || !item.linkUrl || item.linkUrl === '#') {
@@ -629,9 +808,9 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
 
       <div className="max-w-7xl mx-auto flex flex-col gap-10 relative z-10">
         
-        {/* Header Section */}
+        {/* Header Section with Brand DNA fallback texts */}
         <div className="flex flex-col items-center text-center max-w-3xl mx-auto gap-3">
-          {badge && (
+          {effectiveBadge && (
             <div
               className={clsx(
                 'inline-flex items-center gap-1.5 px-3.5 py-1 text-xs font-bold mb-1 shadow-sm transition-all',
@@ -649,27 +828,27 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               )}
             >
               <ShapeIcon className="w-3.5 h-3.5" />
-              <span>{badge}</span>
+              <span>{effectiveBadge}</span>
             </div>
           )}
 
-          {title && (
+          {effectiveTitle && (
             <h2
               className="text-3xl sm:text-4xl md:text-5xl font-black text-slate-900 dark:text-white tracking-tight"
               style={{ color: titleColor }}
             >
-              {title}
+              {effectiveTitle}
             </h2>
           )}
 
-          {subtitle && (
+          {effectiveSubtitle && (
             <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 font-normal leading-relaxed">
-              {subtitle}
+              {effectiveSubtitle}
             </p>
           )}
         </div>
 
-        {/* Filters and Search Bar Row (controlsOrder allows reversing order between categories and search) */}
+        {/* Filters, Search Bar and Sorting Row (controlsOrder allows reversing order between categories and search) */}
         {(showCategoryFilter || showSearchBar) && (
           <div
             className={clsx(
@@ -693,31 +872,52 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
               </div>
             )}
 
-            {/* Instant Search Bar */}
-            {showSearchBar && (
-              <div className="relative w-full md:w-72">
-                <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={searchPlaceholder}
+            {/* Instant Search Bar & Sort Dropdown */}
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              {showSearchBar && (
+                <div className="relative flex-grow md:w-64">
+                  <Search className="w-4 h-4 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder={searchPlaceholder}
+                    className={clsx(
+                      'w-full pr-10 pl-4 py-2.5 bg-white dark:bg-slate-900 border text-xs sm:text-sm text-slate-900 dark:text-white outline-none shadow-sm transition-all',
+                      getSearchInputClasses()
+                    )}
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Dynamic Sort By Dropdown (סידור לפי תנאים: תאריך / שם) */}
+              <div className="relative shrink-0">
+                <select
+                  value={activeSort}
+                  onChange={(e) => setActiveSort(e.target.value as DynamicListingSortBy)}
                   className={clsx(
-                    'w-full pr-10 pl-4 py-2.5 bg-white dark:bg-slate-900 border text-xs sm:text-sm text-slate-900 dark:text-white outline-none shadow-sm transition-all',
+                    'py-2.5 px-3 bg-white dark:bg-slate-900 border text-xs text-slate-700 dark:text-slate-300 outline-none shadow-sm cursor-pointer transition-all',
                     getSearchInputClasses()
                   )}
-                />
-                {searchQuery && (
-                  <button
-                    type="button"
-                    onClick={() => setSearchQuery('')}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
+                  title="סידור פריטים"
+                >
+                  <option value="date-desc">תאריך: מהחדש לישן</option>
+                  <option value="date-asc">תאריך: מהישן לחדש</option>
+                  <option value="title-asc">שם: א' עד ת'</option>
+                  <option value="title-desc">שם: ת' עד א'</option>
+                  <option value="manual">סדר ברירת מחדל</option>
+                </select>
               </div>
-            )}
+            </div>
           </div>
         )}
 
