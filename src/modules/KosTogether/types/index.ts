@@ -1,4 +1,5 @@
 import type { FirebaseApp } from 'firebase/app';
+import type { TenantStylePreset } from '../../../core/contracts';
 
 export type GroupType = 'manual' | 'smart';
 export type GroupCategory = 'community' | 'group';
@@ -54,6 +55,10 @@ export interface SmartGroup {
   // Enhanced Community Parameters
   leaderName?: string;
   leaderContactId?: string;
+  stylePreset?: TenantStylePreset;
+  borderRadius?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+  buttonStyle?: 'solid' | 'gradient' | 'outline' | 'glass';
+  fontFamily?: string;
   logoUrl?: string;
   services?: string[];
   secondaryColor?: string;

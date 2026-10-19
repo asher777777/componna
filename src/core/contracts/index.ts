@@ -395,6 +395,8 @@ export interface CrmGroupSummary {
   logoUrl?: string;
   leaderName?: string;
   leaderContactId?: string;
+  secondaryColor?: string;
+  stylePreset?: TenantStylePreset;
 }
 
 export interface CrmGroupsContract {
@@ -1046,6 +1048,10 @@ export interface CommunityBrandProfile {
   coverImageUrl?: string;
   services: string[];
   gallery?: string[];
+  stylePreset?: TenantStylePreset;
+  borderRadius?: 'none' | 'sm' | 'md' | 'lg' | 'full';
+  buttonStyle?: 'solid' | 'gradient' | 'outline' | 'glass';
+  fontFamily?: string;
   colors: {
     primaryColor: string;
     secondaryColor: string;
@@ -1074,6 +1080,7 @@ export interface CommunityWebPageOptions {
   slug: string;
   pageTitle: string;
   description?: string;
+  stylePreset?: TenantStylePreset;
   brandProfile?: CommunityBrandProfile;
   gallery?: string[];
   sections?: Record<string, any>;

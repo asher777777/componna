@@ -485,8 +485,18 @@ export async function saveGroupOrCommunityRecord(
     id: docId,
     name: cleanName,
     leaderName: (groupData.leaderName || '').trim() || cleanName,
+    leaderContactId: groupData.leaderContactId,
     targetGoal: targetGoalNum,
     color: groupData.color || '#4f46e5',
+    secondaryColor: groupData.secondaryColor || '#818cf8',
+    stylePreset: groupData.stylePreset,
+    borderRadius: groupData.borderRadius,
+    buttonStyle: groupData.buttonStyle,
+    fontFamily: groupData.fontFamily,
+    logoUrl: groupData.logoUrl,
+    contactPhone: groupData.contactPhone,
+    contactEmail: groupData.contactEmail,
+    services: groupData.services,
     description: (groupData.description || '').trim(),
     type: groupData.type === 'smart' ? 'smart' : 'manual',
     rules: groupData.type === 'smart' ? cleanRules : [],
@@ -630,6 +640,38 @@ export async function bulkDeleteContactsRecord(
   }
 }
 
+async function findContactDocAndRef(
+  db: Firestore,
+  contactId: string,
+  scopedContactsCol: string
+): Promise<{ ref: any; data: Record<string, any>; isFound: boolean }> {
+  const scopedRef = doc(db, scopedContactsCol, contactId);
+  try {
+    const sSnap = await getDoc(scopedRef);
+    if (sSnap.exists()) {
+      return { ref: scopedRef, data: sSnap.data() || {}, isFound: true };
+    }
+  } catch {}
+
+  const masterRef = doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS, contactId);
+  try {
+    const mSnap = await getDoc(masterRef);
+    if (mSnap.exists()) {
+      return { ref: masterRef, data: mSnap.data() || {}, isFound: true };
+    }
+  } catch {}
+
+  const rootRef = doc(db, SYSTEM_COLLECTIONS.CONTACTS, contactId);
+  try {
+    const rSnap = await getDoc(rootRef);
+    if (rSnap.exists()) {
+      return { ref: rootRef, data: rSnap.data() || {}, isFound: true };
+    }
+  } catch {}
+
+  return { ref: scopedRef, data: {}, isFound: false };
+}
+
 export async function bulkAssignGroupToContacts(
   db: Firestore,
   contactIds: string[],
@@ -637,49 +679,75 @@ export async function bulkAssignGroupToContacts(
   customCollections?: CrmGroupsCollectionsConfig
 ): Promise<void> {
   const colls = getCollNames(customCollections);
-  let batch = writeBatch(db);
-  let opCount = 0;
 
   for (const cid of contactIds) {
-    const contactRef = doc(db, colls.contacts, cid);
-    let snap = await getDoc(contactRef);
-    if (!snap.exists() && colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
-      const rootDoc = await getDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid));
-      if (rootDoc.exists()) {
-        snap = rootDoc;
-        await setDoc(contactRef, rootDoc.data(), { merge: true });
+    const { ref: foundRef, data: existingData } = await findContactDocAndRef(db, cid, colls.contacts);
+    const scopedRef = doc(db, colls.contacts, cid);
+    const masterRef = doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS, cid);
+    const rootRef = doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid);
+
+    const existingTags: string[] = Array.isArray(existingData.tags) ? existingData.tags : [];
+    const existingCrmTags: string[] = Array.isArray(existingData.kosun_crm_tags) ? existingData.kosun_crm_tags : [];
+
+    const nextTags = Array.from(new Set([...existingTags, groupName]));
+    const nextCrmTags = Array.from(new Set([...existingCrmTags, groupName]));
+
+    const updatePayload: Record<string, any> = {
+      tags: nextTags,
+      kosun_crm_tags: nextCrmTags,
+      community: groupName,
+      updatedAt: new Date().toISOString(),
+    };
+
+    // 1. Update found reference
+    try {
+      await setDoc(foundRef, updatePayload, { merge: true });
+    } catch (e) {
+      console.warn(`[KosTogether] Failed to setDoc on foundRef (${foundRef.path}):`, e);
+    }
+
+    // 2. Ensure scoped tenant collection has the contact with full fields merged
+    if (foundRef.path !== scopedRef.path) {
+      try {
+        await setDoc(scopedRef, { ...existingData, ...updatePayload }, { merge: true });
+      } catch (e) {
+        console.warn(`[KosTogether] Failed to mirror contact to scopedRef (${scopedRef.path}):`, e);
       }
     }
 
-    if (snap.exists()) {
-      const currentTags: string[] = snap.data().tags || [];
-      if (!currentTags.includes(groupName)) {
-        const nextTags = [...currentTags, groupName];
-        batch.update(contactRef, {
-          tags: nextTags,
-          updatedAt: new Date().toISOString(),
-        });
-        if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
-          try {
-            batch.update(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid), {
-              tags: nextTags,
-              updatedAt: new Date().toISOString(),
-            });
-          } catch {}
+    // 3. Mirror to master if exists
+    if (foundRef.path !== masterRef.path) {
+      try {
+        const mSnap = await getDoc(masterRef);
+        if (mSnap.exists()) {
+          await setDoc(masterRef, updatePayload, { merge: true });
         }
-        opCount++;
-      }
+      } catch {}
     }
 
-    if (opCount >= 450) {
-      await batch.commit();
-      batch = writeBatch(db);
-      opCount = 0;
+    // 4. Mirror to root if exists
+    if (foundRef.path !== rootRef.path) {
+      try {
+        const rSnap = await getDoc(rootRef);
+        if (rSnap.exists()) {
+          await setDoc(rootRef, updatePayload, { merge: true });
+        }
+      } catch {}
     }
   }
 
-  if (opCount > 0) {
-    await batch.commit();
+  // 5. Update group count in groups collection
+  try {
+    const groupQuery = query(collection(db, colls.groups), where('name', '==', groupName));
+    const gSnap = await getDocs(groupQuery);
+    if (!gSnap.empty) {
+      for (const gDoc of gSnap.docs) {
+        const currentCount = Number(gDoc.data().count || 0);
+        await setDoc(gDoc.ref, { count: currentCount + contactIds.length, updatedAt: new Date().toISOString() }, { merge: true });
+      }
+    }
+  } catch (gErr) {
+    console.warn('[KosTogether] Could not update group doc count:', gErr);
   }
 }
 
@@ -691,52 +759,61 @@ export async function moveContactsBetweenGroups(
   customCollections?: CrmGroupsCollectionsConfig
 ): Promise<void> {
   const colls = getCollNames(customCollections);
-  let batch = writeBatch(db);
-  let opCount = 0;
 
   for (const cid of contactIds) {
-    const contactRef = doc(db, colls.contacts, cid);
-    let snap = await getDoc(contactRef);
-    if (!snap.exists() && colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
-      const rootDoc = await getDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid));
-      if (rootDoc.exists()) {
-        snap = rootDoc;
-        await setDoc(contactRef, rootDoc.data(), { merge: true });
-      }
+    const { ref: foundRef, data: existingData } = await findContactDocAndRef(db, cid, colls.contacts);
+    const scopedRef = doc(db, colls.contacts, cid);
+    const masterRef = doc(db, 'tenants', '_master', SYSTEM_COLLECTIONS.CONTACTS, cid);
+    const rootRef = doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid);
+
+    let currentTags: string[] = Array.isArray(existingData.tags) ? existingData.tags : [];
+    let currentCrmTags: string[] = Array.isArray(existingData.kosun_crm_tags) ? existingData.kosun_crm_tags : [];
+
+    if (sourceGroupName) {
+      currentTags = currentTags.filter((t) => t !== sourceGroupName);
+      currentCrmTags = currentCrmTags.filter((t) => t !== sourceGroupName);
+    }
+    if (!currentTags.includes(targetGroupName)) {
+      currentTags.push(targetGroupName);
+    }
+    if (!currentCrmTags.includes(targetGroupName)) {
+      currentCrmTags.push(targetGroupName);
     }
 
-    if (snap.exists()) {
-      let currentTags: string[] = snap.data().tags || [];
-      if (sourceGroupName) {
-        currentTags = currentTags.filter((t) => t !== sourceGroupName);
-      }
-      if (!currentTags.includes(targetGroupName)) {
-        currentTags.push(targetGroupName);
-      }
-      batch.update(contactRef, {
-        tags: currentTags,
-        updatedAt: new Date().toISOString(),
-      });
-      if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
-        try {
-          batch.update(doc(db, SYSTEM_COLLECTIONS.CONTACTS, cid), {
-            tags: currentTags,
-            updatedAt: new Date().toISOString(),
-          });
-        } catch {}
-      }
-      opCount++;
+    const updatePayload: Record<string, any> = {
+      tags: currentTags,
+      kosun_crm_tags: currentCrmTags,
+      community: targetGroupName,
+      updatedAt: new Date().toISOString(),
+    };
+
+    try {
+      await setDoc(foundRef, updatePayload, { merge: true });
+    } catch {}
+
+    if (foundRef.path !== scopedRef.path) {
+      try {
+        await setDoc(scopedRef, { ...existingData, ...updatePayload }, { merge: true });
+      } catch {}
     }
 
-    if (opCount >= 450) {
-      await batch.commit();
-      batch = writeBatch(db);
-      opCount = 0;
+    if (foundRef.path !== masterRef.path) {
+      try {
+        const mSnap = await getDoc(masterRef);
+        if (mSnap.exists()) {
+          await setDoc(masterRef, updatePayload, { merge: true });
+        }
+      } catch {}
     }
-  }
 
-  if (opCount > 0) {
-    await batch.commit();
+    if (foundRef.path !== rootRef.path) {
+      try {
+        const rSnap = await getDoc(rootRef);
+        if (rSnap.exists()) {
+          await setDoc(rootRef, updatePayload, { merge: true });
+        }
+      } catch {}
+    }
   }
 }
 
@@ -824,34 +901,37 @@ export async function toggleContactTag(
   customCollections?: CrmGroupsCollectionsConfig
 ): Promise<string[]> {
   const colls = getCollNames(customCollections);
-  const contactRef = doc(db, colls.contacts, contactId);
-  let snap = await getDoc(contactRef);
-  if (!snap.exists() && colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
-    const rootDoc = await getDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, contactId));
-    if (rootDoc.exists()) {
-      snap = rootDoc;
-      await setDoc(contactRef, rootDoc.data(), { merge: true });
-    }
+  const { ref: foundRef, data: existingData, isFound } = await findContactDocAndRef(db, contactId, colls.contacts);
+  const scopedRef = doc(db, colls.contacts, contactId);
+
+  if (!isFound) throw new Error('Contact not found');
+
+  const currentTags: string[] = Array.isArray(existingData.tags) ? existingData.tags : [];
+  const currentCrmTags: string[] = Array.isArray(existingData.kosun_crm_tags) ? existingData.kosun_crm_tags : [];
+  const hasTag = currentTags.includes(tagName) || currentCrmTags.includes(tagName);
+
+  const newTags = hasTag
+    ? currentTags.filter((t) => t !== tagName)
+    : Array.from(new Set([...currentTags, tagName]));
+  const newCrmTags = hasTag
+    ? currentCrmTags.filter((t) => t !== tagName)
+    : Array.from(new Set([...currentCrmTags, tagName]));
+
+  const updatePayload: Record<string, any> = {
+    tags: newTags,
+    kosun_crm_tags: newCrmTags,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (!hasTag) {
+    updatePayload.community = tagName;
+  } else if (existingData.community === tagName) {
+    updatePayload.community = '';
   }
 
-  if (!snap.exists()) throw new Error('Contact not found');
-
-  const currentTags: string[] = snap.data().tags || [];
-  const hasTag = currentTags.includes(tagName);
-  const newTags = hasTag ? currentTags.filter((t) => t !== tagName) : [...currentTags, tagName];
-
-  await updateDoc(contactRef, {
-    tags: newTags,
-    updatedAt: new Date().toISOString(),
-  });
-
-  if (colls.contacts !== SYSTEM_COLLECTIONS.CONTACTS) {
-    try {
-      await updateDoc(doc(db, SYSTEM_COLLECTIONS.CONTACTS, contactId), {
-        tags: newTags,
-        updatedAt: new Date().toISOString(),
-      });
-    } catch {}
+  await setDoc(foundRef, updatePayload, { merge: true });
+  if (foundRef.path !== scopedRef.path) {
+    await setDoc(scopedRef, { ...existingData, ...updatePayload }, { merge: true });
   }
 
   return newTags;

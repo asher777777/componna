@@ -21,7 +21,7 @@ import { PageBuilderConfig } from '../types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../registry/sectionRegistry';
 import { resolveLiveBrandDna } from '../services/brandSectionHydrator';
 import { KosvidioGalleryItem } from '../types/sectionConfigs';
-import { applyStylePresetToAllTenantPages, resetAllTenantPagesToBrand } from '../services/pageStylePresetService';
+import { applyStylePresetToAllTenantPages, resetAllTenantPagesToBrand, applyStylePresetToPage } from '../services/pageStylePresetService';
 import { TenantStylePreset } from '../../../core/contracts';
 
 export const KosWebAiHostBridge: React.FC = () => {
@@ -55,6 +55,8 @@ export const KosWebAiHostBridge: React.FC = () => {
 
           let pageConfig: PageBuilderConfig;
 
+          const chosenPreset = options.stylePreset || options.brandProfile?.stylePreset;
+
           if (existing) {
             pageConfig = {
               ...existing,
@@ -67,6 +69,10 @@ export const KosWebAiHostBridge: React.FC = () => {
                 ...existing.globalSettings,
                 primaryColor,
                 secondaryColor,
+                theme: chosenPreset || existing.globalSettings?.theme,
+                borderRadius: options.brandProfile?.borderRadius || existing.globalSettings?.borderRadius,
+                buttonStyle: options.brandProfile?.buttonStyle || existing.globalSettings?.buttonStyle,
+                fontFamily: options.brandProfile?.fontFamily || existing.globalSettings?.fontFamily,
                 companyName: options.brandProfile?.name || existing.globalSettings?.companyName || options.pageTitle,
               },
             };
@@ -75,6 +81,10 @@ export const KosWebAiHostBridge: React.FC = () => {
             }
             if (options.sectionOrder) {
               pageConfig.sectionOrder = options.sectionOrder;
+            }
+            if (chosenPreset && existing.globalSettings?.theme !== chosenPreset) {
+              const { updatedPage } = applyStylePresetToPage(pageConfig, chosenPreset);
+              pageConfig = updatedPage;
             }
           } else {
             // Build fresh community page blueprint
@@ -192,6 +202,22 @@ export const KosWebAiHostBridge: React.FC = () => {
               seoSettings: {
                 title: `${options.pageTitle} | קהילה רשמית`,
                 description: options.description || options.brandProfile?.purpose || '',
+              },
+            };
+          }
+
+          if (chosenPreset) {
+            const { updatedPage } = applyStylePresetToPage(pageConfig, chosenPreset);
+            pageConfig = {
+              ...updatedPage,
+              globalSettings: {
+                ...updatedPage.globalSettings,
+                theme: chosenPreset,
+                primaryColor,
+                secondaryColor,
+                borderRadius: options.brandProfile?.borderRadius || updatedPage.globalSettings?.borderRadius,
+                buttonStyle: options.brandProfile?.buttonStyle || updatedPage.globalSettings?.buttonStyle,
+                fontFamily: options.brandProfile?.fontFamily || updatedPage.globalSettings?.fontFamily,
               },
             };
           }

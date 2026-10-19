@@ -34,8 +34,9 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [tagFilter, setTagFilter] = useState<'all' | 'unassigned' | string>('all');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [draggedContactId, setDraggedContactId] = useState<string | null>(null);
-  const [recentlyAddedContact, setRecentlyAddedContact] = useState<{ id: string; name: string } | null>(null);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>([]);
+  const [draggedContactIds, setDraggedContactIds] = useState<string[]>([]);
+  const [recentlyAddedNotice, setRecentlyAddedNotice] = useState<{ count: number; name: string } | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Fallback 360 modal state to ensure CRM Analytics monopoly is honored
@@ -110,19 +111,61 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
     return list;
   }, [allContacts, tagFilter, searchQuery, targetCommunityName]);
 
-  // Handle Drag Start
+  // Contacts that can be added (not currently members)
+  const assignableContacts = useMemo(() => {
+    return filteredContacts.filter((c) => !isMember(c));
+  }, [filteredContacts, targetCommunityName]);
+
+  const allAssignableSelected =
+    assignableContacts.length > 0 &&
+    assignableContacts.every((c) => selectedContactIds.includes(c.id));
+
+  const toggleSelectContact = (id: string, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
+    setSelectedContactIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    if (allAssignableSelected) {
+      setSelectedContactIds([]);
+    } else {
+      setSelectedContactIds(assignableContacts.map((c) => c.id));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedContactIds([]);
+  };
+
+  // Handle Drag Start (multi-drag if part of selection)
   const handleDragStart = (e: React.DragEvent, contact: ContactRecord) => {
-    setDraggedContactId(contact.id);
-    e.dataTransfer.setData('text/plain', contact.id);
-    e.dataTransfer.setData('application/json', JSON.stringify({
-      id: contact.id,
-      name: contact.conta_name || contact.kosun_crm_name || 'איש קשר',
-    }));
+    let idsToDrag = [contact.id];
+    if (selectedContactIds.includes(contact.id)) {
+      idsToDrag = selectedContactIds;
+    } else {
+      idsToDrag = [contact.id];
+    }
+
+    setDraggedContactIds(idsToDrag);
+    e.dataTransfer.setData('text/plain', idsToDrag.join(','));
+    e.dataTransfer.setData(
+      'application/json',
+      JSON.stringify({
+        ids: idsToDrag,
+        count: idsToDrag.length,
+        name:
+          idsToDrag.length === 1
+            ? contact.conta_name || contact.kosun_crm_name || 'איש קשר'
+            : `${idsToDrag.length} אנשי קשר`,
+      })
+    );
     e.dataTransfer.effectAllowed = 'copyMove';
   };
 
   const handleDragEnd = () => {
-    setDraggedContactId(null);
+    setDraggedContactIds([]);
   };
 
   // Handle Drag Over Dropzone
@@ -142,50 +185,95 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
     e.preventDefault();
     setIsDragOver(false);
 
-    let contactId = e.dataTransfer.getData('text/plain') || draggedContactId;
-    let contactName = 'איש קשר';
+    let contactIds: string[] = [];
+    let displayName = 'איש קשר';
 
     try {
       const rawJson = e.dataTransfer.getData('application/json');
       if (rawJson) {
         const parsed = JSON.parse(rawJson);
-        if (parsed.id) contactId = parsed.id;
-        if (parsed.name) contactName = parsed.name;
+        if (Array.isArray(parsed.ids) && parsed.ids.length > 0) {
+          contactIds = parsed.ids;
+        } else if (parsed.id) {
+          contactIds = [parsed.id];
+        }
+        if (parsed.name) displayName = parsed.name;
       }
     } catch {}
 
-    if (!contactId) return;
+    if (contactIds.length === 0) {
+      const text = e.dataTransfer.getData('text/plain');
+      if (text) {
+        contactIds = text.split(',').map((x) => x.trim()).filter(Boolean);
+      }
+    }
 
-    const contact = allContacts.find((c) => c.id === contactId);
-    if (contact) {
-      contactName = contact.conta_name || contact.kosun_crm_name || 'איש קשר';
+    if (contactIds.length === 0 && draggedContactIds.length > 0) {
+      contactIds = draggedContactIds;
+    }
+
+    if (contactIds.length === 0) return;
+
+    if (contactIds.length === 1 && (displayName === 'איש קשר' || !displayName)) {
+      const contact = allContacts.find((c) => c.id === contactIds[0]);
+      if (contact) {
+        displayName = contact.conta_name || contact.kosun_crm_name || 'איש קשר';
+      }
+    } else if (contactIds.length > 1) {
+      displayName = `${contactIds.length} אנשי קשר`;
     }
 
     try {
       setIsProcessing(true);
-      await onAssignToGroup([contactId], targetCommunityName);
-      setRecentlyAddedContact({ id: contactId, name: contactName });
+      await onAssignToGroup(contactIds, targetCommunityName);
+      setRecentlyAddedNotice({ count: contactIds.length, name: displayName });
+      setSelectedContactIds((prev) => prev.filter((id) => !contactIds.includes(id)));
       setTimeout(() => {
-        setRecentlyAddedContact(null);
+        setRecentlyAddedNotice(null);
       }, 3500);
     } catch (err) {
-      console.error('Failed to add contact to community:', err);
+      console.error('Failed to add contacts to community:', err);
     } finally {
       setIsProcessing(false);
-      setDraggedContactId(null);
+      setDraggedContactIds([]);
     }
   };
 
-  // Direct Click Add (for accessibility/mobile)
+  // Direct Assign All Selected
+  const handleAssignSelected = async () => {
+    if (selectedContactIds.length === 0) return;
+    const count = selectedContactIds.length;
+    const displayName =
+      count === 1
+        ? allContacts.find((c) => c.id === selectedContactIds[0])?.conta_name || 'איש קשר'
+        : `${count} אנשי קשר`;
+
+    try {
+      setIsProcessing(true);
+      await onAssignToGroup(selectedContactIds, targetCommunityName);
+      setRecentlyAddedNotice({ count, name: displayName });
+      setSelectedContactIds([]);
+      setTimeout(() => {
+        setRecentlyAddedNotice(null);
+      }, 3500);
+    } catch (err) {
+      console.error('Failed to assign selected contacts:', err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Direct Click Add (single contact)
   const handleDirectAdd = async (contact: ContactRecord, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
     const contactName = contact.conta_name || contact.kosun_crm_name || 'איש קשר';
     try {
       setIsProcessing(true);
       await onAssignToGroup([contact.id], targetCommunityName);
-      setRecentlyAddedContact({ id: contact.id, name: contactName });
+      setRecentlyAddedNotice({ count: 1, name: contactName });
+      setSelectedContactIds((prev) => prev.filter((id) => id !== contact.id));
       setTimeout(() => {
-        setRecentlyAddedContact(null);
+        setRecentlyAddedNotice(null);
       }, 3500);
     } catch (err) {
       console.error('Failed to add contact to community:', err);
@@ -200,12 +288,14 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
   return (
     <div className="space-y-4 text-right font-sans" dir="rtl">
       {/* Toast notification for successful addition */}
-      {recentlyAddedContact && (
+      {recentlyAddedNotice && (
         <div className="bg-emerald-500 text-white p-3 rounded-2xl shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-white" />
+            <CheckCircle2 className="w-4 h-4 text-white shrink-0" />
             <span className="text-xs font-black">
-              {recentlyAddedContact.name} נוסף/ה בהצלחה ל{targetCommunityName}!
+              {recentlyAddedNotice.count === 1
+                ? `${recentlyAddedNotice.name} נוסף/ה בהצלחה ל${targetCommunityName}!`
+                : `${recentlyAddedNotice.name} נוספו בהצלחה ל${targetCommunityName}!`}
             </span>
           </div>
           <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-md font-mono">נוסף עכשיו</span>
@@ -213,7 +303,6 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
       )}
 
       {/* Main Growth Workspace:
-          סעיף ד: החלפת מיקום!
           Right Column (Span 7): מאגר אנשי הקשר (Contacts list)
           Left Column (Span 5): תמונת הקהילה ויעד הגרירה
       */}
@@ -222,9 +311,9 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
         {/* 1. Right Column: Contacts Pool (Span 7) */}
         <div className="lg:col-span-7 bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-3xl p-4 shadow-xs space-y-3">
           
-          {/* Header Bar with Search & Info Icon (סעיף ג: החלפת טקסטים ארוכים באיקון מידע) */}
+          {/* Header Bar with Search & Info Icon + Select All */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold">
                 <Users className="w-4 h-4" />
               </div>
@@ -233,14 +322,32 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                 <span className="text-[11px] font-mono font-normal text-slate-400">
                   ({filteredContacts.length})
                 </span>
-                {/* סעיף ג: איקון מידע במקום טקסט ארוך */}
                 <span
                   className="cursor-help text-slate-400 hover:text-indigo-600 transition-colors p-1"
-                  title="גרור כרטיסיית איש קשר ישירות אל תמונת הקהילה משמאל כדי לצרף אותו מיד לקהילה."
+                  title="סמן אנשי קשר וגרור אותם יחד אל תמונת הקהילה משמאל, או לחץ על כפתור הצירוף."
                 >
                   <Info className="w-3.5 h-3.5" />
                 </span>
               </h2>
+
+              {/* Select All Toggle Button */}
+              {assignableContacts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={toggleSelectAll}
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-xl border transition-all flex items-center gap-1.5 cursor-pointer ${
+                    allAssignableSelected
+                      ? 'bg-indigo-600 text-white border-indigo-600 shadow-2xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200'
+                  }`}
+                  title={allAssignableSelected ? 'בטל את כל הסימונים' : 'סמן את כל אנשי הקשר הזמינים לצירוף'}
+                >
+                  <span className="w-3.5 h-3.5 rounded border border-current flex items-center justify-center text-[9px] font-black leading-none">
+                    {allAssignableSelected ? '✓' : ''}
+                  </span>
+                  <span>{allAssignableSelected ? 'בטל הכל' : 'סמן הכל'}</span>
+                </button>
+              )}
             </div>
 
             {/* Quick Search */}
@@ -300,7 +407,40 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
             ))}
           </div>
 
-          {/* סעיף ה: הקטנה משמעותית של כרטיסיות אנשי הקשר + איקון עין (CRM 360) */}
+          {/* Floating / Sticky Multi-Select Action Banner */}
+          {selectedContactIds.length > 0 && (
+            <div className="bg-gradient-to-r from-indigo-50 to-indigo-100/70 dark:from-indigo-950/70 dark:to-indigo-900/40 border border-indigo-200/90 dark:border-indigo-800 rounded-2xl p-2.5 flex items-center justify-between gap-2 shadow-xs animate-in fade-in duration-200">
+              <div className="flex items-center gap-2">
+                <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-black flex items-center justify-center shadow-xs">
+                  {selectedContactIds.length}
+                </span>
+                <span className="text-xs font-black text-indigo-950 dark:text-indigo-200">
+                  נבחרו {selectedContactIds.length} אנשי קשר (גרור לתמונה משמאל או צרף)
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={clearSelection}
+                  className="text-[11px] font-bold text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-white px-2 py-1 rounded-xl hover:bg-white/50 dark:hover:bg-slate-800 transition cursor-pointer"
+                >
+                  נקה בחירה
+                </button>
+                <button
+                  type="button"
+                  onClick={handleAssignSelected}
+                  disabled={isProcessing}
+                  className="h-8 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 active:scale-95 text-white text-xs font-black shadow-xs flex items-center gap-1.5 transition-all cursor-pointer disabled:opacity-50"
+                  title="צרף את כל המסומנים לקהילה זו"
+                >
+                  <UserPlus className="w-3.5 h-3.5" />
+                  <span>צרף לקהילה</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Contact Cards List with Checkboxes & Drag Handles */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[580px] overflow-y-auto pr-1">
             {filteredContacts.length === 0 ? (
               <div className="col-span-full py-8 text-center text-slate-400 space-y-1">
@@ -312,7 +452,8 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                 const contactName = contact.conta_name || contact.kosun_crm_name || 'איש קשר';
                 const tagLabel = contact.job_title || (Array.isArray(contact.tags) && contact.tags[0]) || 'עובד';
                 const alreadyInCommunity = isMember(contact);
-                const isCurrentlyDragged = draggedContactId === contact.id;
+                const isSelected = selectedContactIds.includes(contact.id);
+                const isCurrentlyDragged = draggedContactIds.includes(contact.id);
 
                 return (
                   <div
@@ -320,24 +461,45 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                     draggable={!alreadyInCommunity}
                     onDragStart={(e) => handleDragStart(e, contact)}
                     onDragEnd={handleDragEnd}
+                    onClick={() => {
+                      if (!alreadyInCommunity) toggleSelectContact(contact.id);
+                    }}
                     className={`relative select-none rounded-xl border px-2.5 py-1.5 flex items-center justify-between gap-2 transition-all duration-150 ${
                       alreadyInCommunity
                         ? 'bg-emerald-50/30 dark:bg-emerald-950/20 border-emerald-200/80 dark:border-emerald-800/60 opacity-70'
                         : isCurrentlyDragged
                         ? 'opacity-40 border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 shadow-none'
+                        : isSelected
+                        ? 'bg-indigo-50/80 dark:bg-indigo-950/50 border-indigo-500 shadow-2xs ring-1 ring-indigo-500/30 cursor-grab active:cursor-grabbing'
                         : 'bg-white dark:bg-slate-800 border-slate-200/90 dark:border-slate-700 hover:border-indigo-400 hover:shadow-xs cursor-grab active:cursor-grabbing'
                     }`}
                   >
-                    {/* Right side: Grip + Name + Tag (Compact) */}
+                    {/* Right side: Checkbox + Grip + Name + Tag (Compact) */}
                     <div className="flex items-center gap-1.5 min-w-0">
+                      {/* Checkbox for selection */}
                       {!alreadyInCommunity ? (
-                        <GripVertical className="w-3.5 h-3.5 text-slate-300 hover:text-indigo-500 shrink-0 cursor-grab" />
+                        <div
+                          onClick={(e) => toggleSelectContact(contact.id, e)}
+                          className="p-0.5 cursor-pointer shrink-0"
+                          title={isSelected ? 'בטל בחירה' : 'סמן לבחירה מרובה וגרירה'}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-3.5 h-3.5 rounded text-indigo-600 focus:ring-indigo-500 cursor-pointer pointer-events-none"
+                          />
+                        </div>
                       ) : (
                         <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                       )}
 
+                      {!alreadyInCommunity && (
+                        <GripVertical className="w-3.5 h-3.5 text-slate-300 hover:text-indigo-500 shrink-0 cursor-grab" />
+                      )}
+
                       <div className="min-w-0">
-                        <span className="text-xs font-black text-slate-900 dark:text-white block truncate leading-tight">
+                        <span className={`text-xs font-black block truncate leading-tight ${isSelected ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-900 dark:text-white'}`}>
                           {contactName}
                         </span>
                         <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400 truncate block leading-tight">
@@ -346,9 +508,16 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                       </div>
                     </div>
 
-                    {/* Left side actions: סעיף ה: איקון עין (CRM Analytics מונופול) + כפתור + מהיר */}
+                    {/* Left side actions: CRM 360 eye button + direct add button */}
                     <div className="flex items-center gap-1 shrink-0">
-                      {/* כפתור עין - פתיחת כרטיס 360 ב-CRM אנליטיקס */}
+                      {/* Batch drag count badge if dragged */}
+                      {isSelected && draggedContactIds.length > 1 && isCurrentlyDragged && (
+                        <span className="text-[10px] bg-indigo-600 text-white font-black px-1.5 py-0.5 rounded-md">
+                          +{draggedContactIds.length - 1}
+                        </span>
+                      )}
+
+                      {/* View 360 modal button */}
                       <button
                         type="button"
                         onClick={(e) => handleOpen360(contact, e)}
@@ -358,7 +527,7 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                         <Eye className="w-3.5 h-3.5" />
                       </button>
 
-                      {/* כפתור + מהיר להוספה בלחיצה */}
+                      {/* Direct + button */}
                       {!alreadyInCommunity ? (
                         <button
                           type="button"
@@ -393,13 +562,12 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                 : 'border-dashed border-slate-300 dark:border-slate-700 hover:border-indigo-400'
             }`}
           >
-            {/* Top Toolbar: Community Info & סעיף ח: איקון איש חושב */}
+            {/* Top Toolbar: Community Info & איקון איש חושב */}
             <div className="flex items-center justify-between w-full mb-2.5">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-black text-slate-800 dark:text-slate-200">
                   {targetCommunityName} ({memberCount} ח')
                 </span>
-                {/* סעיף ג: איקון מידע במקום טקסט ארוך */}
                 <span
                   className="cursor-help text-slate-400 hover:text-indigo-600 transition-colors p-1"
                   title="גרור אנשי קשר אל התמונה כדי לצרפם לקהילה, או השתמש באיקון האיש החושב להגדרה אוטומטית לפי תנאים."
@@ -408,7 +576,7 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
                 </span>
               </div>
 
-              {/* סעיף ח: כפתור איש חושב (Smart Community Rules Modal) */}
+              {/* איקון איש חושב (Smart Community Rules Modal) */}
               {onOpenSmartRulesModal && (
                 <button
                   type="button"
@@ -440,7 +608,11 @@ export const CommunityGrowthTab: React.FC<CommunityGrowthTabProps> = ({
               {isDragOver && (
                 <div className="absolute inset-0 bg-indigo-600/85 backdrop-blur-xs flex flex-col items-center justify-center text-white p-3 animate-in fade-in duration-200">
                   <ArrowDownCircle className="w-10 h-10 mb-1.5 animate-bounce text-white" />
-                  <span className="text-xs font-black">שחרר כאן להוספה לקהילה!</span>
+                  <span className="text-xs font-black">
+                    {draggedContactIds.length > 1
+                      ? `שחרר כאן להוספת ${draggedContactIds.length} אנשי קשר לקהילה!`
+                      : 'שחרר כאן להוספה לקהילה!'}
+                  </span>
                 </div>
               )}
             </div>

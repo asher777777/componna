@@ -458,21 +458,40 @@ export const CrmGroupsProvider: React.FC<React.PropsWithChildren<CrmGroupsModule
   };
 
   const bulkAssignToGroup = async (contactIds: string[], groupName: string) => {
-    if (db) {
-      await bulkAssignGroupToContacts(db, contactIds, groupName, resolvedCustomCollections);
-    }
-    // Update local state and publish events
+    if (contactIds.length === 0) return;
+
+    // 1. Optimistic update to contacts
     setContacts((prev) =>
       prev.map((c) => {
         if (!contactIds.includes(c.id)) return c;
         const currentTags: string[] = Array.isArray(c.tags) ? c.tags : [];
         const nextTags = currentTags.includes(groupName) ? currentTags : [...currentTags, groupName];
         eventBus.publish('crm:contact:updated', { id: c.id, tags: nextTags, community: groupName, conta_name: c.conta_name, email: c.email });
-        return { ...c, tags: nextTags, community: groupName };
+        return { ...c, tags: nextTags, kosun_crm_tags: nextTags, community: groupName };
       })
     );
+
+    // 2. Optimistic update to group count
+    setGroups((prev) =>
+      prev.map((g) => {
+        if (g.name === groupName || g.id === groupName) {
+          return { ...g, count: (g.count || 0) + contactIds.length };
+        }
+        return g;
+      })
+    );
+
     setSelectedContactIds([]);
-    if (db) await loadData();
+
+    // 3. Persist to Firestore & reload
+    if (db) {
+      try {
+        await bulkAssignGroupToContacts(db, contactIds, groupName, resolvedCustomCollections);
+      } catch (err) {
+        console.error('[KosTogether] bulkAssignGroupToContacts error:', err);
+      }
+      await loadData();
+    }
   };
 
   const bulkDeleteContacts = async (contactIds: string[]) => {
