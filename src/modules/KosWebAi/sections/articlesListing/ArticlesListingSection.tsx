@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArticlesListingSectionConfig,
   ArticleCardItem,
@@ -7,7 +7,9 @@ import {
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../../core/contracts';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
-import { ArrowLeft, BookOpen, Sparkles, ExternalLink } from 'lucide-react';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
+import { ArrowLeft, BookOpen, Sparkles, ExternalLink, Search, X, Calendar, User } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionConfig }> = ({
@@ -19,18 +21,25 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
 
   const fallbackCompanyName = brandDna?.identity?.companyName || '';
   const fallbackSlogan = brandDna?.identity?.slogan || '';
+  const uiVocab = brandDna?.uiVocabulary;
 
   const {
     anchorId = 'articlesListing',
     title = fallbackCompanyName ? `מרכז הידע והתוכן של ${fallbackCompanyName}` : 'מרכז הידע והתוכן',
     subtitle = fallbackSlogan || 'מאמרים, שיעורים ומדריכים מעמיקים',
-    badge,
+    badge = fallbackCompanyName ? `• ${fallbackCompanyName} •` : undefined,
     descriptionHtml,
     layout = 'standard',
-    topCtaText = 'למרכז התוכן',
+    topCtaText = uiVocab?.primaryCta || 'למרכז התוכן',
     topCtaUrl = '#content',
     showTopCta = true,
+    source = 'all',
     items = [],
+    showSearchBar = true,
+    searchPlaceholder = 'חיפוש במאגר הידע והמאמרים...',
+    showCategoryFilter = true,
+    selectedTagFilter = 'all',
+    sortBy = 'date-desc',
     cardCtaText = 'למאמר המלא',
     cardCtaBgColor = '#ea580c', // Coral orange matching screenshot
     titleFontSize = '3xl',
@@ -53,6 +62,102 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
     bgMediaOverlayColor = '#000000',
     bgMediaOverlayOpacity = 40,
   } = config;
+
+  // Search & Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTag, setActiveTag] = useState<string>(selectedTagFilter || 'all');
+  const [dynamicArticles, setDynamicArticles] = useState<ArticleCardItem[]>(items && items.length > 0 ? items : []);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Fetch Dynamic Articles from Tenant Pages and Brand DNA
+  useEffect(() => {
+    let isMounted = true;
+    async function loadDynamicContent() {
+      // If user strictly specified manual items and provided them
+      if (source === 'manual' && items && items.length > 0) {
+        if (isMounted) setDynamicArticles(items);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const effTenant = typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID;
+        const compiledArticles: ArticleCardItem[] = [];
+
+        // 1. Fetch Tenant's published pages
+        if (source === 'all' || source === 'tenant_pages') {
+          const pages = await pageBuilderFirestore.getAllPages(undefined, effTenant);
+          pages.forEach((p) => {
+            if (!p || !p.pageTitle || p.isHomePage || p.slug === 'home' || p.isArchivePage) return;
+            const heroSec = Object.values(p.sections || {}).find((s: any) => s && s.type === 'hero') as any;
+            const defaultImg =
+              heroSec?.imageSrc ||
+              heroSec?.imageUrl ||
+              p.globalSettings?.siteLogoUrl ||
+              'https://images.unsplash.com/photo-1457369804613-52c61a468e7d?auto=format&fit=crop&w=800&q=80';
+
+            const slug = p.publishedUrl || p.shortUrl || (p.slug ? (p.slug.startsWith('/') ? p.slug : `/${p.slug}`) : `/p/${p.pageId}`);
+
+            const catTag = p.pageCategory === 'info_content'
+              ? 'מאמר'
+              : p.pageCategory === 'course'
+              ? 'קורס'
+              : p.pageCategory === 'event'
+              ? 'אירוע'
+              : p.pageCategory === 'community'
+              ? 'קהילה'
+              : 'תוכן';
+
+            compiledArticles.push({
+              id: p.pageId,
+              title: p.pageTitle,
+              subtitle: heroSec?.subtitle || p.globalSettings?.slogan || fallbackCompanyName || 'מערכת התוכן',
+              tag: catTag,
+              imageUrl: defaultImg,
+              linkUrl: slug,
+              ctaText: cardCtaText || 'למאמר המלא',
+            });
+          });
+        }
+
+        // 2. Fetch Brand Ecosystem Services & Products
+        if (source === 'all' || source === 'brand_services') {
+          const services = brandDna.ecosystem?.services || [];
+          services.forEach((srv: any, idx: number) => {
+            if (!srv) return;
+            const sTitle = typeof srv === 'string' ? srv : srv.name || srv.title || `שירות ${idx + 1}`;
+            const sDesc = typeof srv === 'string' ? '' : srv.description || srv.shortDescription || '';
+            const sSlug = typeof srv === 'string' ? '' : (srv.linkedPageSlug ? (srv.linkedPageSlug.startsWith('/') ? srv.linkedPageSlug : `/${srv.linkedPageSlug}`) : `/kosass/srv-${srv.id || idx + 1}`);
+            const sImg = typeof srv === 'string' ? '' : (srv.imageUrl || (srv.galleryImages && srv.galleryImages[0]));
+
+            compiledArticles.push({
+              id: `srv_${idx}`,
+              title: sTitle,
+              subtitle: fallbackCompanyName || sDesc.slice(0, 40) || 'שירות תוכן מומחה',
+              tag: 'שירות ותוכן',
+              imageUrl: sImg || 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=800&q=80',
+              linkUrl: sSlug || '#',
+              ctaText: cardCtaText || 'למאמר המלא',
+            });
+          });
+        }
+
+        // 3. Fallback to configured items if compiled list is empty
+        if (compiledArticles.length === 0 && items && items.length > 0) {
+          if (isMounted) setDynamicArticles(items);
+        } else if (compiledArticles.length > 0) {
+          if (isMounted) setDynamicArticles(compiledArticles);
+        }
+      } catch (err) {
+        console.warn('Failed to load dynamic articles, using fallback items:', err);
+        if (isMounted && items && items.length > 0) setDynamicArticles(items);
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadDynamicContent();
+  }, [source, items, fallbackCompanyName, cardCtaText]);
 
   const activeAccent = accentColor || brandDna?.designTokens?.primaryColor || '#0ea5e9';
 
@@ -133,6 +238,38 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
     '2xl': 'text-3xl',
   };
 
+  // Extract unique tags for filtering
+  const allTags = useMemo(() => {
+    const set = new Set<string>();
+    dynamicArticles.forEach((art) => {
+      if (art.tag) set.add(art.tag);
+    });
+    return ['all', ...Array.from(set)];
+  }, [dynamicArticles]);
+
+  // Filtered and Sorted Articles
+  const filteredArticles = useMemo(() => {
+    let result = dynamicArticles.filter((art) => {
+      const matchesTag = activeTag === 'all' || art.tag === activeTag;
+      const q = searchQuery.toLowerCase().trim();
+      const matchesSearch =
+        !q ||
+        art.title.toLowerCase().includes(q) ||
+        (art.subtitle && art.subtitle.toLowerCase().includes(q)) ||
+        (art.tag && art.tag.toLowerCase().includes(q));
+
+      return matchesTag && matchesSearch;
+    });
+
+    result = [...result].sort((a, b) => {
+      if (sortBy === 'title-asc') return a.title.localeCompare(b.title, 'he');
+      if (sortBy === 'title-desc') return b.title.localeCompare(a.title, 'he');
+      return 0;
+    });
+
+    return result;
+  }, [dynamicArticles, activeTag, searchQuery, sortBy]);
+
   return (
     <section
       id={anchorId}
@@ -169,7 +306,7 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto space-y-10">
+      <div className="max-w-7xl mx-auto space-y-8">
         {/* Section Header: Title on Right, CTA Button on Left (as in screenshot) */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pb-2 border-b border-slate-200/60 dark:border-slate-800">
           {/* Header Action Button on Left */}
@@ -228,6 +365,55 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
           </div>
         </div>
 
+        {/* Dynamic Search & Tag Filtering Bar */}
+        {(showSearchBar || (showCategoryFilter && allTags.length > 2)) && (
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
+            {/* Tag Pills */}
+            {showCategoryFilter && allTags.length > 2 && (
+              <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+                {allTags.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => setActiveTag(tag)}
+                    className={clsx(
+                      'px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition cursor-pointer',
+                      activeTag === tag
+                        ? 'bg-[#0e3b5e] text-white shadow-sm'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                    )}
+                  >
+                    {tag === 'all' ? 'הכל' : tag}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Instant Search Bar */}
+            {showSearchBar && (
+              <div className="relative w-full sm:w-64 shrink-0">
+                <Search className="w-4 h-4 absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  className="w-full pr-9 pl-8 py-1.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-full text-xs text-slate-800 dark:text-white focus:outline-none focus:border-[#0e3b5e] transition"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* WYSIWYG Description if provided */}
         {descriptionHtml && (
           <div
@@ -236,9 +422,17 @@ export const ArticlesListingSection: React.FC<{ config: ArticlesListingSectionCo
           />
         )}
 
+        {/* Empty State */}
+        {filteredArticles.length === 0 && !isLoading && (
+          <div className="py-12 text-center text-slate-500 flex flex-col items-center gap-2">
+            <BookOpen className="w-10 h-10 text-slate-300 dark:text-slate-700" />
+            <p className="text-sm font-semibold">לא נמצאו מאמרים תואמים לחיפוש</p>
+          </div>
+        )}
+
         {/* 4 Cards Grid - 1:1 with Screenshot */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {items.map((item, idx) => (
+          {filteredArticles.map((item, idx) => (
             <div
               key={item.id || idx}
               className={clsx(

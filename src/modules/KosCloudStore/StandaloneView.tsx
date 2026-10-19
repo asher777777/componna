@@ -149,121 +149,37 @@ const KosCloudStoreContent: React.FC = () => {
         onChange={handleFileInputChange}
       />
 
-      {/* 1. KOSUN2026 Minimalist Header / Glass Bar */}
-      <header
-        className={`h-14 px-4 sm:px-6 border-b flex items-center justify-between flex-shrink-0 z-20 transition-colors ${
-          isLight
-            ? 'bg-white/95 border-slate-200 text-slate-800 shadow-sm'
-            : 'bg-slate-900/95 border-slate-800 text-white'
-        }`}
-      >
-        {/* Logo & KosCloudStore Title */}
-        <div className="flex items-center space-x-3 rtl:space-x-reverse min-w-0">
-          {/* Mobile drawer toggle */}
-          <button
-            type="button"
-            onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
-            className={`md:hidden p-1.5 rounded-xl transition-colors cursor-pointer ${
-              isLight
-                ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-            title="תפריט תיקיות וניווט"
-          >
-            {isMobileSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-          </button>
+      {/* 1. Floating Capsule Menu Trigger (fixed top-4 right-4, Official Kosun Symbol + English name) */}
+      <div className="fixed top-4 right-4 z-40">
+        <button
+          type="button"
+          onClick={() => setIsMobileSidebarOpen(true)}
+          className="h-10 px-3.5 rounded-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 flex items-center gap-2 text-slate-900 dark:text-white shadow-md hover:scale-105 active:scale-95 transition-all cursor-pointer"
+        >
+          <img
+            src="/images/kosun-symbol.svg"
+            onError={(e: any) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = '/images/kosun-official-logo.png';
+            }}
+            alt="KOSUN"
+            className="w-5 h-5 object-contain"
+          />
+          <span className="font-extrabold text-xs tracking-tight">KosCloudStore</span>
+          <Menu className="w-4 h-4 text-slate-400 mr-1" />
+        </button>
+      </div>
 
-          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-indigo-600 via-indigo-500 to-sky-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/25 shrink-0">
-            <HardDrive className="w-4 h-4" />
-          </div>
-
-          <div className="truncate">
-            <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
-              <span className="font-black text-sm sm:text-base tracking-tight text-indigo-600 dark:text-indigo-400">
-                KosCloudStore
-              </span>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/30 hidden sm:inline">
-                2026
-              </span>
-            </div>
-            <p className={`text-[11px] truncate hidden sm:block ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
-              כספת ענן חכמה, סטודיו עריכת מדיה ומסמכים
-            </p>
-          </div>
-        </div>
-
-        {/* Top Controls & Toggles */}
-        <div className="flex items-center space-x-2 rtl:space-x-reverse text-xs shrink-0">
-          {/* Mobile view mode toggle (grid vs list) */}
-          <div className="md:hidden flex items-center bg-slate-800/60 p-1 rounded-xl border border-slate-700/60">
-            <button
-              type="button"
-              onClick={() => setMobileViewMode('grid')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                mobileViewMode === 'grid' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-              title="תצוגת גריד"
-            >
-              <LayoutGrid className="w-3.5 h-3.5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setMobileViewMode('list')}
-              className={`p-1.5 rounded-lg transition-colors ${
-                mobileViewMode === 'list' ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-white'
-              }`}
-              title="תצוגת רשימה"
-            >
-              <ListIcon className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Theme Toggle */}
-          <button
-            type="button"
-            onClick={toggleTheme}
-            className={`p-2 rounded-xl border text-xs font-semibold flex items-center transition-colors cursor-pointer ${
-              isLight
-                ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-                : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-            }`}
-            title={isLight ? 'מעבר למצב לילה' : 'מעבר למצב יום'}
-          >
-            {isLight ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-sky-400" />}
-          </button>
-
-          {/* Sidebar Toggle (Desktop) - Icon only with tooltip */}
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`hidden md:flex p-2 rounded-xl border text-xs items-center justify-center transition-colors cursor-pointer ${
-              isSidebarOpen
-                ? isLight
-                  ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-                : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow'
-            }`}
-            title={isSidebarOpen ? 'הסתר סרגל צדדי' : 'הצג סרגל צדדי'}
-          >
-            <SlidersHorizontal className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-          </button>
-
-          {/* Cloud Sync Status Indicator */}
-          <div className="hidden sm:flex items-center space-x-1.5 rtl:space-x-reverse px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-mono font-medium">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span>מאובטח בענן</span>
-          </div>
-        </div>
-      </header>
-
-      {/* 2. Main Workspace Layout */}
-      <div className="flex-1 flex min-h-0 overflow-hidden relative">
-        {/* Left Navigation Sidebar (Desktop & Mobile Drawer) */}
+      {/* 2. Slide-over Navigation Drawer */}
+      {isMobileSidebarOpen && (
         <MediaDriveSidebar
-          isOpenMobile={isMobileSidebarOpen}
+          isOpenMobile={true}
           onCloseMobile={() => setIsMobileSidebarOpen(false)}
         />
+      )}
 
+      {/* 3. Main Workspace Layout */}
+      <div className="flex-1 flex min-h-0 overflow-hidden relative">
         {/* Center Explorer Main View */}
         <main
           className={`flex-1 flex flex-col min-w-0 overflow-y-auto p-3 sm:p-4 space-y-4 pb-28 md:pb-8 custom-scrollbar transition-colors ${

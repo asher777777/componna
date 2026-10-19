@@ -1676,8 +1676,15 @@ export interface ArticlesListingSectionConfig extends BaseSectionConfig {
   showTopCta?: boolean;
 
   // Articles source and items
-  source?: 'tenant_pages' | 'manual';
+  source?: 'tenant_pages' | 'manual' | 'brand_services' | 'all';
   items: ArticleCardItem[];
+
+  // Dynamic Search & Filtering
+  showSearchBar?: boolean;
+  searchPlaceholder?: string;
+  showCategoryFilter?: boolean;
+  selectedTagFilter?: string;
+  sortBy?: 'date-desc' | 'date-asc' | 'title-asc' | 'title-desc' | 'manual';
 
   // Button micro-copy defaults
   cardCtaText?: string; // "למאמר המלא"

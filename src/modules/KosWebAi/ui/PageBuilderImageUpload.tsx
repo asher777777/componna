@@ -251,6 +251,16 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
                 className="w-full h-full object-contain p-2 max-h-full"
                 onError={(e) => {
                   console.warn('[PageBuilderImageUpload] Preview load error for:', value);
+                  // If it failed because of proxy query or unencoded characters, try direct fallback
+                  const target = e.currentTarget;
+                  if (target.dataset.triedFallback !== 'true') {
+                    target.dataset.triedFallback = 'true';
+                    // Strip query params or hash if present
+                    if (value.includes('?')) {
+                      target.src = value.split('?')[0];
+                      return;
+                    }
+                  }
                 }}
               />
             )}

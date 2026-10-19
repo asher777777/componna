@@ -459,17 +459,107 @@ export const ArticlesListingEditor: React.FC<ArticlesListingEditorProps> = ({
         )}
       </div>
 
-      {/* 3. Main Accordion: Articles Items Management */}
+      {/* 3. Main Accordion: Dynamic Source & Filtering */}
+      <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
+        <button
+          type="button"
+          onClick={() => toggleMainAccordion('source_and_filters')}
+          className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+          title="בחירת מקור נתונים דינמי (עמודי טננט, שירותי מיתוג) והגדרות חיפוש"
+        >
+          <div className="flex items-center gap-2">
+            <Layers className="w-4 h-4 text-sky-400" />
+            <span>מקור נתונים דינמי וסינון</span>
+          </div>
+          <ChevronDown
+            className={clsx(
+              'w-4 h-4 transition-transform duration-200',
+              openMainAccordion === 'source_and_filters' ? 'rotate-180 text-sky-400' : 'text-zinc-500'
+            )}
+          />
+        </button>
+
+        {openMainAccordion === 'source_and_filters' && (
+          <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/40">
+            {/* Source Selector */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] text-zinc-400">מקור הפריטים</span>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: 'all', label: 'דינמי משולב (עמודים ושירותים)' },
+                  { id: 'tenant_pages', label: 'עמודי תוכן של הטננט בלבד' },
+                  { id: 'brand_services', label: 'שירותי ומוצרי המיתוג' },
+                  { id: 'manual', label: 'רשימה ידנית מותאמת' },
+                ].map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => handleUpdate({ source: s.id as any })}
+                    className={clsx(
+                      'p-2 rounded-xl border text-right transition cursor-pointer text-xs',
+                      (config.source || 'all') === s.id
+                        ? 'border-sky-500 bg-sky-500/20 text-white font-bold'
+                        : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10'
+                    )}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Search Bar & Category Filter Toggles */}
+            <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/10">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={config.showSearchBar ?? true}
+                  onChange={(e) => handleUpdate({ showSearchBar: e.target.checked })}
+                  className="rounded border-white/20 text-sky-500 focus:ring-0"
+                />
+                <span>הצג שורת חיפוש מהיר</span>
+              </label>
+
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={config.showCategoryFilter ?? true}
+                  onChange={(e) => handleUpdate({ showCategoryFilter: e.target.checked })}
+                  className="rounded border-white/20 text-sky-500 focus:ring-0"
+                />
+                <span>הצג תגיות סינון</span>
+              </label>
+            </div>
+
+            {/* Sort Dropdown */}
+            <div className="pt-2 border-t border-white/10 flex items-center justify-between">
+              <span className="text-[11px] text-zinc-400">סדר הצגת הפריטים:</span>
+              <select
+                value={config.sortBy || 'date-desc'}
+                onChange={(e) => handleUpdate({ sortBy: e.target.value as any })}
+                className="bg-black/30 border border-white/10 rounded-xl px-2.5 py-1 text-xs text-white focus:outline-none"
+              >
+                <option value="date-desc">תאריך: מהחדש לישן</option>
+                <option value="title-asc">שם: א' עד ת'</option>
+                <option value="title-desc">שם: ת' עד א'</option>
+                <option value="manual">סדר ברירת מחדל</option>
+              </select>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 4. Main Accordion: Articles Items Management (Manual Override) */}
       <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
         <button
           type="button"
           onClick={() => toggleMainAccordion('articles')}
           className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
-          title="ניהול מאמרים, תמונות מ-KOSCLOUD, תגיות וקישורים"
+          title="ניהול מאמרים ידני, תמונות מ-KOSCLOUD, תגיות וקישורים"
         >
           <div className="flex items-center gap-2">
             <BookOpen className="w-4 h-4 text-cyan-400" />
-            <span>כרטיסי מאמרים ({config.items?.length || 0})</span>
+            <span>כרטיסי מאמרים מותאמים אישית ({config.items?.length || 0})</span>
           </div>
           <ChevronDown
             className={clsx(

@@ -440,21 +440,13 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
       )}
       dir="rtl"
     >
-      {/* 1. Header with Archetype Styles Info */}
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 pb-3 border-b border-slate-800/80">
-        <div>
-          <h4 className="text-sm font-black text-white flex items-center gap-2">
-            <Crown className="w-4 h-4 text-amber-400" />
-            <span>ספריית סמלים ואייקונים לפי 6 סגנונות המיתוג</span>
-          </h4>
-          <p className="text-xs text-slate-400 mt-0.5">
-            האייקונים מסווגים לפי מהות ומשמעות, ומותאמים לסגנון הטננט: עגלגלות, חדות, רוחניות ועוצמה
-          </p>
+      {/* 1. Finish & Color Preset selector */}
+      <div className="flex items-center justify-between gap-2 pb-2 border-b border-slate-800/80 flex-wrap">
+        <div className="flex items-center gap-1.5 text-xs text-slate-300 font-bold">
+          <Crown className="w-4 h-4 text-amber-400" />
+          <span>סגנון גימור:</span>
         </div>
-
-        {/* Finish & Color Preset selector */}
-        <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800/90 p-1.5 rounded-2xl shrink-0 overflow-x-auto max-w-full">
-          <span className="text-[11px] text-slate-400 px-1 font-bold whitespace-nowrap">גימור ומבנה:</span>
+        <div className="flex items-center gap-1 bg-slate-900 border border-slate-800/90 p-1 rounded-2xl overflow-x-auto max-w-full">
           {(Object.keys(ARCHETYPE_CONFIG) as TenantStylePreset[]).map((presetKey) => {
             const conf = ARCHETYPE_CONFIG[presetKey];
             const isActive = activeFinishPreset === presetKey;

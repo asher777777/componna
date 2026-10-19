@@ -77,11 +77,6 @@ export const MediaDriveSidebar: React.FC<{
     });
   };
 
-  // If sidebar is closed on desktop and not in mobile drawer mode, don't render or collapse to 0
-  if (!isSidebarOpen && !isOpenMobile) {
-    return null;
-  }
-
   const handleSelectRoot = () => {
     recordUsage('all');
     setActiveFolderId(null);
@@ -191,60 +186,89 @@ export const MediaDriveSidebar: React.FC<{
     (!filters.sourceModuleFilter || filters.sourceModuleFilter === 'all') &&
     filters.typeFilter === 'all';
 
+  // If sidebar is closed on desktop and not in mobile drawer mode, don't render
+  if (!isSidebarOpen && !isOpenMobile) {
+    return null;
+  }
+
   return (
-    <aside
-      className={`w-64 lg:w-72 flex-shrink-0 border-l flex flex-col justify-between overflow-hidden transition-all duration-300 z-30 ${
-        isLight
-          ? 'bg-white border-slate-200 text-slate-800 shadow-sm'
-          : 'bg-slate-900/95 border-slate-800 text-slate-100'
-      } ${isOpenMobile ? 'fixed inset-y-0 right-0 shadow-2xl z-50' : 'flex'}`}
-      dir="rtl"
-    >
-      {/* Sidebar Header / Root Navigation & Hide Button */}
-      <div className={`p-3 border-b space-y-2 ${isLight ? 'border-slate-200 bg-slate-50/70' : 'border-slate-800/80'}`}>
-        <div className="flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleSelectRoot}
-            className={`flex-1 p-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
-              isRootActive
-                ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/25'
-                : isLight
-                ? 'text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
-              <Home className="w-4 h-4 flex-shrink-0" />
-              <span className="truncate">כל הקבצים (מאגר ראשי)</span>
-            </div>
-            <span
-              className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+    <>
+      {/* Drawer backdrop for overlay mode */}
+      {isOpenMobile && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-300"
+          onClick={onCloseMobile}
+        />
+      )}
+      <aside
+        className={`w-72 lg:w-80 flex-shrink-0 border-l flex flex-col justify-between overflow-hidden transition-all duration-300 z-50 ${
+          isLight
+            ? 'bg-white border-slate-200 text-slate-800 shadow-xl'
+            : 'bg-slate-900/95 border-slate-800 text-slate-100 shadow-2xl'
+        } ${isOpenMobile ? 'fixed inset-y-0 right-0 z-50 animate-in slide-in-from-right duration-300' : 'flex'}`}
+        dir="rtl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Sidebar Header / Root Navigation & Hide Button */}
+        <div className={`p-3 border-b space-y-2 ${isLight ? 'border-slate-200 bg-slate-50/70' : 'border-slate-800/80'}`}>
+          <div className="flex items-center justify-between gap-1.5">
+            <button
+              type="button"
+              onClick={handleSelectRoot}
+              className={`flex-1 p-2 rounded-xl flex items-center justify-between text-xs font-bold transition-all cursor-pointer ${
                 isRootActive
-                  ? 'bg-white/20 text-white'
+                  ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/25'
                   : isLight
-                  ? 'bg-slate-200 text-slate-700'
-                  : 'bg-slate-800 text-slate-400'
+                  ? 'text-slate-700 hover:bg-slate-200/80 hover:text-slate-900'
+                  : 'text-slate-300 hover:bg-slate-800 hover:text-white'
               }`}
             >
-              {mediaItems.length}
-            </span>
-          </button>
+              <div className="flex items-center space-x-2 rtl:space-x-reverse min-w-0">
+                <Home className="w-4 h-4 flex-shrink-0" />
+                <span className="truncate">כל הקבצים (מאגר ראשי)</span>
+              </div>
+              <span
+                className={`text-[10px] px-2 py-0.5 rounded-full font-mono font-bold ${
+                  isRootActive
+                    ? 'bg-white/20 text-white'
+                    : isLight
+                    ? 'bg-slate-200 text-slate-700'
+                    : 'bg-slate-800 text-slate-400'
+                }`}
+              >
+                {mediaItems.length}
+              </span>
+            </button>
 
-          {/* Desktop Hide Sidebar button */}
-          <button
-            type="button"
-            onClick={() => setIsSidebarOpen(false)}
-            className={`hidden md:flex p-1.5 mr-1 rounded-lg transition-colors cursor-pointer ${
-              isLight
-                ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
-            }`}
-            title="הסתר סרגל ניווט"
-          >
-            <ChevronRight className="w-4 h-4 rtl:rotate-180" />
-          </button>
-        </div>
+            {/* Close button for drawer or hide sidebar */}
+            {isOpenMobile ? (
+              <button
+                type="button"
+                onClick={onCloseMobile}
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  isLight
+                    ? 'border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                    : 'border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+                title="סגור תפריט"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                className={`hidden md:flex p-1.5 mr-1 rounded-lg transition-colors cursor-pointer ${
+                  isLight
+                    ? 'text-slate-500 hover:text-slate-900 hover:bg-slate-200'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                }`}
+                title="הסתר סרגל ניווט"
+              >
+                <ChevronRight className="w-4 h-4 rtl:rotate-180" />
+              </button>
+            )}
+          </div>
 
         {/* Gemini AI Image Generator Studio Launch Button */}
         <button
@@ -549,5 +573,6 @@ export const MediaDriveSidebar: React.FC<{
         </div>
       </div>
     </aside>
+  </>
   );
 };

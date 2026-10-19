@@ -157,21 +157,19 @@ const MediaPickerModalContent: React.FC<{
             {isLight ? <Moon className="w-4 h-4 text-indigo-600" /> : <Sun className="w-4 h-4 text-amber-400" />}
           </button>
 
-          {/* Sidebar visibility toggle */}
+          {/* Drawer trigger button */}
           <button
             type="button"
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            onClick={() => setIsMobileSidebarOpen(true)}
             className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 rtl:space-x-reverse transition-colors cursor-pointer ${
-              isSidebarOpen
-                ? isLight
-                  ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-                : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow'
+              isLight
+                ? 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
+                : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
             }`}
-            title={isSidebarOpen ? 'הסתר סרגל ניווט' : 'הצג סרגל ניווט'}
+            title="פתח תפריט תיקיות וכלים"
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
-            <span className="hidden sm:inline">{isSidebarOpen ? 'הסתר סרגל' : 'סרגל ניווט'}</span>
+            <Menu className="w-3.5 h-3.5 text-amber-500" />
+            <span className="hidden sm:inline">תיקיות וניווט</span>
           </button>
 
           {/* Close Button */}
@@ -213,11 +211,13 @@ const MediaPickerModalContent: React.FC<{
         </div>
       ) : (
         <div className="flex-1 flex min-h-0 overflow-hidden relative">
-          {/* Left Navigation Sidebar */}
-          <MediaDriveSidebar
-            isOpenMobile={isMobileSidebarOpen}
-            onCloseMobile={() => setIsMobileSidebarOpen(false)}
-          />
+          {/* Slide-over Navigation Drawer */}
+          {isMobileSidebarOpen && (
+            <MediaDriveSidebar
+              isOpenMobile={true}
+              onCloseMobile={() => setIsMobileSidebarOpen(false)}
+            />
+          )}
 
           {/* Center Explorer Main View */}
           <main

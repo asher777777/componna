@@ -38,6 +38,8 @@ import {
   Crop,
   Crown,
   FileSpreadsheet,
+  ChevronDown,
+  FolderOpen,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -754,7 +756,13 @@ export const MediaGalleryGrid: React.FC = () => {
 
   const isLight = theme === 'light';
   const [syncStatusMsg, setSyncStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'list';
+    }
+    return 'grid';
+  });
+  const [isCategoriesMenuOpen, setIsCategoriesMenuOpen] = useState(false);
 
   // Pagination / Chunking to keep DOM lightweight and instantaneous
   const [visibleCount, setVisibleCount] = useState<number>(24);
@@ -849,19 +857,23 @@ export const MediaGalleryGrid: React.FC = () => {
     setTimeout(() => setSyncStatusMsg(null), 5000);
   };
 
-  // Click item: in selectionMode, focus item and select/toggle it.
-  // Double-click or clicking "בחר קובץ" in inspector immediately confirms selection.
+  // Click item: in selectionMode, if single-select (maxSelectCount === 1) and onSelectMedia exists,
+  // immediately confirm and choose this item directly without unnecessary nested modals!
   const handleItemClick = (item: MediaItem) => {
     if (editingItemId === item.id) return;
     setFocusedItem(item);
-    setIsInspectorOpen(true);
     if (selectionMode) {
       if (maxSelectCount === 1) {
         setSelectedIds([item.id]);
+        if (onSelectMedia) {
+          onSelectMedia([item]);
+          return;
+        }
       } else {
         toggleSelect(item.id);
       }
     } else {
+      setIsInspectorOpen(true);
       setPreviewItem(item);
     }
   };
@@ -920,12 +932,12 @@ export const MediaGalleryGrid: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 space-y-4" dir="rtl">
-      {/* 1. Ultra-Compact Modern Action Bar */}
+      {/* 1. Ultra-Compact Modern Action Bar (Sticky Top) */}
       <div
-        className={`p-3 rounded-2xl border shadow-sm flex flex-wrap items-center justify-between gap-3 transition-colors ${
+        className={`sticky top-0 z-30 p-3 rounded-2xl border shadow-md flex flex-wrap items-center justify-between gap-3 transition-colors backdrop-blur-md ${
           isLight
             ? 'bg-white/95 border-slate-200 text-slate-800'
-            : 'bg-slate-900/90 border-slate-800 text-slate-100'
+            : 'bg-slate-900/95 border-slate-800 text-slate-100'
         }`}
       >
         {/* Breadcrumb Path & Active Filters */}
@@ -1026,19 +1038,230 @@ export const MediaGalleryGrid: React.FC = () => {
                     ? 'מסמכים'
                     : filters.typeFilter === 'archive'
                     ? 'ארכיוני ZIP'
+                    : filters.typeFilter === 'icons'
+                    ? 'ספריית אייקונים'
                     : 'קוד ונתונים'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, typeFilter: 'all' }))}
+                  onClick={() => setFilters((prev) => ({ ...prev, typeFilter: 'image' }))}
                   className="p-0.5 hover:text-red-500 text-indigo-400 rounded-full"
-                  title="בטל סינון סוג"
+                  title="בטל סינון סוג (חזור לתמונות)"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
             </>
           )}
+
+          {/* Categories & Folders Dropdown Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsCategoriesMenuOpen(!isCategoriesMenuOpen)}
+              className={`px-2.5 py-1 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                isCategoriesMenuOpen
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                  : isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+              title="תפריט נפתח: כל התיקיות וסוגי הקבצים"
+            >
+              <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+              <span>תיקיות וקטגוריות</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${isCategoriesMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isCategoriesMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsCategoriesMenuOpen(false)}
+                />
+                <div
+                  className={`absolute right-0 top-full mt-1.5 w-60 rounded-2xl border shadow-2xl z-40 p-2 space-y-1.5 max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150 ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+                      : 'bg-slate-900 border-slate-800 text-slate-100 shadow-black/80'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold text-slate-400 px-2 py-0.5">סוגי מדיה וקבצים</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'image' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'image'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>תמונות (ברירת מחדל)</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'icons' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'icons'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>ספריית אייקונים יוקרתיים</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'video' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'video'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileVideo className="w-3.5 h-3.5 text-blue-400" />
+                      <span>סרטוני וידאו</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'heygen' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'heygen'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span>סרטוני HeyGen AI</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'document' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'document'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>מסמכים וטפסים</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'audio' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'audio'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Music className="w-3.5 h-3.5 text-rose-400" />
+                      <span>שמע ומוזיקה</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'all' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'all'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+                      <span>כל הקבצים במאגר</span>
+                    </div>
+                  </button>
+
+                  {/* Folders List */}
+                  {folders.length > 0 && (
+                    <>
+                      <div className="text-[10px] font-bold text-slate-400 px-2 pt-2 border-t border-slate-700/50">
+                        תיקיות אחסון ({folders.length})
+                      </div>
+                      {folders.map((folder) => (
+                        <button
+                          key={folder.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveFolderId(folder.id);
+                            setIsCategoriesMenuOpen(false);
+                          }}
+                          className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                            activeFolderId === folder.id
+                              ? 'bg-amber-500/20 text-amber-300 font-bold'
+                              : isLight
+                              ? 'hover:bg-slate-100 text-slate-700'
+                              : 'hover:bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Folder className="w-3.5 h-3.5 flex-shrink-0" style={{ color: folder.color || '#eab308' }} />
+                            <span className="truncate">{folder.name}</span>
+                          </div>
+                          <span className="text-[10px] font-mono opacity-70">({folder.itemCount || 0})</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Active Component Source Chip */}
           {filters.sourceModuleFilter && filters.sourceModuleFilter !== 'all' && (
@@ -1370,17 +1593,6 @@ export const MediaGalleryGrid: React.FC = () => {
       {/* 3. Luxury Icons Gallery or HeyGen / Files Container */}
       {filters.typeFilter === 'icons' ? (
         <div className="space-y-4">
-          <div className={`p-4 rounded-2xl border flex items-center justify-between ${isLight ? 'bg-indigo-50/70 border-indigo-200 text-indigo-950' : 'bg-indigo-950/20 border-indigo-900/50 text-indigo-200'}`}>
-            <div className="flex items-center space-x-3 rtl:space-x-reverse">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-sky-500 text-white flex items-center justify-center shadow-md shadow-indigo-500/20">
-                <Crown className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="font-black text-sm">ספריית אייקונים יוקרתיים (Luxury Icons)</h3>
-                <p className="text-xs opacity-80">אוסף אייקונים יוקרתיים וקטוריים בפורמט SVG להורדה ולשימוש מהיר ומיידי במערכת</p>
-              </div>
-            </div>
-          </div>
           <LuxuryIconsGallery
             onSelectIcon={(svgDataUrl, iconName) => {
               const a = document.createElement('a');

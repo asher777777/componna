@@ -364,7 +364,7 @@ export const MediaGalleryProvider: React.FC<{
       if (allowedTypes.includes('image')) return 'image';
       return allowedTypes[0];
     }
-    return 'all';
+    return 'image';
   }, [allowedTypes]);
 
   const [filters, setFilters] = useState<MediaFilterOptions>({
