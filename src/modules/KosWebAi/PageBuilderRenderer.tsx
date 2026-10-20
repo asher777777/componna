@@ -19,6 +19,9 @@ import { SectionResolutionVisibilityMenu } from './components/SectionResolutionV
 import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
+import { useTenantScope, ROOT_TENANT_ID } from '../../core/tenant';
+import { buildTenantPublicUrl } from '../../core/tenant/tenantResolver';
+import { KosunPageTransitionAnimationMini } from '../../components/Ui/KosunPageTransitionAnimationMini';
 
 export interface PageBuilderRendererProps {
   config: PageBuilderConfig;
@@ -53,6 +56,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
 }) => {
   const { globalSettings, seoSettings, sectionOrder, sections } = config;
   const brandContext = useBrandDna();
+  const { tenantId } = useTenantScope();
   const brandLogoUrl = brandContext?.brandDna?.identity?.logoUrl;
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -651,17 +655,40 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
       {globalSettings.isFooterVisible !== false && (
         <footer className="w-full border-t border-slate-200 dark:border-white/10 bg-slate-100 dark:bg-[#060608] py-14 px-6 text-center text-xs text-slate-600 dark:text-slate-400 transition-colors duration-300">
           <div className="max-w-6xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-6">
-            <div className="text-right">
-              <span className="font-black text-slate-900 dark:text-white text-lg block">
-                {globalSettings.companyName || globalSettings.siteTitle || 'אתר הקהילה'}
-              </span>
-              {globalSettings.slogan && <p className="text-slate-600 dark:text-slate-400 mt-1">{globalSettings.slogan}</p>}
-              {globalSettings.address && (
-                <p className="text-slate-500 text-[11px] mt-1 flex items-center gap-1">
-                  <MapPin className="w-3 h-3 text-rose-500" />
-                  <span>{globalSettings.address}</span>
-                </p>
-              )}
+            {/* Right Side: Tenant Logo & Home Link */}
+            <div className="flex items-center gap-3 text-right">
+              <a
+                href={buildTenantPublicUrl(tenantId || ROOT_TENANT_ID)}
+                title={globalSettings.companyName || globalSettings.siteTitle || 'עמוד הבית'}
+                className="group flex items-center gap-3 transition-opacity hover:opacity-90"
+              >
+                {effectiveLogoUrl ? (
+                  <img
+                    src={effectiveLogoUrl}
+                    alt={globalSettings.companyName || globalSettings.siteTitle || 'לוגו'}
+                    onError={() => setLogoLoadFailed(true)}
+                    className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-xl drop-shadow-xs"
+                  />
+                ) : (
+                  <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-black text-white text-sm shadow-md">
+                    {(globalSettings.companyName || globalSettings.siteTitle || 'K').charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <span className="font-black text-slate-900 dark:text-white text-base sm:text-lg block group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    {globalSettings.companyName || globalSettings.siteTitle || 'אתר הקהילה'}
+                  </span>
+                  {globalSettings.slogan && (
+                    <p className="text-slate-600 dark:text-slate-400 text-xs mt-0.5">{globalSettings.slogan}</p>
+                  )}
+                  {globalSettings.address && (
+                    <p className="text-slate-500 text-[11px] mt-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-rose-500" />
+                      <span>{globalSettings.address}</span>
+                    </p>
+                  )}
+                </div>
+              </a>
             </div>
 
             <div className="flex flex-col items-center sm:items-end gap-2">
@@ -695,6 +722,55 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
           </div>
         </footer>
       )}
+
+      {/* Narrow Black Signature Strip */}
+      <div
+        dir="rtl"
+        className="w-full bg-black text-white border-t border-white/10 px-4 sm:px-6 py-2 select-none relative z-20 text-[11px]"
+      >
+        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 min-h-[30px]">
+          {/* Right Side: Tenant Logo transferring to subdomain home */}
+          <div className="flex items-center gap-2">
+            <a
+              href={buildTenantPublicUrl(tenantId || ROOT_TENANT_ID)}
+              title="מעבר לעמוד הבית של הסאב דומיין"
+              className="inline-flex items-center gap-2 text-slate-300 hover:text-white transition-colors group"
+            >
+              {effectiveLogoUrl ? (
+                <img
+                  src={effectiveLogoUrl}
+                  alt={globalSettings.companyName || 'לוגו'}
+                  onError={() => setLogoLoadFailed(true)}
+                  className="w-5 h-5 object-contain rounded-md drop-shadow-xs group-hover:scale-105 transition-transform"
+                />
+              ) : (
+                <div className="w-5 h-5 rounded-md bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-black text-white text-[10px]">
+                  {(globalSettings.companyName || globalSettings.siteTitle || 'K').charAt(0)}
+                </div>
+              )}
+              <span className="font-semibold text-slate-200 group-hover:text-white truncate max-w-[140px] sm:max-w-[200px]">
+                {globalSettings.companyName || globalSettings.siteTitle || 'עמוד הבית'}
+              </span>
+            </a>
+          </div>
+
+          {/* Center: Copyright to Kosun */}
+          <div className="text-center font-medium text-slate-400 text-[10px] sm:text-xs">
+            כל הזכויות שמורות ל Kosun © {new Date().getFullYear()}
+          </div>
+
+          {/* Left Side: Looping Mini Page Transition Animation navigating to kosun.pro */}
+          <div className="flex items-center justify-end">
+            <KosunPageTransitionAnimationMini
+              title="מעבר לנתיב הראשי kosun.pro"
+              onClick={() => {
+                window.location.href = 'https://kosun.pro';
+              }}
+              className="hover:scale-105 transition-transform"
+            />
+          </div>
+        </div>
+      </div>
 
       {/* Guest Cookie Consent Modal / Banner */}
       <CookieConsentBanner
