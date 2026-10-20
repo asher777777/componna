@@ -9,10 +9,12 @@ export interface KosunPageTransitionAnimationMiniProps {
 /**
  * KosunPageTransitionAnimationMini
  * Compact looping replica of the signature KOSUN luxury reveal / page transition animation.
- * Design specs:
- * - Direction RTL:
- *   [אינטראקציה שהיא נכס]  | (divider)  [K SUN (with typed loop)]
- * - Thick vertical separator with logo gradient (indigo -> purple -> cyan)
+ * Features:
+ * - Glowing pulsing 'K' vector emblem with sparkle
+ * - Typing loop of "OSUN" in light cyan with blinking cursor:
+ *   Total wordmark displayed: [K Emblem] + "OSUN" => KOSUN
+ * - Slogan: "אינטראקציה שהיא נכס"
+ * - Thick vertical separator with logo gradient
  * - Clickable to navigate to main domain (kosun.pro)
  */
 export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnimationMiniProps> = ({
@@ -20,8 +22,9 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
   onClick,
   title = 'מעבר לנתיב הראשי kosun.pro',
 }) => {
-  const [typedText, setTypedText] = useState('');
-  const [showSlogan, setShowSlogan] = useState(false);
+  // Start with full 'OSUN' so it's always readable from the very first frame
+  const [typedText, setTypedText] = useState('OSUN');
+  const [showSlogan, setShowSlogan] = useState(true);
 
   useEffect(() => {
     let isCancelled = false;
@@ -45,15 +48,18 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
         } else {
           clearInterval(typeInterval);
           setShowSlogan(true);
-          // Hold full logo + slogan for 2.4s, then loop again
+          // Hold full logo + slogan for 2.6s, then loop again
           timer = setTimeout(() => {
             if (!isCancelled) runLoop();
-          }, 2400);
+          }, 2600);
         }
-      }, 150);
+      }, 160);
     };
 
-    runLoop();
+    // Keep initial full state visible for 1.8s before beginning loop
+    timer = setTimeout(() => {
+      runLoop();
+    }, 1800);
 
     return () => {
       isCancelled = true;
@@ -81,8 +87,8 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
     >
       <style>{`
         @keyframes miniKosunGlow {
-          0%, 100% { filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.45)); transform: scale(1); }
-          50% { filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.75)); transform: scale(1.04); }
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.5)); transform: scale(1); }
+          50% { filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.8)); transform: scale(1.05); }
         }
         @keyframes miniKosunBlink {
           0%, 100% { opacity: 1; }
@@ -100,7 +106,7 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
       <span
         dir="rtl"
         className={`text-[11px] sm:text-xs font-semibold tracking-wide transition-all duration-500 bg-gradient-to-r from-indigo-300 via-purple-300 to-sky-300 bg-clip-text text-transparent shrink-0 ${
-          showSlogan ? 'opacity-100 translate-x-0' : 'opacity-30'
+          showSlogan ? 'opacity-100 translate-x-0' : 'opacity-40'
         }`}
       >
         אינטראקציה שהיא נכס
@@ -109,7 +115,7 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
       {/* 2. Thick vertical separator with brand logo gradient */}
       <span
         aria-hidden="true"
-        className="w-[3px] h-4 sm:h-5 rounded-full bg-gradient-to-b from-[#4f46e5] via-[#8b5cf6] to-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.5)] shrink-0"
+        className="w-[3px] h-4 sm:h-5 rounded-full bg-gradient-to-b from-[#4f46e5] via-[#8b5cf6] to-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.6)] shrink-0"
       />
 
       {/* 3. Kosun Brand Lockup (Left side in RTL) */}
@@ -141,10 +147,12 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
           </svg>
         </div>
 
-        {/* Typed OSUN wordmark */}
+        {/* Typed OSUN wordmark - Explicitly displays 'OSUN' alongside the 'K' emblem */}
         <div className="flex items-baseline font-black text-sm sm:text-base tracking-wider leading-none text-[#38bdf8]">
-          <span style={{ textShadow: '0 0 12px rgba(56, 189, 248, 0.7)' }}>{typedText}</span>
-          {typedText.length < 4 && (
+          <span style={{ textShadow: '0 0 12px rgba(56, 189, 248, 0.7)' }}>
+            {typedText || 'OSUN'}
+          </span>
+          {typedText.length < 4 && typedText.length > 0 && (
             <span className="mini-kosun-cursor text-[#38bdf8] font-light ml-0.5 text-xs sm:text-sm">|</span>
           )}
         </div>
