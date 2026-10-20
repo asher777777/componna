@@ -723,12 +723,41 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
         </footer>
       )}
 
+      {/* Mobile-Only: Tenant Logo Above Strip */}
+      <div
+        dir="rtl"
+        className="sm:hidden w-full py-3.5 px-4 flex justify-center items-center select-none"
+      >
+        <a
+          href={buildTenantPublicUrl(tenantId || ROOT_TENANT_ID)}
+          title="מעבר לעמוד הבית של הסאב דומיין"
+          className="inline-flex items-center gap-2.5 text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-white transition-colors group"
+        >
+          {effectiveLogoUrl ? (
+            <img
+              src={effectiveLogoUrl}
+              alt={globalSettings.companyName || 'לוגו'}
+              onError={() => setLogoLoadFailed(true)}
+              className="w-6 h-6 object-contain rounded-md drop-shadow-xs group-hover:scale-105 transition-transform"
+            />
+          ) : (
+            <div className="w-6 h-6 rounded-md bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center font-black text-white text-[11px]">
+              {(globalSettings.companyName || globalSettings.siteTitle || 'K').charAt(0)}
+            </div>
+          )}
+          <span className="font-bold text-xs truncate max-w-[220px]">
+            {globalSettings.companyName || globalSettings.siteTitle || 'עמוד הבית'}
+          </span>
+        </a>
+      </div>
+
       {/* Narrow Black Signature Strip */}
       <div
         dir="rtl"
         className="w-full bg-black text-white border-t border-white/10 px-4 sm:px-6 py-2 select-none relative z-20 text-[11px]"
       >
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-3 min-h-[30px]">
+        {/* Desktop Layout (Hidden on Mobile) */}
+        <div className="hidden sm:flex max-w-6xl mx-auto items-center justify-between gap-3 min-h-[30px]">
           {/* Right Side: Tenant Logo transferring to subdomain home */}
           <div className="flex items-center gap-2">
             <a
@@ -770,6 +799,25 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
             כל הזכויות שמורות ל Kosun © {new Date().getFullYear()}
           </div>
         </div>
+
+        {/* Mobile Layout: Only the Looping Transition Animation inside the Black Strip */}
+        <div className="sm:hidden flex items-center justify-center py-0.5">
+          <KosunPageTransitionAnimationMini
+            title="מעבר לנתיב הראשי kosun.pro"
+            onClick={() => {
+              window.location.href = 'https://kosun.pro';
+            }}
+            className="hover:scale-105 transition-transform"
+          />
+        </div>
+      </div>
+
+      {/* Mobile-Only: Copyright below the black strip on page background */}
+      <div
+        dir="rtl"
+        className="sm:hidden w-full py-2.5 px-4 text-center text-[10px] text-slate-500 dark:text-slate-400 select-none"
+      >
+        כל הזכויות שמורות ל Kosun © {new Date().getFullYear()}
       </div>
 
       {/* Guest Cookie Consent Modal / Banner */}
