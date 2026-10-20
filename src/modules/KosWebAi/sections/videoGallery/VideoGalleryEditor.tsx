@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { safeJsonStringify } from '../../utils/sanitizeConfig';
 import { collection, getDocs } from 'firebase/firestore';
 import {
   VideoGallerySectionConfig,
@@ -329,7 +330,7 @@ export const VideoGalleryEditor: React.FC<VideoGalleryEditorProps> = ({
   }, [db, effTenant, isMaster]);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(initialData);
+    return safeJsonStringify(formData) !== safeJsonStringify(initialData);
   }, [formData, initialData]);
 
   const showNotification = (msg: string) => {

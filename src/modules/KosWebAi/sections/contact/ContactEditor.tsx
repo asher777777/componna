@@ -4,7 +4,7 @@ import {
   ContactLayoutPreset,
   HeroTextBgEffect,
 } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue, safeJsonStringify } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
@@ -187,7 +187,7 @@ export const ContactEditor: React.FC<ContactEditorProps> = ({
   }, []);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(initialData);
+    return safeJsonStringify(formData) !== safeJsonStringify(initialData);
   }, [formData, initialData]);
 
   const showNotification = (msg: string) => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { safeJsonStringify } from '../../utils/sanitizeConfig';
 import {
   KosvidioSectionConfig,
   KosvidioLayoutPreset,
@@ -210,7 +211,7 @@ export const KosvidioEditor: React.FC<KosvidioEditorProps> = ({ config, onChange
 
   // Dirty state tracking
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(config);
+    return safeJsonStringify(formData) !== safeJsonStringify(config);
   }, [formData, config]);
 
   const update = <K extends keyof KosvidioSectionConfig>(

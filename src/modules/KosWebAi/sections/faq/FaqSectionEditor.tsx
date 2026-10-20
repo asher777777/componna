@@ -6,6 +6,7 @@ import {
   HeroTextBgEffect,
 } from '../../types/sectionConfigs';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
+import { safeJsonStringify } from '../../utils/sanitizeConfig';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { PageBuilderIconPicker } from '../../ui/PageBuilderIconPicker';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
@@ -184,7 +185,7 @@ export const FaqSectionEditor: React.FC<FaqSectionEditorProps> = ({
   }, []);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(initialData);
+    return safeJsonStringify(formData) !== safeJsonStringify(initialData);
   }, [formData, initialData]);
 
   const showNotification = (msg: string) => {

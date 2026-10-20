@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { safeJsonStringify } from '../../utils/sanitizeConfig';
 import {
   TimerSectionConfig,
   TimerLayoutPreset,
@@ -267,7 +268,7 @@ export const TimerEditor: React.FC<TimerEditorProps> = ({ config, onChange, onCl
 
   // Dirty check
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(config);
+    return safeJsonStringify(formData) !== safeJsonStringify(config);
   }, [formData, config]);
 
   const update = <K extends keyof TimerSectionConfig>(field: K, value: TimerSectionConfig[K]) => {

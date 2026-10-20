@@ -2,7 +2,7 @@ import React from 'react';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export { resolveInputValue } from '../utils/sanitizeConfig';
+export { resolveInputValue, safeJsonStringify } from '../utils/sanitizeConfig';
 
 export interface PageBuilderInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
   label?: string;
@@ -58,6 +58,7 @@ export const PageBuilderInput: React.FC<PageBuilderInputProps> = ({
               onValueChange(e.target.value);
             }
             if (onChange) {
+              // Ensure we pass the event or value safely
               onChange(e);
             }
           }}

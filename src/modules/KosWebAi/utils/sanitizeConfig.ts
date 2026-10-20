@@ -8,11 +8,43 @@
 
 export const isSyntheticOrDomEvent = (val: any): boolean => {
   if (!val || typeof val !== 'object') return false;
+  // Direct check for DOM Elements (e.g. HTMLInputElement)
+  if (typeof Element !== 'undefined' && val instanceof Element) {
+    return true;
+  }
+  // Check for nodeType or circular DOM properties
+  if ('nodeType' in val && typeof val.nodeType === 'number') {
+    return true;
+  }
   return (
     '_reactName' in val ||
     ('nativeEvent' in val && 'target' in val) ||
     ('defaultPrevented' in val && 'isTrusted' in val && 'timeStamp' in val)
   );
+};
+
+export const safeJsonStringify = (obj: any): string => {
+  const seen = new WeakSet();
+  try {
+    return JSON.stringify(obj, (key, value) => {
+      if (typeof Element !== 'undefined' && value instanceof Element) {
+        return (value as any).value ?? '';
+      }
+      if (isSyntheticOrDomEvent(value)) {
+        return (value as any)?.target?.value ?? '';
+      }
+      if (typeof value === 'object' && value !== null) {
+        if (seen.has(value)) {
+          return undefined;
+        }
+        seen.add(value);
+      }
+      return value;
+    });
+  } catch (err) {
+    console.warn('[safeJsonStringify] Fallback due to serialization issue:', err);
+    return '';
+  }
 };
 
 export const resolveInputValue = (eOrVal: any): string => {

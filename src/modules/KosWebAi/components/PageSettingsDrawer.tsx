@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { safeJsonStringify } from '../utils/sanitizeConfig';
 import { GlobalPageSettings, SeoSettings, PageDesignSnapshot, LayoutArchetype, LAYOUT_ARCHETYPES } from '../types/pageBuilder.types';
 import { PageBuilderColorPicker } from '../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../ui/PageBuilderImageUpload';
@@ -614,8 +615,8 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   // Check if user made unsaved changes
   const isDirty = useMemo(() => {
     return (
-      JSON.stringify(formDataGlobal) !== JSON.stringify(initialGlobalData) ||
-      JSON.stringify(formDataSeo) !== JSON.stringify(initialSeoData)
+      safeJsonStringify(formDataGlobal) !== safeJsonStringify(initialGlobalData) ||
+      safeJsonStringify(formDataSeo) !== safeJsonStringify(initialSeoData)
     );
   }, [formDataGlobal, initialGlobalData, formDataSeo, initialSeoData]);
 

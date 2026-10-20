@@ -13,7 +13,7 @@ import {
   DynamicListingSortBy,
   DynamicListingLogicCondition,
 } from '../../types/sectionConfigs';
-import { PageBuilderInput } from '../../ui/PageBuilderInput';
+import { PageBuilderInput, resolveInputValue, safeJsonStringify } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { SectionDesignLibraryModal } from '../../components/SectionDesignLibraryModal';
@@ -287,7 +287,7 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
   }, []);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(initialData);
+    return safeJsonStringify(formData) !== safeJsonStringify(initialData);
   }, [formData, initialData]);
 
   const showNotification = (msg: string) => {
@@ -1323,21 +1323,21 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
               <PageBuilderInput
                 label="תגית עליונה (Badge)"
                 value={formData.badge || ''}
-                onChange={(val) => updateField('badge', val)}
+                onChange={(e) => updateField('badge', resolveInputValue(e))}
                 placeholder="לדוגמה: מרכז הידע • מאמרים ומדריכים"
               />
 
               <PageBuilderInput
                 label="כותרת ראשית של האזור"
                 value={formData.title || ''}
-                onChange={(val) => updateField('title', val)}
+                onChange={(e) => updateField('title', resolveInputValue(e))}
                 placeholder="מאגר המאמרים, המדריכים ומרכז הידע"
               />
 
               <PageBuilderInput
                 label="תת-כותרת / תיאור קצר"
                 value={formData.subtitle || ''}
-                onChange={(val) => updateField('subtitle', val)}
+                onChange={(e) => updateField('subtitle', resolveInputValue(e))}
                 placeholder="כל הכלים, התובנות והמדריכים המעשיים שיעזרו לכם לצמוח..."
               />
 
@@ -1367,7 +1367,7 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                 <PageBuilderInput
                   label="טקסט ברירת מחדל לחיפוש (Placeholder)"
                   value={formData.searchPlaceholder || ''}
-                  onChange={(val) => updateField('searchPlaceholder', val)}
+                  onChange={(e) => updateField('searchPlaceholder', resolveInputValue(e))}
                   placeholder="חיפוש מהיר במאגר..."
                 />
               )}
@@ -1379,9 +1379,9 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                   <PageBuilderInput
                     label="טקסט הכפתור (ריק להסתרה)"
                     value={formData.primaryButton?.text || ''}
-                    onChange={(val) =>
+                    onChange={(e) =>
                       updateField('primaryButton', {
-                        text: val,
+                        text: resolveInputValue(e),
                         url: formData.primaryButton?.url || '#',
                       })
                     }
@@ -1390,10 +1390,10 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                   <PageBuilderInput
                     label="קישור הכפתור (URL)"
                     value={formData.primaryButton?.url || ''}
-                    onChange={(val) =>
+                    onChange={(e) =>
                       updateField('primaryButton', {
                         text: formData.primaryButton?.text || '',
-                        url: val,
+                        url: resolveInputValue(e),
                       })
                     }
                     placeholder="/blog או #sec-contact"
@@ -1587,14 +1587,14 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                             <PageBuilderInput
                               label="כותרת הפריט"
                               value={item.title}
-                              onChange={(val) => updateItem(index, { title: val })}
+                              onChange={(e) => updateItem(index, { title: resolveInputValue(e) })}
                               placeholder="כותרת המאמר / המוצר..."
                             />
 
                             <PageBuilderInput
                               label="תת-כותרת / שורת תקציר"
                               value={item.subtitle || ''}
-                              onChange={(val) => updateItem(index, { subtitle: val })}
+                              onChange={(e) => updateItem(index, { subtitle: resolveInputValue(e) })}
                               placeholder="שורת פירוט קצרה..."
                             />
 
@@ -1617,21 +1617,21 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                               <PageBuilderInput
                                 label="קטגוריה"
                                 value={item.category || ''}
-                                onChange={(val) => updateItem(index, { category: val })}
+                                onChange={(e) => updateItem(index, { category: resolveInputValue(e) })}
                                 placeholder="לדוגמה: מדריכים"
                               />
 
                               <PageBuilderInput
                                 label="תגית מיוחדת (Badge)"
                                 value={item.badge || ''}
-                                onChange={(val) => updateItem(index, { badge: val })}
+                                onChange={(e) => updateItem(index, { badge: resolveInputValue(e) })}
                                 placeholder="מומלץ / חדש"
                               />
 
                               <PageBuilderInput
                                 label="תאריך או מחיר"
                                 value={item.date || item.price || ''}
-                                onChange={(val) => updateItem(index, { date: val })}
+                                onChange={(e) => updateItem(index, { date: resolveInputValue(e) })}
                                 placeholder="24/10/2026"
                               />
                             </div>
@@ -1709,7 +1709,7 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                                   <PageBuilderInput
                                     label="כתובת קישור מותאמת (URL)"
                                     value={item.linkUrl || ''}
-                                    onChange={(val) => updateItem(index, { linkUrl: val })}
+                                    onChange={(e) => updateItem(index, { linkUrl: resolveInputValue(e) })}
                                     placeholder="https://... או #sec-contact"
                                   />
                                 </div>

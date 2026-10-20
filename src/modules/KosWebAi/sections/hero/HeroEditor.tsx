@@ -3,6 +3,7 @@ import { HeroSectionConfig, HeroLayoutPreset, HeroTextBgEffect } from '../../typ
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
 import { SectionDesignLibraryModal } from '../../components/SectionDesignLibraryModal';
+import { safeJsonStringify } from '../../utils/sanitizeConfig';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract, AiTextAssistantContract } from '../../../../core/contracts';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
@@ -221,7 +222,7 @@ export const HeroEditor: React.FC<{
   }, []);
 
   const isDirty = useMemo(() => {
-    return JSON.stringify(formData) !== JSON.stringify(initialData);
+    return safeJsonStringify(formData) !== safeJsonStringify(initialData);
   }, [formData, initialData]);
 
   const showNotification = (msg: string) => {
