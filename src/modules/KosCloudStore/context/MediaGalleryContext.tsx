@@ -237,7 +237,14 @@ export const MediaGalleryProvider: React.FC<{
   }), [customCollections, getScopedCollectionPath]);
 
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
-  const [folders, setFolders] = useState<MediaFolder[]>([]);
+  const [folders, setFolders] = useState<MediaFolder[]>([{
+      id: 'folder_shapes_and_symbols',
+      name: 'צורות וסמלים',
+      color: '#f59e0b',
+      icon: 'sparkles',
+      itemCount: 15,
+      createdAt: Date.now() - 100000,
+    }]);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(defaultFolderId);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);

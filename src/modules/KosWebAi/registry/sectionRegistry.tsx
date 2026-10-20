@@ -46,6 +46,9 @@ import { FutureContentEditor } from '../sections/futureContent/FutureContentEdit
 import { DynamicCategoriesEditor } from '../sections/dynamicCategories/DynamicCategoriesEditor';
 import { ArticlesListingEditor } from '../sections/articlesListing/ArticlesListingEditor';
 import { EventsListingEditor } from '../sections/eventsListing/EventsListingEditor';
+import { DecorativeDividerSection } from '../sections/decorativeDivider/DecorativeDividerSection';
+import { DecorativeDividerEditor } from '../sections/decorativeDivider/DecorativeDividerEditor';
+import { Sparkle } from 'lucide-react';
 import { HeroEditor } from '../sections/hero/HeroEditor';
 import { TestimonialsEditor } from '../sections/testimonials/TestimonialsEditor';
 import { LogoMarqueeEditor } from '../sections/logoMarquee/LogoMarqueeEditor';
@@ -1387,6 +1390,37 @@ export const SECTION_REGISTRY: Record<SectionType, SectionDefinition> = {
       ],
     },
   },
+  decorativeDivider: {
+    type: 'decorativeDivider',
+    name: 'אזור עיצוב, מרווח ואייקון SVG',
+    category: 'content',
+    description: 'אזור עיצובי ייעודי להוספת מרווח, צבע, גרדיאנט, תמונה או וידאו ברקע, ושילוב סמלי SVG וצורות עיטוריות בהכלה, מתיחה ופריסה מרובה עם גרירת גובה חיה',
+    icon: Sparkle,
+    viewComponent: DecorativeDividerSection as any,
+    editorComponent: DecorativeDividerEditor as any,
+    defaultConfig: {
+      type: 'decorativeDivider',
+      visible: true,
+      anchorId: 'decorativeDivider',
+      height: 120,
+      minHeight: 32,
+      maxHeight: 600,
+      bgType: 'transparent',
+      solidColor: '#000000',
+      gradientAngle: 135,
+      gradientFrom: '#4f46e5',
+      gradientTo: '#090d16',
+      iconName: 'shape_std_modern_dots',
+      iconSize: 36,
+      iconStretch: 'contain',
+      distribution: 'single',
+      itemsGap: 24,
+      fullWidth: true,
+      containerPaddingX: 24,
+      stylePreset: 'standard',
+      effectType: 'float-bob',
+      animationSpeed: 'normal',
+      textPosition: 'none',
+    },
+  },
 };
-
-

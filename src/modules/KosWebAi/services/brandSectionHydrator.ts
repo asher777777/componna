@@ -622,6 +622,19 @@ export function hydrateSectionWithBrandDna(
       break;
     }
 
+    case 'decorativeDivider': {
+      cloned.stylePreset = (brand.designTokens?.defaultStylePreset as any) || cloned.stylePreset || 'standard';
+      if (primaryColor) {
+        cloned.iconColor = primaryColor;
+        if (cloned.bgType === 'solid') cloned.solidColor = primaryColor;
+        if (cloned.bgType === 'gradient') cloned.gradientFrom = primaryColor;
+      }
+      if (brand.designTokens?.textColorH1) {
+        cloned.textColor = brand.designTokens.textColorH1;
+      }
+      break;
+    }
+
     case 'futureContent2027': {
       cloned.source = cloned.source || 'tenant_pages';
       cloned.title = `העתיד של ${companyName}: תוכן ועשייה`;
@@ -943,6 +956,31 @@ export function applyStylePresetToSection(sec: any, preset: string): any {
   // LandingSection layout
   if (sType === 'landingSection') {
     sec.layout = (preset === 'feminine' || preset === 'spiritual' || preset === 'masculine' || preset === 'sharp' || preset === 'analytical') ? preset : 'standard';
+    return sec;
+  }
+
+  // DecorativeDivider stylePreset and effects
+  if (sType === 'decorativeDivider') {
+    sec.stylePreset = preset;
+    if (preset === 'feminine') {
+      sec.effectType = 'pulse-glow';
+      sec.iconName = 'shape_fem_lotus';
+    } else if (preset === 'masculine') {
+      sec.effectType = 'shimmer-beam';
+      sec.iconName = 'shape_masc_shield_crest';
+    } else if (preset === 'spiritual') {
+      sec.effectType = 'wave-drift';
+      sec.iconName = 'shape_spir_sunburst_halo';
+    } else if (preset === 'sharp') {
+      sec.effectType = 'cyber-scan';
+      sec.iconName = 'shape_sharp_crosshair_target';
+    } else if (preset === 'analytical') {
+      sec.effectType = 'rotate-slow';
+      sec.iconName = 'shape_analyt_hex_core';
+    } else {
+      sec.effectType = 'float-bob';
+      sec.iconName = 'shape_std_modern_dots';
+    }
     return sec;
   }
 
