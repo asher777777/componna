@@ -83,7 +83,7 @@ export function getTenantPublicMediaUrl(item?: Partial<MediaItem>, preferredHost
   // Encode individual path segments to keep forward slashes intact for Firebase Hosting /media/** rewrite
   const cleanPath = mediaPath
     .split('/')
-    .map((seg) => encodeURIComponent(seg))
+    .map((seg) => encodeURIComponent(decodeURIComponent(seg)))
     .join('/');
   return `${domain}/media/${cleanPath}`;
 }
@@ -99,7 +99,8 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
 
   if (item.storagePath) {
     const cleanPath = sanitizeVaultPath(item.storagePath, item.tenantId);
-    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(cleanPath)}?alt=media`;
+    const encodedPath = encodeURIComponent(decodeURIComponent(cleanPath));
+    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
   }
 
   if (item.name) {
@@ -108,7 +109,8 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
     const vaultPath = timeStamp && !safeName.startsWith(`${timeStamp}_`)
       ? `${folderPrefix}/${timeStamp}_${safeName}`
       : `${folderPrefix}/${safeName}`;
-    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(vaultPath)}?alt=media`;
+    const encodedPath = encodeURIComponent(decodeURIComponent(vaultPath));
+    return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodedPath}?alt=media`;
   }
 
   return '';

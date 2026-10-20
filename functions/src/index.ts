@@ -1501,7 +1501,13 @@ export const mediaProxy = functions.https.onRequest((req, res) => {
       // 2. Extract requested path
       let rawPath = req.path || '';
       rawPath = rawPath.replace(/^\/api\/media-proxy\/?/, '').replace(/^\/media\/?/, '');
-      rawPath = decodeURIComponent(rawPath).trim();
+      
+      // Handle both raw and percent-encoded paths (especially for Hebrew/Unicode file names)
+      try {
+        rawPath = decodeURIComponent(rawPath).trim();
+      } catch {
+        rawPath = rawPath.trim();
+      }
 
       if (!rawPath) {
         res.status(400).send('Missing media file path');
@@ -1509,9 +1515,7 @@ export const mediaProxy = functions.https.onRequest((req, res) => {
       }
 
       // 3. Resolve bucket storage path cleanly
-      let storagePath = rawPath;
-      // Strip leading slashes
-      storagePath = storagePath.replace(/^\/+/, '');
+      let storagePath = rawPath.replace(/^\/+/, '');
 
       if (tenantId && tenantId !== '_master') {
         if (!storagePath.startsWith(`tenants/${tenantId}/`)) {
@@ -1531,6 +1535,17 @@ export const mediaProxy = functions.https.onRequest((req, res) => {
       let file = bucket.file(storagePath);
 
       let [exists] = await file.exists();
+
+      // Fallback A: Check if the file is stored under its URI-encoded path name in Storage
+      if (!exists && storagePath !== encodeURI(storagePath)) {
+        const encodedFile = bucket.file(encodeURI(storagePath));
+        const [encExists] = await encodedFile.exists();
+        if (encExists) {
+          serveStorageFile(encodedFile, req, res);
+          return;
+        }
+      }
+
       if (!exists) {
         // Fallback 1: check if file exists with plain clean name in tenant or root vault
         const fileNameOnly = rawPath.replace(/^.*[\\/]/, '');
@@ -1548,6 +1563,14 @@ export const mediaProxy = functions.https.onRequest((req, res) => {
         const [legacyExists] = await legacyFile.exists();
         if (legacyExists) {
           serveStorageFile(legacyFile, req, res);
+          return;
+        }
+
+        // Fallback 3: check encoded legacy vault path
+        const encLegacyFile = bucket.file(`sdo_media_vault/${encodeURIComponent(fileNameOnly)}`);
+        const [encLegacyExists] = await encLegacyFile.exists();
+        if (encLegacyExists) {
+          serveStorageFile(encLegacyFile, req, res);
           return;
         }
 

@@ -30,12 +30,19 @@ export class FirebaseStorageMediaService {
     const bucket = app.options.storageBucket || 'glowmanage.firebasestorage.app';
     const safeName = fileName.replace(/[\\/:*?"<>|]/g, '_').trim();
     const timeStamp = existingItemMeta?.createdAt || Date.now();
-    const storagePath = tenantId ? `tenants/${tenantId}/media/${timeStamp}_${safeName}` : `sdo_media_vault/${timeStamp}_${safeName}`;
+    
+    // Generate an ASCII/alphanumeric-safe storage key for Cloud Storage physical object path
+    // while keeping `safeName` (with original Hebrew/Unicode text) for user-facing UI, title, search, and downloads.
+    const fileExt = safeName.includes('.') ? safeName.split('.').pop()?.toLowerCase() || 'png' : 'png';
+    const asciiBase = safeName.replace(/\.[^/.]+$/, '').replace(/[^a-zA-Z0-9_-]/g, '').trim().slice(0, 30);
+    const storageKeyName = asciiBase ? `${timeStamp}_${asciiBase}.${fileExt}` : `${timeStamp}_file.${fileExt}`;
+    
+    const storagePath = tenantId ? `tenants/${tenantId}/media/${storageKeyName}` : `sdo_media_vault/${storageKeyName}`;
     const directUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(storagePath)}?alt=media`;
     const workingLocalUrl = URL.createObjectURL(file);
 
     const { type: mediaType, mimeType } = FileCompressionService.detectFileType(safeName, file.type);
-    const canonicalId = existingItemMeta?.id || `storage_${timeStamp}_${safeName.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
+    const canonicalId = existingItemMeta?.id || `storage_${timeStamp}_${storageKeyName.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
     const localMediaItem: MediaItem = {
       ...existingItemMeta,
@@ -44,10 +51,11 @@ export class FirebaseStorageMediaService {
       type: existingItemMeta?.type || mediaType,
       mimeType: file.type || existingItemMeta?.mimeType || mimeType,
       url: workingLocalUrl,
-      sizeBytes: file.size || existingItemMeta?.sizeBytes || 1992294,
+      sizeBytes: file.size || existingItemMeta?.sizeBytes || 0,
       createdAt: timeStamp,
       updatedAt: Date.now(),
       tags: existingItemMeta?.tags || ['firebase_storage', mediaType],
+      storagePath,
     };
 
     // 0. Remove from deleted tombstones list so new uploads are never blocked
