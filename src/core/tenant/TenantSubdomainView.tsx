@@ -823,6 +823,8 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       const lowerId = id.toLowerCase();
       const lowerM = m.id.toLowerCase();
       return lowerId === lowerM ||
+        (lowerM === 'koscloudstore' && lowerId === 'media-gallery-hub') ||
+        (lowerM === 'media-gallery-hub' && lowerId === 'koscloudstore') ||
         (lowerM === 'kostogether' && lowerId === 'crm-groups-hub') ||
         (lowerM === 'crm-groups-hub' && lowerId === 'kostogether') ||
         (lowerM === 'ksf' && lowerId === 'smart-form-builder') ||

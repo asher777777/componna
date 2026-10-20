@@ -264,6 +264,8 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
       if (activeModules && activeModules.length > 0) {
         const lowerList = activeModules.map((x) => x.toLowerCase());
         const isMatch = lowerList.includes(m.id.toLowerCase()) ||
+          (m.id.toLowerCase() === 'koscloudstore' && lowerList.includes('media-gallery-hub')) ||
+          (m.id.toLowerCase() === 'media-gallery-hub' && lowerList.includes('koscloudstore')) ||
           (m.id.toLowerCase() === 'kostogether' && lowerList.includes('crm-groups-hub')) ||
           (m.id.toLowerCase() === 'crm-groups-hub' && lowerList.includes('kostogether')) ||
           (m.id.toLowerCase() === 'ksf' && lowerList.includes('smart-form-builder')) ||

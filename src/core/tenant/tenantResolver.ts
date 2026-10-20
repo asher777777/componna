@@ -30,6 +30,7 @@ export const DEFAULT_SUBDOMAIN_MODULES: string[] = [
   'KosWebAi',
   'flow-player-engine',
   'media-gallery-hub',
+  'KosCloudStore',
   'ambassador-campaigns-hub',
 ];
 
