@@ -1278,7 +1278,8 @@ export type DynamicListingLayout =
   | 'floating-grid'
   | 'snap-carousel'
   | 'editorial-list'
-  | 'masonry';
+  | 'masonry'
+  | 'strip-list';
 
 export type DynamicListingSource =
   | 'custom'
@@ -1352,6 +1353,8 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   logicRule?: DynamicListingLogicCondition;
   hideEmptyCategories?: boolean;
   archivePathFilter?: string; // Optional filter for specific archive paths
+  singlePageId?: string; // מזהה עמוד בודד להצגה ישירה
+  customImageOverride?: string; // דריסת תמונה מותאמת לאזור או לעמוד
 }
 
 export type FutureContentMode = 'prism-bento' | 'kinetic-editorial' | 'floating-islands';

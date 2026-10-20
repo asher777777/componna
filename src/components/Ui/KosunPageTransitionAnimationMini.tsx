@@ -9,16 +9,16 @@ export interface KosunPageTransitionAnimationMiniProps {
 /**
  * KosunPageTransitionAnimationMini
  * Compact looping replica of the signature KOSUN luxury reveal / page transition animation.
- * Features:
- * - Glowing pulsing 'K' vector emblem with sparkle
- * - Typing loop of "OSUN" in light cyan with blinking cursor
- * - Slogan fade "אינטראקציה שהיא נכס"
- * - Compact height suitable for footer strips / dock widgets
+ * Design specs:
+ * - Direction RTL:
+ *   [אינטראקציה שהיא נכס]  | (divider)  [K SUN (with typed loop)]
+ * - Thick vertical separator with logo gradient (indigo -> purple -> cyan)
+ * - Clickable to navigate to main domain (kosun.pro)
  */
 export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnimationMiniProps> = ({
   className = '',
   onClick,
-  title = 'מעבר לעמוד הראשי של Kosun',
+  title = 'מעבר לנתיב הראשי kosun.pro',
 }) => {
   const [typedText, setTypedText] = useState('');
   const [showSlogan, setShowSlogan] = useState(false);
@@ -45,12 +45,12 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
         } else {
           clearInterval(typeInterval);
           setShowSlogan(true);
-          // Hold full logo + slogan for 2.2s, then loop again
+          // Hold full logo + slogan for 2.4s, then loop again
           timer = setTimeout(() => {
             if (!isCancelled) runLoop();
-          }, 2200);
+          }, 2400);
         }
-      }, 160);
+      }, 150);
     };
 
     runLoop();
@@ -74,14 +74,15 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
       }}
       title={title}
       aria-label={title}
-      className={`inline-flex items-center gap-2 select-none group transition-all duration-300 ${
+      dir="rtl"
+      className={`inline-flex items-center gap-2.5 sm:gap-3 select-none group transition-all duration-300 ${
         onClick ? 'cursor-pointer hover:opacity-95' : ''
       } ${className}`}
     >
       <style>{`
         @keyframes miniKosunGlow {
-          0%, 100% { filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.4)); transform: scale(1); }
-          50% { filter: drop-shadow(0 0 12px rgba(56, 189, 248, 0.7)); transform: scale(1.04); }
+          0%, 100% { filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.45)); transform: scale(1); }
+          50% { filter: drop-shadow(0 0 14px rgba(56, 189, 248, 0.75)); transform: scale(1.04); }
         }
         @keyframes miniKosunBlink {
           0%, 100% { opacity: 1; }
@@ -95,10 +96,26 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
         }
       `}</style>
 
-      {/* Brand Typographic Lockup (LTR) */}
-      <div className="flex items-center gap-1.5" style={{ direction: 'ltr' }}>
+      {/* 1. Slogan (Right side in RTL): "אינטראקציה שהיא נכס" */}
+      <span
+        dir="rtl"
+        className={`text-[11px] sm:text-xs font-semibold tracking-wide transition-all duration-500 bg-gradient-to-r from-indigo-300 via-purple-300 to-sky-300 bg-clip-text text-transparent shrink-0 ${
+          showSlogan ? 'opacity-100 translate-x-0' : 'opacity-30'
+        }`}
+      >
+        אינטראקציה שהיא נכס
+      </span>
+
+      {/* 2. Thick vertical separator with brand logo gradient */}
+      <span
+        aria-hidden="true"
+        className="w-[3px] h-4 sm:h-5 rounded-full bg-gradient-to-b from-[#4f46e5] via-[#8b5cf6] to-[#38bdf8] shadow-[0_0_8px_rgba(56,189,248,0.5)] shrink-0"
+      />
+
+      {/* 3. Kosun Brand Lockup (Left side in RTL) */}
+      <div className="flex items-center gap-1.5 shrink-0" style={{ direction: 'ltr' }}>
         {/* K Emblem Mark */}
-        <div className="mini-kosun-k w-6 h-6 shrink-0 flex items-center justify-center">
+        <div className="mini-kosun-k w-6 h-6 sm:w-7 sm:h-7 shrink-0 flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="100%" height="100%">
             <defs>
               <linearGradient id="miniKGrad" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -124,24 +141,14 @@ export const KosunPageTransitionAnimationMini: React.FC<KosunPageTransitionAnima
           </svg>
         </div>
 
-        {/* Typed OSUN */}
-        <div className="flex items-baseline font-black text-xs sm:text-sm tracking-wider leading-none text-[#38bdf8]">
-          <span style={{ textShadow: '0 0 10px rgba(56, 189, 248, 0.65)' }}>{typedText}</span>
+        {/* Typed OSUN wordmark */}
+        <div className="flex items-baseline font-black text-sm sm:text-base tracking-wider leading-none text-[#38bdf8]">
+          <span style={{ textShadow: '0 0 12px rgba(56, 189, 248, 0.7)' }}>{typedText}</span>
           {typedText.length < 4 && (
-            <span className="mini-kosun-cursor text-[#38bdf8] font-light ml-0.5 text-[11px]">|</span>
+            <span className="mini-kosun-cursor text-[#38bdf8] font-light ml-0.5 text-xs sm:text-sm">|</span>
           )}
         </div>
       </div>
-
-      {/* Slogan */}
-      <span
-        dir="rtl"
-        className={`hidden md:inline-block text-[10px] font-medium tracking-wide transition-all duration-500 bg-gradient-to-r from-indigo-300 via-purple-300 to-sky-300 bg-clip-text text-transparent ${
-          showSlogan ? 'opacity-90 translate-x-0' : 'opacity-0 translate-x-1'
-        }`}
-      >
-        אינטראקציה שהיא נכס
-      </span>
     </div>
   );
 };

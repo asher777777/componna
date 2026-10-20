@@ -73,6 +73,8 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     logicRule = 'none',
     hideEmptyCategories = false,
     archivePathFilter,
+    singlePageId,
+    customImageOverride,
   } = config;
 
   // Dynamic Light / Dark mode and Brand DNA state
@@ -206,7 +208,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                 title: `${spec.defaultTitle}`,
                 subtitle: `${spec.defaultSubtitle} • מבית ${company}`,
                 excerpt: spec.description,
-                imageUrl: defaultImgs[idx % defaultImgs.length],
+                imageUrl: customImageOverride || defaultImgs[idx % defaultImgs.length],
                 badge: `ארכיון • ${spec.slugPrefix}`,
                 category: spec.name,
                 date: 'ארכיון פעיל',
@@ -251,12 +253,16 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
 
           const slug = p.publishedUrl || p.shortUrl || (p.slug ? (p.slug.startsWith('/') ? p.slug : `/${p.slug}`) : `/p/${p.pageId}`);
 
+          const itemImage = (singlePageId === p.pageId && customImageOverride)
+            ? customImageOverride
+            : defaultImg;
+
           pageItems.push({
             id: p.pageId,
             title: p.pageTitle,
             subtitle: heroSec?.subtitle || p.globalSettings?.slogan || catCfg?.description || '',
             excerpt: heroSec?.description || p.seoSettings?.description || '',
-            imageUrl: defaultImg,
+            imageUrl: itemImage,
             badge: catCfg?.shortLabel || 'עמוד פעיל',
             category: catCfg?.label || 'תוכן ומאמרים',
             date: p.createdAt ? new Date(p.createdAt).toLocaleDateString('he-IL') : undefined,
@@ -264,6 +270,16 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
             actionType: 'link',
           });
         });
+
+        // If singlePageId is specified, prioritize it
+        if (singlePageId && singlePageId !== 'all') {
+          const specificPage = pageItems.find(it => it.id === singlePageId);
+          if (specificPage) {
+            if (customImageOverride) specificPage.imageUrl = customImageOverride;
+            if (isMounted) setDynamicItems([specificPage]);
+            return;
+          }
+        }
 
         // 2. Add Brand Products & Services from tenant's Brand DNA
         if (!filterCategory || filterCategory === 'all' || filterCategory === 'checkout' || filterCategory === 'service_product') {
@@ -484,7 +500,7 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     return () => {
       isMounted = false;
     };
-  }, [source, items, filterCategory, archivePathFilter]);
+  }, [source, items, filterCategory, archivePathFilter, singlePageId, customImageOverride]);
 
   // Use dynamic items if available, otherwise config items
   const effectiveItems = dynamicItems && dynamicItems.length > 0 ? dynamicItems : items;
@@ -1328,6 +1344,81 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
                       {item.subtitle}
                     </p>
                   )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+
+        {/* =========================================================================
+            LAYOUT 6: STRIP ROWS (סטריפים אופקיים - שורות רחבות)
+        ========================================================================= */}
+        {layout === 'strip-list' && filteredItems.length > 0 && (
+          <div className="flex flex-col gap-4 sm:gap-6">
+            {filteredItems.map((item, idx) => (
+              <div
+                key={item.id}
+                onClick={() => handleCardClick(item)}
+                className={clsx(
+                  'group relative overflow-hidden bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-500/50 shadow-md hover:shadow-xl transition-all duration-300 p-4 sm:p-5 flex flex-col md:flex-row items-center justify-between gap-5 cursor-pointer',
+                  effectiveBoxShape === 'sharp' ? 'rounded-none' : effectiveBoxShape === 'hud' ? 'rounded-lg' : 'rounded-2xl'
+                )}
+                style={{ backgroundColor: cardBgColor }}
+              >
+                {/* Right/Top: Thumbnail Image & Badges */}
+                <div className="flex items-center gap-4 w-full md:w-auto">
+                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0 overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800">
+                    <img
+                      src={item.imageUrl}
+                      alt={item.title}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    {item.badge && (
+                      <span className={clsx('absolute top-1.5 right-1.5 px-2 py-0.5 text-[10px] font-bold shadow-sm', getCardBadgeClasses())}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Main text & excerpts */}
+                  <div className="flex flex-col gap-1 flex-grow">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {item.category && (
+                        <span className={clsx('px-2.5 py-0.5 text-[11px] font-bold', getCardBadgeClasses())}>
+                          {item.category}
+                        </span>
+                      )}
+                      {item.date && (
+                        <span className="text-[11px] font-mono text-slate-400">
+                          {item.date}
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white leading-snug group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                      {item.title}
+                    </h4>
+
+                    {(item.subtitle || item.excerpt) && (
+                      <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 line-clamp-2 max-w-2xl leading-relaxed">
+                        {item.subtitle || item.excerpt}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Left/Bottom Action Button */}
+                <div className="w-full md:w-auto flex items-center justify-between md:justify-end gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100 dark:border-slate-800">
+                  {item.price && (
+                    <span className="text-sm font-black text-emerald-500 dark:text-emerald-400">
+                      {item.price}
+                    </span>
+                  )}
+                  <div className="flex items-center gap-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 group-hover:translate-x-[-4px] transition-transform">
+                    <span>לפרטים המלאים</span>
+                    <ArrowLeft className="w-4 h-4" />
+                  </div>
                 </div>
               </div>
             ))}

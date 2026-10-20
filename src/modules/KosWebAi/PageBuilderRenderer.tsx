@@ -754,13 +754,8 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
             </a>
           </div>
 
-          {/* Center: Copyright to Kosun */}
-          <div className="text-center font-medium text-slate-400 text-[10px] sm:text-xs">
-            כל הזכויות שמורות ל Kosun © {new Date().getFullYear()}
-          </div>
-
-          {/* Left Side: Looping Mini Page Transition Animation navigating to kosun.pro */}
-          <div className="flex items-center justify-end">
+          {/* Center: Looping Mini Page Transition Animation navigating to kosun.pro */}
+          <div className="flex items-center justify-center">
             <KosunPageTransitionAnimationMini
               title="מעבר לנתיב הראשי kosun.pro"
               onClick={() => {
@@ -768,6 +763,11 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               }}
               className="hover:scale-105 transition-transform"
             />
+          </div>
+
+          {/* Left Side: Copyright to Kosun */}
+          <div className="flex items-center justify-end text-left font-medium text-slate-400 text-[10px] sm:text-xs">
+            כל הזכויות שמורות ל Kosun © {new Date().getFullYear()}
           </div>
         </div>
       </div>

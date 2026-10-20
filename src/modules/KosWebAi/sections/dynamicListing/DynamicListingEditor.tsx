@@ -16,6 +16,9 @@ import {
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
+import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
+import { ARCHIVE_7_SECTIONS_SPECS, PAGE_CATEGORIES } from '../../types/pageBuilder.types';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract } from '../../../../core/contracts';
 import {
@@ -229,6 +232,37 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
+  const [tenantPages, setTenantPages] = useState<Array<{ pageId: string; pageTitle: string; pageCategory?: string; slug: string; heroData?: any }>>([]);
+  const [loadingTenantPages, setLoadingTenantPages] = useState(false);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadTenantPages = async () => {
+      setLoadingTenantPages(true);
+      try {
+        const tenantId = resolveCurrentTenantId() || ROOT_TENANT_ID;
+        const allPages = await pageBuilderFirestore.getAllPages(null, tenantId);
+        if (isMounted && allPages) {
+          setTenantPages(allPages.map(p => {
+            const heroSec = Object.values(p.sections || {}).find((s: any) => s && s.type === 'hero') as any;
+            return {
+              pageId: p.pageId,
+              pageTitle: p.pageTitle || p.seoSettings?.title || p.slug,
+              pageCategory: p.pageCategory || 'general',
+              slug: p.slug,
+              heroData: heroSec
+            };
+          }));
+        }
+      } catch (e) {
+        console.warn('Failed to load tenant pages for DynamicListingEditor', e);
+      } finally {
+        if (isMounted) setLoadingTenantPages(false);
+      }
+    };
+    loadTenantPages();
+    return () => { isMounted = false; };
+  }, []);
 
   // Dynamic Light / Dark mode sync from document element
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -394,6 +428,32 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
     DYNAMIC_LISTING_STYLE_DEFINITIONS.find((d) => d.id === hoveredLayoutId) || null;
 
   const items = formData.items || [];
+
+
+  const handleSelectSinglePage = (pageId: string) => {
+    if (!pageId || pageId === 'all') {
+      updateField('singlePageId', '');
+      return;
+    }
+    const foundPage = tenantPages.find(p => p.pageId === pageId);
+    if (foundPage) {
+      const hero = foundPage.heroData;
+      const catCfg = foundPage.pageCategory ? (foundPage.pageCategory && foundPage.pageCategory in PAGE_CATEGORIES ? PAGE_CATEGORIES[foundPage.pageCategory as keyof typeof PAGE_CATEGORIES] : null) : null;
+      const patch: Partial<DynamicListingSectionConfig> = {
+        singlePageId: pageId,
+        title: foundPage.pageTitle || hero?.title || formData.title,
+        subtitle: hero?.subtitle || catCfg?.description || formData.subtitle,
+        badge: catCfg?.shortLabel || formData.badge || 'עמוד נבחר',
+        customImageOverride: hero?.imageSrc || hero?.imageUrl || formData.customImageOverride,
+      };
+      const updated = { ...formData, ...patch };
+      setFormData(updated);
+      onChange(updated);
+      showNotification(`הנתונים עודכנו בהצלחה מתוך עמוד "${foundPage.pageTitle}"`);
+    } else {
+      updateField('singlePageId', pageId);
+    }
+  };
 
   return (
     <div
@@ -857,6 +917,7 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
                   <option value="snap-carousel">3. קרוסלה אופקית חלקה (Infinite Snap Carousel)</option>
                   <option value="editorial-list">4. רשימת מגזין יוקרתית (Editorial List עם תמונה צפה)</option>
                   <option value="masonry">5. גריד א-סימטרי פינטרסט (Asymmetric Masonry)</option>
+                  <option value="strip-list">6. שורות כסטריפים (Strip Rows - פריסה אופקית מרווחת)</option>
                 </select>
               </div>
 
@@ -969,52 +1030,129 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
               </div>
 
               {formData.source === 'archives' && (
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
-                    <FolderArchive className="w-3.5 h-3.5 text-indigo-400" />
-                    <span>סינון נתיב ארכיון ספציפי</span>
-                  </label>
-                  <select
-                    value={formData.archivePathFilter || 'all'}
-                    onChange={(e) => updateField('archivePathFilter', e.target.value)}
-                    className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
-                      isDarkMode
-                        ? 'bg-black border-white/10 text-white'
-                        : 'bg-white border-slate-300 text-slate-900'
-                    }`}
-                  >
-                    <option value="all">כל נתיבי הארכיונים (7 ארכיונים ראשיים)</option>
-                    <option value="info_content">/kosinfo • מרכז התוכן, הידע והמאמרים</option>
-                    <option value="event">/kosevent • לוח האירועים, הכנסים והסדנאות</option>
-                    <option value="checkout">/koscheckout • מרכז המוצרים, החבילות והסליקה</option>
-                    <option value="community">/koscommunity • פורטל הקהילות והמועדונים</option>
-                    <option value="fundraising">/kosfunrise • מרכז הקמפיינים והגיוס</option>
-                    <option value="course">/koscourse • האקדמיה הדיגיטלית ומרכז הקורסים</option>
-                    <option value="service_product">/kosass • קטלוג השירותים והפתרונות</option>
-                    <option value="youtube_post">/kosvidio • מרכז הוידאו והשידורים החיים</option>
-                  </select>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                      <FolderArchive className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>סינון נתיב ארכיון ספציפי</span>
+                    </label>
+                    <select
+                      value={formData.archivePathFilter || 'all'}
+                      onChange={(e) => updateField('archivePathFilter', e.target.value)}
+                      className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
+                        isDarkMode
+                          ? 'bg-black border-white/10 text-white'
+                          : 'bg-white border-slate-300 text-slate-900'
+                      }`}
+                    >
+                      <option value="all">כל נתיבי הארכיונים של הטננט (כולם)</option>
+                      {Object.entries(ARCHIVE_7_SECTIONS_SPECS).map(([catKey, spec]) => (
+                        <option key={catKey} value={catKey}>
+                          /{spec.slugPrefix} • {spec.name} ({spec.defaultTitle})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* אפשרות לקבוע תמונה מותאמת לארכיון */}
+                  <div className="pt-2 border-t border-white/10">
+                    <PageBuilderImageUpload
+                      label="תמונה מותאמת לאזור הארכיון"
+                      value={formData.customImageOverride || ''}
+                      onChange={(imgUrl) => updateField('customImageOverride', imgUrl)}
+                    />
+                  </div>
                 </div>
               )}
 
               {formData.source === 'pages' && (
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-zinc-300">סינון לפי קטגוריית עמודים</label>
-                  <select
-                    value={formData.filterCategory || 'all'}
-                    onChange={(e) => updateField('filterCategory', e.target.value)}
-                    className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
-                      isDarkMode
-                        ? 'bg-black border-white/10 text-white'
-                        : 'bg-white border-slate-300 text-slate-900'
-                    }`}
-                  >
-                    <option value="all">כל סוגי העמודים והמוצרים (All)</option>
-                    <option value="event">עמודי אירועים וכנסים בלבד</option>
-                    <option value="course">דפי קורסים והכשרות בלבד</option>
-                    <option value="fundraising">קמפיין וגיוס כספים בלבד</option>
-                    <option value="checkout">דפי נחיתה ומוצרים בלבד</option>
-                    <option value="service_product">מוצרי דגל ושירותים מתוך האקוסיסטם</option>
-                  </select>
+                <div className="space-y-3">
+                  <div className="space-y-1">
+                    <label className="text-xs font-bold text-zinc-300 flex items-center gap-1.5">
+                      <Filter className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>סינון לפי נתיב קטגוריה בטננט</span>
+                    </label>
+                    <select
+                      value={formData.filterCategory || 'all'}
+                      onChange={(e) => {
+                        const newCat = e.target.value;
+                        updateField('filterCategory', newCat);
+                        // Reset singlePageId if category changes
+                        if (formData.singlePageId) {
+                          updateField('singlePageId', '');
+                        }
+                      }}
+                      className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
+                        isDarkMode
+                          ? 'bg-black border-white/10 text-white'
+                          : 'bg-white border-slate-300 text-slate-900'
+                      }`}
+                    >
+                      <option value="all">כל סוגי העמודים והנתיבים (All)</option>
+                      {Object.values(PAGE_CATEGORIES).map((cat) => (
+                        <option key={cat.key} value={cat.key}>
+                          /{cat.slugPrefixLower} • {cat.label} ({cat.shortLabel})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* בחירת עמוד בודד מתוך הקטגוריה שנבחרה ומילוי אוטומטי של נתוני האזור */}
+                  <div className="space-y-1 p-2.5 rounded-xl border border-indigo-500/30 bg-indigo-500/5">
+                    <label className="text-xs font-bold text-indigo-300 flex items-center justify-between">
+                      <span className="flex items-center gap-1.5">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>משיכת נתוני עמוד בודד (בחירת עמוד מהקטגוריה)</span>
+                      </span>
+                      {formData.singlePageId && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectSinglePage('')}
+                          className="text-[10px] text-amber-400 hover:underline cursor-pointer"
+                        >
+                          נקה בחירת עמוד
+                        </button>
+                      )}
+                    </label>
+
+                    {loadingTenantPages ? (
+                      <p className="text-[11px] text-zinc-400">טוען עמודים זמינים...</p>
+                    ) : (
+                      <select
+                        value={formData.singlePageId || 'all'}
+                        onChange={(e) => handleSelectSinglePage(e.target.value)}
+                        className={`w-full rounded-xl px-3 py-2 text-xs outline-none border ${
+                          isDarkMode
+                            ? 'bg-black border-white/10 text-white'
+                            : 'bg-white border-slate-300 text-slate-900'
+                        }`}
+                      >
+                        <option value="all">הצג את כל עמודי הקטגוריה (ללא התמקדות בעמוד בודד)</option>
+                        {tenantPages
+                          .filter((p) => {
+                            if (!formData.filterCategory || formData.filterCategory === 'all') return true;
+                            return p.pageCategory === formData.filterCategory;
+                          })
+                          .map((p) => (
+                            <option key={p.pageId} value={p.pageId}>
+                              {p.pageTitle} (/{p.slug})
+                            </option>
+                          ))}
+                      </select>
+                    )}
+                    <p className="text-[10px] text-zinc-400 leading-tight">
+                      בחירת עמוד ממלאת אוטומטית את כותרת האזור, תת-הכותרת, התגית והתמונה המותאמת.
+                    </p>
+                  </div>
+
+                  {/* אפשרות לקבוע תמונה מותאמת ישירות לאזור */}
+                  <div className="pt-2 border-t border-white/10">
+                    <PageBuilderImageUpload
+                      label="תמונה מותאמת לאזור (דריסת תמונת הרקע / כרטיס ראשי)"
+                      value={formData.customImageOverride || ''}
+                      onChange={(imgUrl) => updateField('customImageOverride', imgUrl)}
+                    />
+                  </div>
                 </div>
               )}
 
