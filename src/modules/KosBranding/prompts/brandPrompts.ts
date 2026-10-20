@@ -684,6 +684,8 @@ export function BUILD_BRAND_UI_VOCABULARY_PROMPT(
     "advantagesHeading": "כותרת אזור יתרונות / למה דווקא אנחנו",
     "advantagesSubtitle": "כותרת משנה לאזור יתרונות",
     "painPointsHeading": "כותרת אזור מענה לאתגרים / כאבים",
+    "landingHeading": "כותרת דף נחיתה והרשמה לקבלת פרטים",
+    "landingSubtitle": "תת-כותרת דף נחיתה והרשמה",
     "painPointsSubtitle": "כותרת משנה לאזור אתגרים",
     "targetAudiencesHeading": "כותרת אזור קהלי יעד / למי זה מתאים",
     "targetAudiencesSubtitle": "כותרת משנה לאזור קהלי יעד",

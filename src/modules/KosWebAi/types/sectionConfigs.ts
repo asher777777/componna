@@ -1,3 +1,4 @@
+import { CommunityBlueprint, CommunityAffiliationType } from '../../../core/contracts';
 import { BaseSectionConfig } from './pageBuilder.types';
 import { FormConfigContract } from '../../../core/contracts';
 
@@ -703,6 +704,14 @@ export interface RichContentSectionConfig extends BaseSectionConfig {
 }
 
 export interface CommunitySectionConfig extends BaseSectionConfig {
+  selectedCommunityId?: string;
+  blueprint?: CommunityBlueprint;
+  showEventsCalendar?: boolean;
+  showStoriesFeed?: boolean;
+  showGrowthCta?: boolean;
+  showMembersCounter?: boolean;
+  enableLiveChatForMembers?: boolean;
+  gateMode?: 'auto' | 'simulate-guest' | 'simulate-member';
   type: 'community';
   title: string;
   subtitle?: string;
@@ -815,6 +824,19 @@ export type LandingFormPosition = 'left' | 'right' | 'bottom' | 'modal';
 
 export interface LandingSectionConfig extends BaseSectionConfig {
   type: 'landingSection';
+  isUnbounded?: boolean;
+  buttonPosition?: 'start' | 'center' | 'end';
+  contentAlignment?: 'right' | 'center' | 'left';
+  imageOverflow?: boolean;
+  imageOverflowOffset?: 'top' | 'bottom' | 'side' | 'both';
+  imageBorderRadius?: 'none' | 'md' | '2xl' | 'full';
+  titleFontSize?: string;
+  titleFontWeight?: string;
+  titleItalic?: boolean;
+  titleUnderline?: boolean;
+  titleAlignment?: 'right' | 'center' | 'left';
+  subtitleFontSize?: string;
+  subtitleFontWeight?: string;
   title: string;
   subtitle?: string;
   badge?: string;

@@ -41,6 +41,8 @@ import { PRESET_COLORS, RULE_FIELD_OPTIONS, RULE_OPERATOR_OPTIONS } from '../con
 import { isContactInGroup } from '../services/groupsUtils';
 import { generateCommunityVision } from '../services/togetherCopilotService';
 import { LeaderContactAutocomplete } from './LeaderContactAutocomplete';
+import { CommunityBlueprintEditor } from './CommunityBlueprintEditor';
+import { CommunityBlueprint, CommunityAffiliationType } from '../types';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import {
   MediaPickerContract,
@@ -178,7 +180,7 @@ export const COMMUNITY_PALETTES = [
   { name: 'זהב יוקרתי', primary: '#f59e0b', secondary: '#d97706' },
 ];
 
-export type CommunityTab = 'identity' | 'services' | 'design' | 'page' | 'rules';
+export type CommunityTab = 'identity' | 'blueprint' | 'services' | 'design' | 'page' | 'rules';
 
 interface GroupEditModalProps {
   isOpen: boolean;
@@ -206,6 +208,23 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
   const [saveSuccessNotice, setSaveSuccessNotice] = useState(false);
 
   // Form State - Identity
+  const [blueprint, setBlueprint] = useState<CommunityBlueprint>({
+    id: editingGroup?.id || 'new_community',
+    name: editingGroup?.name || '',
+    affiliationType: (editingGroup?.blueprint?.affiliationType as CommunityAffiliationType) || 'customers',
+    mission: editingGroup?.blueprint?.mission || editingGroup?.purpose || '',
+    visionAndGoals: editingGroup?.blueprint?.visionAndGoals || editingGroup?.vision || '',
+    events: editingGroup?.blueprint?.events || [],
+    stories: editingGroup?.blueprint?.stories || [],
+    growth: editingGroup?.blueprint?.growth || { proposals: [], autoApproval: true },
+    visibility: editingGroup?.blueprint?.visibility || {
+      guestPreviewPostsCount: 1,
+      hideLiveChatFromGuests: true,
+      hideMeetingLinksFromGuests: true,
+      hideMembersDirectoryFromGuests: true,
+      guestJoinCtaText: 'הצטרפות לקהילת הארגון',
+    },
+  });
   const [name, setName] = useState('');
   const [leaderName, setLeaderName] = useState('');
   const [selectedLeaderContact, setSelectedLeaderContact] = useState<ContactRecord | null>(null);
@@ -675,6 +694,7 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
 
   const TAB_ITEMS: Array<{ id: CommunityTab; label: string; icon: React.ComponentType<{ className?: string }> }> = [
     { id: 'identity', label: '1. זהות עסקית ומטרה', icon: Building2 },
+    { id: 'blueprint', label: '2. תעודת זהות קהילתית ומפגש', icon: Target },
     { id: 'services', label: '2. שירותים ופעילויות', icon: Layers },
     { id: 'design', label: '3. שפה חזותית וצבעים', icon: Palette },
     { id: 'page', label: '4. עמוד אינטרנט (/to/)', icon: Globe },
@@ -964,6 +984,13 @@ export const GroupEditModal: React.FC<GroupEditModalProps> = ({
           )}
 
           {/* TAB 2: שירותים ופעילויות */}
+          {activeTab === 'blueprint' && (
+            <CommunityBlueprintEditor
+              blueprint={blueprint}
+              onChange={(updated) => setBlueprint(updated)}
+            />
+          )}
+
           {activeTab === 'services' && (
             <div className="space-y-6 animate-in fade-in">
               {/* Services List */}

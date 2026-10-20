@@ -12,9 +12,10 @@ import { ContactFormConfigEditor } from '../contact/ContactFormConfigEditor';
 import { DEFAULT_LANDING_FORM_CONFIG } from './LandingFormDefaults';
 import { resolveLiveBrandDna } from '../../services/brandSectionHydrator';
 import { loadBrandDna } from '../../../KosBranding/services/brandDnaFirestore';
-import { BrandDna } from '../../../../core/contracts';
+import { BrandDna, AiTextAssistantContract, BrandDnaContract } from '../../../../core/contracts';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
+import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import {
   Sparkles,
   Shield,
@@ -35,7 +36,19 @@ import {
   Send,
   ChevronDown,
   LayoutTemplate,
+  Maximize2,
+  MoveHorizontal,
+  AlignRight,
+  AlignCenter,
+  AlignLeft,
+  Bold,
+  Italic,
+  Underline,
+  Type,
+  Loader2,
+  Box,
 } from 'lucide-react';
+import { clsx } from 'clsx';
 
 export interface LandingEditorProps {
   config: LandingSectionConfig;
@@ -192,6 +205,10 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
   onClose,
 }) => {
   const { db } = useSystemConnection();
+  const { getCapability } = useHostCapabilities();
+  const aiAssistant = getCapability<AiTextAssistantContract>('ai-assistant');
+  const rawBrandCap = getCapability<BrandDnaContract>('brand-dna')?.getBrandDna() || null;
+
   const effTenant = useMemo(
     () => (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || '_master',
     []
@@ -204,6 +221,9 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
+
+  // AI loading per field
+  const [aiLoadingField, setAiLoadingField] = useState<string | null>(null);
 
   // Synchronize when outer config changes and not dirty
   useEffect(() => {
@@ -234,14 +254,21 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
   }, [db, effTenant]);
 
   const liveBrand = useMemo(
-    () => resolveLiveBrandDna(firestoreBrand, effTenant),
-    [firestoreBrand, effTenant]
+    () => resolveLiveBrandDna(firestoreBrand || rawBrandCap, effTenant),
+    [firestoreBrand, rawBrandCap, effTenant]
   );
 
-  // Accordions: All closed by default
-  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
-  const toggleAccordion = (id: string) => {
-    setOpenAccordion((prev) => (prev === id ? null : id));
+  // Nested Exclusive Accordions - ALL CLOSED BY DEFAULT
+  const [openMainAccordion, setOpenMainAccordion] = useState<string | null>(null);
+  const [openNestedAccordion, setOpenNestedAccordion] = useState<string | null>(null);
+
+  const toggleMainAccordion = (id: string) => {
+    setOpenMainAccordion((prev) => (prev === id ? null : id));
+    setOpenNestedAccordion(null);
+  };
+
+  const toggleNestedAccordion = (id: string) => {
+    setOpenNestedAccordion((prev) => (prev === id ? null : id));
   };
 
   // Hover layout tooltip
@@ -277,6 +304,31 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
     onChange(next);
   };
 
+  // AI Text Enhancement Handler
+  const handleEnhanceTextWithAi = async (
+    fieldKey: 'title' | 'subtitle' | 'badge' | 'description' | 'modalButtonText' | 'buttonText',
+    instruction: string
+  ) => {
+    if (!aiAssistant) return;
+    const currentText = (localConfig as any)[fieldKey] || '';
+    setAiLoadingField(fieldKey);
+    try {
+      const voiceHint = liveBrand?.voice?.powerWords?.slice(0, 3).join(', ') || '';
+      const res = await aiAssistant.enhanceText({
+        originalText: currentText,
+        instruction: `${instruction}. מילות מפתח מותג: ${voiceHint}. פנייה: ${liveBrand?.voice?.genderAddressing || 'direct'}.`,
+        brandDna: liveBrand,
+      });
+      if (res && res.text) {
+        handleUpdate({ [fieldKey]: res.text });
+      }
+    } catch (err) {
+      console.warn('AI Enhance failed:', err);
+    } finally {
+      setAiLoadingField(null);
+    }
+  };
+
   // Brand DNA sync
   const handleSyncBrandDna = () => {
     if (!liveBrand) return;
@@ -285,13 +337,25 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
     const slogan = liveBrand.identity?.slogan || '';
     const uvp = liveBrand.audience?.mainUvp || liveBrand.identity?.companyVision || '';
     const primaryColor = liveBrand.designTokens?.primaryColor;
+    const uiVocab = liveBrand.uiVocabulary;
+
+    const brandTitle =
+      uiVocab?.sectionHeadings?.landingHeading ||
+      uiVocab?.sectionHeadings?.painPointsHeading ||
+      (companyName ? `השאירו פרטים לקבלת מידע נוסף מ-${companyName}` : localConfig.title);
+
+    const brandSubtitle =
+      uiVocab?.sectionHeadings?.landingSubtitle || slogan || localConfig.subtitle;
+
+    const brandSubmitText = uiVocab?.formSubmitText || localConfig.buttonText;
 
     const next: LandingSectionConfig = {
       ...localConfig,
-      title: companyName ? `השאירו פרטים לקבלת מידע נוסף מ-${companyName}` : localConfig.title,
-      subtitle: slogan || localConfig.subtitle,
+      title: brandTitle,
+      subtitle: brandSubtitle,
       badge: companyName ? `• ${companyName} LEADS •` : '• קבלת מידע נוסף •',
       description: uvp || localConfig.description,
+      buttonText: brandSubmitText,
       accentColor: primaryColor || localConfig.accentColor,
     };
 
@@ -332,7 +396,6 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
     >
       {/* 1. Header: Compact with Two-Letter Avatar Icon (LS), Title, Brand DNA Sync, Save Icon, and Close */}
       <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b shrink-0 border-white/10">
-        {/* Right: Connected Two-Letter Avatar Icon (LS) + Title */}
         <div className="flex items-center gap-2 max-w-[70%]">
           <div
             className="w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-black shrink-0 shadow-sm border select-none bg-indigo-500/20 text-indigo-400 border-indigo-500/30"
@@ -351,7 +414,7 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
           </div>
         </div>
 
-        {/* Left: Quick Actions */}
+        {/* Quick Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             type="button"
@@ -428,7 +491,7 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
         </div>
       )}
 
-      {/* 2. Top Icon Menu for the 6 Visual Presets (Icons only by default, with rich interactive hover tooltip) */}
+      {/* 2. Top Icon Menu for the 6 Visual Presets */}
       <div className="p-2.5 mb-2.5 rounded-2xl border relative transition-all bg-[#141414] border-white/5">
         <div className="flex items-center justify-between mb-1.5 px-1">
           <span className="text-[10px] font-bold text-indigo-400 flex items-center gap-1">
@@ -440,7 +503,6 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
           </span>
         </div>
 
-        {/* 6 Icons Row */}
         <div className="grid grid-cols-6 gap-1.5">
           {LANDING_LAYOUT_DEFINITIONS.map((def) => {
             const IconComp = def.icon;
@@ -458,11 +520,12 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                   onFocus={() => setHoveredLayoutId(def.id)}
                   onBlur={() => setHoveredLayoutId(null)}
                   aria-label={def.title}
-                  className={`w-full py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
+                  className={clsx(
+                    'w-full py-2 px-1 rounded-xl border flex flex-col items-center justify-center gap-1 transition-all cursor-pointer',
                     isSelected
                       ? 'bg-indigo-500/20 border-indigo-500 text-indigo-400 shadow-md ring-1 ring-indigo-500/40'
                       : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
-                  }`}
+                  )}
                 >
                   <div className="flex items-center gap-1">
                     <span className="text-[10px] font-black opacity-75">{def.letter}.</span>
@@ -475,7 +538,6 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
           })}
         </div>
 
-        {/* Rich Interactive Tooltip on Hover / Focus */}
         {tooltipLayoutDef && (
           <div className="mt-2 p-3 rounded-xl border text-xs space-y-1.5 animate-fadeIn shadow-xl bg-[#0d0d0d] border-indigo-500/40 text-zinc-200">
             <div className="flex items-center justify-between border-b pb-1.5 border-indigo-500/20">
@@ -512,28 +574,49 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
         )}
       </div>
 
-      {/* 3. Five Closed-by-Default Accordions */}
+      {/* 3. Exclusive Nested Accordions (All Closed by Default) */}
       <div className="flex flex-col gap-2">
-        {/* Accordion 1: סגנונות פריסה, מיקום וגדלים */}
+        {/* Accordion 1: סגנונות פריסה, מיקום הטופס וגדלים */}
         <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleAccordion('layout')}
+            onClick={() => toggleMainAccordion('layout')}
             className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+            title="הגדרות פריסה, תצוגת מודאל, מיקום כפתור ומסגרת פתוחה"
           >
             <div className="flex items-center gap-2">
               <Sliders className="w-4 h-4 text-indigo-400" />
-              <span>1. סגנונות פריסה, מיקום הטופס וגדלים</span>
+              <span>1. סגנונות פריסה, מיקום הטופס ומסגרת (Layout & Boundary)</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${
-                openAccordion === 'layout' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
-              }`}
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                openMainAccordion === 'layout' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
+              )}
             />
           </button>
 
-          {openAccordion === 'layout' && (
+          {openMainAccordion === 'layout' && (
             <div className="p-3.5 border-t border-white/10 space-y-3.5 bg-black/30">
+              {/* Unbounded section toggle */}
+              <div className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-white block">אזור לא תחום (Unbounded Layout)</span>
+                  <span className="text-[11px] text-zinc-400 block mt-0.5">
+                    הסרת מסגרת הכרטיס והצללים כדי שהאזור ישתלב ברקע העמוד באופן פתוח
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(localConfig.isUnbounded)}
+                    onChange={(e) => handleUpdate({ isUnbounded: e.target.checked })}
+                    className="sr-only peer"
+                  />
+                  <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
+                </label>
+              </div>
+
               {/* Form Placement / Position */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-xs font-semibold text-zinc-300">מיקום תצוגת הטופס באזור (Form Placement)</label>
@@ -548,16 +631,80 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                       key={pos.id}
                       type="button"
                       onClick={() => handleUpdate({ formPosition: pos.id as LandingFormPosition })}
-                      className={`p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5 ${
+                      className={clsx(
+                        'p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-0.5',
                         (localConfig.formPosition || 'left') === pos.id
                           ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
                           : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-                      }`}
+                      )}
                     >
                       <span className="text-xs">{pos.label}</span>
                       <span className="text-[10px] opacity-75">{pos.desc}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* Modal Trigger Button Placement Options (Start, Center, End) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">מיקום כפתור הפעולה (CTA Placement)</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'start', label: 'ימין (התחלה)', icon: AlignRight },
+                      { id: 'center', label: 'מרכז', icon: AlignCenter },
+                      { id: 'end', label: 'שמאל (סוף)', icon: AlignLeft },
+                    ].map((bp) => {
+                      const IconComp = bp.icon;
+                      return (
+                        <button
+                          key={bp.id}
+                          type="button"
+                          onClick={() => handleUpdate({ buttonPosition: bp.id as any })}
+                          className={clsx(
+                            'p-2 rounded-xl border text-xs text-center transition cursor-pointer flex flex-col items-center gap-1',
+                            (localConfig.buttonPosition || 'start') === bp.id
+                              ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          )}
+                          title={`מיקום כפתור: ${bp.label}`}
+                        >
+                          <IconComp className="w-4 h-4" />
+                          <span className="text-[10px]">{bp.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs font-semibold text-zinc-300">יישור טקסט ותוכן כללי</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'right', label: 'לימין', icon: AlignRight },
+                      { id: 'center', label: 'מרכז', icon: AlignCenter },
+                      { id: 'left', label: 'לשמאל', icon: AlignLeft },
+                    ].map((ca) => {
+                      const IconComp = ca.icon;
+                      return (
+                        <button
+                          key={ca.id}
+                          type="button"
+                          onClick={() => handleUpdate({ contentAlignment: ca.id as any })}
+                          className={clsx(
+                            'p-2 rounded-xl border text-xs text-center transition cursor-pointer flex flex-col items-center gap-1',
+                            (localConfig.contentAlignment || 'right') === ca.id
+                              ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          )}
+                          title={`יישור תוכן: ${ca.label}`}
+                        >
+                          <IconComp className="w-4 h-4" />
+                          <span className="text-[10px]">{ca.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -567,12 +714,30 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                   <div className="text-[11px] text-indigo-300 font-bold">
                     הטופס יפתח כחלון מודאל מרחף ומעוצב בסגנון המיתוג שנבחר!
                   </div>
-                  <PageBuilderInput
-                    label="טקסט כפתור פתיחת הטופס"
-                    value={localConfig.modalButtonText || ''}
-                    placeholder="השאירו פרטים לקבלת מידע"
-                    onChange={(e) => handleUpdate({ modalButtonText: resolveInputValue(e) })}
-                  />
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      value={localConfig.modalButtonText || ''}
+                      onChange={(e) => handleUpdate({ modalButtonText: e.target.value })}
+                      placeholder="השאירו פרטים לקבלת מידע"
+                      className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                    />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        handleEnhanceTextWithAi('modalButtonText', 'נסח קריאה לפעולה ממירה לפתיחת טופס הרשמה במודאל')
+                      }
+                      disabled={aiLoadingField === 'modalButtonText'}
+                      className="p-2 rounded-lg bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 border border-indigo-500/30 cursor-pointer"
+                      title="שפר טקסט כפתור באמצעות AI"
+                    >
+                      {aiLoadingField === 'modalButtonText' ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Wand2 className="w-3.5 h-3.5" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -589,11 +754,12 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                       key={s.id}
                       type="button"
                       onClick={() => handleUpdate({ objectScale: s.id as any })}
-                      className={`p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      className={clsx(
+                        'p-2 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1',
                         (localConfig.objectScale || 'normal') === s.id
                           ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
                           : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-                      }`}
+                      )}
                     >
                       <span className="text-xs">{s.label}</span>
                       <span className="text-[10px] opacity-75">{s.desc}</span>
@@ -616,11 +782,12 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                         key={b.id}
                         type="button"
                         onClick={() => handleUpdate({ buttonShape: b.id as any })}
-                        className={`p-1.5 rounded-lg border text-xs text-center transition cursor-pointer ${
+                        className={clsx(
+                          'p-1.5 rounded-lg border text-xs text-center transition cursor-pointer',
                           (localConfig.buttonShape || 'rounded') === b.id
                             ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
                             : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
-                        }`}
+                        )}
                       >
                         {b.label}
                       </button>
@@ -640,11 +807,12 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                         key={sz.id}
                         type="button"
                         onClick={() => handleUpdate({ buttonSize: sz.id as any })}
-                        className={`p-1.5 rounded-lg border text-xs text-center transition cursor-pointer ${
+                        className={clsx(
+                          'p-1.5 rounded-lg border text-xs text-center transition cursor-pointer',
                           (localConfig.buttonSize || 'md') === sz.id
                             ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
                             : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
-                        }`}
+                        )}
                       >
                         {sz.label}
                       </button>
@@ -656,90 +824,438 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
           )}
         </div>
 
-        {/* Accordion 2: כותרות, תגית עליונה ותיאור */}
+        {/* Accordion 2: תוכן, טיפוגרפיה ועוזר AI (Nested Accordion) */}
         <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleAccordion('headings')}
+            onClick={() => toggleMainAccordion('content_typography')}
             className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+            title="עריכת כותרות, תיאור, פונטים וסוכן AI"
           >
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-indigo-400" />
-              <span>2. כותרות, תגית עליונה ותיאור</span>
+              <Type className="w-4 h-4 text-emerald-400" />
+              <span>2. תוכן, טיפוגרפיה ועוזר AI (Nested Accordion)</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${
-                openAccordion === 'headings' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
-              }`}
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                openMainAccordion === 'content_typography' ? 'rotate-180 text-emerald-400' : 'text-zinc-500'
+              )}
             />
           </button>
 
-          {openAccordion === 'headings' && (
-            <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
-              <PageBuilderInput
-                label="תגית עליונה (Badge)"
-                value={localConfig.badge || ''}
-                placeholder="הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון"
-                onChange={(e) => handleUpdate({ badge: resolveInputValue(e) })}
-              />
+          {openMainAccordion === 'content_typography' && (
+            <div className="p-3 border-t border-white/10 space-y-2 bg-black/40">
+              {/* Nested Item 2.1: כותרת ראשית ותגית עליונה */}
+              <div className="border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => toggleNestedAccordion('title_sub')}
+                  className="w-full p-2.5 flex items-center justify-between text-xs font-semibold text-zinc-300 hover:bg-white/5 cursor-pointer"
+                >
+                  <span>כותרת ראשית, תגית עליונה ועיצוב גופן</span>
+                  <ChevronDown
+                    className={clsx(
+                      'w-3.5 h-3.5 transition-transform',
+                      openNestedAccordion === 'title_sub' ? 'rotate-180 text-emerald-400' : 'text-zinc-500'
+                    )}
+                  />
+                </button>
 
-              <PageBuilderInput
-                label="כותרת ראשית של האזור"
-                value={localConfig.title || ''}
-                placeholder="השאירו פרטים לקבלת מידע נוסף"
-                onChange={(e) => handleUpdate({ title: resolveInputValue(e) })}
-              />
+                {openNestedAccordion === 'title_sub' && (
+                  <div className="p-3 border-t border-white/10 space-y-3 bg-black/30">
+                    {/* Badge with AI button */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={localConfig.badge || ''}
+                        onChange={(e) => handleUpdate({ badge: e.target.value })}
+                        placeholder="תגית עליונה (באדג')..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEnhanceTextWithAi('badge', 'נסח תגית קצרה, יוקרתית וממוקדת לדף נחיתה')
+                        }
+                        disabled={aiLoadingField === 'badge'}
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 cursor-pointer"
+                        title="שפר תגית באמצעות סוכן AI"
+                      >
+                        {aiLoadingField === 'badge' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
 
-              <PageBuilderInput
-                label="תת-כותרת (Subtitle)"
-                value={localConfig.subtitle || ''}
-                placeholder="הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון"
-                onChange={(e) => handleUpdate({ subtitle: resolveInputValue(e) })}
-              />
+                    {/* Title with AI button */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={localConfig.title || ''}
+                        onChange={(e) => handleUpdate({ title: e.target.value })}
+                        placeholder="כותרת ראשית של האזור..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white font-bold focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEnhanceTextWithAi('title', 'שפר והתאם את כותרת דף הנחיתה והטופס לטון המותג')
+                        }
+                        disabled={aiLoadingField === 'title'}
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 cursor-pointer"
+                        title="שפר כותרת באמצעות סוכן AI"
+                      >
+                        {aiLoadingField === 'title' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
 
-              <PageBuilderTextarea
-                label="תיאור מורחב / פסקה מקדימה"
-                value={localConfig.description || ''}
-                rows={2}
-                placeholder="מלאו את הפרטים הקצרים בטופס ונציג מקצועי יחזור אליכם בהקדם האפשרי."
-                onChange={(e) => handleUpdate({ description: resolveInputValue(e) })}
-              />
+                    {/* Typography Controls - Icons & Tooltips Only */}
+                    <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-1 flex-wrap">
+                      {/* Font Size */}
+                      <div className="flex items-center gap-1">
+                        {(['xl', '2xl', '3xl', '4xl'] as const).map((sz) => (
+                          <button
+                            key={sz}
+                            type="button"
+                            onClick={() => handleUpdate({ titleFontSize: sz })}
+                            className={clsx(
+                              'px-2 py-1 rounded border text-[10px] cursor-pointer transition',
+                              (localConfig.titleFontSize || '3xl') === sz
+                                ? 'border-emerald-500 bg-emerald-500/30 text-white font-bold'
+                                : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                            )}
+                            title={`גודל גופן ${sz}`}
+                          >
+                            {sz}
+                          </button>
+                        ))}
+                      </div>
 
-              <PageBuilderInput
-                label="טקסט כפתור שליחה ברירת מחדל"
-                value={localConfig.buttonText || ''}
-                placeholder="שליחת פרטים עכשיו"
-                onChange={(e) => handleUpdate({ buttonText: resolveInputValue(e) })}
-              />
+                      {/* Weight, Italic, Underline */}
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleUpdate({
+                              titleFontWeight:
+                                localConfig.titleFontWeight === 'extrabold'
+                                  ? 'bold'
+                                  : localConfig.titleFontWeight === 'bold'
+                                  ? 'normal'
+                                  : 'extrabold',
+                            })
+                          }
+                          className={clsx(
+                            'p-1.5 rounded border text-xs cursor-pointer transition',
+                            localConfig.titleFontWeight === 'extrabold' || localConfig.titleFontWeight === 'bold'
+                              ? 'border-emerald-500 bg-emerald-500/30 text-white'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          )}
+                          title="משקל גופן (עבה/רגיל)"
+                        >
+                          <Bold className="w-3.5 h-3.5" />
+                        </button>
 
-              <PageBuilderImageUpload
-                label="תמונה נלווית לצד הטופס (אופציונלי)"
-                value={localConfig.imageSrc}
-                onChange={(url) => handleUpdate({ imageSrc: url })}
-              />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdate({ titleItalic: !localConfig.titleItalic })}
+                          className={clsx(
+                            'p-1.5 rounded border text-xs cursor-pointer transition',
+                            localConfig.titleItalic
+                              ? 'border-emerald-500 bg-emerald-500/30 text-white'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          )}
+                          title="נטוי (Italic)"
+                        >
+                          <Italic className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleUpdate({ titleUnderline: !localConfig.titleUnderline })}
+                          className={clsx(
+                            'p-1.5 rounded border text-xs cursor-pointer transition',
+                            localConfig.titleUnderline
+                              ? 'border-emerald-500 bg-emerald-500/30 text-white'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                          )}
+                          title="קו תחתון"
+                        >
+                          <Underline className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Title Alignment */}
+                      <div className="flex items-center gap-1">
+                        {[
+                          { id: 'right', icon: AlignRight, title: 'יישור לימין' },
+                          { id: 'center', icon: AlignCenter, title: 'יישור למרכז' },
+                          { id: 'left', icon: AlignLeft, title: 'יישור לשמאל' },
+                        ].map((al) => {
+                          const IconComp = al.icon;
+                          return (
+                            <button
+                              key={al.id}
+                              type="button"
+                              onClick={() => handleUpdate({ titleAlignment: al.id as any })}
+                              className={clsx(
+                                'p-1.5 rounded border text-xs cursor-pointer transition',
+                                (localConfig.titleAlignment || 'right') === al.id
+                                  ? 'border-emerald-500 bg-emerald-500/30 text-white'
+                                  : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                              )}
+                              title={al.title}
+                            >
+                              <IconComp className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Nested Item 2.2: תת-כותרת ותיאור מורחב */}
+              <div className="border border-white/10 rounded-xl overflow-hidden bg-white/5">
+                <button
+                  type="button"
+                  onClick={() => toggleNestedAccordion('subtitle_desc')}
+                  className="w-full p-2.5 flex items-center justify-between text-xs font-semibold text-zinc-300 hover:bg-white/5 cursor-pointer"
+                >
+                  <span>תת-כותרת, תיאור מורחב וכפתור שליחה</span>
+                  <ChevronDown
+                    className={clsx(
+                      'w-3.5 h-3.5 transition-transform',
+                      openNestedAccordion === 'subtitle_desc' ? 'rotate-180 text-emerald-400' : 'text-zinc-500'
+                    )}
+                  />
+                </button>
+
+                {openNestedAccordion === 'subtitle_desc' && (
+                  <div className="p-3 border-t border-white/10 space-y-3 bg-black/30">
+                    {/* Subtitle with AI button */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={localConfig.subtitle || ''}
+                        onChange={(e) => handleUpdate({ subtitle: e.target.value })}
+                        placeholder="תת-כותרת..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEnhanceTextWithAi('subtitle', 'נסח תת-כותרת ממוקדת ומזמינה להשארת פרטים')
+                        }
+                        disabled={aiLoadingField === 'subtitle'}
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 cursor-pointer"
+                        title="שפר תת-כותרת באמצעות סוכן AI"
+                      >
+                        {aiLoadingField === 'subtitle' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Description with AI button */}
+                    <div className="flex items-center gap-1.5">
+                      <textarea
+                        rows={2}
+                        value={localConfig.description || ''}
+                        onChange={(e) => handleUpdate({ description: e.target.value })}
+                        placeholder="תיאור מורחב / פסקה מקדימה..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEnhanceTextWithAi('description', 'הרחב את פסקת ההסבר של דף הנחיתה תוך שמירה על עניין והנעה לפעולה')
+                        }
+                        disabled={aiLoadingField === 'description'}
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 cursor-pointer shrink-0"
+                        title="שפר תיאור באמצעות סוכן AI"
+                      >
+                        {aiLoadingField === 'description' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* Button text with AI button */}
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        value={localConfig.buttonText || ''}
+                        onChange={(e) => handleUpdate({ buttonText: e.target.value })}
+                        placeholder="טקסט כפתור שליחה..."
+                        className="flex-1 bg-white/5 border border-white/10 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-emerald-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleEnhanceTextWithAi('buttonText', 'נסח קריאה לפעולה מדויקת וקצרה לכפתור שליחת פרטים')
+                        }
+                        disabled={aiLoadingField === 'buttonText'}
+                        className="p-2 rounded-lg bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 border border-emerald-500/30 cursor-pointer"
+                        title="שפר טקסט כפתור באמצעות סוכן AI"
+                      >
+                        {aiLoadingField === 'buttonText' ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Wand2 className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
 
-        {/* Accordion 3: רקע תמונה מאחורי הטקסט ואפקטי מעבר */}
+        {/* Accordion 3: תמונה, גלישה מעבר למסגרת (Overlapping Image) ומדיה מ-KOSCLOUD */}
         <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleAccordion('textBg')}
+            onClick={() => toggleMainAccordion('image_overflow')}
             className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+            title="תמונה ראשית, גלישה מעבר למסגרת ופינות מעוגלות"
           >
             <div className="flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-indigo-400" />
-              <span>3. רקע תמונה מאחורי הטקסט ואפקטי מעבר</span>
+              <Box className="w-4 h-4 text-amber-400" />
+              <span>3. תמונה, פריצה ממסגרת (Image Overflow) ומדיה</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${
-                openAccordion === 'textBg' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
-              }`}
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                openMainAccordion === 'image_overflow' ? 'rotate-180 text-amber-400' : 'text-zinc-500'
+              )}
             />
           </button>
 
-          {openAccordion === 'textBg' && (
+          {openMainAccordion === 'image_overflow' && (
+            <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
+              <PageBuilderImageUpload
+                label="תמונה נלווית לצד הטופס (אך ורק מתוך KOSCLOUD)"
+                value={localConfig.imageSrc}
+                onChange={(url) => handleUpdate({ imageSrc: url })}
+              />
+
+              {localConfig.imageSrc && (
+                <>
+                  {/* Image Overflow Toggle */}
+                  <div className="p-3 rounded-xl border border-white/10 bg-white/5 flex items-center justify-between">
+                    <div>
+                      <span className="text-xs font-bold text-white block">תמונה שיוצאת מהמסגרת (Overlapping Image)</span>
+                      <span className="text-[11px] text-zinc-400 block mt-0.5">
+                        מאפשר לתמונה לפרוץ קלות מקווי המסגרת עם צל תלת-ממדי והילה עשירה
+                      </span>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(localConfig.imageOverflow)}
+                        onChange={(e) => handleUpdate({ imageOverflow: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-9 h-5 bg-zinc-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-600"></div>
+                    </label>
+                  </div>
+
+                  {localConfig.imageOverflow && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-zinc-300">כיוון פריצה מהמסגרת</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { id: 'top', label: 'כלפי מעלה' },
+                            { id: 'bottom', label: 'כלפי מטה' },
+                            { id: 'side', label: 'לצדדים' },
+                            { id: 'both', label: 'משולב (מעלה+צד)' },
+                          ].map((dir) => (
+                            <button
+                              key={dir.id}
+                              type="button"
+                              onClick={() => handleUpdate({ imageOverflowOffset: dir.id as any })}
+                              className={clsx(
+                                'p-2 rounded-xl border text-xs text-center transition cursor-pointer',
+                                (localConfig.imageOverflowOffset || 'side') === dir.id
+                                  ? 'border-amber-500 bg-amber-500/20 text-amber-300 font-bold'
+                                  : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                              )}
+                            >
+                              {dir.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <label className="text-xs font-semibold text-zinc-300">עיגול פינות התמונה</label>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {[
+                            { id: 'none', label: 'ישר 0px' },
+                            { id: 'md', label: 'מעוגל עדין' },
+                            { id: '2xl', label: 'מעוגל עשיר' },
+                            { id: 'full', label: 'קפסולה' },
+                          ].map((rad) => (
+                            <button
+                              key={rad.id}
+                              type="button"
+                              onClick={() => handleUpdate({ imageBorderRadius: rad.id as any })}
+                              className={clsx(
+                                'p-2 rounded-xl border text-xs text-center transition cursor-pointer',
+                                (localConfig.imageBorderRadius || '2xl') === rad.id
+                                  ? 'border-amber-500 bg-amber-500/20 text-amber-300 font-bold'
+                                  : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
+                              )}
+                            >
+                              {rad.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Accordion 4: רקע תמונה אינטראקטיבי מאחורי הטקסט */}
+        <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
+          <button
+            type="button"
+            onClick={() => toggleMainAccordion('textBg')}
+            className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+            title="רקע תמונה מרחף ואפקטי זום"
+          >
+            <div className="flex items-center gap-2">
+              <ImageIcon className="w-4 h-4 text-indigo-400" />
+              <span>4. רקע תמונה מאחורי הטקסט ואפקטי מעבר</span>
+            </div>
+            <ChevronDown
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                openMainAccordion === 'textBg' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
+              )}
+            />
+          </button>
+
+          {openMainAccordion === 'textBg' && (
             <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
               <label className="flex items-center gap-2 cursor-pointer">
                 <input
@@ -754,12 +1270,11 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
               {localConfig.textBgEnabled && (
                 <>
                   <PageBuilderImageUpload
-                    label="תמונת רקע אינטראקטיבית"
+                    label="תמונת רקע אינטראקטיבית (KOSCLOUD בלבד)"
                     value={localConfig.textBgImageUrl || ''}
                     onChange={(url) => handleUpdate({ textBgImageUrl: url })}
                   />
 
-                  {/* 5 Hover Effects */}
                   <div className="flex flex-col gap-1.5">
                     <label className="text-xs font-semibold text-zinc-300">אפקט מעבר מרחף (Hover Effect)</label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
@@ -774,11 +1289,12 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                           key={eff.id}
                           type="button"
                           onClick={() => handleUpdate({ textBgEffect: eff.id as HeroTextBgEffect })}
-                          className={`p-2 rounded-xl border text-center text-xs transition cursor-pointer ${
+                          className={clsx(
+                            'p-2 rounded-xl border text-center text-xs transition cursor-pointer',
                             (localConfig.textBgEffect || 'zoom-glow') === eff.id
                               ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
                               : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
-                          }`}
+                          )}
                         >
                           {eff.label}
                         </button>
@@ -819,11 +1335,12 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                           key={sc.id}
                           type="button"
                           onClick={() => handleUpdate({ textBgScope: sc.id as any })}
-                          className={`p-2 rounded-xl border text-center text-xs transition cursor-pointer ${
+                          className={clsx(
+                            'p-2 rounded-xl border text-center text-xs transition cursor-pointer',
                             (localConfig.textBgScope || 'text-card') === sc.id
                               ? 'border-indigo-500 bg-indigo-500/20 text-indigo-300 font-bold'
                               : 'border-white/10 bg-white/5 text-zinc-400 hover:text-white'
-                          }`}
+                          )}
                         >
                           {sc.label}
                         </button>
@@ -836,25 +1353,27 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
           )}
         </div>
 
-        {/* Accordion 4: עריכת טופס KFS, שדות וסליקה (Form Config Contract Monopoly) */}
+        {/* Accordion 5: עריכת טופס KFS, שדות וסליקה (Form Config Contract Monopoly) */}
         <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleAccordion('form')}
+            onClick={() => toggleMainAccordion('form')}
             className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+            title="עריכת טופס KFS, שדות, סליקה והודעות WhatsApp"
           >
             <div className="flex items-center gap-2">
               <FormInput className="w-4 h-4 text-indigo-400" />
-              <span>4. עריכת טופס KFS, שדות, סליקה והודעות WhatsApp</span>
+              <span>5. עריכת טופס KFS, שדות, סליקה והודעות WhatsApp</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${
-                openAccordion === 'form' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
-              }`}
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                openMainAccordion === 'form' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
+              )}
             />
           </button>
 
-          {openAccordion === 'form' && (
+          {openMainAccordion === 'form' && (
             <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/40">
               <ContactFormConfigEditor
                 value={
@@ -870,25 +1389,27 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
           )}
         </div>
 
-        {/* Accordion 5: צבעי מיתוג וכרטיסים */}
+        {/* Accordion 6: צבעי מיתוג וכרטיסים */}
         <div className="border border-white/10 rounded-2xl overflow-hidden bg-white/5 transition-all">
           <button
             type="button"
-            onClick={() => toggleAccordion('colors')}
+            onClick={() => toggleMainAccordion('colors')}
             className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-bold text-zinc-200 hover:text-white hover:bg-white/5 transition cursor-pointer"
+            title="צבעי רקע ופלטת מיתוג"
           >
             <div className="flex items-center gap-2">
               <Palette className="w-4 h-4 text-indigo-400" />
-              <span>5. צבעי מיתוג וכרטיסים</span>
+              <span>6. צבעי מיתוג וכרטיסים</span>
             </div>
             <ChevronDown
-              className={`w-4 h-4 transition-transform duration-200 ${
-                openAccordion === 'colors' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
-              }`}
+              className={clsx(
+                'w-4 h-4 transition-transform duration-200',
+                openMainAccordion === 'colors' ? 'rotate-180 text-indigo-400' : 'text-zinc-500'
+              )}
             />
           </button>
 
-          {openAccordion === 'colors' && (
+          {openMainAccordion === 'colors' && (
             <div className="p-3.5 border-t border-white/10 space-y-3 bg-black/30">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <PageBuilderColorPicker

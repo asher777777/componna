@@ -925,6 +925,8 @@ export interface FlagshipSectionTitles {
   aboutHeading?: string;
   painPointsSubtitle?: string;
   painPointsHeading?: string;
+  landingHeading?: string;
+  landingSubtitle?: string;
   targetAudiencesSubtitle?: string;
   targetAudiencesHeading?: string;
   advantagesSubtitle?: string;
@@ -996,6 +998,8 @@ export interface BrandUiVocabulary {
     advantagesSubtitle?: string;
     painPointsHeading?: string;
     painPointsSubtitle?: string;
+    landingHeading?: string;
+    landingSubtitle?: string;
     targetAudiencesHeading?: string;
     targetAudiencesSubtitle?: string;
     faqHeading?: string;
@@ -1104,6 +1108,88 @@ export interface CommunityBrandProfile {
 export interface CommunityBrandContract {
   getCommunityBrand: (communityId: string) => Promise<CommunityBrandProfile | null>;
   saveCommunityBrand: (profile: CommunityBrandProfile) => Promise<boolean>;
+}
+
+// ========================
+// Community Blueprint & Meeting Space Contract
+// ========================
+
+export type CommunityAffiliationType =
+  | 'employees'        // עובדים וצוות פנים-ארגוני
+  | 'customers'        // לקוחות ומועדון לקוחות VIP
+  | 'partners'         // שותפים עסקיים וספקים
+  | 'volunteers'       // מתנדבים ופעילי שטח
+  | 'content_consumers'// צרכני תוכן ותלמידים
+  | 'ambassadors';     // שגרירים ומפיצים
+
+export interface CommunityEventItem {
+  id: string;
+  title: string;
+  description: string;
+  date: string;
+  time?: string;
+  type: 'zoom' | 'physical' | 'webinar' | 'workshop';
+  locationOrUrl?: string; // מוסתר מאורחים - מוצג רק לחברים רשומים
+  rsvpCount?: number;
+  coverImage?: string;
+}
+
+export interface CommunityStoryItem {
+  id: string;
+  title: string;
+  authorName: string;
+  authorAvatar?: string;
+  storyContent: string;
+  mediaUrl?: string; // קובץ מדיה מ-KosCloudStore
+  likes: number;
+  featuredDate?: string;
+}
+
+export interface CommunityGrowthStrategy {
+  proposals: string[];       // הצעות AI להגדלת הקהילה
+  inviteLinkSlug?: string;   // סלאג להזמנת שגרירים/חברים
+  leadFormId?: string;       // מזהה טופס הצטרפות מ-FormBuilder
+  whatsappGroupId?: string;  // מזהה קבוצת וואטסאפ לחיבור
+  autoApproval: boolean;     // הצטרפות אוטומטית או אישור מנהל
+}
+
+export interface CommunityVisibilityGate {
+  guestPreviewPostsCount: number;         // כמה פוסטים אורח יכול לראות (למשל 1)
+  hideLiveChatFromGuests: boolean;        // האם להסתיר צ'אט חי מאורחים (ברירת מחדל: true)
+  hideMeetingLinksFromGuests: boolean;    // האם להסתיר קישורי מפגש מאורחים (ברירת מחדל: true)
+  hideMembersDirectoryFromGuests: boolean;// האם להסתיר ספריית חברים מאורחים (ברירת מחדל: true)
+  guestJoinCtaText?: string;              // כותרת כפתור הרשמה לאורח
+}
+
+export interface CommunityBlueprint {
+  id: string;
+  name: string;
+  affiliationType: CommunityAffiliationType;
+  mission: string;                          // מטרת הקהילה
+  visionAndGoals: string;                   // יעדי הקהילה
+  events: CommunityEventItem[];             // אירועים ומפגשים
+  stories: CommunityStoryItem[];            // סיפורים משותפים והווי
+  growth: CommunityGrowthStrategy;          // הצעות להגדלה ומנועי צמיחה
+  visibility: CommunityVisibilityGate;      // בקרת חשיפה לאורחים מול חברים רשומים
+  brandLogoUrl?: string;
+  coverImageUrl?: string;
+  primaryColor?: string;
+  updatedAt?: string;
+}
+
+export interface CommunityBlueprintContract {
+  getCommunityBlueprint: (communityId: string) => Promise<CommunityBlueprint | null>;
+  saveCommunityBlueprint: (blueprint: CommunityBlueprint) => Promise<boolean>;
+  generateAiCommunityStrategy?: (params: {
+    affiliationType: CommunityAffiliationType;
+    communityName: string;
+    organizationPurpose?: string;
+  }) => Promise<{
+    mission: string;
+    visionAndGoals: string;
+    suggestedEvents: Partial<CommunityEventItem>[];
+    growthProposals: string[];
+  }>;
 }
 
 // ========================

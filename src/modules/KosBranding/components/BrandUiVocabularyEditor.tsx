@@ -530,6 +530,29 @@ export const BrandUiVocabularyEditor: React.FC = () => {
               </div>
             </div>
 
+            {/* Landing Section */}
+            <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/50">
+              <span className="text-xs font-bold text-indigo-400 block">דף נחיתה וטופס הרשמה (Landing Section)</span>
+              <div>
+                <label className="text-[11px] text-slate-300 block mb-1">כותרת ראשית</label>
+                <input
+                  type="text"
+                  value={headings.landingHeading || ''}
+                  onChange={(e) => updateHeading('landingHeading', e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-slate-300 block mb-1">כותרת משנה</label>
+                <input
+                  type="text"
+                  value={headings.landingSubtitle || ''}
+                  onChange={(e) => updateHeading('landingSubtitle', e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+
             {/* Contact */}
             <div className="space-y-2 bg-slate-900/50 p-3.5 rounded-xl border border-slate-700/50">
               <span className="text-xs font-bold text-indigo-400 block">אזור יצירת קשר (Contact)</span>

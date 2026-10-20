@@ -47,8 +47,8 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
 
   const {
     anchorId = 'landingSection',
-    title = fallbackCompanyName ? `השאירו פרטים לקבלת מידע נוסף מ-${fallbackCompanyName}` : 'השאירו פרטים לקבלת מידע נוסף',
-    subtitle = fallbackSlogan || 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון',
+    title = rawBrandDna?.uiVocabulary?.sectionHeadings?.landingHeading || rawBrandDna?.uiVocabulary?.sectionHeadings?.painPointsHeading || (fallbackCompanyName ? `השאירו פרטים לקבלת מידע נוסף מ-${fallbackCompanyName}` : 'השאירו פרטים לקבלת מידע נוסף'),
+    subtitle = rawBrandDna?.uiVocabulary?.sectionHeadings?.landingSubtitle || fallbackSlogan || 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון',
     badge = 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון',
     description = fallbackUvp || 'מלאו את הפרטים הקצרים בטופס ונציג מקצועי יחזור אליכם בהקדם האפשרי.',
     imageSrc,
@@ -67,6 +67,19 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
     backgroundColor = 'transparent',
     cardBackgroundColor,
     accentColor,
+    isUnbounded,
+    buttonPosition = 'start',
+    contentAlignment = 'right',
+    imageOverflow,
+    imageOverflowOffset = 'side',
+    imageBorderRadius = '2xl',
+    titleFontSize,
+    titleFontWeight,
+    titleItalic,
+    titleUnderline,
+    titleAlignment,
+    subtitleFontSize,
+    subtitleFontWeight,
     textBgEnabled,
     textBgImageUrl,
     textBgOverlayColor,
@@ -374,6 +387,66 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
       case 'rounded':
       default:
         return 'rounded-2xl';
+    }
+  };
+
+  // Alignment classes
+  const getContentAlignClass = () => {
+    switch (contentAlignment) {
+      case 'center':
+        return 'text-center items-center';
+      case 'left':
+        return 'text-left items-start';
+      case 'right':
+      default:
+        return 'text-right items-start';
+    }
+  };
+
+  const getButtonPositionClass = () => {
+    switch (buttonPosition) {
+      case 'center':
+        return 'justify-center';
+      case 'end':
+        return 'justify-end';
+      case 'start':
+      default:
+        return 'justify-start';
+    }
+  };
+
+  const getTitleSizeClass = () => {
+    switch (titleFontSize) {
+      case 'xl': return 'text-xl sm:text-2xl';
+      case '2xl': return 'text-2xl sm:text-3xl';
+      case '3xl': return 'text-3xl sm:text-4xl';
+      case '4xl': return 'text-4xl sm:text-5xl';
+      default: return scale.titleSize;
+    }
+  };
+
+  const getImageBorderRadiusClass = () => {
+    switch (imageBorderRadius) {
+      case 'none': return 'rounded-none';
+      case 'md': return 'rounded-xl';
+      case 'full': return 'rounded-full';
+      case '2xl':
+      default: return 'rounded-3xl';
+    }
+  };
+
+  const getImageOverflowClass = () => {
+    if (!imageOverflow) return '';
+    switch (imageOverflowOffset) {
+      case 'top':
+        return '-mt-8 sm:-mt-14 relative z-20 shadow-2xl scale-[1.03] transition-transform duration-500 hover:scale-105';
+      case 'bottom':
+        return '-mb-8 sm:-mb-14 relative z-20 shadow-2xl scale-[1.03] transition-transform duration-500 hover:scale-105';
+      case 'side':
+        return 'lg:-mr-10 xl:-mr-16 relative z-20 shadow-2xl scale-[1.04] transition-transform duration-500 hover:scale-105';
+      case 'both':
+      default:
+        return '-mt-6 lg:-mt-12 lg:-mr-10 relative z-20 shadow-2xl scale-[1.05] transition-transform duration-500 hover:scale-105';
     }
   };
 
@@ -854,9 +927,9 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
 
   // Render text & media side
   const renderTextContent = () => (
-    <div className="flex flex-col gap-4 text-right">
+    <div className={clsx('flex flex-col gap-4', getContentAlignClass())}>
       {badge && (
-        <div className="w-fit">
+        <div className={clsx('w-fit flex', getButtonPositionClass())}>
           <span className={clsx('text-xs font-bold inline-block', theme.badge)}>
             {badge}
           </span>
@@ -865,11 +938,34 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
 
       {title && (
         <h2
-          className={clsx('leading-tight tracking-tight', scale.titleSize, theme.title)}
-          style={{ color: titleColor }}
+          className={clsx(
+            'leading-tight tracking-tight',
+            getTitleSizeClass(),
+            titleFontWeight === 'extrabold' ? 'font-black' : titleFontWeight === 'bold' ? 'font-bold' : titleFontWeight === 'normal' ? 'font-normal' : '',
+            titleItalic && 'italic',
+            titleUnderline && 'underline underline-offset-4',
+            theme.title
+          )}
+          style={{
+            color: titleColor,
+            textAlign: titleAlignment || contentAlignment || 'right',
+          }}
         >
           {title}
         </h2>
+      )}
+
+      {subtitle && (
+        <p
+          className={clsx(
+            'leading-relaxed font-medium',
+            subtitleFontSize === 'sm' ? 'text-sm' : subtitleFontSize === 'lg' ? 'text-lg font-bold' : 'text-base',
+            theme.subtitle
+          )}
+          style={{ color: subtitleColor }}
+        >
+          {subtitle}
+        </p>
       )}
 
       {description && (
@@ -883,7 +979,7 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
 
       {/* Modal Trigger Button when formPosition === 'modal' */}
       {formPosition === 'modal' && (
-        <div className="pt-2">
+        <div className={clsx('pt-2 flex w-full', getButtonPositionClass())}>
           <button
             type="button"
             onClick={() => setIsModalOpen(true)}
@@ -902,7 +998,13 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
       )}
 
       {imageSrc && (
-        <div className="mt-2 rounded-2xl overflow-hidden border border-white/10 max-w-sm aspect-video shadow-lg">
+        <div
+          className={clsx(
+            'mt-3 overflow-hidden border border-white/10 max-w-sm sm:max-w-md aspect-video shadow-xl transition-all duration-500',
+            getImageBorderRadiusClass(),
+            getImageOverflowClass()
+          )}
+        >
           <img src={imageSrc} alt={title} className="w-full h-full object-cover" />
         </div>
       )}
@@ -937,12 +1039,14 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
         {/* Main Section Container Card */}
         <div
           className={clsx(
-            'relative overflow-hidden transition-all duration-300 group/textbg',
-            theme.containerCard,
-            scale.cardPadding
+            'relative transition-all duration-300 group/textbg',
+            imageOverflow ? 'overflow-visible' : 'overflow-hidden',
+            isUnbounded
+              ? 'bg-transparent border-none shadow-none p-0'
+              : clsx(theme.containerCard, scale.cardPadding)
           )}
           style={{
-            backgroundColor: cardBackgroundColor || undefined,
+            backgroundColor: isUnbounded ? 'transparent' : (cardBackgroundColor || undefined),
           }}
         >
           {/* Card-Scope Text Background Layer */}

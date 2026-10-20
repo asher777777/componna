@@ -1,3 +1,11 @@
+import type { 
+  CommunityBlueprint, 
+  CommunityAffiliationType, 
+  CommunityEventItem, 
+  CommunityStoryItem, 
+  CommunityGrowthStrategy, 
+  CommunityVisibilityGate 
+} from '../../../core/contracts';
 import type { FirebaseApp } from 'firebase/app';
 import type { TenantStylePreset } from '../../../core/contracts';
 
@@ -82,6 +90,7 @@ export interface SmartGroup {
   campaignTitle?: string;
   engagementScore?: number;
   feedPosts?: CommunityPost[];
+  blueprint?: CommunityBlueprint;
 }
 
 export interface CommunityPost {
@@ -242,3 +251,12 @@ export interface CrmGroupsModuleProps {
     apiUrl?: string;
   };
 }
+
+export type { 
+  CommunityBlueprint, 
+  CommunityAffiliationType, 
+  CommunityEventItem, 
+  CommunityStoryItem, 
+  CommunityGrowthStrategy, 
+  CommunityVisibilityGate 
+};

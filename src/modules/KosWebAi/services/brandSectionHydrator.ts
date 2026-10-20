@@ -368,8 +368,8 @@ export function hydrateSectionWithBrandDna(
     }
 
     case 'landingSection': {
-      cloned.title = companyName ? `השאירו פרטים לקבלת מידע נוסף מ-${companyName}` : (cloned.title || 'השאירו פרטים לקבלת מידע נוסף');
-      cloned.subtitle = slogan || cloned.subtitle || 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון';
+      cloned.title = headings.landingHeading || (companyName ? `השאירו פרטים לקבלת מידע נוסף מ-${companyName}` : (cloned.title || 'השאירו פרטים לקבלת מידע נוסף'));
+      cloned.subtitle = headings.landingSubtitle || slogan || cloned.subtitle || 'הצטרפו למאות המשתתפים שכבר עשו את הצעד הראשון';
       cloned.badge = companyName ? `• ${companyName} LEADS •` : (cloned.badge || '• קבלת מידע נוסף •');
       cloned.description = uvp || cloned.description || `מלאו את הפרטים הקצרים בטופס ונציג מקצועי מבית ${companyName || 'שלנו'} יחזור אליכם בהקדם האפשרי.`;
       cloned.buttonText = uiVocab.formSubmitText || cloned.buttonText || 'שליחת פרטים עכשיו';
