@@ -17,10 +17,12 @@ import {
   Check,
   Sparkles,
   Info,
+  BookmarkCheck,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { SectionResolutionVisibilityMenu } from './SectionResolutionVisibilityMenu';
 import { getResolutionBadgeInfo } from '../utils/resolutionVisibility';
+import { SectionDesignLibraryModal } from './SectionDesignLibraryModal';
 
 export interface SectionContainerProps {
   sectionId: string;
@@ -78,6 +80,9 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
   const Icon = regDef?.icon || LayoutTemplate;
   const displayTitle = title || regDef?.name || sectionData?.adminTitle || sectionId;
 
+  // Design Library Modal State
+  const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
+
   return (
     <div
       className={clsx(
@@ -107,6 +112,11 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
               <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hidden sm:inline">
                 {effectiveType}
               </span>
+              {sectionData?.stylePreset && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-500 dark:text-amber-400 border border-amber-500/20 hidden sm:inline">
+                  סגנון: {sectionData.stylePreset}
+                </span>
+              )}
               {(() => {
                 const resBadge = getResolutionBadgeInfo(sectionData || { mobileHidden });
                 if (!resBadge.isRestricted) return null;
@@ -139,6 +149,22 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
 
         {/* Right: Quick Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Public Design Library & Style Expander Modal Button */}
+          {onUpdateSection && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDesignModalOpen(true);
+              }}
+              className="p-2 rounded-xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/30 text-indigo-500 dark:text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors flex items-center gap-1"
+              title="ספריית עיצובים פומביים ושמירת עיצוב לטננט פומבי"
+            >
+              <Palette className="w-4 h-4" />
+              <span className="text-[11px] font-bold hidden md:inline">עיצובים פומביים</span>
+            </button>
+          )}
+
           {onToggleVisibility && (
             <button
               type="button"
@@ -250,6 +276,19 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
         <div className="p-6 border-t border-slate-200 dark:border-slate-800/80 bg-slate-50/70 dark:bg-slate-950/60">
           {children || contentEditorNode}
         </div>
+      )}
+
+      {/* Section Design Library & Style Expander Modal */}
+      {onUpdateSection && isDesignModalOpen && (
+        <SectionDesignLibraryModal
+          isOpen={isDesignModalOpen}
+          onClose={() => setIsDesignModalOpen(false)}
+          sectionType={effectiveType}
+          currentSectionConfig={sectionData || { id: sectionId, type: effectiveType }}
+          onApplyDesign={(updatedConfig) => {
+            onUpdateSection(sectionId, updatedConfig);
+          }}
+        />
       )}
     </div>
   );
