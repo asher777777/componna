@@ -311,15 +311,6 @@ export const DesignTokensSection: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      {/* Scope Alert Notice */}
-      <div className="p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-start gap-3 text-indigo-300 text-xs leading-relaxed">
-        <Info className="w-5 h-5 text-indigo-400 shrink-0 mt-0.5" />
-        <div>
-          <strong className="text-white block mb-0.5">הפרדת תחומי עיצוב (Design Tokens):</strong>
-          הצבעים והגופנים שמוגדרים כאן חלים אך ורק על <strong>עמודי תוכן, דפי נחיתה, טפסים חכמים ודפי סליקה חיצוניים</strong> שייווצרו במערכת. הם אינם משנים את ערכת הנושא של ממשק הניהול.
-        </div>
-      </div>
-
       {/* 1. Tenant Default Style Preset - Front & Center */}
       <div className="bg-slate-800/80 border-2 border-amber-500/40 rounded-2xl p-5 sm:p-6 shadow-xl space-y-5">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-700/60">
