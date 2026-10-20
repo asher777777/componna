@@ -27,6 +27,7 @@ export interface HeaderSectionConfig extends BaseSectionConfig {
   showWhatsApp?: boolean;
   whatsApp?: string;
   menuTitleOverrides?: Record<string, string>;
+  hiddenPageIds?: string[];
   desktopMenuDisplay?: 'links' | 'hamburger' | 'both';
 }
 

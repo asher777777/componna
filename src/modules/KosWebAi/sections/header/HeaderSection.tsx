@@ -208,8 +208,14 @@ export const HeaderSection: React.FC<{ config: HeaderSectionConfig }> = ({ confi
     { label: 'צור קשר', url: '#contact' },
   ];
 
-  const dynamicItems = tenantPages.length > 0
-    ? tenantPages.map((page) => {
+  const hiddenSet = new Set(safeConfig.hiddenPageIds || []);
+  const visiblePages = tenantPages.filter((page) => {
+    const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
+    return !hiddenSet.has(page.pageId) && !hiddenSet.has(key);
+  });
+
+  const dynamicItems = visiblePages.length > 0
+    ? visiblePages.map((page) => {
         const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
         const labelOverride = (safeConfig.menuTitleOverrides && (safeConfig.menuTitleOverrides[key] || safeConfig.menuTitleOverrides[page.pageId])) || page.pageTitle || 'עמוד';
         return {

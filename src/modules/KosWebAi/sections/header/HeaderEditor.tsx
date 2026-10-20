@@ -18,6 +18,8 @@ import {
   Anchor,
   FileText,
   Globe,
+  Eye,
+  EyeOff,
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
@@ -543,13 +545,13 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
             <div className="p-3.5 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-xs text-indigo-300 flex items-center gap-2.5">
               <Sparkles className="w-4 h-4 shrink-0 text-indigo-400" />
               <span>
-                התפריט מושך את עמודי האתר המפורסמים. באפשרותך להתאים אישית את כותרת התצוגה של כל עמוד בתפריט מבלי לשנות את שם העמוד המקורי:
+                התפריט מושך את עמודי האתר המפורסמים. באפשרותך להתאים אישית כותרות או להסתיר עמודים ספציפיים מלהופיע בתפריט הניווט:
               </span>
             </div>
 
             {/* List of tenant pages with custom label override fields */}
             <div className="space-y-2 pt-1">
-              <span className="text-xs font-bold text-white block">עריכת כותרות פריטי התפריט</span>
+              <span className="text-xs font-bold text-white block">ניהול פריטי התפריט (עריכת כותרת / הצגה והסתרה)</span>
               {tenantPages.length === 0 ? (
                 <div className="p-3 rounded-2xl bg-slate-950/60 border border-slate-800 text-[11px] text-slate-400">
                   טוען עמודי תוכן פעילים...
@@ -558,20 +560,42 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                 tenantPages.map((page) => {
                   const key = page.slug || page.shortSlug || page.pageId || (page.isHomePage ? 'home' : '');
                   const currentOverride = (config.menuTitleOverrides && (config.menuTitleOverrides[key] || config.menuTitleOverrides[page.pageId])) || '';
+                  const isHidden = (config.hiddenPageIds || []).includes(page.pageId) || (config.hiddenPageIds || []).includes(key);
+
+                  const toggleHidePage = () => {
+                    const currentHidden = config.hiddenPageIds || [];
+                    let updated: string[];
+                    if (isHidden) {
+                      updated = currentHidden.filter((id) => id !== page.pageId && id !== key);
+                    } else {
+                      updated = [...currentHidden, page.pageId];
+                    }
+                    updateConfig({ hiddenPageIds: updated });
+                  };
 
                   return (
                     <div
                       key={page.pageId}
-                      className="p-3 rounded-2xl bg-slate-950/80 border border-slate-800 flex items-center justify-between gap-3 text-right"
+                      className={clsx(
+                        'p-3 rounded-2xl border flex items-center justify-between gap-3 text-right transition-all',
+                        isHidden
+                          ? 'bg-slate-950/40 border-slate-800/50 opacity-60'
+                          : 'bg-slate-950/80 border-slate-800'
+                      )}
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold text-white truncate">
+                          <span className={clsx('text-xs font-bold truncate', isHidden ? 'text-slate-400 line-through' : 'text-white')}>
                             {page.pageTitle || 'עמוד ללא שם'}
                           </span>
                           {page.isHomePage && (
                             <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
                               עמוד הבית
+                            </span>
+                          )}
+                          {isHidden && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium">
+                              מוסתר מהתפריט
                             </span>
                           )}
                         </div>
@@ -580,9 +604,10 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                         </span>
                       </div>
 
-                      <div className="w-48 sm:w-60">
+                      <div className="flex items-center gap-2 w-48 sm:w-64">
                         <input
                           type="text"
+                          disabled={isHidden}
                           value={currentOverride}
                           placeholder={page.pageTitle || 'כותרת בתפריט'}
                           onChange={(e) => {
@@ -597,8 +622,26 @@ export const HeaderEditor: React.FC<HeaderEditorProps> = ({ config, onChange }) 
                             }
                             updateConfig({ menuTitleOverrides: overrides });
                           }}
-                          className="w-full bg-slate-900 border border-slate-700 text-white text-xs rounded-xl px-3 py-1.5 focus:outline-none focus:border-indigo-500 placeholder:text-slate-500"
+                          className={clsx(
+                            'flex-1 bg-slate-900 border text-xs rounded-xl px-3 py-1.5 focus:outline-none placeholder:text-slate-500 transition-colors',
+                            isHidden
+                              ? 'border-slate-800 text-slate-500 cursor-not-allowed bg-slate-950/50'
+                              : 'border-slate-700 text-white focus:border-indigo-500'
+                          )}
                         />
+                        <button
+                          type="button"
+                          onClick={toggleHidePage}
+                          title={isHidden ? 'הצג עמוד בתפריט' : 'הסתר עמוד מהתפריט'}
+                          className={clsx(
+                            'p-2 rounded-xl border transition-colors flex items-center justify-center shrink-0 cursor-pointer',
+                            isHidden
+                              ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20'
+                              : 'bg-slate-900 border-slate-700 text-slate-400 hover:text-white hover:border-slate-600'
+                          )}
+                        >
+                          {isHidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
                       </div>
                     </div>
                   );
