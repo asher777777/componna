@@ -388,7 +388,7 @@ export const ImageListingSection: React.FC<ImageListingSectionProps> = ({ config
 
           {effectiveTitle && (
             <h2
-              className={clsx(scale.title, 'font-serif text-slate-900 dark:text-rose-50')}
+              className={clsx(scale.title, 'text-slate-900 dark:text-rose-50')}
               style={{ color: titleColor }}
             >
               {effectiveTitle}
@@ -457,12 +457,12 @@ export const ImageListingSection: React.FC<ImageListingSectionProps> = ({ config
             {/* Bottom floating glass caption */}
             <div className="relative z-10 m-3 p-4 rounded-2xl bg-white/85 dark:bg-stone-900/80 backdrop-blur-md border border-white/40 dark:border-white/10 shadow-sm text-right transition-transform duration-300 group-hover:-translate-y-1">
               {item.subtitle && (
-                <span className="text-[11px] font-serif text-rose-600 dark:text-rose-300 block mb-0.5 tracking-wide">
+                <span className="text-[11px] text-rose-600 dark:text-rose-300 block mb-0.5 tracking-wide">
                   {item.subtitle}
                 </span>
               )}
               {item.title && (
-                <h3 className={clsx(scale.cardTitle, 'text-stone-900 dark:text-white font-serif leading-snug')}>
+                <h3 className={clsx(scale.cardTitle, 'text-stone-900 dark:text-white leading-snug')}>
                   {item.title}
                 </h3>
               )}

@@ -378,11 +378,14 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           return;
         }
 
-        // 2. If no homepage flag is active, check if any pages exist for this tenant
+        // 2. Check if any pages exist for this tenant
         const allPages = await pageBuilderFirestore.getAllPages(db, tenantRecord.subdomain);
         if (allPages.length > 0) {
+          // Find any page that has slug === 'home' or isHomePage === true
+          const existingHome = allPages.find((p) => p.isHomePage || p.slug === 'home' || p.pageId === `home_${tenantRecord.subdomain}`);
+          const selected = existingHome || allPages[0];
           if (isMounted) {
-            const enriched = ensureHeaderSection(allPages[0]);
+            const enriched = ensureHeaderSection(selected);
             setHomePageConfig(enriched);
             setCurrentPageConfig(enriched);
             if (typeof document !== 'undefined') {
@@ -392,7 +395,19 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           return;
         }
 
-        // 3. Fallback: Initialize customized default home page and save it scoped to tenant
+        // 3. Fallback: ONLY initialize default landing page if tenant truly has 0 pages in both Firestore and cache!
+        // Double check Firestore docs count directly to ensure zero data overwriting
+        const doubleCheckPages = await pageBuilderFirestore.getAllPages(db, tenantRecord.subdomain);
+        if (doubleCheckPages.length > 0) {
+          const selected = doubleCheckPages.find((p) => p.isHomePage || p.slug === 'home') || doubleCheckPages[0];
+          if (isMounted) {
+            const enriched = ensureHeaderSection(selected);
+            setHomePageConfig(enriched);
+            setCurrentPageConfig(enriched);
+          }
+          return;
+        }
+
         const defaultPage = ensureHeaderSection(createDefaultTenantPage());
         await pageBuilderFirestore.savePage(defaultPage, db, tenantRecord.subdomain);
         await pageBuilderFirestore.setHomePage(defaultPage.pageId, db, tenantRecord.subdomain);

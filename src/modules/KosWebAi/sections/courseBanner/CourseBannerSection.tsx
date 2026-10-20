@@ -234,7 +234,7 @@ export const CourseBannerSection: React.FC<{ config: CourseBannerSectionConfig }
         {/* Top delicate badge */}
         <div className="flex justify-start mb-6">
           <div
-            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-100/90 dark:bg-rose-950/70 border border-rose-300/60 dark:border-rose-800/60 text-rose-800 dark:text-rose-200 text-xs font-serif font-medium shadow-sm"
+            className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-100/90 dark:bg-rose-950/70 border border-rose-300/60 dark:border-rose-800/60 text-rose-800 dark:text-rose-200 text-xs font-medium shadow-sm"
             style={{ color: badgeColor }}
           >
             <Sparkles className="w-3.5 h-3.5 text-rose-400 animate-pulse" />
@@ -260,7 +260,7 @@ export const CourseBannerSection: React.FC<{ config: CourseBannerSectionConfig }
             )}
 
             <h2
-              className={clsx(scale.title, 'font-serif text-stone-900 dark:text-rose-50 leading-tight')}
+              className={clsx(scale.title, 'text-stone-900 dark:text-rose-50 leading-tight')}
               style={{ color: titleColor }}
             >
               {effectiveTitle}

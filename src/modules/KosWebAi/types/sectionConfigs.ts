@@ -125,6 +125,8 @@ export interface HeroSectionConfig extends BaseSectionConfig {
   titleFontSize?: string;
   titleFontWeight?: string;
   titleAlignment?: 'right' | 'center' | 'left';
+  titleFontFamily?: string;
+  fontFamily?: string;
   subtitleFontSize?: string;
   subtitleFontWeight?: string;
   descriptionFontSize?: string;
@@ -836,6 +838,8 @@ export interface LandingSectionConfig extends BaseSectionConfig {
   titleItalic?: boolean;
   titleUnderline?: boolean;
   titleAlignment?: 'right' | 'center' | 'left';
+  titleFontFamily?: string;
+  fontFamily?: string;
   subtitleFontSize?: string;
   subtitleFontWeight?: string;
   title: string;

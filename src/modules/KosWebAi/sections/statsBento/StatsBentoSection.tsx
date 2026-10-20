@@ -171,7 +171,7 @@ export const StatsBentoSection: React.FC<{ config: StatsBentoSectionConfig }> = 
         return {
           wrapper: 'font-sans bg-gradient-to-br from-[#fff7f9] via-[#fdf2f5] to-[#fbf7f4] dark:from-[#170a13] dark:via-[#1c0f17] dark:to-[#120a0f]',
           badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-300/40 rounded-full px-4 py-1.5 shadow-sm font-medium',
-          title: 'font-serif text-rose-950 dark:text-rose-50 drop-shadow-sm',
+          title: 'text-rose-950 dark:text-rose-50 drop-shadow-sm',
           subtitle: 'text-rose-700/80 dark:text-rose-200/70',
           desc: 'text-rose-900/60 dark:text-rose-200/50',
           card: 'bg-white/90 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-500/20 hover:border-rose-400/60 rounded-[2.2rem] shadow-[0_15px_35px_rgba(244,63,94,0.08)] hover:shadow-[0_20px_45px_rgba(244,63,94,0.15)] hover:-translate-y-1.5 backdrop-blur-xl',

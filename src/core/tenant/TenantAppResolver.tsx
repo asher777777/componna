@@ -38,10 +38,25 @@ export const TenantAppResolver: React.FC = () => {
 
   const [tenantRecord, setTenantRecord] = useState<TenantRecord | null>(() => {
     if (!tenantSubdomain) return null;
+    const localTenants = TenantCoreService.getLocalTenants();
+    const cached = localTenants.find((t) => t.subdomain.toLowerCase() === tenantSubdomain.toLowerCase());
+    if (cached) return cached;
+
+    // Check if brand DNA identity has a stored company name
+    let brandName = '';
+    try {
+      const storedBrand = localStorage.getItem(`kosun_${tenantSubdomain}_brand_dna_settings`);
+      if (storedBrand) {
+        brandName = JSON.parse(storedBrand)?.identity?.companyName || '';
+      }
+    } catch {}
+
+    const resolvedName = brandName || (tenantSubdomain === 'mlea' ? 'בית מדרש לאה' : `עסק ${tenantSubdomain}`);
+
     return {
       subdomain: tenantSubdomain,
       fullDomain: `${tenantSubdomain}.kosun.pro`,
-      clientName: `מערכת לקוח (${tenantSubdomain})`,
+      clientName: resolvedName,
       ownerEmail: `${tenantSubdomain}@kosun.pro`,
       ownerPhone: '050-1234567',
       activeModules: DEFAULT_SUBDOMAIN_MODULES,
@@ -250,10 +265,20 @@ export const TenantAppResolver: React.FC = () => {
   // 1. Subdomain View (Public Landing Page by default + Owner Admin Control Panel)
   // Subdomains NEVER enter WorkbenchApp!
   if (tenantSubdomain) {
+    let brandName = '';
+    try {
+      const storedBrand = localStorage.getItem(`kosun_${tenantSubdomain}_brand_dna_settings`);
+      if (storedBrand) {
+        brandName = JSON.parse(storedBrand)?.identity?.companyName || '';
+      }
+    } catch {}
+
+    const defaultName = brandName || (tenantSubdomain === 'mlea' ? 'בית מדרש לאה' : `עסק ${tenantSubdomain}`);
+
     const effectiveRecord: TenantRecord = tenantRecord || {
       subdomain: tenantSubdomain,
       fullDomain: `${tenantSubdomain}.kosun.pro`,
-      clientName: `מערכת לקוח (${tenantSubdomain})`,
+      clientName: defaultName,
       ownerEmail: `${tenantSubdomain}@kosun.pro`,
       ownerPhone: '050-1234567',
       activeModules: DEFAULT_SUBDOMAIN_MODULES,

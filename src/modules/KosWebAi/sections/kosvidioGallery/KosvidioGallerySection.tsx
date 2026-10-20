@@ -436,7 +436,7 @@ export const KosvidioGallerySection: React.FC<{ config: KosvidioGallerySectionCo
         return {
           wrapper: 'font-sans',
           badge: 'bg-rose-500/15 text-rose-300 border-rose-400/30 rounded-full px-4 py-1.5 shadow-sm',
-          title: 'font-serif text-rose-50 drop-shadow-sm',
+          title: 'text-rose-50 drop-shadow-sm',
           subtitle: 'text-rose-200/80',
           card: 'bg-gradient-to-b from-rose-950/40 via-slate-950 to-slate-950 border border-rose-500/20 hover:border-rose-400/50 rounded-[2.2rem] shadow-[0_15px_40px_rgba(244,63,94,0.12)]',
           spotlightCard: 'rounded-[2.5rem] border border-rose-500/30 shadow-[0_20px_50px_rgba(244,63,94,0.2)]',

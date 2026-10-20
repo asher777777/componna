@@ -30,6 +30,12 @@ export const TenantScopeProvider: React.FC<{ children: React.ReactNode; initialT
     return initialTenantId || resolveCurrentTenantId();
   });
 
+  useEffect(() => {
+    if (initialTenantId && initialTenantId.trim().toLowerCase() !== tenantId) {
+      setTenantIdState(initialTenantId.trim().toLowerCase());
+    }
+  }, [initialTenantId]);
+
   const isRootTenant = tenantId === ROOT_TENANT_ID;
 
   const setTenantId = useCallback((newId: string) => {

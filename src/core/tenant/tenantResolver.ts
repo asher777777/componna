@@ -282,3 +282,25 @@ export function getTenantStorageKey(key: string, customTenantId?: string): strin
   const tenantId = customTenantId || resolveCurrentTenantId();
   return `kosun_${tenantId}_${key}`;
 }
+
+/**
+ * Checks whether the current runtime is strictly in subdomain/client mode
+ * (meaning it is locked to a specific tenant and tenant switching or cross-tenant access is barred).
+ */
+export function isSubdomainMode(): boolean {
+  if (typeof window === 'undefined') return false;
+  const hostname = window.location.hostname.toLowerCase().trim();
+  const sub = extractSubdomainFromHost(hostname);
+  if (sub && sub !== ROOT_TENANT_ID) return true;
+
+  const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || hostname.endsWith('.local');
+  if (isLocal) {
+    const p = new URLSearchParams(window.location.search);
+    const q = p.get('tenant');
+    if (q && q.trim().toLowerCase() !== ROOT_TENANT_ID && !RESERVED_TENANT_SUBDOMAINS.includes(q.trim().toLowerCase())) {
+      return true;
+    }
+  }
+  return false;
+}
+

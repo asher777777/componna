@@ -78,6 +78,8 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
     titleItalic,
     titleUnderline,
     titleAlignment,
+    titleFontFamily,
+    fontFamily: configFontFamily,
     subtitleFontSize,
     subtitleFontWeight,
     textBgEnabled,
@@ -90,6 +92,11 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
 
   const activeForm: FormConfigContract =
     typeof propForm === 'object' && propForm ? propForm : DEFAULT_LANDING_FORM_CONFIG;
+
+  const resolvedTitleFontFamily =
+    titleFontFamily || configFontFamily || brandDna?.designTokens?.fontFamily || "'Heebo', sans-serif";
+  const resolvedSectionFontFamily =
+    configFontFamily || brandDna?.designTokens?.fontFamily || "'Heebo', sans-serif";
 
   const normalizedLayout: LandingLayoutPreset =
     layout === 'feminine' ||
@@ -488,7 +495,7 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
         return {
           wrapper: 'font-sans bg-gradient-to-br from-[#fff7f9] via-[#fdf2f5] to-[#fbf7f4] dark:from-[#170a13] dark:via-[#1c0f17] dark:to-[#120a0f]',
           badge: 'bg-rose-500/10 text-rose-600 dark:text-rose-300 border-rose-300/40 rounded-full px-4 py-1.5 shadow-sm font-medium',
-          title: 'font-serif text-rose-950 dark:text-rose-50 drop-shadow-sm',
+          title: 'text-rose-950 dark:text-rose-50 drop-shadow-sm',
           subtitle: 'text-rose-700/80 dark:text-rose-200/70',
           desc: 'text-rose-900/60 dark:text-rose-200/50',
           containerCard: 'bg-white/85 dark:bg-rose-950/20 border border-rose-200/80 dark:border-rose-500/20 rounded-[2.5rem] shadow-[0_20px_50px_rgba(244,63,94,0.08)] backdrop-blur-xl',
@@ -949,6 +956,7 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
           style={{
             color: titleColor,
             textAlign: titleAlignment || contentAlignment || 'right',
+            fontFamily: resolvedTitleFontFamily,
           }}
         >
           {title}
@@ -962,7 +970,10 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
             subtitleFontSize === 'sm' ? 'text-sm' : subtitleFontSize === 'lg' ? 'text-lg font-bold' : 'text-base',
             theme.subtitle
           )}
-          style={{ color: subtitleColor }}
+          style={{
+            color: subtitleColor,
+            fontFamily: resolvedSectionFontFamily,
+          }}
         >
           {subtitle}
         </p>
@@ -971,7 +982,10 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
       {description && (
         <p
           className={clsx('leading-relaxed', scale.descSize, theme.desc)}
-          style={{ color: descriptionColor }}
+          style={{
+            color: descriptionColor,
+            fontFamily: resolvedSectionFontFamily,
+          }}
         >
           {description}
         </p>
@@ -1015,7 +1029,10 @@ export const LandingSection: React.FC<{ config: LandingSectionConfig }> = ({ con
     <section
       id={anchorId || 'landingSection'}
       className={clsx('w-full py-16 sm:py-24 px-4 sm:px-6 lg:px-8 relative overflow-hidden transition-colors', theme.wrapper)}
-      style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
+      style={{
+        backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined,
+        fontFamily: resolvedSectionFontFamily,
+      }}
       dir="rtl"
     >
       {/* Whole-Section Text Background Layer */}

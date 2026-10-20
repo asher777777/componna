@@ -356,6 +356,10 @@ export function hydrateSectionWithBrandDna(
       if (primaryColor) {
         cloned.accentColor = primaryColor;
       }
+      if (brand.designTokens?.fontFamily) {
+        cloned.fontFamily = brand.designTokens.fontFamily;
+        cloned.titleFontFamily = brand.designTokens.fontFamily;
+      }
       if (!Array.isArray(cloned.stats) || cloned.stats.length === 0) {
         cloned.stats = [
           { id: '1', number: '99.8', suffix: '%', label: 'שביעות רצון לקוחות', description: `מדד שירות מעולה מבית ${companyName}`, color: 'emerald', icon: 'Heart' },

@@ -1019,6 +1019,22 @@ export const LandingEditor: React.FC<LandingEditorProps> = ({
                         })}
                       </div>
                     </div>
+
+                    {/* Title Font Family Selector */}
+                    <div className="pt-2 border-t border-white/10 flex items-center justify-between gap-2">
+                      <span className="text-[11px] font-semibold text-zinc-300">גופן כותרת:</span>
+                      <select
+                        value={localConfig.titleFontFamily || localConfig.fontFamily || "Heebo, sans-serif"}
+                        onChange={(e) => handleUpdate({ titleFontFamily: e.target.value, fontFamily: e.target.value })}
+                        className="bg-white/5 border border-white/10 rounded-lg px-2.5 py-1 text-xs text-white focus:outline-none focus:border-emerald-500 cursor-pointer"
+                      >
+                        <option value="Heebo, sans-serif">Heebo (היבו - ברירת מחדל)</option>
+                        <option value="Assistant, sans-serif">Assistant (אסיסטנט)</option>
+                        <option value="Rubik, sans-serif">Rubik (רוביק)</option>
+                        <option value="Alef, sans-serif">Alef (אלף)</option>
+                        <option value="Varela Round, sans-serif">Varela Round</option>
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>
