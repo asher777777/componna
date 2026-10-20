@@ -3,13 +3,14 @@ import { PageBuilderConfig } from './types/pageBuilder.types';
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { 
   MessageCircle, Phone, ArrowLeft, Heart, ShieldCheck, MapPin, LogIn,
-  Edit3, ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Copy, Sparkles, Plus, Settings, MoreVertical
+  Edit3, ArrowUp, ArrowDown, Eye, EyeOff, Trash2, Copy, Sparkles, Plus, Settings, MoreVertical, Palette
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { useBrandDna } from '../KosBranding/hooks/useBrandDna';
 import { AuthModal } from '../../components/Auth/AuthModal';
 import { AddSectionModal } from './components/AddSectionModal';
 import { AiSectionDesignerModal } from './components/AiSectionDesignerModal';
+import { SectionDesignLibraryModal } from './components/SectionDesignLibraryModal';
 import { PageBuilderModal } from './ui/PageBuilderModal';
 import { SectionType } from './types/pageBuilder.types';
 import { FloatingWeAreHereWidget } from './components/FloatingWeAreHereWidget';
@@ -64,6 +65,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
   // In-place section editing states
   const [editingSectionId, setEditingSectionId] = useState<string | null>(null);
   const [aiDesignerSectionId, setAiDesignerSectionId] = useState<string | null>(null);
+  const [designLibrarySectionId, setDesignLibrarySectionId] = useState<string | null>(null);
   const [isAddSectionModalOpen, setIsAddSectionModalOpen] = useState(false);
   const [addSectionInsertIndex, setAddSectionInsertIndex] = useState<number | undefined>(undefined);
   const [isWidgetSettingsModalOpen, setIsWidgetSettingsModalOpen] = useState(false);
@@ -274,6 +276,16 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
 
                       {/* Desktop Quick Actions (Visible on md+ screens) */}
                       <div className="hidden md:flex items-center gap-1">
+                        {/* Section Design Library / Save Design */}
+                        <button
+                          type="button"
+                          onClick={() => setDesignLibrarySectionId(sectionId)}
+                          className="p-1.5 rounded-xl bg-purple-500/10 hover:bg-purple-500/25 border border-purple-500/30 text-purple-300 hover:text-white transition cursor-pointer"
+                          title="ספריית עיצובים פומביים ושמירת עיצוב לאזור זה"
+                        >
+                          <Palette className="w-3.5 h-3.5" />
+                        </button>
+
                         {/* AI Re-design */}
                         <button
                           type="button"
@@ -380,6 +392,19 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                               className="absolute left-0 top-full mt-2 z-50 w-48 p-1.5 rounded-2xl bg-slate-900/98 backdrop-blur-xl border border-slate-700 shadow-2xl text-right animate-in fade-in zoom-in-95 space-y-1"
                               dir="rtl"
                             >
+                              {/* Section Design Library in mobile menu */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setMoreMenuSectionId(null);
+                                  setDesignLibrarySectionId(sectionId);
+                                }}
+                                className="w-full flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold text-purple-300 hover:text-white hover:bg-purple-600/30 transition text-right"
+                              >
+                                <Palette className="w-4 h-4 text-purple-400" />
+                                <span>ספריית עיצובים ושמירה</span>
+                              </button>
+
                               {/* AI Re-design in mobile menu */}
                               <button
                                 type="button"
@@ -628,6 +653,22 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
               onUpdateSection(aiDesignerSectionId, newConfig);
             }
             setAiDesignerSectionId(null);
+          }}
+        />
+      )}
+
+      {/* Section Design Library / Save Modal */}
+      {designLibrarySectionId && sections[designLibrarySectionId] && (
+        <SectionDesignLibraryModal
+          isOpen={Boolean(designLibrarySectionId)}
+          onClose={() => setDesignLibrarySectionId(null)}
+          sectionType={sections[designLibrarySectionId].type}
+          currentSectionConfig={sections[designLibrarySectionId]}
+          onApplyDesign={(updatedConfig) => {
+            if (onUpdateSection) {
+              onUpdateSection(designLibrarySectionId, updatedConfig);
+            }
+            setDesignLibrarySectionId(null);
           }}
         />
       )}

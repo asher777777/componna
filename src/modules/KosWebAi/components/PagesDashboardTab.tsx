@@ -704,28 +704,30 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
 
                 {/* Quick Action Buttons */}
                 <div className="pt-6 mt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col gap-3">
-                  {/* Convert Page to Interactive Video CTA */}
-                  {onConvertToVideo && (
-                    <button
-                      type="button"
-                      onClick={() => onConvertToVideo(page)}
-                      className="w-full py-2 px-3 rounded-xl bg-purple-50 dark:bg-purple-900/40 hover:bg-purple-100 dark:hover:bg-purple-900/60 border border-purple-200 dark:border-purple-500/40 text-purple-700 dark:text-purple-200 hover:text-purple-900 dark:hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
-                      title="צור עץ וידאו אינטראקטיבי לעמוד זה בסטודיו"
-                    >
-                      <Film className="w-3.5 h-3.5 text-pink-500 dark:text-pink-400" />
-                      <span>צור עץ וידאו אינטראקטיבי</span>
-                    </button>
-                  )}
-
                   <div className="flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onSelectPage(page)}
-                      className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
-                    >
-                      <Edit3 className="w-3.5 h-3.5" />
-                      <span>ערוך עמוד</span>
-                    </button>
+                    {(() => {
+                      const rawPath =
+                        page.publicUrl ||
+                        (getCategoryFromPage(page) === 'youtube_post'
+                          ? (page.slug?.startsWith('kosvidio/')
+                              ? `/${page.slug}`
+                              : `/kosvidio/${(page.slug || page.pageId).replace(/^\/?kosvidio[-/]/i, '')}`)
+                          : (page.isHomePage || page.slug === 'home')
+                          ? '/'
+                          : `/${(page.slug || page.pageId).replace(/^\/?p\//i, '')}`);
+                      const editUrl = rawPath.includes('?') ? `${rawPath}&edit=true` : `${rawPath}?edit=true`;
+
+                      return (
+                        <a
+                          href={editUrl}
+                          className="flex-1 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all shadow-md cursor-pointer"
+                          title="ערוך עמוד זה ישירות במצב עריכה חי קבוע"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>ערוך עמוד</span>
+                        </a>
+                      );
+                    })()}
 
                     <a
                       href={

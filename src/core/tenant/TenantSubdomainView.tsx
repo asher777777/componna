@@ -151,7 +151,13 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     return 'public';
   });
 
-  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('edit') === 'true';
+    }
+    return false;
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -160,6 +166,13 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
+    if (params.get('edit') === 'true') {
+      setIsEditing(true);
+      if (mode === 'admin') {
+        setMode('public');
+      }
+    }
+
     if (params.get('mode') === 'public' || params.get('public') === 'true') {
       setMode('public');
     } else if (params.get('mode') === 'admin' || params.get('admin') === 'true') {
