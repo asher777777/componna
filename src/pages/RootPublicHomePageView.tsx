@@ -10,6 +10,9 @@ import { eventBus } from '../core/bridge/EventBus';
 import { CapabilitySlot } from '../core/bridge/CapabilitySlot';
 import { subscribeToAuth, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../services/firebaseAuth';
 import { TenantAuthService } from '../modules/KosTenantProvisioner/services/tenantAuthService';
+import { Lock } from 'lucide-react';
+import { TenantAdminLoginView } from '../core/tenant/TenantAdminLoginView';
+import { TenantRecord } from '../core/contracts';
 
 import { useKosai } from '../modules/kosai-engine';
 
@@ -65,8 +68,41 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
   });
 
   // Manage mutable page configuration for live on-page edits
+  // Mode state: 'public' (visitor landing page) or 'admin' (control panel / editor login)
+  const [mode, setMode] = useState<'public' | 'admin'>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      if (p.get('admin') === 'true' || p.get('mode') === 'admin') {
+        return 'admin';
+      }
+    }
+    return 'public';
+  });
+
+  // Synchronize edit/admin mode from URL parameters
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('admin') === 'true' || p.get('mode') === 'admin') {
+      setMode('admin');
+    }
+    if (p.get('edit') === 'true') {
+      if (isAuthorized) {
+        setIsEditing(true);
+      } else {
+        setMode('admin');
+      }
+    }
+  }, [isAuthorized]);
+
   const [currentPageConfig, setCurrentPageConfig] = useState<PageBuilderConfig>(() => ensureHeaderSection(pageConfig));
-  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [isEditing, setIsEditing] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const p = new URLSearchParams(window.location.search);
+      return p.get('edit') === 'true' && TenantAuthService.isTenantAuthenticated(ROOT_TENANT_ID);
+    }
+    return false;
+  });
   const [isSaving, setIsSaving] = useState(false);
 
   // If not authorized, edit mode is strictly barred
@@ -119,7 +155,10 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
 
   // Notify KOSAI AI agent and system components of edit mode toggle
   const toggleEditMode = useCallback(async () => {
-    if (!isAuthorized) return;
+    if (!isAuthorized) {
+      setMode('admin');
+      return;
+    }
     if (isEditing) {
       // Save changes before exiting edit mode
       setIsSaving(true);
@@ -147,13 +186,18 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       }
       window.dispatchEvent(new CustomEvent('kosun_edit_mode_changed', { detail: { isEditMode: true } }));
     }
-  }, [isEditing, currentPageConfig, db]);
+  }, [isAuthorized, isEditing, currentPageConfig, db]);
 
   // Synchronize edit mode from external events (dock or shortcuts)
   useEffect(() => {
     const handleEditChange = (e: any) => {
       if (e?.detail?.isEditMode !== undefined) {
-        setIsEditing(Boolean(e.detail.isEditMode));
+        const target = Boolean(e.detail.isEditMode);
+        if (target && !isAuthorized) {
+          setMode('admin');
+        } else {
+          setIsEditing(target);
+        }
       }
     };
     const handleToggleEdit = () => {
@@ -165,7 +209,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
       window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
       window.removeEventListener('kosun_toggle_edit_mode', handleToggleEdit);
     };
-  }, [toggleEditMode]);
+  }, [toggleEditMode, isAuthorized]);
 
   // Section CRUD Handlers
   const handleUpdateSection = useCallback((sectionId: string, updatedData: any) => {
@@ -387,6 +431,47 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
     return ensureHeaderSection(currentPageConfig);
   }, [currentPageConfig]);
 
+  // ADMIN LOGIN GUARD: Check platform master admin authentication when admin mode is requested
+  if (mode === 'admin' && !isAuthorized) {
+    const rootTenantRecord: TenantRecord = {
+      subdomain: ROOT_TENANT_ID,
+      fullDomain: typeof window !== 'undefined' ? window.location.host : 'kosun.pro',
+      clientName: 'מערכת ראשית (קושאן)',
+      ownerEmail: 'admin@kosun.pro',
+      ownerPhone: '',
+      activeModules: [],
+      collectionPrefix: '',
+      billingPlan: 'annual',
+      monthlyTotal: 0,
+      paymentTransactionId: '',
+      status: 'active',
+      createdAt: '',
+      updatedAt: '',
+    };
+
+    return (
+      <TenantAdminLoginView
+        tenantRecord={rootTenantRecord}
+        onLoginSuccess={() => {
+          setIsAuthorized(true);
+          setMode('public');
+          setIsEditing(true);
+        }}
+        onBackToPublic={() => {
+          setMode('public');
+          if (typeof window !== 'undefined') {
+            const p = new URLSearchParams(window.location.search);
+            p.delete('admin');
+            p.delete('edit');
+            p.delete('mode');
+            const clean = p.toString() ? `?${p.toString()}` : window.location.pathname;
+            window.history.replaceState(null, '', clean);
+          }
+        }}
+      />
+    );
+  }
+
   return (
     <div className={`min-h-screen flex flex-col font-sans relative selection:bg-indigo-500 selection:text-white transition-colors duration-300 pb-20 ${
       theme === 'light' ? 'bg-[#f8fafc] text-slate-900' : 'bg-[#0a0a0c] text-white'
@@ -455,6 +540,19 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         isSaving={isSaving}
         isAuthorized={isAuthorized}
       />
+
+      {/* Discrete admin portal entry button if not authorized */}
+      {!isAuthorized && (
+        <button
+          type="button"
+          onClick={() => setMode('admin')}
+          className="fixed bottom-4 left-4 z-40 p-2.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-slate-400 hover:text-white backdrop-blur-md border border-slate-700/60 shadow-lg transition opacity-50 hover:opacity-100 cursor-pointer"
+          title="כניסת מנהל ועריכת עמוד"
+          aria-label="כניסת מנהל"
+        >
+          <Lock className="w-4 h-4" />
+        </button>
+      )}
     </div>
   );
 };

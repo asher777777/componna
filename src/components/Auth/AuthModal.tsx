@@ -121,8 +121,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
     // 1. If on a custom tenant subdomain, verify against tenant credentials
     const currentHost = typeof window !== 'undefined' ? window.location.hostname : '';
-    const activeSub = extractSubdomainFromHost(currentHost);
-    if (activeSub && activeSub !== '_master') {
+    const activeSub = extractSubdomainFromHost(currentHost) || tenantId || '_master';
+    if (activeSub) {
       try {
         const db = firebaseApp ? getFirestore(firebaseApp) : undefined;
         const tenantRes = await TenantAuthService.verifyTenantLogin(
@@ -136,7 +136,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           setTimeout(() => {
             onClose();
             const url = new URL(window.location.href);
-            url.pathname = '/brand-dna';
+            if (activeSub === '_master') {
+              url.pathname = '/';
+              url.searchParams.set('edit', 'true');
+            } else {
+              url.pathname = '/brand-dna';
+            }
             url.search = '';
             window.location.href = url.toString();
           }, 500);
@@ -158,8 +163,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         onClose();
       }, 700);
     } catch (err: any) {
-      if (activeSub && activeSub !== '_master') {
-        setErrorMsg('שם משתמש או סיסמה שגויים עבור מנהל הסאב-דומיין');
+      if (activeSub) {
+        setErrorMsg('שם משתמש או סיסמה שגויים');
       } else {
         setErrorMsg(formatAuthError(err));
       }

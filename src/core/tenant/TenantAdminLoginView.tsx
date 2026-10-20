@@ -42,6 +42,13 @@ export const TenantAdminLoginView: React.FC<TenantAdminLoginViewProps> = ({
       if (res.success) {
         onLoginSuccess();
         const currentPath = window.location.pathname;
+        if (tenantRecord.subdomain === '_master' || tenantRecord.subdomain === 'root') {
+          const url = new URL(window.location.href);
+          url.pathname = '/';
+          url.searchParams.set('edit', 'true');
+          window.location.href = url.toString();
+          return;
+        }
         const targetPath = (currentPath && currentPath !== '/' && !isPublicContentPath(currentPath)) ? currentPath : '/brand-dna';
         const url = new URL(window.location.href);
         url.pathname = targetPath;
