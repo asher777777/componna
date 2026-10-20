@@ -34,7 +34,8 @@ export type SectionType =
   | 'dynamicCategories'
   | 'eventsListing'
   | 'articlesListing'
-  | 'futureContent2027';
+  | 'futureContent2027'
+  | 'decorativeDivider';
 
 export interface CookieConsentSettings {
   enabled?: boolean;

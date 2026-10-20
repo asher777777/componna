@@ -1743,3 +1743,54 @@ export interface ArticlesListingSectionConfig extends BaseSectionConfig {
 
 
 
+
+
+// ==========================================
+// Decorative Divider & Spacer Section Config
+// ==========================================
+export type DecorativeDividerBackgroundType = 'transparent' | 'solid' | 'gradient' | 'image' | 'video';
+export type DecorativeDividerDistribution = 'single' | 'repeat' | 'spaced-3' | 'spaced-5' | 'flow-marquee';
+export type DecorativeDividerIconStretch = 'contain' | 'cover' | 'stretch' | 'original';
+
+export interface DecorativeDividerSectionConfig extends BaseSectionConfig {
+  type: 'decorativeDivider';
+  height?: number; // Height in pixels (controlled via drag or input)
+  minHeight?: number;
+  maxHeight?: number;
+  bgType?: DecorativeDividerBackgroundType;
+  solidColor?: string;
+  gradientAngle?: number;
+  gradientFrom?: string;
+  gradientVia?: string;
+  gradientTo?: string;
+  bgImageUrl?: string;
+  bgVideoUrl?: string;
+  bgOverlayOpacity?: number;
+  bgOverlayColor?: string;
+
+  // Icon / Shape / SVG options
+  iconName?: string;
+  customSvgDataUrl?: string;
+  iconColor?: string;
+  iconSecondaryColor?: string;
+  iconSize?: number; // In px, e.g. 16, 24, 32, 48, 64, 80, 120
+  iconStretch?: DecorativeDividerIconStretch;
+  distribution?: DecorativeDividerDistribution;
+  itemsGap?: number; // In px
+
+  // Container & Stretching
+  fullWidth?: boolean;
+  containerPaddingX?: number;
+
+  // Synced 6 Style Presets & Effects
+  stylePreset?: TenantStylePreset;
+  effectType?: 'none' | 'pulse-glow' | 'float-bob' | 'shimmer-beam' | 'rotate-slow' | 'cyber-scan' | 'wave-drift';
+  animationSpeed?: 'slow' | 'normal' | 'fast';
+
+  // Optional decorative text / micro-label (if desired)
+  decorativeText?: string;
+  textColor?: string;
+  textFontSize?: 'xs' | 'sm' | 'base' | 'lg';
+  textFontWeight?: 'normal' | 'bold' | 'extrabold';
+  textPosition?: 'none' | 'before' | 'after' | 'center-overlay';
+}

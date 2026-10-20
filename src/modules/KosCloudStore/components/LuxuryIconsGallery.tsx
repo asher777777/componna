@@ -372,12 +372,14 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
 
     // Adapt shape background according to the archetype
     let shapeSvg = `<circle cx="12" cy="12" r="10" stroke="${hex}" stroke-opacity="0.25" fill="${hex}" fill-opacity="0.08"/>`;
-    if (archetypeKey === 'sharp') {
+    if (archetypeKey === 'feminine') {
+      shapeSvg = `<circle cx="12" cy="12" r="10" stroke="${hex}" stroke-width="1.6" stroke-opacity="0.4" fill="${hex}" fill-opacity="0.12"/><circle cx="12" cy="12" r="7.5" stroke="${hex}" stroke-width="0.8" stroke-dasharray="1 1.5" stroke-opacity="0.35"/>`;
+    } else if (archetypeKey === 'masculine') {
+      shapeSvg = `<rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="${hex}" stroke-width="1.8" stroke-opacity="0.35" fill="${hex}" fill-opacity="0.08"/>`;
+    } else if (archetypeKey === 'sharp') {
       shapeSvg = `<rect x="2" y="2" width="20" height="20" rx="0" stroke="${hex}" stroke-opacity="0.3" fill="${hex}" fill-opacity="0.08"/>`;
     } else if (archetypeKey === 'analytical') {
       shapeSvg = `<rect x="2.5" y="2.5" width="19" height="19" rx="3" stroke="${hex}" stroke-opacity="0.3" fill="${hex}" fill-opacity="0.08"/>`;
-    } else if (archetypeKey === 'masculine') {
-      shapeSvg = `<rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="${hex}" stroke-width="1.8" stroke-opacity="0.35" fill="${hex}" fill-opacity="0.08"/>`;
     } else if (archetypeKey === 'spiritual') {
       shapeSvg = `<circle cx="12" cy="12" r="10.5" stroke="${hex}" stroke-dasharray="2 1.5" stroke-opacity="0.35" fill="${hex}" fill-opacity="0.1"/>`;
     }
@@ -386,8 +388,11 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
     return `data:image/svg+xml;utf8,${encodeURIComponent(svgString)}`;
   };
 
-  const handlePickIcon = (iconName: string) => {
-    const dataUrl = generateIconSvgDataUrl(iconName);
+  const handlePickIcon = (iconName: string, iconArchetype?: TenantStylePreset) => {
+    // Priority: icon's own archetype -> active preset filter (if not 'all') -> active finish preset
+    const targetArchetype =
+      iconArchetype || (selectedArchetype !== 'all' ? (selectedArchetype as TenantStylePreset) : activeFinishPreset);
+    const dataUrl = generateIconSvgDataUrl(iconName, targetArchetype);
     if (onSelectIconSvg) onSelectIconSvg(dataUrl, iconName);
     if (onSelectIcon) onSelectIcon(dataUrl, iconName);
   };
@@ -541,7 +546,7 @@ export const LuxuryIconsGallery: React.FC<LuxuryIconsGalleryProps> = ({
           return (
             <div
               key={`${item.archetype}_${item.name}`}
-              onClick={() => handlePickIcon(item.name)}
+              onClick={() => handlePickIcon(item.name, item.archetype)}
               className={clsx(
                 'p-3 rounded-2xl border transition-all duration-200 flex flex-col items-center justify-between gap-2 group cursor-pointer text-center relative select-none hover:-translate-y-0.5',
                 conf.bg,
