@@ -652,7 +652,7 @@ export function sanitizeArchivePageWithBrandDna(
     ...page,
     pageCategory: category,
     isArchivePage: true,
-    published: true,
+    published: page.published ?? true,
     sectionOrder: finalSectionOrder,
     sections,
     globalSettings: {
