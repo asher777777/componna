@@ -1,5 +1,6 @@
 import { CommunityBlueprint, CommunityAffiliationType } from '../../../core/contracts';
-import { BaseSectionConfig, TenantStylePreset } from './pageBuilder.types';
+import { BaseSectionConfig } from './pageBuilder.types';
+import { TenantStylePreset } from '../../../core/contracts';
 import { FormConfigContract } from '../../../core/contracts';
 
 

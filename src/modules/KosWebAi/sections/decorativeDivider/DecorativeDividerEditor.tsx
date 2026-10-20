@@ -793,9 +793,9 @@ export const DecorativeDividerEditor: React.FC<DecorativeDividerEditorProps> = (
                   value={localConfig.iconColor || liveBrand?.designTokens?.primaryColor || '#4f46e5'}
                   onChange={(c) => {
                     handleUpdate({ iconColor: c });
-                    // Refresh custom SVG data URL color if present
-                    if (selectedShape) {
-                      const updatedSvg = buildShapeSvgDataUrl(selectedShape, c);
+                    const activeShape = SHAPES_AND_SYMBOLS_COLLECTION.find((s: StyleShapeSymbolItem) => s.id === localConfig.iconName || s.name === localConfig.iconName);
+                    if (activeShape) {
+                      const updatedSvg = buildShapeSvgDataUrl(activeShape, c);
                       handleUpdate({ iconColor: c, customSvgDataUrl: updatedSvg });
                     }
                   }}
