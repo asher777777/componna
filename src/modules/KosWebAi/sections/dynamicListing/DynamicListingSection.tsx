@@ -75,6 +75,8 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     archivePathFilter,
     singlePageId,
     customImageOverride,
+    sectionHeightMode,
+    customSectionHeight,
   } = config;
 
   // Dynamic Light / Dark mode and Brand DNA state
@@ -812,13 +814,30 @@ export const DynamicListingSection: React.FC<{ config: DynamicListingSectionConf
     }
   };
 
-  return (
-    <section
-      id={anchorId}
-      className="relative w-full py-16 md:py-24 px-4 sm:px-6 lg:px-8 overflow-hidden transition-colors"
-      style={{ backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined }}
-      dir="rtl"
-    >
+    const effectiveMinHeight =
+      sectionHeightMode === 'compact'
+        ? '400px'
+        : sectionHeightMode === 'medium'
+        ? '600px'
+        : sectionHeightMode === 'tall'
+        ? '850px'
+        : sectionHeightMode === 'custom' && customSectionHeight
+        ? `${customSectionHeight}px`
+        : undefined;
+
+    return (
+      <section
+        id={anchorId}
+        className={clsx(
+          'relative w-full px-4 sm:px-6 lg:px-8 overflow-hidden transition-all flex flex-col justify-center',
+          sectionHeightMode === 'compact' ? 'py-8 md:py-12' : sectionHeightMode === 'tall' ? 'py-24 md:py-32' : 'py-16 md:py-24'
+        )}
+        style={{
+          backgroundColor: backgroundColor !== 'transparent' ? backgroundColor : undefined,
+          minHeight: effectiveMinHeight,
+        }}
+        dir="rtl"
+      >
       {/* Background ambient light */}
       <div className="absolute top-1/4 right-1/3 w-[500px] h-[500px] bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/4 w-[450px] h-[450px] bg-sky-500/5 dark:bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />

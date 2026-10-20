@@ -1355,6 +1355,8 @@ export interface DynamicListingSectionConfig extends BaseSectionConfig {
   archivePathFilter?: string; // Optional filter for specific archive paths
   singlePageId?: string; // מזהה עמוד בודד להצגה ישירה
   customImageOverride?: string; // דריסת תמונה מותאמת לאזור או לעמוד
+  sectionHeightMode?: 'auto' | 'compact' | 'medium' | 'tall' | 'custom'; // עיצוב גובה הליסטינג
+  customSectionHeight?: number; // גובה מותאם אישית בפיקסלים (e.g. 400-1200)
 }
 
 export type FutureContentMode = 'prism-bento' | 'kinetic-editorial' | 'floating-islands';
