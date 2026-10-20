@@ -247,9 +247,13 @@ export const BrandDnaProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('kosun_theme_changed', { detail: partial }));
       }
+      // Trigger immediate persist to Firestore & LocalStorage so it survives page reloads / deploys
+      saveBrandDna(next, db, tenantId).catch((err) =>
+        console.warn('[BrandDNA] Immediate persist of design tokens failed:', err)
+      );
       return next;
     });
-  }, [markLocalEdit]);
+  }, [db, tenantId, markLocalEdit]);
 
   const updateUiVocabulary = useCallback((partial: Partial<BrandUiVocabulary>) => {
     markLocalEdit();

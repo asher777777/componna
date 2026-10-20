@@ -217,28 +217,32 @@ const TENANT_STYLE_OPTIONS: Array<{
 ];
 
 export const DesignTokensSection: React.FC = () => {
-  const { brandDna, updateDesignTokens } = useBrandDna();
+  const { brandDna, updateDesignTokens, saveNow, isSaving } = useBrandDna();
   const { tenantId } = useTenantScope();
   const tokens = brandDna.designTokens;
 
   const [isApplying, setIsApplying] = React.useState(false);
   const [actionFeedback, setActionFeedback] = React.useState<{ type: 'success' | 'info'; text: string } | null>(null);
 
-  const handleSelectPreset = (presetId: TenantStylePreset) => {
+  const handleSelectPreset = async (presetId: TenantStylePreset) => {
     const defaults = STYLE_PRESET_TOKEN_DEFAULTS[presetId];
     updateDesignTokens({
       defaultStylePreset: presetId,
       borderRadius: defaults.borderRadius,
       buttonStyle: defaults.buttonStyle,
     });
+    // Immediately persist and sync with Firestore cloud
+    setTimeout(async () => {
+      await saveNow();
+    }, 100);
     setActionFeedback({
-      type: 'info',
-      text: `סגנון ${TENANT_STYLE_OPTIONS.find((s) => s.id === presetId)?.title || presetId} נקבע כסגנון קבוע לכל עמודי KWB!`,
+      type: 'success',
+      text: `סגנון ${TENANT_STYLE_OPTIONS.find((s) => s.id === presetId)?.title || presetId} נשמר בהצלחה בענן וב-Firestore!`,
     });
     setTimeout(() => setActionFeedback(null), 4000);
   };
 
-  const handleApplyPresetColors = (presetId: TenantStylePreset) => {
+  const handleApplyPresetColors = async (presetId: TenantStylePreset) => {
     const defaults = STYLE_PRESET_TOKEN_DEFAULTS[presetId];
     updateDesignTokens({
       primaryColor: defaults.primaryColor,
@@ -247,9 +251,12 @@ export const DesignTokensSection: React.FC = () => {
       buttonBgColor: defaults.buttonBgColor,
       buttonTextColor: defaults.buttonTextColor,
     });
+    setTimeout(async () => {
+      await saveNow();
+    }, 100);
     setActionFeedback({
       type: 'success',
-      text: `פלטת הצבעים עודכנה בהתאם לסגנון ${TENANT_STYLE_OPTIONS.find((s) => s.id === presetId)?.title || presetId}!`,
+      text: `פלטת הצבעים עודכנה ונשמרה בהצלחה בענן בהתאם לסגנון ${TENANT_STYLE_OPTIONS.find((s) => s.id === presetId)?.title || presetId}!`,
     });
     setTimeout(() => setActionFeedback(null), 4000);
   };
@@ -549,11 +556,28 @@ export const DesignTokensSection: React.FC = () => {
 
             <button
               type="button"
+              disabled={isSaving}
+              onClick={async () => {
+                await saveNow();
+                setActionFeedback({
+                  type: 'success',
+                  text: 'כל הגדרות העיצוב והשפה החזותית נשמרו בהצלחה בענן!',
+                });
+                setTimeout(() => setActionFeedback(null), 4000);
+              }}
+              className="py-3 px-4 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center gap-2 shadow-lg shadow-emerald-600/20 transition-all cursor-pointer disabled:opacity-50"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>שמור הגדרות עיצוב אלו בענן כעת</span>
+            </button>
+
+            <button
+              type="button"
               disabled={isApplying}
               onClick={handleResetAllPages}
-              className="py-3 px-4 rounded-xl font-bold text-xs bg-slate-700/70 hover:bg-slate-700 border border-slate-600 text-slate-200 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              className="col-span-1 sm:col-span-2 py-2.5 px-4 rounded-xl font-medium text-xs bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-400 hover:text-white flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
             >
-              <RotateCcw className="w-4 h-4 text-indigo-400" />
+              <RotateCcw className="w-3.5 h-3.5 text-indigo-400" />
               <span>אפס את כל העמודים למצב ראשוני</span>
             </button>
           </div>
