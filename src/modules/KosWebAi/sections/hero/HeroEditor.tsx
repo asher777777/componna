@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { HeroSectionConfig, HeroLayoutPreset, HeroTextBgEffect } from '../../types/sectionConfigs';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
+import { SectionDesignLibraryModal } from '../../components/SectionDesignLibraryModal';
 import { useHostCapabilities } from '../../../../core/bridge/HostCapabilitiesContext';
 import { BrandDnaContract, AiTextAssistantContract } from '../../../../core/contracts';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
@@ -174,6 +175,7 @@ export const HeroEditor: React.FC<{
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
+  const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
 
   // Dynamic Light / Dark mode sync from document element
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {

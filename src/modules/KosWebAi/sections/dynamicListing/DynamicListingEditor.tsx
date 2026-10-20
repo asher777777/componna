@@ -16,6 +16,7 @@ import {
 import { PageBuilderInput } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';
 import { PageBuilderImageUpload } from '../../ui/PageBuilderImageUpload';
+import { SectionDesignLibraryModal } from '../../components/SectionDesignLibraryModal';
 import { pageBuilderFirestore } from '../../services/pageBuilderFirestore';
 import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../../core/tenant/tenantResolver';
 import { ARCHIVE_7_SECTIONS_SPECS, PAGE_CATEGORIES } from '../../types/pageBuilder.types';
@@ -232,6 +233,7 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isBrandSynced, setIsBrandSynced] = useState(false);
+  const [isDesignModalOpen, setIsDesignModalOpen] = useState(false);
   const [tenantPages, setTenantPages] = useState<Array<{ pageId: string; pageTitle: string; pageCategory?: string; slug: string; heroData?: any }>>([]);
   const [loadingTenantPages, setLoadingTenantPages] = useState(false);
 
@@ -534,6 +536,19 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
             title="סנכרן מ-Brand DNA ומאגר הטננט"
           >
             {isBrandSynced ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Sparkles className="w-3.5 h-3.5" />}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsDesignModalOpen(true)}
+            className={`p-1.5 rounded-full border transition hover:opacity-80 cursor-pointer ${
+              isDarkMode
+                ? 'border-purple-900 text-purple-400 bg-purple-950/30 hover:bg-purple-900/50'
+                : 'border-purple-200 text-purple-600 bg-purple-50/50 hover:bg-purple-100'
+            }`}
+            title="ספריית עיצובים פומביים ושמירת עיצוב לטננט פומבי"
+          >
+            <Palette className="w-3.5 h-3.5" />
           </button>
 
           <button
@@ -1747,6 +1762,22 @@ export const DynamicListingEditor: React.FC<DynamicListingEditorProps> = ({
           )}
         </div>
       </div>
+
+      {/* Section Design Library Modal */}
+      {isDesignModalOpen && (
+        <SectionDesignLibraryModal
+          isOpen={isDesignModalOpen}
+          onClose={() => setIsDesignModalOpen(false)}
+          sectionType="dynamicListing"
+          currentSectionConfig={formData}
+          onApplyDesign={(updated) => {
+            setFormData(updated as any);
+            onChange(updated as any);
+            showNotification('העיצוב הפומבי הוחל בהצלחה!');
+          }}
+          isDarkMode={isDarkMode}
+        />
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (
