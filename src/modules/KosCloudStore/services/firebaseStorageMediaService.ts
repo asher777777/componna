@@ -177,14 +177,8 @@ export class FirebaseStorageMediaService {
             clearTimeout(safetyTimeout);
             try {
               const downloadUrl = await getDownloadURL(uploadTask.snapshot.ref);
-              const customTenantUrl = getTenantPublicMediaUrl({
-                ...localMediaItem,
-                storagePath,
-                tenantId,
-              });
-              // Never return a localhost proxy URL that fails without a local function emulator running
-              const isLocalProxy = customTenantUrl && (customTenantUrl.includes('localhost') || customTenantUrl.includes('127.0.0.1'));
-              finish(!isLocalProxy && customTenantUrl ? customTenantUrl : downloadUrl);
+              // Always prioritize direct Firebase Cloud Storage URL across both dev and production subdomains
+              finish(downloadUrl);
             } catch {
               finish(workingLocalUrl);
             }

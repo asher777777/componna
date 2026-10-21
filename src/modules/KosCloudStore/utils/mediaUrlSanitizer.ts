@@ -117,6 +117,24 @@ export function getPermanentMediaUrl(item?: Partial<MediaItem>, bucket: string =
 }
 
 /**
+ * Extracts Cloud Storage path from any custom domain media proxy URL or returns null.
+ * E.g.:
+ * - https://mlea.kosun.pro/media/tenants/mlea/media/file.jpg -> tenants/mlea/media/file.jpg
+ * - https://kosun.pro/media/sdo_media_vault/file.jpg -> sdo_media_vault/file.jpg
+ * - /media/tenants/mlea/media/file.jpg -> tenants/mlea/media/file.jpg
+ */
+export function extractStoragePathFromProxyUrl(url?: string): string | null {
+  if (!url || typeof url !== 'string') return null;
+  const match = url.match(/\/media\/(.+?)(\?.*)?$/i);
+  if (!match || !match[1]) return null;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+/**
  * Returns an array of viable candidate URLs to attempt loading media/video.
  */
 export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): string[] {
@@ -128,12 +146,22 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     }
   };
 
-  // 1. If valid external or direct http(s) URL that's not an alien blob
+  // If a custom proxy URL (/media/...) is provided as the URL, convert it to a direct Cloud Storage URL FIRST!
+  // This guarantees that if the domain/subdomain rewrite isn't active or on another tenant origin,
+  // the browser directly fetches the file from Google Cloud Storage without breaking.
+  if (url && url.includes('/media/')) {
+    const extractedPath = extractStoragePathFromProxyUrl(url);
+    if (extractedPath) {
+      const encoded = encodeURIComponent(extractedPath);
+      add(`https://firebasestorage.googleapis.com/v0/b/${SYSTEM_MAIN_STORAGE_BUCKET}/o/${encoded}?alt=media`);
+      add(`https://firebasestorage.googleapis.com/v0/b/${LEGACY_VAULT_BUCKET}/o/${encoded}?alt=media`);
+    }
+  }
+
+  // 1. If valid external or direct http(s) URL that's not an alien blob or proxy URL
   if (url && !isAlienBlobUrl(url)) {
-    // If it's a localhost / 127.0.0.1 media proxy URL, it cannot resolve without a local functions emulator running,
-    // so don't prioritize it over direct Cloud Storage URL!
-    const isLocalProxy = url.includes('/media/') && (url.includes('localhost') || url.includes('127.0.0.1'));
-    if (!isLocalProxy) {
+    const isProxyUrl = url.includes('/media/');
+    if (!isProxyUrl) {
       add(url);
       if (url.includes(LEGACY_VAULT_BUCKET)) {
         add(url.replace(LEGACY_VAULT_BUCKET, SYSTEM_MAIN_STORAGE_BUCKET));
@@ -155,15 +183,6 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     }
   }
 
-  // 3. Custom Domain Media Proxy (https://kosun.pro/media/... or https://[tenant].kosun.pro/media/...)
-  // Only add proxy if we are not on localhost (or after permanent direct url)
-  if (item) {
-    const customPublicUrl = getTenantPublicMediaUrl(item);
-    if (customPublicUrl && !customPublicUrl.includes('localhost') && !customPublicUrl.includes('127.0.0.1')) {
-      add(customPublicUrl);
-    }
-  }
-
   // 3. Fallback without timestamp prefix
   if (item?.name) {
     const cleanName = item.name.replace(/[\\/:*?"<>|]/g, '_').replace(/^\d+_/, '').trim();
@@ -179,7 +198,15 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     }
   }
 
-  // 4. Data URL fallback
+  // 4. Custom Domain Media Proxy (as fallback only if direct storage doesn't respond)
+  if (item) {
+    const customPublicUrl = getTenantPublicMediaUrl(item);
+    if (customPublicUrl && !customPublicUrl.includes('localhost') && !customPublicUrl.includes('127.0.0.1')) {
+      add(customPublicUrl);
+    }
+  }
+
+  // 5. Data URL fallback
   if (item?.metadata?.dataUrl && !item.metadata.dataUrl.startsWith('blob:')) {
     add(item.metadata.dataUrl);
   }

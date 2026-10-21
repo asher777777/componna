@@ -53,6 +53,13 @@ import {
   ThumbsUp,
   Sun,
   Moon,
+  LayoutTemplate,
+  Scaling,
+  Shapes,
+  SlidersHorizontal,
+  Minimize2,
+  Maximize2,
+  RectangleHorizontal,
 } from 'lucide-react';
 
 const DUMMY_YOUTUBE_IDS = new Set([
@@ -734,24 +741,45 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
 
   return (
     <div
-      className={`relative w-full max-w-2xl bg-[#141414] text-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${
-        isDayMode ? 'kvg-day-mode' : ''
+      className={`kvg-editor relative w-full max-w-2xl rounded-3xl sm:rounded-[2.5rem] p-3.5 sm:p-5 border shadow-2xl overflow-hidden flex flex-col max-h-[90vh] font-sans text-right transition-colors ${
+        isDayMode ? 'kvg-light bg-white border-slate-200 text-slate-900' : 'bg-[#0a0a0a] border-white/10 text-white'
       }`}
+      style={{ fontFamily: "'Heebo', sans-serif" }}
       dir="rtl"
     >
-      <style>{`
-        .kvg-day-mode { filter: invert(1) hue-rotate(180deg); }
-        .kvg-day-mode img,
-        .kvg-day-mode video,
-        .kvg-day-mode iframe,
-        .kvg-day-mode .kvg-keep-colors { filter: invert(1) hue-rotate(180deg); }
+      <style>{String.raw`
+        .kvg-editor .kvg-acc { border-width: 1px; }
+        .kvg-editor:not(.kvg-light) .kvg-acc { background: #141414; border-color: rgba(255,255,255,0.05); }
+        .kvg-editor:not(.kvg-light) .kvg-acc-head:hover { background: #1a1a1a; }
+        .kvg-editor:not(.kvg-light) .kvg-acc-body { background: #111; border-color: rgba(255,255,255,0.05); }
+        .kvg-light .kvg-acc { background: rgba(248,250,252,0.7); border-color: #e2e8f0; }
+        .kvg-light .kvg-acc-head { color: #1e293b; }
+        .kvg-light .kvg-acc-head:hover { background: #f1f5f9; }
+        .kvg-light .kvg-acc-body { background: #fff; border-color: #e2e8f0; }
+        .kvg-light .text-white:not(.bg-emerald-600):not(.kvg-keep) { color: #0f172a; }
+        .kvg-light .hover\:text-white:hover { color: #0f172a; }
+        .kvg-light .text-slate-300 { color: #334155; }
+        .kvg-light .text-slate-400 { color: #64748b; }
+        .kvg-light .text-amber-300 { color: #b45309; }
+        .kvg-light .text-sky-300 { color: #0369a1; }
+        .kvg-light .bg-white\/5, .kvg-light .bg-white\/\[0\.03\], .kvg-light .bg-white\/\[0\.02\] { background-color: #f8fafc; }
+        .kvg-light .bg-white\/10, .kvg-light .hover\:bg-white\/10:hover, .kvg-light .hover\:bg-white\/15:hover,
+        .kvg-light .hover\:bg-white\/\[0\.02\]:hover, .kvg-light .hover\:bg-white\/\[0\.04\]:hover { background-color: #f1f5f9; }
+        .kvg-light .bg-\[\#181818\], .kvg-light .bg-\[\#181818\]\/80, .kvg-light .bg-\[\#111111\], .kvg-light .bg-\[\#141414\],
+        .kvg-light .bg-slate-900, .kvg-light .bg-slate-900\/95 { background-color: #ffffff; }
+        .kvg-light .border-white\/10, .kvg-light .border-white\/15, .kvg-light .border-white\/5,
+        .kvg-light .border-slate-700, .kvg-light .hover\:border-white\/20:hover { border-color: #e2e8f0; }
       `}</style>
-      {/* Top Header */}
-      <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between gap-3 bg-[#181818]">
+      {/* Header — mirrors HeroEditor compact header */}
+      <div
+        className={`flex items-center justify-between pb-2.5 mb-2.5 border-b shrink-0 ${
+          isDayMode ? 'border-slate-100' : 'border-white/10'
+        }`}
+      >
         <div className="flex items-center">
           <svg
             viewBox="0 0 64 64"
-            className="w-11 h-11 animate-pulse kvg-keep-colors"
+            className="w-8 h-8 animate-pulse"
             role="img"
             aria-label="Kosun"
           >
@@ -779,55 +807,65 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
           </svg>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 shrink-0">
           {/* Day / Night Toggle */}
           <button
             type="button"
             onClick={() => setIsDayMode((v) => !v)}
-            className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+            className={`p-1.5 rounded-full transition cursor-pointer ${
+              isDayMode ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/20 text-white'
+            }`}
             title={isDayMode ? 'מצב לילה' : 'מצב יום'}
             aria-label={isDayMode ? 'מצב לילה' : 'מצב יום'}
           >
-            {isDayMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+            {isDayMode ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
           </button>
 
           {/* Brand DNA Sync */}
           <button
             type="button"
             onClick={handleSyncFromBrandDna}
-            className="w-11 h-11 flex items-center justify-center rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition cursor-pointer"
-            title="סנכרן מיתוג"
-            aria-label="סנכרן מיתוג"
+            className={`p-1.5 rounded-full border transition hover:opacity-80 cursor-pointer ${
+              isDayMode
+                ? 'border-indigo-200 text-indigo-600 bg-indigo-50/50'
+                : 'border-indigo-900 text-indigo-400 bg-indigo-950/30'
+            }`}
+            title="סנכרן מ-Brand DNA"
+            aria-label="סנכרן מ-Brand DNA"
           >
-            <RefreshCw className="w-5 h-5" />
+            <Sparkles className="w-3.5 h-3.5" />
           </button>
 
           {/* Pulsing Save Button */}
           <button
             type="button"
             onClick={handleSave}
-            title={saveSuccess ? 'נשמר!' : 'שמור'}
-            aria-label={saveSuccess ? 'נשמר!' : 'שמור'}
-            className={`w-11 h-11 flex items-center justify-center rounded-xl transition-all shadow-md cursor-pointer ${
+            title={saveSuccess ? 'נשמר!' : isDirty ? 'שמור שינויים שלא נשמרו' : 'שמור'}
+            aria-label="שמור"
+            className={`p-1.5 rounded-full transition shadow-sm cursor-pointer ${
               isDirty
-                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse shadow-amber-500/30'
+                ? 'bg-amber-500 hover:bg-amber-400 text-black ring-2 ring-amber-400/50 animate-pulse'
                 : saveSuccess
                 ? 'bg-emerald-600 text-white'
-                : 'bg-white/10 hover:bg-white/15 text-slate-300'
+                : isDayMode
+                ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                : 'bg-white/10 hover:bg-white/20 text-white'
             }`}
           >
-            {saveSuccess ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
+            {saveSuccess ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
           </button>
 
           {/* Close Button */}
           <button
             type="button"
             onClick={handleClose}
-            className="w-11 h-11 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+            className={`p-1.5 rounded-full transition cursor-pointer ${
+              isDayMode ? 'bg-slate-100 hover:bg-slate-200 text-slate-700' : 'bg-white/10 hover:bg-white/20 text-white'
+            }`}
             title="סגור"
             aria-label="סגור"
           >
-            <X className="w-5 h-5" />
+            <X className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
@@ -850,29 +888,31 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
       )}
 
       {/* TOP 6-LAYOUT ICON MENU — collapsible, closed by default */}
-      <div className="bg-[#111111] border-b border-white/10">
+      <div className="kvg-acc rounded-2xl overflow-hidden mb-2.5 shrink-0">
         <button
           type="button"
           onClick={() => toggleAccordion('tab-style-presets')}
-          className="w-full px-4 py-3 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+          className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           aria-expanded={openAccordion === 'tab-style-presets'}
         >
-          <div className="flex items-center gap-2.5">
-            <Sliders className="w-4 h-4 text-amber-400" />
+          <div className="flex items-center gap-2">
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center ${isDayMode ? 'bg-white text-indigo-600 shadow-sm' : 'bg-white/5 text-amber-400'}`}>
+              <LayoutTemplate className="w-3.5 h-3.5" />
+            </span>
             <span>סגנון פריסה</span>
-            <span className="text-[10px] text-amber-400 font-semibold">
+            <span className="text-[10px] text-amber-500 font-bold">
               {LAYOUT_OPTIONS.find((l) => l.id === currentLayoutPreset)?.title || 'עכשווי'}
             </span>
           </div>
           <ChevronDown
-            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
-              openAccordion === 'tab-style-presets' ? 'rotate-180 text-amber-400' : ''
+            className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${
+              openAccordion === 'tab-style-presets' ? 'rotate-180' : ''
             }`}
           />
         </button>
 
         {openAccordion === 'tab-style-presets' && (
-        <div className="px-3 pb-3">
+        <div className="kvg-acc-body p-3 border-t">
         <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
           {LAYOUT_OPTIONS.map((opt) => {
             const IconComp = opt.icon;
@@ -887,13 +927,15 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                   onMouseLeave={() => setHoveredLayout(null)}
                   title={opt.title}
                   aria-label={opt.title}
-                  className={`w-full h-12 rounded-2xl flex items-center justify-center transition-all cursor-pointer border ${
+                  className={`w-full h-11 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                     isSelected
-                      ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
-                      : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20'
+                      ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-md ring-1 ring-amber-500/40'
+                      : isDayMode
+                      ? 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
+                      : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
                   }`}
                 >
-                  <IconComp className="w-6 h-6" />
+                  <IconComp className="w-5 h-5" />
                 </button>
               </div>
             );
@@ -929,13 +971,13 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
       </div>
 
       {/* Main Scrollable Body with Accordions (All Closed by Default) */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-3 no-scrollbar">
+      <div className="flex-1 overflow-y-auto space-y-2 no-scrollbar">
         {/* TAB 1: פריסה, גדלים וכפתורים */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+        <div className="kvg-acc rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => toggleAccordion('tab-layouts')}
-            className="w-full p-4 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+            className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           >
             <div className="flex items-center gap-2.5">
               <Sliders className="w-4 h-4 text-amber-400" />
@@ -949,84 +991,178 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
           </button>
 
           {openAccordion === 'tab-layouts' && (
-            <div className="p-4 pt-1 border-t border-white/10 space-y-4 text-xs">
+            <div className="kvg-acc-body p-3 border-t space-y-2.5 text-xs">
               {/* Object Scale */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-300 block">
-                  קנה-מידה וגודל אובייקטים (Object Scale)
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-500 shrink-0 border border-amber-500/20"
+                  title="קנה-מידה וגודל אובייקטים (Object Scale)"
+                  aria-label="קנה-מידה וגודל אובייקטים"
+                >
+                  <Scaling className="w-4 h-4" />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 flex-1">
                   {[
-                    { id: 'compact', label: 'קומפקטי (Compact)', desc: 'מרווחים הדוקים ומיקוד' },
-                    { id: 'normal', label: 'סטנדרטי (Normal)', desc: 'מאוזן ומותאם לכל מסך' },
-                    { id: 'spacious', label: 'מרווח (Spacious)', desc: 'נגן ענק ומרווחים נדיבים' },
-                  ].map((sc) => (
-                    <button
-                      key={sc.id}
-                      type="button"
-                      onClick={() => update('objectScale', sc.id as any)}
-                      className={`p-2.5 rounded-xl border text-right transition cursor-pointer ${
-                        (localConfig.objectScale || 'normal') === sc.id
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                      }`}
-                    >
-                      <div className="font-bold text-xs">{sc.label}</div>
-                      <div className="text-[10px] text-slate-400 mt-0.5">{sc.desc}</div>
-                    </button>
-                  ))}
+                    {
+                      id: 'compact',
+                      title: 'קומפקטי (Compact) – מרווחים הדוקים ומיקוד',
+                      icon: <Minimize2 className="w-4 h-4" />,
+                    },
+                    {
+                      id: 'normal',
+                      title: 'סטנדרטי (Normal) – מאוזן ומותאם לכל מסך',
+                      icon: <RectangleHorizontal className="w-4 h-4" />,
+                    },
+                    {
+                      id: 'spacious',
+                      title: 'מרווח (Spacious) – נגן ענק ומרווחים נדיבים',
+                      icon: <Maximize2 className="w-4 h-4" />,
+                    },
+                  ].map((sc) => {
+                    const isSelected = (localConfig.objectScale || 'normal') === sc.id;
+                    return (
+                      <button
+                        key={sc.id}
+                        type="button"
+                        onClick={() => update('objectScale', sc.id as any)}
+                        title={sc.title}
+                        aria-label={sc.title}
+                        className={`h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-md ring-1 ring-amber-500/40'
+                            : isDayMode
+                            ? 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
+                            : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {sc.icon}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Button Shape */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-300 block">
-                  צורת כפתורים (Button Shape)
-                </label>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-500 shrink-0 border border-amber-500/20"
+                  title="צורת כפתורים (Button Shape)"
+                  aria-label="צורת כפתורים"
+                >
+                  <Shapes className="w-4 h-4" />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 flex-1">
                   {[
-                    { id: 'rounded', label: 'מעוגל (16px)' },
-                    { id: 'pill', label: 'קפסולה (Pill)' },
-                    { id: 'square', label: 'חד (90 מעלות)' },
-                  ].map((bs) => (
-                    <button
-                      key={bs.id}
-                      type="button"
-                      onClick={() => update('buttonShape', bs.id as any)}
-                      className={`py-2 px-3 rounded-xl border text-center font-bold text-xs transition cursor-pointer ${
-                        (localConfig.buttonShape || 'rounded') === bs.id
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                      }`}
-                    >
-                      {bs.label}
-                    </button>
-                  ))}
+                    {
+                      id: 'rounded',
+                      title: 'מעוגל (Rounded 16px)',
+                      icon: (
+                        <svg viewBox="0 0 32 18" className="w-6 h-3.5" role="img" aria-hidden="true">
+                          <rect x="2" y="2" width="28" height="14" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      id: 'pill',
+                      title: 'קפסולה (Pill)',
+                      icon: (
+                        <svg viewBox="0 0 32 18" className="w-6 h-3.5" role="img" aria-hidden="true">
+                          <rect x="2" y="2" width="28" height="14" rx="7" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      id: 'square',
+                      title: 'חד (Square 90 מעלות)',
+                      icon: (
+                        <svg viewBox="0 0 32 18" className="w-6 h-3.5" role="img" aria-hidden="true">
+                          <rect x="2" y="2" width="28" height="14" rx="0" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      ),
+                    },
+                  ].map((bs) => {
+                    const isSelected = (localConfig.buttonShape || 'rounded') === bs.id;
+                    return (
+                      <button
+                        key={bs.id}
+                        type="button"
+                        onClick={() => update('buttonShape', bs.id as any)}
+                        title={bs.title}
+                        aria-label={bs.title}
+                        className={`h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-md ring-1 ring-amber-500/40'
+                            : isDayMode
+                            ? 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
+                            : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {bs.icon}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Button Size */}
-              <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-slate-300 block">גודל כפתורים</label>
-                <div className="grid grid-cols-3 gap-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className="w-10 h-10 rounded-xl flex items-center justify-center bg-amber-500/10 text-amber-500 shrink-0 border border-amber-500/20"
+                  title="גודל כפתורים (Button Size)"
+                  aria-label="גודל כפתורים"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                </div>
+                <div className="grid grid-cols-3 gap-1.5 flex-1">
                   {[
-                    { id: 'sm', label: 'קטן (Small)' },
-                    { id: 'md', label: 'בינוני (Medium)' },
-                    { id: 'lg', label: 'גדול (Large)' },
-                  ].map((sz) => (
-                    <button
-                      key={sz.id}
-                      type="button"
-                      onClick={() => update('buttonSize', sz.id as any)}
-                      className={`py-2 px-3 rounded-xl border text-center font-bold text-xs transition cursor-pointer ${
-                        (localConfig.buttonSize || 'md') === sz.id
-                          ? 'bg-amber-500/20 border-amber-400 text-amber-300'
-                          : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                      }`}
-                    >
-                      {sz.label}
-                    </button>
-                  ))}
+                    {
+                      id: 'sm',
+                      title: 'גודל קטן (Small)',
+                      icon: (
+                        <svg viewBox="0 0 32 20" className="w-4 h-2.5" role="img" aria-hidden="true">
+                          <rect x="6" y="5" width="20" height="10" rx="3" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      id: 'md',
+                      title: 'גודל בינוני (Medium)',
+                      icon: (
+                        <svg viewBox="0 0 32 20" className="w-5 h-3.5" role="img" aria-hidden="true">
+                          <rect x="4" y="3" width="24" height="14" rx="4" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      ),
+                    },
+                    {
+                      id: 'lg',
+                      title: 'גודל גדול (Large)',
+                      icon: (
+                        <svg viewBox="0 0 32 20" className="w-6 h-4.5" role="img" aria-hidden="true">
+                          <rect x="2" y="2" width="28" height="16" rx="5" fill="none" stroke="currentColor" strokeWidth="2" />
+                        </svg>
+                      ),
+                    },
+                  ].map((sz) => {
+                    const isSelected = (localConfig.buttonSize || 'md') === sz.id;
+                    return (
+                      <button
+                        key={sz.id}
+                        type="button"
+                        onClick={() => update('buttonSize', sz.id as any)}
+                        title={sz.title}
+                        aria-label={sz.title}
+                        className={`h-10 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                          isSelected
+                            ? 'bg-amber-500/20 border-amber-500 text-amber-500 shadow-md ring-1 ring-amber-500/40'
+                            : isDayMode
+                            ? 'bg-white border-slate-200 text-slate-600 hover:text-slate-900 hover:border-amber-400'
+                            : 'bg-white/5 border-white/5 text-zinc-400 hover:text-white hover:bg-white/10'
+                        }`}
+                      >
+                        {sz.icon}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -1034,11 +1170,11 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
 
         {/* TAB 2: תצוגת הגלריה ומקור הנתונים */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+        <div className="kvg-acc rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => toggleAccordion('tab-display')}
-            className="w-full p-4 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+            className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           >
             <div className="flex items-center gap-2.5">
               <LayoutGrid className="w-4 h-4 text-sky-400" />
@@ -1052,7 +1188,7 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
           </button>
 
           {openAccordion === 'tab-display' && (
-            <div className="p-4 pt-1 border-t border-white/10 space-y-4 text-xs">
+            <div className="kvg-acc-body p-3 border-t space-y-3 text-xs">
               {/* Display Mode / View Mode */}
               <div className="space-y-1.5">
                 <label className="text-[11px] font-bold text-slate-300 block">
@@ -1183,11 +1319,11 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
 
         {/* TAB 3: כותרות, באדג' ופרטי ערוץ */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+        <div className="kvg-acc rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => toggleAccordion('tab-content')}
-            className="w-full p-4 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+            className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           >
             <div className="flex items-center gap-2.5">
               <FileText className="w-4 h-4 text-emerald-400" />
@@ -1301,11 +1437,11 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
 
         {/* TAB 4: רקע תמונה מאחורי הטקסט ואפקטים במעבר */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+        <div className="kvg-acc rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => toggleAccordion('tab-textbg')}
-            className="w-full p-4 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+            className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           >
             <div className="flex items-center gap-2.5">
               <ImageIcon className="w-4 h-4 text-purple-400" />
@@ -1415,11 +1551,11 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
 
         {/* TAB 5: ניהול סרטוני הספרייה */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+        <div className="kvg-acc rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => toggleAccordion('tab-videos')}
-            className="w-full p-4 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+            className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           >
             <div className="flex items-center gap-2.5">
               <Video className="w-4 h-4 text-red-400" />
@@ -1625,11 +1761,11 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
 
         {/* TAB 6: צבעי מיתוג וכרטיסים */}
-        <div className="rounded-2xl bg-white/[0.03] border border-white/10 overflow-hidden">
+        <div className="kvg-acc rounded-2xl overflow-hidden">
           <button
             type="button"
             onClick={() => toggleAccordion('tab-colors')}
-            className="w-full p-4 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+            className="kvg-acc-head w-full h-10 px-3 text-right flex items-center justify-between font-bold text-xs cursor-pointer transition-all"
           >
             <div className="flex items-center gap-2.5">
               <Palette className="w-4 h-4 text-pink-400" />
