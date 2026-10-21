@@ -216,6 +216,34 @@ export const whatsappAutoCrmService = {
         updates.kosun_crm_company = extracted.company;
       }
 
+      // Ensure phone fields are never blank
+      if (!existingContactData.conta_phone || !existingContactData.kosun_crm_phone) {
+        updates.conta_phone = senderPhone;
+        updates.kosun_crm_phone = senderPhone;
+        updates.phone = senderPhone;
+        updates.normalizedPhone = normPhone;
+      }
+
+      // Ensure group and tags: 'לידים מהוואטספ'
+      updates.group = 'לידים מהוואטספ';
+      updates.groupName = 'לידים מהוואטספ';
+      updates.sourceGroupName = 'לידים מהוואטספ';
+      updates.community = existingContactData.community || 'לידים מהוואטספ';
+      updates.kosun_crm_group = existingContactData.kosun_crm_group || 'לידים מהוואטספ';
+
+      const currentGroups = Array.isArray(existingContactData.groups) ? existingContactData.groups : [];
+      if (!currentGroups.includes('לידים מהוואטספ')) {
+        updates.groups = [...currentGroups, 'לידים מהוואטספ'];
+      }
+      const currentTags = Array.isArray(existingContactData.tags) ? existingContactData.tags : [];
+      if (!currentTags.includes('לידים מהוואטספ')) {
+        updates.tags = [...currentTags, 'לידים מהוואטספ'];
+      }
+      const currentCrmTags = Array.isArray(existingContactData.kosun_crm_tags) ? existingContactData.kosun_crm_tags : [];
+      if (!currentCrmTags.includes('לידים מהוואטספ')) {
+        updates.kosun_crm_tags = [...currentCrmTags, 'לידים מהוואטספ'];
+      }
+
       try {
         const contactDocRef = doc(db, contactsColPath, contactId);
         await updateDoc(contactDocRef, updates);
@@ -267,6 +295,12 @@ export const whatsappAutoCrmService = {
         kosun_crm_type: 'lead',
         status: 'active',
         kosun_crm_status: 'active',
+        group: 'לידים מהוואטספ',
+        groupName: 'לידים מהוואטספ',
+        groups: ['לידים מהוואטספ'],
+        community: 'לידים מהוואטספ',
+        kosun_crm_group: 'לידים מהוואטספ',
+        sourceGroupName: 'לידים מהוואטספ',
         
         lead_source: channel === 'whatsapp' ? 'בוט וואטסאפ (WhatsApp AI Bot)' : 'סוכן קושאן AI',
         kosun_crm_source: channel === 'whatsapp' ? 'בוט וואטסאפ (WhatsApp AI Bot)' : 'סוכן קושאן AI',
@@ -329,6 +363,11 @@ export const whatsappAutoCrmService = {
           channel,
           botId,
           botName,
+          group: 'לידים מהוואטספ',
+          groupName: 'לידים מהוואטספ',
+          phone: normPhone,
+          contactPhone: senderPhone,
+          conta_phone: senderPhone,
           cachedContentId: cachedContentId || null,
           lastUpdatedAt: now,
           messages: updatedMessages,

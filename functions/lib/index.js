@@ -43,6 +43,7 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
         // 1. Smart lookup existing contact FIRST (Zero-Token Rule)
         let matchedDocId = contactIdHint || null;
         let existingData = null;
+        const phoneFieldsToCheck = ['normalizedPhone', 'conta_phone', 'phone', 'kosun_crm_phone'];
         // Check tenant scoped contacts FIRST if tenant exists
         if (targetTenant) {
             if (matchedDocId) {
@@ -52,10 +53,19 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
                 }
             }
             if (!existingData) {
-                const tSnap = await db.collection('tenants').doc(targetTenant).collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
-                if (!tSnap.empty) {
-                    matchedDocId = tSnap.docs[0].id;
-                    existingData = tSnap.docs[0].data();
+                for (const f of phoneFieldsToCheck) {
+                    const tSnap = await db.collection('tenants').doc(targetTenant).collection('contacts').where(f, '==', normPhone).limit(1).get();
+                    if (!tSnap.empty) {
+                        matchedDocId = tSnap.docs[0].id;
+                        existingData = tSnap.docs[0].data();
+                        break;
+                    }
+                    const tSnap2 = await db.collection('tenants').doc(targetTenant).collection('contacts').where(f, '==', phone).limit(1).get();
+                    if (!tSnap2.empty) {
+                        matchedDocId = tSnap2.docs[0].id;
+                        existingData = tSnap2.docs[0].data();
+                        break;
+                    }
                 }
             }
         }
@@ -65,24 +75,19 @@ async function extractAndSaveContact(geminiKey, phone, messages, fallbackSenderN
                 if (docSnap.exists)
                     existingData = docSnap.data();
             }
-            else {
-                const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
-                if (!qSnap.empty) {
-                    matchedDocId = qSnap.docs[0].id;
-                    existingData = qSnap.docs[0].data();
-                }
-                else {
-                    const qSnap2 = await db.collection('contacts').where('phone', '==', phone).limit(1).get();
+            if (!existingData) {
+                for (const f of phoneFieldsToCheck) {
+                    const qSnap = await db.collection('contacts').where(f, '==', normPhone).limit(1).get();
+                    if (!qSnap.empty) {
+                        matchedDocId = qSnap.docs[0].id;
+                        existingData = qSnap.docs[0].data();
+                        break;
+                    }
+                    const qSnap2 = await db.collection('contacts').where(f, '==', phone).limit(1).get();
                     if (!qSnap2.empty) {
                         matchedDocId = qSnap2.docs[0].id;
                         existingData = qSnap2.docs[0].data();
-                    }
-                    else {
-                        const qSnap3 = await db.collection('contacts').where('conta_phone', '==', normPhone).limit(1).get();
-                        if (!qSnap3.empty) {
-                            matchedDocId = qSnap3.docs[0].id;
-                            existingData = qSnap3.docs[0].data();
-                        }
+                        break;
                     }
                 }
             }
@@ -149,6 +154,27 @@ ${chatText}
             resolvedName = fallbackSenderName;
         }
         const nowIso = new Date().toISOString();
+        // Auto-register "לידים מהוואטספ" group in crm_groups across scopes
+        const waGroupDoc = {
+            id: 'grp_leads_whatsapp',
+            name: 'לידים מהוואטספ',
+            category: 'group',
+            type: 'manual',
+            color: '#25D366',
+            icon: 'MessageSquare',
+            description: 'לידים ופניות אוטומטיות מבוט הוואטסאפ',
+            updatedAt: Date.now(),
+        };
+        try {
+            await db.collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
+            if (targetTenant) {
+                await db.collection('tenants').doc(targetTenant).collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
+            }
+            await db.collection('tenants').doc('_master').collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
+        }
+        catch (grpErr) {
+            console.warn('[extractAndSaveContact] Error registering crm_group:', grpErr);
+        }
         if (!matchedDocId) {
             // Create new contact in canonical KOSUN CRM schema
             const newContactDoc = {
@@ -160,6 +186,9 @@ ${chatText}
                 conta_phone: normPhone,
                 kosun_crm_phone: normPhone,
                 normalizedPhone: normPhone,
+                mobile: normPhone,
+                phoneNumber: normPhone,
+                phoneContact: normPhone,
                 email: data.email || '',
                 kosun_crm_email: data.email || '',
                 company_name: data.businessType || '',
@@ -171,8 +200,14 @@ ${chatText}
                 kosun_crm_type: 'lead',
                 lead_source: 'בוט וואטסאפ (WhatsApp AI Bot)',
                 kosun_crm_source: 'בוט וואטסאפ (WhatsApp AI Bot)',
-                tags: ['ליד חדש', 'WhatsApp AI Bot'],
-                kosun_crm_tags: ['ליד חדש', 'WhatsApp AI Bot'],
+                group: 'לידים מהוואטספ',
+                groupName: 'לידים מהוואטספ',
+                groups: ['לידים מהוואטספ'],
+                community: 'לידים מהוואטספ',
+                kosun_crm_group: 'לידים מהוואטספ',
+                sourceGroupName: 'לידים מהוואטספ',
+                tags: ['לידים מהוואטספ', 'ליד חדש', 'WhatsApp AI Bot'],
+                kosun_crm_tags: ['לידים מהוואטספ', 'ליד חדש', 'WhatsApp AI Bot'],
                 last_message: lastMsgText,
                 last_channel: 'whatsapp',
                 last_conversation_date: nowIso,
@@ -203,7 +238,35 @@ ${chatText}
                 last_channel: 'whatsapp',
                 last_conversation_date: nowIso,
                 lastAiExtractionTimestamp: Date.now(),
+                // ALWAYS ensure phone numbers are populated
+                conta_phone: (existingData === null || existingData === void 0 ? void 0 : existingData.conta_phone) || normPhone,
+                kosun_crm_phone: (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_phone) || normPhone,
+                phone: (existingData === null || existingData === void 0 ? void 0 : existingData.phone) || phone,
+                normalizedPhone: (existingData === null || existingData === void 0 ? void 0 : existingData.normalizedPhone) || normPhone,
+                mobile: (existingData === null || existingData === void 0 ? void 0 : existingData.mobile) || normPhone,
+                phoneNumber: (existingData === null || existingData === void 0 ? void 0 : existingData.phoneNumber) || normPhone,
+                phoneContact: (existingData === null || existingData === void 0 ? void 0 : existingData.phoneContact) || normPhone,
+                // ALWAYS register under group "לידים מהוואטספ"
+                group: 'לידים מהוואטספ',
+                groupName: 'לידים מהוואטספ',
+                sourceGroupName: 'לידים מהוואטספ',
+                community: (existingData === null || existingData === void 0 ? void 0 : existingData.community) || 'לידים מהוואטספ',
+                kosun_crm_group: (existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_group) || 'לידים מהוואטספ',
             };
+            // Merge groups array
+            const existingGroups = Array.isArray(existingData === null || existingData === void 0 ? void 0 : existingData.groups) ? existingData.groups : [];
+            if (!existingGroups.includes('לידים מהוואטספ')) {
+                updates.groups = [...existingGroups, 'לידים מהוואטספ'];
+            }
+            // Merge tags array
+            const existingTags = Array.isArray(existingData === null || existingData === void 0 ? void 0 : existingData.tags) ? existingData.tags : [];
+            if (!existingTags.includes('לידים מהוואטספ')) {
+                updates.tags = [...existingTags, 'לידים מהוואטספ'];
+            }
+            const existingCrmTags = Array.isArray(existingData === null || existingData === void 0 ? void 0 : existingData.kosun_crm_tags) ? existingData.kosun_crm_tags : [];
+            if (!existingCrmTags.includes('לידים מהוואטספ')) {
+                updates.kosun_crm_tags = [...existingCrmTags, 'לידים מהוואטספ'];
+            }
             if (resolvedName && (!existingName || isMockOrGenericName(existingName) || existingName === 'קושאןWHAT')) {
                 updates.name = resolvedName;
                 updates.fullName = resolvedName;
@@ -236,6 +299,11 @@ ${chatText}
                 id: `conv_${normPhone}`,
                 contactId: matchedDocId,
                 channel: 'whatsapp',
+                group: 'לידים מהוואטספ',
+                groupName: 'לידים מהוואטספ',
+                phone: normPhone,
+                contactPhone: normPhone,
+                conta_phone: normPhone,
                 lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
                 messages: messages,
             };
@@ -626,34 +694,49 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 const c = n.trim().toLowerCase();
                 return c === 'ישראל ישראלי' || c === 'בדיקה' || c === 'טסט' || c === 'test' || c === phone || c === normPhone || c.startsWith('לקוח ');
             };
+            const phoneFieldsToCheck = ['normalizedPhone', 'conta_phone', 'phone', 'kosun_crm_phone'];
             try {
                 if (resolvedTenantId && resolvedTenantId !== '_master') {
-                    const tSnap = await db.collection('tenants').doc(resolvedTenantId).collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
-                    if (!tSnap.empty) {
-                        contactDocId = tSnap.docs[0].id;
-                        const d = tSnap.docs[0].data();
-                        const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
-                        if (!isMockName(rawN))
-                            contactName = rawN;
+                    for (const f of phoneFieldsToCheck) {
+                        const tSnap = await db.collection('tenants').doc(resolvedTenantId).collection('contacts').where(f, '==', normPhone).limit(1).get();
+                        if (!tSnap.empty) {
+                            contactDocId = tSnap.docs[0].id;
+                            const d = tSnap.docs[0].data();
+                            const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
+                            if (!isMockName(rawN))
+                                contactName = rawN;
+                            break;
+                        }
+                        const tSnap2 = await db.collection('tenants').doc(resolvedTenantId).collection('contacts').where(f, '==', phone).limit(1).get();
+                        if (!tSnap2.empty) {
+                            contactDocId = tSnap2.docs[0].id;
+                            const d = tSnap2.docs[0].data();
+                            const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
+                            if (!isMockName(rawN))
+                                contactName = rawN;
+                            break;
+                        }
                     }
                 }
                 if (!contactDocId) {
-                    const qSnap = await db.collection('contacts').where('normalizedPhone', '==', normPhone).limit(1).get();
-                    if (!qSnap.empty) {
-                        contactDocId = qSnap.docs[0].id;
-                        const d = qSnap.docs[0].data();
-                        const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
-                        if (!isMockName(rawN))
-                            contactName = rawN;
-                    }
-                    else {
-                        const qSnap2 = await db.collection('contacts').where('phone', '==', phone).limit(1).get();
+                    for (const f of phoneFieldsToCheck) {
+                        const qSnap = await db.collection('contacts').where(f, '==', normPhone).limit(1).get();
+                        if (!qSnap.empty) {
+                            contactDocId = qSnap.docs[0].id;
+                            const d = qSnap.docs[0].data();
+                            const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
+                            if (!isMockName(rawN))
+                                contactName = rawN;
+                            break;
+                        }
+                        const qSnap2 = await db.collection('contacts').where(f, '==', phone).limit(1).get();
                         if (!qSnap2.empty) {
                             contactDocId = qSnap2.docs[0].id;
                             const d = qSnap2.docs[0].data();
                             const rawN = d.kosun_crm_name || d.conta_name || d.name || null;
                             if (!isMockName(rawN))
                                 contactName = rawN;
+                            break;
                         }
                     }
                 }
@@ -672,6 +755,53 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                 else {
                     contactName = 'קושאןWHAT';
                 }
+            }
+            // Ensure contact document exists immediately with all phone fields and group "לידים מהוואטספ"
+            if (!contactDocId) {
+                const immediateContactRef = db.collection('contacts').doc();
+                contactDocId = immediateContactRef.id;
+                const initialContactData = {
+                    name: contactName,
+                    fullName: contactName,
+                    conta_name: contactName,
+                    kosun_crm_name: contactName,
+                    conta_phone: normPhone,
+                    kosun_crm_phone: normPhone,
+                    phone: phone,
+                    normalizedPhone: normPhone,
+                    mobile: normPhone,
+                    phoneNumber: normPhone,
+                    phoneContact: normPhone,
+                    group: 'לידים מהוואטספ',
+                    groupName: 'לידים מהוואטספ',
+                    groups: ['לידים מהוואטספ'],
+                    community: 'לידים מהוואטספ',
+                    kosun_crm_group: 'לידים מהוואטספ',
+                    sourceGroupName: 'לידים מהוואטספ',
+                    tags: ['לידים מהוואטספ', 'ליד חדש', 'WhatsApp AI Bot'],
+                    kosun_crm_tags: ['לידים מהוואטספ', 'ליד חדש', 'WhatsApp AI Bot'],
+                    status: 'active',
+                    kosun_crm_status: 'active',
+                    is_lead: true,
+                    contact_type: 'lead',
+                    kosun_crm_type: 'lead',
+                    lead_source: 'בוט וואטסאפ (WhatsApp AI Bot)',
+                    kosun_crm_source: 'בוט וואטסאפ (WhatsApp AI Bot)',
+                    tenantId: resolvedTenantId || '_master',
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                };
+                await immediateContactRef.set(initialContactData, { merge: true });
+                if (resolvedTenantId && resolvedTenantId !== '_master') {
+                    try {
+                        await db.collection('tenants').doc(resolvedTenantId).collection('contacts').doc(contactDocId).set(initialContactData, { merge: true });
+                    }
+                    catch (_19) { }
+                }
+                try {
+                    await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).set(initialContactData, { merge: true });
+                }
+                catch (_20) { }
             }
             // Count user messages in current active session
             const userMessagesCount = chatHistory.filter(m => m.role === 'user').length + 1;
@@ -841,6 +971,10 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
             const chatDataToSave = {
                 id: targetChatId,
                 phone: normPhone,
+                contactPhone: normPhone,
+                conta_phone: normPhone,
+                group: 'לידים מהוואטספ',
+                groupName: 'לידים מהוואטספ',
                 contactName: contactName || senderName || normPhone,
                 contactId: contactDocId || null,
                 botId: triggeredBot.id,
@@ -858,35 +992,84 @@ exports.whatsappWebhook = functions.https.onRequest((req, res) => {
                     console.warn('[whatsappWebhook] Error writing scoped chat:', scopedChatErr);
                 }
             }
+            // Auto-register "לידים מהוואטספ" in crm_groups across scopes
+            const waGroupDoc = {
+                id: 'grp_leads_whatsapp',
+                name: 'לידים מהוואטספ',
+                category: 'group',
+                type: 'manual',
+                color: '#25D366',
+                icon: 'MessageSquare',
+                description: 'לידים ופניות אוטומטיות מבוט הוואטסאפ',
+                updatedAt: Date.now(),
+            };
+            try {
+                await db.collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
+                if (resolvedTenantId && resolvedTenantId !== '_master') {
+                    await db.collection('tenants').doc(resolvedTenantId).collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
+                }
+                await db.collection('tenants').doc('_master').collection('crm_groups').doc('grp_leads_whatsapp').set(waGroupDoc, { merge: true });
+            }
+            catch (_21) { }
             // Also mirror conversation to contact's subcollection if contact exists
             if (contactDocId) {
                 try {
-                    await db.collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set({
-                        id: `conv_${normPhone}`,
-                        contactId: contactDocId,
-                        channel: 'whatsapp',
-                        botName: triggeredBot.name,
-                        lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                        messages: chatHistory
-                    }, { merge: true });
-                    await db.collection('contacts').doc(contactDocId).set({
+                    const contactUpdates = {
+                        conta_phone: normPhone,
+                        kosun_crm_phone: normPhone,
+                        phone: phone,
+                        normalizedPhone: normPhone,
+                        mobile: normPhone,
+                        phoneNumber: normPhone,
+                        phoneContact: normPhone,
+                        group: 'לידים מהוואטספ',
+                        groupName: 'לידים מהוואטספ',
+                        sourceGroupName: 'לידים מהוואטספ',
+                        community: 'לידים מהוואטספ',
+                        kosun_crm_group: 'לידים מהוואטספ',
+                        groups: admin.firestore.FieldValue.arrayUnion('לידים מהוואטספ'),
+                        tags: admin.firestore.FieldValue.arrayUnion('לידים מהוואטספ'),
+                        kosun_crm_tags: admin.firestore.FieldValue.arrayUnion('לידים מהוואטספ'),
                         last_message: messageText,
                         last_channel: 'whatsapp',
                         last_conversation_date: new Date().toISOString(),
                         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                    }, { merge: true });
-                    // Also mirror to master tenant contacts if available
-                    try {
-                        await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set({
-                            id: `conv_${normPhone}`,
-                            contactId: contactDocId,
-                            channel: 'whatsapp',
-                            botName: triggeredBot.name,
-                            lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                            messages: chatHistory
-                        }, { merge: true });
+                    };
+                    await db.collection('contacts').doc(contactDocId).set(contactUpdates, { merge: true });
+                    if (resolvedTenantId && resolvedTenantId !== '_master') {
+                        try {
+                            await db.collection('tenants').doc(resolvedTenantId).collection('contacts').doc(contactDocId).set(contactUpdates, { merge: true });
+                        }
+                        catch (_22) { }
                     }
-                    catch (_19) { }
+                    try {
+                        await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).set(contactUpdates, { merge: true });
+                    }
+                    catch (_23) { }
+                    const convPayload = {
+                        id: `conv_${normPhone}`,
+                        contactId: contactDocId,
+                        channel: 'whatsapp',
+                        botName: triggeredBot.name,
+                        group: 'לידים מהוואטספ',
+                        groupName: 'לידים מהוואטספ',
+                        phone: normPhone,
+                        contactPhone: normPhone,
+                        conta_phone: normPhone,
+                        lastUpdatedAt: admin.firestore.FieldValue.serverTimestamp(),
+                        messages: chatHistory
+                    };
+                    await db.collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set(convPayload, { merge: true });
+                    if (resolvedTenantId && resolvedTenantId !== '_master') {
+                        try {
+                            await db.collection('tenants').doc(resolvedTenantId).collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set(convPayload, { merge: true });
+                        }
+                        catch (_24) { }
+                    }
+                    try {
+                        await db.collection('tenants').doc('_master').collection('contacts').doc(contactDocId).collection('conversations').doc(`conv_${normPhone}`).set(convPayload, { merge: true });
+                    }
+                    catch (_25) { }
                 }
                 catch (subErr) {
                     console.warn('[whatsappWebhook] Error updating contact conversation subcollection:', subErr);

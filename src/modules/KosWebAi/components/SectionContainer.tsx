@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { clsx } from 'clsx';
 import { SectionResolutionVisibilityMenu } from './SectionResolutionVisibilityMenu';
+import { SectionDimensionsMenu } from './SectionDimensionsMenu';
 import { getResolutionBadgeInfo } from '../utils/resolutionVisibility';
 import { SectionDesignLibraryModal } from './SectionDesignLibraryModal';
 
@@ -182,12 +183,20 @@ export const SectionContainer: React.FC<SectionContainerProps> = ({
           )}
 
           {onUpdateSection ? (
-            <SectionResolutionVisibilityMenu
-              sectionId={sectionId}
-              sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
-              onUpdateSection={onUpdateSection}
-              compact
-            />
+            <>
+              <SectionResolutionVisibilityMenu
+                sectionId={sectionId}
+                sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
+                onUpdateSection={onUpdateSection}
+                compact
+              />
+              <SectionDimensionsMenu
+                sectionId={sectionId}
+                sectionData={sectionData || { id: sectionId, type: effectiveType, visible, mobileHidden }}
+                onUpdateSection={onUpdateSection}
+                compact
+              />
+            </>
           ) : onToggleMobileHidden ? (
             <button
               type="button"

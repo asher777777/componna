@@ -167,6 +167,8 @@ export interface ScreenVisibilityConfig {
   mobile?: boolean;
 }
 
+export type SectionWidthMode = 'centered' | 'wide' | 'full';
+
 export interface BaseSectionConfig {
   id: string;
   type: SectionType;
@@ -174,6 +176,8 @@ export interface BaseSectionConfig {
   mobileHidden?: boolean;
   deviceVisibility?: DeviceVisibilityMode;
   screenVisibility?: ScreenVisibilityConfig;
+  sectionWidth?: SectionWidthMode;
+  containerWidth?: string;
   anchorId?: string;
   backgroundColor?: string;
   customClasses?: string;

@@ -17,6 +17,7 @@ import { FloatingWeAreHereWidget } from './components/FloatingWeAreHereWidget';
 import { FloatingWidgetSettingsModal } from './components/FloatingWidgetSettingsModal';
 import { Check } from 'lucide-react';
 import { SectionResolutionVisibilityMenu } from './components/SectionResolutionVisibilityMenu';
+import { SectionDimensionsMenu, getSectionWidthWrapperClasses, getSectionWidthMode } from './components/SectionDimensionsMenu';
 import { getResolutionVisibilityClasses, getResolutionBadgeInfo } from './utils/resolutionVisibility';
 import { CookieConsentBanner } from './components/CookieConsentBanner';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
@@ -274,6 +275,15 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                         />
                       )}
 
+                      {/* Section Dimensions (מימדי האזור: ממורכז / רחב / רוחב מלא) */}
+                      {onUpdateSection && (
+                        <SectionDimensionsMenu
+                          sectionId={sectionId}
+                          sectionData={sectionData}
+                          onUpdateSection={onUpdateSection}
+                        />
+                      )}
+
                       {/* Desktop Quick Actions (Visible on md+ screens) */}
                       <div className="hidden md:flex items-center gap-1">
                         {/* Section Design Library / Save Design */}
@@ -389,7 +399,7 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                               onClick={() => setMoreMenuSectionId(null)}
                             />
                             <div 
-                              className="absolute left-0 top-full mt-2 z-50 w-48 p-1.5 rounded-2xl bg-slate-900/98 backdrop-blur-xl border border-slate-700 shadow-2xl text-right animate-in fade-in zoom-in-95 space-y-1"
+                              className="absolute left-0 top-full mt-2 z-50 w-48 p-1.5 rounded-2xl bg-[#0b0f19] border border-slate-700 shadow-2xl text-right animate-in fade-in zoom-in-95 space-y-1"
                               dir="rtl"
                             >
                               {/* Section Design Library in mobile menu */}
@@ -515,12 +525,14 @@ export const PageBuilderRenderer: React.FC<PageBuilderRendererProps> = ({
                 </div>
               )}
 
-              {/* Render Section View Component */}
-              <ViewComponent
-                config={sanitizeSectionConfig(sectionData)}
-                onSelectTier={onSelectDonationTier}
-                onLeadSubmit={onLeadSubmit}
-              />
+              {/* Render Section View Component with Dynamic Dimensions */}
+              <div className={clsx('transition-all duration-300', getSectionWidthWrapperClasses(getSectionWidthMode(sectionData)))}>
+                <ViewComponent
+                  config={sanitizeSectionConfig(sectionData)}
+                  onSelectTier={onSelectDonationTier}
+                  onLeadSubmit={onLeadSubmit}
+                />
+              </div>
 
               {/* In-Between Section Inserter in Edit Mode */}
               {isEditing && onAddSection && (
