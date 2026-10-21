@@ -1,1 +1,1558 @@
-export * from '../../KosCloudStore/context/MediaGalleryContext';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { Firestore } from 'firebase/firestore';
+import { FirebaseApp } from 'firebase/app';
+import {
+  MediaItem,
+  MediaFolder,
+  MediaType,
+  MediaCategoryFilter,
+  MediaFilterOptions,
+  MediaGalleryCollectionsConfig,
+  MediaGalleryModuleConfig,
+} from '../types';
+import { resolveMediaCollections, INITIAL_SERVER_MEDIA } from '../config';
+import { FirestoreMediaService } from '../services/firestoreMediaService';
+import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
+import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
+import { FileCompressionService } from '../services/fileCompressionService';
+import { HeyGenSyncService } from '../services/heygenSyncService';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
+import { eventBus } from '../../../core/bridge/EventBus';
+import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth } from '../../../services/firebaseAuth';
+import { useTenantScope } from '../../../core/tenant';
+import { SYSTEM_COLLECTIONS } from '../../../core/contracts';
+import { getModuleApiKeys } from '../../../core/connection/tenantApiKeys';
+
+export const isHeyGenItem = (item?: MediaItem | null): boolean => {
+  if (!item) return false;
+  if (item.metadata?.isHeyGenSync === true || item.metadata?.source === 'heygen_cloud_api') return true;
+  if (item.id?.startsWith('heygen_')) return true;
+  const tags = (item.tags || []).map((t) => t.toLowerCase());
+  return tags.includes('heygen') || tags.includes('avatar_video');
+};
+
+export interface ModuleSourceInfo {
+  id: string;
+  name: string;
+  shortLabel: string;
+  icon: string;
+  color: string;
+}
+
+export const KNOWN_MODULE_SOURCES: Record<string, ModuleSourceInfo> = {
+  'all': {
+    id: 'all',
+    name: 'כל הרכיבים והמודולים',
+    shortLabel: 'הכל',
+    icon: 'Layers',
+    color: '#eab308',
+  },
+  'video-producer-studio': {
+    id: 'video-producer-studio',
+    name: 'סטודיו וידאו ואווטאר (HeyGen & Veo)',
+    shortLabel: 'סטודיו וידאו',
+    icon: 'Video',
+    color: '#8b5cf6',
+  },
+  'flow-player-engine': {
+    id: 'flow-player-engine',
+    name: 'מנוע נגן זרימה אינטראקטיבי',
+    shortLabel: 'נגן זרימה',
+    icon: 'PlayCircle',
+    color: '#3b82f6',
+  },
+  'KosWebAi': {
+    id: 'KosWebAi',
+    name: 'KWB',
+    shortLabel: 'KWB',
+    icon: 'Layout',
+    color: '#10b981',
+  },
+  'crm-analytics': {
+    id: 'crm-analytics',
+    name: 'אנליטיקה ודוחות CRM',
+    shortLabel: 'אנליטיקה',
+    icon: 'BarChart3',
+    color: '#f97316',
+  },
+  'gemini-image-generation': {
+    id: 'gemini-image-generation',
+    name: 'מחולל תמונות Gemini AI (Nano Banana)',
+    shortLabel: 'Gemini AI',
+    icon: 'Sparkles',
+    color: '#f59e0b',
+  },
+  'KosCloudStore': {
+    id: 'KosCloudStore',
+    name: 'KosCloudStore - כספת ענן ומדיה',
+    shortLabel: 'KosCloudStore',
+    icon: 'HardDrive',
+    color: '#eab308',
+  },
+  'media-gallery-hub': {
+    id: 'media-gallery-hub',
+    name: 'העלאה ישירה במאגר המדיה',
+    shortLabel: 'מאגר מדיה',
+    icon: 'HardDrive',
+    color: '#eab308',
+  },
+};
+
+interface MediaGalleryContextValue {
+  mediaItems: MediaItem[];
+  filteredItems: MediaItem[];
+  folders: MediaFolder[];
+  activeFolderId: string | null;
+  setActiveFolderId: (id: string | null) => void;
+  filters: MediaFilterOptions;
+  setFilters: React.Dispatch<React.SetStateAction<MediaFilterOptions>>;
+  selectedIds: string[];
+  setSelectedIds: React.Dispatch<React.SetStateAction<string[]>>;
+  toggleSelect: (id: string) => void;
+  selectAll: () => void;
+  clearSelection: () => void;
+  previewItem: MediaItem | null;
+  setPreviewItem: (item: MediaItem | null) => void;
+  converterItem: MediaItem | null;
+  setConverterItem: (item: MediaItem | null) => void;
+  isLoading: boolean;
+  addMediaItems: (
+    items: MediaItem[],
+    files?: (File | Blob)[],
+    onProgress?: (fileIndex: number, pct: number) => void
+  ) => Promise<MediaItem[]>;
+  deleteMediaItems: (ids: string[]) => Promise<void>;
+  updateMediaItem: (id: string, updates: Partial<MediaItem>) => Promise<void>;
+  replaceMediaItem: (originalId: string, updatedItem: MediaItem, file?: File | Blob) => Promise<void>;
+  renameMediaItem: (id: string, newName: string) => Promise<void>;
+  
+  // Folder Operations
+  createFolder: (name: string, color?: string, icon?: string, parentId?: string | null, isShared?: boolean) => Promise<MediaFolder>;
+  updateFolder: (id: string, updates: Partial<MediaFolder>) => Promise<void>;
+  deleteFolder: (id: string, deleteContents?: boolean) => Promise<void>;
+  moveItemsToFolder: (itemIds: string[], targetFolderId: string | null) => Promise<void>;
+
+  // Theme support
+  theme: 'dark' | 'light';
+  setTheme: (theme: 'dark' | 'light') => void;
+  toggleTheme: () => void;
+
+  // Folder Modals UI state
+  isFolderModalOpen: boolean;
+  setIsFolderModalOpen: (open: boolean) => void;
+  editingFolder: MediaFolder | null;
+  setEditingFolder: (folder: MediaFolder | null) => void;
+  isMoveModalOpen: boolean;
+  setIsMoveModalOpen: (open: boolean) => void;
+  itemsToMove: string[];
+  setItemsToMove: (ids: string[]) => void;
+
+  // Modern UI states
+  isSidebarOpen: boolean;
+  setIsSidebarOpen: (open: boolean) => void;
+  isInspectorOpen: boolean;
+  setIsInspectorOpen: (open: boolean) => void;
+  isUploaderOpen: boolean;
+  setIsUploaderOpen: (open: boolean) => void;
+  totalStorageBytes: number;
+  focusedItem: MediaItem | null;
+  setFocusedItem: (item: MediaItem | null) => void;
+
+  // HeyGen Cloud Sync & Reveal
+  isSyncingHeyGen: boolean;
+  syncHeyGenVideos: (customApiKey?: string) => Promise<{ count: number; error?: string }>;
+  isHeyGenRevealed: boolean;
+  setIsHeyGenRevealed: (revealed: boolean) => void;
+
+  // Gemini AI Image Generator Studio
+  isAiGeneratorOpen: boolean;
+  setIsAiGeneratorOpen: (open: boolean) => void;
+  aiGeneratorInitialImage: MediaItem | null;
+  setAiGeneratorInitialImage: (item: MediaItem | null) => void;
+  openAiImageGenerator: (initialImage?: MediaItem | null) => void;
+
+  // In-Drive Editing & Studio Modals
+  imageEditorItem: MediaItem | null;
+  setImageEditorItem: (item: MediaItem | null) => void;
+  openImageEditor: (item: MediaItem) => void;
+  closeImageEditor: () => void;
+
+  docViewerItem: MediaItem | null;
+  setDocViewerItem: (item: MediaItem | null) => void;
+  openDocViewer: (item: MediaItem) => void;
+  closeDocViewer: () => void;
+
+  textEditorItem: MediaItem | null;
+  setTextEditorItem: (item: MediaItem | null) => void;
+  isTextEditorOpen: boolean;
+  setIsTextEditorOpen: (open: boolean) => void;
+  openTextEditor: (item?: MediaItem | null) => void;
+  closeTextEditor: () => void;
+
+  docToLandingItem: MediaItem | null;
+  setDocToLandingItem: (item: MediaItem | null) => void;
+  openDocToLanding: (item: MediaItem) => void;
+  closeDocToLanding: () => void;
+
+  firebaseApp?: FirebaseApp;
+  db?: Firestore;
+  collections?: MediaGalleryCollectionsConfig;
+  selectionMode?: boolean;
+  allowedTypes?: MediaType[];
+  maxSelectCount?: number;
+  onSelectMedia?: (items: MediaItem[]) => void;
+  onClosePicker?: () => void;
+}
+
+export const MediaGalleryContext = createContext<MediaGalleryContextValue | null>(null);
+
+export const useOptionalMediaGallery = () => {
+  return useContext(MediaGalleryContext);
+};
+
+export const MediaGalleryProvider: React.FC<{
+  config: MediaGalleryModuleConfig;
+  children: React.ReactNode;
+}> = ({ config, children }) => {
+  const systemConn = useSystemConnection();
+  const firebaseApp = config.firebaseApp || systemConn.firebaseApp;
+  const db = config.db || systemConn.db;
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
+
+  const {
+    customCollections,
+    collectionPrefix,
+    allowedTypes,
+    maxSelectCount = 1,
+    selectionMode = false,
+    defaultFolderId = null,
+    onSelectMedia,
+    onClosePicker,
+  } = config;
+
+  const collections = useMemo(() => ({
+    mediaItems: customCollections?.mediaItems || getScopedCollectionPath(SYSTEM_COLLECTIONS.MEDIA_ITEMS),
+    folders: customCollections?.folders || getScopedCollectionPath(SYSTEM_COLLECTIONS.MEDIA_FOLDERS),
+  }), [customCollections, getScopedCollectionPath]);
+
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [folders, setFolders] = useState<MediaFolder[]>([{
+      id: 'folder_shapes_and_symbols',
+      name: 'צורות וסמלים',
+      color: '#f59e0b',
+      icon: 'sparkles',
+      itemCount: 15,
+      createdAt: Date.now() - 100000,
+    }]);
+  const [activeFolderId, setActiveFolderId] = useState<string | null>(defaultFolderId);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [previewItem, setPreviewItem] = useState<MediaItem | null>(null);
+  const [converterItem, setConverterItem] = useState<MediaItem | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const [currentUserUid, setCurrentUserUid] = useState<string | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<string>('viewer');
+
+  // Track authenticated user for strict media isolation
+  useEffect(() => {
+    const unsub = subscribeToAuth(firebaseApp, (authState) => {
+      setCurrentUserUid(authState.uid || null);
+      setCurrentUserRole(authState.role || 'viewer');
+    });
+    return () => unsub();
+  }, [firebaseApp]);
+
+  // Folder Modal state
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState<boolean>(false);
+  const [editingFolder, setEditingFolder] = useState<MediaFolder | null>(null);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState<boolean>(false);
+  const [itemsToMove, setItemsToMove] = useState<string[]>([]);
+
+  // Modern UI states
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
+  const [isUploaderOpen, setIsUploaderOpen] = useState<boolean>(false);
+  const [focusedItem, setFocusedItem] = useState<MediaItem | null>(null);
+  const [isSyncingHeyGen, setIsSyncingHeyGen] = useState<boolean>(false);
+  const [isHeyGenRevealed, setIsHeyGenRevealed] = useState<boolean>(false);
+
+  // Gemini AI Image Generator Studio State
+  const [isAiGeneratorOpen, setIsAiGeneratorOpen] = useState<boolean>(false);
+  const [aiGeneratorInitialImage, setAiGeneratorInitialImage] = useState<MediaItem | null>(null);
+
+  const openAiImageGenerator = (initialImage?: MediaItem | null) => {
+    setAiGeneratorInitialImage(initialImage || null);
+    setIsAiGeneratorOpen(true);
+  };
+
+  // In-Drive Editing & Studio Modals State
+  const [imageEditorItem, setImageEditorItem] = useState<MediaItem | null>(null);
+  const [docViewerItem, setDocViewerItem] = useState<MediaItem | null>(null);
+  const [textEditorItem, setTextEditorItem] = useState<MediaItem | null>(null);
+  const [isTextEditorOpen, setIsTextEditorOpen] = useState(false);
+  const [docToLandingItem, setDocToLandingItem] = useState<MediaItem | null>(null);
+
+  const openImageEditor = (item: MediaItem) => setImageEditorItem(item);
+  const closeImageEditor = () => setImageEditorItem(null);
+
+  const openDocViewer = (item: MediaItem) => setDocViewerItem(item);
+  const closeDocViewer = () => setDocViewerItem(null);
+
+  const openTextEditor = (item?: MediaItem | null) => {
+    setTextEditorItem(item || null);
+    setIsTextEditorOpen(true);
+  };
+  const closeTextEditor = () => {
+    setIsTextEditorOpen(false);
+    setTextEditorItem(null);
+  };
+
+  const openDocToLanding = (item: MediaItem) => setDocToLandingItem(item);
+  const closeDocToLanding = () => setDocToLandingItem(null);
+
+  // Theme Support (Day / Night Mode)
+  const [theme, setThemeState] = useState<'dark' | 'light'>(() => {
+    try {
+      const saved = localStorage.getItem('sdo_media_theme');
+      return saved === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
+  });
+
+  const setTheme = (newTheme: 'dark' | 'light') => {
+    setThemeState(newTheme);
+    try {
+      localStorage.setItem('sdo_media_theme', newTheme);
+    } catch {}
+  };
+
+  const toggleTheme = () => {
+    setTheme(theme === 'dark' ? 'light' : 'dark');
+  };
+
+  // User & Tenant Isolation: items visible to the current authenticated user and tenant
+  const userVisibleItems = useMemo(() => {
+    const isMaster = !tenantId || tenantId === '_master';
+    return mediaItems.filter((item) => {
+      // 1. Strict Tenant Isolation: sub-tenants MUST NEVER see other tenants' items or master items
+      if (!isMaster) {
+        const itemTenant = item.tenantId || item.metadata?.tenantId;
+        if (itemTenant && itemTenant !== tenantId) {
+          return false;
+        }
+      }
+
+      // 2. User Isolation
+      if (!currentUserUid || currentUserRole === 'admin' || isMaster) {
+        return true;
+      }
+      const itemOwner =
+        item.userId ||
+        item.createdBy ||
+        item.metadata?.ownerUid ||
+        item.metadata?.userId;
+
+      // If explicitly owned by a different user, isolate and hide
+      if (itemOwner && itemOwner !== currentUserUid) {
+        return false;
+      }
+      return true;
+    });
+  }, [mediaItems, currentUserUid, currentUserRole, tenantId]);
+
+  const totalStorageBytes = useMemo(() => {
+    return userVisibleItems.reduce((acc, it) => acc + (it.sizeBytes || 0), 0);
+  }, [userVisibleItems]);
+
+  const initialTypeFilter: MediaCategoryFilter = useMemo(() => {
+    if (allowedTypes && allowedTypes.length > 0) {
+      if (allowedTypes.includes('image')) return 'image';
+      return allowedTypes[0];
+    }
+    return 'image';
+  }, [allowedTypes]);
+
+  const [filters, setFilters] = useState<MediaFilterOptions>({
+    searchQuery: '',
+    typeFilter: initialTypeFilter,
+    sortBy: 'date_desc',
+    sourceModuleFilter: 'all',
+    folderId: defaultFolderId,
+  });
+
+  // Automatically detect sourceModule & human readable label
+  const detectSourceModule = (item: Partial<MediaItem>): { sourceModule: string; sourceModuleLabel: string } => {
+    if (item.sourceModule && KNOWN_MODULE_SOURCES[item.sourceModule]) {
+      return {
+        sourceModule: item.sourceModule,
+        sourceModuleLabel: KNOWN_MODULE_SOURCES[item.sourceModule]?.name || item.sourceModuleLabel || item.sourceModule,
+      };
+    }
+
+    const tags = (item.tags || []).map((t) => t.toLowerCase().trim());
+    const metadata = item.metadata || {};
+
+    if (
+      tags.includes('heygen') ||
+      tags.includes('sdo_studio') ||
+      tags.includes('banana_pro') ||
+      tags.includes('google_veo') ||
+      tags.includes('google_tts') ||
+      metadata.source === 'sdo_video_producer'
+    ) {
+      return {
+        sourceModule: 'video-producer-studio',
+        sourceModuleLabel: 'סטודיו וידאו ואווטאר (HeyGen & Veo)',
+      };
+    }
+
+    if (tags.includes('flow_player') || tags.includes('interactive_flow') || tags.includes('sdo_player')) {
+      return {
+        sourceModule: 'flow-player-engine',
+        sourceModuleLabel: 'מנוע נגן זרימה אינטראקטיבי',
+      };
+    }
+
+    if (tags.includes('page_builder') || tags.includes('pagebuilder')) {
+      return {
+        sourceModule: 'KosWebAi',
+        sourceModuleLabel: 'יוצר העמודים והאתרים',
+      };
+    }
+
+    if (tags.includes('crm') || tags.includes('analytics')) {
+      return {
+        sourceModule: 'crm-analytics',
+        sourceModuleLabel: 'אנליטיקה ודוחות CRM',
+      };
+    }
+
+    if (
+      tags.includes('gemini_ai') ||
+      tags.includes('gemini_image') ||
+      tags.includes('banana_pro') ||
+      tags.includes('nano_banana') ||
+      item.sourceModule === 'gemini-image-generation' ||
+      metadata.source === 'gemini-image-generation'
+    ) {
+      return {
+        sourceModule: 'gemini-image-generation',
+        sourceModuleLabel: 'מחולל תמונות Gemini AI (Nano Banana)',
+      };
+    }
+
+    return {
+      sourceModule: 'media-gallery-hub',
+      sourceModuleLabel: 'העלאה ישירה במאגר המדיה',
+    };
+  };
+
+  function KNKNOWN_SOURCE(source: string) {
+    return Boolean(KNOWN_MODULE_SOURCES[source]);
+  }
+
+  // Load all media sources with instant local cache (0ms) + non-blocking background server sync
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadServerSources = async () => {
+      const mergedMap = new Map<string, MediaItem>();
+
+      const normalizeItem = (rawItem: MediaItem): MediaItem => {
+        const { type, mimeType } = FileCompressionService.detectFileType(rawItem.name || '', rawItem.mimeType);
+        const itemType = rawItem.type && rawItem.type !== 'other' ? rawItem.type : type;
+        const { sourceModule, sourceModuleLabel } = detectSourceModule(rawItem);
+
+        return {
+          ...rawItem,
+          type: itemType,
+          mimeType: rawItem.mimeType || mimeType,
+          sourceModule: rawItem.sourceModule || sourceModule,
+          sourceModuleLabel: rawItem.sourceModuleLabel || sourceModuleLabel,
+        };
+      };
+
+      // Filter out deleted items from local tombstone list
+      let deletedSet = new Set<string>();
+      try {
+        const stored = localStorage.getItem('sdo_media_deleted_ids');
+        if (stored) {
+          deletedSet = new Set(JSON.parse(stored).map((x: string) => x.toLowerCase().trim()));
+        }
+      } catch {}
+
+      // Clean, normalized deduplication map + name index
+      const nameToKeyMap = new Map<string, string>();
+
+      const addDeduplicated = (rawItem: MediaItem) => {
+        if (!rawItem) return;
+
+        // Multi-tenant filtering:
+        // Sub-tenants see their own items AND master items that are shared (isShared: true)
+        if (tenantId && tenantId !== '_master') {
+          const itTenant = rawItem.tenantId || rawItem.metadata?.tenantId;
+          const isItemShared = rawItem.isShared === true || rawItem.metadata?.isShared === true;
+          if (itTenant && itTenant !== tenantId && !isItemShared) {
+            return;
+          }
+        }
+
+        const normalized = normalizeItem(rawItem);
+        const safeUrl = resolveSafeMediaUrl(normalized.url, normalized);
+        const safeThumb = resolveSafeMediaUrl(normalized.thumbnailUrl, normalized);
+        const item: MediaItem = {
+          ...normalized,
+          url: safeUrl || normalized.url,
+          thumbnailUrl: safeThumb || normalized.thumbnailUrl,
+        };
+        const nameKey = (item.name || '').toLowerCase().trim();
+        const idKey = (item.id || '').toLowerCase().trim();
+        if (!nameKey && !idKey) return;
+
+        if (deletedSet.has(nameKey) || deletedSet.has(idKey)) {
+          return;
+        }
+
+        // Find existing key by name or ID
+        const existingKey = (nameKey ? nameToKeyMap.get(nameKey) : undefined) || (mergedMap.has(idKey) ? idKey : undefined);
+
+        if (!existingKey) {
+          const key = idKey || nameKey;
+          mergedMap.set(key, item);
+          if (nameKey) nameToKeyMap.set(nameKey, key);
+        } else {
+          const existing = mergedMap.get(existingKey)!;
+
+          // Determine best URL: prefer permanent https/http or base64 over transient blob:
+          const isExistingBlob = existing.url?.startsWith('blob:');
+          const isNewBlob = item.url?.startsWith('blob:');
+          let preferredUrl = existing.url;
+          if (isExistingBlob && !isNewBlob && item.url) {
+            preferredUrl = item.url;
+          } else if (!existing.url && item.url) {
+            preferredUrl = item.url;
+          }
+
+          const mergedItem: MediaItem = {
+            ...existing,
+            ...item,
+            id: existing.id || item.id,
+            url: preferredUrl,
+            thumbnailUrl: preferredUrl,
+            description: item.description || existing.description,
+            tags: Array.from(new Set([...(existing.tags || []), ...(item.tags || [])])),
+            sourceModule: existing.sourceModule !== 'media-gallery-hub' ? existing.sourceModule : item.sourceModule,
+            sourceModuleLabel: existing.sourceModuleLabel !== 'העלאה ישירה במאגר המדיה' ? existing.sourceModuleLabel : item.sourceModuleLabel,
+            folderId: item.folderId !== undefined ? item.folderId : existing.folderId,
+            metadata: { ...(existing.metadata || {}), ...(item.metadata || {}) },
+          };
+
+          mergedMap.set(existingKey, mergedItem);
+        }
+      };
+
+      // 1. Initial confirmed server media (only for _master root tenant showcase)
+      if (tenantId === '_master') {
+        INITIAL_SERVER_MEDIA.forEach(addDeduplicated);
+      }
+
+      // 2. Instant LocalStorage items (scoped by tenant)
+      try {
+        const sanitizeLsItems = (items: any[]): MediaItem[] => {
+          return items.filter((it) => it && it.url && !it.url.startsWith('blob:'));
+        };
+
+        const storageKeyStudio = tenantId === '_master' ? 'kosun_media_gallery_items' : `kosun_${tenantId}_media_gallery_items`;
+        const rawStudioItems = localStorage.getItem(storageKeyStudio);
+        if (rawStudioItems) {
+          const parsed = JSON.parse(rawStudioItems);
+          if (Array.isArray(parsed)) {
+            const clean = sanitizeLsItems(parsed);
+            clean.forEach(addDeduplicated);
+            localStorage.setItem(storageKeyStudio, JSON.stringify(clean));
+          }
+        }
+        if (tenantId === '_master') {
+          const rawVaultItems = localStorage.getItem('sdo_media_vault_items');
+          if (rawVaultItems) {
+            const parsed = JSON.parse(rawVaultItems);
+            if (Array.isArray(parsed)) {
+              const clean = sanitizeLsItems(parsed);
+              clean.forEach(addDeduplicated);
+              localStorage.setItem('sdo_media_vault_items', JSON.stringify(clean));
+            }
+          }
+        }
+      } catch {}
+
+      // 3. Instant IndexedDB Cache (0ms local DB)
+      try {
+        const idbItems = await MediaIndexedDbService.getAllMedia(tenantId);
+        idbItems.forEach((it) => {
+          if (it && it.url) {
+            const itemTenant = it.tenantId || it.metadata?.tenantId;
+            if (tenantId && tenantId !== '_master') {
+              if (itemTenant !== tenantId) return;
+            } else if (tenantId === '_master') {
+              if (itemTenant && itemTenant !== '_master') return;
+            }
+            addDeduplicated(it);
+          }
+        });
+        const idbFolders = await MediaIndexedDbService.getFolders(tenantId);
+        if (isMounted && idbFolders.length > 0) {
+          setFolders(idbFolders);
+        }
+      } catch (idbErr) {
+        console.warn('[MediaGallery] IndexedDB cache notice:', idbErr);
+      }
+
+      // Render local items immediately to give instant 0ms interactivity
+      if (isMounted) {
+        setMediaItems(Array.from(mergedMap.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)));
+        setIsLoading(false);
+      }
+
+      // 4. Background non-blocking fetch from Cloud Storage & Firestore
+      try {
+        if (firebaseApp) {
+          const storageItems = await FirebaseStorageMediaService.fetchStorageFiles(firebaseApp, tenantId);
+          storageItems.forEach((item) => addDeduplicated(item));
+        }
+
+        if (db) {
+          const remoteItems = await FirestoreMediaService.fetchMediaItems(db, collections);
+          remoteItems.forEach((item) => {
+            if (item.url) addDeduplicated(item);
+          });
+
+          // ONLY for _master root tenant backward compatibility:
+          // Sub-tenants (such as MLEA) MUST NEVER fetch or see root collection items!
+          if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
+            try {
+              const defaultItems = await FirestoreMediaService.fetchMediaItems(db, {
+                mediaItems: 'sdo_media_items',
+                folders: 'sdo_media_folders',
+              });
+              defaultItems.forEach((item) => {
+                if (item.url) addDeduplicated(item);
+              });
+            } catch (rootErr) {
+              console.warn('[MediaGallery] Root collection items fallback notice:', rootErr);
+            }
+          }
+
+          const remoteFolders = await FirestoreMediaService.fetchFolders(db, collections);
+          if (tenantId === '_master' && collections.folders !== 'sdo_media_folders') {
+            try {
+              const defaultFolders = await FirestoreMediaService.fetchFolders(db, {
+                mediaItems: 'sdo_media_items',
+                folders: 'sdo_media_folders',
+              });
+              const combinedFolders = [...remoteFolders];
+              defaultFolders.forEach((df) => {
+                if (!combinedFolders.some((f) => f.id === df.id)) {
+                  combinedFolders.push(df);
+                }
+              });
+              if (isMounted && combinedFolders.length > 0) {
+                setFolders(combinedFolders);
+              }
+            } catch {}
+          } else if (tenantId && tenantId !== '_master') {
+            // Sub-tenants: fetch tenant folders + shared folders from master
+            try {
+              const masterFolders = await FirestoreMediaService.fetchFolders(db, {
+                mediaItems: 'sdo_media_items',
+                folders: 'sdo_media_folders',
+              });
+              const sharedMasterFolders = masterFolders.filter((f) => f.isShared === true);
+              const combinedFolders = [...remoteFolders];
+              sharedMasterFolders.forEach((sf) => {
+                if (!combinedFolders.some((f) => f.id === sf.id)) {
+                  combinedFolders.push(sf);
+                }
+              });
+
+              // Also fetch items inside shared folders from master
+              if (sharedMasterFolders.length > 0) {
+                const masterItems = await FirestoreMediaService.fetchMediaItems(db, {
+                  mediaItems: 'sdo_media_items',
+                  folders: 'sdo_media_folders',
+                });
+                const sharedFolderIds = new Set(sharedMasterFolders.map((f) => f.id));
+                masterItems.forEach((mItem) => {
+                  if (
+                    (mItem.folderId && sharedFolderIds.has(mItem.folderId)) ||
+                    mItem.isShared === true ||
+                    mItem.metadata?.isShared === true
+                  ) {
+                    addDeduplicated({ ...mItem, isShared: true });
+                  }
+                });
+              }
+
+              if (isMounted) {
+                setFolders(combinedFolders);
+              }
+            } catch (sharedErr) {
+              console.warn('[MediaGallery] Error loading shared master folders for tenant:', sharedErr);
+              if (isMounted && remoteFolders.length > 0) {
+                setFolders(remoteFolders);
+              }
+            }
+          } else if (isMounted && remoteFolders.length > 0) {
+            setFolders(remoteFolders);
+          }
+        }
+
+        if (!isMounted) return;
+        const finalMerged = Array.from(mergedMap.values())
+          .filter((it) => it && it.url && (it.name || it.id))
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        setMediaItems(finalMerged);
+      } catch (err) {
+        console.warn('[MediaGallery] Background sync notice:', err);
+      }
+    };
+
+    loadServerSources();
+
+    // Cross-module media update listener
+    const handleMediaUpdated = (e: Event) => {
+      const customEvent = e as CustomEvent<MediaItem>;
+      if (customEvent.detail) {
+        setMediaItems((prev) => {
+          const newItem = customEvent.detail;
+          const newNameKey = (newItem.name || '').toLowerCase().trim();
+          const newIdKey = (newItem.id || '').toLowerCase().trim();
+          const filtered = prev.filter(
+            (it) =>
+              it.id !== newItem.id &&
+              it.name.toLowerCase().trim() !== newNameKey &&
+              it.id.toLowerCase().trim() !== newIdKey
+          );
+          return [newItem, ...filtered];
+        });
+      }
+    };
+
+    const handleMediaDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ ids: string[] }>;
+      if (customEvent.detail?.ids) {
+        const deletedIds = new Set(customEvent.detail.ids.map((x) => x.toLowerCase().trim()));
+        setMediaItems((prev) =>
+          prev.filter((it) => !deletedIds.has(it.id.toLowerCase().trim()) && !deletedIds.has(it.name.toLowerCase().trim()))
+        );
+      }
+    };
+
+    if (typeof window !== 'undefined') {
+      window.addEventListener('sdo_media_updated', handleMediaUpdated);
+      window.addEventListener('sdo_media_deleted', handleMediaDeleted);
+    }
+
+    let unsubMedia = () => {};
+    let unsubDefaultMedia = () => {};
+    let unsubFolders = () => {};
+    let unsubDefaultFolders = () => {};
+
+    if (db) {
+      const applyIncomingItems = (cloudItems: MediaItem[]) => {
+        if (!isMounted || !cloudItems || cloudItems.length === 0) return;
+        setMediaItems((prev) => {
+          const nameMap = new Map<string, MediaItem>();
+          const idMap = new Map<string, MediaItem>();
+
+          const addItem = (it: MediaItem) => {
+            const nameKey = (it.name || '').toLowerCase().trim();
+            const idKey = (it.id || '').toLowerCase().trim();
+            const existing = (nameKey ? nameMap.get(nameKey) : undefined) || (idKey ? idMap.get(idKey) : undefined);
+            if (!existing) {
+              if (nameKey) nameMap.set(nameKey, it);
+              if (idKey) idMap.set(idKey, it);
+            } else {
+              const isExistingBlob = existing.url?.startsWith('blob:');
+              const isNewBlob = it.url?.startsWith('blob:');
+              const bestUrl = isExistingBlob && !isNewBlob ? it.url : existing.url || it.url;
+              const merged = { ...existing, ...it, url: bestUrl, thumbnailUrl: bestUrl };
+              if (nameKey) nameMap.set(nameKey, merged);
+              if (idKey) idMap.set(idKey, merged);
+            }
+          };
+
+          prev.forEach(addItem);
+          cloudItems.forEach(addItem);
+
+          return Array.from(new Set([...nameMap.values(), ...idMap.values()])).sort(
+            (a, b) => (b.createdAt || 0) - (a.createdAt || 0)
+          );
+        });
+      };
+
+      unsubMedia = FirestoreMediaService.subscribeMediaItems(db, applyIncomingItems, collections);
+
+      // ONLY for _master root tenant backward compatibility:
+      // Sub-tenants (such as MLEA) MUST NEVER subscribe to root collections!
+      if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
+        unsubDefaultMedia = FirestoreMediaService.subscribeMediaItems(
+          db,
+          applyIncomingItems,
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+      }
+
+      const applyIncomingFolders = (cloudFolders: MediaFolder[]) => {
+        if (!isMounted || !cloudFolders || cloudFolders.length === 0) return;
+        setFolders((prev) => {
+          const map = new Map<string, MediaFolder>();
+          prev.forEach((f) => map.set(f.id, f));
+          cloudFolders.forEach((f) => map.set(f.id, f));
+          return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        });
+      };
+
+      unsubFolders = FirestoreMediaService.subscribeFolders(db, applyIncomingFolders, collections);
+
+      // ONLY for _master root tenant backward compatibility:
+      if (tenantId === '_master' && collections.folders !== 'sdo_media_folders') {
+        unsubDefaultFolders = FirestoreMediaService.subscribeFolders(
+          db,
+          applyIncomingFolders,
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+      } else if (tenantId && tenantId !== '_master') {
+        // Sub-tenants: subscribe to shared folders from master real-time
+        unsubDefaultFolders = FirestoreMediaService.subscribeFolders(
+          db,
+          (masterFolders) => {
+            const sharedMaster = masterFolders.filter((f) => f.isShared === true);
+            if (sharedMaster.length > 0) {
+              setFolders((prev) => {
+                const map = new Map<string, MediaFolder>();
+                prev.forEach((f) => map.set(f.id, f));
+                sharedMaster.forEach((sf) => map.set(sf.id, sf));
+                return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              });
+            }
+          },
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+
+        // Also subscribe to items in master with isShared flag
+        unsubDefaultMedia = FirestoreMediaService.subscribeMediaItems(
+          db,
+          (masterItems) => {
+            const sharedItems = masterItems.filter(
+              (it) => it.isShared === true || it.metadata?.isShared === true
+            );
+            if (sharedItems.length > 0) {
+              applyIncomingItems(sharedItems);
+            }
+          },
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+      }
+    }
+
+    return () => {
+      isMounted = false;
+      unsubMedia();
+      unsubDefaultMedia();
+      unsubFolders();
+      unsubDefaultFolders();
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('sdo_media_updated', handleMediaUpdated);
+        window.removeEventListener('sdo_media_deleted', handleMediaDeleted);
+      }
+    };
+  }, [firebaseApp, db, collections]);
+
+  // Recalculate folder item counts
+  const foldersWithCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    userVisibleItems.forEach((item) => {
+      if (item.folderId) {
+        counts.set(item.folderId, (counts.get(item.folderId) || 0) + 1);
+      }
+    });
+    return folders.map((f) => ({
+      ...f,
+      itemCount: counts.get(f.id) || 0,
+    }));
+  }, [folders, userVisibleItems]);
+
+  const addMediaItems = async (
+    newItems: MediaItem[],
+    files?: (File | Blob)[],
+    onProgress?: (fileIndex: number, pct: number) => void
+  ) => {
+    // 1. Optimistic Immediate Update in UI
+    const targetFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
+    const isTargetFolderShared = targetFolder?.isShared === true;
+
+    const enrichedItems = newItems.map((item) => {
+      const { sourceModule, sourceModuleLabel } = detectSourceModule(item);
+      const itemFolderId = item.folderId !== undefined ? item.folderId : activeFolderId;
+      const folderRef = itemFolderId ? folders.find((f) => f.id === itemFolderId) : targetFolder;
+      const isShared = item.isShared ?? folderRef?.isShared ?? isTargetFolderShared;
+
+      return {
+        ...item,
+        userId: item.userId || currentUserUid || undefined,
+        createdBy: item.createdBy || currentUserUid || undefined,
+        folderId: itemFolderId,
+        isShared: isShared || undefined,
+        sourceModule: item.sourceModule || sourceModule,
+        sourceModuleLabel: item.sourceModuleLabel || sourceModuleLabel,
+      };
+    });
+
+    setMediaItems((prev) => {
+      const map = new Map<string, MediaItem>();
+      enrichedItems.forEach((it) => map.set(it.name.toLowerCase().trim(), it));
+      prev.forEach((it) => {
+        const k = it.name.toLowerCase().trim();
+        if (!map.has(k)) map.set(k, it);
+      });
+      return Array.from(map.values()).sort((a, b) => b.createdAt - a.createdAt);
+    });
+
+    // 2. Upload each file directly to Firebase Cloud Storage and save JSON to Firestore & IndexedDB
+    const uploadPromises = enrichedItems.map(async (initialItem, index) => {
+      const file = files ? files[index] : undefined;
+      let finalItem = { ...initialItem };
+
+      if (firebaseApp && file) {
+        try {
+          const downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+            firebaseApp,
+            file,
+            initialItem.name,
+            (pct) => onProgress && onProgress(index, pct),
+            initialItem,
+            tenantId
+          );
+          finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
+        } catch (storageErr) {
+          console.warn(`[MediaGallery] Cloud storage upload for ${initialItem.name}:`, storageErr);
+        }
+      }
+
+      // Save complete JSON document to Firestore on the server
+      if (db) {
+        try {
+          finalItem = {
+            ...finalItem,
+            tenantId: finalItem.tenantId || tenantId || '_master',
+            isShared: finalItem.isShared ?? initialItem.isShared,
+            metadata: {
+              ...(finalItem.metadata || {}),
+              tenantId: finalItem.tenantId || tenantId || '_master',
+              isShared: finalItem.isShared ?? initialItem.isShared,
+            },
+          };
+          await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
+          // ONLY for _master root tenant backward compatibility:
+          if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
+            await FirestoreMediaService.saveMediaItem(
+              db,
+              { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+              finalItem
+            );
+          }
+        } catch (fsErr) {
+          console.warn('[MediaGallery] Firestore save notice:', fsErr);
+        }
+      }
+
+      // Save locally to IndexedDB
+      if (file) {
+        MediaIndexedDbService.saveMedia(finalItem, file).catch(() => {});
+      }
+
+      if (onProgress) onProgress(index, 100);
+
+      // Update state with confirmed permanent URL
+      setMediaItems((prev) =>
+        prev.map((it) => (it.name.toLowerCase().trim() === finalItem.name.toLowerCase().trim() || it.id === finalItem.id ? finalItem : it))
+      );
+
+      // Broadcast via global EventBus
+      if (finalItem.url) {
+        eventBus.emit('media:uploaded', {
+          url: finalItem.url,
+          fileName: finalItem.name,
+          type: finalItem.type,
+          sourceModule: finalItem.sourceModule,
+        });
+      }
+
+      return finalItem;
+    });
+
+    return await Promise.all(uploadPromises);
+  };
+
+  const deleteMediaItems = async (ids: string[]) => {
+    const toDelete = mediaItems.filter((i) => ids.includes(i.id));
+    const deleteNames = new Set(toDelete.map((i) => i.name.toLowerCase().trim()));
+    const deleteIds = new Set(ids);
+
+    // Save tombstone in LocalStorage
+    try {
+      const existingDeleted = JSON.parse(localStorage.getItem('sdo_media_deleted_ids') || '[]');
+      const updatedDeleted = Array.from(
+        new Set([...existingDeleted, ...ids, ...toDelete.map((i) => i.name), ...toDelete.map((i) => i.id)])
+      );
+      localStorage.setItem('sdo_media_deleted_ids', JSON.stringify(updatedDeleted));
+    } catch {}
+
+    // Update UI immediately
+    setMediaItems((prev) =>
+      prev.filter((item) => !deleteIds.has(item.id) && !deleteNames.has(item.name.toLowerCase().trim()))
+    );
+    setSelectedIds([]);
+
+    for (const item of toDelete) {
+      await MediaIndexedDbService.deleteMedia(item.id);
+
+      if (db) {
+        try {
+          await FirestoreMediaService.deleteMediaItem(db, collections, item.id);
+          // ONLY for _master root tenant backward compatibility:
+          if (tenantId === '_master' && collections.mediaItems !== 'sdo_media_items') {
+            await FirestoreMediaService.deleteMediaItem(
+              db,
+              { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+              item.id
+            );
+          }
+        } catch (e) {}
+      }
+
+      if (firebaseApp) {
+        try {
+          await FirebaseStorageMediaService.deleteStorageFile(firebaseApp, item, tenantId);
+        } catch (e) {}
+      }
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sdo_media_deleted', { detail: { ids } }));
+    }
+  };
+
+  const updateMediaItem = async (id: string, updates: Partial<MediaItem>) => {
+    setMediaItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates, updatedAt: Date.now() } : item))
+    );
+
+    if (focusedItem?.id === id) {
+      setFocusedItem((prev) => (prev ? { ...prev, ...updates, updatedAt: Date.now() } : null));
+    }
+
+    if (db) {
+      await FirestoreMediaService.updateMediaMetadata(db, collections, id, updates);
+    }
+  };
+
+  const replaceMediaItem = async (originalId: string, updatedItem: MediaItem, file?: File | Blob) => {
+    let finalItem = { ...updatedItem, id: originalId, updatedAt: Date.now() };
+
+    if (firebaseApp && file) {
+      try {
+        const downloadUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+          firebaseApp,
+          file,
+          finalItem.name,
+          undefined,
+          finalItem,
+          tenantId
+        );
+        finalItem = { ...finalItem, url: downloadUrl, thumbnailUrl: downloadUrl };
+      } catch (storageErr) {
+        console.warn(`[MediaGallery] Replacement cloud storage upload for ${finalItem.name}:`, storageErr);
+      }
+    }
+
+    setMediaItems((prev) => prev.map((it) => (it.id === originalId ? finalItem : it)));
+    if (focusedItem?.id === originalId) {
+      setFocusedItem(finalItem);
+    }
+
+    if (db) {
+      try {
+        await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
+      } catch (fsErr) {
+        console.warn('[MediaGallery] Firestore save replacement error:', fsErr);
+      }
+    }
+
+    if (file) {
+      MediaIndexedDbService.saveMedia(finalItem, file).catch(() => {});
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('sdo_media_updated', { detail: finalItem }));
+    }
+  };
+
+  const renameMediaItem = async (id: string, newName: string) => {
+    const trimmed = newName.trim();
+    if (!trimmed) return;
+
+    const targetItem = mediaItems.find((i) => i.id === id);
+    if (!targetItem) return;
+
+    let finalName = trimmed;
+    const origExt = targetItem.name.includes('.') ? targetItem.name.split('.').pop() : '';
+    if (origExt && !finalName.includes('.')) {
+      finalName = `${finalName}.${origExt}`;
+    }
+
+    const { type, mimeType } = FileCompressionService.detectFileType(finalName, targetItem.mimeType);
+
+    const updates: Partial<MediaItem> = {
+      name: finalName,
+      type: targetItem.type && targetItem.type !== 'other' ? targetItem.type : type,
+      mimeType: targetItem.mimeType || mimeType,
+      updatedAt: Date.now(),
+    };
+
+    setMediaItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+
+    if (focusedItem?.id === id) {
+      setFocusedItem((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+
+    const updatedItem = { ...targetItem, ...updates };
+    await MediaIndexedDbService.saveMedia(updatedItem);
+
+    if (db) {
+      try {
+        await FirestoreMediaService.updateMediaMetadata(db, collections, id, updates);
+      } catch (e) {
+        console.warn('[MediaGallery] Rename in Firestore error:', e);
+      }
+    }
+  };
+
+  // --- Folder Management Methods ---
+
+  const createFolder = async (
+    name: string,
+    color: string = '#eab308',
+    icon: string = 'Folder',
+    parentId: string | null = null,
+    isShared: boolean = false
+  ): Promise<MediaFolder> => {
+    const isMasterTenant = !tenantId || tenantId === '_master';
+    const effectiveIsShared = isMasterTenant ? Boolean(isShared) : false;
+
+    const newFolder: MediaFolder = {
+      id: `folder_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      name: name.trim(),
+      color,
+      icon,
+      parentId,
+      tenantId: tenantId || '_master',
+      isShared: effectiveIsShared,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+      itemCount: 0,
+    };
+
+    setFolders((prev) => [newFolder, ...prev]);
+    await MediaIndexedDbService.saveFolder(newFolder);
+
+    if (db) {
+      try {
+        await FirestoreMediaService.saveFolder(db, collections, newFolder);
+        // If master tenant created a shared folder, also save to root sdo_media_folders
+        if (isMasterTenant && collections.folders !== 'sdo_media_folders') {
+          await FirestoreMediaService.saveFolder(
+            db,
+            { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+            newFolder
+          );
+        }
+      } catch (e) {
+        console.warn('[MediaGallery] Error saving folder to Firestore:', e);
+      }
+    }
+
+    return newFolder;
+  };
+
+  const updateFolder = async (id: string, updates: Partial<MediaFolder>) => {
+    setFolders((prev) =>
+      prev.map((f) => (f.id === id ? { ...f, ...updates, updatedAt: Date.now() } : f))
+    );
+
+    const folderToUpdate = folders.find((f) => f.id === id);
+    if (folderToUpdate) {
+      const updated = { ...folderToUpdate, ...updates, updatedAt: Date.now() };
+      await MediaIndexedDbService.saveFolder(updated);
+      if (db) {
+        try {
+          await FirestoreMediaService.saveFolder(db, collections, updated);
+        } catch (e) {}
+      }
+    }
+  };
+
+  const deleteFolder = async (id: string, deleteContents: boolean = false) => {
+    const folder = folders.find((f) => f.id === id);
+    if (!folder) return;
+
+    if (deleteContents) {
+      const itemsInFolder = mediaItems.filter((i) => i.folderId === id);
+      if (itemsInFolder.length > 0) {
+        await deleteMediaItems(itemsInFolder.map((i) => i.id));
+      }
+    } else {
+      // Unlink items from folder, move back to root
+      setMediaItems((prev) =>
+        prev.map((item) => (item.folderId === id ? { ...item, folderId: null, folderName: undefined } : item))
+      );
+      if (db) {
+        const itemsToUnlink = mediaItems.filter((i) => i.folderId === id);
+        for (const it of itemsToUnlink) {
+          FirestoreMediaService.updateMediaMetadata(db, collections, it.id, { folderId: null }).catch(() => {});
+        }
+      }
+    }
+
+    setFolders((prev) => prev.filter((f) => f.id !== id));
+    if (activeFolderId === id) {
+      setActiveFolderId(null);
+    }
+
+    await MediaIndexedDbService.deleteFolder(id);
+    if (db) {
+      try {
+        await FirestoreMediaService.deleteFolder(db, collections, id);
+      } catch (e) {}
+    }
+  };
+
+  const moveItemsToFolder = async (itemIds: string[], targetFolderId: string | null) => {
+    const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
+    const folderName = targetFolder ? targetFolder.name : undefined;
+    const isTargetFolderShared = targetFolder?.isShared === true;
+
+    setMediaItems((prev) =>
+      prev.map((item) =>
+        itemIds.includes(item.id)
+          ? {
+              ...item,
+              folderId: targetFolderId,
+              folderName,
+              isShared: isTargetFolderShared || item.isShared,
+              updatedAt: Date.now(),
+            }
+          : item
+      )
+    );
+
+    for (const id of itemIds) {
+      const item = mediaItems.find((i) => i.id === id);
+      if (item) {
+        const updated: MediaItem = {
+          ...item,
+          folderId: targetFolderId,
+          folderName,
+          isShared: isTargetFolderShared || item.isShared,
+          updatedAt: Date.now(),
+        };
+        MediaIndexedDbService.saveMedia(updated).catch(() => {});
+        if (db) {
+          FirestoreMediaService.updateMediaMetadata(db, collections, id, {
+            folderId: targetFolderId,
+            isShared: isTargetFolderShared || item.isShared,
+            updatedAt: Date.now(),
+          }).catch(() => {});
+          // If moving into a shared folder in master, ensure it exists in root collections
+          if ((!tenantId || tenantId === '_master') && collections.mediaItems !== 'sdo_media_items') {
+            FirestoreMediaService.updateMediaMetadata(
+              db,
+              { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+              id,
+              {
+                folderId: targetFolderId,
+                isShared: isTargetFolderShared || item.isShared,
+                updatedAt: Date.now(),
+              }
+            ).catch(() => {});
+          }
+        }
+      }
+    }
+  };
+
+  /**
+   * Sync videos from HeyGen Cloud API via GET
+   */
+  const syncHeyGenVideos = async (customApiKey?: string): Promise<{ count: number; error?: string }> => {
+    let key = (customApiKey || '').trim();
+    if (!key) {
+      key = (systemConn?.apiKeys?.heygenApiKey || '').trim();
+    }
+    if (!key && typeof window !== 'undefined') {
+      key = getModuleApiKeys('media-gallery-hub')?.heygenApiKey || '';
+    }
+    if (!key) {
+      key = (import.meta.env.VITE_HEYGEN_API_KEY || '').trim();
+    }
+
+    if (!key) {
+      return {
+        count: 0,
+        error: 'לא נמצא מפתח HeyGen API. אנא הזן מפתח בהגדרות המערכת או בחיבור.',
+      };
+    }
+
+    setIsSyncingHeyGen(true);
+    try {
+      const fetchedVideos = await HeyGenSyncService.fetchVideosFromHeyGen(key);
+      if (fetchedVideos.length === 0) {
+        setIsSyncingHeyGen(false);
+        return { count: 0 };
+      }
+
+      // Merge fetched videos with existing items (avoid duplicates by id or url)
+      setMediaItems((prev) => {
+        const existingIds = new Set(prev.map((i) => i.id));
+        const existingUrls = new Set(prev.map((i) => i.url.toLowerCase()));
+
+        const newItems = fetchedVideos.filter(
+          (v) => !existingIds.has(v.id) && !existingUrls.has(v.url.toLowerCase())
+        );
+
+        // Save new synced videos to IndexedDB and Firestore
+        for (const item of newItems) {
+          MediaIndexedDbService.saveMedia(item).catch(() => {});
+          if (db) {
+            FirestoreMediaService.saveMediaItem(db, collections, item).catch(() => {});
+          }
+        }
+
+        return [...newItems, ...prev];
+      });
+
+      setIsSyncingHeyGen(false);
+      return { count: fetchedVideos.length };
+    } catch (err: any) {
+      setIsSyncingHeyGen(false);
+      return {
+        count: 0,
+        error: err.message || 'שגיאה בסנכרון סרטוני HeyGen',
+      };
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) {
+        return prev.filter((item) => item !== id);
+      } else {
+        if (config?.maxSelectCount && config.maxSelectCount === 1) {
+          return [id];
+        }
+        return [...prev, id];
+      }
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedIds(filteredItems.map((item) => item.id));
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+  };
+
+  const filteredItems = useMemo(() => {
+    return userVisibleItems
+      .filter((item) => {
+        // Allowed Types
+        if (config?.allowedTypes && config.allowedTypes.length > 0) {
+          if (!config.allowedTypes.includes(item.type)) return false;
+        }
+
+        // Folder Filtering: if activeFolderId is set, show only items in this folder
+        if (activeFolderId) {
+          if (item.folderId !== activeFolderId) return false;
+        }
+
+        // Type Filter Tab
+        if (filters.typeFilter !== 'all') {
+          if (filters.typeFilter === 'heygen') {
+            if (!isHeyGenItem(item)) return false;
+          } else if (filters.typeFilter === 'video') {
+            if (item.type !== 'video' && !item.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)) return false;
+          } else if (filters.typeFilter === 'image') {
+            if (item.type !== 'image' && !item.name.match(/\.(png|jpe?g|webp|gif|svg|avif|bmp)$/i)) return false;
+          } else if (filters.typeFilter === 'pdf') {
+            if (item.type !== 'pdf' && !item.name.toLowerCase().endsWith('.pdf')) return false;
+          } else if (filters.typeFilter === 'spreadsheet') {
+            if (
+              item.type !== 'spreadsheet' &&
+              !item.name.match(/\.(xlsx?|csv|ods|tsv)$/i)
+            )
+              return false;
+          } else if (filters.typeFilter === 'document') {
+            if (
+              item.type !== 'document' &&
+              item.type !== 'pdf' &&
+              !item.name.match(/\.(docx?|pdf|pptx?|odt|txt)$/i)
+            )
+              return false;
+          } else if (filters.typeFilter === 'audio') {
+            if (item.type !== 'audio' && !item.name.match(/\.(mp3|wav|ogg|aac|m4a|flac)$/i)) return false;
+          } else {
+            if (item.type !== filters.typeFilter) return false;
+          }
+        }
+
+        // Source Module Filter
+        if (filters.sourceModuleFilter && filters.sourceModuleFilter !== 'all') {
+          if (item.sourceModule !== filters.sourceModuleFilter) return false;
+        }
+
+        // Search Query
+        if (filters.searchQuery.trim()) {
+          const q = filters.searchQuery.toLowerCase();
+          const matchesName = item.name.toLowerCase().includes(q);
+          const matchesTags = item.tags?.some((t) => t.toLowerCase().includes(q));
+          const matchesSource = item.sourceModuleLabel?.toLowerCase().includes(q);
+          if (!matchesName && !matchesTags && !matchesSource) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (filters.sortBy === 'date_desc') return b.createdAt - a.createdAt;
+        if (filters.sortBy === 'date_asc') return a.createdAt - b.createdAt;
+        if (filters.sortBy === 'size_desc') return b.sizeBytes - a.sizeBytes;
+        if (filters.sortBy === 'name_asc') return a.name.localeCompare(b.name, 'he');
+        return 0;
+      });
+  }, [userVisibleItems, filters, activeFolderId, config?.allowedTypes]);
+
+  return (
+    <MediaGalleryContext.Provider
+      value={{
+        mediaItems: userVisibleItems,
+        filteredItems,
+        folders: foldersWithCounts,
+        activeFolderId,
+        setActiveFolderId,
+        filters,
+        setFilters,
+        selectedIds,
+        setSelectedIds,
+        toggleSelect,
+        selectAll,
+        clearSelection,
+        previewItem,
+        setPreviewItem,
+        converterItem,
+        setConverterItem,
+        isLoading,
+        addMediaItems,
+        deleteMediaItems,
+        updateMediaItem,
+        replaceMediaItem,
+        renameMediaItem,
+
+        theme,
+        setTheme,
+        toggleTheme,
+
+        createFolder,
+        updateFolder,
+        deleteFolder,
+        moveItemsToFolder,
+
+        isFolderModalOpen,
+        setIsFolderModalOpen,
+        editingFolder,
+        setEditingFolder,
+        isMoveModalOpen,
+        setIsMoveModalOpen,
+        itemsToMove,
+        setItemsToMove,
+
+        isSidebarOpen,
+        setIsSidebarOpen,
+        isInspectorOpen,
+        setIsInspectorOpen,
+        isUploaderOpen,
+        setIsUploaderOpen,
+        totalStorageBytes,
+        focusedItem,
+        setFocusedItem,
+
+        isSyncingHeyGen,
+        syncHeyGenVideos,
+        isHeyGenRevealed,
+        setIsHeyGenRevealed,
+
+        // Gemini AI Image Generator
+        isAiGeneratorOpen,
+        setIsAiGeneratorOpen,
+        aiGeneratorInitialImage,
+        setAiGeneratorInitialImage,
+        openAiImageGenerator,
+
+        // In-Drive Editing & Studio Modals
+        imageEditorItem,
+        setImageEditorItem,
+        openImageEditor,
+        closeImageEditor,
+
+        docViewerItem,
+        setDocViewerItem,
+        openDocViewer,
+        closeDocViewer,
+
+        textEditorItem,
+        setTextEditorItem,
+        isTextEditorOpen,
+        setIsTextEditorOpen,
+        openTextEditor,
+        closeTextEditor,
+
+        docToLandingItem,
+        setDocToLandingItem,
+        openDocToLanding,
+        closeDocToLanding,
+
+        firebaseApp,
+        db,
+        collections,
+        selectionMode: config?.selectionMode,
+        allowedTypes: config?.allowedTypes,
+        maxSelectCount: config?.maxSelectCount,
+        onSelectMedia: config?.onSelectMedia,
+        onClosePicker: config?.onClosePicker,
+      }}
+    >
+      {children}
+    </MediaGalleryContext.Provider>
+  );
+};
+
+export const useMediaGallery = () => {
+  const context = useContext(MediaGalleryContext);
+  if (!context) {
+    throw new Error('useMediaGallery must be used within a MediaGalleryProvider');
+  }
+  return context;
+};

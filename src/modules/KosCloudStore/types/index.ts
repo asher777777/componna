@@ -21,6 +21,7 @@ export interface MediaFolder {
   icon?: string;
   sourceModule?: string;
   tenantId?: string;
+  isShared?: boolean; // When true on a master/root folder, it is shared with all subdomains
   createdAt: number;
   updatedAt?: number;
   itemCount?: number;
@@ -51,6 +52,7 @@ export interface MediaItem {
   sourceModuleLabel?: string; // Hebrew human-readable name e.g. 'סטודיו וידאו ואווטאר'
   isFavorite?: boolean;
   tenantId?: string; // Multi-tenant isolation ID
+  isShared?: boolean; // When true, item is shared from master with all tenant subdomains
   userId?: string; // Owner user ID for user isolation
   createdBy?: string; // User ID who created/uploaded this item
   metadata?: Record<string, any>;

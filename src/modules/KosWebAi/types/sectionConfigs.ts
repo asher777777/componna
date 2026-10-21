@@ -705,6 +705,14 @@ export interface RichContentSectionConfig extends BaseSectionConfig {
   textBgEffect?: HeroTextBgEffect;
   textBgScope?: 'text-card' | 'full-section';
   items?: RichContentItem[];
+  /** צורת מסגרת הכרטיסים של אבני הדרך/הערכים */
+  cardFrameShape?: 'auto' | 'rounded' | 'sharp' | 'pill' | 'arched' | 'chiseled';
+  /** מיקום האייקון בכרטיס */
+  cardIconPosition?: 'side' | 'top' | 'top-center';
+  /** פריסת רשת א-סימטרית מדורגת */
+  isAsymmetricGrid?: boolean;
+  /** סגנון אפקט ויזואלי של הכרטיסים לפי המיתוג */
+  cardStylePresetEffect?: 'auto' | 'glow' | 'glass' | 'border-beam' | 'heavy-border';
 }
 
 export interface CommunitySectionConfig extends BaseSectionConfig {

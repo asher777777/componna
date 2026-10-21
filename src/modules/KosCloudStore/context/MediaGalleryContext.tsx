@@ -128,7 +128,7 @@ interface MediaGalleryContextValue {
   renameMediaItem: (id: string, newName: string) => Promise<void>;
   
   // Folder Operations
-  createFolder: (name: string, color?: string, icon?: string, parentId?: string | null) => Promise<MediaFolder>;
+  createFolder: (name: string, color?: string, icon?: string, parentId?: string | null, isShared?: boolean) => Promise<MediaFolder>;
   updateFolder: (id: string, updates: Partial<MediaFolder>) => Promise<void>;
   deleteFolder: (id: string, deleteContents?: boolean) => Promise<void>;
   moveItemsToFolder: (itemIds: string[], targetFolderId: string | null) => Promise<void>;
@@ -489,10 +489,12 @@ export const MediaGalleryProvider: React.FC<{
       const addDeduplicated = (rawItem: MediaItem) => {
         if (!rawItem) return;
 
-        // Strict Tenant Isolation: sub-tenants MUST NEVER accept items from other tenants or root
+        // Multi-tenant filtering:
+        // Sub-tenants see their own items AND master items that are shared (isShared: true)
         if (tenantId && tenantId !== '_master') {
           const itTenant = rawItem.tenantId || rawItem.metadata?.tenantId;
-          if (itTenant && itTenant !== tenantId) {
+          const isItemShared = rawItem.isShared === true || rawItem.metadata?.isShared === true;
+          if (itTenant && itTenant !== tenantId && !isItemShared) {
             return;
           }
         }
@@ -659,6 +661,48 @@ export const MediaGalleryProvider: React.FC<{
                 setFolders(combinedFolders);
               }
             } catch {}
+          } else if (tenantId && tenantId !== '_master') {
+            // Sub-tenants: fetch tenant folders + shared folders from master
+            try {
+              const masterFolders = await FirestoreMediaService.fetchFolders(db, {
+                mediaItems: 'sdo_media_items',
+                folders: 'sdo_media_folders',
+              });
+              const sharedMasterFolders = masterFolders.filter((f) => f.isShared === true);
+              const combinedFolders = [...remoteFolders];
+              sharedMasterFolders.forEach((sf) => {
+                if (!combinedFolders.some((f) => f.id === sf.id)) {
+                  combinedFolders.push(sf);
+                }
+              });
+
+              // Also fetch items inside shared folders from master
+              if (sharedMasterFolders.length > 0) {
+                const masterItems = await FirestoreMediaService.fetchMediaItems(db, {
+                  mediaItems: 'sdo_media_items',
+                  folders: 'sdo_media_folders',
+                });
+                const sharedFolderIds = new Set(sharedMasterFolders.map((f) => f.id));
+                masterItems.forEach((mItem) => {
+                  if (
+                    (mItem.folderId && sharedFolderIds.has(mItem.folderId)) ||
+                    mItem.isShared === true ||
+                    mItem.metadata?.isShared === true
+                  ) {
+                    addDeduplicated({ ...mItem, isShared: true });
+                  }
+                });
+              }
+
+              if (isMounted) {
+                setFolders(combinedFolders);
+              }
+            } catch (sharedErr) {
+              console.warn('[MediaGallery] Error loading shared master folders for tenant:', sharedErr);
+              if (isMounted && remoteFolders.length > 0) {
+                setFolders(remoteFolders);
+              }
+            }
           } else if (isMounted && remoteFolders.length > 0) {
             setFolders(remoteFolders);
           }
@@ -779,6 +823,37 @@ export const MediaGalleryProvider: React.FC<{
           applyIncomingFolders,
           { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
         );
+      } else if (tenantId && tenantId !== '_master') {
+        // Sub-tenants: subscribe to shared folders from master real-time
+        unsubDefaultFolders = FirestoreMediaService.subscribeFolders(
+          db,
+          (masterFolders) => {
+            const sharedMaster = masterFolders.filter((f) => f.isShared === true);
+            if (sharedMaster.length > 0) {
+              setFolders((prev) => {
+                const map = new Map<string, MediaFolder>();
+                prev.forEach((f) => map.set(f.id, f));
+                sharedMaster.forEach((sf) => map.set(sf.id, sf));
+                return Array.from(map.values()).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+              });
+            }
+          },
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
+
+        // Also subscribe to items in master with isShared flag
+        unsubDefaultMedia = FirestoreMediaService.subscribeMediaItems(
+          db,
+          (masterItems) => {
+            const sharedItems = masterItems.filter(
+              (it) => it.isShared === true || it.metadata?.isShared === true
+            );
+            if (sharedItems.length > 0) {
+              applyIncomingItems(sharedItems);
+            }
+          },
+          { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' }
+        );
       }
     }
 
@@ -815,13 +890,21 @@ export const MediaGalleryProvider: React.FC<{
     onProgress?: (fileIndex: number, pct: number) => void
   ) => {
     // 1. Optimistic Immediate Update in UI
+    const targetFolder = activeFolderId ? folders.find((f) => f.id === activeFolderId) : null;
+    const isTargetFolderShared = targetFolder?.isShared === true;
+
     const enrichedItems = newItems.map((item) => {
       const { sourceModule, sourceModuleLabel } = detectSourceModule(item);
+      const itemFolderId = item.folderId !== undefined ? item.folderId : activeFolderId;
+      const folderRef = itemFolderId ? folders.find((f) => f.id === itemFolderId) : targetFolder;
+      const isShared = item.isShared ?? folderRef?.isShared ?? isTargetFolderShared;
+
       return {
         ...item,
         userId: item.userId || currentUserUid || undefined,
         createdBy: item.createdBy || currentUserUid || undefined,
-        folderId: item.folderId !== undefined ? item.folderId : activeFolderId,
+        folderId: itemFolderId,
+        isShared: isShared || undefined,
         sourceModule: item.sourceModule || sourceModule,
         sourceModuleLabel: item.sourceModuleLabel || sourceModuleLabel,
       };
@@ -864,9 +947,11 @@ export const MediaGalleryProvider: React.FC<{
           finalItem = {
             ...finalItem,
             tenantId: finalItem.tenantId || tenantId || '_master',
+            isShared: finalItem.isShared ?? initialItem.isShared,
             metadata: {
               ...(finalItem.metadata || {}),
               tenantId: finalItem.tenantId || tenantId || '_master',
+              isShared: finalItem.isShared ?? initialItem.isShared,
             },
           };
           await FirestoreMediaService.saveMediaItem(db, collections, finalItem);
@@ -1063,8 +1148,12 @@ export const MediaGalleryProvider: React.FC<{
     name: string,
     color: string = '#eab308',
     icon: string = 'Folder',
-    parentId: string | null = null
+    parentId: string | null = null,
+    isShared: boolean = false
   ): Promise<MediaFolder> => {
+    const isMasterTenant = !tenantId || tenantId === '_master';
+    const effectiveIsShared = isMasterTenant ? Boolean(isShared) : false;
+
     const newFolder: MediaFolder = {
       id: `folder_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
       name: name.trim(),
@@ -1072,6 +1161,7 @@ export const MediaGalleryProvider: React.FC<{
       icon,
       parentId,
       tenantId: tenantId || '_master',
+      isShared: effectiveIsShared,
       createdAt: Date.now(),
       updatedAt: Date.now(),
       itemCount: 0,
@@ -1083,6 +1173,14 @@ export const MediaGalleryProvider: React.FC<{
     if (db) {
       try {
         await FirestoreMediaService.saveFolder(db, collections, newFolder);
+        // If master tenant created a shared folder, also save to root sdo_media_folders
+        if (isMasterTenant && collections.folders !== 'sdo_media_folders') {
+          await FirestoreMediaService.saveFolder(
+            db,
+            { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+            newFolder
+          );
+        }
       } catch (e) {
         console.warn('[MediaGallery] Error saving folder to Firestore:', e);
       }
@@ -1146,11 +1244,18 @@ export const MediaGalleryProvider: React.FC<{
   const moveItemsToFolder = async (itemIds: string[], targetFolderId: string | null) => {
     const targetFolder = targetFolderId ? folders.find((f) => f.id === targetFolderId) : null;
     const folderName = targetFolder ? targetFolder.name : undefined;
+    const isTargetFolderShared = targetFolder?.isShared === true;
 
     setMediaItems((prev) =>
       prev.map((item) =>
         itemIds.includes(item.id)
-          ? { ...item, folderId: targetFolderId, folderName, updatedAt: Date.now() }
+          ? {
+              ...item,
+              folderId: targetFolderId,
+              folderName,
+              isShared: isTargetFolderShared || item.isShared,
+              updatedAt: Date.now(),
+            }
           : item
       )
     );
@@ -1158,13 +1263,33 @@ export const MediaGalleryProvider: React.FC<{
     for (const id of itemIds) {
       const item = mediaItems.find((i) => i.id === id);
       if (item) {
-        const updated = { ...item, folderId: targetFolderId, folderName, updatedAt: Date.now() };
+        const updated: MediaItem = {
+          ...item,
+          folderId: targetFolderId,
+          folderName,
+          isShared: isTargetFolderShared || item.isShared,
+          updatedAt: Date.now(),
+        };
         MediaIndexedDbService.saveMedia(updated).catch(() => {});
         if (db) {
           FirestoreMediaService.updateMediaMetadata(db, collections, id, {
             folderId: targetFolderId,
+            isShared: isTargetFolderShared || item.isShared,
             updatedAt: Date.now(),
           }).catch(() => {});
+          // If moving into a shared folder in master, ensure it exists in root collections
+          if ((!tenantId || tenantId === '_master') && collections.mediaItems !== 'sdo_media_items') {
+            FirestoreMediaService.updateMediaMetadata(
+              db,
+              { mediaItems: 'sdo_media_items', folders: 'sdo_media_folders' },
+              id,
+              {
+                folderId: targetFolderId,
+                isShared: isTargetFolderShared || item.isShared,
+                updatedAt: Date.now(),
+              }
+            ).catch(() => {});
+          }
         }
       }
     }

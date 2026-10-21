@@ -118,7 +118,14 @@ export const MoveToFolderModal: React.FC = () => {
                     <Folder className="w-4 h-4" style={{ color: folderColor }} />
                   </div>
                   <div className="text-right">
-                    <div className="text-xs font-bold truncate max-w-[200px]">{folder.name}</div>
+                    <div className="flex items-center space-x-1.5 rtl:space-x-reverse">
+                      <span className="text-xs font-bold truncate max-w-[180px]">{folder.name}</span>
+                      {folder.isShared && (
+                        <span className="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0">
+                          משותף
+                        </span>
+                      )}
+                    </div>
                     <div className="text-[10px] text-slate-400">{folder.itemCount || 0} קבצים</div>
                   </div>
                 </div>

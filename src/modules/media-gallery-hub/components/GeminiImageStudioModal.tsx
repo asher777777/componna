@@ -41,6 +41,7 @@ import {
 import { useOptionalMediaGallery } from '../context/MediaGalleryContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
+import { useTenantScope } from '../../../core/tenant';
 import {
   BrandDnaContract,
   KosaiAgentContract,
@@ -145,6 +146,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   const theme = gallery?.theme || 'dark';
   const activeFolderId = gallery?.activeFolderId;
   const { apiKeys, updateApiKeys, db, collections, firebaseApp } = useSystemConnection();
+  const { tenantId, getScopedCollectionPath } = useTenantScope();
   const isLight = theme === 'light';
 
   // Host Capabilities Bridges (Rule 4: Zero direct cross-module imports)
@@ -499,7 +501,7 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
   };
 
   // Save Image To Gallery
-  const handleSaveToGallery = async () => {
+  const handleSaveToGallery = async (): Promise<string | undefined> => {
     if (!generatedResult) return;
 
     let finalName = resultTitle.trim() || `Kosai_Creation_${Date.now()}.png`;
@@ -517,13 +519,17 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
           storageUrl = await FirebaseStorageMediaService.uploadFileToStorage(
             firebaseApp,
             file,
-            finalName
+            finalName,
+            undefined,
+            undefined,
+            tenantId
           );
         } catch (storageErr) {
           console.warn('Direct upload notice:', storageErr);
         }
       }
 
+      const activeTenant = tenantId || '_master';
       const newMediaItem: MediaItem = {
         id: `kosai_img_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
         name: finalName,
@@ -541,11 +547,13 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
         folderId: activeFolderId,
         sourceModule: 'kosai-engine',
         sourceModuleLabel: 'קושאן AI Studio',
+        tenantId: activeTenant,
         metadata: {
           studioMode: activeTab,
           brandDnaSynced: true,
           model: generatedResult.model,
           aspectRatio,
+          tenantId: activeTenant,
           estimatedCostUSD: generatedResult.usageReport.estimatedCostUSD,
           estimatedCostILS: generatedResult.usageReport.estimatedCostILS,
           totalTokens: generatedResult.usageReport.totalTokens,
@@ -555,14 +563,37 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
       if (addMediaItems) {
         await addMediaItems([newMediaItem], file ? [file] : undefined);
       } else if (db) {
-        await FirestoreMediaService.saveMediaItem(db, collections, newMediaItem);
+        const targetCollections = tenantId && tenantId !== '_master'
+          ? {
+              mediaItems: getScopedCollectionPath('sdo_media_items'),
+              folders: getScopedCollectionPath('sdo_media_folders'),
+            }
+          : collections;
+        await FirestoreMediaService.saveMediaItem(db, targetCollections, newMediaItem);
+      }
+
+      // Also persist to scoped localStorage so it is immediately visible even before any remote fetch
+      try {
+        const storageKeyStudio = activeTenant === '_master'
+          ? 'kosun_media_gallery_items'
+          : `kosun_${activeTenant}_media_gallery_items`;
+        const existingLs = localStorage.getItem(storageKeyStudio);
+        const parsed: MediaItem[] = existingLs ? JSON.parse(existingLs) : [];
+        if (!parsed.some((it) => it.id === newMediaItem.id || it.name === newMediaItem.name)) {
+          parsed.unshift(newMediaItem);
+          localStorage.setItem(storageKeyStudio, JSON.stringify(parsed));
+        }
+      } catch (lsErr) {
+        console.warn('Failed to update tenant gallery in localStorage:', lsErr);
       }
 
       setGeneratedResult((prev) => (prev ? { ...prev, imageUrl: storageUrl } : null));
       setIsSaved(true);
+      return storageUrl;
     } catch (saveErr: any) {
       console.error('Failed to save to gallery:', saveErr);
       setErrorMessage(`שגיאה בשמירת התמונה: ${saveErr.message || saveErr}`);
+      return undefined;
     } finally {
       setIsSavingToStorage(false);
     }
@@ -1279,17 +1310,27 @@ export const GeminiImageStudioModal: React.FC<GeminiImageStudioModalProps> = ({
                   {onUseImage && (
                     <button
                       type="button"
-                      onClick={() => {
-                        onUseImage(generatedResult.imageUrl, {
+                      disabled={isSavingToStorage}
+                      onClick={async () => {
+                        let finalUrl = generatedResult.imageUrl;
+                        if (!isSaved) {
+                          const savedUrl = await handleSaveToGallery();
+                          if (savedUrl) finalUrl = savedUrl;
+                        }
+                        onUseImage(finalUrl, {
                           title: resultTitle,
                           prompt: resultDescription,
                           tags: resultTags,
                         });
                         onClose();
                       }}
-                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md"
+                      className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-black font-black text-xs flex items-center gap-1.5 cursor-pointer shadow-md disabled:opacity-50"
                     >
-                      <Check className="w-3.5 h-3.5" />
+                      {isSavingToStorage ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5" />
+                      )}
                       <span>{useButtonLabel || 'בחר תמונה זו'}</span>
                     </button>
                   )}

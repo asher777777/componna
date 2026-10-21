@@ -140,9 +140,16 @@ export class MediaIndexedDbService {
         } catch (e) {}
       }
 
-      // Enforce strict tenant isolation on local items
+      // Enforce strict tenant isolation on local items (allowing master items marked as isShared)
       if (tenantId && tenantId !== '_master') {
-        items = items.filter((it) => it && (it.tenantId === tenantId || it.metadata?.tenantId === tenantId));
+        items = items.filter(
+          (it) =>
+            it &&
+            (it.tenantId === tenantId ||
+              it.metadata?.tenantId === tenantId ||
+              it.isShared === true ||
+              it.metadata?.isShared === true)
+        );
       } else if (tenantId === '_master') {
         items = items.filter((it) => !it.tenantId || it.tenantId === '_master' || it.metadata?.tenantId === '_master');
       }
@@ -461,7 +468,9 @@ export class MediaIndexedDbService {
     }
 
     if (tenantId && tenantId !== '_master') {
-      return resultFolders.filter((f) => f && f.tenantId === tenantId);
+      return resultFolders.filter(
+        (f) => f && (f.tenantId === tenantId || f.isShared === true || (!f.tenantId && f.isShared))
+      );
     } else if (tenantId === '_master') {
       return resultFolders.filter((f) => !f.tenantId || f.tenantId === '_master');
     }

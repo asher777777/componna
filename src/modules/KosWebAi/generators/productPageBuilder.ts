@@ -1,5 +1,6 @@
-import { CreatePageFromProductOptions, CreatePageFromServiceOptions } from '../../../core/contracts';
+import { CreatePageFromProductOptions, CreatePageFromServiceOptions, TenantStylePreset } from '../../../core/contracts';
 import { PageBuilderConfig } from '../types/pageBuilder.types';
+import { resolveLiveBrandDna, applyStylePresetToSection } from '../services/brandSectionHydrator';
 
 /**
  * Deterministic function (0 AI calls, 0 tokens) that builds a complete PageBuilderConfig
@@ -13,7 +14,12 @@ export function buildPageConfigFromFlagshipProduct(
   options: CreatePageFromProductOptions,
   existingPageId?: string
 ): PageBuilderConfig {
-  const { product, brandDna } = options;
+  const { product, brandDna: rawBrandDna } = options;
+  const brandDna = resolveLiveBrandDna(rawBrandDna);
+  const brandStylePreset: TenantStylePreset =
+    brandDna?.designTokens?.defaultStylePreset ||
+    (brandDna as any)?.stylePreset ||
+    'standard';
   const now = new Date().toISOString();
 
   // Extract main title and subtitle from nameAndSlogan
@@ -202,8 +208,23 @@ export function buildPageConfigFromFlagshipProduct(
       subtitle: sloganSub || brandSlogan || companyName,
       description: product.shortDescription || '',
       imageSrc: primaryImage,
-      layout: primaryImage ? 'split' : 'centered',
-      heroStyle: 'modern',
+      layout: brandStylePreset,
+      heroStyle: brandStylePreset === 'feminine' || brandStylePreset === 'spiritual'
+        ? 'mesh-glow'
+        : brandStylePreset === 'masculine'
+          ? 'card'
+          : brandStylePreset === 'sharp'
+            ? 'minimal'
+            : brandStylePreset === 'analytical'
+              ? 'modern'
+              : (primaryImage ? 'split' : 'centered'),
+      buttonShape: brandStylePreset === 'feminine' || brandStylePreset === 'spiritual'
+        ? 'pill'
+        : brandStylePreset === 'masculine'
+          ? 'rounded'
+          : brandStylePreset === 'sharp'
+            ? 'square'
+            : 'auto',
       buttonsVisible: true,
       primaryButton: {
         text: 'לתיאום שיחה והצטרפות',
@@ -227,7 +248,9 @@ export function buildPageConfigFromFlagshipProduct(
       subtitle: product.sectionTitles?.aboutSubtitle || defaultAboutSub,
       heading: product.sectionTitles?.aboutHeading || `אודות ${mainTitle}`,
       body: longDescHtml,
-      layout: 'highlight-box',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
     },
     'sec-pain-points': {
       id: 'sec-pain-points',
@@ -237,7 +260,9 @@ export function buildPageConfigFromFlagshipProduct(
       subtitle: product.sectionTitles?.painPointsSubtitle || defaultPainSub,
       heading: product.sectionTitles?.painPointsHeading || defaultPainHead,
       body: '',
-      layout: 'cards-grid-3',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
       items: painPoints.map((p, idx) => ({
         id: p.id || `pain_${idx + 1}`,
         title: p.title,
@@ -254,7 +279,9 @@ export function buildPageConfigFromFlagshipProduct(
       subtitle: product.sectionTitles?.targetAudiencesSubtitle || defaultAudienceSub,
       heading: product.sectionTitles?.targetAudiencesHeading || defaultAudienceHead,
       body: '',
-      layout: 'cards-grid-3',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
       items: targetAudiences.map((a, idx) => ({
         id: a.id || `aud_${idx + 1}`,
         title: a.title,
@@ -271,7 +298,9 @@ export function buildPageConfigFromFlagshipProduct(
       subtitle: product.sectionTitles?.advantagesSubtitle || defaultAdvantageSub,
       heading: product.sectionTitles?.advantagesHeading || defaultAdvantageHead,
       body: '',
-      layout: 'cards-grid-3',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
       items: competitiveAdvantages.map((c, idx) => ({
         id: c.id || `adv_${idx + 1}`,
         title: c.title,
@@ -286,6 +315,7 @@ export function buildPageConfigFromFlagshipProduct(
       visible: galleryImages.length > 0,
       anchorId: 'sec-gallery',
       title: 'גלריית תמונות המוצר',
+      layout: brandStylePreset,
       imagesPerRow: 3,
       imagesPerRowMobile: 1,
       images: galleryImages.map((imgUrl, idx) => ({
@@ -299,6 +329,7 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'faq',
       visible: faqs.length > 0,
       anchorId: 'sec-faq',
+      layout: brandStylePreset,
       title: product.sectionTitles?.faqHeading || defaultFaqHead,
       subtitle: product.sectionTitles?.faqSubtitle || defaultFaqSub,
       showSearchBar: true,
@@ -316,6 +347,7 @@ export function buildPageConfigFromFlagshipProduct(
       type: 'contact',
       visible: true,
       anchorId: 'sec-contact',
+      layout: brandStylePreset,
       title: product.sectionTitles?.contactHeading || defaultContactTitle,
       subtitle: product.sectionTitles?.contactSubtitle || defaultContactSub,
       phone: contactPhone,
@@ -367,6 +399,11 @@ export function buildPageConfigFromFlagshipProduct(
       targetDate: now,
     },
   };
+
+  // Apply brand preset to all sections
+  Object.keys(sections).forEach((secKey) => {
+    sections[secKey] = applyStylePresetToSection(sections[secKey], brandStylePreset);
+  });
 
   const sectionOrder = [
     'header',
@@ -449,7 +486,8 @@ export function buildPageConfigFromFlagshipProduct(
       siteLogoUrl: brandLogo,
       companyName,
       slogan: sloganSub || brandSlogan,
-      theme: 'modern',
+      theme: brandStylePreset,
+      stylePreset: brandStylePreset,
       headerLayout: 'floating-glass',
       headerSticky: true,
       isHeaderVisible: true,
@@ -512,7 +550,12 @@ export function buildPageConfigFromCoreService(
   options: CreatePageFromServiceOptions,
   existingPageId?: string
 ): PageBuilderConfig {
-  const { service, brandDna } = options;
+  const { service, brandDna: rawBrandDna } = options;
+  const brandDna = resolveLiveBrandDna(rawBrandDna);
+  const brandStylePreset: TenantStylePreset =
+    brandDna?.designTokens?.defaultStylePreset ||
+    (brandDna as any)?.stylePreset ||
+    'standard';
   const now = new Date().toISOString();
 
   // חילוץ כותרת ראשית וסלוגן
@@ -704,8 +747,23 @@ export function buildPageConfigFromCoreService(
       subtitle: sloganSub || brandSlogan || companyName,
       description: service.shortDescription || '',
       imageSrc: primaryImage,
-      layout: primaryImage ? 'split' : 'centered',
-      heroStyle: 'modern',
+      layout: brandStylePreset,
+      heroStyle: brandStylePreset === 'feminine' || brandStylePreset === 'spiritual'
+        ? 'mesh-glow'
+        : brandStylePreset === 'masculine'
+          ? 'card'
+          : brandStylePreset === 'sharp'
+            ? 'minimal'
+            : brandStylePreset === 'analytical'
+              ? 'modern'
+              : (primaryImage ? 'split' : 'centered'),
+      buttonShape: brandStylePreset === 'feminine' || brandStylePreset === 'spiritual'
+        ? 'pill'
+        : brandStylePreset === 'masculine'
+          ? 'rounded'
+          : brandStylePreset === 'sharp'
+            ? 'square'
+            : 'auto',
       buttonsVisible: true,
       primaryButton: {
         text: 'לתיאום פגישה וייעוץ',
@@ -730,7 +788,9 @@ export function buildPageConfigFromCoreService(
       subtitle: service.sectionTitles?.aboutSubtitle || defaultAboutSub,
       heading: service.sectionTitles?.aboutHeading || `אודות ${mainTitle}`,
       body: longDescHtml,
-      layout: 'highlight-box',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
     },
     'sec-pain-points': {
       id: 'sec-pain-points',
@@ -740,7 +800,9 @@ export function buildPageConfigFromCoreService(
       subtitle: service.sectionTitles?.painPointsSubtitle || defaultPainSub,
       heading: service.sectionTitles?.painPointsHeading || defaultPainHead,
       body: '',
-      layout: 'cards-grid-3',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
       items: painPoints.map((p, idx) => ({
         id: p.id || `pain_${idx + 1}`,
         title: p.title,
@@ -757,7 +819,9 @@ export function buildPageConfigFromCoreService(
       subtitle: service.sectionTitles?.targetAudiencesSubtitle || defaultAudienceSub,
       heading: service.sectionTitles?.targetAudiencesHeading || defaultAudienceHead,
       body: '',
-      layout: 'cards-grid-3',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
       items: targetAudiences.map((a, idx) => ({
         id: a.id || `aud_${idx + 1}`,
         title: a.title,
@@ -774,7 +838,9 @@ export function buildPageConfigFromCoreService(
       subtitle: service.sectionTitles?.advantagesSubtitle || defaultAdvantageSub,
       heading: service.sectionTitles?.advantagesHeading || defaultAdvantageHead,
       body: '',
-      layout: 'cards-grid-3',
+      layout: brandStylePreset,
+      cardIconPosition: 'top',
+      isAsymmetricGrid: true,
       items: competitiveAdvantages.map((c, idx) => ({
         id: c.id || `adv_${idx + 1}`,
         title: c.title,
@@ -789,6 +855,7 @@ export function buildPageConfigFromCoreService(
       visible: galleryImages.length > 0,
       anchorId: 'sec-gallery',
       title: `גלריית ${mainTitle}`,
+      layout: brandStylePreset,
       imagesPerRow: 3,
       imagesPerRowMobile: 1,
       images: galleryImages.map((imgUrl, idx) => ({
@@ -802,6 +869,7 @@ export function buildPageConfigFromCoreService(
       type: 'faq',
       visible: faqs.length > 0,
       anchorId: 'sec-faq',
+      layout: brandStylePreset,
       title: service.sectionTitles?.faqHeading || defaultFaqHead,
       subtitle: service.sectionTitles?.faqSubtitle || defaultFaqSub,
       showSearchBar: true,
@@ -819,6 +887,7 @@ export function buildPageConfigFromCoreService(
       type: 'contact',
       visible: true,
       anchorId: 'sec-contact',
+      layout: brandStylePreset,
       title: service.sectionTitles?.contactHeading || defaultContactTitle,
       subtitle: service.sectionTitles?.contactSubtitle || defaultContactSub,
       phone: contactPhone,
@@ -870,6 +939,11 @@ export function buildPageConfigFromCoreService(
       targetDate: now,
     },
   };
+
+  // Apply brand preset to all sections
+  Object.keys(sections).forEach((secKey) => {
+    sections[secKey] = applyStylePresetToSection(sections[secKey], brandStylePreset);
+  });
 
   const sectionOrder = [
     'header',
@@ -945,9 +1019,15 @@ export function buildPageConfigFromCoreService(
       buttonBgColor,
       fontFamily,
       companyName,
+      slogan: sloganSub || brandSlogan,
+      theme: brandStylePreset,
+      stylePreset: brandStylePreset,
       contactPhone,
       contactEmail,
+      contactWhatsApp,
+      address: officeAddress,
       siteTitle: `${rawName} | ${companyName}`,
+      brandDnaSynced: true,
     },
     seoSettings: {
       title: seoTitle,

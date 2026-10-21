@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, FolderPlus, FolderEdit, Check, Folder } from 'lucide-react';
+import { X, FolderPlus, FolderEdit, Check, Folder, Share2 } from 'lucide-react';
 import { useMediaGallery } from '../context/MediaGalleryContext';
+import { useTenantScope } from '../../../core/tenant';
 
 const FOLDER_COLORS = [
   { label: 'צהוב זהב', color: '#eab308' },
@@ -23,9 +24,12 @@ export const FolderManagerModal: React.FC = () => {
     updateFolder,
     setActiveFolderId,
   } = useMediaGallery();
+  const { tenantId } = useTenantScope();
+  const isMasterTenant = !tenantId || tenantId === '_master';
 
   const [name, setName] = useState('');
   const [selectedColor, setSelectedColor] = useState('#eab308');
+  const [isShared, setIsShared] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
@@ -33,9 +37,11 @@ export const FolderManagerModal: React.FC = () => {
     if (editingFolder) {
       setName(editingFolder.name);
       setSelectedColor(editingFolder.color || '#eab308');
+      setIsShared(Boolean(editingFolder.isShared));
     } else {
       setName('');
       setSelectedColor('#eab308');
+      setIsShared(false);
     }
     setErrorMessage('');
   }, [editingFolder, isFolderModalOpen]);
@@ -46,6 +52,7 @@ export const FolderManagerModal: React.FC = () => {
     setIsFolderModalOpen(false);
     setEditingFolder(null);
     setName('');
+    setIsShared(false);
     setErrorMessage('');
   };
 
@@ -64,9 +71,16 @@ export const FolderManagerModal: React.FC = () => {
         await updateFolder(editingFolder.id, {
           name: name.trim(),
           color: selectedColor,
+          isShared: isMasterTenant ? isShared : false,
         });
       } else {
-        const created = await createFolder(name.trim(), selectedColor);
+        const created = await createFolder(
+          name.trim(),
+          selectedColor,
+          'Folder',
+          null,
+          isMasterTenant ? isShared : false
+        );
         setActiveFolderId(created.id);
       }
       handleClose();
@@ -163,19 +177,57 @@ export const FolderManagerModal: React.FC = () => {
             </div>
           </div>
 
+          {/* Master Tenant Shared Toggle */}
+          {isMasterTenant && (
+            <div className="p-3.5 rounded-2xl bg-slate-950/90 border border-slate-800 space-y-2">
+              <label className="flex items-center justify-between cursor-pointer select-none">
+                <div className="flex items-center space-x-2.5 rtl:space-x-reverse">
+                  <div
+                    className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${
+                      isShared
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                        : 'bg-slate-800 text-slate-400'
+                    }`}
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="text-xs font-bold text-white block">תיקייה שיתופית לכל הסאב-דומיינים</span>
+                    <span className="text-[11px] text-slate-400 block">
+                      כל קובץ שנשמר בתיקייה זו יהיה זמין לצפייה ולשימוש בכל הסאב-דומיינים
+                    </span>
+                  </div>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isShared}
+                  onChange={(e) => setIsShared(e.target.checked)}
+                  className="w-4 h-4 accent-amber-500 rounded cursor-pointer"
+                />
+              </label>
+            </div>
+          )}
+
           {/* Preview */}
           <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-3 flex items-center space-x-3 rtl:space-x-reverse">
             <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-inner"
+              className="w-9 h-9 rounded-xl flex items-center justify-center shadow-inner relative"
               style={{ backgroundColor: `${selectedColor}20`, borderColor: selectedColor, borderWidth: 1 }}
             >
               <Folder className="w-5 h-5" style={{ color: selectedColor }} />
+              {isShared && isMasterTenant && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-emerald-500 flex items-center justify-center text-[9px] text-black font-bold">
+                  ✓
+                </span>
+              )}
             </div>
             <div className="truncate">
               <span className="text-xs font-bold text-white block truncate">
                 {name.trim() || 'שם התיקייה לתצוגה'}
               </span>
-              <span className="text-[10px] text-slate-400">תיקיית אחסון</span>
+              <span className="text-[10px] text-slate-400">
+                {isShared && isMasterTenant ? 'תיקייה שיתופית לכל הסאב-דומיינים' : 'תיקיית אחסון'}
+              </span>
             </div>
           </div>
 

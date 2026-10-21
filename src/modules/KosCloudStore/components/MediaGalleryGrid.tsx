@@ -40,6 +40,7 @@ import {
   FileSpreadsheet,
   ChevronDown,
   FolderOpen,
+  Share2,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
@@ -1004,6 +1005,15 @@ export const MediaGalleryGrid: React.FC = () => {
               >
                 <Folder className="w-3.5 h-3.5" style={{ color: activeFolder.color || '#eab308' }} />
                 <span className="truncate max-w-[140px]">{activeFolder.name}</span>
+                {activeFolder.isShared && (
+                  <span
+                    title="תיקייה שיתופית עם כל הסאב-דומיינים"
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0"
+                  >
+                    <Share2 className="w-2.5 h-2.5 ml-0.5 rtl:ml-0 rtl:mr-0.5" />
+                    משותף לכולם
+                  </span>
+                )}
                 <span className={`text-[10px] font-mono font-normal ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                   ({activeFolder.itemCount || 0})
                 </span>
@@ -1557,8 +1567,18 @@ export const MediaGalleryGrid: React.FC = () => {
                   </div>
 
                   <div className="min-w-0 pr-1">
-                    <div className="font-bold text-xs truncate max-w-[130px] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
-                      {folder.name}
+                    <div className="flex items-center space-x-1 rtl:space-x-reverse">
+                      <span className="font-bold text-xs truncate max-w-[120px] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {folder.name}
+                      </span>
+                      {folder.isShared && (
+                        <span
+                          title="תיקייה שיתופית לכל הסאב-דומיינים"
+                          className="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0"
+                        >
+                          משותף
+                        </span>
+                      )}
                     </div>
                     <div className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                       {folder.itemCount || 0} קבצים

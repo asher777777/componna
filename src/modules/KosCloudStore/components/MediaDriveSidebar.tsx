@@ -22,8 +22,10 @@ import {
   Loader2,
   Sparkles,
   Crown,
+  Share2,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES, isHeyGenItem } from '../context/MediaGalleryContext';
+import { useTenantScope } from '../../../core/tenant';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaFolder, MediaType, MediaCategoryFilter } from '../types';
 
@@ -50,6 +52,8 @@ export const MediaDriveSidebar: React.FC<{
     syncHeyGenVideos,
     openAiImageGenerator,
   } = useMediaGallery();
+  const { tenantId } = useTenantScope();
+  const isMasterTenant = !tenantId || tenantId === '_master';
 
   const isLight = theme === 'light';
 
@@ -353,6 +357,15 @@ export const MediaDriveSidebar: React.FC<{
                           style={{ color: folderColor }}
                         />
                         <span className="truncate max-w-[120px]">{folder.name}</span>
+                        {folder.isShared && (
+                          <span
+                            title="תיקייה שיתופית עם כל הסאב-דומיינים"
+                            className="inline-flex items-center px-1 py-0.5 rounded text-[9px] font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex-shrink-0"
+                          >
+                            <Share2 className="w-2.5 h-2.5 ml-0.5 rtl:ml-0 rtl:mr-0.5" />
+                            משותף
+                          </span>
+                        )}
                       </div>
 
                       <div className="flex items-center space-x-1 rtl:space-x-reverse">

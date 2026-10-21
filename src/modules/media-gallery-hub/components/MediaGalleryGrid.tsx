@@ -35,11 +35,19 @@ import {
   Loader2,
   Video,
   Wand2,
+  Crop,
+  Crown,
+  FileSpreadsheet,
+  ChevronDown,
+  FolderOpen,
+  Share2,
 } from 'lucide-react';
 import { useMediaGallery, KNOWN_MODULE_SOURCES } from '../context/MediaGalleryContext';
 import { FileCompressionService } from '../services/fileCompressionService';
 import { MediaIndexedDbService } from '../services/mediaIndexedDbService';
 import { MediaItem, MediaType, MediaFolder, MediaCategoryFilter } from '../types';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
+import { LuxuryIconsGallery } from './LuxuryIconsGallery';
 
 /**
  * Helper to render filenames cleanly in Hebrew RTL without bidi punctuation flips
@@ -80,6 +88,8 @@ const BidiFileName: React.FC<{
 // Helper for file icons
 const renderFileTypeIcon = (type: MediaCategoryFilter | MediaType | string, className: string = 'w-4 h-4') => {
   switch (type) {
+    case 'icons':
+      return <Crown className={`${className} text-amber-400`} />;
     case 'video':
       return <FileVideo className={`${className} text-indigo-500`} />;
     case 'heygen':
@@ -87,7 +97,7 @@ const renderFileTypeIcon = (type: MediaCategoryFilter | MediaType | string, clas
     case 'image':
       return <ImageIcon className={`${className} text-emerald-500`} />;
     case 'audio':
-      return <Music className={`${className} text-amber-500`} />;
+      return <Music className={`${className} text-sky-500`} />;
     case 'document':
       return <FileText className={`${className} text-blue-500`} />;
     case 'code':
@@ -116,15 +126,18 @@ const OptimizedMediaThumbnail: React.FC<{
 }> = React.memo(({ item, viewMode, isLight }) => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [hasError, setHasError] = useState(false);
-  const [currentSrc, setCurrentSrc] = useState<string>(item.thumbnailUrl || item.url);
+  const [currentSrc, setCurrentSrc] = useState<string>(() =>
+    resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)
+  );
   const [isVideoHovered, setIsVideoHovered] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
-    setCurrentSrc(item.thumbnailUrl || item.url);
+    const safe = resolveSafeMediaUrl(item.thumbnailUrl || item.url, item);
+    setCurrentSrc(safe);
     setHasError(false);
     setIsLoaded(false);
-  }, [item.url, item.thumbnailUrl]);
+  }, [item.url, item.thumbnailUrl, item.storagePath, item.name]);
 
   const handleMediaError = async () => {
     // 1. Try to recover from local IndexedDB binary blob
@@ -196,6 +209,11 @@ const OptimizedMediaThumbnail: React.FC<{
   }
 
   if (item.type === 'video') {
+    const videoUrl = resolveSafeMediaUrl(item.url, item);
+    const safeVideoSrc = videoUrl ? `${videoUrl}${videoUrl.includes('#') ? '' : '#t=0.001'}` : '';
+    const isImagePoster = item.thumbnailUrl && !item.thumbnailUrl.match(/\.(mp4|webm|mov|mkv|m4v|3gp|flv)($|\?)/i);
+    const posterUrl = isImagePoster ? resolveSafeMediaUrl(item.thumbnailUrl, item) : undefined;
+
     return (
       <div
         className="relative w-full h-full flex items-center justify-center overflow-hidden bg-slate-950"
@@ -204,8 +222,8 @@ const OptimizedMediaThumbnail: React.FC<{
       >
         <video
           ref={videoRef}
-          src={item.url}
-          poster={item.thumbnailUrl}
+          src={safeVideoSrc}
+          poster={posterUrl}
           muted
           playsInline
           loop
@@ -302,6 +320,7 @@ const MediaGridCard: React.FC<{
   onMoveSingle: (e: React.MouseEvent, item: MediaItem) => void;
   onDownloadSingle: (e: React.MouseEvent, item: MediaItem) => void;
   onAiEditSingle?: (item: MediaItem) => void;
+  onImageEditSingle?: (item: MediaItem) => void;
 }> = React.memo((props) => {
   const {
     item,
@@ -325,6 +344,7 @@ const MediaGridCard: React.FC<{
     onMoveSingle,
     onDownloadSingle,
     onAiEditSingle,
+    onImageEditSingle,
   } = props;
 
   return (
@@ -363,6 +383,8 @@ const MediaGridCard: React.FC<{
           className={`absolute top-2 right-2 w-7 h-7 rounded-xl flex items-center justify-center transition-all shadow-md cursor-pointer z-10 ${
             isSelected
               ? 'bg-amber-500 text-black'
+              : selectionMode
+              ? 'bg-black/70 text-slate-200 border border-white/40 opacity-100 hover:border-amber-400'
               : 'bg-black/60 text-slate-300 hover:text-white border border-white/20 opacity-0 group-hover:opacity-100'
           }`}
           title="סמן קובץ"
@@ -391,6 +413,19 @@ const MediaGridCard: React.FC<{
           >
             <FolderInput className="w-3.5 h-3.5" />
           </button>
+          {item.type === 'image' && onImageEditSingle && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onImageEditSingle(item);
+              }}
+              className="w-7 h-7 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white flex items-center justify-center backdrop-blur-md shadow border border-white/15 transition-all hover:scale-105 cursor-pointer"
+              title="סטודיו עריכה: חיתוך, סיבוב והסרת רקע"
+            >
+              <Crop className="w-3.5 h-3.5" />
+            </button>
+          )}
           {item.type === 'image' && onAiEditSingle && (
             <button
               type="button"
@@ -575,7 +610,7 @@ const MediaListRow: React.FC<{
           }`}
         >
           {item.type === 'image' ? (
-            <img src={item.thumbnailUrl || item.url} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
+            <img src={resolveSafeMediaUrl(item.thumbnailUrl || item.url, item)} alt={item.name} loading="lazy" decoding="async" className="w-full h-full object-cover" />
           ) : (
             renderFileTypeIcon(item.type, 'w-4 h-4')
           )}
@@ -687,6 +722,8 @@ export const MediaGalleryGrid: React.FC = () => {
     filters,
     setFilters,
     selectedIds,
+    setSelectedIds,
+    maxSelectCount,
     toggleSelect,
     setPreviewItem,
     setConverterItem,
@@ -713,11 +750,20 @@ export const MediaGalleryGrid: React.FC = () => {
     isHeyGenRevealed,
     setIsHeyGenRevealed,
     openAiImageGenerator,
+    openImageEditor,
+    openDocViewer,
+    openTextEditor,
   } = useMediaGallery();
 
   const isLight = theme === 'light';
   const [syncStatusMsg, setSyncStatusMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
-  const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'dense' | 'list'>(() => {
+    if (typeof window !== 'undefined' && window.innerWidth < 768) {
+      return 'list';
+    }
+    return 'grid';
+  });
+  const [isCategoriesMenuOpen, setIsCategoriesMenuOpen] = useState(false);
 
   // Pagination / Chunking to keep DOM lightweight and instantaneous
   const [visibleCount, setVisibleCount] = useState<number>(24);
@@ -725,6 +771,34 @@ export const MediaGalleryGrid: React.FC = () => {
   useEffect(() => {
     setVisibleCount(24);
   }, [filters, activeFolderId]);
+
+  // Dynamic usage stats tracking for adaptive ordering (מסתדר לפי שימוש)
+  const [usageStats, setUsageStats] = useState<Record<string, number>>(() => {
+    try {
+      const stored = localStorage.getItem('kosun_media_sidebar_usage');
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return {
+      'icons': 60,
+      'video': 50,
+      'image': 40,
+      'heygen': 35,
+      'all': 30,
+      'pdf': 20,
+      'spreadsheet': 15,
+      'audio': 10,
+    };
+  });
+
+  const recordUsage = (key: string) => {
+    setUsageStats((prev) => {
+      const next = { ...prev, [key]: (prev[key] || 0) + 1 };
+      try {
+        localStorage.setItem('kosun_media_sidebar_usage', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
   const displayedItems = filteredItems.slice(0, visibleCount);
   const hasMore = filteredItems.length > visibleCount;
@@ -784,15 +858,25 @@ export const MediaGalleryGrid: React.FC = () => {
     setTimeout(() => setSyncStatusMsg(null), 5000);
   };
 
-  // Click item: in selectionMode select it; otherwise directly open full preview modal
+  // Click item: in selectionMode, if single-select (maxSelectCount === 1) and onSelectMedia exists,
+  // immediately confirm and choose this item directly without unnecessary nested modals!
   const handleItemClick = (item: MediaItem) => {
     if (editingItemId === item.id) return;
-    if (selectionMode && onSelectMedia) {
-      onSelectMedia([item]);
-      return;
-    }
     setFocusedItem(item);
-    setPreviewItem(item);
+    if (selectionMode) {
+      if (maxSelectCount === 1) {
+        setSelectedIds([item.id]);
+        if (onSelectMedia) {
+          onSelectMedia([item]);
+          return;
+        }
+      } else {
+        toggleSelect(item.id);
+      }
+    } else {
+      setIsInspectorOpen(true);
+      setPreviewItem(item);
+    }
   };
 
   const handleItemDoubleClick = (item: MediaItem) => {
@@ -806,7 +890,7 @@ export const MediaGalleryGrid: React.FC = () => {
 
   const handleDownloadSingle = (e: React.MouseEvent, item: MediaItem) => {
     e.stopPropagation();
-    FileCompressionService.downloadMedia(item.url, item.name);
+    FileCompressionService.downloadMedia(resolveSafeMediaUrl(item.url, item), item.name);
   };
 
   const handleDeleteSingle = async (e: React.MouseEvent, item: MediaItem) => {
@@ -849,12 +933,12 @@ export const MediaGalleryGrid: React.FC = () => {
 
   return (
     <div className="flex-1 flex flex-col min-w-0 space-y-4" dir="rtl">
-      {/* 1. Ultra-Compact Modern Action Bar */}
+      {/* 1. Ultra-Compact Modern Action Bar (Sticky Top) */}
       <div
-        className={`p-3 rounded-2xl border shadow-sm flex flex-wrap items-center justify-between gap-3 transition-colors ${
+        className={`sticky top-0 z-30 p-3 rounded-2xl border shadow-md flex flex-wrap items-center justify-between gap-3 transition-colors backdrop-blur-md ${
           isLight
             ? 'bg-white/95 border-slate-200 text-slate-800'
-            : 'bg-slate-900/90 border-slate-800 text-slate-100'
+            : 'bg-slate-900/95 border-slate-800 text-slate-100'
         }`}
       >
         {/* Breadcrumb Path & Active Filters */}
@@ -863,25 +947,25 @@ export const MediaGalleryGrid: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className={`p-1.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center space-x-1 rtl:space-x-reverse ${
+            className={`p-2 rounded-xl border text-xs font-bold transition-colors cursor-pointer flex items-center justify-center ${
               isSidebarOpen
                 ? isLight
                   ? 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
                   : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
                 : isLight
-                ? 'bg-amber-100 text-amber-800 border-amber-300 shadow-sm'
-                : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40 shadow'
+                ? 'bg-indigo-100 text-indigo-800 border-indigo-300 shadow-sm'
+                : 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40 shadow'
             }`}
             title={isSidebarOpen ? 'הסתר סרגל ניווט' : 'הצג סרגל ניווט'}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5 text-amber-500" />
-            <span className="hidden sm:inline">{isSidebarOpen ? 'סרגל' : 'סרגל ניווט'}</span>
+            <SlidersHorizontal className="w-4 h-4 text-indigo-400" />
           </button>
 
           {/* Root button */}
           <button
             type="button"
             onClick={() => {
+              recordUsage('all');
               setActiveFolderId(null);
               setFilters((prev) => ({
                 ...prev,
@@ -890,20 +974,20 @@ export const MediaGalleryGrid: React.FC = () => {
                 searchQuery: '',
               }));
             }}
-            className={`flex items-center space-x-1 rtl:space-x-reverse px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
+            className={`p-2 rounded-xl text-xs font-bold transition-colors cursor-pointer flex items-center justify-center ${
               activeFolderId === null &&
               filters.typeFilter === 'all' &&
               (!filters.sourceModuleFilter || filters.sourceModuleFilter === 'all')
                 ? isLight
-                  ? 'bg-amber-100 text-amber-900 border border-amber-300 font-bold'
-                  : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 font-bold'
+                  ? 'bg-indigo-100 text-indigo-900 border border-indigo-300 font-bold'
+                  : 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 font-bold'
                 : isLight
-                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                ? 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-transparent'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
             }`}
+            title="מאגר ראשי (כל הקבצים)"
           >
-            <Home className="w-3.5 h-3.5" />
-            <span>מאגר ראשי</span>
+            <Home className="w-4 h-4" />
           </button>
 
           {/* Active Folder Chip */}
@@ -921,6 +1005,15 @@ export const MediaGalleryGrid: React.FC = () => {
               >
                 <Folder className="w-3.5 h-3.5" style={{ color: activeFolder.color || '#eab308' }} />
                 <span className="truncate max-w-[140px]">{activeFolder.name}</span>
+                {activeFolder.isShared && (
+                  <span
+                    title="תיקייה שיתופית עם כל הסאב-דומיינים"
+                    className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0"
+                  >
+                    <Share2 className="w-2.5 h-2.5 ml-0.5 rtl:ml-0 rtl:mr-0.5" />
+                    משותף לכולם
+                  </span>
+                )}
                 <span className={`text-[10px] font-mono font-normal ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
                   ({activeFolder.itemCount || 0})
                 </span>
@@ -955,19 +1048,230 @@ export const MediaGalleryGrid: React.FC = () => {
                     ? 'מסמכים'
                     : filters.typeFilter === 'archive'
                     ? 'ארכיוני ZIP'
+                    : filters.typeFilter === 'icons'
+                    ? 'ספריית אייקונים'
                     : 'קוד ונתונים'}
                 </span>
                 <button
                   type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, typeFilter: 'all' }))}
+                  onClick={() => setFilters((prev) => ({ ...prev, typeFilter: 'image' }))}
                   className="p-0.5 hover:text-red-500 text-indigo-400 rounded-full"
-                  title="בטל סינון סוג"
+                  title="בטל סינון סוג (חזור לתמונות)"
                 >
                   <X className="w-3 h-3" />
                 </button>
               </div>
             </>
           )}
+
+          {/* Categories & Folders Dropdown Menu */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setIsCategoriesMenuOpen(!isCategoriesMenuOpen)}
+              className={`px-2.5 py-1 rounded-xl border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                isCategoriesMenuOpen
+                  ? 'bg-indigo-600 text-white border-indigo-500 shadow-sm'
+                  : isLight
+                  ? 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-300'
+                  : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
+              }`}
+              title="תפריט נפתח: כל התיקיות וסוגי הקבצים"
+            >
+              <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+              <span>תיקיות וקטגוריות</span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${isCategoriesMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isCategoriesMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setIsCategoriesMenuOpen(false)}
+                />
+                <div
+                  className={`absolute right-0 top-full mt-1.5 w-60 rounded-2xl border shadow-2xl z-40 p-2 space-y-1.5 max-h-80 overflow-y-auto custom-scrollbar animate-in fade-in zoom-in-95 duration-150 ${
+                    isLight
+                      ? 'bg-white border-slate-200 text-slate-800 shadow-slate-300/50'
+                      : 'bg-slate-900 border-slate-800 text-slate-100 shadow-black/80'
+                  }`}
+                >
+                  <div className="text-[10px] font-bold text-slate-400 px-2 py-0.5">סוגי מדיה וקבצים</div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'image' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'image'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <ImageIcon className="w-3.5 h-3.5 text-indigo-400" />
+                      <span>תמונות (ברירת מחדל)</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'icons' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'icons'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Crown className="w-3.5 h-3.5 text-amber-400" />
+                      <span>ספריית אייקונים יוקרתיים</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'video' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'video'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileVideo className="w-3.5 h-3.5 text-blue-400" />
+                      <span>סרטוני וידאו</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'heygen' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'heygen'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                      <span>סרטוני HeyGen AI</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'document' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'document'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>מסמכים וטפסים</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'audio' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'audio'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Music className="w-3.5 h-3.5 text-rose-400" />
+                      <span>שמע ומוזיקה</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, typeFilter: 'all' }));
+                      setIsCategoriesMenuOpen(false);
+                    }}
+                    className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                      filters.typeFilter === 'all'
+                        ? 'bg-indigo-600 text-white'
+                        : isLight
+                        ? 'hover:bg-slate-100 text-slate-700'
+                        : 'hover:bg-slate-800 text-slate-300'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <HardDrive className="w-3.5 h-3.5 text-slate-400" />
+                      <span>כל הקבצים במאגר</span>
+                    </div>
+                  </button>
+
+                  {/* Folders List */}
+                  {folders.length > 0 && (
+                    <>
+                      <div className="text-[10px] font-bold text-slate-400 px-2 pt-2 border-t border-slate-700/50">
+                        תיקיות אחסון ({folders.length})
+                      </div>
+                      {folders.map((folder) => (
+                        <button
+                          key={folder.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveFolderId(folder.id);
+                            setIsCategoriesMenuOpen(false);
+                          }}
+                          className={`w-full p-2 rounded-xl text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer ${
+                            activeFolderId === folder.id
+                              ? 'bg-amber-500/20 text-amber-300 font-bold'
+                              : isLight
+                              ? 'hover:bg-slate-100 text-slate-700'
+                              : 'hover:bg-slate-800 text-slate-300'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <Folder className="w-3.5 h-3.5 flex-shrink-0" style={{ color: folder.color || '#eab308' }} />
+                            <span className="truncate">{folder.name}</span>
+                          </div>
+                          <span className="text-[10px] font-mono opacity-70">({folder.itemCount || 0})</span>
+                        </button>
+                      ))}
+                    </>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
 
           {/* Active Component Source Chip */}
           {filters.sourceModuleFilter && filters.sourceModuleFilter !== 'all' && (
@@ -1031,10 +1335,10 @@ export const MediaGalleryGrid: React.FC = () => {
                 : 'bg-slate-950 border border-slate-700/80 text-white focus:border-yellow-500'
             }`}
           >
-            <option value="date_desc">📅 החדשים</option>
-            <option value="date_asc">📅 הישנים</option>
-            <option value="size_desc">💾 הגדולים</option>
-            <option value="name_asc">🔤 לפי שם</option>
+            <option value="date_desc">החדשים תחילה</option>
+            <option value="date_asc">הישנים תחילה</option>
+            <option value="size_desc">לפי גודל קובץ</option>
+            <option value="name_asc">לפי שם א-ת</option>
           </select>
 
           {/* View Mode Toggle */}
@@ -1048,7 +1352,7 @@ export const MediaGalleryGrid: React.FC = () => {
               onClick={() => setViewMode('grid')}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'grid'
-                  ? 'bg-amber-500 text-black shadow font-bold'
+                  ? 'bg-indigo-600 text-white shadow font-bold'
                   : isLight
                   ? 'text-slate-600 hover:text-slate-900'
                   : 'text-slate-400 hover:text-white'
@@ -1062,7 +1366,7 @@ export const MediaGalleryGrid: React.FC = () => {
               onClick={() => setViewMode('dense')}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'dense'
-                  ? 'bg-amber-500 text-black shadow font-bold'
+                  ? 'bg-indigo-600 text-white shadow font-bold'
                   : isLight
                   ? 'text-slate-600 hover:text-slate-900'
                   : 'text-slate-400 hover:text-white'
@@ -1076,7 +1380,7 @@ export const MediaGalleryGrid: React.FC = () => {
               onClick={() => setViewMode('list')}
               className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'list'
-                  ? 'bg-amber-500 text-black shadow font-bold'
+                  ? 'bg-indigo-600 text-white shadow font-bold'
                   : isLight
                   ? 'text-slate-600 hover:text-slate-900'
                   : 'text-slate-400 hover:text-white'
@@ -1091,11 +1395,9 @@ export const MediaGalleryGrid: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsInspectorOpen(!isInspectorOpen)}
-            className={`p-1.5 rounded-xl border transition-colors cursor-pointer ${
+            className={`p-2 rounded-xl border transition-colors cursor-pointer flex items-center justify-center ${
               isInspectorOpen
-                ? isLight
-                  ? 'bg-amber-100 text-amber-900 border-amber-400'
-                  : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
                 : isLight
                 ? 'bg-slate-100 text-slate-600 border-slate-300 hover:text-slate-900'
                 : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
@@ -1110,7 +1412,7 @@ export const MediaGalleryGrid: React.FC = () => {
             type="button"
             onClick={handleSyncHeyGen}
             disabled={isSyncingHeyGen}
-            className={`px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center space-x-1.5 rtl:space-x-reverse ${
+            className={`p-2 rounded-xl border text-xs font-bold transition-all cursor-pointer flex items-center justify-center ${
               isSyncingHeyGen
                 ? 'opacity-70 cursor-not-allowed bg-purple-500/20 border-purple-500/40 text-purple-300'
                 : isLight
@@ -1120,38 +1422,36 @@ export const MediaGalleryGrid: React.FC = () => {
             title="משוך וסנכרן סרטונים מחשבון HeyGen באמצעות API"
           >
             {isSyncingHeyGen ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-purple-500" />
+              <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
             ) : (
-              <RefreshCw className="w-3.5 h-3.5 text-purple-500" />
+              <RefreshCw className="w-4 h-4 text-purple-400" />
             )}
-            <span className="hidden sm:inline">
-              {isSyncingHeyGen ? 'מסנכרן HeyGen...' : 'סנכרון HeyGen'}
-            </span>
           </button>
 
           {/* Gemini AI Image Generator Button */}
           <button
             type="button"
             onClick={() => openAiImageGenerator()}
-            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-500 to-amber-400 hover:from-amber-400 hover:to-yellow-300 text-black font-black text-xs flex items-center space-x-1.5 rtl:space-x-reverse shadow-md hover:shadow-amber-500/25 transition-all active:scale-95 cursor-pointer"
-            title="יצירת תמונות מרהיבות עם Google Gemini וקידוד אוטומטי"
+            className="p-2 rounded-xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-sky-500 hover:from-indigo-500 hover:to-sky-400 text-white font-black text-xs flex items-center justify-center shadow-md hover:shadow-indigo-500/25 transition-all active:scale-95 cursor-pointer"
+            title="קושאן AI Studio - יצירת תמונות ומדיה עם Google Gemini"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">קושאן AI Studio</span>
+            <Sparkles className="w-4 h-4" />
           </button>
 
           {/* Quick Upload Button */}
           <button
             type="button"
             onClick={() => setIsUploaderOpen(!isUploaderOpen)}
-            className={`px-3 py-1.5 rounded-xl border font-bold text-xs flex items-center space-x-1.5 rtl:space-x-reverse transition-all active:scale-95 cursor-pointer ${
-              isLight
+            className={`p-2 rounded-xl border font-bold text-xs flex items-center justify-center transition-all active:scale-95 cursor-pointer ${
+              isUploaderOpen
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
+                : isLight
                 ? 'bg-white hover:bg-slate-50 text-slate-800 border-slate-300 shadow-sm'
                 : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700'
             }`}
+            title={isUploaderOpen ? 'סגור פאנל העלאת קבצים' : 'פתח פאנל העלאת קבצים ומדיה'}
           >
-            <UploadCloud className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">העלאת קבצים</span>
+            <UploadCloud className="w-4 h-4 text-indigo-400" />
           </button>
         </div>
       </div>
@@ -1187,44 +1487,56 @@ export const MediaGalleryGrid: React.FC = () => {
         </div>
       )}
 
-      {/* Quick Filter Bar for Universal File Categories */}
+      {/* Quick Filter Bar for Universal File Categories with Dynamic Usage Ordering */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar text-xs">
-        {[
-          { id: 'all', label: 'הכל', count: mediaItems.length },
-          { id: 'video', label: 'וידאו וסרטונים', count: mediaItems.filter((i) => i.type === 'video' || i.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)).length },
-          { id: 'image', label: 'תמונות', count: mediaItems.filter((i) => i.type === 'image' || i.name.match(/\.(png|jpe?g|webp|gif|svg|avif)$/i)).length },
-          { id: 'pdf', label: 'מסמכי PDF וחוזים', count: mediaItems.filter((i) => i.type === 'pdf' || i.name.toLowerCase().endsWith('.pdf')).length },
-          { id: 'spreadsheet', label: 'טבלאות וחשבוניות', count: mediaItems.filter((i) => i.type === 'spreadsheet' || i.name.match(/\.(xlsx?|csv|ods)$/i)).length },
-          { id: 'audio', label: 'הקלטות שמע', count: mediaItems.filter((i) => i.type === 'audio' || i.name.match(/\.(mp3|wav|ogg|aac|m4a)$/i)).length },
-          { id: 'heygen', label: 'סרטוני HeyGen AI', count: mediaItems.filter((i) => isHeyGenItem(i)).length },
-        ].map((tab) => {
-          const isActive = filters.typeFilter === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setFilters((prev) => ({ ...prev, typeFilter: tab.id as any }))}
-              className={`px-3 py-1.5 rounded-xl font-bold flex-shrink-0 flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer ${
-                isActive
-                  ? isLight
-                    ? 'bg-amber-500 text-black shadow'
-                    : 'bg-yellow-500 text-black shadow-md shadow-yellow-500/20'
-                  : isLight
-                  ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
-                  : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
-              }`}
-            >
-              <span>{tab.label}</span>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full ${isActive ? 'bg-black/20 text-black' : 'bg-slate-800/80 text-slate-400'}`}>
-                {tab.count}
-              </span>
-            </button>
-          );
-        })}
+        {(() => {
+          const rawCategories = [
+            { id: 'all', label: 'הכל', count: mediaItems.length, icon: Sparkles },
+            { id: 'icons', label: 'ספריית אייקונים יוקרתיים', count: '50+', icon: Crown },
+            { id: 'video', label: 'וידאו וסרטונים', count: mediaItems.filter((i) => i.type === 'video' || i.name.match(/\.(mp4|webm|mov|mkv|m4v)$/i)).length, icon: Video },
+            { id: 'image', label: 'תמונות', count: mediaItems.filter((i) => i.type === 'image' || i.name.match(/\.(png|jpe?g|webp|gif|svg|avif)$/i)).length, icon: ImageIcon },
+            { id: 'pdf', label: 'מסמכי PDF וחוזים', count: mediaItems.filter((i) => i.type === 'pdf' || i.name.toLowerCase().endsWith('.pdf')).length, icon: FileText },
+            { id: 'spreadsheet', label: 'טבלאות וחשבוניות', count: mediaItems.filter((i) => i.type === 'spreadsheet' || i.name.match(/\.(xlsx?|csv|ods)$/i)).length, icon: FileSpreadsheet },
+            { id: 'audio', label: 'הקלטות שמע', count: mediaItems.filter((i) => i.type === 'audio' || i.name.match(/\.(mp3|wav|ogg|aac|m4a)$/i)).length, icon: Music },
+            { id: 'heygen', label: 'סרטוני HeyGen AI', count: mediaItems.filter((i) => isHeyGenItem(i)).length, icon: Play },
+          ];
+          const [first, ...rest] = rawCategories;
+          rest.sort((a, b) => (usageStats[b.id] || 0) - (usageStats[a.id] || 0));
+          const sorted = [first, ...rest];
+
+          return sorted.map((tab) => {
+            const isActive = filters.typeFilter === tab.id;
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => {
+                  recordUsage(tab.id);
+                  setFilters((prev) => ({ ...prev, typeFilter: tab.id as any }));
+                }}
+                className={`px-3 py-1.5 rounded-xl font-bold flex-shrink-0 flex items-center space-x-1.5 rtl:space-x-reverse transition-all cursor-pointer ${
+                  isActive
+                    ? 'bg-gradient-to-r from-indigo-600 to-indigo-500 text-white shadow-md shadow-indigo-500/25'
+                    : isLight
+                    ? 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800'
+                }`}
+                title={tab.label}
+              >
+                <TabIcon className={`w-3.5 h-3.5 ${isActive ? 'text-white' : tab.id === 'icons' ? 'text-indigo-400' : 'text-slate-400'}`} />
+                <span>{tab.label}</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? 'bg-white/20 text-white' : 'bg-slate-800/80 text-slate-400'}`}>
+                  {tab.count}
+                </span>
+              </button>
+            );
+          });
+        })()}
       </div>
 
       {/* 2. Folders Bar (Pills shelf inside current location) */}
-      {!activeFolderId && folders.length > 0 && (
+      {!activeFolderId && folders.length > 0 && filters.typeFilter !== 'icons' && (
         <div className="space-y-1.5">
           <div className={`flex items-center justify-between text-[11px] font-bold px-1 ${isLight ? 'text-slate-600' : 'text-slate-400'}`}>
             <span>תיקיות במאגר ({folders.length})</span>
@@ -1232,16 +1544,19 @@ export const MediaGalleryGrid: React.FC = () => {
 
           <div className="flex items-center gap-2 overflow-x-auto pb-1 custom-scrollbar">
             {folders.map((folder) => {
-              const folderColor = folder.color || '#eab308';
+              const folderColor = folder.color || '#6366f1';
 
               return (
                 <div
                   key={folder.id}
-                  onClick={() => setActiveFolderId(folder.id)}
+                  onClick={() => {
+                    recordUsage(`folder_${folder.id}`);
+                    setActiveFolderId(folder.id);
+                  }}
                   className={`group flex-shrink-0 border p-2.5 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md flex items-center space-x-2.5 rtl:space-x-reverse ${
                     isLight
-                      ? 'bg-white border-slate-200 hover:border-amber-500/70 text-slate-900'
-                      : 'bg-slate-900/90 border-slate-800 hover:border-yellow-500/60 text-white'
+                      ? 'bg-white border-slate-200 hover:border-indigo-500/70 text-slate-900'
+                      : 'bg-slate-900/90 border-slate-800 hover:border-indigo-500/60 text-white'
                   }`}
                 >
                   <div
@@ -1252,8 +1567,18 @@ export const MediaGalleryGrid: React.FC = () => {
                   </div>
 
                   <div className="min-w-0 pr-1">
-                    <div className="font-bold text-xs truncate max-w-[130px] group-hover:text-amber-600 dark:group-hover:text-yellow-300 transition-colors">
-                      {folder.name}
+                    <div className="flex items-center space-x-1 rtl:space-x-reverse">
+                      <span className="font-bold text-xs truncate max-w-[120px] group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                        {folder.name}
+                      </span>
+                      {folder.isShared && (
+                        <span
+                          title="תיקייה שיתופית לכל הסאב-דומיינים"
+                          className="px-1 py-0.2 rounded text-[9px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex-shrink-0"
+                        >
+                          משותף
+                        </span>
+                      )}
                     </div>
                     <div className={`text-[10px] font-mono ${isLight ? 'text-slate-500' : 'text-slate-400'}`}>
                       {folder.itemCount || 0} קבצים
@@ -1264,7 +1589,7 @@ export const MediaGalleryGrid: React.FC = () => {
                     <button
                       type="button"
                       onClick={(e) => handleEditFolder(e, folder)}
-                      className={`p-1 rounded ${isLight ? 'text-slate-500 hover:text-amber-700' : 'text-slate-400 hover:text-yellow-400'}`}
+                      className={`p-1 rounded ${isLight ? 'text-slate-500 hover:text-indigo-700' : 'text-slate-400 hover:text-indigo-400'}`}
                       title="ערוך"
                     >
                       <FolderEdit className="w-3 h-3" />
@@ -1285,8 +1610,19 @@ export const MediaGalleryGrid: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Files Container */}
-      {filters.typeFilter === 'heygen' && !isHeyGenRevealed ? (
+      {/* 3. Luxury Icons Gallery or HeyGen / Files Container */}
+      {filters.typeFilter === 'icons' ? (
+        <div className="space-y-4">
+          <LuxuryIconsGallery
+            onSelectIcon={(svgDataUrl, iconName) => {
+              const a = document.createElement('a');
+              a.href = svgDataUrl;
+              a.download = `${iconName}-luxury-icon.svg`;
+              a.click();
+            }}
+          />
+        </div>
+      ) : filters.typeFilter === 'heygen' && !isHeyGenRevealed ? (
         <div
           className={`p-8 md:p-12 rounded-3xl border text-center max-w-2xl mx-auto my-6 space-y-6 ${
             isLight
@@ -1447,6 +1783,7 @@ export const MediaGalleryGrid: React.FC = () => {
               onMoveSingle={handleMoveSingle}
               onDownloadSingle={handleDownloadSingle}
               onAiEditSingle={openAiImageGenerator}
+              onImageEditSingle={openImageEditor}
             />
           );
         })}
