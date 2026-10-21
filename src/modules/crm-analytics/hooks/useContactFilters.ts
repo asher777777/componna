@@ -39,19 +39,27 @@ export function useContactFilters({
 
     if (!searchTerm.trim()) return list;
     const term = searchTerm.toLowerCase();
-    return list.filter(c => 
-      (c.conta_name || '').toLowerCase().includes(term) ||
-      (c.conta_phone || '').includes(term) ||
-      (c.email || '').toLowerCase().includes(term) ||
-      (c.subdomain || '').toLowerCase().includes(term) ||
-      (c.adminUsername || '').toLowerCase().includes(term) ||
-      (c.fullDomain || '').toLowerCase().includes(term) ||
-      (c.company_name || '').toLowerCase().includes(term) ||
-      (c.mh_crm_city || '').toLowerCase().includes(term) ||
-      (c.community || '').toLowerCase().includes(term) ||
-      (c.lead_source || '').toLowerCase().includes(term) ||
-      (c.tags || []).some(t => t.toLowerCase().includes(term))
-    );
+    return list.filter(c => {
+      const tags = Array.isArray(c.tags)
+        ? c.tags
+        : typeof c.tags === 'string'
+          ? [c.tags]
+          : [];
+
+      return (
+        (c.conta_name || '').toLowerCase().includes(term) ||
+        (c.conta_phone || '').includes(term) ||
+        (c.email || '').toLowerCase().includes(term) ||
+        (c.subdomain || '').toLowerCase().includes(term) ||
+        (c.adminUsername || '').toLowerCase().includes(term) ||
+        (c.fullDomain || '').toLowerCase().includes(term) ||
+        (c.company_name || '').toLowerCase().includes(term) ||
+        (c.mh_crm_city || '').toLowerCase().includes(term) ||
+        (c.community || '').toLowerCase().includes(term) ||
+        (c.lead_source || '').toLowerCase().includes(term) ||
+        tags.some(t => typeof t === 'string' && t.toLowerCase().includes(term))
+      );
+    });
   }, [contacts, searchTerm, tableTypeFilter]);
 
   // Sort list
