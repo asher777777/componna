@@ -211,13 +211,10 @@ export const MediaPreviewModal: React.FC = () => {
     }
   }, [previewItem]);
 
-  if (!previewItem) return null;
-
   const candidates = React.useMemo(() => {
     return previewItem ? getMediaUrlCandidates(previewItem.url, previewItem) : [];
   }, [previewItem]);
   const [candidateIndex, setCandidateIndex] = useState(0);
-
   const [activeMediaUrl, setActiveMediaUrl] = useState<string>('');
 
   useEffect(() => {
@@ -225,6 +222,8 @@ export const MediaPreviewModal: React.FC = () => {
     const initialUrl = candidates[0] || (previewItem ? resolveSafeMediaUrl(previewItem.url, previewItem) : '');
     setActiveMediaUrl(initialUrl);
   }, [previewItem?.id, candidates]);
+
+  if (!previewItem) return null;
 
   const safeUrl = activeMediaUrl || candidates[candidateIndex] || (previewItem ? resolveSafeMediaUrl(previewItem.url, previewItem) : '');
 
