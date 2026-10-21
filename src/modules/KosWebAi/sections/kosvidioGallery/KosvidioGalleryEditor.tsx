@@ -51,6 +51,8 @@ import {
   Eye,
   EyeOff,
   ThumbsUp,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 const DUMMY_YOUTUBE_IDS = new Set([
@@ -371,6 +373,8 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
   const [isDirty, setIsDirty] = useState(false);
   const [showUnsavedConfirm, setShowUnsavedConfirm] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  // Editor panel theme — day mode by default
+  const [isDayMode, setIsDayMode] = useState(true);
 
   // Synchronize when outer config changes and not dirty
   useEffect(() => {
@@ -730,15 +734,24 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
 
   return (
     <div
-      className="relative w-full max-w-2xl bg-[#141414] text-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      className={`relative w-full max-w-2xl bg-[#141414] text-white rounded-3xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] ${
+        isDayMode ? 'kvg-day-mode' : ''
+      }`}
       dir="rtl"
     >
+      <style>{`
+        .kvg-day-mode { filter: invert(1) hue-rotate(180deg); }
+        .kvg-day-mode img,
+        .kvg-day-mode video,
+        .kvg-day-mode iframe,
+        .kvg-day-mode .kvg-keep-colors { filter: invert(1) hue-rotate(180deg); }
+      `}</style>
       {/* Top Header */}
       <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between gap-3 bg-[#181818]">
         <div className="flex items-center">
           <svg
             viewBox="0 0 64 64"
-            className="w-11 h-11 animate-pulse"
+            className="w-11 h-11 animate-pulse kvg-keep-colors"
             role="img"
             aria-label="Kosun"
           >
@@ -767,6 +780,17 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Day / Night Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsDayMode((v) => !v)}
+            className="w-11 h-11 flex items-center justify-center rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition cursor-pointer"
+            title={isDayMode ? 'מצב לילה' : 'מצב יום'}
+            aria-label={isDayMode ? 'מצב לילה' : 'מצב יום'}
+          >
+            {isDayMode ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </button>
+
           {/* Brand DNA Sync */}
           <button
             type="button"
