@@ -1,5 +1,5 @@
 import React from 'react';
-import { RichContentSectionConfig, RichContentLayoutPreset } from '../../types/sectionConfigs';
+import { RichContentSectionConfig, RichContentLayoutPreset, RichContentItem } from '../../types/sectionConfigs';
 import { DynamicIcon } from '../../ui/PageBuilderIconPicker';
 import {
   ArrowLeft,
@@ -46,6 +46,10 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     textBgEffect = 'zoom-glow',
     textBgScope = 'text-card',
     items = [],
+    cardFrameShape = 'auto',
+    cardIconPosition = 'side',
+    isAsymmetricGrid = false,
+    cardStylePresetEffect = 'auto',
   } = config;
 
   const hasItems = Array.isArray(items) && items.length > 0;
@@ -136,6 +140,259 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
     if (buttonSize === 'lg') return 'px-9 py-4 text-base sm:text-lg';
     if (buttonSize === 'xl') return 'px-11 py-5 text-lg sm:text-xl';
     return defaultSize;
+  };
+
+  // Card shape styling per selection or brand layout preset
+  const getCardShapeClass = (shape: string = 'auto', preset: RichContentLayoutPreset = 'standard') => {
+    if (shape && shape !== 'auto') {
+      switch (shape) {
+        case 'sharp':
+          return 'rounded-none';
+        case 'pill':
+          return 'rounded-[2.5rem]';
+        case 'arched':
+          return 'rounded-t-[3.5rem] rounded-b-xl';
+        case 'chiseled':
+          return 'rounded-tr-3xl rounded-bl-3xl rounded-tl-sm rounded-br-sm';
+        case 'rounded':
+          return 'rounded-3xl';
+        default:
+          return 'rounded-3xl';
+      }
+    }
+    switch (preset) {
+      case 'feminine':
+        return 'rounded-[2.25rem]';
+      case 'masculine':
+        return 'rounded-xl';
+      case 'sharp':
+        return 'rounded-none';
+      case 'spiritual':
+        return 'rounded-[2rem]';
+      case 'analytical':
+        return 'rounded-2xl';
+      default:
+        return 'rounded-3xl';
+    }
+  };
+
+  // Unified Milestone Cards Renderer with asymmetric stagger, icons above, brand effects & custom shapes
+  const renderMilestoneGrid = (
+    milestoneItems: RichContentItem[],
+    layoutPreset: RichContentLayoutPreset
+  ) => {
+    if (!Array.isArray(milestoneItems) || milestoneItems.length === 0) return null;
+
+    const shapeClass = getCardShapeClass(cardFrameShape, layoutPreset);
+    const is2Cols = normalizedLayout === 'cards-grid-2';
+
+    return (
+      <div
+        className={clsx(
+          'grid gap-6 mt-4 w-full',
+          is2Cols ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+          isAsymmetricGrid && 'lg:gap-8 items-start'
+        )}
+      >
+        {milestoneItems.map((item, idx) => {
+          const desc = item.text || item.description;
+          const defaultIcon =
+            layoutPreset === 'masculine'
+              ? 'Shield'
+              : layoutPreset === 'spiritual'
+              ? 'Sun'
+              : layoutPreset === 'analytical'
+              ? 'Activity'
+              : 'Sparkles';
+
+          // Asymmetric stagger on larger screens
+          const asymmetricOffset = isAsymmetricGrid
+            ? is2Cols
+              ? idx % 2 === 1
+                ? 'md:translate-y-8 sm:mt-2'
+                : 'md:-translate-y-1'
+              : idx % 3 === 1
+              ? 'lg:translate-y-8 sm:mt-2'
+              : idx % 3 === 2
+              ? 'lg:translate-y-4'
+              : 'lg:-translate-y-2'
+            : '';
+
+          // Visual styles per brand style and effect override
+          let cardContainerStyles = '';
+          let iconWrapperClass = '';
+          let badgeClass = '';
+          let titleClass = '';
+          let descClass = '';
+
+          const eff = cardStylePresetEffect;
+
+          if (layoutPreset === 'feminine') {
+            cardContainerStyles = clsx(
+              'group p-6 text-right transition-all duration-500 backdrop-blur-md flex flex-col',
+              eff === 'glow'
+                ? 'bg-white/90 dark:bg-rose-950/30 border border-rose-300 dark:border-rose-500/50 shadow-[0_12px_36px_-6px_rgba(244,114,182,0.35)] hover:shadow-[0_18px_45px_-4px_rgba(244,114,182,0.5)]'
+                : eff === 'glass'
+                ? 'bg-white/60 dark:bg-rose-950/20 border border-white/40 dark:border-rose-400/20 backdrop-blur-xl shadow-xl hover:border-rose-300'
+                : eff === 'border-beam'
+                ? 'bg-white/90 dark:bg-rose-950/30 border-2 border-rose-300 dark:border-rose-400 shadow-md hover:border-rose-400'
+                : eff === 'heavy-border'
+                ? 'bg-white dark:bg-rose-950/40 border-3 border-rose-400 dark:border-rose-300 shadow-xl'
+                : 'bg-white/85 dark:bg-rose-950/25 border border-rose-200/80 dark:border-rose-800/40 shadow-lg shadow-rose-200/20 dark:shadow-none hover:border-rose-400/60 hover:shadow-rose-400/25 hover:-translate-y-1'
+            );
+            iconWrapperClass =
+              'w-12 h-12 rounded-full bg-gradient-to-tr from-rose-100 to-rose-50 dark:from-rose-500/20 dark:to-rose-400/10 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 shadow-sm flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform';
+            badgeClass =
+              'font-serif text-xs font-bold text-rose-400/80 dark:text-rose-300/60 bg-rose-50 dark:bg-rose-900/40 px-2.5 py-0.5 rounded-full border border-rose-200 dark:border-rose-700/40';
+            titleClass = 'text-lg font-bold text-rose-950 dark:text-rose-100 leading-snug';
+            descClass = 'text-sm sm:text-base text-stone-600 dark:text-rose-100/75 leading-relaxed whitespace-pre-line';
+          } else if (layoutPreset === 'masculine') {
+            cardContainerStyles = clsx(
+              'group p-6 text-right transition-all duration-300 flex flex-col',
+              eff === 'glow'
+                ? 'bg-zinc-900/95 border-2 border-amber-500/50 shadow-[0_0_30px_-5px_rgba(245,158,11,0.25)] hover:border-amber-400 hover:shadow-[0_0_40px_-3px_rgba(245,158,11,0.4)]'
+                : eff === 'glass'
+                ? 'bg-zinc-950/80 backdrop-blur-xl border-2 border-zinc-700 shadow-2xl hover:border-amber-500/40'
+                : eff === 'border-beam'
+                ? 'bg-zinc-900 border-2 border-amber-500 shadow-[0_0_20px_-3px_rgba(245,158,11,0.3)]'
+                : eff === 'heavy-border'
+                ? 'bg-zinc-950 border-4 border-amber-500 shadow-2xl'
+                : 'bg-gradient-to-b from-zinc-900/95 to-zinc-950/95 border-2 border-zinc-800 shadow-xl shadow-black/80 hover:border-amber-500/80 hover:shadow-amber-500/10 hover:-translate-y-1'
+            );
+            iconWrapperClass =
+              'w-12 h-12 rounded-xl bg-amber-500/15 border border-amber-500/40 text-amber-400 shadow-[0_0_15px_-3px_rgba(245,158,11,0.2)] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
+            badgeClass =
+              'font-mono text-xs font-black text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/30';
+            titleClass = 'text-lg font-black text-white leading-snug';
+            descClass = 'text-sm sm:text-base text-zinc-300 leading-relaxed whitespace-pre-line';
+          } else if (layoutPreset === 'spiritual') {
+            cardContainerStyles = clsx(
+              'group p-6 text-right transition-all duration-500 backdrop-blur-md flex flex-col',
+              eff === 'glow'
+                ? 'bg-white/85 dark:bg-teal-950/30 border border-teal-500/40 shadow-[0_12px_36px_-6px_rgba(20,184,166,0.3)] hover:shadow-[0_18px_45px_-4px_rgba(20,184,166,0.45)]'
+                : eff === 'glass'
+                ? 'bg-white/60 dark:bg-teal-950/20 border border-white/40 dark:border-teal-400/20 backdrop-blur-xl shadow-xl hover:border-teal-300'
+                : eff === 'border-beam'
+                ? 'bg-white/85 dark:bg-teal-950/30 border-2 border-teal-400/80 shadow-[0_0_20px_-3px_rgba(20,184,166,0.25)]'
+                : eff === 'heavy-border'
+                ? 'bg-white dark:bg-teal-950/40 border-3 border-teal-500 shadow-xl'
+                : 'bg-white/80 dark:bg-teal-950/25 border border-teal-600/20 dark:border-teal-500/25 shadow-md hover:shadow-xl hover:border-teal-400/60 hover:-translate-y-1'
+            );
+            iconWrapperClass =
+              'w-12 h-12 rounded-full bg-teal-500/10 border border-amber-400/40 text-teal-700 dark:text-teal-300 shadow-[0_0_15px_-3px_rgba(20,184,166,0.2)] flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
+            badgeClass =
+              'font-serif text-xs font-medium text-amber-500 dark:text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-400/30';
+            titleClass = 'text-lg font-semibold text-stone-800 dark:text-stone-100 leading-snug';
+            descClass = 'text-sm sm:text-base text-stone-600 dark:text-stone-300 leading-relaxed whitespace-pre-line';
+          } else if (layoutPreset === 'sharp') {
+            cardContainerStyles = clsx(
+              'group p-6 text-right transition-all flex flex-col',
+              eff === 'glow'
+                ? 'bg-white dark:bg-slate-950 border-2 border-indigo-500 shadow-[6px_6px_0px_0px_#6366f1,0_0_25px_rgba(99,102,241,0.35)] hover:shadow-[9px_9px_0px_0px_#4f46e5,0_0_35px_rgba(99,102,241,0.5)]'
+                : eff === 'glass'
+                ? 'bg-white/90 dark:bg-slate-950/90 backdrop-blur-xl border-2 border-slate-950 dark:border-white shadow-[6px_6px_0px_0px_#6366f1]'
+                : eff === 'border-beam'
+                ? 'bg-white dark:bg-slate-950 border-3 border-indigo-500 shadow-[8px_8px_0px_0px_#6366f1]'
+                : eff === 'heavy-border'
+                ? 'bg-white dark:bg-slate-950 border-4 border-slate-950 dark:border-white shadow-[9px_9px_0px_0px_#6366f1]'
+                : 'bg-white dark:bg-slate-950 border-2 border-slate-950 dark:border-white shadow-[6px_6px_0px_0px_#6366f1] hover:shadow-[9px_9px_0px_0px_#4f46e5] hover:-translate-x-0.5 hover:-translate-y-0.5'
+            );
+            iconWrapperClass =
+              'w-10 h-10 rounded-none bg-slate-950 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center shrink-0';
+            badgeClass = 'font-mono text-xs font-black text-indigo-600 dark:text-indigo-400';
+            titleClass = 'text-base font-black text-slate-950 dark:text-white leading-snug';
+            descClass = 'text-sm sm:text-base text-slate-700 dark:text-slate-300 font-medium leading-relaxed whitespace-pre-line';
+          } else if (layoutPreset === 'analytical') {
+            cardContainerStyles = clsx(
+              'group p-6 text-right transition-all backdrop-blur-md flex flex-col',
+              eff === 'glow'
+                ? 'bg-slate-900/90 border border-cyan-400 shadow-[0_0_30px_-4px_rgba(6,182,212,0.4)] hover:shadow-[0_0_40px_-2px_rgba(6,182,212,0.6)]'
+                : eff === 'glass'
+                ? 'bg-slate-900/65 backdrop-blur-xl border border-cyan-400/40 shadow-2xl hover:border-cyan-300'
+                : eff === 'border-beam'
+                ? 'bg-slate-900/90 border-2 border-cyan-400 shadow-[0_0_20px_-3px_rgba(6,182,212,0.35)]'
+                : eff === 'heavy-border'
+                ? 'bg-slate-950 border-2 border-cyan-400 shadow-xl'
+                : 'bg-white/90 dark:bg-slate-900/85 border border-cyan-500/25 shadow-lg hover:border-cyan-400/60 hover:shadow-cyan-500/20 hover:-translate-y-1'
+            );
+            iconWrapperClass =
+              'w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
+            badgeClass =
+              'font-mono text-[10px] font-bold text-cyan-500 bg-cyan-500/10 px-2 py-0.5 rounded-md border border-cyan-500/20';
+            titleClass = 'text-base font-extrabold text-slate-900 dark:text-white leading-snug';
+            descClass = 'text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line';
+          } else {
+            // Standard / default SaaS style
+            cardContainerStyles = clsx(
+              'group p-6 text-right transition-all duration-300 flex flex-col',
+              eff === 'glow'
+                ? 'bg-white/90 dark:bg-slate-900/90 border border-indigo-400/50 shadow-[0_10px_35px_-5px_rgba(99,102,241,0.35)] hover:shadow-[0_16px_45px_-3px_rgba(99,102,241,0.45)]'
+                : eff === 'glass'
+                ? 'bg-white/70 dark:bg-slate-900/60 backdrop-blur-xl border border-white/20 shadow-2xl hover:border-indigo-300'
+                : eff === 'border-beam'
+                ? 'bg-white/90 dark:bg-slate-900/90 border-2 border-indigo-500/70 shadow-indigo-500/20'
+                : eff === 'heavy-border'
+                ? 'bg-white dark:bg-slate-950 border-3 border-slate-900 dark:border-slate-100 shadow-xl'
+                : 'bg-white/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 shadow-lg hover:shadow-xl hover:border-indigo-500/40 hover:-translate-y-1'
+            );
+            iconWrapperClass =
+              'w-11 h-11 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform';
+            badgeClass = 'font-mono text-xs font-bold text-indigo-500/80';
+            titleClass = 'text-lg font-extrabold text-slate-900 dark:text-white leading-snug';
+            descClass = 'text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line';
+          }
+
+          const isTopCenter = cardIconPosition === 'top-center';
+          const isTop = cardIconPosition === 'top' || isTopCenter;
+          const displayBadge = item.metricValue || ('0' + (idx + 1));
+
+          return (
+            <div
+              key={item.id || idx}
+              className={clsx(
+                cardContainerStyles,
+                shapeClass,
+                asymmetricOffset,
+                isTopCenter ? 'items-center text-center gap-3.5' : 'gap-3'
+              )}
+            >
+              {isTop ? (
+                <>
+                  <div
+                    className={clsx(
+                      'w-full flex mb-1',
+                      isTopCenter ? 'justify-center' : 'items-center justify-between'
+                    )}
+                  >
+                    <div className={iconWrapperClass}>
+                      <DynamicIcon name={item.icon || defaultIcon} className="w-5 h-5" />
+                    </div>
+                    {!isTopCenter && (
+                      <span className={badgeClass}>{displayBadge}</span>
+                    )}
+                  </div>
+                  <h3 className={titleClass}>{item.title}</h3>
+                  {desc && <p className={descClass}>{desc}</p>}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className={iconWrapperClass}>
+                        <DynamicIcon name={item.icon || defaultIcon} className="w-5 h-5" />
+                      </div>
+                      <h3 className={titleClass}>{item.title}</h3>
+                    </div>
+                    <span className={badgeClass}>{displayBadge}</span>
+                  </div>
+                  {desc && <p className={descClass}>{desc}</p>}
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
   };
 
   // Render background image + overlay + hover transition layer ("אפקט עובר")
@@ -417,35 +674,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
           )}
 
           {hasItems && effectiveContentMode !== 'timeline-vision' && (
-            <div
-              className={clsx(
-                'grid gap-6 mt-2',
-                normalizedLayout === 'cards-grid-2'
-                  ? 'grid-cols-1 md:grid-cols-2'
-                  : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
-              )}
-            >
-              {items.map((item, idx) => (
-                <div
-                  key={item.id || idx}
-                  className="group bg-white/90 dark:bg-slate-900/80 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 shadow-lg hover:shadow-xl hover:border-indigo-500/40 transition-all duration-300 flex flex-col gap-3 text-right"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-11 h-11 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/20 border border-indigo-500/20 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                      <DynamicIcon name={item.icon || 'Sparkles'} className="w-5 h-5" />
-                    </div>
-                    <h3 className="text-lg font-extrabold text-slate-900 dark:text-white leading-snug">
-                      {item.title}
-                    </h3>
-                  </div>
-                  {(item.text || item.description) && (
-                    <p className="text-sm sm:text-base text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                      {item.text || item.description}
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
+            renderMilestoneGrid(items, normalizedLayout)
           )}
         </div>
       </section>
@@ -530,30 +759,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
           'rounded-[2.75rem]'
         )}
 
-        {hasItems && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {items.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                className="group bg-white/85 dark:bg-rose-950/25 border border-rose-200/80 dark:border-rose-800/40 rounded-[2.25rem] p-6 shadow-lg shadow-rose-200/20 dark:shadow-none hover:border-rose-400/60 transition-all duration-500 flex flex-col gap-3 text-right backdrop-blur-md"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-rose-100 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500/30 text-rose-600 dark:text-rose-300 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <DynamicIcon name={item.icon || 'Sparkles'} className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-bold text-rose-950 dark:text-rose-100 leading-snug">
-                    {item.title}
-                  </h3>
-                </div>
-                {(item.text || item.description) && (
-                  <p className="text-sm sm:text-base text-stone-600 dark:text-rose-100/75 leading-relaxed whitespace-pre-line">
-                    {item.text || item.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {hasItems && renderMilestoneGrid(items, 'feminine')}
       </div>
     );
 
@@ -684,28 +890,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
           'rounded-xl'
         )}
 
-        {hasItems && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {items.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                className="group bg-zinc-900/90 border-2 border-zinc-800 hover:border-amber-500/60 rounded-xl p-6 shadow-xl transition-all duration-300 flex flex-col gap-3 text-right"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-400 flex items-center justify-center shrink-0">
-                    <DynamicIcon name={item.icon || 'Shield'} className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-black text-white leading-snug">{item.title}</h3>
-                </div>
-                {(item.text || item.description) && (
-                  <p className="text-sm sm:text-base text-zinc-300 leading-relaxed whitespace-pre-line">
-                    {item.text || item.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {hasItems && renderMilestoneGrid(items, 'masculine')}
       </div>
     );
 
@@ -846,30 +1031,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
           'rounded-[3rem]'
         )}
 
-        {hasItems && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {items.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                className="group bg-white/80 dark:bg-teal-950/25 border border-teal-600/20 dark:border-teal-500/25 rounded-[2rem] p-6 shadow-md hover:shadow-xl transition-all duration-700 flex flex-col gap-3 text-right backdrop-blur-md"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-teal-500/10 border border-amber-400/40 text-teal-700 dark:text-teal-300 flex items-center justify-center shrink-0">
-                    <DynamicIcon name={item.icon || 'Sun'} className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-stone-800 dark:text-stone-100 leading-snug">
-                    {item.title}
-                  </h3>
-                </div>
-                {(item.text || item.description) && (
-                  <p className="text-sm sm:text-base text-stone-600 dark:text-stone-300 leading-relaxed whitespace-pre-line">
-                    {item.text || item.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {hasItems && renderMilestoneGrid(items, 'spiritual')}
       </div>
     );
 
@@ -986,35 +1148,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
           'rounded-none'
         )}
 
-        {hasItems && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {items.map((item, idx) => (
-              <div
-                key={item.id || idx}
-                className="bg-white dark:bg-slate-950 border-2 border-slate-950 dark:border-white rounded-none p-6 shadow-[6px_6px_0px_0px_#6366f1] flex flex-col gap-3 text-right"
-              >
-                <div className="flex items-center justify-between border-b-2 border-slate-950/15 dark:border-white/15 pb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-none bg-slate-950 dark:bg-white text-white dark:text-slate-950 flex items-center justify-center shrink-0">
-                      <DynamicIcon name={item.icon || 'Sparkles'} className="w-4 h-4" />
-                    </div>
-                    <h3 className="text-base font-black text-slate-950 dark:text-white leading-snug">
-                      {item.title}
-                    </h3>
-                  </div>
-                  <span className="font-mono text-xs font-black text-indigo-600 dark:text-indigo-400">
-                    0{idx + 1}
-                  </span>
-                </div>
-                {(item.text || item.description) && (
-                  <p className="text-sm sm:text-base text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line font-medium">
-                    {item.text || item.description}
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+        {hasItems && renderMilestoneGrid(items, 'sharp')}
       </div>
     );
 
@@ -1143,35 +1277,7 @@ export const RichContentSection: React.FC<{ config: RichContentSectionConfig }> 
         'rounded-2xl'
       )}
 
-      {hasItems && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {items.map((item, idx) => (
-            <div
-              key={item.id || idx}
-              className="bg-white/90 dark:bg-slate-900/85 border border-cyan-500/25 rounded-2xl p-5 shadow-lg backdrop-blur-md flex flex-col gap-2.5 text-right"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-600 dark:text-cyan-400 flex items-center justify-center shrink-0">
-                    <DynamicIcon name={item.icon || 'Activity'} className="w-5 h-5" />
-                  </div>
-                  <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                    {item.title}
-                  </h3>
-                </div>
-                <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
-                  {item.metricValue || `KPI #${idx + 1}`}
-                </span>
-              </div>
-              {(item.text || item.description) && (
-                <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
-                  {item.text || item.description}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
+      {hasItems && renderMilestoneGrid(items, 'analytical')}
     </div>
   );
 

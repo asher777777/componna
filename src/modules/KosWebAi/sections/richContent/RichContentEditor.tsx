@@ -1,3 +1,4 @@
+import { clsx } from 'clsx';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   RichContentSectionConfig,
@@ -45,6 +46,11 @@ import {
   Split,
   Box,
   Maximize2,
+  AlignRight,
+  AlignCenter,
+  Sliders,
+  Square,
+  Circle,
 } from 'lucide-react';
 
 interface RichContentEditorProps {
@@ -741,6 +747,140 @@ export const RichContentEditor: React.FC<RichContentEditorProps> = ({
                     <Plus className="w-3.5 h-3.5" />
                     <span>הוסף עמוד תווך</span>
                   </button>
+                </div>
+
+                {/* Milestone Cards Visual Presentation Toolbar */}
+                <div className="p-3.5 rounded-2xl bg-[#141417] border border-white/10 flex flex-col gap-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    {/* Icon Position Controls */}
+                    <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-xl border border-white/5">
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate('cardIconPosition', 'side')}
+                        className={clsx(
+                          'p-1.5 rounded-lg transition-all cursor-pointer',
+                          (localConfig.cardIconPosition || 'side') === 'side'
+                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        )}
+                        title="איקון לצד הכותרת (אופקי)"
+                      >
+                        <AlignRight className="w-4 h-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate('cardIconPosition', 'top')}
+                        className={clsx(
+                          'p-1.5 rounded-lg transition-all cursor-pointer',
+                          localConfig.cardIconPosition === 'top'
+                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        )}
+                        title="איקון מעל הכותרת (מיושר לימין)"
+                      >
+                        <Columns className="w-4 h-4 rotate-90" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUpdate('cardIconPosition', 'top-center')}
+                        className={clsx(
+                          'p-1.5 rounded-lg transition-all cursor-pointer',
+                          localConfig.cardIconPosition === 'top-center'
+                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            : 'text-slate-400 hover:text-white hover:bg-white/5'
+                        )}
+                        title="איקון מעל הכותרת (מרכז)"
+                      >
+                        <AlignCenter className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    {/* Asymmetric Grid Stagger Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => handleUpdate('isAsymmetricGrid', !localConfig.isAsymmetricGrid)}
+                      className={clsx(
+                        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all cursor-pointer',
+                        localConfig.isAsymmetricGrid
+                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm shadow-amber-500/10'
+                          : 'bg-black/40 text-slate-400 border-white/5 hover:text-white hover:bg-white/5'
+                      )}
+                      title="פריסה א-סימטרית מדורגת (גבהים ופערים דינמיים בין כרטיסים)"
+                    >
+                      <Sliders className="w-3.5 h-3.5" />
+                      <span>{localConfig.isAsymmetricGrid ? 'א-סימטרי פעיל' : 'רשת סימטרית'}</span>
+                    </button>
+                  </div>
+
+                  {/* Card Frame Shape & Visual Effect Selectors */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1 border-t border-white/5">
+                    {/* Frame Shape Selector */}
+                    <div className="flex items-center justify-between bg-black/30 p-2 rounded-xl border border-white/5">
+                      <span className="text-[11px] text-slate-400">מסגרת כרטיס:</span>
+                      <div className="flex items-center gap-1">
+                        {[
+                          { id: 'auto', label: 'אוטומטי (לפי מיתוג)', icon: Wand2 },
+                          { id: 'rounded', label: 'מעוגל (Rounded 3XL)', icon: Circle },
+                          { id: 'sharp', label: 'חד (זווית 90°)', icon: Square },
+                          { id: 'pill', label: 'קפסולה / גלולה (Pill)', icon: Box },
+                          { id: 'arched', label: 'קשתי (Arched Top)', icon: Milestone },
+                          { id: 'chiseled', label: 'משופע דינמי (Chiseled)', icon: Crosshair },
+                        ].map((shape) => {
+                          const ShapeIcon = shape.icon;
+                          const active = (localConfig.cardFrameShape || 'auto') === shape.id;
+                          return (
+                            <button
+                              key={shape.id}
+                              type="button"
+                              onClick={() => handleUpdate('cardFrameShape', shape.id as any)}
+                              className={clsx(
+                                'p-1.5 rounded-lg transition-all cursor-pointer',
+                                active
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                              )}
+                              title={shape.label}
+                            >
+                              <ShapeIcon className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Visual Brand Effect Selector */}
+                    <div className="flex items-center justify-between bg-black/30 p-2 rounded-xl border border-white/5">
+                      <span className="text-[11px] text-slate-400">אפקט מיתוגי:</span>
+                      <div className="flex items-center gap-1">
+                        {[
+                          { id: 'auto', label: 'אוטומטי מיתוגי', icon: Sparkles },
+                          { id: 'glow', label: 'זוהר מיתוגי מועצם (Brand Glow)', icon: Sun },
+                          { id: 'glass', label: 'זכוכית פרוסטד (Glassmorphism)', icon: Box },
+                          { id: 'border-beam', label: 'מסגרת הילוכית מודגשת (Border Beam)', icon: Shield },
+                          { id: 'heavy-border', label: 'מסגרת עבה מודגשת (Heavy Border)', icon: Layers },
+                        ].map((effect) => {
+                          const EffectIcon = effect.icon;
+                          const active = (localConfig.cardStylePresetEffect || 'auto') === effect.id;
+                          return (
+                            <button
+                              key={effect.id}
+                              type="button"
+                              onClick={() => handleUpdate('cardStylePresetEffect', effect.id as any)}
+                              className={clsx(
+                                'p-1.5 rounded-lg transition-all cursor-pointer',
+                                active
+                                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                                  : 'text-slate-400 hover:text-white hover:bg-white/5'
+                              )}
+                              title={effect.label}
+                            >
+                              <EffectIcon className="w-3.5 h-3.5" />
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {items.length === 0 ? (
