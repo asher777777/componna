@@ -130,23 +130,20 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
 
   // 1. If valid external or direct http(s) URL that's not an alien blob
   if (url && !isAlienBlobUrl(url)) {
-    add(url);
-    if (url.includes(LEGACY_VAULT_BUCKET)) {
-      add(url.replace(LEGACY_VAULT_BUCKET, SYSTEM_MAIN_STORAGE_BUCKET));
-    } else if (url.includes(SYSTEM_MAIN_STORAGE_BUCKET)) {
-      add(url.replace(SYSTEM_MAIN_STORAGE_BUCKET, LEGACY_VAULT_BUCKET));
+    // If it's a localhost / 127.0.0.1 media proxy URL, it cannot resolve without a local functions emulator running,
+    // so don't prioritize it over direct Cloud Storage URL!
+    const isLocalProxy = url.includes('/media/') && (url.includes('localhost') || url.includes('127.0.0.1'));
+    if (!isLocalProxy) {
+      add(url);
+      if (url.includes(LEGACY_VAULT_BUCKET)) {
+        add(url.replace(LEGACY_VAULT_BUCKET, SYSTEM_MAIN_STORAGE_BUCKET));
+      } else if (url.includes(SYSTEM_MAIN_STORAGE_BUCKET)) {
+        add(url.replace(SYSTEM_MAIN_STORAGE_BUCKET, LEGACY_VAULT_BUCKET));
+      }
     }
   }
 
-  // 2. Custom Domain Media Proxy (https://kosun.pro/media/... or https://[tenant].kosun.pro/media/...)
-  if (item) {
-    const customPublicUrl = getTenantPublicMediaUrl(item);
-    if (customPublicUrl) {
-      add(customPublicUrl);
-    }
-  }
-
-  // 3. Canonical permanent system storage URL
+  // 2. Canonical permanent system storage URL (DIRECT Firebase Storage URL - highest reliability across dev and prod)
   if (item) {
     const isLegacy = (item.url && item.url.includes(LEGACY_VAULT_BUCKET)) || (item.storagePath && item.storagePath.includes(LEGACY_VAULT_BUCKET));
     if (isLegacy) {
@@ -155,6 +152,15 @@ export function getMediaUrlCandidates(url?: string, item?: Partial<MediaItem>): 
     } else {
       add(getPermanentMediaUrl(item, SYSTEM_MAIN_STORAGE_BUCKET));
       add(getPermanentMediaUrl(item, LEGACY_VAULT_BUCKET));
+    }
+  }
+
+  // 3. Custom Domain Media Proxy (https://kosun.pro/media/... or https://[tenant].kosun.pro/media/...)
+  // Only add proxy if we are not on localhost (or after permanent direct url)
+  if (item) {
+    const customPublicUrl = getTenantPublicMediaUrl(item);
+    if (customPublicUrl && !customPublicUrl.includes('localhost') && !customPublicUrl.includes('127.0.0.1')) {
+      add(customPublicUrl);
     }
   }
 

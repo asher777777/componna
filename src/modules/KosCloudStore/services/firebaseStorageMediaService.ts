@@ -182,7 +182,9 @@ export class FirebaseStorageMediaService {
                 storagePath,
                 tenantId,
               });
-              finish(customTenantUrl || downloadUrl);
+              // Never return a localhost proxy URL that fails without a local function emulator running
+              const isLocalProxy = customTenantUrl && (customTenantUrl.includes('localhost') || customTenantUrl.includes('127.0.0.1'));
+              finish(!isLocalProxy && customTenantUrl ? customTenantUrl : downloadUrl);
             } catch {
               finish(workingLocalUrl);
             }
