@@ -12,6 +12,7 @@ import {
   Heart,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { resolveSafeMediaUrl, getMediaUrlCandidates } from '../../../KosCloudStore/utils/mediaUrlSanitizer';
 
 export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config }) => {
   const {
@@ -64,7 +65,9 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     normalizedLayout === 'centered' ||
     normalizedLayout === 'split';
 
-  const effectiveBgImage = textBgImageUrl || imageSrc || 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80';
+  const safeImageSrc = imageSrc ? resolveSafeMediaUrl(imageSrc) : '';
+  const safeTextBgImageUrl = textBgImageUrl ? resolveSafeMediaUrl(textBgImageUrl) : '';
+  const effectiveBgImage = safeTextBgImageUrl || safeImageSrc || 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1200&q=80';
   const overlayAlpha = Math.min(95, Math.max(10, textBgOverlayOpacity ?? 70)) / 100;
 
   // Default overlay color per style when textBgOverlayColor is not set
@@ -373,7 +376,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
           )}
 
           {/* Media Frame Showcase */}
-          {imageSrc && (
+          {safeImageSrc && (
             <div className="mt-16 w-full max-w-5xl p-2 sm:p-4 rounded-[2.5rem] border border-slate-200/60 dark:border-slate-800/80 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl shadow-2xl shadow-indigo-500/5 dark:shadow-indigo-500/10 group">
               <div className="rounded-3xl overflow-hidden border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-950 relative">
                 {/* Browser mock UI for the image */}
@@ -385,7 +388,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
                   </div>
                 </div>
                 <img
-                  src={imageSrc}
+                  src={safeImageSrc}
                   alt={title}
                   className="w-full h-auto object-cover max-h-[600px] group-hover:scale-[1.01] transition-transform duration-700 ease-out"
                 />
@@ -504,14 +507,14 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
       'rounded-[3rem]'
     );
 
-    const imageBlock = imageSrc && (
+    const imageBlock = safeImageSrc && (
       <div className="relative flex justify-center items-center w-full">
         {/* Soft decorative arch halo */}
         <div className="absolute -inset-3 rounded-t-[11rem] rounded-b-[3.5rem] bg-gradient-to-b from-rose-300/30 via-pink-200/20 to-amber-200/30 dark:from-rose-500/20 dark:to-amber-500/10 blur-xl pointer-events-none" />
         <div className="relative w-full max-w-md p-3 rounded-t-[10rem] rounded-b-[3rem] bg-white/70 dark:bg-rose-950/30 border border-rose-200/80 dark:border-rose-800/50 backdrop-blur-xl shadow-2xl shadow-rose-300/25 dark:shadow-black/50 group">
           <div className="overflow-hidden rounded-t-[9.2rem] rounded-b-[2.4rem] relative aspect-[4/5]">
             <img
-              src={imageSrc}
+              src={safeImageSrc}
               alt={title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-1000 ease-out"
             />
@@ -662,14 +665,14 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
       'rounded-xl'
     );
 
-    const imageBlock = imageSrc && (
+    const imageBlock = safeImageSrc && (
       <div className="relative w-full">
         {/* Metallic corner accents */}
         <div className="absolute -top-2 -right-2 w-8 h-8 border-t-4 border-r-4 border-amber-500 z-20 pointer-events-none" />
         <div className="absolute -bottom-2 -left-2 w-8 h-8 border-b-4 border-l-4 border-amber-500 z-20 pointer-events-none" />
         <div className="relative rounded-xl overflow-hidden border-2 border-zinc-700/90 bg-zinc-900 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] group">
           <img
-            src={imageSrc}
+            src={safeImageSrc}
             alt={title}
             className="w-full h-auto max-h-[540px] object-cover contrast-110 group-hover:scale-105 transition-transform duration-700"
           />
@@ -736,7 +739,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     const pos = imagePosition === 'auto' ? 'top' : imagePosition;
     const isSplit = pos === 'left' || pos === 'right';
 
-    const imagePortal = imageSrc && (
+    const imagePortal = safeImageSrc && (
       <div className="relative flex items-center justify-center my-4">
         {/* Concentric Sacred Geometry / Aura Rings */}
         <div className="absolute w-72 h-72 sm:w-96 sm:h-96 rounded-full border border-teal-500/20 dark:border-teal-400/20 animate-pulse pointer-events-none" />
@@ -744,7 +747,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
         <div className="relative w-52 h-52 sm:w-68 sm:h-68 rounded-full p-2.5 bg-gradient-to-b from-amber-200/60 via-teal-200/50 to-emerald-200/50 dark:from-amber-500/30 dark:via-teal-500/30 dark:to-emerald-900/40 shadow-2xl shadow-teal-600/15 group">
           <div className="w-full h-full rounded-full overflow-hidden border-2 border-white/80 dark:border-teal-300/30">
             <img
-              src={imageSrc}
+              src={safeImageSrc}
               alt={title}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000 ease-out"
             />
@@ -973,7 +976,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
       'rounded-none'
     );
 
-    const imageBlock = imageSrc && (
+    const imageBlock = safeImageSrc && (
       <div className="relative w-full">
         <div className="rounded-none border-2 border-slate-950 dark:border-white bg-white dark:bg-slate-950 shadow-[10px_10px_0px_0px_#6366f1] overflow-hidden group">
           <div className="flex items-center justify-between px-4 py-2 border-b-2 border-slate-950 dark:border-white bg-slate-100 dark:bg-slate-900 font-mono text-[11px] font-bold text-slate-950 dark:text-white">
@@ -981,7 +984,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
             <span>[90° SHARP]</span>
           </div>
           <img
-            src={imageSrc}
+            src={safeImageSrc}
             alt={title}
             className="w-full h-auto max-h-[520px] object-cover group-hover:scale-[1.02] transition-transform duration-300"
           />
@@ -1151,7 +1154,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
     'rounded-2xl'
   );
 
-  const analyticalImageBlock = imageSrc && (
+  const analyticalImageBlock = safeImageSrc && (
     <div className="relative w-full">
       <div className="p-3 rounded-2xl bg-slate-900/90 border border-cyan-500/30 shadow-2xl shadow-cyan-500/10 backdrop-blur-xl group">
         {/* Top Telemetry Bar */}
@@ -1164,7 +1167,7 @@ export const HeroSection: React.FC<{ config: HeroSectionConfig }> = ({ config })
         </div>
         <div className="rounded-xl overflow-hidden border border-slate-800 relative">
           <img
-            src={imageSrc}
+            src={safeImageSrc}
             alt={title}
             className="w-full h-auto max-h-[480px] object-cover group-hover:scale-[1.02] transition-transform duration-700"
           />

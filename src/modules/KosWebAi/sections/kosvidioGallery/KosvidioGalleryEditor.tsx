@@ -735,23 +735,35 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
     >
       {/* Top Header */}
       <div className="p-4 sm:p-5 border-b border-white/10 flex items-center justify-between gap-3 bg-[#181818]">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-red-600 to-amber-500 flex items-center justify-center font-black text-white text-sm shadow-lg shadow-red-500/20">
-            VL
-          </div>
-          <div>
-            <h2 className="text-sm sm:text-base font-black text-white flex items-center gap-2">
-              <span>ספריית הוידאו והתוכן</span>
-              {brandCompanyName && (
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-white/10 text-amber-300 border border-white/10">
-                  {brandCompanyName}
-                </span>
-              )}
-            </h2>
-            <p className="text-[11px] text-slate-400">
-              שינויי התוכן והעיצוב מתעדכנים מיידית בעמוד
-            </p>
-          </div>
+        <div className="flex items-center">
+          <svg
+            viewBox="0 0 64 64"
+            className="w-11 h-11 animate-pulse"
+            role="img"
+            aria-label="Kosun"
+          >
+            <defs>
+              <linearGradient id="kvgBgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#4f46e5" />
+                <stop offset="50%" stopColor="#6366f1" />
+                <stop offset="100%" stopColor="#8b5cf6" />
+              </linearGradient>
+              <linearGradient id="kvgAccentGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#06b6d4" />
+                <stop offset="100%" stopColor="#38bdf8" />
+              </linearGradient>
+              <linearGradient id="kvgWhiteGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="100%" stopColor="#e0e7ff" />
+              </linearGradient>
+            </defs>
+            <rect x="0" y="0" width="64" height="64" rx="18" fill="url(#kvgBgGrad)" />
+            <rect x="0.5" y="0.5" width="63" height="63" rx="17.5" fill="none" stroke="rgba(255,255,255,0.25)" strokeWidth="1" />
+            <rect x="16" y="14" width="8" height="36" rx="4" fill="url(#kvgWhiteGrad)" />
+            <path d="M24 30 L38 16 C39.5 14.5 42.5 15.6 42.5 17.8 L42.5 22 C42.5 23.2 41.9 24.3 41 25.1 L30 35 Z" fill="url(#kvgWhiteGrad)" opacity="0.95" />
+            <path d="M27 31 L43 47 C44 48 43.5 50 42 50 L37 50 C35.7 50 34.5 49.4 33.7 48.5 L22 36 Z" fill="url(#kvgAccentGrad)" />
+            <path d="M49 8 Q49 13 54 13 Q49 13 49 18 Q49 13 44 13 Q49 13 49 8 Z" fill="#ffffff" opacity="0.9" />
+          </svg>
         </div>
 
         <div className="flex items-center gap-2">
@@ -759,46 +771,39 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
           <button
             type="button"
             onClick={handleSyncFromBrandDna}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 text-xs font-bold transition cursor-pointer"
-            title="סנכרן את שפת המותג, הכותרות והצבעים מ-Brand DNA"
+            className="w-11 h-11 flex items-center justify-center rounded-xl bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/30 text-amber-300 transition cursor-pointer"
+            title="סנכרן מיתוג"
+            aria-label="סנכרן מיתוג"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">סנכרן מיתוג</span>
+            <RefreshCw className="w-5 h-5" />
           </button>
 
           {/* Pulsing Save Button */}
           <button
             type="button"
             onClick={handleSave}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-md cursor-pointer ${
+            title={saveSuccess ? 'נשמר!' : 'שמור'}
+            aria-label={saveSuccess ? 'נשמר!' : 'שמור'}
+            className={`w-11 h-11 flex items-center justify-center rounded-xl transition-all shadow-md cursor-pointer ${
               isDirty
-                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black animate-pulse shadow-amber-500/30'
+                ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse shadow-amber-500/30'
                 : saveSuccess
                 ? 'bg-emerald-600 text-white'
                 : 'bg-white/10 hover:bg-white/15 text-slate-300'
             }`}
           >
-            {saveSuccess ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                <span>נשמר!</span>
-              </>
-            ) : (
-              <>
-                <Save className="w-3.5 h-3.5" />
-                <span>שמור</span>
-              </>
-            )}
+            {saveSuccess ? <CheckCircle2 className="w-5 h-5" /> : <Save className="w-5 h-5" />}
           </button>
 
           {/* Close Button */}
           <button
             type="button"
             onClick={handleClose}
-            className="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
-            title="סגור חלון עריכה"
+            className="w-11 h-11 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white flex items-center justify-center transition cursor-pointer"
+            title="סגור"
+            aria-label="סגור"
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -820,15 +825,30 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
         </div>
       )}
 
-      {/* TOP 6-LAYOUT ICON MENU WITH RICH TOOLTIPS */}
-      <div className="p-3 bg-[#111111] border-b border-white/10">
-        <div className="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-between">
-          <span>בחירת סגנון פריסה (6 סגנונות בלחיצה):</span>
-          <span className="text-[10px] text-amber-400">
-            {LAYOUT_OPTIONS.find((l) => l.id === currentLayoutPreset)?.title || 'עכשווי'}
-          </span>
-        </div>
+      {/* TOP 6-LAYOUT ICON MENU — collapsible, closed by default */}
+      <div className="bg-[#111111] border-b border-white/10">
+        <button
+          type="button"
+          onClick={() => toggleAccordion('tab-style-presets')}
+          className="w-full px-4 py-3 text-right flex items-center justify-between font-bold text-xs sm:text-sm text-white hover:bg-white/[0.02] transition cursor-pointer"
+          aria-expanded={openAccordion === 'tab-style-presets'}
+        >
+          <div className="flex items-center gap-2.5">
+            <Sliders className="w-4 h-4 text-amber-400" />
+            <span>סגנון פריסה</span>
+            <span className="text-[10px] text-amber-400 font-semibold">
+              {LAYOUT_OPTIONS.find((l) => l.id === currentLayoutPreset)?.title || 'עכשווי'}
+            </span>
+          </div>
+          <ChevronDown
+            className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${
+              openAccordion === 'tab-style-presets' ? 'rotate-180 text-amber-400' : ''
+            }`}
+          />
+        </button>
 
+        {openAccordion === 'tab-style-presets' && (
+        <div className="px-3 pb-3">
         <div className="grid grid-cols-6 gap-1.5 sm:gap-2">
           {LAYOUT_OPTIONS.map((opt) => {
             const IconComp = opt.icon;
@@ -841,16 +861,15 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
                   onClick={() => update('layout', opt.id)}
                   onMouseEnter={() => setHoveredLayout(opt)}
                   onMouseLeave={() => setHoveredLayout(null)}
-                  className={`w-full py-2.5 px-1 rounded-2xl flex flex-col items-center justify-center gap-1 transition-all cursor-pointer border ${
+                  title={opt.title}
+                  aria-label={opt.title}
+                  className={`w-full h-12 rounded-2xl flex items-center justify-center transition-all cursor-pointer border ${
                     isSelected
                       ? 'bg-amber-500/20 border-amber-400 text-amber-300 shadow-[0_0_15px_rgba(251,191,36,0.25)] ring-1 ring-amber-400/40'
                       : 'bg-white/5 border-white/10 text-slate-400 hover:text-white hover:bg-white/10 hover:border-white/20'
                   }`}
                 >
-                  <IconComp className="w-4 h-4 sm:w-5 sm:h-5" />
-                  <span className="text-[10px] font-bold truncate max-w-full">
-                    {opt.title.split('. ')[1] || opt.title}
-                  </span>
+                  <IconComp className="w-6 h-6" />
                 </button>
               </div>
             );
@@ -880,6 +899,8 @@ export const KosvidioGalleryEditor: React.FC<KosvidioGalleryEditorProps> = ({
               </div>
             </div>
           </div>
+        )}
+        </div>
         )}
       </div>
 

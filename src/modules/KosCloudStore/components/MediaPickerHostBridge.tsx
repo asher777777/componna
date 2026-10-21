@@ -4,6 +4,7 @@ import { MediaPickerContract, MediaPickerOptions } from '../../../core/contracts
 import { eventBus } from '../../../core/bridge/EventBus';
 import { MediaPickerModal } from './MediaPickerModal';
 import { MediaItem, MediaType } from '../types';
+import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
@@ -116,9 +117,10 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
     setIsOpen(false);
     if (resolver) {
       if (options?.multiple) {
-        resolver.resolve(items.map((i) => i.url));
+        resolver.resolve(items.map((i) => resolveSafeMediaUrl(i.url, i)));
       } else {
-        resolver.resolve(items[0]?.url || null);
+        const first = items[0];
+        resolver.resolve(first ? resolveSafeMediaUrl(first.url, first) : null);
       }
       setResolver(null);
     }

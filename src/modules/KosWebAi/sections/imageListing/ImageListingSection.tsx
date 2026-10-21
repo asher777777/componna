@@ -24,6 +24,7 @@ import {
   Pause,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { resolveSafeMediaUrl } from '../../../KosCloudStore/utils/mediaUrlSanitizer';
 
 interface ImageListingSectionProps {
   config: ImageListingSectionConfig;
@@ -61,7 +62,7 @@ export const ImageListingSection: React.FC<ImageListingSectionProps> = ({ config
     backgroundMode = 'static',
     backgroundRotateInterval = 5000,
     textBgEnabled = false,
-    textBgImageUrl,
+    textBgImageUrl: rawTextBgImageUrl,
     textBgOverlayColor = '#000000',
     textBgOverlayOpacity = 0.6,
     textBgEffect = 'zoom-glow',
@@ -76,6 +77,8 @@ export const ImageListingSection: React.FC<ImageListingSectionProps> = ({ config
   const brandSlogan = brandDna?.identity?.slogan || '';
   const brandVibeImages = brandDna?.identity?.vibeImages || [];
   const brandLogo = brandDna?.identity?.logoUrl || '';
+
+  const textBgImageUrl = rawTextBgImageUrl ? resolveSafeMediaUrl(rawTextBgImageUrl) : '';
 
   // Default title and subtitle based on Brand DNA if absent
   const effectiveTitle =
@@ -148,8 +151,15 @@ export const ImageListingSection: React.FC<ImageListingSectionProps> = ({ config
     return list;
   }, [brandVibeImages, brandLogo, companyName, brandSlogan]);
 
-  const items: ImageListingItem[] =
+  const rawItems: ImageListingItem[] =
     configuredImages && configuredImages.length > 0 ? configuredImages : fallbackImages;
+
+  const items: ImageListingItem[] = React.useMemo(() => {
+    return rawItems.map((it) => ({
+      ...it,
+      imageUrl: resolveSafeMediaUrl(it.imageUrl),
+    }));
+  }, [rawItems]);
 
   // State
   const [carouselIndex, setCarouselIndex] = useState(0);

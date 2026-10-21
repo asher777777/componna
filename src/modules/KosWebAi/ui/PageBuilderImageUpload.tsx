@@ -9,6 +9,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 import { FirebaseStorageMediaService } from '../../KosCloudStore/services/firebaseStorageMediaService';
 import { ImageConverterService } from '../../KosCloudStore/services/imageConverterService';
+import { resolveSafeMediaUrl, getMediaUrlCandidates } from '../../KosCloudStore/utils/mediaUrlSanitizer';
 
 interface PageBuilderImageUploadProps {
   label?: string;
@@ -73,8 +74,9 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
           maxSizeBytes,
         });
         if (selected) {
-          const finalUrl = Array.isArray(selected) ? selected[0] : selected;
-          if (finalUrl) {
+          const rawUrl = Array.isArray(selected) ? selected[0] : selected;
+          if (rawUrl) {
+            const finalUrl = resolveSafeMediaUrl(rawUrl);
             onChange(finalUrl);
             setUrlInput(finalUrl);
             return;
@@ -246,16 +248,22 @@ export const PageBuilderImageUpload: React.FC<PageBuilderImageUploadProps> = ({
               />
             ) : (
               <img
-                src={value}
+                src={resolveSafeMediaUrl(value)}
                 alt="Preview"
                 className="w-full h-full object-contain p-2 max-h-full"
                 onError={(e) => {
                   console.warn('[PageBuilderImageUpload] Preview load error for:', value);
-                  // If it failed because of proxy query or unencoded characters, try direct fallback
                   const target = e.currentTarget;
+                  const candidates = getMediaUrlCandidates(value);
+                  const currentIndex = parseInt(target.dataset.candidateIndex || '0', 10);
+                  const nextIndex = currentIndex + 1;
+                  if (nextIndex < candidates.length) {
+                    target.dataset.candidateIndex = String(nextIndex);
+                    target.src = candidates[nextIndex];
+                    return;
+                  }
                   if (target.dataset.triedFallback !== 'true') {
                     target.dataset.triedFallback = 'true';
-                    // Strip query params or hash if present
                     if (value.includes('?')) {
                       target.src = value.split('?')[0];
                       return;
