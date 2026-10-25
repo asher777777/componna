@@ -8,6 +8,7 @@ import { DesignTokensSection } from './components/DesignTokensSection';
 import { TrustCheckoutSection } from './components/TrustCheckoutSection';
 import { BrandEcosystemSection } from './components/BrandEcosystemSection';
 import { BrandDashboardSection } from './components/BrandDashboardSection';
+import { KosBrandDashboard } from './components/KosBrandDashboard';
 import { AiDiscoveryWizardModal } from './components/AiDiscoveryWizardModal';
 import { AiStepWizardView } from './components/AiStepWizardView';
 import { ContentStrategyModal } from './components/ContentStrategyModal';
@@ -54,7 +55,7 @@ export interface BrandDnaViewProps {
 
 export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
   initialTab = 'identity',
-  initialMode = 'tabs',
+  initialMode = 'dashboard',
 }) => {
   const {
     brandDna,
@@ -483,7 +484,7 @@ export const BrandDnaContent: React.FC<BrandDnaViewProps> = ({
                 initialSections: defaultBrandingSections,
               }}
               fallback={
-                <BrandDashboardSection 
+                <KosBrandDashboard 
                   onOpenWizard={() => setIsWizardOpen(true)}
                   onOpenScraper={() => setIsScraperModalOpen(true)}
                   onOpenStrategy={() => setIsStrategyModalOpen(true)}
