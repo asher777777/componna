@@ -32,6 +32,7 @@ import { SubscriberPortalView } from '../../modules/KosSubscribed/components/Sub
 import { subscribeToAuth, isPlatformAdminEmail } from '../../services/firebaseAuth';
 import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { Sun, Moon, LogOut, ChevronLeft, Check } from 'lucide-react';
+import { injectSeoMetadata } from '../seo/seoInjector';
 
 export interface TenantSubdomainViewProps {
   tenantRecord: TenantRecord;
@@ -334,6 +335,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         title: `${tenantRecord.clientName || tenantRecord.subdomain} - דף הבית הרשמי`,
         description: `ברוכים הבאים לאתר הרשמי של ${tenantRecord.clientName || tenantRecord.subdomain} בכתובת ${tenantRecord.fullDomain}`,
         keywords: [tenantRecord.clientName, tenantRecord.subdomain, 'אתר רשמי'],
+        ogImage: tenantBrandDna?.identity?.logoUrl && tenantBrandDna.identity.logoUrl !== '/images/kosun-logo.svg'
+          ? tenantBrandDna.identity.logoUrl
+          : '',
+        faviconUrl: tenantBrandDna?.identity?.logoUrl && tenantBrandDna.identity.logoUrl !== '/images/kosun-logo.svg'
+          ? tenantBrandDna.identity.logoUrl
+          : '',
         geo: {
           enabled: true,
           targetCity: 'תל אביב',
@@ -479,6 +486,31 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
       active = false;
     };
   }, [db, tenantRecord.subdomain]);
+
+  // Dynamically inject full SEO & OpenGraph metadata for the subdomain page
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+
+    const currentSeo = currentPageConfig?.seoSettings;
+    const businessName = tenantBrandDna?.identity?.companyName || tenantRecord.clientName || tenantRecord.subdomain;
+    const pageTitle = currentSeo?.title || currentPageConfig?.pageTitle || `${businessName} - דף הבית הרשמי`;
+    const pageDesc = currentSeo?.description || tenantBrandDna?.identity?.slogan || `ברוכים הבאים לאתר הרשמי של ${businessName}`;
+    const brandLogo = tenantBrandDna?.identity?.logoUrl && tenantBrandDna.identity.logoUrl !== '/images/kosun-logo.svg'
+      ? tenantBrandDna.identity.logoUrl
+      : '';
+    const ogImage = currentSeo?.ogImage || brandLogo || currentSeo?.faviconUrl || '';
+
+    injectSeoMetadata({
+      title: pageTitle,
+      description: pageDesc,
+      ogImage: ogImage,
+      faviconUrl: currentSeo?.faviconUrl || brandLogo || undefined,
+      keywords: currentSeo?.keywords || [businessName, 'אתר רשמי'],
+      businessName: businessName,
+      aiKnowledgeSummary: currentSeo?.aiKnowledgeSummary,
+      aiBotIndexingEnabled: currentSeo?.aiBotIndexingEnabled !== false,
+    });
+  }, [currentPageConfig, tenantBrandDna, tenantRecord]);
 
   const [authVersion, setAuthVersion] = useState(0);
 

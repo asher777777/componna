@@ -707,7 +707,13 @@ export const PublicPageView: React.FC<PublicPageViewProps> = ({ slug: propSlug, 
               const seo = pageWithHeader.seoSettings;
               const ogTitle = seo?.title || pageWithHeader.pageTitle || 'Kosun Page';
               const ogDesc = seo?.description || '';
-              const ogImage = seo?.ogImage || seo?.faviconUrl || '';
+              
+              // Resolve Tenant Brand DNA Logo as default fallback for og:image
+              const tenantBrand = resolveLiveBrandDna(null, tenantId || undefined);
+              const brandLogo = tenantBrand?.identity?.logoUrl && tenantBrand.identity.logoUrl !== '/images/kosun-logo.svg'
+                ? tenantBrand.identity.logoUrl
+                : '';
+              const ogImage = seo?.ogImage || brandLogo || seo?.faviconUrl || '';
 
               setMetaTag('property', 'og:title', ogTitle);
               setMetaTag('property', 'og:description', ogDesc);

@@ -708,12 +708,15 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
       brandDnaSynced: true,
     };
 
+    const brandLogo = brandDna.identity.logoUrl && brandDna.identity.logoUrl !== '/images/kosun-logo.svg' ? brandDna.identity.logoUrl : '';
+
     const updatedSeo: SeoSettings = {
       ...formDataSeo,
       title: formDataSeo.title || `${brandDna.identity.companyName} | ${brandDna.identity.slogan || 'האתר הרשמי'}`,
       description: formDataSeo.description || `${brandDna.identity.companyName} - ${brandDna.identity.slogan || ''}. שירות וליווי מקצועי.`,
       keywords: formDataSeo.keywords && formDataSeo.keywords.length > 0 ? formDataSeo.keywords : [brandDna.identity.companyName, 'שירות', 'קהילה'],
-      faviconUrl: formDataSeo.faviconUrl || brandDna.identity.logoUrl,
+      ogImage: formDataSeo.ogImage || brandLogo || undefined,
+      faviconUrl: formDataSeo.faviconUrl || brandLogo || undefined,
       author: formDataSeo.author || brandDna.identity.companyName,
     };
 

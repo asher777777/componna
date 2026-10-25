@@ -149,7 +149,7 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         currentPageConfig.seoSettings?.title ||
         currentPageConfig.globalSettings?.siteTitle ||
         currentPageConfig.pageTitle ||
-        'Kosun-S-D-A';
+        'KOSUN Workspace';
     }
   }, [currentPageConfig]);
 
