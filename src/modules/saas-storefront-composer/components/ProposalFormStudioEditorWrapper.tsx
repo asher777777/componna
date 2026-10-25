@@ -1,8 +1,8 @@
 import React, { useEffect } from 'react';
 import { useStorefront } from '../context/StorefrontContext';
-import { SmartFormProvider } from '../../smart-form-builder/context/SmartFormContext';
-import { useSmartForm } from '../../smart-form-builder/context/useSmartForm';
-import { FormBuilderStudio } from '../../smart-form-builder/components/builder/FormBuilderStudio';
+import { SmartFormProvider } from '../../KSF/context/SmartFormContext';
+import { useSmartForm } from '../../KSF/context/useSmartForm';
+import { FormBuilderStudio } from '../../KSF/components/builder/FormBuilderStudio';
 import { ArrowRight, Sparkles, Check } from 'lucide-react';
 
 const InnerStudioBridge: React.FC = () => {

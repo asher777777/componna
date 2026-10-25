@@ -9,7 +9,7 @@ import { useStorefront } from '../context/StorefrontContext';
 const VideoProducerStudioView = React.lazy(() => import('../../video-producer-studio').then(m => ({ default: m.VideoProducerStudioView })));
 import { CrmAnalyticsStandaloneView } from '../../crm-analytics';
 import { PageBuilderStandaloneView } from '../../KosWebAi';
-const SmartFormBuilderStandaloneView = React.lazy(() => import('../../smart-form-builder').then(m => ({ default: m.SmartFormBuilderStandaloneView })));
+const SmartFormBuilderStandaloneView = React.lazy(() => import('../../KSF').then(m => ({ default: m.SmartFormBuilderStandaloneView })));
 import { MediaGalleryHubStandaloneView } from '../../media-gallery-hub';
 import { WhatsAppGreenApiStandaloneView } from '../../KosWhatsUp';
 import { KesherPaymentsStandaloneView } from '../../kesher-payments-hub';

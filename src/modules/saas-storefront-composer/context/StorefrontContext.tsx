@@ -15,7 +15,7 @@ import { GoDaddyDnsService } from '../services/godaddyDnsService';
 import { SaasSalesFormBridge } from '../services/saasSalesFormBridge';
 import { AiSalesAgentService } from '../services/aiSalesAgentService';
 import { TenantWelcomeNotificationService, WelcomeDispatchResult } from '../services/tenantWelcomeNotificationService';
-import { SmartFormDefinition } from '../../smart-form-builder/types';
+import { SmartFormDefinition } from '../../KSF/types';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { LeadPayload } from '../../../core/contracts';
 import { subscribeToAuth, AuthState, logoutUser } from '../../../services/firebaseAuth';

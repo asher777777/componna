@@ -1,4 +1,4 @@
-﻿import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
+﻿import { SmartFormDefinition, FormStep } from '../../KSF/types';
 import { CartItem, BillingInterval, TenantCustomerInfo, TenantRecord } from '../types';
 import { StorefrontService } from './storefrontService';
 

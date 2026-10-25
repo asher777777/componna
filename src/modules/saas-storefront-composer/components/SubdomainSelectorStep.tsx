@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useStorefront } from '../context/StorefrontContext';
 import { StorefrontService } from '../services/storefrontService';
-import { transliterateHebrewToSlug } from '../../smart-form-builder/utils/transliteration';
+import { transliterateHebrewToSlug } from '../../KSF/utils/transliteration';
 
 export const SubdomainSelectorStep: React.FC = () => {
   const { 

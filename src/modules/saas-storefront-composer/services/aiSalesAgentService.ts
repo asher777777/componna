@@ -1,5 +1,5 @@
 import { AiSalesOptimizationInput, AiSalesOptimizationResult } from '../types';
-import { SmartFormDefinition, FormStep } from '../../smart-form-builder/types';
+import { SmartFormDefinition, FormStep } from '../../KSF/types';
 import { executeCloudAi } from '../../../core/ai';
 
 export class AiSalesAgentService {

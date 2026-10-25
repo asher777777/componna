@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useStorefront } from '../context/StorefrontContext';
 import { SaasSalesFormBridge } from '../services/saasSalesFormBridge';
-import { SmartFormRunner } from '../../smart-form-builder/components/runner/SmartFormRunner';
-import { SmartFormDefinition } from '../../smart-form-builder/types';
+import { SmartFormRunner } from '../../KSF/components/runner/SmartFormRunner';
+import { SmartFormDefinition } from '../../KSF/types';
 import { Edit3, ArrowRight, ShieldCheck, ArrowLeft, ShoppingBag } from 'lucide-react';
 
 export const DynamicSalesProposalView: React.FC = () => {
