@@ -20,6 +20,8 @@ export const app: FirebaseApp = getApps().length > 0 ? getApp() : initializeApp(
 // Initialize Firebase Services
 export const auth: Auth = getAuth(app);
 export const db: Firestore = getFirestore(app);
+export const comonaDb: Firestore = db;
+export const kosunDb: Firestore = db;
 export const storage: FirebaseStorage = getStorage(app);
 
 // Initialize Analytics (supported in browser contexts)

@@ -21,8 +21,8 @@ interface Props {
   onUpdateField?: (contactId: string, field: string, value: any) => Promise<boolean>;
   onSelectContact?: (contact: Contact) => void;
   loading?: boolean;
-  activeMainTab?: 'table' | 'analytics';
-  onSelectMainTab?: (tab: 'table' | 'analytics') => void;
+  activeMainTab?: 'dynamic_groups' | 'table' | 'analytics';
+  onSelectMainTab?: (tab: 'dynamic_groups' | 'table' | 'analytics') => void;
   isIngestionBarOpen?: boolean;
   onToggleIngestionBar?: () => void;
 }

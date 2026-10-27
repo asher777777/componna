@@ -5,6 +5,8 @@ export * from './hooks';
 export * from './api/functionsApi';
 export * from './prompts';
 export * from './components/CrmAnalyticsMainView';
+export * from './components/KosCrmDynamicGroupsPage';
+export * from './services/crmDynamicGroupsEngine';
 export * from './components/AnalyticsSummaryCards';
 export * from './components/AnalyticsChartsView';
 export * from './components/DynamicAnalyticsTable';

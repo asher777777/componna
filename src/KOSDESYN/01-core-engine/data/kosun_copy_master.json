@@ -1,0 +1,1233 @@
+{
+  "_metadata": {
+    "collection": "koshan_copy_master",
+    "version": "2026.10",
+    "lastUpdated": "2026-10-27T18:45:00.000Z",
+    "description": "קולקציית הקופי, המונחים והמיקרו-קופי המלאה של מערכת קושאן (Koshan) – מותאמת לחזון 'אנטרקציה שהיא נכס', מנורמלת ומעצימה לבני ה-30 פלוס.",
+    "supportedArchetypes": [
+      "saas",
+      "automotive",
+      "beauty",
+      "real_estate",
+      "community",
+      "legal"
+    ],
+    "totalTerms": 99
+  },
+  "terms": {
+    "capsule_prompt_hint": {
+      "id": "capsule_prompt_hint",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "אולי השאלה הזו תפנה לך זמן יקר ותהפוך לנכס? לחץ לבחירה או לחץ על המיקרופון לפריקת מחשבות מהירה",
+      "archetypeOverrides": {
+        "saas": "אולי השאלה הזו תעזור לך לפנות זמן? לחץ לבחירה או שאל בקול חופשי",
+        "automotive": "מחפש התאמה מיוחדת? לחץ על השאלה, או תאר במיקרופון את רכב החלומות שלך",
+        "real_estate": "מתעניין בנכס מניב או תשואה? לחץ על השאלה או ספר במיקרופון מה התקציב והמיקום",
+        "beauty": "מתלבטת לגבי הטיפול המתאים? הקישי על השאלה או התייעצי בקול עם הסוכנת",
+        "community": "רוצה לדעת מתי המפגש הבא? לחץ על השאלה או שאל בקול בכל רגע",
+        "legal": "מתלבט בסוגיה משפטית? לחץ על השאלה או תאר בקצרה את המקרה"
+      }
+    },
+    "capsule_catalog_hint": {
+      "id": "capsule_catalog_hint",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "catalog",
+      "systemDefault": "הצעות מיקוד והמרת אינטראקציה לנכס • לחץ לבחירה או שאל בקול:",
+      "archetypeOverrides": {
+        "saas": "מסלולים ומודולים לחיסכון בזמן • לחץ לפרטים או שאל בקול:",
+        "automotive": "דגמים מובילים במלאי • לחץ להתאמה או תאר בקול:",
+        "real_estate": "נכסים והזדמנויות השקעה מניבות • לחץ לפרטים:",
+        "beauty": "טיפולים, אבחון ממוקד ושקט נפשי • לחצי לפרטים:",
+        "community": "קהילות, מפגשים ותכנים מניבים • לחץ לפרטים:",
+        "legal": "תחומי התמחות והגנה על נכסים • לחץ לפרטים:"
+      }
+    },
+    "capsule_mic_tooltip": {
+      "id": "capsule_mic_tooltip",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "לחץ לדיבור חופשי ופריקת מידע מהירה ללא מאמץ",
+      "archetypeOverrides": {
+        "saas": "לחץ וספר מה המשימה או הפרויקט שתרצה להפוך לנכס היום",
+        "automotive": "לחץ ותאר איזה רכב ותקציב מתאימים לך",
+        "beauty": "לחצי להתייעצות קולית בגובה העיניים וברוגע",
+        "real_estate": "לחץ וספר מה יעד ההשקעה והתשואה המבוקשת",
+        "community": "לחץ ושאל בקול על פעילויות וחיבורים בקהילה",
+        "legal": "לחץ ותאר בקול את הצורך המשפטי להגנת הנכס"
+      }
+    },
+    "voice_modal_followup_suffix": {
+      "id": "voice_modal_followup_suffix",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "זה מביא לך פוקוס וערך, או שתרצה להעמיק בנכס נוסף?",
+      "archetypeOverrides": {
+        "saas": "זה חוסך לך זמן או שתרצה להעמיק במודול נוסף?",
+        "automotive": "זה עונה לך על השאלה או שתרצה לדייק לגבי רמת גימור ומחיר?",
+        "beauty": "זה מדייק לך את הטיפול או שתרצי להתאים תוכנית אישית?",
+        "real_estate": "זה נותן לך תמונה ברורה או שתרצה נתוני תשואה על נכס ספציפי?",
+        "community": "זה עוזר לך או שתרצה להכיר עוד חברים וקהילות?",
+        "legal": "זה מבהיר את הסוגיה המשפטית או שתרצה ייעוץ ממוקד?"
+      }
+    },
+    "voice_modal_another_question": {
+      "id": "voice_modal_another_question",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "שאלה נוספת / בירור נכס ◀",
+      "archetypeOverrides": {
+        "saas": "רוצה לחדד משהו נוסף? ◀",
+        "automotive": "שאל שאלה נוספת על הרכב ◀",
+        "beauty": "יש לך עוד שאלה יקירה? ◀",
+        "real_estate": "לשאלה נוספת על השקעה ◀",
+        "community": "לשאלה נוספת על הקהילה ◀",
+        "legal": "להמשך בירור משפטי ◀"
+      }
+    },
+    "voice_modal_action_confirm": {
+      "id": "voice_modal_action_confirm",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "✓ אישור • הפוך לאינטראקציה שהיא נכס",
+      "archetypeOverrides": {
+        "saas": "✓ מצוין, קח אותי להתחלת עבודה ממוקדת",
+        "automotive": "✓ מעולה, עבור לדגם המלא",
+        "beauty": "✓ תודה רבה, תאמי לי תור ביומן",
+        "real_estate": "✓ מעולה, שלח לי סקירת נכס",
+        "community": "✓ מעולה, הירשם לקהילה",
+        "legal": "✓ תודה, קבע שיחת ייעוץ"
+      }
+    },
+    "voice_modal_badge_answering": {
+      "id": "voice_modal_badge_answering",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "סוכן קושאן • מענה ממוקד בלייב",
+      "archetypeOverrides": {
+        "saas": "סוכן פוקוס • שיחה ללא הסחות",
+        "automotive": "יועץ רכב • מענה מיידי",
+        "beauty": "יועצת קליניקה • מענה אישי ומאזן",
+        "real_estate": "יועץ נדל״ן • מענה ממוקד תשואה",
+        "community": "מנחה קהילה • שיחה חיה",
+        "legal": "עוזר משפטי • הגנת נכסים"
+      }
+    },
+    "voice_modal_badge_prompt": {
+      "id": "voice_modal_badge_prompt",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "סוכן קולי חכם • קושאן AI",
+      "archetypeOverrides": {
+        "saas": "סוכן קולי • מיקוד יומי",
+        "automotive": "עוזר קולי • אולם תצוגה",
+        "beauty": "עוזרת קולית • התאמת טיפולים",
+        "real_estate": "עוזר קולי • השקעות ונדל״ן",
+        "community": "עוזר קולי • מרכז הקהילה",
+        "legal": "עוזר קולי • מיפוי משפטי"
+      }
+    },
+    "voice_modal_footer_label": {
+      "id": "voice_modal_footer_label",
+      "areaId": "area_top_ai_capsule",
+      "pageId": "global",
+      "systemDefault": "ממשק קוגניטיבי ללא הסחות דעת • אנטרקציה שהיא נכס",
+      "archetypeOverrides": {
+        "saas": "ממשק מיקוד קוגניטיבי לבני 30+ • חוק ה-3",
+        "automotive": "ממשק חקר וביצועים ללא רעש ויזואלי",
+        "beauty": "ממשק התאמה אסתטית רגוע וממוקד",
+        "real_estate": "ממשק מיפוי נכסים ללא הצפה",
+        "community": "ממשק קהילתי חכם ומעצים",
+        "legal": "ממשק ייעוץ ממוקד לשמירת ערך"
+      }
+    },
+    "funnel_headline": {
+      "id": "funnel_headline",
+      "areaId": "area_funnel_exploration",
+      "pageId": "exploration",
+      "systemDefault": "צעדי העמקה ממוקדים לבניית נכסים • בחר שאלה",
+      "archetypeOverrides": {
+        "saas": "שאלות מנחות לחיסכון בזמן ויעילות עסקים • בחר שאלה",
+        "automotive": "שאלות מנחות להתאמת הרכב המדויק כנכס • בחר שאלה",
+        "real_estate": "בדיקת כדאיות, ערך ותשואה על נכסים • בחר שאלה",
+        "beauty": "שלבי טיפול והתאמה אישית ברוגע • בחרי שאלה",
+        "community": "בניית קהילה מניבה ונושאי העמקה • בחר שאלה",
+        "legal": "שאלות לבדיקת היתכנות והגנה על נכסים • בחר שאלה"
+      }
+    },
+    "funnel_badge_recommended": {
+      "id": "funnel_badge_recommended",
+      "areaId": "area_funnel_exploration",
+      "pageId": "exploration",
+      "systemDefault": "נכס מומלץ",
+      "archetypeOverrides": {
+        "saas": "התחל עכשיו",
+        "automotive": "הזדמנות",
+        "real_estate": "תשואה גבוהה",
+        "beauty": "פופולרי",
+        "community": "מוביל",
+        "legal": "קריטי"
+      }
+    },
+    "funnel_conversion_cta": {
+      "id": "funnel_conversion_cta",
+      "areaId": "area_funnel_exploration",
+      "pageId": "exploration",
+      "systemDefault": "להפיכת אינטראקציה לנכס ◀",
+      "archetypeOverrides": {
+        "saas": "לכל המסלולים לחיסכון בזמן ◀",
+        "automotive": "לצפייה ברכב במלאי ◀",
+        "real_estate": "לתיאום פגישה בנכס ◀",
+        "beauty": "לקביעת תור ביומן ◀",
+        "community": "להצטרפות לקהילה ◀",
+        "legal": "לתיאום פגישת ייעוץ ◀"
+      }
+    },
+    "home_audience_guest": {
+      "id": "home_audience_guest",
+      "areaId": "area_home_audience_bar",
+      "pageId": "home",
+      "systemDefault": "מצב אורח (לקוח)",
+      "archetypeOverrides": {
+        "saas": "אזור מתעניינים ולקוחות",
+        "automotive": "אולם תצוגה ללקוחות",
+        "beauty": "אזור מטופלות ולקוחות",
+        "real_estate": "אזור משקיעים וקונים"
+      }
+    },
+    "home_audience_owner": {
+      "id": "home_audience_owner",
+      "areaId": "area_home_audience_bar",
+      "pageId": "home",
+      "systemDefault": "מצב מנהל (Owner)",
+      "archetypeOverrides": {
+        "saas": "ניהול מערכת ו-AI Studio",
+        "automotive": "ניהול סוכנות ומלאי",
+        "beauty": "ניהול קליניקה ויומן",
+        "real_estate": "ניהול נכסים והזדמנויות"
+      }
+    },
+    "owner_brand_palette_title": {
+      "id": "owner_brand_palette_title",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "צבעי מיתוג וסגנון ניאון",
+      "archetypeOverrides": {
+        "saas": "אווירה דיגיטלית וצבעי מותג",
+        "automotive": "פלטת יוקרה וצבעי אולם",
+        "beauty": "גווני זוהר ואסתטיקה קלינית",
+        "real_estate": "פלטת יוקרה שקטה לנכסים"
+      }
+    },
+    "owner_brand_palette_subtitle": {
+      "id": "owner_brand_palette_subtitle",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "גוון מוביל: ציאן ניאון עתידני • סגנון: מינימליזם טכנולוגי נקצי מסחיות",
+      "archetypeOverrides": {
+        "saas": "גוון מוביל: ציאן ניאון עתידני • סגנון: מינימליזם טכנולוגי",
+        "automotive": "גוון מוביל: ענבר וזהב מוטורי • סגנון: יוקרה וביצועים",
+        "beauty": "גוון מוביל: ורוד פנינה ורוז-גולד • סגנון: אסתטיקה ורוגע",
+        "real_estate": "גוון מוביל: זהב שקט וכחول פלדה • סגנון: פרימיום יציב"
+      }
+    },
+    "owner_brand_tagline_title": {
+      "id": "owner_brand_tagline_title",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "סלוגן והבטחת המותג",
+      "archetypeOverrides": {
+        "saas": "הצעת הערך: חיסכון בזמן ופוקוס לבני 30+",
+        "automotive": "הבטחת החוויה וערך הרכב",
+        "beauty": "הבטחת השקט הנפשי והתוצאות",
+        "real_estate": "הבטחת התשואה וביטחון הנכסים"
+      }
+    },
+    "owner_brand_tagline_subtitle": {
+      "id": "owner_brand_tagline_subtitle",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "מעטפת טכנולוגית היקפית להמרת כל אינטראקציה לנכס נצבר בשיטת חוק ה-3",
+      "archetypeOverrides": {
+        "saas": "פלטפורמת פרודוקטיביות מקיפה להמרת זמן ומשימות לנכסים בשיטת חוק ה-3",
+        "automotive": "חוויית נהיגה, יבוא מקביל וביצועים המהווים נכס אמיתי",
+        "beauty": "טיפולים מתקדמים, אבחון מדויק ושקט נפשי ללא לחץ",
+        "real_estate": "השקעות נדל״ן מניבות וניהול נכסי פרימיום בביטחון מלא"
+      }
+    },
+    "owner_brand_media_title": {
+      "id": "owner_brand_media_title",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "מדיה ווידאו כניסה (CloudStore)",
+      "archetypeOverrides": {
+        "saas": "רקע וידאו ומדיה ממותגת",
+        "automotive": "מדיה וסרטי השקה מהאולם",
+        "beauty": "תמונות אווירה וסרטוני קליניקה",
+        "real_estate": "סיורים וירטואליים וסרטי נכסים"
+      }
+    },
+    "owner_brand_media_subtitle": {
+      "id": "owner_brand_media_subtitle",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "וידאו רקע חווייתי באיכות גבוהה מוטמע ממאגר KOSCLOUD",
+      "archetypeOverrides": {
+        "saas": "וידאו רקע חווייתי באיכות גבוהה מוטמע ממאגר KOSCLOUD",
+        "automotive": "סרטון נהיגה יוקרתי ברזולוציה גבוהה מ-KOSCLOUD",
+        "beauty": "וידאו טיפול זוהר ואסתטי ממאגר KOSCLOUD",
+        "real_estate": "סיור וידאו 4K בנכסים מובילים מ-KOSCLOUD"
+      }
+    },
+    "owner_brand_ai_title": {
+      "id": "owner_brand_ai_title",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "דיוק וליטוש שפת המותג ב-AI",
+      "archetypeOverrides": {
+        "saas": "סוכן ה-AI מלטש את שפת המוצר",
+        "automotive": "סוכן ה-AI מחדד את קול היוקרה",
+        "beauty": "סוכן ה-AI מתאים את שפת הטיפוח",
+        "real_estate": "סוכן ה-AI מחדד את מסרי ההשקעה"
+      }
+    },
+    "owner_brand_ai_subtitle": {
+      "id": "owner_brand_ai_subtitle",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "הסוכן מנתח את השוק ומייצר שפת מותג ייחודית, מסרים ועמודי תווך",
+      "archetypeOverrides": {
+        "saas": "הסוכן מנתח את השוק ומייצר שפת מותג ייחודית, מסרים ועמודי תווך",
+        "automotive": "הסוכן מנסח מפרטים מוטוריים ומסרים המניעים לנסיעת מבחן",
+        "beauty": "הסוכן מנסח יתרונות טיפול ומענה מרגיע לשאלות נפוצות",
+        "real_estate": "הסוכן מנסח תזרימי תשואה והדגשת ביטחון פיננסי למשקיעים"
+      }
+    },
+    "owner_btn_tooltip_save": {
+      "id": "owner_btn_tooltip_save",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "פרסם והפעל ישירות באתר חי",
+      "archetypeOverrides": {
+        "saas": "החל שינויים והפעל במערכת ללקוחות",
+        "automotive": "עדכן והצג באולם התצוגה הדיגיטלי לקונים",
+        "beauty": "פרסמי ועדכני ללקוחות הקליניקה",
+        "real_estate": "עדכן והפעל בפורטפוליו הנכסים"
+      }
+    },
+    "owner_btn_tooltip_preview": {
+      "id": "owner_btn_tooltip_preview",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "תצוגת לקוח חיה • ראה איך המבקרים רואים את העסק כעת",
+      "archetypeOverrides": {
+        "saas": "תצוגת משתמש חיה • בדיקת מראה המערכת",
+        "automotive": "תצוגת קונה חיה • ראה איך הדגם נראה לרוכשים",
+        "beauty": "תצוגת מטופלת חיה • בדיקת מראה הטיפולים",
+        "real_estate": "תצוגת משקיע חיה • בדיקת מראה הנכסים"
+      }
+    },
+    "owner_btn_tooltip_ai": {
+      "id": "owner_btn_tooltip_ai",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "תן לסוכן ה-AI לשדרג ולדייק את הניסוח עבורך",
+      "archetypeOverrides": {
+        "saas": "התייעץ עם סוכן ה-AI על חבילות, מודולים ותמחור",
+        "automotive": "התייעץ עם סוכן הרכב על מפרטים ושיווק",
+        "beauty": "התייעצי עם סוכן הקליניקה על ניסוח טיפולים והטבות",
+        "real_estate": "התייעץ עם סוכן הנדל״ן על תשואות והדגשת יתרונות"
+      }
+    },
+    "owner_btn_tooltip_revert": {
+      "id": "owner_btn_tooltip_revert",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "השאר כמו שהיה וחזור ללא שינוי",
+      "archetypeOverrides": {
+        "saas": "בטל שינויים ושמור על המצב הקודם",
+        "automotive": "השאר את הגדרות האולם ללא שינוי",
+        "beauty": "השאירי את ההגדרות כמו שהיו",
+        "real_estate": "חזור ללא שינוי נתונים"
+      }
+    },
+    "owner_btn_tooltip_close": {
+      "id": "owner_btn_tooltip_close",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "חזרה למסך הניהול",
+      "archetypeOverrides": {
+        "saas": "חזרה למסך העבודה",
+        "automotive": "חזרה לאולם התצוגה",
+        "beauty": "חזרה לקליניקה",
+        "real_estate": "חזרה למרכז הנדל״ן"
+      }
+    },
+    "owner_modal_subtitle_branding": {
+      "id": "owner_modal_subtitle_branding",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "התאמת שפת מותג, לוגו וצבעים • מתעדכן חי באתר",
+      "archetypeOverrides": {
+        "saas": "מיתוג מערכת, לוגו ופלטות צבעים מנצחות",
+        "automotive": "מיתוג יוקרתי, לוגו ואווירת אולם התצוגה",
+        "beauty": "עיצוב זוהר, לוגו וגוונים מרגיעים לקליניקה",
+        "real_estate": "מיתוג פרימיום, לוגו ויוקרה שקטה למשקיעים"
+      }
+    },
+    "owner_modal_status_saved": {
+      "id": "owner_modal_status_saved",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "השינויים פורסמו בהצלחה והופעלו באתר חי!",
+      "archetypeOverrides": {
+        "saas": "המערכת עודכנה והשינויים חיים לכל המשתמשים!",
+        "automotive": "האולם עודכן בהצלחה והשינויים מוצגים לקונים!",
+        "beauty": "הטיפולים והעיצוב עודכנו בהצלחה וגלויים ללקוחות!",
+        "real_estate": "הנכסים והעיצוב עודכנו וחיים למשקיעים!"
+      }
+    },
+    "owner_modal_publishing_live": {
+      "id": "owner_modal_publishing_live",
+      "areaId": "area_owner_dashboard",
+      "pageId": "owner",
+      "systemDefault": "מעדכן ומפרסם באתר חי...",
+      "archetypeOverrides": {
+        "saas": "מעדכן מודולים במערכת...",
+        "automotive": "מעדכן נתונים באולם...",
+        "beauty": "מעדכנת בקליניקה...",
+        "real_estate": "מעדכן בתיק הנכסים..."
+      }
+    },
+    "footer_home_button": {
+      "id": "footer_home_button",
+      "areaId": "area_universal_footer",
+      "pageId": "global",
+      "systemDefault": "בית ◀",
+      "archetypeOverrides": {
+        "saas": "ראשי ◀",
+        "automotive": "אולם ◀",
+        "beauty": "קליניקה ◀",
+        "real_estate": "פורטפוליו ◀"
+      }
+    },
+    "footer_slogan": {
+      "id": "footer_slogan",
+      "areaId": "area_universal_footer",
+      "pageId": "global",
+      "systemDefault": "אנטרקציה שהיא נכס",
+      "archetypeOverrides": {
+        "saas": "זמן ופרודוקטיביות שהם נכס",
+        "automotive": "חוויה מוטורית שהיא נכס",
+        "beauty": "שקט נפשי וטיפוח שהם נכס",
+        "real_estate": "השקעה וביטחון שהם נכס"
+      }
+    },
+    "quick_capture_close_btn": {
+      "id": "quick_capture_close_btn",
+      "areaId": "area_quick_capture_modal",
+      "pageId": "global",
+      "systemDefault": "סגור",
+      "archetypeOverrides": {
+        "saas": "סגור חלון קליטה",
+        "automotive": "סגור",
+        "beauty": "סגור",
+        "real_estate": "סגור"
+      }
+    },
+    "quick_capture_input_placeholder": {
+      "id": "quick_capture_input_placeholder",
+      "areaId": "area_quick_capture_modal",
+      "pageId": "global",
+      "systemDefault": "פרוק מחשבה או הקלט רעיון שנשמר כנכס...",
+      "archetypeOverrides": {
+        "saas": "כתוב או הקלט משימת מפתח לחיסכון בזמן...",
+        "automotive": "הקלט או הקלד דגם / דרישה...",
+        "beauty": "הקלידי בקשה או טיפול...",
+        "real_estate": "הקלט פרטי נכס, תשואה או לקוח...",
+        "legal": "הקלט סוגיה משפטית...",
+        "community": "הקלט רעיון או פעילות קהילתית..."
+      }
+    },
+    "quick_capture_submit_btn": {
+      "id": "quick_capture_submit_btn",
+      "areaId": "area_quick_capture_modal",
+      "pageId": "global",
+      "systemDefault": "שמור כנכס ↵",
+      "archetypeOverrides": {
+        "saas": "שמור לתיק הנכסים ↵",
+        "automotive": "שמור למאגר ↵",
+        "beauty": "שמירה ביומן ↵",
+        "real_estate": "שמור בתיק ההשקעות ↵"
+      }
+    },
+    "pure_focus_placeholder": {
+      "id": "pure_focus_placeholder",
+      "areaId": "area_pure_focus_modal",
+      "pageId": "global",
+      "systemDefault": "הקלד כאן בסביבה נקייה מסחיות • הזמן שלך מוגן...",
+      "archetypeOverrides": {
+        "saas": "הקלד משימה במיקוד מלא • Time is your asset...",
+        "automotive": "הקלד מפרט מבוקש ללא הסחות...",
+        "beauty": "הקלידי פרטים וצרכים בשקט נפשי...",
+        "real_estate": "הקלד פרטי נכס או תשואה..."
+      }
+    },
+    "pure_focus_cancel_tooltip": {
+      "id": "pure_focus_cancel_tooltip",
+      "areaId": "area_pure_focus_modal",
+      "pageId": "global",
+      "systemDefault": "ביטול",
+      "archetypeOverrides": {
+        "saas": "ביטול וחזרה",
+        "automotive": "ביטול",
+        "beauty": "ביטול",
+        "real_estate": "ביטול"
+      }
+    },
+    "pure_focus_save_btn": {
+      "id": "pure_focus_save_btn",
+      "areaId": "area_pure_focus_modal",
+      "pageId": "global",
+      "systemDefault": "אישור ושמירה",
+      "archetypeOverrides": {
+        "saas": "אישור והחלת מיקוד ↵",
+        "automotive": "אישור ושמירה ↵",
+        "beauty": "אישור וקביעה ↵",
+        "real_estate": "אישור ושמירה בתיק ↵"
+      }
+    },
+    "rule_of_3_modal_title": {
+      "id": "rule_of_3_modal_title",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "חוק ה-3 הקדוש: שומרים על הפוקוס, אין מקום לנכס 4!",
+      "archetypeOverrides": {
+        "saas": "חוק ה-3 הקדוש: 3 משימות מפתח ביום לחיסכון בזמן ומניעת הצפה!",
+        "automotive": "עומס באולם: מקסימום 3 דגמים במוקד!",
+        "beauty": "מיקוד טיפולי: מקסימום 3 יעדים ביום!",
+        "real_estate": "עומס בתיק: מקסימום 3 עסקאות במיקוד!"
+      }
+    },
+    "rule_of_3_modal_subtitle": {
+      "id": "rule_of_3_modal_subtitle",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "המיקוד היומי מוגבל ל-3 נכסי מפתח בלבד כדי להבטיח ביצוע בראש שקט וללא הצפה.",
+      "archetypeOverrides": {
+        "saas": "המיקוד היומי מוגבל ל-3 משימות מפתח בלבד כדי להבטיח חיסכון בזמן ושקט נפשי לבני 30+.",
+        "automotive": "המיקוד מוגבל ל-3 רכבים מרכזיים להבטחת החלטה מוצלחת.",
+        "beauty": "המיקוד מוגבל ל-3 טיפולים איכותיים לתוצאה מושלמת.",
+        "real_estate": "המיקוד מוגבל ל-3 נכסים מובילים למיצוי התשואה."
+      }
+    },
+    "rule_of_3_attempted_badge": {
+      "id": "rule_of_3_attempted_badge",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "האינטראקציה שניסית להוסיף:",
+      "archetypeOverrides": {
+        "saas": "המשימה שניסית להוסיף:",
+        "automotive": "הרכב שניסית להוסיף:",
+        "beauty": "הטיפול שניסית להוסיף:",
+        "real_estate": "הנכס שניסית להוסיף:"
+      }
+    },
+    "rule_of_3_opt_replace_label": {
+      "id": "rule_of_3_opt_replace_label",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "אפשרות א': החלף אחד מ-3 הנכסים הקיימים (הישן יחזור לתיק)",
+      "archetypeOverrides": {
+        "saas": "אפשרות א': החלף אחד מ-3 משימות המפתח (הישנה תחזור לתיק)",
+        "automotive": "אפשרות א': החלף אחד מ-3 הדגמים שבמוקד",
+        "beauty": "אפשרות א': החלפי אחד מ-3 הטיפולים",
+        "real_estate": "אפשרות א': החלף אחד מ-3 הנכסים שבמוקד"
+      }
+    },
+    "rule_of_3_replace_now_btn": {
+      "id": "rule_of_3_replace_now_btn",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "החלף עכשיו והעבר את המוחלף לתיק",
+      "archetypeOverrides": {
+        "saas": "החלף משימה והחזר לתיק",
+        "automotive": "החלף דגם באולם",
+        "beauty": "החליפי טיפול ביומן",
+        "real_estate": "החלף נכס בתיק"
+      }
+    },
+    "rule_of_3_alt_solutions_label": {
+      "id": "rule_of_3_alt_solutions_label",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "או בחר פתרון חלופי:",
+      "archetypeOverrides": {
+        "saas": "או בחר פתרון חלופי:",
+        "automotive": "אפשרויות נוספות:",
+        "beauty": "או בחרי חלופה:",
+        "real_estate": "או בחר חלופה:"
+      }
+    },
+    "rule_of_3_postpone_title": {
+      "id": "rule_of_3_postpone_title",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "דחה למחר",
+      "archetypeOverrides": {
+        "saas": "שבץ למיקוד של מחר",
+        "automotive": "שמור לנסיעת מבחן מחר",
+        "beauty": "העבירי ליומן של מחר",
+        "real_estate": "שבץ לפגישות מחר"
+      }
+    },
+    "rule_of_3_postpone_desc": {
+      "id": "rule_of_3_postpone_desc",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "נשבץ אותו בטקס נעילת הערב כחלק מ-3 הנכסים של מחר",
+      "archetypeOverrides": {
+        "saas": "נשבץ אותו בטקס הערב כחלק מ-3 משימות המפתח של מחר",
+        "automotive": "נתעדף אותו בראש סדר היום של מחר",
+        "beauty": "נשריין עבורו מקום ביומן של מחר בערב",
+        "real_estate": "נכלול אותו ב-3 ההצעות החמות של מחר"
+      }
+    },
+    "rule_of_3_inbox_title": {
+      "id": "rule_of_3_inbox_title",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "שמור בתיק הנכסים",
+      "archetypeOverrides": {
+        "saas": "שמור בתיק הנכסים הראשי",
+        "automotive": "שמור במאגר הרכבים",
+        "beauty": "שמרי בבנק הטיפולים",
+        "real_estate": "שמור במאגר הנכסים"
+      }
+    },
+    "rule_of_3_inbox_desc": {
+      "id": "rule_of_3_inbox_desc",
+      "areaId": "area_rule_of_3_modal",
+      "pageId": "home",
+      "systemDefault": "שמור כרעיון גולמי ונפרק אותו בהמשך במעבדה",
+      "archetypeOverrides": {
+        "saas": "שמור כרעיון גולמי ונפרק אותו במעבדה למיקרו-משימות",
+        "automotive": "שמור במאגר הלקוחות לבדיקה מקיפה",
+        "beauty": "שמרי ברשימת ההמתנה לבדיקה אישית",
+        "real_estate": "שמור בתיק ההשקעות לניתוח כדאיות"
+      }
+    },
+    "install_modal_title": {
+      "id": "install_modal_title",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "התקנת אפליקציית קושאן בנייד",
+      "archetypeOverrides": {
+        "saas": "התקנת מערכת קושאן במסך הבית בנייד",
+        "automotive": "התקנת אולם התצוגה הדיגיטלי בנייד",
+        "beauty": "התקנת אפליקציית הקליניקה בנייד",
+        "real_estate": "התקנת תיק הנכסים וההשקעות בנייד"
+      }
+    },
+    "install_modal_subtitle": {
+      "id": "install_modal_subtitle",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "התקנה ישירה של אפליקציית הנכסים העצמאית שלך",
+      "archetypeOverrides": {
+        "saas": "גישה מהירה בנגיעה אחת ל-3 משימות המפתח",
+        "automotive": "צפייה מהירה בקטלוג הרכבים ישירות ממסך הבית",
+        "beauty": "קביעת תורים מהירה בנגיעה אחת ממסך הבית",
+        "real_estate": "עדכוני נכסים ותשואות בזמן אמת בנייד"
+      }
+    },
+    "install_modal_callout_title": {
+      "id": "install_modal_callout_title",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "התקנה עצמאית נקייה",
+      "archetypeOverrides": {
+        "saas": "התקנה מהירה ללא חנות אפליקציות (PWA)",
+        "automotive": "גישה ישירה מיידית ללא צורך בהורדה",
+        "beauty": "התקנה קלה ישירות מהדפדפן",
+        "real_estate": "אפליקציית PWA מאובטחת ועצמאית"
+      }
+    },
+    "install_modal_callout_desc": {
+      "id": "install_modal_callout_desc",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "פתח את הקישור הישיר בחלון עצמאי, ושם התקן בלחיצה אחת!",
+      "archetypeOverrides": {
+        "saas": "פתח את הקישור הישיר בחלון עצמאי והתקן בלחיצה אחת",
+        "automotive": "פתח את הקישור הישיר והוסף למסך הבית",
+        "beauty": "פתחי את הקישור והוסיפי למסך הבית",
+        "real_estate": "פתח את הקישור והתקן ישירות למסך הבית"
+      }
+    },
+    "install_modal_step1_title": {
+      "id": "install_modal_step1_title",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "שלב 1: פתח את האפליקציה בקישור הישיר העצמאי",
+      "archetypeOverrides": {
+        "saas": "שלב 1: פתח בקישור הישיר העצמאי",
+        "automotive": "שלב 1: פתח את אולם התצוגה בחלון עצמאי",
+        "beauty": "שלב 1: פתחי את הקליניקה בחלון עצמאי",
+        "real_estate": "שלב 1: פתח את מרכז הנכסים בחלון עצמאי"
+      }
+    },
+    "install_modal_open_direct_btn": {
+      "id": "install_modal_open_direct_btn",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "פתח בחלון עצמאי מלא",
+      "archetypeOverrides": {
+        "saas": "פתח באפליקציה עצמאית ◀",
+        "automotive": "פתח באולם מלא ◀",
+        "beauty": "פתחי בחלון נפרד ◀",
+        "real_estate": "פתח במרכז הנכסים ◀"
+      }
+    },
+    "install_modal_copied_msg": {
+      "id": "install_modal_copied_msg",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "הקישור הישיר הועתק! הדבק אותו בדפדפן Chrome בנייד.",
+      "archetypeOverrides": {
+        "saas": "הקישור הועתק בהצלחה! פתח אותו בנייד.",
+        "automotive": "הקישור הועתק! שלח אותו לנייד שלך.",
+        "beauty": "הקישור הועתק! הדביקי בדפדפן בנייד.",
+        "real_estate": "הקישור הועתק! פתח אותו ישירות בנייד."
+      }
+    },
+    "install_modal_copy_tooltip": {
+      "id": "install_modal_copy_tooltip",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "העתק קישור",
+      "archetypeOverrides": {
+        "saas": "העתק קישור ישיר",
+        "automotive": "העתק קישור לרכב",
+        "beauty": "העתיקי קישור",
+        "real_estate": "העתק קישור לנכס"
+      }
+    },
+    "install_modal_qr_label": {
+      "id": "install_modal_qr_label",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "או סרוק עם מצלמת הנייד לפתיחה מהירה:",
+      "archetypeOverrides": {
+        "saas": "או סרוק קוד QR עם מצלמת הנייד:",
+        "automotive": "סרוק וצפה ברכבים מהנייד:",
+        "beauty": "סרקי לקביעת תור מהנייד:",
+        "real_estate": "סרוק לצפייה בנכסים בנייד:"
+      }
+    },
+    "install_modal_step2_title": {
+      "id": "install_modal_step2_title",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "שלב 2: התקנה מתוך הדפדפן בנייד",
+      "archetypeOverrides": {
+        "saas": "שלב 2: הוספה למסך הבית",
+        "automotive": "שלב 2: הוסף למסך הבית בנייד",
+        "beauty": "שלב 2: הוסיפי למסך הבית",
+        "real_estate": "שלב 2: הוסף למסך הבית"
+      }
+    },
+    "install_modal_chrome_instr": {
+      "id": "install_modal_chrome_instr",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "לחץ על תפריט 3 הנקודות ב-Chrome ובחר 'התקן אפליקציה' או 'הוסף למסך הבית'",
+      "archetypeOverrides": {
+        "saas": "בתפריט הדפדפן בחר 'התקן אפליקציה' או 'הוסף למסך הבית'",
+        "automotive": "בתפריט Chrome בחר 'הוסף למסך הבית'",
+        "beauty": "בתפריט Chrome בחרי 'הוסף למסך הבית'",
+        "real_estate": "בתפריט Chrome בחר 'הוסף למסך הבית'"
+      }
+    },
+    "install_modal_safari_instr": {
+      "id": "install_modal_safari_instr",
+      "areaId": "area_install_app_modal",
+      "pageId": "global",
+      "systemDefault": "באייפון (Safari) לחץ על כפתור השיתוף בתחתית ובחר 'הוסף למסך הבית'",
+      "archetypeOverrides": {
+        "saas": "באייפון לחץ שיתוף ובחר 'הוסף למסך הבית'",
+        "automotive": "ב-Safari לחץ שיתוף ובחר 'הוסף למסך הבית'",
+        "beauty": "ב-Safari לחצי שיתוף ובחרי 'הוסף למסך הבית'",
+        "real_estate": "ב-Safari לחץ שיתוף ובחר 'הוסף למסך הבית'"
+      }
+    },
+    "evening_step1_badge": {
+      "id": "evening_step1_badge",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "01/03 • סיכום יום",
+      "archetypeOverrides": {
+        "saas": "01/03 • סיכום משימות היום",
+        "automotive": "01/03 • סגירת יום באולם",
+        "beauty": "01/03 • סיום יום טיפולים",
+        "real_estate": "01/03 • סיכום פגישות היום"
+      }
+    },
+    "evening_btn_next": {
+      "id": "evening_btn_next",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "הבא ◀",
+      "archetypeOverrides": {
+        "saas": "הבא ◀",
+        "automotive": "המשך ◀",
+        "beauty": "הבא ◀",
+        "real_estate": "המשך ◀"
+      }
+    },
+    "evening_btn_back": {
+      "id": "evening_btn_back",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "חזור",
+      "archetypeOverrides": {
+        "saas": "חזור לשלב הקודם",
+        "automotive": "חזור",
+        "beauty": "חזור",
+        "real_estate": "חזור"
+      }
+    },
+    "evening_action_complete": {
+      "id": "evening_action_complete",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "השלם ✓",
+      "archetypeOverrides": {
+        "saas": "בוצע בהצלחה ✓",
+        "automotive": "הושלם ✓",
+        "beauty": "הושלם ✓",
+        "real_estate": "נסגר ✓"
+      }
+    },
+    "evening_action_tomorrow": {
+      "id": "evening_action_tomorrow",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "למחר",
+      "archetypeOverrides": {
+        "saas": "שבץ למחר",
+        "automotive": "העבר למחר",
+        "beauty": "ליווח מחר",
+        "real_estate": "שבץ למחר"
+      }
+    },
+    "evening_action_inbox": {
+      "id": "evening_action_inbox",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "לתיק",
+      "archetypeOverrides": {
+        "saas": "החזר לתיק",
+        "automotive": "למאגר",
+        "beauty": "לבנק הרעיונות",
+        "real_estate": "לתיק נכסים"
+      }
+    },
+    "evening_action_delete": {
+      "id": "evening_action_delete",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "מחק",
+      "archetypeOverrides": {
+        "saas": "מחק משימה",
+        "automotive": "הסר",
+        "beauty": "מחק",
+        "real_estate": "הסר מהתיק"
+      }
+    },
+    "evening_step2_title": {
+      "id": "evening_step2_title",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "02/03 • מיון וסידור תיק הנכסים",
+      "archetypeOverrides": {
+        "saas": "02/03 • סינון ופירוק משימות בתיק",
+        "automotive": "02/03 • ארגון מאגר הלידים והדגמים",
+        "beauty": "02/03 • סידור יומן ורשימת המתנה",
+        "real_estate": "02/03 • מיון פניות והצעות מחיר"
+      }
+    },
+    "evening_action_decompose": {
+      "id": "evening_action_decompose",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "פרק במעבדה ◀",
+      "archetypeOverrides": {
+        "saas": "פרק לפעולות של 15 דקות ◀",
+        "automotive": "פרק לשלבי מכירה ◀",
+        "beauty": "פרקי לתוכנית טיפול ◀",
+        "real_estate": "פרק לשלבי עסקה ◀"
+      }
+    },
+    "evening_action_edit_decompose": {
+      "id": "evening_action_edit_decompose",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "ערוך פירוק",
+      "archetypeOverrides": {
+        "saas": "ערוך צעדי פעולה",
+        "automotive": "ערוך שלבים",
+        "beauty": "ערכי טיפול",
+        "real_estate": "ערוך שלבי עסקה"
+      }
+    },
+    "evening_step3_title": {
+      "id": "evening_step3_title",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "03/03 • בחירת 3 נכסי המפתח למחר",
+      "archetypeOverrides": {
+        "saas": "03/03 • בחירת The Big 3 של מחר",
+        "automotive": "03/03 • קביעת 3 יעדי המכירה למחר",
+        "beauty": "03/03 • בחירת 3 המטופלות המובילות למחר",
+        "real_estate": "03/03 • בחירת 3 עסקאות המוקד למחר"
+      }
+    },
+    "evening_task_placeholder": {
+      "id": "evening_task_placeholder",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "נכס חדש למחר...",
+      "archetypeOverrides": {
+        "saas": "משימת מפתח חדשה למחר...",
+        "automotive": "יעד מכירה חדש למחר...",
+        "beauty": "משימת טיפוח חדשה למחר...",
+        "real_estate": "יעד נדל״ן חדש למחר..."
+      }
+    },
+    "evening_btn_add": {
+      "id": "evening_btn_add",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "הוסף",
+      "archetypeOverrides": {
+        "saas": "הוסף ל-3 ↵",
+        "automotive": "הוסף ליעדים ↵",
+        "beauty": "הוסיפי ↵",
+        "real_estate": "הוסף לעסקאות ↵"
+      }
+    },
+    "evening_btn_finish": {
+      "id": "evening_btn_finish",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "שמור וסיים טקס ערב ✨ סגירת יום בראש שקט",
+      "archetypeOverrides": {
+        "saas": "נעל את יום העבודה בביטחון • הזמן שלך מוגן ✨",
+        "automotive": "סגור אולם בהצלחה ✨",
+        "beauty": "נעלי יום טיפולים מושלם ✨",
+        "real_estate": "נעל יום עסקים מוצלח • הנכסים עובדים ✨"
+      }
+    },
+    "evening_success_close": {
+      "id": "evening_success_close",
+      "areaId": "area_evening_ritual_modal",
+      "pageId": "home",
+      "systemDefault": "סגור חלון",
+      "archetypeOverrides": {
+        "saas": "מעולה, לילה שקט!",
+        "automotive": "נתראה מחר באולם",
+        "beauty": "לילה זוהר ושקט",
+        "real_estate": "לילה טוב"
+      }
+    },
+    "brand_agent_header_tag": {
+      "id": "brand_agent_header_tag",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "סוכן AI • קושאן (אנטרקציה שהיא נכס)",
+      "archetypeOverrides": {
+        "saas": "AI Co-Pilot • חיסכון בזמן ומיקוד עסקי לבני 30+",
+        "automotive": "יועץ מוטורי AI • רכבים שהם נכס",
+        "beauty": "סוכנת יופי AI • אבחון ושקט נפשי",
+        "real_estate": "אנליסט נדל״ן AI • בידול והשקעות"
+      }
+    },
+    "brand_agent_close_label": {
+      "id": "brand_agent_close_label",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "סגור שיחה",
+      "archetypeOverrides": {
+        "saas": "סגור צ'אט",
+        "automotive": "סגור שיחה",
+        "beauty": "סגרי שיחה",
+        "real_estate": "סגור שיחה"
+      }
+    },
+    "brand_agent_copy_tooltip": {
+      "id": "brand_agent_copy_tooltip",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "העתק ללוח",
+      "archetypeOverrides": {
+        "saas": "העתק ניסוח",
+        "automotive": "העתק מפרט",
+        "beauty": "העתיקי תוכן",
+        "real_estate": "העתק נתונים"
+      }
+    },
+    "brand_agent_copied_text": {
+      "id": "brand_agent_copied_text",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "הועתק! ✓",
+      "archetypeOverrides": {
+        "saas": "הועתק ללוח! ✓",
+        "automotive": "הועתק! ✓",
+        "beauty": "הועתק! ✓",
+        "real_estate": "הועתק! ✓"
+      }
+    },
+    "brand_agent_copy_text": {
+      "id": "brand_agent_copy_text",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "העתק",
+      "archetypeOverrides": {
+        "saas": "העתק",
+        "automotive": "העתק",
+        "beauty": "העתיקי",
+        "real_estate": "העתק"
+      }
+    },
+    "brand_agent_thinking_text": {
+      "id": "brand_agent_thinking_text",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "הסוכן מעבד וסורק נתונים...",
+      "archetypeOverrides": {
+        "saas": "סוכן ה-AI מנתח את נתוני המוצר...",
+        "automotive": "סוכן הרכב בודק מפרטי שוק ומחירים...",
+        "beauty": "סוכנת הקליניקה מתאימה פרוטוקול טיפול...",
+        "real_estate": "סוכן הנדל״ן מחשב נתוני תשואה והשקעה..."
+      }
+    },
+    "brand_agent_recs_heading": {
+      "id": "brand_agent_recs_heading",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "3 המלצות פעולה מהמערכת:",
+      "archetypeOverrides": {
+        "saas": "3 הצעות מיקוד מהירות עבורך:",
+        "automotive": "3 זוויות בידול מומלצות למכירה:",
+        "beauty": "3 שאלות אבחון מומלצות:",
+        "real_estate": "3 שאלות כדאיות מומלצות למשקיעים:"
+      }
+    },
+    "brand_agent_rec_action_btn": {
+      "id": "brand_agent_rec_action_btn",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "הפעל ↵",
+      "archetypeOverrides": {
+        "saas": "הרצי שאלה ↵",
+        "automotive": "שאל עכשיו ↵",
+        "beauty": "שאלי ↵",
+        "real_estate": "בדוק נתון ↵"
+      }
+    },
+    "brand_agent_input_placeholder": {
+      "id": "brand_agent_input_placeholder",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "שאל את הסוכן או הזן פקודה חופשית...",
+      "archetypeOverrides": {
+        "saas": "שאל על משימות, מוצרים או אסטרטגיה...",
+        "automotive": "שאל על דגמים, מפרטים או טרייד-אין...",
+        "beauty": "שאלי על טיפולים, תכשירים או אבחון עור...",
+        "real_estate": "שאל על נכסים, מיקומים או תשואות..."
+      }
+    },
+    "brand_agent_mic_title_active": {
+      "id": "brand_agent_mic_title_active",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "מקשיב... לחץ לסיום",
+      "archetypeOverrides": {
+        "saas": "מקשיב... לחץ לסיום",
+        "automotive": "מקשיב לפקודה... לחץ לסיום",
+        "beauty": "מקשיבה לך... לחצי לסיום",
+        "real_estate": "מקשיב לשאלה... לחץ לסיום"
+      }
+    },
+    "brand_agent_mic_title_idle": {
+      "id": "brand_agent_mic_title_idle",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "הקלט הודעה",
+      "archetypeOverrides": {
+        "saas": "דבר עם הסוכן",
+        "automotive": "דבר עם סוכן הרכב",
+        "beauty": "דברי עם הסוכנת בקול",
+        "real_estate": "דבר עם סוכן הנדל״ן"
+      }
+    },
+    "brand_agent_send_tooltip": {
+      "id": "brand_agent_send_tooltip",
+      "areaId": "area_brand_agent_chat_modal",
+      "pageId": "global",
+      "systemDefault": "שלח לסוכן",
+      "archetypeOverrides": {
+        "saas": "שלח",
+        "automotive": "שלח",
+        "beauty": "שלחי",
+        "real_estate": "שלח"
+      }
+    },
+    "assistant_modal_title": {
+      "id": "assistant_modal_title",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "KOSHAN AI ASSISTANT",
+      "archetypeOverrides": {
+        "saas": "סוכן המיקוד והביצוע • KOSHAN",
+        "automotive": "עוזר חכם לאולם התצוגה • KOSHAN",
+        "beauty": "עוזרת אישית לקליניקה • KOSHAN",
+        "real_estate": "עוזר השקעות ונדל״ן • KOSHAN"
+      }
+    },
+    "assistant_modal_tag": {
+      "id": "assistant_modal_tag",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "חיפוש וקטורי • אנטרקציה שהיא נכס",
+      "archetypeOverrides": {
+        "saas": "סוכן חוק ה-3",
+        "automotive": "קטלוג רכבים חי",
+        "beauty": "יומן וטיפולים",
+        "real_estate": "פורטפוליו נכסים"
+      }
+    },
+    "assistant_modal_subtitle": {
+      "id": "assistant_modal_subtitle",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "הצגת מידע וקיום פעולות • ללא הסחות דעת",
+      "archetypeOverrides": {
+        "saas": "סיוע ישיר במיקוד וקבלת החלטות מהירה",
+        "automotive": "מידע מלא על דגמים והנעת עסקאות במקום",
+        "beauty": "מענה מהיר למטופלות ותיאום תורים",
+        "real_estate": "ניתוח עסקאות ומידע על נכסים מובילים"
+      }
+    },
+    "assistant_modal_actions_heading": {
+      "id": "assistant_modal_actions_heading",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "פעולות לביצוע מיידי:",
+      "archetypeOverrides": {
+        "saas": "פעולות מיקוד ישירות:",
+        "automotive": "פעולות נבחרות באולם:",
+        "beauty": "פעולות מהירות בקליניקה:",
+        "real_estate": "פעולות מהירות בתיק:"
+      }
+    },
+    "assistant_modal_action_navigate_btn": {
+      "id": "assistant_modal_action_navigate_btn",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "מעבר ◀",
+      "archetypeOverrides": {
+        "saas": "פתח מסך ◀",
+        "automotive": "עבור לדגם ◀",
+        "beauty": "פתחי יומן ◀",
+        "real_estate": "עבור לנכס ◀"
+      }
+    },
+    "assistant_modal_recs_heading": {
+      "id": "assistant_modal_recs_heading",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "צעדים הבאים מומלצים:",
+      "archetypeOverrides": {
+        "saas": "שאלות המשך מומלצות:",
+        "automotive": "הצעות לבדיקה נוספת:",
+        "beauty": "שלבי טיפול המשך:",
+        "real_estate": "בדיקות כדאיות נוספות:"
+      }
+    },
+    "assistant_modal_loading_text": {
+      "id": "assistant_modal_loading_text",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "מאתר פעולות ומידע בשרת הוקטורי...",
+      "archetypeOverrides": {
+        "saas": "סוכן ה-AI סורק משימות ונתונים...",
+        "automotive": "סוכן הרכב מאתר דגמים תואמים במלאי...",
+        "beauty": "הסוכנת בודקת זמינות ופרוטוקול...",
+        "real_estate": "הסוכן מאתר נכסים רלוונטיים..."
+      }
+    },
+    "assistant_modal_mic_title_active": {
+      "id": "assistant_modal_mic_title_active",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "מקליט... לחץ לעצירה",
+      "archetypeOverrides": {
+        "saas": "מקשיב לך... לחץ לעצירה",
+        "automotive": "מקשיב לשאלה...",
+        "beauty": "מקשיבה לך יקירה...",
+        "real_estate": "מקשיב לשאלה..."
+      }
+    },
+    "assistant_modal_mic_title_idle": {
+      "id": "assistant_modal_mic_title_idle",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "הקלטה קולית (STT)",
+      "archetypeOverrides": {
+        "saas": "דבר עם הסוכן בקול",
+        "automotive": "דבר עם יועץ הרכב",
+        "beauty": "התייעצי בקול",
+        "real_estate": "שאל בקול על נכסים"
+      }
+    },
+    "assistant_modal_input_placeholder_listening": {
+      "id": "assistant_modal_input_placeholder_listening",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "מקשיב לך...",
+      "archetypeOverrides": {
+        "saas": "מקשיב... אמור את המשימה או השאלה",
+        "automotive": "מקשיב... תאר איזה רכב מחפש",
+        "beauty": "מקשיבה לך... ספרי מה הצורך",
+        "real_estate": "מקשיב... תאר את הנכס המבוקש"
+      }
+    },
+    "assistant_modal_input_placeholder_idle": {
+      "id": "assistant_modal_input_placeholder_idle",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "שאל על פעולות, נכסים או הדרכה...",
+      "archetypeOverrides": {
+        "saas": "שאל על ניהול זמן, יעדים או הדרכה...",
+        "automotive": "שאל על רכבים, מחירים או נסיעת מבחן...",
+        "beauty": "שאלי על טיפולים, תורים או המלצות...",
+        "real_estate": "שאל על תשואות, דירות או נכסים מניבים..."
+      }
+    },
+    "assistant_modal_send_tooltip": {
+      "id": "assistant_modal_send_tooltip",
+      "areaId": "area_kosun_ai_assistant_modal",
+      "pageId": "global",
+      "systemDefault": "שלח שאילתא לסוכן",
+      "archetypeOverrides": {
+        "saas": "שלח ↵",
+        "automotive": "שלח ↵",
+        "beauty": "שלחי ↵",
+        "real_estate": "שלח ↵"
+      }
+    }
+  }
+}

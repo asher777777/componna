@@ -16,6 +16,7 @@ import { GoogleSheetsSyncModal } from './GoogleSheetsSyncModal';
 import { CrmIngestionActionsBar } from './CrmIngestionActionsBar';
 import { CrmGroupsImportModal } from './CrmGroupsImportModal';
 import { CustomChartsSection } from './CustomChartsSection';
+import { KosCrmDynamicGroupsPage } from './KosCrmDynamicGroupsPage';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
 import { FormBuilderContract, FormItemSummary } from '../../../core/contracts';
@@ -126,7 +127,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
 
   // Modal states & Main View Tab
   const { tenantId } = useTenantScope();
-  const [activeMainTab, setActiveMainTab] = useState<'table' | 'analytics'>('table');
+  const [activeMainTab, setActiveMainTab] = useState<'dynamic_groups' | 'table' | 'analytics'>('dynamic_groups');
   const [isIngestionBarOpen, setIsIngestionBarOpen] = useState(false);
   const [isGroupsImportOpen, setIsGroupsImportOpen] = useState(false);
   const [isSyncingKesher, setIsSyncingKesher] = useState(false);
@@ -605,52 +606,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col gap-5 p-4 md:p-6 max-w-7xl mx-auto w-full text-right" dir="rtl">
-      {/* Top Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
-        <div>
-          <div className="flex items-center gap-2.5">
-            <div className="relative flex items-center justify-center">
-              <TrendingUp className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
-              <span className="absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-[10px] font-black text-white rounded-full shadow-xs animate-pulse ring-2 ring-white dark:ring-gray-900 select-none">
-                K
-              </span>
-            </div>
-            <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
-              Kosun Human Assets
-            </h1>
-          </div>
-          <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-wider mt-0.5 select-none" dir="ltr">
-            Every One Counts
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* Toggle Filter Panel */}
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 transition ${
-              showFilters 
-                ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
-                : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
-            }`}
-          >
-            <Filter className="w-3.5 h-3.5" />
-            <span>מסננים</span>
-          </button>
-
-          {/* Refresh Button */}
-          <button
-            onClick={refresh}
-            disabled={loading}
-            className="p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 transition disabled:opacity-50"
-            title="רענן נתונים"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-4 p-2 md:p-4 max-w-7xl mx-auto w-full text-right" dir="rtl">
       {/* Sync Feedback Toast */}
       {syncFeedback && (
         <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl text-xs text-emerald-800 dark:text-emerald-200 flex items-center justify-between gap-2 shadow-sm animate-fadeIn">
@@ -667,8 +623,94 @@ export const CrmAnalyticsMainView: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 0 (DEFAULT): COLLECTION-DRIVEN DYNAMIC GROUPS PAGE (KOS 2026) */}
+      {activeMainTab === 'dynamic_groups' && (
+        <div className="space-y-3 animate-fadeIn">
+          {isIngestionBarOpen && (
+            <CrmIngestionActionsBar
+              isOpen={isIngestionBarOpen}
+              onToggle={() => setIsIngestionBarOpen(prev => !prev)}
+              onNewContact={handleOpenNewContact}
+              onScanCard={() => setIsCardScannerOpen(true)}
+              onExcelImport={() => setIsExcelModalOpen(true)}
+              onGoogleSheets={() => setIsGSheetsModalOpen(true)}
+              onSyncForms={handleSyncAllFormsToCrm}
+              isSyncingForms={isSyncingForms}
+              onMergeDuplicates={handleMergeDuplicates}
+              isMergingDuplicates={isMergingDuplicates}
+              onOpenGroupsImport={() => setIsGroupsImportOpen(true)}
+              onSyncKesher={handleSyncKesher}
+              isSyncingKesher={isSyncingKesher}
+            />
+          )}
+
+          <KosCrmDynamicGroupsPage
+            onOpenContact360={handleOpenContact}
+            onOpenNewContact={handleOpenNewContact}
+            onOpenIngestionTools={() => setIsIngestionBarOpen(prev => !prev)}
+            onSwitchToLegacyTable={() => setActiveMainTab('table')}
+            onSwitchToLegacyAnalytics={() => setActiveMainTab('analytics')}
+          />
+        </div>
+      )}
+
+      {/* Top Header Bar (Only shown in Legacy Table / Analytics Modes) */}
+      {activeMainTab !== 'dynamic_groups' && (
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-gray-200 dark:border-gray-800 pb-4">
+          <div>
+            <div className="flex items-center gap-2.5">
+              <div className="relative flex items-center justify-center">
+                <TrendingUp className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                <span className="absolute -top-1.5 -right-2 px-1.5 py-0.5 bg-gradient-to-r from-indigo-600 to-violet-600 text-[10px] font-black text-white rounded-full shadow-xs animate-pulse ring-2 ring-white dark:ring-gray-900 select-none">
+                  K
+                </span>
+              </div>
+              <h1 className="text-xl md:text-2xl font-black text-gray-900 dark:text-white tracking-tight">
+                Kosun Human Assets
+              </h1>
+            </div>
+            <p className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 tracking-wider mt-0.5 select-none" dir="ltr">
+              Every One Counts
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setActiveMainTab('dynamic_groups')}
+              className="px-3.5 py-1.5 text-xs font-black bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl flex items-center gap-1.5 shadow-md transition"
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>חזרה לקבוצות דינמיות (KOS 2026)</span>
+            </button>
+
+            {/* Toggle Filter Panel */}
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`px-3 py-1.5 text-xs font-medium border rounded-lg flex items-center gap-1.5 transition ${
+                showFilters 
+                  ? 'bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-800 dark:text-indigo-300' 
+                  : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300'
+              }`}
+            >
+              <Filter className="w-3.5 h-3.5" />
+              <span>מסננים</span>
+            </button>
+
+            {/* Refresh Button */}
+            <button
+              onClick={refresh}
+              disabled={loading}
+              className="p-2 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 hover:bg-gray-50 transition disabled:opacity-50"
+              title="רענן נתונים"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Advanced Filter Drawer */}
-      {showFilters && (
+      {activeMainTab !== 'dynamic_groups' && showFilters && (
         <AdvancedFilterDrawer
           filter={filter}
           onChangeFilter={setFilter}
@@ -955,35 +997,39 @@ export const CrmAnalyticsMainView: React.FC = () => {
       />
 
       {/* Mobile-First: Quick Actions Floating Action Button (FAB) */}
-      <MobileQuickActionsFab
-        onNewContact={handleOpenNewContact}
-        onOpenBulkWhatsApp={() => setIsBulkWhatsAppOpen(true)}
-        onOpenCardScanner={() => setIsCardScannerOpen(true)}
-        onToggleFilters={() => setShowFilters(prev => !prev)}
-        selectedCount={0}
-      />
+      {activeMainTab !== 'dynamic_groups' && (
+        <MobileQuickActionsFab
+          onNewContact={handleOpenNewContact}
+          onOpenBulkWhatsApp={() => setIsBulkWhatsAppOpen(true)}
+          onOpenCardScanner={() => setIsCardScannerOpen(true)}
+          onToggleFilters={() => setShowFilters(prev => !prev)}
+          selectedCount={0}
+        />
+      )}
 
       {/* Mobile-First: Thumb-Friendly Bottom Navigation Bar */}
-      <MobileBottomNavigation
-        activeTab={mobileActiveNavTab}
-        onChangeTab={(tab) => {
-          setMobileActiveNavTab(tab);
-          if (tab === 'all') {
-            setFilter(prev => ({ ...prev, status: 'active', metricFilter: undefined }));
-            setActiveMetric(null);
-          } else if (tab === 'leads') {
-            setFilter(prev => ({ ...prev, metricFilter: undefined }));
-            setActiveMetric(null);
-          } else if (tab === 'charts') {
-            setShowAnalyticsOverview(prev => !prev);
-            window.scrollTo({ top: 100, behavior: 'smooth' });
-          } else if (tab === 'filters') {
-            setShowFilters(true);
-          }
-        }}
-        leadsCount={data?.totalLeads || 0}
-        totalCount={data?.totalContacts || 0}
-      />
+      {activeMainTab !== 'dynamic_groups' && (
+        <MobileBottomNavigation
+          activeTab={mobileActiveNavTab}
+          onChangeTab={(tab) => {
+            setMobileActiveNavTab(tab);
+            if (tab === 'all') {
+              setFilter(prev => ({ ...prev, status: 'active', metricFilter: undefined }));
+              setActiveMetric(null);
+            } else if (tab === 'leads') {
+              setFilter(prev => ({ ...prev, metricFilter: undefined }));
+              setActiveMetric(null);
+            } else if (tab === 'charts') {
+              setShowAnalyticsOverview(prev => !prev);
+              window.scrollTo({ top: 100, behavior: 'smooth' });
+            } else if (tab === 'filters') {
+              setShowFilters(true);
+            }
+          }}
+          leadsCount={data?.totalLeads || 0}
+          totalCount={data?.totalContacts || 0}
+        />
+      )}
     </div>
   );
 };
