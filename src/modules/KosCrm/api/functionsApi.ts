@@ -3,7 +3,7 @@
  * KOSUN26 Gate 3: All external API operations route through executeKosaiAi.
  */
 
-import { executeKosaiAi } from '../../kosai-engine/modelsAiService';
+import { executeKosaiAi } from '../../KosAi/modelsAiService';
 
 export interface CloudFunctionProxyOptions {
   functionUrl?: string;

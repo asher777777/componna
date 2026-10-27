@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { KosTubeFullscreenModal } from './KosTubeFullscreenModal';
 import { KosTubeVideo } from '../types';
-import { KosTubeAiGeneratedData } from '../../kosai-engine/modelsAiService';
+import { KosTubeAiGeneratedData } from '../../KosAi/modelsAiService';
 import { normalizeKeyTakeaways } from '../api/functionsApi';
 import { IconPickerPopover } from '../../../core/ui/BrandIconPicker';
 import { TenantTokenBadge } from '../../../core/ai/components/TenantTokenBadge';

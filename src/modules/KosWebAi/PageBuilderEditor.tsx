@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { PageBuilderConfig, ViewportMode, BuilderTab, SectionType } from './types/pageBuilder.types';
 import { eventBus } from '../../core/bridge/EventBus';
-import { KosaiChatDrawer, FloatingKosaiButton } from '../kosai-engine';
+import { KosaiChatDrawer, FloatingKosaiButton } from '../KosAi';
 
 
 

@@ -10,7 +10,7 @@ import {
 } from 'firebase/firestore';
 import { TenantAccount, TenantProvisionFormState, AvailableModuleOption } from '../types';
 import { eventBus } from '../../../core/bridge/EventBus';
-import { tenantContactSyncService } from '../../crm-analytics/services/tenantContactSyncService';
+import { tenantContactSyncService } from '../../KosCrm/services/tenantContactSyncService';
 import { TenantTokenTracker } from '../../../core/ai/tenantTokenTracker';
 import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
 import { createTenantInitialBrandDna } from '../../KosBranding/services/brandDnaFirestore';

@@ -7,7 +7,7 @@
  * ============================================================================
  */
 
-import { kosaiWebAiContract, KosaiMarketingIdea } from '../../kosai-engine/modelsAiService';
+import { kosaiWebAiContract, KosaiMarketingIdea } from '../../KosAi/modelsAiService';
 
 // ----------------------------------------------------------------------------
 // 1. All Prompt Builders (Preserving Exact Trigger Signatures, Names & IDs)

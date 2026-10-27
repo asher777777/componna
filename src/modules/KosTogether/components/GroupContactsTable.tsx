@@ -33,7 +33,7 @@ import { useCrmGroups } from '../context/CrmGroupsContext';
 import { ContactRecord, SmartGroup, CommunitiesLayoutMode } from '../types';
 import { ALL_GROUP_COLUMNS } from '../config';
 import { ColumnPickerDropdown } from './ColumnPickerDropdown';
-import { Contact360Modal } from '../../crm-analytics/components/Contact360Modal';
+import { Contact360Modal } from '../../KosCrm/components/Contact360Modal';
 import { exportContactsToExcel } from '../services/groupsUtils';
 
 interface GroupContactsTableProps {

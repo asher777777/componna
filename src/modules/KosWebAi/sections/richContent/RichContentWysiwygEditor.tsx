@@ -27,7 +27,7 @@ import {
   Minimize2,
 } from 'lucide-react';
 import { BrandDna } from '../../../../core/contracts';
-import { kosaiWebAiContract } from '../../../kosai-engine/modelsAiService';
+import { kosaiWebAiContract } from '../../../KosAi/modelsAiService';
 
 interface RichContentWysiwygEditorProps {
   value: string;

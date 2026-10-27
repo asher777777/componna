@@ -20,7 +20,7 @@ import {
   BUILD_AUDIENCE_AND_PERSONAS_FROM_ESSENCE_PROMPT,
   BUILD_BRAND_UI_VOCABULARY_PROMPT,
 } from '../prompts/brandPrompts';
-import { kosaiBrandContract } from '../../kosai-engine/modelsAiService/brandAiContract';
+import { kosaiBrandContract } from '../../KosAi/modelsAiService/brandAiContract';
 import { BrandDna } from '../types/brandDna';
 
 export interface KosaiBrandDispatchOptions {

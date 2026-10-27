@@ -16,7 +16,7 @@ import {
   CrmDraftMessage,
   CrmVoiceDebrief,
   CrmBusinessCardData,
-} from '../../kosai-engine/modelsAiService/crmAiContract';
+} from '../../KosAi/modelsAiService/crmAiContract';
 import { Contact } from '../types';
 
 export interface KosaiDispatchOptions {

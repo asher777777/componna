@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2 } from 'lucide-react';
-import { KosTubeAiMode } from '../../kosai-engine/modelsAiService';
+import { KosTubeAiMode } from '../../KosAi/modelsAiService';
 
 interface KosTubeGenerationCurtainProps {
   isGenerating: boolean;

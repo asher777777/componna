@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sparkles, Zap, Shield, FileText, Youtube, Check, Link2 } from 'lucide-react';
 import { KosTubeFullscreenModal } from './KosTubeFullscreenModal';
 import { useKosTube } from '../context/KosTubeContext';
-import { KosTubeAiMode } from '../../kosai-engine/modelsAiService';
+import { KosTubeAiMode } from '../../KosAi/modelsAiService';
 
 export const KosTubeGenerationModal: React.FC = () => {
   const {

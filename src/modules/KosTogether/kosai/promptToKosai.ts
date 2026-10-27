@@ -24,7 +24,7 @@ import {
   TogetherBroadcastDraftResult,
   TogetherGrowthInsightResult,
   TogetherAiMode,
-} from '../../kosai-engine/modelsAiService/togetherAiContract';
+} from '../../KosAi/modelsAiService/togetherAiContract';
 
 export interface KosaiTogetherDispatchOptions {
   apiKey?: string;

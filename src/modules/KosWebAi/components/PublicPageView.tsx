@@ -7,7 +7,7 @@ import { useSystemConnection } from '../../../core/connection/SystemConnectionCo
 import { useTenantScope } from '../../../core/tenant';
 import { Loader2, Globe, AlertTriangle, ArrowRight, Eye, Home, Lock, X, KeyRound, ShieldCheck, AlertCircle } from 'lucide-react';
 import { KosWebAiFrontDock } from './KosWebAiFrontDock';
-import { useKosai } from '../../kosai-engine';
+import { useKosai } from '../../KosAi';
 import { pageAnalyticsService } from '../services/pageAnalyticsService';
 import { PageSettingsDrawer } from './PageSettingsDrawer';
 import { eventBus } from '../../../core/bridge/EventBus';

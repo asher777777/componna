@@ -10,7 +10,7 @@ import {
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
 import { parseJsonCredentialsWithAI, AIJsonCredentialsResult } from '../../../core/connection/aiJsonParser';
 import { GreenApiService, WhatsAppQrAuthModal, WhatsAppPhoneAuthModal } from '../../KosWhatsUp';
-import { kesherService } from '../../kesher-payments-hub/services/kesherService';
+import { kesherService } from '../../KosPay/services/kesherService';
 
 export const DatabaseConnectorModal: React.FC = () => {
   const { 

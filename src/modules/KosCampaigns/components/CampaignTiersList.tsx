@@ -5,4 +5,4 @@ export {
   CampaignTiersList,
   DEFAULT_CAMPAIGN_TIERS,
   type CampaignTiersListProps,
-} from '../../KSF/components/donation/CampaignTiersList';
+} from '../../KosForms/components/donation/CampaignTiersList';

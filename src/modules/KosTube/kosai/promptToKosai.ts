@@ -16,7 +16,7 @@ import {
   KosTubeAiMode,
   KosTubeAiGenerationInput,
   KosTubeAiGeneratedData,
-} from '../../kosai-engine/modelsAiService';
+} from '../../KosAi/modelsAiService';
 
 export type { KosTubeAiMode, KosTubeAiGenerationInput, KosTubeAiGeneratedData };
 

@@ -10,15 +10,15 @@ import { ClientAddonMarketplaceView } from './ClientAddonMarketplaceView';
 import { MASTER_AVAILABLE_MODULES } from '../config';
 
 // Import standalone views of our modules
-const DbConnectorHubStandaloneView = React.lazy(() => import('../../db-connector-hub').then(m => ({ default: m.DbConnectorHubStandaloneView })));
-const CrmAnalyticsStandaloneView = React.lazy(() => import('../../crm-analytics').then(m => ({ default: m.CrmAnalyticsStandaloneView })));
+const DbConnectorHubStandaloneView = React.lazy(() => import('../../KosConnector').then(m => ({ default: m.DbConnectorHubStandaloneView })));
+const CrmAnalyticsStandaloneView = React.lazy(() => import('../../KosCrm').then(m => ({ default: m.CrmAnalyticsStandaloneView })));
 const PageBuilderStandaloneView = React.lazy(() => import('../../KosWebAi').then(m => ({ default: m.PageBuilderStandaloneView })));
-const AuthPortalStandaloneView = React.lazy(() => import('../../auth-portal').then(m => ({ default: m.AuthPortalStandaloneView })));
-const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../flow-player-engine').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
+const AuthPortalStandaloneView = React.lazy(() => import('../../KosAuth').then(m => ({ default: m.AuthPortalStandaloneView })));
+const FlowPlayerEngineStandaloneView = React.lazy(() => import('../../KosFlowPlayer').then(m => ({ default: m.FlowPlayerEngineStandaloneView })));
 const KosCloudStoreStandaloneView = React.lazy(() => import('../../KosCloudStore').then(m => ({ default: m.KosCloudStoreStandaloneView })));
 const MediaGalleryHubStandaloneView = KosCloudStoreStandaloneView;
-const DbCollectionsHubStandaloneView = React.lazy(() => import('../../db-collections-hub').then(m => ({ default: m.DbCollectionsHubStandaloneView })));
-const TemplateStandaloneView = React.lazy(() => import('../../_template').then(m => ({ default: m.TemplateStandaloneView })));
+const DbCollectionsHubStandaloneView = React.lazy(() => import('../../KosData').then(m => ({ default: m.DbCollectionsHubStandaloneView })));
+const TemplateStandaloneView = React.lazy(() => import('../../KosTemplate').then(m => ({ default: m.TemplateStandaloneView })));
 import { Globe, ShoppingBag, Sparkles } from 'lucide-react';
 
 export interface DynamicClientShellProps {

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
-import { KosaiProvider } from '../../kosai-engine';
+import { KosaiProvider } from '../../KosAi';
 import { PageBuilderProvider, usePageBuilderContext } from '../context/PageBuilderContext';
 import { PageBuilderEditor } from '../PageBuilderEditor';
 import { PagesDashboardTab } from '../components/PagesDashboardTab';

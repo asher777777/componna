@@ -14,7 +14,7 @@ import {
   Brain
 } from 'lucide-react';
 import { ContactRecord, SmartGroup } from '../types';
-import { Contact360Modal } from '../../crm-analytics/components/Contact360Modal';
+import { Contact360Modal } from '../../KosCrm/components/Contact360Modal';
 
 interface CommunityGrowthTabProps {
   activeGroup: SmartGroup;

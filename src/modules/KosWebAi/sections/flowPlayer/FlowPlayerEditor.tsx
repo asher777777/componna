@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { FlowPlayerSectionConfig } from '../../types/sectionConfigs';
-import { FirestoreService } from '../../../flow-player-engine/services/firestoreService';
-import { DEFAULT_CAMPAIGN_CONFIG, resolveCollections } from '../../../flow-player-engine/config';
-import { CampaignConfig } from '../../../flow-player-engine/types';
+import { FirestoreService } from '../../../KosFlowPlayer/services/firestoreService';
+import { DEFAULT_CAMPAIGN_CONFIG, resolveCollections } from '../../../KosFlowPlayer/config';
+import { CampaignConfig } from '../../../KosFlowPlayer/types';
 import { useSystemConnection } from '../../../../core/connection/SystemConnectionContext';
 import { PageBuilderInput, resolveInputValue } from '../../ui/PageBuilderInput';
 import { PageBuilderColorPicker } from '../../ui/PageBuilderColorPicker';

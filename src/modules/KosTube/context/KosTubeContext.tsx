@@ -10,7 +10,7 @@ import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage } from '../types';
 import { kosTubeFirestore } from '../services/kosTubeFirestore';
 import { fetchYoutubeChannelData, generateAiSeoContent, fetchSingleYoutubeVideo } from '../api/functionsApi';
 import { PLEASANT_KOS_TUBE_ERROR_HE } from '../config';
-import { KosTubeAiMode, KosTubeAiGeneratedData } from '../../kosai-engine/modelsAiService';
+import { KosTubeAiMode, KosTubeAiGeneratedData } from '../../KosAi/modelsAiService';
 import { KosTubePageSyncService } from '../services/kosTubePageSyncService';
 import { eventBus } from '../../../core/bridge/EventBus';
 

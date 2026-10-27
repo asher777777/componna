@@ -1,4 +1,4 @@
-import { kosTubeAiContract, KosTubeAiMode } from '../../kosai-engine/modelsAiService';
+import { kosTubeAiContract, KosTubeAiMode } from '../../KosAi/modelsAiService';
 import { KosTubeChannel, KosTubeVideo, KosTubeSeoPage, KosTubeSeoScoreBreakdown } from '../types';
 
 export interface YoutubeChannelFetchParams {

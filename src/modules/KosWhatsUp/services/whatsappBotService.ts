@@ -2,7 +2,7 @@ import { TokenUsageReport } from '../../../core/ai';
 import { BrandDna, SYSTEM_COLLECTIONS } from '../../../core/contracts';
 import { collection, getDocs, doc, writeBatch, deleteDoc } from 'firebase/firestore';
 import { getModuleGeminiKey } from '../../../core/connection/tenantApiKeys';
-import { kosaiWhatsUpContract } from '../../kosai-engine/modelsAiService';
+import { kosaiWhatsUpContract } from '../../KosAi/modelsAiService';
 import {
   buildDenseBrandContext,
   dispatchBotReplyToKosai,

@@ -5,7 +5,7 @@
 import { BrandDna } from '../../../core/contracts';
 import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
 import { PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
-import { executeKosaiAi } from '../../kosai-engine/modelsAiService';
+import { executeKosaiAi } from '../../KosAi/modelsAiService';
 import { resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
 
 export interface AiCallResponse {

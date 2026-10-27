@@ -1,5 +1,5 @@
-import { KosaiExecutionOptions, KosaiContractResult } from '../../kosai-engine/modelsAiService/types';
-import { executeKosaiAi } from '../../kosai-engine/modelsAiService/executeKosaiAi';
+import { KosaiExecutionOptions, KosaiContractResult } from '../../KosAi/modelsAiService/types';
+import { executeKosaiAi } from '../../KosAi/modelsAiService/executeKosaiAi';
 
 export interface DecomposeSubtask {
   title: string;

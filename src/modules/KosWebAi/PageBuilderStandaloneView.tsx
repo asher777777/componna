@@ -16,7 +16,7 @@ import { BrandDna, BrandDnaContract, TenantStylePreset } from '../../core/contra
 import { Layers, Edit3, Sparkles } from 'lucide-react';
 import { ContinuousMarketingIdeasDrawer } from './components/ContinuousMarketingIdeasDrawer';
 import { PageBuilderProvider } from './context/PageBuilderContext';
-import { KosaiProvider } from '../kosai-engine';
+import { KosaiProvider } from '../KosAi';
 import { hydrateSectionWithBrandDna, resolveLiveBrandDna } from './services/brandSectionHydrator';
 import { applyLayoutArchetypeToPage, STYLE_GLOBAL_THEMES } from './services/pageStylePresetService';
 import { ensureDefaultLegalPages, syncLegalPagesWithBrandDna } from './generators/legalPagesGenerator';

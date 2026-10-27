@@ -8,7 +8,7 @@
  */
 
 import { BrandDna } from '../../../core/contracts';
-import { kosaiWhatsUpContract } from '../../kosai-engine/modelsAiService';
+import { kosaiWhatsUpContract } from '../../KosAi/modelsAiService';
 
 export type WhatsAppStatusTone = 'chasidic' | 'marketing' | 'official' | 'warm' | 'viral';
 

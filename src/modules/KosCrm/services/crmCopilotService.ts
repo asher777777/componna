@@ -10,7 +10,7 @@ import {
   CrmDraftMessage,
   CrmVoiceDebrief,
   CrmBusinessCardData,
-} from '../../kosai-engine/modelsAiService/crmAiContract';
+} from '../../KosAi/modelsAiService/crmAiContract';
 
 export type ContactSummaryResult = CrmContactSummary;
 export type DraftMessageResult = CrmDraftMessage;

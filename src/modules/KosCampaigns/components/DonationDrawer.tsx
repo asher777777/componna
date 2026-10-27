@@ -10,7 +10,7 @@ import {
   DonationDrawer as KSFDonationDrawer,
   DonationDrawerProps as KSFDonationDrawerProps,
   formatUserFriendlyPaymentError,
-} from '../../KSF/components/donation/DonationDrawer';
+} from '../../KosForms/components/donation/DonationDrawer';
 import { useCampaignModule } from '../context/CampaignModuleContext';
 import { DonationTier, Ambassador, DrawerConfig } from '../types';
 

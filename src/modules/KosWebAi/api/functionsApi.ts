@@ -1,6 +1,6 @@
 import { getModuleGeminiKey, getTenantApiKeysState } from '../../../core/connection/tenantApiKeys';
 import { PLEASANT_AI_ERROR_HEBREW } from '../../../core/ai';
-import { executeKosaiAi } from '../../kosai-engine/modelsAiService';
+import { executeKosaiAi } from '../../KosAi/modelsAiService';
 
 export interface GeminiApiOptions {
   prompt: string;
