@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { LucideIcon } from 'lucide-react';
 import { sound } from '../services/soundService';
 
 interface KosunIconButtonProps {
-  icon: React.ComponentType<{ className?: string; size?: number }>;
+  icon: LucideIcon | React.ComponentType<{ className?: string; size?: number }>;
   label: string;
   onClick: (e: React.MouseEvent) => void;
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'cyan';

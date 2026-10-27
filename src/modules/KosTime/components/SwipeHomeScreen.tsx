@@ -3,6 +3,7 @@ import { Sparkles, ChevronLeft, Mic, LogOut, Smartphone, Sun, Moon } from 'lucid
 import { Task, InboxItem } from '../types';
 import { sound } from '../services/soundService';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState, logoutUser } from '../../../services/firebaseAuth';
 // Theme managed via KOSUN dark/light
 import { KosunLogo, KosunKHandle } from './KosunLogo';
 import { KosunIconButton } from './KosunIconButton';
@@ -28,7 +29,14 @@ export const SwipeHomeScreen: React.FC<SwipeHomeScreenProps> = ({
   onOpenQuickCapture,
   onOpenInstallModal,
 }) => {
-  const { auth } = useSystemConnection(); const user = auth?.currentUser; const logOut = () => auth?.signOut();
+  const { firebaseApp } = useSystemConnection();
+  const [authState, setAuthState] = useState<AuthState | null>(null);
+  useEffect(() => {
+    const unsub = subscribeToAuth(firebaseApp, (st) => setAuthState(st));
+    return () => unsub();
+  }, [firebaseApp]);
+  const user = authState?.user;
+  const logOut = () => logoutUser(firebaseApp);
   const isDark = true; const toggleTheme = () => {};
   const completedToday = todayTasks.filter((t) => t.completed).length;
 

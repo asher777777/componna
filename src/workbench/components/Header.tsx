@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation, NavLink } from 'react-router-dom';
 import { Sparkles } from 'lucide-react';
 import { REGISTERED_MODULES } from '../moduleRegistry';
-import { DatabaseConnectorModal } from '../../modules/db-connector-hub';
+import { DatabaseConnectorModal } from '../../modules/KosConnector';
 
 export const Header: React.FC = () => {
   const location = useLocation();

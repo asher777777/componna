@@ -84,7 +84,7 @@ if (promptMatch) {
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 4: Verifying kosaiWebAiContract Model & Token Caps');
 const webAiContractContent = fs.readFileSync(
-  path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/webAiContract.ts'),
+  path.join(rootDir, 'src/modules/KosAi/modelsAiService/webAiContract.ts'),
   'utf-8'
 );
 
@@ -102,7 +102,7 @@ assert(
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 5: Verifying executeKosaiAi.ts Default Model');
 const executeAiContent = fs.readFileSync(
-  path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/executeKosaiAi.ts'),
+  path.join(rootDir, 'src/modules/KosAi/modelsAiService/executeKosaiAi.ts'),
   'utf-8'
 );
 
@@ -116,7 +116,7 @@ assert(
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 6: Verifying kosaiApi.ts Model');
 const kosaiApiContent = fs.readFileSync(
-  path.join(rootDir, 'src/modules/kosai-engine/api/kosaiApi.ts'),
+  path.join(rootDir, 'src/modules/KosAi/api/kosaiApi.ts'),
   'utf-8'
 );
 
@@ -151,9 +151,9 @@ assert(
 // TEST 8: Scan src/ for any unmonitored gemini-3.8-flash (without -lite) in active AI gateways
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 8: Scanning for unpinned gemini-3.8-flash in central contracts');
-const crmAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/crmAiContract.ts'), 'utf-8');
-const emailAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/emailAiContract.ts'), 'utf-8');
-const whatsUpAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/whatsUpAiContract.ts'), 'utf-8');
+const crmAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/KosAi/modelsAiService/crmAiContract.ts'), 'utf-8');
+const emailAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/KosAi/modelsAiService/emailAiContract.ts'), 'utf-8');
+const whatsUpAiContract = fs.readFileSync(path.join(rootDir, 'src/modules/KosAi/modelsAiService/whatsUpAiContract.ts'), 'utf-8');
 
 assert(crmAiContract.includes("model: 'gemini-3.8-flash-lite'"), 'crmAiContract uses gemini-3.8-flash-lite');
 assert(crmAiContract.includes('extractBusinessCard('), 'crmAiContract has extractBusinessCard method');
@@ -165,9 +165,9 @@ assert(whatsUpAiContract.includes("model: 'gemini-3.8-flash-lite'"), 'whatsUpAiC
 // TEST 8B: Verify CRM Prompts & Dispatcher Separation
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 8B: Verifying CRM Separation of Concerns & Lean Prompts');
-const crmPromptsContent = fs.readFileSync(path.join(rootDir, 'src/modules/crm-analytics/prompts/contactPrompts.ts'), 'utf-8');
-const crmDispatcherContent = fs.readFileSync(path.join(rootDir, 'src/modules/crm-analytics/kosai/promptToKosai.ts'), 'utf-8');
-const crmServiceContent = fs.readFileSync(path.join(rootDir, 'src/modules/crm-analytics/services/crmCopilotService.ts'), 'utf-8');
+const crmPromptsContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosCrm/prompts/contactPrompts.ts'), 'utf-8');
+const crmDispatcherContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosCrm/kosai/promptToKosai.ts'), 'utf-8');
+const crmServiceContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosCrm/services/crmCopilotService.ts'), 'utf-8');
 
 assert(crmPromptsContent.includes('BUILD_CONTACT_SUMMARY_PROMPT'), 'contactPrompts.ts exports BUILD_CONTACT_SUMMARY_PROMPT');
 assert(crmDispatcherContent.includes('dispatchContactSummaryToKosai'), 'promptToKosai.ts exports dispatchContactSummaryToKosai');
@@ -179,7 +179,7 @@ assert(crmServiceContent.includes('fallback:'), 'crmCopilotService contains zero
 // TEST 8C: Verify KosTogether Separation of Concerns, Prompts & Gemini 3.8 Contract
 // ---------------------------------------------------------------------------
 console.log('\n🔍 TEST 8C: Verifying KosTogether AI Contract & Prompt Governance');
-const togetherContractContent = fs.readFileSync(path.join(rootDir, 'src/modules/kosai-engine/modelsAiService/togetherAiContract.ts'), 'utf-8');
+const togetherContractContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosAi/modelsAiService/togetherAiContract.ts'), 'utf-8');
 const togetherPromptsContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/prompts/togetherPrompts.ts'), 'utf-8');
 const togetherDispatcherContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/kosai/promptToKosai.ts'), 'utf-8');
 const togetherCopilotContent = fs.readFileSync(path.join(rootDir, 'src/modules/KosTogether/services/togetherCopilotService.ts'), 'utf-8');

@@ -2,7 +2,7 @@
  * ============================================================================
  * ⚠️ אזהרת שומר הסף (KOSUN26 GATE 3 - AI MONOPOLY) ⚠️
  * כל פרומפט וקריאת בינה מלאכותית בקובץ זה נשלחים אך ורק לחוזה של KOSAI הנמצא בתיקייה:
- * src/modules/kosai-engine/modelsAiService/kosTubeAiContract.ts
+ * src/modules/KosAi/modelsAiService/kosTubeAiContract.ts
  * 
  * חוק המונופול קובע:
  * 1. אין לשלוח לג'מיני ישירות בשום אופן מרכיב KosTube!

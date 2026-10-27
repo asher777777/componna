@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-const MODULE_DIR = join(process.cwd(), 'src/modules/kosun-am');
+const MODULE_DIR = join(process.cwd(), 'src/modules/KosMail');
 const TEMPLATE_PATH = join(process.cwd(), '.gemini/templates/component_spec_template.md');
 const README_PATH = join(MODULE_DIR, 'README.md');
 

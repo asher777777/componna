@@ -20,7 +20,7 @@ import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCac
 import { useTenantScope } from '../../core/tenant';
 import { ROOT_TENANT_ID } from '../../core/tenant/tenantResolver';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
-import { useKosai } from '../../modules/kosai-engine';
+import { useKosai } from '../../modules/KosAi';
 import { KosNevModal } from './KosNevModal';
 
 export type DockMode = 'backoffice' | 'front';

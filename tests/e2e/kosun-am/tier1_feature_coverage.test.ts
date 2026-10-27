@@ -56,7 +56,7 @@ describe('Tier 1: Feature Coverage (Opaque-Box Isolation)', () => {
         name: KOSUN_AM_CONTRACTS.DISPLAY_NAME_HE,
         nameEn: KOSUN_AM_CONTRACTS.DISPLAY_NAME_EN,
         lazyLoad: true,
-        importStatement: "React.lazy(() => import('../modules/kosun-am/StandaloneView'))",
+        importStatement: "React.lazy(() => import('../modules/KosMail/StandaloneView'))",
       };
 
       assert.strictEqual(registryContract.id, 'kosun-am');

@@ -5,11 +5,11 @@ import { join } from 'node:path';
 
 // 1. Static and contract paths
 const PROJECT_ROOT = process.cwd();
-const KOSUN_AM_SRC = join(PROJECT_ROOT, 'src/modules/kosun-am');
+const KOSUN_AM_SRC = join(PROJECT_ROOT, 'src/modules/KosMail');
 const COLLECTIONS_FILE = join(PROJECT_ROOT, 'src/core/contracts/collections.ts');
 const CONTRACTS_INDEX_FILE = join(PROJECT_ROOT, 'src/core/contracts/index.ts');
-const HUB_CONFIG_FILE = join(PROJECT_ROOT, 'src/modules/db-collections-hub/config/index.ts');
-const HUB_SEED_FILE = join(PROJECT_ROOT, 'src/modules/db-collections-hub/config/seedData.ts');
+const HUB_CONFIG_FILE = join(PROJECT_ROOT, 'src/modules/KosData/config/index.ts');
+const HUB_SEED_FILE = join(PROJECT_ROOT, 'src/modules/KosData/config/seedData.ts');
 
 const FIRESTORE_SERVICE_FILE = join(KOSUN_AM_SRC, 'services/emailFirestoreService.ts');
 const DISPATCH_SERVICE_FILE = join(KOSUN_AM_SRC, 'services/emailDispatchService.ts');

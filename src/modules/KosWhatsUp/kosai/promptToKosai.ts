@@ -2,7 +2,7 @@
  * ============================================================================
  * ⚠️ אזהרת שומר הסף (KOSUN26 GATE 3 - AI MONOPOLY) ⚠️
  * כל פרומפט בקובץ זה נשלח אך ורק לחוזה עם KOSAI הנמצא בתיקייה:
- * src/modules/kosai-engine/modelsAiService/whatsUpAiContract.ts
+ * src/modules/KosAi/modelsAiService/whatsUpAiContract.ts
  * אין לשלוח לג'מיני בשום אופן ישירות! חל איסור מוחלט על שימוש ב-fetch מקומי!
  * ============================================================================
  */

@@ -79,7 +79,7 @@ export const DecomposeScreen: React.FC<DecomposeScreenProps> = ({
     sound.playPop();
 
     try {
-      const subtasksList = await KosTimeAiService.decomposeTask(taskTitle, taskContext, tenantId);
+      const subtasksList = await KosTimeAiService.decomposeTask(taskTitle, undefined, tenantId);
       const data = { subtasks: subtasksList };
       if (data.subtasks && Array.isArray(data.subtasks) && data.subtasks.length > 0) {
         setSubsteps(

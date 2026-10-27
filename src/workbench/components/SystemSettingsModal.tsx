@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Settings, Database, User, ShieldCheck, Sparkles } from 'lucide-react';
-import { DatabaseConnectionBadge } from '../../modules/db-connector-hub';
+import { DatabaseConnectionBadge } from '../../modules/KosConnector';
 import { UserMenuButton } from '../../components/Auth';
 
 interface SystemSettingsModalProps {

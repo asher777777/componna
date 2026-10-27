@@ -14,7 +14,7 @@ import { Lock } from 'lucide-react';
 import { TenantAdminLoginView } from '../core/tenant/TenantAdminLoginView';
 import { TenantRecord } from '../core/contracts';
 
-import { useKosai } from '../modules/kosai-engine';
+import { useKosai } from '../modules/KosAi';
 
 interface RootPublicHomePageViewProps {
   pageConfig: PageBuilderConfig;

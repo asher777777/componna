@@ -117,7 +117,7 @@ ${rawJsonString}
 החזר JSON בלבד:
 {"sdkType":"admin_sdk|client_sdk|unknown","projectId":"string","apiKey":"string","authDomain":"string","storageBucket":"string","appId":"string","clientEmail":"string","hostingUrl":"string","explanation":"הסבר תמציתי"}`;
 
-      const { executeKosaiAi } = await import('../../modules/kosai-engine/modelsAiService/executeKosaiAi');
+      const { executeKosaiAi } = await import('../../modules/KosAi/modelsAiService/executeKosaiAi');
       const kosaiRes = await executeKosaiAi<any>('db-connector-hub', prompt, {
         model: 'gemini-3.8-flash-lite',
         responseMimeType: 'application/json',

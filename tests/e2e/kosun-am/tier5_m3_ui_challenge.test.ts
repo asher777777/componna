@@ -26,8 +26,8 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
       return results;
     }
 
-    test('1.1 - Zero textual emojis across all .ts and .tsx files in src/modules/kosun-am/', () => {
-      const codeFiles = getFiles(path.resolve('src/modules/kosun-am'), ['.ts', '.tsx']);
+    test('1.1 - Zero textual emojis across all .ts and .tsx files in src/modules/KosMail/', () => {
+      const codeFiles = getFiles(path.resolve('src/modules/KosMail'), ['.ts', '.tsx']);
       assert.ok(codeFiles.length >= 10, 'Must have at least 10 TypeScript source files');
 
       const emojiMatches: { file: string; line: number; emoji: string }[] = [];
@@ -55,7 +55,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
     });
 
     test('1.2 - Zero textual emojis in primary documentation README.md', () => {
-      const readmePath = path.resolve('src/modules/kosun-am/README.md');
+      const readmePath = path.resolve('src/modules/KosMail/README.md');
       assert.ok(fs.existsSync(readmePath), 'README.md must exist');
       const content = fs.readFileSync(readmePath, 'utf8');
       const match = content.match(emojiRegex);
@@ -66,8 +66,8 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
       );
     });
 
-    test('1.3 - Audit all .md files in src/modules/kosun-am/ for emoji hygiene', () => {
-      const mdFiles = getFiles(path.resolve('src/modules/kosun-am'), ['.md']);
+    test('1.3 - Audit all .md files in src/modules/KosMail/ for emoji hygiene', () => {
+      const mdFiles = getFiles(path.resolve('src/modules/KosMail'), ['.md']);
       assert.ok(mdFiles.length >= 1, 'Must have markdown files');
 
       const violations: { file: string; emoji: string; line: number }[] = [];
@@ -102,12 +102,12 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
   describe('Challenge 2: Strict RTL Wrapper & Typography', () => {
     test('2.1 - All main views and modals have explicit RTL wrapper with right alignment', () => {
       const targetViews = [
-        'src/modules/kosun-am/StandaloneView.tsx',
-        'src/modules/kosun-am/components/KosunAmMainView.tsx',
-        'src/modules/kosun-am/components/EmailEditorModal.tsx',
-        'src/modules/kosun-am/components/AutomationBuilderView.tsx',
-        'src/modules/kosun-am/components/CampaignListCard.tsx',
-        'src/modules/kosun-am/components/DeliveryLogsDrawer.tsx',
+        'src/modules/KosMail/StandaloneView.tsx',
+        'src/modules/KosMail/components/KosunAmMainView.tsx',
+        'src/modules/KosMail/components/EmailEditorModal.tsx',
+        'src/modules/KosMail/components/AutomationBuilderView.tsx',
+        'src/modules/KosMail/components/CampaignListCard.tsx',
+        'src/modules/KosMail/components/DeliveryLogsDrawer.tsx',
       ];
 
       for (const relativePath of targetViews) {
@@ -133,12 +133,12 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
 
     test('2.2 - font-heebo class is applied to all UI root containers', () => {
       const targetViews = [
-        'src/modules/kosun-am/StandaloneView.tsx',
-        'src/modules/kosun-am/components/KosunAmMainView.tsx',
-        'src/modules/kosun-am/components/EmailEditorModal.tsx',
-        'src/modules/kosun-am/components/AutomationBuilderView.tsx',
-        'src/modules/kosun-am/components/CampaignListCard.tsx',
-        'src/modules/kosun-am/components/DeliveryLogsDrawer.tsx',
+        'src/modules/KosMail/StandaloneView.tsx',
+        'src/modules/KosMail/components/KosunAmMainView.tsx',
+        'src/modules/KosMail/components/EmailEditorModal.tsx',
+        'src/modules/KosMail/components/AutomationBuilderView.tsx',
+        'src/modules/KosMail/components/CampaignListCard.tsx',
+        'src/modules/KosMail/components/DeliveryLogsDrawer.tsx',
       ];
 
       for (const relativePath of targetViews) {
@@ -157,7 +157,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
   // =========================================================================
   describe('Challenge 3: Collapsible Stats Accordion (Rule 7)', () => {
     test('3.1 - isStatsOpen state initializes strictly to false', () => {
-      const mainViewPath = path.resolve('src/modules/kosun-am/components/KosunAmMainView.tsx');
+      const mainViewPath = path.resolve('src/modules/KosMail/components/KosunAmMainView.tsx');
       const content = fs.readFileSync(mainViewPath, 'utf8');
 
       // Assert useState(false) for stats
@@ -172,7 +172,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
     });
 
     test('3.2 - Stats grid is rendered conditionally behind {isStatsOpen && ...}', () => {
-      const mainViewPath = path.resolve('src/modules/kosun-am/components/KosunAmMainView.tsx');
+      const mainViewPath = path.resolve('src/modules/KosMail/components/KosunAmMainView.tsx');
       const content = fs.readFileSync(mainViewPath, 'utf8');
 
       assert.ok(
@@ -202,8 +202,8 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
   // Challenge 4: Top Navigation & Zero Persistent Sidebars
   // =========================================================================
   describe('Challenge 4: Top Navigation & Zero Persistent Sidebars', () => {
-    test('4.1 - Zero sidebar components or persistent sidebars in src/modules/kosun-am/', () => {
-      const componentsDir = path.resolve('src/modules/kosun-am/components');
+    test('4.1 - Zero sidebar components or persistent sidebars in src/modules/KosMail/', () => {
+      const componentsDir = path.resolve('src/modules/KosMail/components');
       const files = fs.readdirSync(componentsDir);
 
       for (const f of files) {
@@ -222,7 +222,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
 
     test('4.2 - Internal navigation uses Top Nav tab buttons', () => {
       const mainViewContent = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/components/KosunAmMainView.tsx'),
+        path.resolve('src/modules/KosMail/components/KosunAmMainView.tsx'),
         'utf8'
       );
       assert.ok(
@@ -250,14 +250,14 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
         'moduleRegistry.ts must use React.lazy dynamic import'
       );
       assert.ok(
-        registryContent.includes("import('../modules/kosun-am')"),
-        'moduleRegistry.ts must dynamically import ../modules/kosun-am'
+        registryContent.includes("import('../modules/KosMail')"),
+        'moduleRegistry.ts must dynamically import ../modules/KosMail'
       );
 
-      const topNavContent = fs.readFileSync(path.resolve('src/workbench/components/CashwanTopNav.tsx'), 'utf8');
+      const topNavContent = fs.readFileSync(path.resolve('src/workbench/components/KosTopNav.tsx'), 'utf8');
       assert.ok(
         topNavContent.includes("'kosun-am': Mail"),
-        'CashwanTopNav must map kosun-am to Lucide Mail icon'
+        'KosTopNav must map kosun-am to Lucide Mail icon'
       );
     });
   });
@@ -268,7 +268,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
   describe('Challenge 5: Living Persona Language & Brand Voice', () => {
     test('5.1 - Living Persona phrasing "קושאן דואג" is present in UI copy', () => {
       const editorContent = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/components/EmailEditorModal.tsx'),
+        path.resolve('src/modules/KosMail/components/EmailEditorModal.tsx'),
         'utf8'
       );
       assert.ok(
@@ -279,7 +279,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
 
     test('5.2 - Living Persona phrasing "קושאן מכין" is present in UI copy', () => {
       const mainViewContent = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/components/KosunAmMainView.tsx'),
+        path.resolve('src/modules/KosMail/components/KosunAmMainView.tsx'),
         'utf8'
       );
       assert.ok(
@@ -290,7 +290,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
 
     test('5.3 - Uppercase "KOSUN AM" is present across headers and configs', () => {
       const mainViewContent = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/components/KosunAmMainView.tsx'),
+        path.resolve('src/modules/KosMail/components/KosunAmMainView.tsx'),
         'utf8'
       );
       assert.ok(
@@ -299,7 +299,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
       );
 
       const configContent = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/config/index.ts'),
+        path.resolve('src/modules/KosMail/config/index.ts'),
         'utf8'
       );
       assert.ok(
@@ -309,7 +309,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
     });
 
     test('5.4 - Zero "cashwan" in user-facing UI text', () => {
-      const componentsDir = path.resolve('src/modules/kosun-am/components');
+      const componentsDir = path.resolve('src/modules/KosMail/components');
       const files = fs.readdirSync(componentsDir);
 
       for (const file of files) {
@@ -337,7 +337,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
   // =========================================================================
   describe('Challenge 6: Visual Editor & Automation Builder Architecture', () => {
     test('6.1 - EmailEditorModal visual block compiler compiles all 6 block types into RTL HTML with unsubscribe link', () => {
-      const editorFile = path.resolve('src/modules/kosun-am/components/EmailEditorModal.tsx');
+      const editorFile = path.resolve('src/modules/KosMail/components/EmailEditorModal.tsx');
       const content = fs.readFileSync(editorFile, 'utf8');
 
       assert.ok(content.includes("'header'"), 'Must handle header block');
@@ -358,7 +358,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
 
     test('6.2 - EmailEditorModal provides real-time desktop and mobile preview toggle', () => {
       const content = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/components/EmailEditorModal.tsx'),
+        path.resolve('src/modules/KosMail/components/EmailEditorModal.tsx'),
         'utf8'
       );
       assert.ok(
@@ -373,7 +373,7 @@ describe('Tier 5: Milestone 3 UI & Branding Adversarial Challenge Suite', () => 
 
     test('6.3 - AutomationBuilderView supports EventBus triggers, Email & WhatsApp Green API', () => {
       const content = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/components/AutomationBuilderView.tsx'),
+        path.resolve('src/modules/KosMail/components/AutomationBuilderView.tsx'),
         'utf8'
       );
       assert.ok(content.includes('crm:lead:created'), 'Must support crm:lead:created');

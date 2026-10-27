@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useKosTime } from '../context/KosTimeContext';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState, logoutUser } from '../../../services/firebaseAuth';
 import { Navbar } from '../components/Navbar';
 import { BottomNav } from '../components/BottomNav';
 import { SwipeHomeScreen } from '../components/SwipeHomeScreen';
@@ -16,8 +17,13 @@ import { ActiveScreen, InboxItem, Task } from '../types';
 import { Loader2 } from 'lucide-react';
 
 export const KosTimeMainView: React.FC = () => {
-  const { auth } = useSystemConnection();
-  const user = auth?.currentUser || null;
+  const { firebaseApp } = useSystemConnection();
+  const [authState, setAuthState] = useState<AuthState | null>(null);
+  useEffect(() => {
+    const unsub = subscribeToAuth(firebaseApp, (st) => setAuthState(st));
+    return () => unsub();
+  }, [firebaseApp]);
+  const user = authState?.user || null;
 
   const {
     todayTasks,
@@ -60,7 +66,7 @@ export const KosTimeMainView: React.FC = () => {
   };
 
   const logOut = () => {
-    auth?.signOut();
+    logoutUser(firebaseApp);
   };
 
   return (

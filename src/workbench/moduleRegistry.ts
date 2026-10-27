@@ -3,94 +3,71 @@ import React from 'react';
 const BrandDnaHubStandaloneView = React.lazy(() =>
   import('../modules/KosBranding').then((m) => ({ default: m.BrandDnaHubStandaloneView }))
 );
-const KesherPaymentsStandaloneView = React.lazy(() =>
-  import('../modules/kesher-payments-hub').then((m) => ({ default: m.KesherPaymentsStandaloneView }))
+const KosPayStandaloneView = React.lazy(() =>
+  import('../modules/KosPay').then((m) => ({ default: m.KesherPaymentsStandaloneView }))
 );
 const KosWhatsUpStandaloneView = React.lazy(() =>
   import('../modules/KosWhatsUp').then((m) => ({ default: m.KosWhatsUpStandaloneView }))
 );
-const WhatsAppGreenApiStandaloneView = KosWhatsUpStandaloneView;
 const KosTogetherStandaloneView = React.lazy(() =>
   import('../modules/KosTogether').then((m) => ({ default: m.CrmGroupsHubStandaloneView }))
 );
-const SmartFormBuilderStandaloneView = React.lazy(() =>
-  import('../modules/KSF').then((m) => ({ default: m.KSFStandaloneView }))
+const KosFormsStandaloneView = React.lazy(() =>
+  import('../modules/KosForms').then((m) => ({ default: m.KSFStandaloneView }))
 );
-const KSFStandaloneView = React.lazy(() =>
-  import('../modules/KSF').then((m) => ({ default: m.KSFStandaloneView }))
+const KosConnectorStandaloneView = React.lazy(() =>
+  import('../modules/KosConnector').then((m) => ({ default: m.DbConnectorHubStandaloneView }))
 );
-const VideoProducerStudioView = React.lazy(() =>
-  import('../modules/video-producer-studio').then((m) => ({ default: m.VideoProducerStudioView }))
+const KosClientPlatformStandaloneView = React.lazy(() =>
+  import('../modules/KosClientPlatform').then((m) => ({ default: m.ClientReceiverPlatformStandaloneView }))
 );
-const DbConnectorHubStandaloneView = React.lazy(() =>
-  import('../modules/db-connector-hub').then((m) => ({ default: m.DbConnectorHubStandaloneView }))
+const KosCrmStandaloneView = React.lazy(() =>
+  import('../modules/KosCrm').then((m) => ({ default: m.CrmAnalyticsStandaloneView }))
 );
-const ClientReceiverPlatformStandaloneView = React.lazy(() =>
-  import('../modules/client-receiver-platform').then((m) => ({ default: m.ClientReceiverPlatformStandaloneView }))
-);
-const CrmAnalyticsStandaloneView = React.lazy(() =>
-  import('../modules/crm-analytics').then((m) => ({ default: m.CrmAnalyticsStandaloneView }))
-);
-const PageBuilderStandaloneView = React.lazy(() =>
+const KosWebAiStandaloneView = React.lazy(() =>
   import('../modules/KosWebAi').then((m) => ({ default: m.PageBuilderStandaloneView }))
 );
 const KoSeoPowerEnginStandaloneView = React.lazy(() =>
   import('../modules/KoSeoPowerEngin').then((m) => ({ default: m.KoSeoPowerEnginStandaloneView }))
 );
-const GoogleAnalyticsConsoleHubView = KoSeoPowerEnginStandaloneView;
-const AuthPortalStandaloneView = React.lazy(() =>
-  import('../modules/auth-portal').then((m) => ({ default: m.AuthPortalStandaloneView }))
+const KosAuthStandaloneView = React.lazy(() =>
+  import('../modules/KosAuth').then((m) => ({ default: m.AuthPortalStandaloneView }))
 );
-const FlowPlayerEngineStandaloneView = React.lazy(() =>
-  import('../modules/flow-player-engine').then((m) => ({ default: m.FlowPlayerEngineStandaloneView }))
+const KosFlowPlayerStandaloneView = React.lazy(() =>
+  import('../modules/KosFlowPlayer').then((m) => ({ default: m.FlowPlayerEngineStandaloneView }))
 );
 const KosCloudStoreStandaloneView = React.lazy(() =>
   import('../modules/KosCloudStore').then((m) => ({ default: m.KosCloudStoreStandaloneView }))
 );
-const MediaGalleryHubStandaloneView = KosCloudStoreStandaloneView;
-const DbCollectionsHubStandaloneView = React.lazy(() =>
-  import('../modules/db-collections-hub').then((m) => ({ default: m.DbCollectionsHubStandaloneView }))
+const KosDataStandaloneView = React.lazy(() =>
+  import('../modules/KosData').then((m) => ({ default: m.DbCollectionsHubStandaloneView }))
 );
-const TemplateStandaloneView = React.lazy(() =>
-  import('../modules/_template').then((m) => ({ default: m.TemplateStandaloneView }))
+const KosTemplateStandaloneView = React.lazy(() =>
+  import('../modules/KosTemplate').then((m) => ({ default: m.TemplateStandaloneView }))
 );
-const AmbassadorCampaignsStandaloneView = React.lazy(() =>
-  import('../modules/ambassador-campaigns-hub').then((m) => ({ default: m.AmbassadorCampaignsStandaloneView }))
+const KosCampaignsStandaloneView = React.lazy(() =>
+  import('../modules/KosCampaigns').then((m) => ({ default: m.AmbassadorCampaignsStandaloneView }))
 );
-
-const KosaiEngineStandaloneView = React.lazy(() =>
-  import('../modules/kosai-engine').then((m) => ({ default: m.KosaiStandaloneView }))
+const KosAiStandaloneView = React.lazy(() =>
+  import('../modules/KosAi').then((m) => ({ default: m.KosaiStandaloneView }))
 );
-
-const KosunAmModule = React.lazy(() =>
-  import('../modules/kosun-am').then((m) => ({ default: m.KosunAmStandaloneView }))
+const KosMailStandaloneView = React.lazy(() =>
+  import('../modules/KosMail').then((m) => ({ default: m.KosunAmStandaloneView }))
 );
-
-const KosunBoardComposerStandaloneView = React.lazy(() =>
-  import('../modules/kosun-board-composer').then((m) => ({ default: m.KosunBoardComposerStandaloneView }))
+const KosBoardStandaloneView = React.lazy(() =>
+  import('../modules/KosBoard').then((m) => ({ default: m.KosunBoardComposerStandaloneView }))
 );
-
 const KosTenantProvisionerStandaloneView = React.lazy(() =>
   import('../modules/KosTenantProvisioner').then((m) => ({ default: m.KosTenantProvisionerStandaloneView }))
 );
-
 const KosTubeStandaloneView = React.lazy(() =>
   import('../modules/KosTube').then((m) => ({ default: m.KosTubeStandaloneView }))
 );
-
 const KosTikTokStandaloneView = React.lazy(() =>
   import('../modules/KosTikTok').then((m) => ({ default: m.StandaloneView }))
 );
-
 const KosSubscribedStandaloneView = React.lazy(() =>
   import('../modules/KosSubscribed').then((m) => ({ default: m.KosSubscribedStandaloneView }))
-);
-
-// Register KosDesBuilder UI capabilities eagerly for universal dashboard rendering
-import '../modules/KosDesBuilder';
-
-const KosDesBuilderStandaloneView = React.lazy(() =>
-  import('../modules/KosDesBuilder').then((m) => ({ default: m.KosDesBuilderStandaloneView }))
 );
 
 // Register KosAccess UI capabilities eagerly for universal accessibility toolbar
@@ -120,7 +97,7 @@ export interface ModuleDefinition {
 export const REGISTERED_MODULES: ModuleDefinition[] = [
   {
     id: 'KosLivePage',
-    name: 'קושאן LivePage - עמודים חיים ואוואטרים אינטראקטיביים',
+    name: 'KosLivePage - עמודים חיים ואוואטרים אינטראקטיביים',
     description: 'סטודיו הפקות ומנוע עמודים חיים: הפיכת עמודים, תוכן ומוצרים לסרטוני אווטאר אינטראקטיביים עם פיצול החלטות, שכבות ממשק וסוכן שיחה קולי מבוסס AI.',
     component: KosLiveStandaloneView,
     route: '/koslivepage',
@@ -128,15 +105,15 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'KosLive',
-    name: 'KosLivePage (נתיב מקוצר)',
-    description: 'הפניה ישירה למנוע עמודים חיים KosLivePage',
+    name: 'KosLive',
+    description: 'הפניה ישירה למנוע עמודים חיים KosLive',
     component: KosLiveStandaloneView,
     route: '/koslive',
     collectionPrefix: 'mod_kos_live_',
   },
   {
     id: 'KosAccess',
-    name: 'קושאן Access - נגישות אתרים וחוקי משרד התקשורת',
+    name: 'KosAccess - נגישות אתרים וחוקי משרד התקשורת',
     description: 'מערכת נגישות מלאה לפי תקן ת"י 5568, תקנות שוויון זכויות ו-WCAG 2.2 AA. כולל סרגל נגישות צף לכל סוגי המסכים, הקראה קולית, סרגל קריאה, ניהול הצהרת נגישות וטיפול בפניות גולשים.',
     component: KosAccessStandaloneView,
     route: '/KosAccess',
@@ -144,7 +121,7 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'KosSubscribed',
-    name: 'קושאן Subscribed - ניהול מנויי תוכן, חבילות ומבחנים',
+    name: 'KosSubscribed - ניהול מנויי תוכן, חבילות ומבחנים',
     description: 'מכירת מנויים לתצוגת תוכן, יצירת חבילות חודשיות והנחות, שידוך אנשי קשר, עמודי תשלום וטפסי מבחנים המחוברים בחוזה ל-CRM.',
     component: KosSubscribedStandaloneView,
     route: '/KosSubscribed',
@@ -152,7 +129,7 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'KosTikTok',
-    name: 'קושאן TikTok - פרסום סרטונים, לידים ומעקב המרות',
+    name: 'KosTikTok - פרסום סרטונים, לידים ומעקב המרות',
     description: 'חיבור חשבונות TikTok ב-OAuth 2.0, פרסום ישיר של סרטונים, קליטת לידים מטפסים ממומנים ומעקב המרות Events API.',
     component: KosTikTokStandaloneView,
     route: '/KosTikTok',
@@ -160,7 +137,7 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'KosTube',
-    name: 'קושאן Tube - חיבור יוטיוב וקידום SEO מבוסס AI',
+    name: 'KosTube - חיבור יוטיוב וקידום SEO מבוסס AI',
     description: 'סנכרון ערוץ יוטיוב, המרת סרטונים למאמרי עומק ב-AI ויצירת עמודי SEO מקודמים בגוגל עם סכמת נתונים עשירה.',
     component: KosTubeStandaloneView,
     route: '/KosTube',
@@ -168,7 +145,7 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'KosTenantProvisioner',
-    name: 'ניהול סאב-דומיינים והטענת רכיבים',
+    name: 'KosTenantProvisioner - ניהול סאב-דומיינים והטענת רכיבים',
     description: 'הקמת סאב-דומיינים מבודדים 100%, הטענת רכיבים מודולריים, ניהול שמות משתמש וסיסמאות לפי חוקי KOSUN26.',
     component: KosTenantProvisionerStandaloneView,
     route: '/tenant-provisioner',
@@ -176,58 +153,81 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
     isSystemModule: true,
   },
   {
-    id: 'KosDesBuilder',
-    name: 'KosDesBuilder - מעצב לוחות בקרה ועמודי מנהל',
-    description: 'עיצוב והגדרת לוחות בקרה דינמיים, טבלאות נתונים, מדדי KPI ותפריטים צפים תחת טננט מנג׳ר בלבד.',
-    component: KosDesBuilderStandaloneView,
-    route: '/KosDesBuilder',
-    collectionPrefix: 'mod_kos_des_',
-    isSystemModule: true,
+    id: 'KosBoard',
+    name: 'KosBoard - מחולל מערכות ולוחות בקרה AI',
+    description: 'חיבור רכיבי המערכת באמצעות Gemini AI לייצור לוחות בקרה ומערכות מותאמות אישית המשודכות לסאב-דומיינים של משתמשים.',
+    component: KosBoardStandaloneView,
+    route: '/KosBoard',
+    collectionPrefix: 'mod_kosun_board_',
   },
   {
     id: 'kosun-board-composer',
-    name: 'קושאן בורד - מחולל מערכות AI',
-    description: 'חיבור רכיבי המערכת באמצעות Gemini AI לייצור לוחות בקרה ומערכות מותאמות אישית המשודכות לסאב-דומיינים של משתמשים.',
-    component: KosunBoardComposerStandaloneView,
+    name: 'KosBoard (Legacy Route)',
+    description: 'תאימות לנתיב board-composer',
+    component: KosBoardStandaloneView,
     route: '/board-composer',
     collectionPrefix: 'mod_kosun_board_',
   },
   {
+    id: 'KosMail',
+    name: 'KosMail - דיוור ואוטומציה חכמה',
+    description: 'מערכת דיוור, ניוזלטרים ואוטומציות שיווקיות רב-ערוציות חכמות.',
+    component: KosMailStandaloneView,
+    route: '/KosMail',
+    collectionPrefix: 'mod_kosun_am_',
+  },
+  {
     id: 'kosun-am',
-    name: 'קושאן מייל אוטומטי',
-    description: 'מערכת דיוור, ניוזלטרים ואוטומציות שיווקיות רב-ערוציות חכמות',
-    component: KosunAmModule,
+    name: 'KosMail (Legacy Route)',
+    description: 'תאימות לנתיב kosun-am',
+    component: KosMailStandaloneView,
     route: '/kosun-am',
     collectionPrefix: 'mod_kosun_am_',
   },
   {
+    id: 'KosAi',
+    name: 'KosAi - מנוע בינה מלאכותית חכם',
+    description: 'מנוע בינה מלאכותית לשליטה בעריכה, ממשק ועיצוב, מותאם במדויק ל-Brand DNA.',
+    component: KosAiStandaloneView,
+    route: '/KosAi',
+    collectionPrefix: 'mod_kosai_',
+  },
+  {
     id: 'kosai-engine',
-    name: 'קשואן AI - מנוע חכם (Kosai Engine)',
-    description: 'מנוע בינה מלאכותית המוביל שלנו לשליטה בעריכה, ממשק ועיצוב. מותאם במדויק ל-Brand DNA לתוצאות מוכחות ואיכות ללא פשרות.',
-    component: KosaiEngineStandaloneView,
+    name: 'KosAi (Legacy Route)',
+    description: 'תאימות לנתיב kosai-engine',
+    component: KosAiStandaloneView,
     route: '/kosai-engine',
     collectionPrefix: 'mod_kosai_',
   },
   {
     id: 'KosBranding',
-    name: 'קשואן DNA - מרכז הזהות והמיתוג',
-    description: 'הלב והזהות העסקית שלכם: אפיון טון דיבור, קהלי יעד וסנכרון מלא של שפת המותג לכל הרכיבים, להבטחת ליווי אישי ועקביות.',
+    name: 'KosBranding - מרכז הזהות והמיתוג',
+    description: 'הלב והזהות העסקית שלכם: אפיון טון דיבור, קהלי יעד וסנכרון מלא של שפת המותג לכל הרכיבים.',
     component: BrandDnaHubStandaloneView,
     route: '/brand-dna',
     collectionPrefix: 'brand_dna_',
   },
   {
+    id: 'KosPay',
+    name: 'KosPay - פתרונות סליקה ותשלומים',
+    description: 'מערכת סליקה מאובטחת: אשראי, ביט והפקת קבלות וחשבוניות אוטומטיות.',
+    component: KosPayStandaloneView,
+    route: '/KosPay',
+    collectionPrefix: 'kesher_',
+  },
+  {
     id: 'kesher-payments-hub',
-    name: 'קשואן Pay - פתרונות סליקה',
-    description: 'מערכת סליקה מאובטחת המעניקה לכם וללקוחותיכם שקט נפשי מושלם: אשראי, ביט והפקת קבלות וחשבוניות אוטומטיות.',
-    component: KesherPaymentsStandaloneView,
+    name: 'KosPay (Legacy Route)',
+    description: 'תאימות לנתיב kesher-payments',
+    component: KosPayStandaloneView,
     route: '/kesher-payments',
     collectionPrefix: 'kesher_',
   },
   {
     id: 'KosWhatsUp',
-    name: 'KosWhatsUp',
-    description: 'KOSUN WhatsApp Hub - מרכז וואטסאפ מקיף: סנכרון אוטומטי, בוטים חכמים, סטטוסים, שיגור מתקדם וניהול קבוצות ברמה המקצועית ביותר.',
+    name: 'KosWhatsUp - מרכז וואטסאפ ובוטים AI',
+    description: 'מרכז וואטסאפ מקיף: סנכרון אוטומטי, בוטים חכמים, סטטוסים, שיגור מתקדם וניהול קבוצות.',
     component: KosWhatsUpStandaloneView,
     route: '/whatsapp-hub',
     collectionPrefix: 'kos_whatsup_',
@@ -235,15 +235,15 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   {
     id: 'whatsapp-green-api-hub',
     name: 'KosWhatsUp (Legacy Route)',
-    description: 'KOSUN WhatsApp Hub - תאימות לנתיב קודם',
+    description: 'תאימות לנתיב whatsapp-green-api-hub',
     component: KosWhatsUpStandaloneView,
     route: '/whatsapp-hub',
     collectionPrefix: 'kos_whatsup_',
   },
   {
     id: 'KosTogether',
-    name: 'KosTogether',
-    description: 'KOSUN Communities Hub - מערכת ניהול קהילות, קבוצות חכמות, מעגן צף, מודאלים במסך מלא ואינטגרציית מודולרית מלאה.',
+    name: 'KosTogether - קהילות וקבוצות CRM',
+    description: 'מערכת ניהול קהילות, קבוצות חכמות, מעגן צף, מודאלים במסך מלא ואינטגרציה מודולרית מלאה.',
     component: KosTogetherStandaloneView,
     route: '/crm-groups',
     collectionPrefix: 'crm_groups',
@@ -251,80 +251,120 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   {
     id: 'crm-groups-hub',
     name: 'KosTogether (Legacy Route)',
-    description: 'KOSUN Communities Hub - תאימות מלאה למזהה crm-groups-hub ולנתיבי קהילות.',
+    description: 'תאימות למזהה crm-groups-hub',
     component: KosTogetherStandaloneView,
     route: '/crm-groups',
     collectionPrefix: 'crm_groups',
   },
   {
+    id: 'KosForms',
+    name: 'KosForms - מחולל טפסים ושאלונים חכמים',
+    description: 'מערכת טפסים שלביים (שאלה אחת בלבד בכל שלב), הקראה קולית ובידוד מודולרי מלא.',
+    component: KosFormsStandaloneView,
+    route: '/KosForms',
+    collectionPrefix: 'mod_forms',
+  },
+  {
     id: 'ksf',
-    name: 'KSF',
-    description: 'KOSUN Smart Forms - מערכת טפסים שלביים (שאלה אחת בלבד בכל שלב), תפריט צף, הקראה קולית ובידוד מודולרי מלא.',
-    component: KSFStandaloneView,
+    name: 'KosForms (KSF Route)',
+    description: 'תאימות לנתיב ksf',
+    component: KosFormsStandaloneView,
     route: '/ksf',
     collectionPrefix: 'mod_forms',
   },
   {
     id: 'smart-form-builder',
-    name: 'KSF (Legacy Route)',
-    description: 'הפניה ישירה למערכת KSF.',
-    component: KSFStandaloneView,
+    name: 'KosForms (Legacy Route)',
+    description: 'תאימות לנתיב smart-forms',
+    component: KosFormsStandaloneView,
     route: '/smart-forms',
     collectionPrefix: 'mod_forms',
   },
   {
-    id: 'video-producer-studio',
-    name: 'קשואן Studio (מאוחד ב-KosLive)',
-    description: 'אולפן הפקות מתקדם: אשף תסריטים, סרטוני אווטאר וטלפרומפטר איכותי - מאוחד כעת תחת מנוע העמודים החיים KosLive.',
-    component: KosLiveStandaloneView,
-    route: '/video-producer',
-    collectionPrefix: 'sdo_video_',
+    id: 'KosConnector',
+    name: 'KosConnector - מחולל אינטגרציות וחיבורים',
+    description: 'סנכרון חכם ואמין לכלל המודולים עם מסד נתונים אחוד ואנליזה חכמה מבוססת AI.',
+    component: KosConnectorStandaloneView,
+    route: '/KosConnector',
+    collectionPrefix: '',
   },
   {
     id: 'db-connector-hub',
-    name: 'קשואן Connector - מחולל אינטגרציות',
-    description: 'סנכרון חכם ואמין לכלל המודולים, המעניק לכם שקט נפשי עם מסד נתונים אחוד, ואנליזה חכמה מבוססת AI.',
-    component: DbConnectorHubStandaloneView,
+    name: 'KosConnector (Legacy Route)',
+    description: 'תאימות לנתיב db-connector',
+    component: KosConnectorStandaloneView,
     route: '/db-connector',
     collectionPrefix: '',
   },
   {
+    id: 'KosClientPlatform',
+    name: 'KosClientPlatform - קליטת לקוחות ואזור אישי',
+    description: 'פלטפורמת אזור אישי יוקרתית הכוללת אימות, ניווט דינמי והפעלה חלקה של רכיבים.',
+    component: KosClientPlatformStandaloneView,
+    route: '/KosClientPlatform',
+    collectionPrefix: 'client_',
+  },
+  {
     id: 'client-platform',
-    name: 'קשואן Onboarding - קליטת לקוחות',
-    description: 'פלטפורמת אזור אישי יוקרתית הכוללת אימות, ניווט דינמי והפעלה חלקה של רכיבים - המקרינה מומחיות מרגע ההרשמה.',
-    component: ClientReceiverPlatformStandaloneView,
+    name: 'KosClientPlatform (Legacy Route)',
+    description: 'תאימות לנתיב client-platform',
+    component: KosClientPlatformStandaloneView,
     route: '/client-platform',
     collectionPrefix: 'client_',
   },
   {
+    id: 'KosCrm',
+    name: 'KosCrm - ניהול לקוחות, לידים ואנליטיקה',
+    description: 'לוח בקרה חכם המציג תוצאות בזמן אמת, כרטיס לקוח 360, פילוחים וניהול לידים.',
+    component: KosCrmStandaloneView,
+    route: '/KosCrm',
+    collectionPrefix: 'mod_crm_',
+  },
+  {
     id: 'crm-analytics',
-    name: 'קשואן Analytics - ניתוח נתונים ו-CRM',
-    description: 'לוח בקרה חכם המציג לכם תוצאות מוכחות בזמן אמת. גרפים, פילוחים וייצוא נתונים בקליק, לשליטה מלאה בעסק.',
-    component: CrmAnalyticsStandaloneView,
+    name: 'KosCrm (Legacy Route)',
+    description: 'תאימות לנתיב crm-analytics',
+    component: KosCrmStandaloneView,
     route: '/crm-analytics',
     collectionPrefix: 'mod_crm_',
   },
   {
     id: 'KosWebAi',
-    name: 'KWB',
-    description: 'KosWebBulider - Building Your Digital Interaction (בונה לך אינטראקציה דיגיטלית)',
-    component: PageBuilderStandaloneView,
+    name: 'KosWebAi - בונה אתרים ואינטראקציה דיגיטלית',
+    description: 'KosWebAi - Building Your Digital Interaction (בונה לך אינטראקציה דיגיטלית)',
+    component: KosWebAiStandaloneView,
     route: '/KosWebAi',
     collectionPrefix: 'mod_pagebuilder_',
   },
   {
+    id: 'KosAuth',
+    name: 'KosAuth - שער התחברות מאובטח',
+    description: 'מערכת הרשמה והתחברות מתקדמת עם גישה מאובטחת לכל אזורי המערכת.',
+    component: KosAuthStandaloneView,
+    route: '/KosAuth',
+    collectionPrefix: 'mod_auth_',
+  },
+  {
     id: 'auth-portal',
-    name: 'קשואן Auth - שער התחברות מאובטח',
-    description: 'מערכת הרשמה והתחברות מתקדמת, המבטיחה לכם שקט נפשי מוחלט עם גישה מאובטחת לכל אזורי המערכת.',
-    component: AuthPortalStandaloneView,
+    name: 'KosAuth (Legacy Route)',
+    description: 'תאימות לנתיב auth-portal',
+    component: KosAuthStandaloneView,
     route: '/auth-portal',
     collectionPrefix: 'mod_auth_',
   },
   {
+    id: 'KosFlowPlayer',
+    name: 'KosFlowPlayer - נגן אינטראקטיבי חכם',
+    description: 'נגן מתקדם המשלב אינטראקציות חכמות, סוכן שיחה קולי ופיצול החלטות.',
+    component: KosFlowPlayerStandaloneView,
+    route: '/KosFlowPlayer',
+    collectionPrefix: 'sdo_player_',
+  },
+  {
     id: 'flow-player-engine',
-    name: 'קשואן Flow (מאוחד ב-KosLive)',
-    description: 'נגן מתקדם המשלב אינטראקציות חכמות, סוכן שיחה קולי ופיצול החלטות - מאוחד כעת תחת מנוע העמודים החיים KosLive.',
-    component: KosLiveStandaloneView,
+    name: 'KosFlowPlayer (Legacy Route)',
+    description: 'תאימות לנתיב flow-player-engine',
+    component: KosFlowPlayerStandaloneView,
     route: '/flow-player-engine',
     collectionPrefix: 'sdo_player_',
   },
@@ -338,50 +378,58 @@ export const REGISTERED_MODULES: ModuleDefinition[] = [
   },
   {
     id: 'media-gallery-hub',
-    name: 'KosCloudStore (Gallery)',
-    description: 'ספריית ענן ומדיה לניהול חכם של תמונות, וידאו, שמע ומסמכים.',
-    component: MediaGalleryHubStandaloneView,
+    name: 'KosCloudStore (Legacy Route)',
+    description: 'תאימות לנתיב media-gallery-hub',
+    component: KosCloudStoreStandaloneView,
     route: '/media-gallery-hub',
     collectionPrefix: 'sdo_media_',
   },
   {
+    id: 'KosData',
+    name: 'KosData - ניהול מאגרי מידע וקולקציות',
+    description: 'סייר נתונים וקולקציות לשליטה מדויקת בזמן אמת.',
+    component: KosDataStandaloneView,
+    route: '/KosData',
+    collectionPrefix: '',
+  },
+  {
     id: 'db-collections-hub',
-    name: 'קשואן Data - ניהול מאגרי מידע',
-    description: 'סייר נתונים לשליטה מדויקת, המבטיח סדר מופתי, מקצועיות ושקט נפשי בניהול הרשומות המורכבות ביותר שלכם.',
-    component: DbCollectionsHubStandaloneView,
+    name: 'KosData (Legacy Route)',
+    description: 'תאימות לנתיב db-collections',
+    component: KosDataStandaloneView,
     route: '/db-collections',
     collectionPrefix: '',
   },
   {
-    id: 'template',
-    name: 'קשואן Template - שלד רכיב',
-    description: 'תבנית בסיס איכותית המיועדת להקמת מודולים חדשים, תוך שמירה על סטנדרט המצוינות שאתם מכירים.',
-    component: TemplateStandaloneView,
-    route: '/template',
+    id: 'KosTemplate',
+    name: 'KosTemplate - שלד רכיב מודולרי',
+    description: 'תבנית בסיס להקמת מודולים חדשים במערכת KOS.',
+    component: KosTemplateStandaloneView,
+    route: '/KosTemplate',
     collectionPrefix: 'mod_template_',
   },
   {
+    id: 'KosCampaigns',
+    name: 'KosCampaigns - ניהול קמפיינים ושגרירים',
+    description: 'מערכת גיוס המונים וקמפיינים חכמה עם יעדי גיוס והתראות חיות.',
+    component: KosCampaignsStandaloneView,
+    route: '/KosCampaigns',
+    collectionPrefix: 'mod_campaigns_',
+  },
+  {
     id: 'ambassador-campaigns-hub',
-    name: 'קשואן שגרירים - ניהול קמפיינים וגיוס',
-    description: 'מערכת גיוס המונים חכמה, המעניקה ליווי אישי לכל שגריר עם יעדי גיוס והתראות חיות להשגת תוצאות מוכחות ומרשימות.',
-    component: AmbassadorCampaignsStandaloneView,
+    name: 'KosCampaigns (Legacy Route)',
+    description: 'תאימות לנתיב ambassador-campaigns',
+    component: KosCampaignsStandaloneView,
     route: '/ambassador-campaigns',
     collectionPrefix: 'mod_campaigns_',
   },
   {
     id: 'KoSeoPowerEngin',
-    name: 'KoSeoPowerEngin - מנוע SEO, גוגל קונסול ואנליטיקס לדומיין וסאב-דומיינים',
-    description: 'מפתח אב אחוד לכל הדומיין והסאב-דומיינים, מעקב ביצועי חיפוש אורגני (GSC), גוגל אנליטיקס 4 (GA4), אימות DNS ודפדפן בזמן אמת.',
+    name: 'KoSeoPowerEngin - מנוע SEO, גוגל קונסול ואנליטיקס',
+    description: 'מפתח אב אחוד לכל הדומיין והסאב-דומיינים, מעקב ביצועי חיפוש אורגני (GSC), גוגל אנליטיקס 4 (GA4) ואימות DNS.',
     component: KoSeoPowerEnginStandaloneView,
     route: '/KoSeoPowerEngin',
     collectionPrefix: 'sys_koseo_',
   },
-  {
-    id: 'google-analytics-console-hub',
-    name: 'מרכז Google Analytics 4 ו-Search Console (דומיין וסאב-דומיינים)',
-    description: 'ניהול מפתח אחד מרוכז לכל הדומיין והסאב-דומיינים, מעקב תנועה, ביצועי חיפוש אורגני ואימות גוגל בזמן אמת.',
-    component: GoogleAnalyticsConsoleHubView,
-    route: '/google-analytics-console',
-    collectionPrefix: 'sys_google_',
-  }
 ];

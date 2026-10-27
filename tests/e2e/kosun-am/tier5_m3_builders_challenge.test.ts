@@ -16,10 +16,10 @@ import path from 'node:path';
 
 describe('Tier 5: Milestone 3 Visual Builders & Multi-Channel Workflow Engine Challenge Suite', () => {
 
-  const emailEditorModalPath = path.resolve('src/modules/kosun-am/components/EmailEditorModal.tsx');
-  const automationBuilderPath = path.resolve('src/modules/kosun-am/components/AutomationBuilderView.tsx');
+  const emailEditorModalPath = path.resolve('src/modules/KosMail/components/EmailEditorModal.tsx');
+  const automationBuilderPath = path.resolve('src/modules/KosMail/components/AutomationBuilderView.tsx');
   const moduleRegistryPath = path.resolve('src/workbench/moduleRegistry.ts');
-  const topNavPath = path.resolve('src/workbench/components/CashwanTopNav.tsx');
+  const topNavPath = path.resolve('src/workbench/components/KosTopNav.tsx');
 
   const emailEditorContent = fs.readFileSync(emailEditorModalPath, 'utf8');
   const automationBuilderContent = fs.readFileSync(automationBuilderPath, 'utf8');
@@ -427,7 +427,7 @@ describe('Tier 5: Milestone 3 Visual Builders & Multi-Channel Workflow Engine Ch
         'Must define KosunAmModule via React.lazy'
       );
       assert.ok(
-        moduleRegistryContent.includes("import('../modules/kosun-am').then((m) => ({ default: m.KosunAmStandaloneView }))"),
+        moduleRegistryContent.includes("import('../modules/KosMail').then((m) => ({ default: m.KosunAmStandaloneView }))"),
         'React.lazy must dynamically import kosun-am StandaloneView'
       );
       assert.ok(
@@ -436,10 +436,10 @@ describe('Tier 5: Milestone 3 Visual Builders & Multi-Channel Workflow Engine Ch
       );
     });
 
-    test('4.4 - CashwanTopNav registers kosun-am with Mail icon from Lucide', () => {
+    test('4.4 - KosTopNav registers kosun-am with Mail icon from Lucide', () => {
       assert.ok(
         topNavContent.includes("'kosun-am': Mail"),
-        "CashwanTopNav MODULE_ICONS must map 'kosun-am' to Lucide Mail icon"
+        "KosTopNav MODULE_ICONS must map 'kosun-am' to Lucide Mail icon"
       );
     });
   });

@@ -90,6 +90,10 @@ class SoundManager {
   }
 
   // Grand celebration fanfare when completing all Big 3 tasks
+  public playFanfare() {
+    this.playAllDoneFanfare();
+  }
+
   public playAllDoneFanfare() {
     if (!this.enabled) return;
     try {

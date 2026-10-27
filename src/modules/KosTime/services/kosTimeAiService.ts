@@ -37,12 +37,12 @@ ${context ? `הקשר נוסף: "${context}"` : ''}
     try {
       const res: KosaiContractResult<string> = await executeKosaiAi('KosTime', prompt, {
         tenantId,
-        category: 'automation',
+        category: 'content',
         temperature: 0.3,
       });
 
-      if (res && res.content) {
-        const raw = res.content.trim();
+      if (res && res.data) {
+        const raw = String(res.data).trim();
         const jsonMatch = raw.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
@@ -97,12 +97,12 @@ ${historyText}
     try {
       const res: KosaiContractResult<string> = await executeKosaiAi('KosTime', prompt, {
         tenantId,
-        category: 'chat',
+        category: 'chatbot',
         temperature: 0.7,
       });
 
-      if (res && res.content) {
-        return res.content.trim();
+      if (res && res.data) {
+        return String(res.data).trim();
       }
     } catch (e) {
       console.warn('KosTime brainstorm error:', e);

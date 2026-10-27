@@ -17,8 +17,8 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
     ] as const;
 
     const collectionsContent = fs.readFileSync(path.resolve('src/core/contracts/collections.ts'), 'utf8');
-    const hubConfigContent = fs.readFileSync(path.resolve('src/modules/db-collections-hub/config/index.ts'), 'utf8');
-    const seedDataContent = fs.readFileSync(path.resolve('src/modules/db-collections-hub/config/seedData.ts'), 'utf8');
+    const hubConfigContent = fs.readFileSync(path.resolve('src/modules/KosData/config/index.ts'), 'utf8');
+    const seedDataContent = fs.readFileSync(path.resolve('src/modules/KosData/config/seedData.ts'), 'utf8');
 
     test('1.1 - All 4 collections must be registered in collections.ts with MOD_ prefix and alias', () => {
       for (const col of requiredCollections) {
@@ -83,7 +83,7 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
     });
 
     test('1.4 - Module config KOSUN_AM_COLLECTIONS matches exact collection names', () => {
-      const kosunConfigContent = fs.readFileSync(path.resolve('src/modules/kosun-am/config/index.ts'), 'utf8');
+      const kosunConfigContent = fs.readFileSync(path.resolve('src/modules/KosMail/config/index.ts'), 'utf8');
       assert.ok(kosunConfigContent.includes("CAMPAIGNS: 'mod_kosun_am_campaigns'"));
       assert.ok(kosunConfigContent.includes("TEMPLATES: 'mod_kosun_am_templates'"));
       assert.ok(kosunConfigContent.includes("AUTOMATIONS: 'mod_kosun_am_automations'"));
@@ -96,7 +96,7 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
   // =========================================================================
   describe('Challenge 2: Scoped Multi-Tenant Isolation & Zero Mock Data Fallback', () => {
     const firestoreSvcContent = fs.readFileSync(
-      path.resolve('src/modules/kosun-am/services/emailFirestoreService.ts'),
+      path.resolve('src/modules/KosMail/services/emailFirestoreService.ts'),
       'utf8'
     );
 
@@ -161,8 +161,8 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
   // Challenge 3: Zero LocalStorage & Secure Credentials
   // =========================================================================
   describe('Challenge 3: Zero LocalStorage & Secure Credentials', () => {
-    test('3.1 - Codebase audit: zero localStorage / sessionStorage calls in src/modules/kosun-am/ executable code', () => {
-      const moduleDir = path.resolve('src/modules/kosun-am');
+    test('3.1 - Codebase audit: zero localStorage / sessionStorage calls in src/modules/KosMail/ executable code', () => {
+      const moduleDir = path.resolve('src/modules/KosMail');
 
       function scanDir(dir: string): { file: string; match: string }[] {
         const violations: { file: string; match: string }[] = [];
@@ -200,7 +200,7 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
 
     test('3.2 - EmailDispatchService loads API keys strictly via tenantApiKeys.ts and checks entitlement', () => {
       const dispatchSvcContent = fs.readFileSync(
-        path.resolve('src/modules/kosun-am/services/emailDispatchService.ts'),
+        path.resolve('src/modules/KosMail/services/emailDispatchService.ts'),
         'utf8'
       );
 
@@ -232,7 +232,7 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
       'utf8'
     );
     const moduleContextContent = fs.readFileSync(
-      path.resolve('src/modules/kosun-am/context/ModuleContext.tsx'),
+      path.resolve('src/modules/KosMail/context/ModuleContext.tsx'),
       'utf8'
     );
 
@@ -306,7 +306,7 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
   // =========================================================================
   describe('Challenge 5: Persona Language, RTL & Zero Textual Emojis', () => {
     test('5.1 - Zero textual emojis in all module component files', () => {
-      const componentsDir = path.resolve('src/modules/kosun-am/components');
+      const componentsDir = path.resolve('src/modules/KosMail/components');
       const emojiRegex = /[\u{1F300}-\u{1F9FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/u;
 
       const violations: { file: string; char: string }[] = [];
@@ -329,7 +329,7 @@ describe('Tier 5: Milestone 2 Adversarial Empirical Challenge Suite', () => {
     });
 
     test('5.2 - Official Living Persona naming compliance: Kosun / קושאן', () => {
-      const configContent = fs.readFileSync(path.resolve('src/modules/kosun-am/config/index.ts'), 'utf8');
+      const configContent = fs.readFileSync(path.resolve('src/modules/KosMail/config/index.ts'), 'utf8');
       assert.ok(
         configContent.includes("KOSUN_AM_DISPLAY_NAME_HE = 'קושאן מייל אוטומטי'"),
         'Hebrew display name must be "קושאן מייל אוטומטי"'

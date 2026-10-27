@@ -60,7 +60,7 @@ describe('Tier 2: Boundary & Corner Cases (Domain Extremes & Stress)', () => {
     test('2.1.3 - Windows backslash vs POSIX path normalization', () => {
       const normalizePath = (p: string) => p.replace(/\\/g, '/').toLowerCase();
       const winPath = 'src\\modules\\kosun-am\\components\\KosunAmMainView.tsx';
-      const posixPath = 'src/modules/kosun-am/components/KosunAmMainView.tsx';
+      const posixPath = 'src/modules/KosMail/components/KosunAmMainView.tsx';
       assert.strictEqual(normalizePath(winPath), normalizePath(posixPath));
     });
 

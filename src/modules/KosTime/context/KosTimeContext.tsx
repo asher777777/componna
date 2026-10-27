@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { subscribeToAuth, AuthState } from '../../../services/firebaseAuth';
 import { useKosTimeTenant } from '../hooks/useKosTimeTenant';
 import { Task, InboxItem, MicroTask } from '../types';
 import { KosTimeFirestoreService } from '../services/kosTimeFirestoreService';
@@ -41,7 +42,13 @@ interface KosTimeContextType {
 const KosTimeContext = createContext<KosTimeContextType | null>(null);
 
 export const KosTimeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { db, auth } = useSystemConnection();
+  const { db, firebaseApp } = useSystemConnection();
+  const [authState, setAuthState] = useState<AuthState | null>(null);
+
+  useEffect(() => {
+    const unsub = subscribeToAuth(firebaseApp, (state) => setAuthState(state));
+    return () => unsub();
+  }, [firebaseApp]);
   const { tenantId } = useKosTimeTenant();
 
   const [todayTasks, setTodayTasks] = useState<Task[]>([]);
@@ -51,7 +58,7 @@ export const KosTimeProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [soundEnabled, setSoundEnabledState] = useState(true);
   const [attemptedTask, setAttemptedTask] = useState<AttemptedTaskPayload | null>(null);
 
-  const currentUserId = auth?.currentUser?.uid || 'guest_user';
+  const currentUserId = authState?.uid || 'guest_user';
 
   const setSoundEnabled = (val: boolean) => {
     setSoundEnabledState(val);

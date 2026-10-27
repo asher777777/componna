@@ -7,7 +7,7 @@ import {
   ArrowUpRight, HardDrive
 } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
-import { CashwanTopNav } from './components/CashwanTopNav';
+import { KosTopNav } from './components/KosTopNav';
 import { REGISTERED_MODULES } from './moduleRegistry';
 import { ModuleErrorBoundary } from './components/ModuleErrorBoundary';
 import { ModuleLoadingFallback } from './components/ModuleLoadingFallback';

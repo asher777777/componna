@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { WorkbenchApp } from '../../workbench/WorkbenchApp';
-import { ClientPlatformProvider } from '../../modules/client-receiver-platform/context/ClientPlatformContext';
-import { DynamicClientShell } from '../../modules/client-receiver-platform/components/DynamicClientShell';
+import { ClientPlatformProvider } from '../../modules/KosClientPlatform/context/ClientPlatformContext';
+import { DynamicClientShell } from '../../modules/KosClientPlatform/components/DynamicClientShell';
 import { TenantRecord } from '../contracts';
 import { TenantCoreService } from './tenantService';
 import { PageBuilderConfig } from '../../modules/KosWebAi/types/pageBuilder.types';

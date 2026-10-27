@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, X } from 'lucide-react';
+import { Check, X, LucideIcon } from 'lucide-react';
 
 export interface KosunRowActionProps {
-  icon: React.ComponentType<{ className?: string; size?: number }>;
+  icon: LucideIcon | React.ComponentType<{ className?: string; size?: number }>;
   title: string;
   subtitle?: string;
   badge?: string;
