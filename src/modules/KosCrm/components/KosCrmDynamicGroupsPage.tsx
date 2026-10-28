@@ -24,6 +24,8 @@ import { getTerminology } from '../../../KOSDESYN/01-core-engine/pageTerminology
 import { InteractiveCapsule } from '../../../KOSDESYN/06-cognitive-web-portal/InteractiveCapsule';
 import { KosunUniversalFooter } from '../../../KOSDESYN/06-cognitive-web-portal/KosunUniversalFooter';
 import { TenantProfile, TenantThemeColors } from '../../../KOSDESYN/06-cognitive-web-portal/types';
+import { FocusVoiceModal } from '../../../KOSDESYN/06-cognitive-web-portal/FocusVoiceModal';
+import { KOS_CRM_FUNCTIONS_COLLECTION } from '../services/crmFunctionsCollection';
 import { useTenantScope } from '../../../core/tenant';
 
 interface KosCrmDynamicGroupsPageProps {
@@ -131,6 +133,16 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
 
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
   const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
+  const [activeRecommendationIndex, setActiveRecommendationIndex] = useState<number>(0);
+
+  // א. כותרת בתוך השדה: המלצות לפעולות שמתחלפות בלופ ומגיעות מתוך crmFunctionsCollection
+  useEffect(() => {
+    if (KOS_CRM_FUNCTIONS_COLLECTION.length === 0) return;
+    const timer = setInterval(() => {
+      setActiveRecommendationIndex((prev) => (prev + 1) % KOS_CRM_FUNCTIONS_COLLECTION.length);
+    }, 4000);
+    return () => clearInterval(timer);
+  }, []);
 
   // היועץ העליון (Top Advisor) – שיחה בטקסט או בקול שפורשת כרטיסים לפי דרישה
   const [isAdvisorChatOpen, setIsAdvisorChatOpen] = useState<boolean>(false);
@@ -776,17 +788,17 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
     [tenantId]
   );
 
+  const currentRecommendedFunction = KOS_CRM_FUNCTIONS_COLLECTION[activeRecommendationIndex] || KOS_CRM_FUNCTIONS_COLLECTION[0];
+
   const advisorCapsuleNode = useMemo(
     () =>
       ({
-        id: 'top_advisor_node',
+        id: currentRecommendedFunction?.id || 'top_advisor_node',
         questionText: isRecording
           ? 'מקשיב לך... אמור מה לפרוש בכרטיסים'
-          : visualConfig.advisor_title ||
-            getTerminology('capsule_prompt_hint', 'saas') ||
-            'היועץ העליון: לחץ לשיחה או בקש פריסת נתונים לפי דרישה',
+          : `💡 פעולה מומלצת: ${currentRecommendedFunction?.title || ''} • ${currentRecommendedFunction?.summary || ''}`,
       }) as any,
-    [isRecording, visualConfig.advisor_title]
+    [isRecording, currentRecommendedFunction]
   );
 
   // =========================================================================
@@ -1013,41 +1025,22 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
             activeQuestionNode={advisorCapsuleNode}
             isCatalogActive={stageMode !== 'home'}
             stylePresetId={visualConfig.atmosphereTheme}
-            onAvatarPlayClick={() => setIsAdvisorChatOpen((prev) => !prev)}
-            onQuestionClick={() => setIsAdvisorChatOpen((prev) => !prev)}
-            onMicClick={handleMicTrigger}
+            onAvatarPlayClick={() => setIsAdvisorChatOpen(true)}
+            onQuestionClick={() => setIsAdvisorChatOpen(true)}
+            onMicClick={() => setIsAdvisorChatOpen(true)}
           />
         </div>
 
-        {/* שורת שיחה נפתחת עם היועץ העליון */}
-        {isAdvisorChatOpen && (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSubmitAdvisorQuery(advisorInput);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border animate-fadeIn shrink-0 my-1"
-            style={{ background: modeColors.cardBg, borderColor: brandPrimary }}
-          >
-            <Icons.Sparkles size={14} style={{ color: brandPrimary }} />
-            <input
-              type="text"
-              autoFocus
-              value={advisorInput}
-              onChange={(e) => setAdvisorInput(e.target.value)}
-              placeholder="בקש מהיועץ: הכנסות אחרונות / לידים לטיפול / שם לקוח..."
-              className="flex-1 bg-transparent text-xs font-bold outline-none"
-              style={{ color: modeColors.textColor }}
-            />
-            <button
-              type="submit"
-              className="px-2.5 py-1 rounded-xl text-[10px] font-black text-black shrink-0"
-              style={{ backgroundColor: brandPrimary }}
-            >
-              פרוש 4 כרטיסים ◀
-            </button>
-          </form>
-        )}
+        {/* מודאל קולי מעוצב של קושאן FocusVoiceModal שנפתח בלחיצה על הרמקול/מיקרופון */}
+        <FocusVoiceModal
+          isOpen={isAdvisorChatOpen}
+          onClose={() => setIsAdvisorChatOpen(false)}
+          dispatchSubmittedQuery={handleSubmitAdvisorQuery}
+          tenantTheme={tenantTheme}
+          tenantProfile={tenantProfile}
+          stylePresetId={visualConfig.atmosphereTheme}
+          isAiThinking={isLoadingServer}
+        />
 
         {/* מגירת החלפת סגנון קולקציה קומפקטית */}
         {isStyleDrawerOpen && (
@@ -1113,18 +1106,23 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
           </div>
         )}
 
-        {/* 2. כותרת אחת יחידה מעל אזור הכרטיסים עם כפתור אחור מובנה + שורת הסיכום + בקרי תצוגה */}
+        {/* 3. במת ה-60% המרכזית: 4 כרטיסים מונעים לפעולה בלבד (ללא שורת כותרת עליונה מעליהם) */}
+        <div className="relative z-10 w-full flex-1 flex flex-col justify-center py-1 overflow-hidden my-auto">
+          {renderFourCardsStage()}
+        </div>
+
+        {/* בקרי תצוגה ממוקמים מתחת לכרטיסיות: כפתור חזרה, יום/לילה, החלפת פריסה */}
         <div
-          className="px-2.5 py-1.5 rounded-2xl border text-[10.5px] font-bold flex items-center justify-between shrink-0 mt-1 shadow-sm"
+          className="px-2.5 py-1.5 rounded-2xl border text-[10px] font-bold flex items-center justify-between shrink-0 mb-1 shadow-sm"
           style={{
-            backgroundColor: `${brandPrimary}12`,
-            borderColor: `${brandPrimary}35`,
+            backgroundColor: `${brandPrimary}10`,
+            borderColor: `${brandPrimary}30`,
             color: modeColors.textColor,
           }}
         >
-          {/* צד ימין (RTL): כפתור חזור + כותרת יחידה תמציתית */}
+          {/* צד ימין (RTL): כפתור חזור במידה ונמצאים בתוך תת-שלב */}
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            {stageMode !== 'home' && (
+            {stageMode !== 'home' ? (
               <button
                 type="button"
                 onClick={() => {
@@ -1134,28 +1132,32 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
                     'טננט מנהל פעיל • בחר כרטיס או שוחח עם היועץ העליון לשליפה ממוקדת'
                   );
                 }}
-                className="px-2 py-0.5 rounded-lg text-[10px] font-black text-black flex items-center gap-1 shadow-sm active:scale-95 transition-transform shrink-0"
+                className="px-2.5 py-1 rounded-xl text-[10px] font-black text-black flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform shrink-0"
                 style={{ backgroundColor: brandPrimary }}
               >
                 <Icons.ArrowRight size={12} />
-                <span>חזרה</span>
+                <span>חזרה לראשי</span>
               </button>
+            ) : (
+              <span className="truncate text-[10px] font-medium" style={{ color: modeColors.secondaryText }}>
+                {summaryLineText}
+              </span>
             )}
-
-            <span className="truncate text-[10.5px] font-bold">
-              {summaryLineText}
-            </span>
           </div>
 
-          {/* צד שמאל: בקרי יום/לילה וסגנון */}
-          <div className="flex items-center gap-1 shrink-0 mr-1.5">
+          {/* צד שמאל: בקרי יום/לילה וסגנון/פריסה */}
+          <div className="flex items-center gap-1.5 shrink-0 mr-1.5">
             <button
               type="button"
               onClick={() =>
                 updateVisualConfig({ colorMode: visualConfig.colorMode === 'day' ? 'night' : 'day' })
               }
-              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
-              style={{ color: brandPrimary }}
+              className="p-1.5 rounded-xl border transition-all active:scale-95"
+              style={{
+                backgroundColor: isDay ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)',
+                borderColor: `${brandPrimary}35`,
+                color: brandPrimary,
+              }}
               title={visualConfig.colorMode === 'day' ? 'מצב לילה' : 'מצב יום'}
             >
               {visualConfig.colorMode === 'day' ? <Icons.Moon size={13} /> : <Icons.Sun size={13} />}
@@ -1164,18 +1166,17 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
             <button
               type="button"
               onClick={() => setIsStyleDrawerOpen((prev) => !prev)}
-              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
-              style={{ color: brandPrimary }}
+              className="p-1.5 rounded-xl border transition-all active:scale-95"
+              style={{
+                backgroundColor: isDay ? 'rgba(0,0,0,0.05)' : 'rgba(255,255,255,0.06)',
+                borderColor: `${brandPrimary}35`,
+                color: brandPrimary,
+              }}
               title="החלף פריסה / סגנון מהקולקציה"
             >
               <Icons.SlidersHorizontal size={13} />
             </button>
           </div>
-        </div>
-
-        {/* 3. במת ה-60% המרכזית: 4 כרטיסים מונעים לפעולה בלבד */}
-        <div className="relative z-10 w-full flex-1 flex flex-col justify-center py-1 overflow-hidden my-auto">
-          {renderFourCardsStage()}
         </div>
 
         {/* 5. סרגל תחתון אחיד של קושאן */}
