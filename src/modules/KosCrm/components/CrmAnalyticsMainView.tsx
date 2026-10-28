@@ -658,6 +658,8 @@ export const CrmAnalyticsMainView: React.FC = () => {
             onSyncSmartForms={handleSyncAllFormsToCrm}
             onMergeDuplicates={handleMergeDuplicates}
             onScanCard={() => setIsCardScannerOpen(true)}
+            onOpenGroupsImport={() => setIsGroupsImportOpen(true)}
+            onOpenBulkWhatsApp={() => setIsBulkWhatsAppOpen(true)}
             onSwitchToLegacyTable={() => setActiveMainTab('table')}
             onSwitchToLegacyAnalytics={() => setActiveMainTab('analytics')}
           />

@@ -9,7 +9,7 @@ export interface AreaCollectionSchema {
     key: string;
     label: string;
     currentValue: any;
-    options: Array<{ value: string; label: string; desc?: string }>;
+    options?: Array<{ value: string; label: string; desc?: string }>;
   }>;
 }
 
@@ -577,6 +577,143 @@ export async function getAreaCollectionSchema(
     }
   } catch (e) {
     console.warn('Could not fetch server page config, falling back to blueprint:', e);
+  }
+
+  // תמיכה ייעודית לקולקציית כרטיסי הבית של CRM (crm_home_cards / area_crm_dynamic_groups)
+  if (areaId === 'crm_home_cards' || areaId === 'area_crm_dynamic_groups') {
+    return {
+      areaId,
+      componentName: 'KosCrmDynamicGroupsPage',
+      pageId: 'crm_home',
+      parameters: [
+        {
+          key: 'layoutBudget',
+          label: 'מבנה הפריסה ומנגנון גילוי התוכן (5 Discovery Layouts)',
+          currentValue: resolveDiscoveryLayoutMode(serverDoc?.layoutBudget, 'accordion_morph'),
+          options: [
+            { value: 'accordion_morph', label: '1. אקורדיון חי • 4 שורות מתרחבות', desc: '4 רצועות שבהן השורה הנבחרת מתרחבת' },
+            { value: 'spotlight_stage', label: '2. במת זרקור • 1 ראשי + 3 קפסולות', desc: 'כרטיס זרקור מרכזי בראש ו-3 קפסולות תחתונות' },
+            { value: 'glass_flip_overlay', label: '3. וילון זכוכית צף • רשת 2x2', desc: 'רשת 2x2 ממוקדת עם היפוך בלחיצה' },
+            { value: 'bento_asymmetric', label: '4. פסיפס בנטו אסימטרי', desc: 'פסיפס מודרני מונחה-משקל' },
+            { value: 'swipe_action_deck', label: '5. חפיסת כרטיסים 3D', desc: 'חפיסת כרטיסים אינטראקטיבית' },
+          ],
+        },
+        {
+          key: 'atmosphereTheme',
+          label: 'סגנון אטמוספרי ומיתוג',
+          currentValue: serverDoc?.atmosphereTheme || 'cyber_neon',
+          options: Object.values(KOSUN_STYLE_PRESETS).map((p) => ({
+            value: p.value,
+            label: p.label,
+            desc: p.desc,
+          })),
+        },
+        {
+          key: 'colorMode',
+          label: 'מצב יום / לילה',
+          currentValue: serverDoc?.colorMode || 'night',
+          options: [
+            { value: 'night', label: 'מצב לילה (Dark Mode)', desc: 'רקע כהה ושקט בעיניים' },
+            { value: 'day', label: 'מצב יום (Light Mode)', desc: 'רקע בהיר וקריאות מקסימלית' },
+          ],
+        },
+        // כרטיס א': הוספת נכסים
+        {
+          key: 'card_1_title',
+          label: 'כרטיס א - כותרת',
+          currentValue: serverDoc?.card_1_title || 'הצעות להוספת נכסים',
+        },
+        {
+          key: 'card_1_badge',
+          label: 'כרטיס א - תגית',
+          currentValue: serverDoc?.card_1_badge || 'הרחבת נכסים',
+        },
+        {
+          key: 'card_1_summary',
+          label: 'כרטיס א - שורת סיכום',
+          currentValue: serverDoc?.card_1_summary || 'פותח 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים של הטננט',
+        },
+        {
+          key: 'card_1_cta',
+          label: 'כרטיס א - הנעה לפעולה',
+          currentValue: serverDoc?.card_1_cta || '4 הצעות הרחבה ◀',
+        },
+        // כרטיס ב': הכנסות אחרונות
+        {
+          key: 'card_2_title',
+          label: 'כרטיס ב - כותרת',
+          currentValue: serverDoc?.card_2_title || 'צפייה בהכנסות האחרונות',
+        },
+        {
+          key: 'card_2_badge',
+          label: 'כרטיס ב - תגית',
+          currentValue: serverDoc?.card_2_badge || 'נתוני הכנסות',
+        },
+        {
+          key: 'card_2_summary',
+          label: 'כרטיס ב - שורת סיכום',
+          currentValue: serverDoc?.card_2_summary || 'פותח 4 כרטיסיות עם נתוני ההכנסות והעסקאות האחרונות של הטננט',
+        },
+        {
+          key: 'card_2_cta',
+          label: 'כרטיס ב - הנעה לפעולה',
+          currentValue: serverDoc?.card_2_cta || '4 כרטיסי הכנסות ◀',
+        },
+        // כרטיס ג': לידים לטיפול
+        {
+          key: 'card_3_title',
+          label: 'כרטיס ג - כותרת',
+          currentValue: serverDoc?.card_3_title || 'לידים שדורשים טיפול',
+        },
+        {
+          key: 'card_3_badge',
+          label: 'כרטיס ג - תגית',
+          currentValue: serverDoc?.card_3_badge || 'דורש טיפול',
+        },
+        {
+          key: 'card_3_summary',
+          label: 'כרטיס ג - שורת סיכום',
+          currentValue: serverDoc?.card_3_summary || 'פותח 4 כרטיסיות של לידים פעילים בטננט הממתינים למענה',
+        },
+        {
+          key: 'card_3_cta',
+          label: 'כרטיס ג - הנעה לפעולה',
+          currentValue: serverDoc?.card_3_cta || '4 לידים לטיפול ◀',
+        },
+        // כרטיס ד': מיון אנשי קשר
+        {
+          key: 'card_4_title',
+          label: 'כרטיס ד - כותרת',
+          currentValue: serverDoc?.card_4_title || 'מיון אנשי קשר',
+        },
+        {
+          key: 'card_4_badge',
+          label: 'כרטיס ד - תגית',
+          currentValue: serverDoc?.card_4_badge || 'תיוג רב-משתתפים',
+        },
+        {
+          key: 'card_4_summary',
+          label: 'כרטיס ד - שורת סיכום',
+          currentValue: serverDoc?.card_4_summary || 'פותח 4 כרטיסים עם פעולות תיוג ומיון רבות-משתתפים בקולקציה',
+        },
+        {
+          key: 'card_4_cta',
+          label: 'כרטיס ד - הנעה לפעולה',
+          currentValue: serverDoc?.card_4_cta || '4 פעולות תיוג ◀',
+        },
+        // כותרת היועץ
+        {
+          key: 'advisor_hint',
+          label: 'שורת רמז יועץ',
+          currentValue: serverDoc?.advisor_hint || 'אולי השאלה הזו תעזור לך לפנות זמן? לחץ לבחירה או שאל בקול חופשי',
+        },
+        {
+          key: 'advisor_title',
+          label: 'כותרת יועץ עליון',
+          currentValue: serverDoc?.advisor_title || 'היועץ העליון: לחץ לשיחה או בקש פריסת נתונים לפי דרישה',
+        },
+      ],
+    };
   }
 
   return {

@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { Contact, CustomField } from '../types';
 import { KosunDiscoveryLayoutMode } from '../../../KOSDESYN/01-core-engine/areaCollectionManager';
+import { matchCrmFunctionsForAdvisor } from './crmFunctionsCollection';
 
 export type DynamicGroupCategory =
   | 'priority'
@@ -2016,9 +2017,14 @@ export async function queryAdvisorCardsOnDemand(params: {
   }
 
   // -------------------------------------------------------------------------
-  // ב. התאמה לפונקציות מערכת קיימות בקוד (ייבוא, סריקה, מיזוג כפילויות, סנכרון)
+  // ב. שליפת פונקציות חכמות מקולקציית ה-CRM של KOSUN2026 (התאמה לתגיות, שם ויכולות)
   // -------------------------------------------------------------------------
+  const matchedFunctions = matchCrmFunctionsForAdvisor(clean);
+  const topMatch = matchedFunctions[0];
+
+  // אם נמצאה התאמה חזקה לקולקציית הפונקציות (ציון מעל 25, או מילות מפתח מובהקות)
   const isActionIntent =
+    (topMatch && topMatch.score >= 25) ||
     norm.includes('ייבוא') ||
     norm.includes('אקסל') ||
     norm.includes('כרטיס ביקור') ||
@@ -2028,60 +2034,38 @@ export async function queryAdvisorCardsOnDemand(params: {
     norm.includes('סנכרון') ||
     norm.includes('גוגל שיטס') ||
     norm.includes('טפסים') ||
-    norm.includes('תיוג');
+    norm.includes('תיוג') ||
+    norm.includes('מחיקה') ||
+    norm.includes('קבוצה') ||
+    norm.includes('ווטסאפ') ||
+    norm.includes('whatsapp') ||
+    norm.includes('מנוי') ||
+    norm.includes('קופון') ||
+    norm.includes('גרף') ||
+    norm.includes('סינון') ||
+    norm.includes('דוח') ||
+    norm.includes('vcard') ||
+    norm.includes('פגישה') ||
+    norm.includes('שיחה קולית');
 
-  if (isActionIntent) {
-    const actionCards: CrmMinimalSummaryItem[] = [
-      {
-        id: 'act_excel_import',
-        title: 'ייבוא אנשי קשר מקובץ Excel / CSV',
-        summaryLine: 'פונקציית ייבוא חכמה עם מיפוי עמודות ישיר לקולקציית הטננט',
-        badge: 'פונקציית קוד',
-        icon: 'FileSpreadsheet',
-        ctaText: 'הפעל ייבוא אקסל ◀',
-        actionKey: 'open_excel_import',
-        relevanceScore: norm.includes('אקסל') || norm.includes('ייבוא') ? 99 : 70,
-        targetLayout: 'accordion_morph',
-      },
-      {
-        id: 'act_scan_card',
-        title: 'סריקת כרטיס ביקור / זיהוי מצלמה ב-AI',
-        summaryLine: 'פונקציית OCR ו-Vision לפענוח כרטיס ביקור והוספת איש קשר מידית',
-        badge: 'פונקציית AI',
-        icon: 'Camera',
-        ctaText: 'הפעל סורק כרטיסים ◀',
-        actionKey: 'open_card_scan',
-        relevanceScore: norm.includes('סריקה') || norm.includes('כרטיס ביקור') ? 99 : 68,
-        targetLayout: 'spotlight_stage',
-      },
-      {
-        id: 'act_dedup',
-        title: 'איתור ואיחוד רשומות כפולות (Merge Duplicates)',
-        summaryLine: 'פונקציית שרת לסריקת כפילויות טלפון ומייל ומיזוג היסטוריית רכישות',
-        badge: 'ניקוי בסיס נתונים',
-        icon: 'Sparkles',
-        ctaText: 'הפעל מיזוג כפילויות ◀',
-        actionKey: 'open_merge_duplicates',
-        relevanceScore: norm.includes('כפיל') || norm.includes('מיזוג') ? 99 : 65,
-        targetLayout: 'glass_flip_overlay',
-      },
-      {
-        id: 'act_sync_sheets',
-        title: 'סנכרון חי מול Google Sheets',
-        summaryLine: 'פונקציית משיכה וסנכרון נתונים דו-כיוונית ישירות מגליונות גוגל',
-        badge: 'חיבור ענן',
-        icon: 'Sheet',
-        ctaText: 'פתח סנכרון גוגל ◀',
-        actionKey: 'open_google_sheets',
-        relevanceScore: norm.includes('גוגל') || norm.includes('שיטס') ? 99 : 60,
-        targetLayout: 'accordion_morph',
-      },
-    ];
-
-    actionCards.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+  if (isActionIntent && matchedFunctions.length > 0) {
+    const actionCards: CrmMinimalSummaryItem[] = matchedFunctions.map((match) => {
+      const fn = match.item;
+      return {
+        id: fn.id,
+        title: fn.title,
+        summaryLine: `${fn.summary} • ${fn.processStep}`,
+        badge: fn.badge,
+        icon: fn.icon,
+        ctaText: fn.ctaText,
+        actionKey: fn.actionKey,
+        targetLayout: fn.targetLayout || 'accordion_morph',
+        relevanceScore: match.score,
+      };
+    });
 
     return {
-      advisorReply: 'היועץ התאים את בקשתך לפונקציות הקיימות בקוד — לחץ להפעלה מיידית:',
+      advisorReply: `היועץ שלף 4 פונקציות פעולה מתאימות מתוך קולקציית ה-CRM עבור: "${clean}"`,
       modeTrigger: 'custom_cards',
       customCards: actionCards,
       suggestedLayout: actionCards[0]?.targetLayout || 'accordion_morph',

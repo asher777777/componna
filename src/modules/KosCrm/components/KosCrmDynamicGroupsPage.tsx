@@ -20,6 +20,7 @@ import {
   getAreaCollectionSchema,
   saveAreaCollectionConfig,
 } from '../../../KOSDESYN/01-core-engine/areaCollectionManager';
+import { getTerminology } from '../../../KOSDESYN/01-core-engine/pageTerminologyDictionary';
 import { InteractiveCapsule } from '../../../KOSDESYN/06-cognitive-web-portal/InteractiveCapsule';
 import { KosunUniversalFooter } from '../../../KOSDESYN/06-cognitive-web-portal/KosunUniversalFooter';
 import { TenantProfile, TenantThemeColors } from '../../../KOSDESYN/06-cognitive-web-portal/types';
@@ -34,6 +35,8 @@ interface KosCrmDynamicGroupsPageProps {
   onSyncSmartForms?: () => void;
   onMergeDuplicates?: () => void;
   onScanCard?: () => void;
+  onOpenGroupsImport?: () => void;
+  onOpenBulkWhatsApp?: () => void;
   onSwitchToLegacyTable: () => void;
   onSwitchToLegacyAnalytics: () => void;
 }
@@ -69,6 +72,10 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
   onSyncSmartForms,
   onMergeDuplicates,
   onScanCard,
+  onOpenGroupsImport,
+  onOpenBulkWhatsApp,
+  onSwitchToLegacyTable,
+  onSwitchToLegacyAnalytics,
 }) => {
   const { firebaseApp, ownerId, resolvedCollections } = useCrmAnalyticsContext();
   const { tenantId: rawTenantId } = useTenantScope();
@@ -88,6 +95,24 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
     layoutBudget: KosunDiscoveryLayoutMode;
     atmosphereTheme: string;
     colorMode: 'day' | 'night';
+    card_1_title?: string;
+    card_1_badge?: string;
+    card_1_summary?: string;
+    card_1_cta?: string;
+    card_2_title?: string;
+    card_2_badge?: string;
+    card_2_summary?: string;
+    card_2_cta?: string;
+    card_3_title?: string;
+    card_3_badge?: string;
+    card_3_summary?: string;
+    card_3_cta?: string;
+    card_4_title?: string;
+    card_4_badge?: string;
+    card_4_summary?: string;
+    card_4_cta?: string;
+    advisor_hint?: string;
+    advisor_title?: string;
   }>({
     layoutBudget: 'accordion_morph',
     atmosphereTheme: 'cyber_neon',
@@ -113,10 +138,10 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const recognitionRef = useRef<any>(null);
 
-  // בטעינה: קוראים אך ורק את הגדרת העיצוב של העמוד (אפס משיכת אנשי קשר מראש!)
+  // בטעינה: קוראים את הגדרת העיצוב ומפרט הכרטיסים מתוך קולקציית crm_home_cards
   useEffect(() => {
     let mounted = true;
-    getAreaCollectionSchema('area_crm_dynamic_groups', tenantId, 'saas').then((schema) => {
+    getAreaCollectionSchema('crm_home_cards', tenantId, 'saas').then((schema) => {
       if (!mounted) return;
       const map: Record<string, any> = {};
       schema.parameters.forEach((p) => {
@@ -126,6 +151,24 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
         layoutBudget: resolveDiscoveryLayoutMode(map.layoutBudget, prev.layoutBudget),
         atmosphereTheme: map.atmosphereTheme || prev.atmosphereTheme,
         colorMode: map.colorMode === 'day' ? 'day' : 'night',
+        card_1_title: map.card_1_title,
+        card_1_badge: map.card_1_badge,
+        card_1_summary: map.card_1_summary,
+        card_1_cta: map.card_1_cta,
+        card_2_title: map.card_2_title,
+        card_2_badge: map.card_2_badge,
+        card_2_summary: map.card_2_summary,
+        card_2_cta: map.card_2_cta,
+        card_3_title: map.card_3_title,
+        card_3_badge: map.card_3_badge,
+        card_3_summary: map.card_3_summary,
+        card_3_cta: map.card_3_cta,
+        card_4_title: map.card_4_title,
+        card_4_badge: map.card_4_badge,
+        card_4_summary: map.card_4_summary,
+        card_4_cta: map.card_4_cta,
+        advisor_hint: map.advisor_hint,
+        advisor_title: map.advisor_title,
       }));
     });
     return () => {
@@ -136,7 +179,7 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
   const updateVisualConfig = (patch: Partial<typeof visualConfig>) => {
     const next = { ...visualConfig, ...patch };
     setVisualConfig(next);
-    saveAreaCollectionConfig('area_crm_dynamic_groups', tenantId, next);
+    saveAreaCollectionConfig('crm_home_cards', tenantId, next);
   };
 
   // =========================================================================
@@ -279,56 +322,124 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
   // =========================================================================
   const activeFourCards = useMemo<FocusedBabushkaCard[]>(() => {
     // -----------------------------------------------------------------------
-    // מסך הבית (שורש הבבושקה): 4 הכרטיסים המדויקים שהוגדרו
+    // מסך הבית (שורש הבבושקה): 4 הכרטיסים נמשכים דינמית מקולקציית crm_home_cards
     // -----------------------------------------------------------------------
     if (stageMode === 'home') {
+      const card1Title =
+        visualConfig.card_1_title ||
+        getTerminology('crm_home_card_1_title', 'saas') ||
+        'הצעות להוספת נכסים';
+      const card1Badge =
+        visualConfig.card_1_badge ||
+        getTerminology('crm_home_card_1_badge', 'saas') ||
+        'הרחבת נכסים';
+      const card1Summary =
+        visualConfig.card_1_summary ||
+        getTerminology('crm_home_card_1_summary', 'saas') ||
+        'פותח 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים של הטננט';
+      const card1Cta =
+        visualConfig.card_1_cta ||
+        getTerminology('crm_home_card_1_cta', 'saas') ||
+        '4 הצעות הרחבה ◀';
+
+      const card2Title =
+        visualConfig.card_2_title ||
+        getTerminology('crm_home_card_2_title', 'saas') ||
+        'צפייה בהכנסות האחרונות';
+      const card2Badge =
+        visualConfig.card_2_badge ||
+        getTerminology('crm_home_card_2_badge', 'saas') ||
+        'נתוני הכנסות';
+      const card2Summary =
+        visualConfig.card_2_summary ||
+        getTerminology('crm_home_card_2_summary', 'saas') ||
+        'פותח 4 כרטיסיות עם נתוני ההכנסות והעסקאות האחרונות של הטננט';
+      const card2Cta =
+        visualConfig.card_2_cta ||
+        getTerminology('crm_home_card_2_cta', 'saas') ||
+        '4 כרטיסי הכנסות ◀';
+
+      const card3Title =
+        visualConfig.card_3_title ||
+        getTerminology('crm_home_card_3_title', 'saas') ||
+        'לידים שדורשים טיפול';
+      const card3Badge =
+        visualConfig.card_3_badge ||
+        getTerminology('crm_home_card_3_badge', 'saas') ||
+        'דורש טיפול';
+      const card3Summary =
+        visualConfig.card_3_summary ||
+        getTerminology('crm_home_card_3_summary', 'saas') ||
+        'פותח 4 כרטיסיות של לידים פעילים בטננט הממתינים למענה';
+      const card3Cta =
+        visualConfig.card_3_cta ||
+        getTerminology('crm_home_card_3_cta', 'saas') ||
+        '4 לידים לטיפול ◀';
+
+      const card4Title =
+        visualConfig.card_4_title ||
+        getTerminology('crm_home_card_4_title', 'saas') ||
+        'מיון אנשי קשר';
+      const card4Badge =
+        visualConfig.card_4_badge ||
+        getTerminology('crm_home_card_4_badge', 'saas') ||
+        'תיוג רב-משתתפים';
+      const card4Summary =
+        visualConfig.card_4_summary ||
+        getTerminology('crm_home_card_4_summary', 'saas') ||
+        'פותח 4 כרטיסים עם פעולות תיוג ומיון רבות-משתתפים בקולקציה';
+      const card4Cta =
+        visualConfig.card_4_cta ||
+        getTerminology('crm_home_card_4_cta', 'saas') ||
+        '4 פעולות תיוג ◀';
+
       return [
         {
           id: 'home_1_add_assets',
           hebrewIndex: 'א',
-          title: 'הצעות להוספת נכסים',
-          summaryLine: 'פותח 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים של הטננט',
-          badge: 'הרחבת נכסים',
+          title: card1Title,
+          summaryLine: card1Summary,
+          badge: card1Badge,
           icon: 'UserPlus',
           bgImage:
             'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
-          ctaText: '4 הצעות הרחבה ◀',
+          ctaText: card1Cta,
           onAction: openAddAssetsStage,
         },
         {
           id: 'home_2_recent_revenues',
           hebrewIndex: 'ב',
-          title: 'צפייה בהכנסות האחרונות',
-          summaryLine: 'פותח 4 כרטיסיות עם נתוני ההכנסות והעסקאות האחרונות של הטננט',
-          badge: 'נתוני הכנסות',
+          title: card2Title,
+          summaryLine: card2Summary,
+          badge: card2Badge,
           icon: 'CreditCard',
           bgImage:
             'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
-          ctaText: '4 כרטיסי הכנסות ◀',
+          ctaText: card2Cta,
           onAction: openRecentRevenuesStage,
         },
         {
           id: 'home_3_leads_care',
           hebrewIndex: 'ג',
-          title: 'לידים שדורשים טיפול',
-          summaryLine: 'פותח 4 כרטיסיות של לידים פעילים בטננט הממתינים למענה',
-          badge: 'דורש טיפול',
+          title: card3Title,
+          summaryLine: card3Summary,
+          badge: card3Badge,
           icon: 'Flame',
           bgImage:
             'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
-          ctaText: '4 לידים לטיפול ◀',
+          ctaText: card3Cta,
           onAction: openLeadsRequiringCareStage,
         },
         {
           id: 'home_4_bulk_sort',
           hebrewIndex: 'ד',
-          title: 'מיון אנשי קשר',
-          summaryLine: 'פותח 4 כרטיסים עם פעולות תיוג ומיון רבות-משתתפים בקולקציה',
-          badge: 'תיוג רב-משתתפים',
+          title: card4Title,
+          summaryLine: card4Summary,
+          badge: card4Badge,
           icon: 'Tags',
           bgImage:
             'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
-          ctaText: '4 פעולות תיוג ◀',
+          ctaText: card4Cta,
           onAction: openBulkSortingStage,
         },
       ];
@@ -556,6 +667,43 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
           else onOpenIngestionTools();
           return;
         }
+        if (item.actionKey === 'open_groups_import') {
+          if (onOpenGroupsImport) onOpenGroupsImport();
+          else onOpenIngestionTools();
+          return;
+        }
+        if (item.actionKey === 'open_bulk_whatsapp') {
+          if (onOpenBulkWhatsApp) onOpenBulkWhatsApp();
+          return;
+        }
+        if (item.actionKey === 'open_new_contact') {
+          onOpenNewContact();
+          return;
+        }
+        if (item.actionKey === 'sync_smart_forms') {
+          if (onSyncSmartForms) onSyncSmartForms();
+          return;
+        }
+        if (item.actionKey === 'open_filters') {
+          onSwitchToLegacyTable();
+          return;
+        }
+        if (item.actionKey === 'create_ai_chart' || item.actionKey === 'manage_custom_charts') {
+          onSwitchToLegacyAnalytics();
+          return;
+        }
+        if (item.actionKey === 'open_recent_revenues') {
+          openRecentRevenuesStage();
+          return;
+        }
+        if (item.actionKey === 'open_leads_care') {
+          openLeadsRequiringCareStage();
+          return;
+        }
+        if (item.actionKey === 'bulk_assign_group' || item.actionKey === 'bulk_add_tag') {
+          openBulkSortingStage();
+          return;
+        }
 
         // פתיחת איש קשר או יצירת קשר
         if (item.contactRef) {
@@ -623,9 +771,11 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
         id: 'top_advisor_node',
         questionText: isRecording
           ? 'מקשיב לך... אמור מה לפרוש בכרטיסים'
-          : 'היועץ העליון: לחץ לשיחה או בקש פריסת נתונים לפי דרישה',
+          : visualConfig.advisor_title ||
+            getTerminology('capsule_prompt_hint', 'saas') ||
+            'היועץ העליון: לחץ לשיחה או בקש פריסת נתונים לפי דרישה',
       }) as any,
-    [isRecording]
+    [isRecording, visualConfig.advisor_title]
   );
 
   // =========================================================================

@@ -15,6 +15,150 @@
     "totalTerms": 99
   },
   "terms": {
+    "crm_home_card_1_title": {
+      "id": "crm_home_card_1_title",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "הצעות להוספת נכסים",
+      "archetypeOverrides": {
+        "saas": "הצעות להוספת נכסים אנושיים",
+        "automotive": "הוספת מתעניינים ורכבים למאגר",
+        "real_estate": "הוספת משקיעים ונכסים",
+        "beauty": "הוספת לקוחות ותורים",
+        "community": "הצטרפות חברים חדשים",
+        "legal": "קליטת תיקים ולקוחות חדשים"
+      }
+    },
+    "crm_home_card_1_badge": {
+      "id": "crm_home_card_1_badge",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "הרחבת נכסים",
+      "archetypeOverrides": {
+        "saas": "הרחבת נכסים",
+        "automotive": "הגדלת מלאי",
+        "real_estate": "איתור משקיעים",
+        "beauty": "לקוחות חדשים",
+        "community": "הרחבת קהילה",
+        "legal": "פניות חדשות"
+      }
+    },
+    "crm_home_card_1_summary": {
+      "id": "crm_home_card_1_summary",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "פותח 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים של הטננט",
+      "archetypeOverrides": {
+        "saas": "פותח 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים של הטננט",
+        "automotive": "פותח 4 ערוצים לקליטת קונים, מוכרים ומתעניינים לרכבים",
+        "real_estate": "פותח 4 ערוצים להרחבת מאגר המשקיעים והנכסים",
+        "beauty": "פותח 4 ערוצים לקליטת מטופלות והרחבת היומן",
+        "community": "פותח 4 ערוצים להצטרפות חברים ורישום למפגשים",
+        "legal": "פותח 4 ערוצים לפתיחת תיקים וייעוץ ראשוני"
+      }
+    },
+    "crm_home_card_1_cta": {
+      "id": "crm_home_card_1_cta",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "4 הצעות הרחבה ◀"
+    },
+    "crm_home_card_2_title": {
+      "id": "crm_home_card_2_title",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "צפייה בהכנסות האחרונות",
+      "archetypeOverrides": {
+        "saas": "צפייה בהכנסות ועסקאות אחרונות",
+        "automotive": "עסקאות מכירה ומקדמות רכב",
+        "real_estate": "עסקאות תיווך ודמי רצינות",
+        "beauty": "הכנסות טיפולים ומוצרים",
+        "community": "דמי חבר ותרומות קהילה",
+        "legal": "שכר טרחה ותקבולים"
+      }
+    },
+    "crm_home_card_2_badge": {
+      "id": "crm_home_card_2_badge",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "נתוני הכנסות"
+    },
+    "crm_home_card_2_summary": {
+      "id": "crm_home_card_2_summary",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "פותח 4 כרטיסיות עם נתוני ההכנסות והעסקאות האחרונות של הטננט"
+    },
+    "crm_home_card_2_cta": {
+      "id": "crm_home_card_2_cta",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "4 כרטיסי הכנסות ◀"
+    },
+    "crm_home_card_3_title": {
+      "id": "crm_home_card_3_title",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "לידים שדורשים טיפול",
+      "archetypeOverrides": {
+        "saas": "לידים שדורשים טיפול מיידי",
+        "automotive": "מתעניינים שממתינים לנסיעת מבחן",
+        "real_estate": "קונים שממתינים לסיור בנכס",
+        "beauty": "פניות הממתינות לתיאום תור",
+        "community": "חברים חדשים הממתינים לקליטה",
+        "legal": "פניות דחופות לייעוץ משפטי"
+      }
+    },
+    "crm_home_card_3_badge": {
+      "id": "crm_home_card_3_badge",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "דורש טיפול"
+    },
+    "crm_home_card_3_summary": {
+      "id": "crm_home_card_3_summary",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "פותח 4 כרטיסיות של לידים פעילים בטננט הממתינים למענה"
+    },
+    "crm_home_card_3_cta": {
+      "id": "crm_home_card_3_cta",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "4 לידים לטיפול ◀"
+    },
+    "crm_home_card_4_title": {
+      "id": "crm_home_card_4_title",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "מיון אנשי קשר",
+      "archetypeOverrides": {
+        "saas": "מיון ותיוג אנשי קשר",
+        "automotive": "פילוח קונים ותיוג רכבים",
+        "real_estate": "סיווג משקיעים ואזורי ביקוש",
+        "beauty": "סיווג מטופלות וסוגי טיפול",
+        "community": "פילוח קבוצות עניין וחוגים",
+        "legal": "סיווג לפי תחומי משפט ולקוחות"
+      }
+    },
+    "crm_home_card_4_badge": {
+      "id": "crm_home_card_4_badge",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "תיוג רב-משתתפים"
+    },
+    "crm_home_card_4_summary": {
+      "id": "crm_home_card_4_summary",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "פותח 4 כרטיסים עם פעולות תיוג ומיון רבות-משתתפים בקולקציה"
+    },
+    "crm_home_card_4_cta": {
+      "id": "crm_home_card_4_cta",
+      "areaId": "crm_home_cards",
+      "pageId": "crm",
+      "systemDefault": "4 פעולות תיוג ◀"
+    },
     "capsule_prompt_hint": {
       "id": "capsule_prompt_hint",
       "areaId": "area_top_ai_capsule",
