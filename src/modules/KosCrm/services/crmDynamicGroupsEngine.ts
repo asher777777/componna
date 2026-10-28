@@ -11,6 +11,7 @@ import {
   limit,
 } from 'firebase/firestore';
 import { Contact, CustomField } from '../types';
+import { KosunDiscoveryLayoutMode } from '../../../KOSDESYN/01-core-engine/areaCollectionManager';
 
 export type DynamicGroupCategory =
   | 'priority'
@@ -1470,6 +1471,11 @@ export interface CrmMinimalSummaryItem {
   email?: string;
   amount?: number;
   contactRef?: Contact;
+  // תמיכה בהתאמה לפונקציה בקוד וביצוע בלחיצה
+  actionKey?: string;
+  actionPayload?: any;
+  targetLayout?: KosunDiscoveryLayoutMode;
+  relevanceScore?: number; // 0 - 100 למיון מהמתאים ביותר לפחות מתאים
 }
 
 function isBelongingToManagerTenant(docId: string, data: any, activeTenantId: string): boolean {
@@ -1773,7 +1779,159 @@ export async function executeTenantBulkTagActionOnDemand(params: {
 }
 
 /**
- * היועץ העליון (Top Advisor): מנתח את בקשת המשתמש בשיחה ופורש עד 4 כרטיסים עם נתונים לפי דרישה!
+ * מפענח שאילתת פילטור בשפה טבעית מול שדות אנשי הקשר בטננט
+ */
+export interface CrmNaturalQueryFilter {
+  textTerms: string[];
+  minSpent?: number;
+  maxSpent?: number;
+  isLead?: boolean;
+  isVip?: boolean;
+  hasPhone?: boolean;
+  hasEmail?: boolean;
+  tags?: string[];
+  cities?: string[];
+  communities?: string[];
+  sources?: string[];
+  sortBy?: 'spent_desc' | 'orders_desc' | 'recent' | 'name';
+  summaryDescription: string;
+}
+
+export function parseNaturalCrmFilter(queryText: string): CrmNaturalQueryFilter {
+  const norm = (queryText || '').toLowerCase().trim();
+  const filter: CrmNaturalQueryFilter = {
+    textTerms: [],
+    summaryDescription: queryText,
+  };
+
+  // בדיקת סכומים: "מעל 1000", "יותר מ 500", "מ-200"
+  const overMatch = norm.match(/(?:מעל|יותר מ|גבוה מ|סכום של מעל)\s*(\d+[\d,]*)/);
+  if (overMatch) {
+    filter.minSpent = Number(overMatch[1].replace(/,/g, ''));
+  }
+  const underMatch = norm.match(/(?:מתחת|פחות מ|נמוך מ)\s*(\d+[\d,]*)/);
+  if (underMatch) {
+    filter.maxSpent = Number(underMatch[1].replace(/,/g, ''));
+  }
+
+  // סינון לידים / מתעניינים / ללא תשלום
+  if (norm.includes('ליד') || norm.includes('מתעניינ') || norm.includes('פנייה') || norm.includes('ללא רכישה')) {
+    filter.isLead = true;
+  }
+
+  // לקוחות משלמים / VIP
+  if (norm.includes('vip') || norm.includes('משלמ') || norm.includes('קנו') || norm.includes('רכישות') || norm.includes('לקוחות עיקריים')) {
+    filter.isVip = true;
+  }
+
+  // ערים מובילות
+  const knownCities = [
+    'ירושלים', 'תל אביב', 'בני ברק', 'חיפה', 'פתח תקווה', 'אשדוד', 'נתניה',
+    'באר שבע', 'חולון', 'רמת גן', 'רחובות', 'בת ים', 'הרצליה', 'מודיעין',
+    'כפר סבא', 'רעננה', 'ביתר עילית', 'מודיעין עילית', 'בית שמש'
+  ];
+  for (const city of knownCities) {
+    if (norm.includes(city.toLowerCase())) {
+      filter.cities = filter.cities || [];
+      filter.cities.push(city);
+    }
+  }
+
+  // מקורות הגעה
+  const knownSources = ['פייסבוק', 'facebook', 'אינסטגרם', 'instagram', 'גוגל', 'google', 'וואטסאפ', 'whatsapp', 'טופס', 'אתר', 'המלצה'];
+  for (const src of knownSources) {
+    if (norm.includes(src.toLowerCase())) {
+      filter.sources = filter.sources || [];
+      filter.sources.push(src);
+    }
+  }
+
+  // סינון טלפון / מייל
+  if (norm.includes('עם טלפון') || norm.includes('שיש להם טלפון')) {
+    filter.hasPhone = true;
+  }
+  if (norm.includes('עם מייל') || norm.includes('שיש להם מייל')) {
+    filter.hasEmail = true;
+  }
+
+  // מיון
+  if (norm.includes('הכי הרבה') || norm.includes('הכנסות גבוהות') || norm.includes('מובילים')) {
+    filter.sortBy = 'spent_desc';
+  } else if (norm.includes('עסקאות') || norm.includes('הזמנות')) {
+    filter.sortBy = 'orders_desc';
+  }
+
+  // מונחי חיפוש חופשי (מילים שמנקות מילות קישור נפוצות)
+  const stopWords = new Set([
+    'תציג', 'הצג', 'תסנן', 'סנן', 'חפש', 'תמצא', 'מצא', 'אנשי', 'קשר', 'לידים', 'לקוחות', 'של',
+    'כל', 'את', 'עם', 'מי', 'שקנה', 'שיש', 'בטננט', 'במערכת', 'לי', 'לידים', 'נא', 'בבקשה'
+  ]);
+  const words = norm.split(/\s+/).filter((w) => w.length > 1 && !stopWords.has(w));
+  filter.textTerms = words;
+
+  return filter;
+}
+
+/**
+ * משיכת אנשי קשר מרובים מהשרת עבור שאילתות פילטור של היועץ (עד 60 רשומות ללא הצפת זיכרון)
+ */
+async function queryTenantContactsForAdvisor(
+  firebaseApp: FirebaseApp | undefined,
+  tenantId: string,
+  contactsCollectionPath?: string
+): Promise<Contact[]> {
+  if (!firebaseApp) return [];
+  const cleanTenant = (tenantId || '_master').trim();
+  const primaryPath = contactsCollectionPath || `tenants/${cleanTenant}/contacts`;
+  const results: Contact[] = [];
+  const seenIds = new Set<string>();
+
+  try {
+    const db = getFirestore(firebaseApp);
+    // קריאה מוגדלת ומסודרת של עד 80 רשומות מהשרת
+    try {
+      const snap = await getDocs(query(collection(db, primaryPath), limit(80)));
+      snap.forEach((d) => {
+        const raw = d.data();
+        if (isBelongingToManagerTenant(d.id, raw, cleanTenant)) {
+          results.push(mapDocToLightweightContact(d.id, raw));
+          seenIds.add(d.id);
+        }
+      });
+    } catch (colErr) {
+      console.warn('[KosCrm AdvisorQuery] Primary fetch notice:', colErr);
+    }
+
+    if (results.length < 10 && (cleanTenant === '_master' || cleanTenant === 'kosun')) {
+      try {
+        const rootSnap = await getDocs(query(collection(db, 'contacts'), limit(80)));
+        rootSnap.forEach((d) => {
+          if (!seenIds.has(d.id)) {
+            const raw = d.data();
+            if (isBelongingToManagerTenant(d.id, raw, cleanTenant)) {
+              results.push(mapDocToLightweightContact(d.id, raw));
+              seenIds.add(d.id);
+            }
+          }
+        });
+      } catch (rootErr) {
+        console.warn('[KosCrm AdvisorQuery] Root fallback notice:', rootErr);
+      }
+    }
+  } catch (err) {
+    console.warn('[KosCrm AdvisorQuery] Execution notice:', err);
+  }
+
+  return results;
+}
+
+/**
+ * היועץ העליון של ה-CRM (Top Advisor):
+ * מחובר לקולקציית אנשי הקשר של הטננט ומספק:
+ * א. הצעות לפריסת נתונים מותאמת (אקורדיון, זרקור, רשת, בנטו, חפיסה).
+ * ב. התאמה חכמה של בקשות המשתמש לפונקציות שקיימות בקוד.
+ * ג. פריסת תשובות ב-4 כרטיסיות ממוינות מהתשובה הכי מתאימה (רלוונטיות גבוהה) להכי פחות רלוונטית.
+ * ד. בלחיצה על כרטיס מתבצעת הפונקציה והתוצאות שלה מתפרסות על גבי הכרטיסים בפריסה מותאמת.
  */
 export async function queryAdvisorCardsOnDemand(params: {
   firebaseApp?: FirebaseApp;
@@ -1784,80 +1942,303 @@ export async function queryAdvisorCardsOnDemand(params: {
   advisorReply: string;
   modeTrigger?: 'home' | 'add_assets' | 'revenues' | 'leads' | 'bulk_sort' | 'custom_cards';
   customCards?: CrmMinimalSummaryItem[];
+  suggestedLayout?: KosunDiscoveryLayoutMode;
 }> {
   const clean = params.queryText.trim();
   const norm = clean.toLowerCase();
 
-  if (norm.includes('הכנס') || norm.includes('כסף') || norm.includes('תשלום') || norm.includes('עסקאות')) {
-    const rev = await fetchTenantRecentRevenuesOnDemand(params);
+  // -------------------------------------------------------------------------
+  // א. הצעות לפריסת נתונים (אם המשתמש שואל איך להציג / לשנות עיצוב ופריסה)
+  // -------------------------------------------------------------------------
+  if (
+    norm.includes('פריס') ||
+    norm.includes('עיצוב') ||
+    norm.includes('תצוגה') ||
+    norm.includes('איך להציג') ||
+    norm.includes('לשנות מראה') ||
+    norm.includes('סגנון')
+  ) {
+    const layoutSuggestions: CrmMinimalSummaryItem[] = [
+      {
+        id: 'layout_accordion',
+        title: 'פריסת אקורדיון דינמית (Accordion Morph)',
+        summaryLine: 'הרחבה חלקה של כרטיס נבחר ומיקוד פוקוס מקסימלי על שורת הנתונים',
+        badge: 'המלצה מובילה',
+        icon: 'LayoutList',
+        ctaText: 'החל פריסה זו ◀',
+        actionKey: 'apply_layout',
+        targetLayout: 'accordion_morph',
+        relevanceScore: 98,
+      },
+      {
+        id: 'layout_glass',
+        title: 'פריסת רשת 2x2 (Glass Flip Overlay)',
+        summaryLine: 'חלוקה נקייה של 4 כרטיסים על מסך שלם עם היפוך זכוכית בלחיצה',
+        badge: 'פופולרי',
+        icon: 'Grid2X2',
+        ctaText: 'החל פריסה זו ◀',
+        actionKey: 'apply_layout',
+        targetLayout: 'glass_flip_overlay',
+        relevanceScore: 88,
+      },
+      {
+        id: 'layout_spotlight',
+        title: 'פריסת זרקור מרכזי (Spotlight Stage)',
+        summaryLine: 'כרטיס פעולה בולט בראש המסך ו-3 כרטיסי לווין תומכים מתחתיו',
+        badge: 'מיקוד ADHD',
+        icon: 'Sparkles',
+        ctaText: 'החל פריסה זו ◀',
+        actionKey: 'apply_layout',
+        targetLayout: 'spotlight_stage',
+        relevanceScore: 82,
+      },
+      {
+        id: 'layout_bento',
+        title: 'פריסת בנטו מודרנית (Bento Asymmetric)',
+        summaryLine: 'כרטיסיות גיאומטריות מדויקות בהשראת KOSUN2026 עם יחס שטח מגוון',
+        badge: 'עיצוב פרימיום',
+        icon: 'Layers',
+        ctaText: 'החל פריסה זו ◀',
+        actionKey: 'apply_layout',
+        targetLayout: 'bento_asymmetric',
+        relevanceScore: 75,
+      },
+    ];
+
+    layoutSuggestions.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+
     return {
-      advisorReply: rev.summaryLine,
-      modeTrigger: 'revenues',
-      customCards: rev.items,
+      advisorReply: 'היועץ גיבש עבורך 4 הצעות לפריסת נתונים – לחץ להחלה מיידית:',
+      modeTrigger: 'custom_cards',
+      customCards: layoutSuggestions,
+      suggestedLayout: 'accordion_morph',
     };
   }
 
-  if (norm.includes('ליד') || norm.includes('טיפול') || norm.includes('מתעניינ')) {
-    const lds = await fetchTenantLeadsRequiringCareOnDemand(params);
+  // -------------------------------------------------------------------------
+  // ב. התאמה לפונקציות מערכת קיימות בקוד (ייבוא, סריקה, מיזוג כפילויות, סנכרון)
+  // -------------------------------------------------------------------------
+  const isActionIntent =
+    norm.includes('ייבוא') ||
+    norm.includes('אקסל') ||
+    norm.includes('כרטיס ביקור') ||
+    norm.includes('סריקה') ||
+    norm.includes('כפילויות') ||
+    norm.includes('מיזוג') ||
+    norm.includes('סנכרון') ||
+    norm.includes('גוגל שיטס') ||
+    norm.includes('טפסים') ||
+    norm.includes('תיוג');
+
+  if (isActionIntent) {
+    const actionCards: CrmMinimalSummaryItem[] = [
+      {
+        id: 'act_excel_import',
+        title: 'ייבוא אנשי קשר מקובץ Excel / CSV',
+        summaryLine: 'פונקציית ייבוא חכמה עם מיפוי עמודות ישיר לקולקציית הטננט',
+        badge: 'פונקציית קוד',
+        icon: 'FileSpreadsheet',
+        ctaText: 'הפעל ייבוא אקסל ◀',
+        actionKey: 'open_excel_import',
+        relevanceScore: norm.includes('אקסל') || norm.includes('ייבוא') ? 99 : 70,
+        targetLayout: 'accordion_morph',
+      },
+      {
+        id: 'act_scan_card',
+        title: 'סריקת כרטיס ביקור / זיהוי מצלמה ב-AI',
+        summaryLine: 'פונקציית OCR ו-Vision לפענוח כרטיס ביקור והוספת איש קשר מידית',
+        badge: 'פונקציית AI',
+        icon: 'Camera',
+        ctaText: 'הפעל סורק כרטיסים ◀',
+        actionKey: 'open_card_scan',
+        relevanceScore: norm.includes('סריקה') || norm.includes('כרטיס ביקור') ? 99 : 68,
+        targetLayout: 'spotlight_stage',
+      },
+      {
+        id: 'act_dedup',
+        title: 'איתור ואיחוד רשומות כפולות (Merge Duplicates)',
+        summaryLine: 'פונקציית שרת לסריקת כפילויות טלפון ומייל ומיזוג היסטוריית רכישות',
+        badge: 'ניקוי בסיס נתונים',
+        icon: 'Sparkles',
+        ctaText: 'הפעל מיזוג כפילויות ◀',
+        actionKey: 'open_merge_duplicates',
+        relevanceScore: norm.includes('כפיל') || norm.includes('מיזוג') ? 99 : 65,
+        targetLayout: 'glass_flip_overlay',
+      },
+      {
+        id: 'act_sync_sheets',
+        title: 'סנכרון חי מול Google Sheets',
+        summaryLine: 'פונקציית משיכה וסנכרון נתונים דו-כיוונית ישירות מגליונות גוגל',
+        badge: 'חיבור ענן',
+        icon: 'Sheet',
+        ctaText: 'פתח סנכרון גוגל ◀',
+        actionKey: 'open_google_sheets',
+        relevanceScore: norm.includes('גוגל') || norm.includes('שיטס') ? 99 : 60,
+        targetLayout: 'accordion_morph',
+      },
+    ];
+
+    actionCards.sort((a, b) => (b.relevanceScore || 0) - (a.relevanceScore || 0));
+
     return {
-      advisorReply: lds.summaryLine,
-      modeTrigger: 'leads',
-      customCards: lds.items,
+      advisorReply: 'היועץ התאים את בקשתך לפונקציות הקיימות בקוד — לחץ להפעלה מיידית:',
+      modeTrigger: 'custom_cards',
+      customCards: actionCards,
+      suggestedLayout: actionCards[0]?.targetLayout || 'accordion_morph',
     };
   }
 
-  if (norm.includes('נכס') || norm.includes('הוספ') || norm.includes('ייבוא') || norm.includes('אקסל')) {
-    return {
-      advisorReply: 'פרשתי עבורך 4 הצעות להרחבת הנכסים האנושיים של הטננט:',
-      modeTrigger: 'add_assets',
-    };
-  }
-
-  if (norm.includes('מיון') || norm.includes('תיוג') || norm.includes('תגית') || norm.includes('כפול')) {
-    return {
-      advisorReply: 'פרשתי עבורך 4 פעולות תיוג ומיון רבות-משתתפים לטננט:',
-      modeTrigger: 'bulk_sort',
-    };
-  }
-
-  // חיפוש חופשי של אנשי קשר בטננט של המנג'ר בלבד (מחזיר עד 4 כרטיסי סיכום!)
-  const docs = await queryManagerTenantDocsLimited(
+  // -------------------------------------------------------------------------
+  // ג. סריקת אנשי הקשר של הטננט ופילטור נתונים מהשרת
+  // -------------------------------------------------------------------------
+  const docs = await queryTenantContactsForAdvisor(
     params.firebaseApp,
     params.tenantId,
-    params.contactsCollectionPath,
-    24
+    params.contactsCollectionPath
   );
 
-  const matched = docs.filter((c) => {
-    const hay = `${c.conta_name || ''} ${c.conta_phone || ''} ${c.email || ''} ${c.community || ''} ${(c.tags || []).join(' ')}`.toLowerCase();
-    return hay.includes(norm);
+  const parsedFilter = parseNaturalCrmFilter(clean);
+
+  // חישוב ציון התאמה ורלוונטיות לכל איש קשר (0 עד 100)
+  const scoredContacts: Array<{ contact: Contact; score: number; matchReasons: string[] }> = [];
+
+  docs.forEach((c) => {
+    let score = 50; // ציון בסיס
+    const reasons: string[] = [];
+    const spent = Number(c.total_spent || 0) + Number(c.campaign_amount || 0);
+    const haystack = `${c.kosun_crm_name || ''} ${c.conta_name || ''} ${c.conta_phone || ''} ${c.email || ''} ${c.community || ''} ${(c.tags || []).join(' ')} ${c.company_name || ''} ${c.kosun_crm_city || c.mh_crm_city || ''}`.toLowerCase();
+
+    // התאמת מונחי טקסט
+    if (parsedFilter.textTerms.length > 0) {
+      let matchedTerms = 0;
+      parsedFilter.textTerms.forEach((term) => {
+        if (haystack.includes(term)) matchedTerms++;
+      });
+      if (matchedTerms > 0) {
+        score += (matchedTerms / parsedFilter.textTerms.length) * 35;
+        reasons.push('התאמת טקסט');
+      } else {
+        score -= 30; // אי התאמה
+      }
+    }
+
+    // התאמת סכום
+    if (parsedFilter.minSpent !== undefined) {
+      if (spent >= parsedFilter.minSpent) {
+        score += 25;
+        reasons.push(`סכום ₪${spent.toLocaleString()}`);
+      } else {
+        score -= 40;
+      }
+    }
+
+    // התאמת ליד / מתעניין
+    if (parsedFilter.isLead) {
+      if (c.is_lead || c.contact_type === 'lead' || spent === 0) {
+        score += 25;
+        reasons.push('ליד פעיל');
+      } else {
+        score -= 20;
+      }
+    }
+
+    // התאמת VIP / לקוח משלם
+    if (parsedFilter.isVip) {
+      if (spent > 0 || (c.tags || []).some((t) => t.includes('VIP'))) {
+        score += 25;
+        reasons.push('לקוח משלם');
+      } else {
+        score -= 25;
+      }
+    }
+
+    // התאמת עיר
+    if (parsedFilter.cities && parsedFilter.cities.length > 0) {
+      const contactCity = (c.kosun_crm_city || c.mh_crm_city || '').toLowerCase();
+      if (parsedFilter.cities.some((ct) => contactCity.includes(ct.toLowerCase()))) {
+        score += 25;
+        reasons.push(c.kosun_crm_city || c.mh_crm_city || '');
+      } else {
+        score -= 30;
+      }
+    }
+
+    // בונוס לפעילות עדכנית
+    if (c.conta_phone) score += 5;
+    if (spent > 0) score += Math.min(10, Math.floor(spent / 500));
+
+    scoredContacts.push({ contact: c, score, matchReasons: reasons });
   });
 
-  const finalSlice = (matched.length > 0 ? matched : docs).slice(0, 4).map((c) => {
+  // מיון מדויק מהתשובה הכי מתאימה (רלוונטיות גבוהה) להכי פחות רלוונטית
+  scoredContacts.sort((a, b) => b.score - a.score);
+
+  // בחירת 4 הכרטיסים המובילים בלבד
+  const topFourScored = scoredContacts.slice(0, 4);
+
+  // קביעת פריסה מותאמת לפי אופי המידע שנמצא
+  let bestLayout: KosunDiscoveryLayoutMode = 'accordion_morph';
+  const hasHighSpenders = topFourScored.some((sc) => Number(sc.contact.total_spent || 0) > 0);
+  if (hasHighSpenders) {
+    bestLayout = 'spotlight_stage'; // זרקור עבור משלמים ו-VIP
+  } else if (topFourScored.length === 4) {
+    bestLayout = 'glass_flip_overlay'; // רשת 2x2 נוחה ובהירה
+  }
+
+  const customCards: CrmMinimalSummaryItem[] = topFourScored.map((item, idx) => {
+    const c = item.contact;
     const name = c.kosun_crm_name || c.conta_name || 'איש קשר';
-    const spent = Number(c.total_spent || 0);
+    const spent = Number(c.total_spent || c.campaign_amount || 0);
+    const city = c.kosun_crm_city || c.mh_crm_city;
+    const phone = c.conta_phone || c.email || 'ללא פרטי קשר';
+    const relPercent = Math.min(100, Math.max(10, Math.round(item.score)));
+
+    let badgeText = `${relPercent}% התאמה`;
+    let iconName = 'UserCheck';
+
+    if (spent > 0) {
+      badgeText = `₪${spent.toLocaleString()} • ${relPercent}%`;
+      iconName = 'CreditCard';
+    } else if (c.is_lead) {
+      badgeText = `ליד • ${relPercent}%`;
+      iconName = 'Flame';
+    }
+
+    const summaryParts = [
+      phone,
+      city ? `עיר: ${city}` : null,
+      spent > 0 ? `${c.order_count || 1} עסקאות` : c.community || 'פעיל בטננט',
+      item.matchReasons.length > 0 ? item.matchReasons.join(', ') : null,
+    ].filter(Boolean);
+
     return {
-      id: `adv_${c.id}`,
+      id: `adv_scored_${c.id}_${idx}`,
       title: name,
-      summaryLine: `${c.conta_phone || c.email || 'ללא טלפון'} • ${
-        spent > 0 ? `₪${spent.toLocaleString()}` : c.community || 'פעיל בטננט'
-      }`,
-      badge: spent > 0 ? `₪${spent.toLocaleString()}` : c.is_lead ? 'ליד' : 'איש קשר',
-      icon: c.is_lead ? 'Flame' : 'UserCheck',
-      ctaText: c.conta_phone ? 'שלח WhatsApp ◀' : 'פתח כרטיס ◀',
+      summaryLine: summaryParts.join(' • '),
+      badge: badgeText,
+      icon: iconName,
+      ctaText: 'פתח כרטיס מלא ◀',
       phone: c.conta_phone,
       email: c.email,
+      amount: spent,
       contactRef: c,
+      actionKey: 'open_contact_360',
+      actionPayload: c,
+      relevanceScore: relPercent,
+      targetLayout: bestLayout,
     };
   });
 
+  const replyMessage =
+    topFourScored.length > 0
+      ? `נפרסו 4 תוצאות מהמתאימה ביותר לפחות רלוונטית (${topFourScored[0].matchReasons.join(', ')}):`
+      : `לא אותרו תוצאות התואמות מדויק את השאילתה "${clean}" — הנה 4 רשומות מהשרת:`;
+
   return {
-    advisorReply:
-      matched.length > 0
-        ? `היועץ מצא ${matched.length} תוצאות בטננט עבור "${clean}" (מוצגים עד 4 כרטיסים):`
-        : `לא נמצאה התאמה מדויקת ל-"${clean}" — הנה 4 רשומות מובילות מהטננט:`,
+    advisorReply: replyMessage,
     modeTrigger: 'custom_cards',
-    customCards: finalSlice,
+    customCards,
+    suggestedLayout: bestLayout,
   };
 }
 

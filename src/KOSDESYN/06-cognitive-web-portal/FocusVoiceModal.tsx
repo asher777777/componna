@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { TenantThemeColors, CognitiveNodeModel, TenantProfile } from './types';
-import { KOSUN_STYLE_PRESETS, StylePresetDefinition } from '../../../factory/areaCollectionManager';
-import { getTerminology } from '../../../factory/pageTerminologyDictionary';
+import { KOSUN_STYLE_PRESETS, StylePresetDefinition } from '../01-core-engine/areaCollectionManager';
+import { getTerminology } from '../01-core-engine/pageTerminologyDictionary';
 import { KosunUserAvatar } from './KosunUserAvatar';
 
 interface FocusVoiceModalProps {
@@ -19,7 +19,8 @@ interface FocusVoiceModalProps {
   tenantTheme: TenantThemeColors;
   tenantProfile?: TenantProfile | null;
   stylePresetId?: string;
-  nodes: CognitiveNodeModel[];
+  nodes?: CognitiveNodeModel[];
+  onExecuteCardAction?: (query: string) => void;
 }
 
 export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
@@ -60,10 +61,10 @@ export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
 
   // 2. ארבע שאלות המלצה מונחות-מיקוד
   const defaultPrompts = [
-    { id: 'p1', text: 'איך שיטת The Big 3 מנקה לי עומס מחשבתי?', icon: 'Target', badge: 'שיטה' },
-    { id: 'p2', text: 'האם המערכת מזהה ומפרקת שיחות קוליות בעברית?', icon: 'Mic', badge: 'טכנולוגיה' },
-    { id: 'p3', text: 'מה ההבדל בין מסלול Solo Focus ל-Executive?', icon: 'Layers', badge: 'מסלולים' },
-    { id: 'p4', text: 'תאם לי פגישת אבחון אישית מול הסוכן', icon: 'Sparkles', badge: 'שריון מהיר' }
+    { id: 'p1', text: 'הצג לי לקוחות שקנו מעל 1,000 ₪', icon: 'CreditCard', badge: 'הכנסות' },
+    { id: 'p2', text: 'סנן לידים פעילים שממתינים לטיפול', icon: 'Flame', badge: 'לידים' },
+    { id: 'p3', text: 'הצע לי פריסת נתונים מותאמת (רשת או זרקור)', icon: 'LayoutList', badge: 'פריסה' },
+    { id: 'p4', text: 'ייבוא אנשי קשר מאקסל או סריקת כרטיס ביקור', icon: 'FileSpreadsheet', badge: 'פעולות' }
   ];
 
   const recommendationItems = (nodes && nodes.length >= 4 ? nodes.slice(0, 4) : defaultPrompts).map(
@@ -72,8 +73,8 @@ export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
       return {
         id: (n as any).id || promptObj.id,
         text: (n as any).questionText || (n as any).title || promptObj.text,
-        icon: (n as any).primaryIcon || promptObj.icon,
-        badge: (n as any).indexBadge ? `0${idx + 1} • ${promptObj.badge}` : promptObj.badge
+        icon: (n as any).primaryIcon || (n as any).icon || promptObj.icon,
+        badge: (n as any).indexBadge ? `0${idx + 1} • ${promptObj.badge}` : (n as any).badge || promptObj.badge
       };
     }
   );
@@ -81,7 +82,7 @@ export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
   // 3. מאגר ידע חכם להפקת תשובת שיחה מדויקת לפי שאלה וטננט
   const resolveAnswerForQuestion = (qText: string): string => {
     // א. בדיקת מענה מתוך רשימת ה-nodes
-    const matchedNode = nodes.find(
+    const matchedNode = (nodes || []).find(
       (n) =>
         n.questionText?.toLowerCase().includes(qText.toLowerCase()) ||
         qText.toLowerCase().includes(n.questionText?.toLowerCase() || '') ||
@@ -452,10 +453,10 @@ export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
           <div className="w-full z-20 shrink-0 my-1 animate-fadeIn">
             <div className="flex items-center justify-between px-1 mb-1">
               <span className="text-[10px] font-black" style={{ color: brandPrimary }}>
-                💡 המלצות ממוקדות לעסק (לחץ לשיחה חיה):
+                💡 הצעות דינמיות לשאילתות ופילטור (לחץ לפריסה):
               </span>
               <span className="text-[9px] font-mono" style={{ color: modeColors.secondaryText }}>
-                מיקוד קוגניטיבי 100%
+                יועץ CRM פעיל
               </span>
             </div>
 
@@ -466,7 +467,14 @@ export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
                   <button
                     key={item.id}
                     type="button"
-                    onClick={() => triggerQuestionConversation(item.text)}
+                    onClick={() => {
+                      if (onExecuteCardAction) {
+                        onExecuteCardAction(item.text);
+                        onClose();
+                      } else {
+                        triggerQuestionConversation(item.text);
+                      }
+                    }}
                     className="p-2 border text-right transition-all cursor-pointer group flex flex-col justify-between hover:scale-[1.02] active:scale-95 relative overflow-hidden shadow-sm"
                     style={{
                       borderRadius: cardRadius,
@@ -497,7 +505,7 @@ export const FocusVoiceModal: React.FC<FocusVoiceModalProps> = ({
                     </p>
 
                     <div className="flex items-center justify-between text-[8px] pt-1 mt-1 border-t border-white/10 w-full">
-                      <span style={{ color: modeColors.secondaryText }}>לחץ למענה חי</span>
+                      <span style={{ color: modeColors.secondaryText }}>פרוש כרטיסים ◀</span>
                       <Icons.ArrowLeft size={10} style={{ color: brandPrimary }} />
                     </div>
                   </button>

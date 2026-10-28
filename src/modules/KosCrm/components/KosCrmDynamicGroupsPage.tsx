@@ -216,6 +216,10 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
 
     setSummaryLineText(res.advisorReply);
 
+    if (res.suggestedLayout) {
+      updateVisualConfig({ layoutBudget: res.suggestedLayout });
+    }
+
     if (res.modeTrigger === 'add_assets') {
       setStageMode('add_assets');
     } else if (res.modeTrigger === 'bulk_sort') {
@@ -522,15 +526,44 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
       bgImage:
         stageMode === 'revenues'
           ? 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80'
+          : stageMode === 'advisor_cards'
+          ? 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=800&q=80'
           : 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
       ctaText: item.ctaText,
       onAction: () => {
-        if (stageMode === 'leads' && item.phone) {
+        // ביצוע פעולת קוד שהותאמה על ידי היועץ
+        if (item.actionKey === 'apply_layout' && item.targetLayout) {
+          updateVisualConfig({ layoutBudget: item.targetLayout });
+          setSummaryLineText(`הוחלה פריסת ${item.title}`);
+          return;
+        }
+        if (item.actionKey === 'open_excel_import') {
+          if (onOpenExcelImport) onOpenExcelImport();
+          else onOpenIngestionTools();
+          return;
+        }
+        if (item.actionKey === 'open_card_scan') {
+          if (onScanCard) onScanCard();
+          else onOpenNewContact();
+          return;
+        }
+        if (item.actionKey === 'open_merge_duplicates') {
+          if (onMergeDuplicates) onMergeDuplicates();
+          return;
+        }
+        if (item.actionKey === 'open_google_sheets') {
+          if (onOpenGoogleSheets) onOpenGoogleSheets();
+          else onOpenIngestionTools();
+          return;
+        }
+
+        // פתיחת איש קשר או יצירת קשר
+        if (item.contactRef) {
+          onOpenContact360(item.contactRef);
+        } else if (item.phone) {
           const cleanPhone = item.phone.replace(/\D/g, '');
           const intl = cleanPhone.startsWith('0') ? `972${cleanPhone.slice(1)}` : cleanPhone;
           window.open(`https://wa.me/${intl}`, '_blank');
-        } else if (item.contactRef) {
-          onOpenContact360(item.contactRef);
         }
       },
     }));
