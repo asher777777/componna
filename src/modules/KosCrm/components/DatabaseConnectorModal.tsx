@@ -163,9 +163,9 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
       };
 
       try {
+        localStorage.removeItem(STORAGE_JSON_KEY);
+        localStorage.removeItem(STORAGE_PARSED_KEY);
         localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(profileToSave));
-        localStorage.setItem(STORAGE_JSON_KEY, jsonInput);
-        localStorage.setItem(STORAGE_PARSED_KEY, JSON.stringify(res));
       } catch (saveErr) {
         console.warn('Storage save notice:', saveErr);
       }
@@ -246,15 +246,11 @@ export const DatabaseConnectorModal: React.FC<Props> = ({
       } as any,
     };
 
-    // 1. Save to tenant-scoped localStorage
+    // 1. Save lightweight profile only to tenant-scoped localStorage (never raw JSON dumps)
     try {
+      localStorage.removeItem(STORAGE_JSON_KEY);
+      localStorage.removeItem(STORAGE_PARSED_KEY);
       localStorage.setItem(STORAGE_PROFILE_KEY, JSON.stringify(profile));
-      if (jsonInput.trim()) {
-        localStorage.setItem(STORAGE_JSON_KEY, jsonInput);
-      }
-      if (parsedResult) {
-        localStorage.setItem(STORAGE_PARSED_KEY, JSON.stringify(parsedResult));
-      }
     } catch (e) {
       console.warn('Local storage error:', e);
     }

@@ -141,6 +141,10 @@ const GLOBAL_STYLE_PRESETS: Array<{
   },
 ];
 
+const EMPTY_PAGE_SECTIONS: any[] = [];
+const EMPTY_SECTIONS_MAP: Record<string, any> = {};
+const EMPTY_SNAPSHOTS: PageDesignSnapshot[] = [];
+
 export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   isOpen,
   onClose,
@@ -150,10 +154,10 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   onUpdateSeoSettings,
   onOpenGeoDrawer,
   pageTitle = 'עמוד',
-  pageSections = [],
-  sections = {},
+  pageSections = EMPTY_PAGE_SECTIONS,
+  sections = EMPTY_SECTIONS_MAP,
   onUpdateSections,
-  designSnapshots = [],
+  designSnapshots = EMPTY_SNAPSHOTS,
   onUpdateDesignSnapshots,
   onApplyGlobalOverride,
 }) => {
@@ -193,22 +197,30 @@ export const PageSettingsDrawer: React.FC<PageSettingsDrawerProps> = ({
   });
 
   useEffect(() => {
+    let nextMap: Record<string, any> | null = null;
     if (sections && typeof sections === 'object' && Object.keys(sections).length > 0) {
-      setCurrentSections({ ...sections });
+      nextMap = { ...sections };
     } else if (Array.isArray(pageSections) && pageSections.length > 0) {
       const map: Record<string, any> = {};
       pageSections.forEach((s: any, idx: number) => {
         const id = s.id || `section_${idx}`;
         map[id] = s;
       });
-      setCurrentSections(map);
+      nextMap = map;
+    }
+    if (nextMap) {
+      setCurrentSections((prev) =>
+        JSON.stringify(prev) === JSON.stringify(nextMap) ? prev : nextMap!
+      );
     }
   }, [sections, pageSections]);
 
-  const [localSnapshots, setLocalSnapshots] = useState<PageDesignSnapshot[]>(designSnapshots || []);
+  const [localSnapshots, setLocalSnapshots] = useState<PageDesignSnapshot[]>(designSnapshots || EMPTY_SNAPSHOTS);
   useEffect(() => {
     if (designSnapshots) {
-      setLocalSnapshots(designSnapshots);
+      setLocalSnapshots((prev) =>
+        JSON.stringify(prev) === JSON.stringify(designSnapshots) ? prev : designSnapshots
+      );
     }
   }, [designSnapshots]);
 

@@ -84,7 +84,7 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
   }), [customCollections, getScopedCollectionPath]);
 
   const [data, setData] = useState<CRMAnalyticsData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<CRMAnalyticsFilter>(initialFilter);
   const [selectedColumns, setSelectedColumns] = useState<string[]>(DEFAULT_SELECTED_COLUMNS);
   const [savedViews, setSavedViews] = useState<SavedAnalyticsView[]>([]);
@@ -102,14 +102,9 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
     }
   }, [firebaseApp, ownerId, filter, resolvedCollections]);
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  // Listen to Global EventBus for leads captured across other modules (e.g. PageBuilder, FlowPlayer)
+  // Listen to Global EventBus without triggering full-database fetches or cross-tenant syncs
   useEffect(() => {
     const unsubLead = eventBus.subscribe('crm:lead:created', (payload: LeadPayload) => {
-      console.log('[CRM] Received lead from EventBus:', payload);
       setData(prev => {
         if (!prev) return null;
         const meta = payload.metadata || {};
@@ -148,67 +143,10 @@ export const CrmAnalyticsProvider: React.FC<CrmAnalyticsProviderProps> = ({
       });
     });
 
-    const unsubForm = eventBus.subscribe('form:submitted', (payload) => {
-      console.log('[CRM] Received form submission from EventBus:', payload);
-      refresh();
-    });
-
-    const unsubSmartForm = eventBus.subscribe('smart_form:submitted', (payload) => {
-      console.log('[CRM] Received smart form submission from EventBus:', payload);
-      refresh();
-    });
-
-    const unsubDonation = eventBus.subscribe('campaign:donation:completed', (payload) => {
-      console.log('[CRM Analytics] Received donation completed from EventBus:', payload);
-      refresh();
-    });
-
-    const unsubPayment = eventBus.subscribe('payment:completed', (payload) => {
-      console.log('[CRM Analytics] Received payment completed from EventBus:', payload);
-      refresh();
-    });
-
-    const unsubContactUpdated = eventBus.subscribe('crm:contact:updated', (payload) => {
-      console.log('[CRM Analytics] Received contact updated from EventBus:', payload);
-      refresh();
-    });
-
-    const unsubAmbassador = eventBus.subscribe('campaign:ambassador:created', (payload) => {
-      console.log('[CRM Analytics] Received ambassador created from EventBus:', payload);
-      refresh();
-    });
-
-    const unsubTenantProvisioned = eventBus.subscribe('tenant:provisioned', async (tenant) => {
-      console.log('[CRM Analytics] Received tenant provisioned event:', tenant);
-      await tenantContactSyncService.syncTenantToContact(tenant, firebaseApp);
-      refresh();
-    });
-
-    const unsubTenantUpdated = eventBus.subscribe('tenant:updated', async (tenant) => {
-      console.log('[CRM Analytics] Received tenant updated event:', tenant);
-      await tenantContactSyncService.syncTenantToContact(tenant, firebaseApp);
-      refresh();
-    });
-
-    // In master scope, ensure all provisioned subdomains are synced to CRM
-    if (tenantId === '_master' || !tenantId) {
-      tenantContactSyncService.ensureAllTenantsSyncedToCrm(firebaseApp).then((count) => {
-        if (count > 0) refresh();
-      });
-    }
-
     return () => {
       unsubLead();
-      unsubForm();
-      unsubSmartForm();
-      unsubDonation();
-      unsubPayment();
-      unsubContactUpdated();
-      unsubAmbassador();
-      unsubTenantProvisioned();
-      unsubTenantUpdated();
     };
-  }, [refresh, tenantId, firebaseApp]);
+  }, [tenantId, firebaseApp]);
 
   // Merge core columns with custom fields from dataset
   const availableColumns: DynamicColumn[] = React.useMemo(() => {

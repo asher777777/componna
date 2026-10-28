@@ -6,6 +6,9 @@ import {
   setDoc,
   collection,
   getDocs,
+  query,
+  where,
+  limit,
 } from 'firebase/firestore';
 import { Contact, CustomField } from '../types';
 
@@ -122,19 +125,56 @@ function pickCategoryImage(category: DynamicGroupCategory, index: number): strin
 }
 
 /**
+ * שמירה בטוחה ל-LocalStorage עם הגנה מלאה מפני QuotaExceededError ופינוי קאש עודף
+ */
+export function safeLocalStorageSet(key: string, value: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(key, value);
+  } catch (err) {
+    try {
+      // פינוי מפתחות קאש כבדים (>50KB) שתוקעים את הדפדפן
+      const heavyKeys: Array<{ k: string; len: number }> = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        const v = localStorage.getItem(k) || '';
+        if (v.length > 50000) {
+          heavyKeys.push({ k, len: v.length });
+        }
+      }
+      heavyKeys.sort((a, b) => b.len - a.len);
+      if (heavyKeys.length > 0) {
+        localStorage.removeItem(heavyKeys[0].k);
+        localStorage.setItem(key, value);
+      }
+    } catch {
+      // Fallback: continue in-memory without crashing the UI
+    }
+  }
+}
+
+export function safeLocalStorageGet(key: string): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * קריאת מטריקות שימוש מ-LocalStorage (תגובה מיידית 0ms)
  */
 export function loadLocalUsageMetrics(tenantId: string): Record<string, EntityUsageRecord> {
-  if (typeof window === 'undefined') return {};
+  const raw = safeLocalStorageGet(`${LOCAL_USAGE_STORAGE_PREFIX}${tenantId || '_master'}`);
+  if (!raw) return {};
   try {
-    const raw = localStorage.getItem(`${LOCAL_USAGE_STORAGE_PREFIX}${tenantId || '_master'}`);
-    if (raw) {
-      return JSON.parse(raw);
-    }
+    return JSON.parse(raw);
   } catch (e) {
     console.warn('[KosCrmDynamicGroups] Local usage load notice:', e);
+    return {};
   }
-  return {};
 }
 
 /**
@@ -144,15 +184,10 @@ export function saveLocalUsageMetrics(
   tenantId: string,
   metrics: Record<string, EntityUsageRecord>
 ): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(
-      `${LOCAL_USAGE_STORAGE_PREFIX}${tenantId || '_master'}`,
-      JSON.stringify(metrics)
-    );
-  } catch (e) {
-    console.warn('[KosCrmDynamicGroups] Local usage save notice:', e);
-  }
+  safeLocalStorageSet(
+    `${LOCAL_USAGE_STORAGE_PREFIX}${tenantId || '_master'}`,
+    JSON.stringify(metrics)
+  );
 }
 
 /**
@@ -1106,5 +1141,724 @@ export function buildContactDynamicDataSections(
         sec.importanceScore * 0.5 + sec.globalUsageCount * 1.5 + sec.userUsageCount * 8
       ),
     }))
-    .sort((a, b) => b.totalDynamicScore - a.totalDynamicScore);
+    .sort((a, b) => b.totalDynamicScore - a.totalDynamicScore)
+    .slice(0, 4);
 }
+
+/**
+ * ============================================================================
+ * ON-DEMAND BABUSHKA ENGINE (משיכת נתונים ממוקדת לפי דרישת משתמש בלבד - מקסימום 4 כרטיסים)
+ * ============================================================================
+ * שלב 1: מושך אך ורק את 4 הקבוצות המובילות (ללא משיכת כל אנשי הקשר!)
+ * שלב 2: רק בלחיצת משתמש על קבוצה -> מושך מ-Firestore עד 4 אנשי קשר רלוונטיים בלבד!
+ */
+export async function fetchTopFourBabushkaGroupsOnDemand(params: {
+  firebaseApp?: FirebaseApp;
+  tenantId: string;
+  userId: string;
+  usageMetrics: Record<string, EntityUsageRecord>;
+  groupsCollectionPath?: string;
+}): Promise<CrmDynamicGroup[]> {
+  const { firebaseApp, tenantId, userId, usageMetrics, groupsCollectionPath } = params;
+
+  // קבוצות הליבה המונעות לפעולה (Action-Driven Babushka Root Cards)
+  const candidates: Array<{
+    id: string;
+    title: string;
+    subtitle: string;
+    category: DynamicGroupCategory;
+    categoryLabel: string;
+    icon: string;
+    bgImage: string;
+    ctaText: string;
+    baseImportance: number;
+    baseGlobalUsage: number;
+    filterKey?: { field: string; value: string };
+  }> = [
+    {
+      id: 'grp_priority_hot_leads',
+      title: 'טפל בלידים חמים הממתינים למענה',
+      subtitle: 'מתעניינים חדשים בעדיפות גבוהה להמרה מהירה בשיחה או WhatsApp',
+      category: 'priority',
+      categoryLabel: 'דחיפות גבוהה',
+      icon: 'Flame',
+      bgImage: GROUP_CATEGORY_IMAGES.priority[1],
+      ctaText: 'פתח 4 לידים ◀',
+      baseImportance: 96,
+      baseGlobalUsage: 24,
+      filterKey: { field: 'is_lead', value: 'true' },
+    },
+    {
+      id: 'grp_priority_paying_vip',
+      title: 'שמור על קשר עם לקוחות VIP ומשלמים',
+      subtitle: 'לקוחות בעלי רכישות פעילות, מנויים וערך כלכלי מוביל',
+      category: 'priority',
+      categoryLabel: 'לקוחות VIP',
+      icon: 'Crown',
+      bgImage: GROUP_CATEGORY_IMAGES.priority[0],
+      ctaText: 'פתח 4 לקוחות ◀',
+      baseImportance: 94,
+      baseGlobalUsage: 20,
+      filterKey: { field: 'vip', value: 'true' },
+    },
+    {
+      id: 'grp_priority_communities',
+      title: 'הפעל את חברי הקהילות והקבוצות',
+      subtitle: 'ניהול קשר ישיר עם חברי הקהילות הפעילות ומועדון הלקוחות',
+      category: 'community',
+      categoryLabel: 'קהילות וקבוצות',
+      icon: 'Users',
+      bgImage: GROUP_CATEGORY_IMAGES.community[0],
+      ctaText: 'פתח 4 חברים ◀',
+      baseImportance: 89,
+      baseGlobalUsage: 16,
+      filterKey: { field: 'has_community', value: 'true' },
+    },
+    {
+      id: 'grp_priority_campaigns_forms',
+      title: 'קלוט פניות מטפסים וקמפיינים פעילים',
+      subtitle: 'נרשמים חדשים שהגישו טפסים חכמים או השתתפו בקמפיין',
+      category: 'form',
+      categoryLabel: 'טפסים וקמפיינים',
+      icon: 'FileText',
+      bgImage: GROUP_CATEGORY_IMAGES.form[0],
+      ctaText: 'פתח 4 פניות ◀',
+      baseImportance: 86,
+      baseGlobalUsage: 14,
+      filterKey: { field: 'has_form', value: 'true' },
+    },
+  ];
+
+  // משיכה קלה בלבד (limit 6) של שמות קבוצות מוגדרות מהקולקציה (ללא משיכת אנשי הקשר!)
+  if (firebaseApp) {
+    try {
+      const db = getFirestore(firebaseApp);
+      const colPath = groupsCollectionPath || `tenants/${tenantId || '_master'}/crm_groups`;
+      const q = query(collection(db, colPath), limit(6));
+      const snap = await getDocs(q);
+      let idx = 0;
+      snap.forEach((d) => {
+        const data = d.data();
+        const gName = (data.name || data.title || '').trim();
+        if (gName) {
+          const gid = `grp_community_${gName.toLowerCase().replace(/\s+/g, '_')}`;
+          if (!candidates.some((c) => c.id === gid)) {
+            candidates.push({
+              id: gid,
+              title: `פעל בקבוצת "${gName}"`,
+              subtitle: data.description || `אנשי קשר המשויכים ישירות לקבוצת ${gName}`,
+              category: 'community',
+              categoryLabel: 'קבוצה מהקולקציה',
+              icon: 'Users',
+              bgImage: pickCategoryImage('community', idx++),
+              ctaText: 'פתח 4 בקבוצה ◀',
+              baseImportance: 84,
+              baseGlobalUsage: 10,
+              filterKey: { field: 'community', value: gName },
+            });
+          }
+        }
+      });
+    } catch {
+      // Fallback to core 4 action groups
+    }
+  }
+
+  // חישוב ציון דינמי לפי: חשיבות + מספר שימושים כללי + מספר השימושים של המשתמש
+  const scored: CrmDynamicGroup[] = candidates.map((cand) => {
+    const rec = usageMetrics[cand.id];
+    const userCount = rec?.userUsageByUserId?.[userId] || 0;
+    const globalCount = cand.baseGlobalUsage + (rec?.globalUsageCount || 0);
+    const boost = rec?.importanceBoost || 0;
+    const importanceScore = Math.max(15, Math.min(100, cand.baseImportance + boost));
+
+    const totalDynamicScore = Math.round(
+      importanceScore * 0.4 + Math.min(100, globalCount * 4) * 0.3 + Math.min(100, userCount * 15) * 0.3
+    );
+
+    return {
+      id: cand.id,
+      title: cand.title,
+      subtitle: cand.subtitle,
+      category: cand.category,
+      categoryLabel: cand.categoryLabel,
+      icon: cand.icon,
+      bgImage: cand.bgImage,
+      badgeText: cand.categoryLabel,
+      ctaText: cand.ctaText,
+      importanceScore,
+      globalUsageCount: globalCount,
+      userUsageCount: userCount,
+      totalDynamicScore,
+      contactsCount: 4,
+      leadsCount: cand.category === 'priority' ? 4 : 0,
+      totalRevenue: 0,
+      contacts: [],
+      filterKey: cand.filterKey,
+    };
+  });
+
+  // מיון אוטומטי והחזרת 4 כרטיסים בלבד! (חוק הבבושקה)
+  scored.sort((a, b) => b.totalDynamicScore - a.totalDynamicScore);
+  return scored.slice(0, 4);
+}
+
+function mapDocToLightweightContact(id: string, data: any): Contact {
+  const rawEvents = Array.isArray(data.events) ? data.events : [];
+  const eventsSpent = rawEvents.reduce((acc: number, ev: any) => acc + (Number(ev.amount) || 0), 0);
+  const totalSpentVal =
+    data.total_spent !== undefined && data.total_spent !== null && Number(data.total_spent) > 0
+      ? Number(data.total_spent)
+      : eventsSpent > 0
+      ? eventsSpent
+      : Number(data.kosun_crm_total_spent || data.amount || 0);
+
+  const contactName =
+    data.kosun_crm_name ||
+    data.conta_name ||
+    data.fullName ||
+    data.name ||
+    (data.firstName ? `${data.firstName} ${data.lastName || ''}`.trim() : '') ||
+    'איש קשר';
+  const contactPhone =
+    data.kosun_crm_phone || data.conta_phone || data.phone || data.mobile || '';
+  const contactEmail = data.kosun_crm_email || data.email || '';
+  const contactCompany = data.kosun_crm_company || data.company_name || data.company || '';
+  const contactCity = data.kosun_crm_city || data.mh_crm_city || data.city || '';
+  const contactTags = Array.isArray(data.kosun_crm_tags)
+    ? data.kosun_crm_tags
+    : Array.isArray(data.tags)
+    ? data.tags
+    : [];
+
+  return {
+    id,
+    status: data.status || 'active',
+    is_lead: Boolean(data.is_lead || data.contact_type === 'lead' || data.kosun_crm_type === 'lead'),
+    contact_type: data.contact_type || (data.is_lead ? 'lead' : 'contact'),
+    kosun_crm_name: contactName,
+    kosun_crm_phone: contactPhone,
+    kosun_crm_email: contactEmail,
+    kosun_crm_company: contactCompany,
+    kosun_crm_city: contactCity,
+    kosun_crm_tags: contactTags,
+    conta_name: contactName,
+    conta_phone: contactPhone,
+    email: contactEmail,
+    company_name: contactCompany,
+    mh_crm_city: contactCity,
+    tags: contactTags,
+    community: data.community || data.mh_crm_community || '',
+    lead_source: data.kosun_crm_source || data.lead_source || data.source || '',
+    total_spent: totalSpentVal,
+    order_count: Number(data.order_count || (rawEvents.length > 0 ? rawEvents.length : totalSpentVal > 0 ? 1 : 0)),
+    campaign_title: data.campaign_title,
+    campaign_amount: Number(data.campaign_amount || 0),
+    last_form_name: data.last_form_name,
+    notes: data.kosun_crm_notes || data.notes || '',
+    events: rawEvents,
+  } as Contact;
+}
+
+/**
+ * משיכת עד 4 אנשי קשר בלבד מתוך הקולקציה – מופעל אך ורק כשהמשתמש לוחץ על קבוצה או מבקש פקודה!
+ */
+export async function fetchFourContactsForGroupOnDemand(params: {
+  firebaseApp?: FirebaseApp;
+  tenantId: string;
+  group: CrmDynamicGroup;
+  userId: string;
+  usageMetrics: Record<string, EntityUsageRecord>;
+  contactsCollectionPath?: string;
+  searchQuery?: string;
+}): Promise<RankedContactItem[]> {
+  const {
+    firebaseApp,
+    tenantId,
+    group,
+    userId,
+    usageMetrics,
+    contactsCollectionPath,
+    searchQuery,
+  } = params;
+
+  const fetchedContacts: Contact[] = [];
+
+  if (firebaseApp) {
+    try {
+      const db = getFirestore(firebaseApp);
+      const colPath = contactsCollectionPath || `tenants/${tenantId || '_master'}/contacts`;
+      const colRef = collection(db, colPath);
+
+      let snap;
+      const fk = group.filterKey;
+
+      // ניסיון ראשון: שאילתה ממוקדת עם limit(12) לפי סוג הקבוצה
+      try {
+        if (fk?.field === 'is_lead') {
+          snap = await getDocs(query(colRef, where('is_lead', '==', true), limit(12)));
+        } else if (fk?.field === 'community' && fk.value) {
+          snap = await getDocs(query(colRef, where('community', '==', fk.value), limit(12)));
+        } else {
+          snap = await getDocs(query(colRef, limit(16)));
+        }
+      } catch {
+        snap = await getDocs(query(colRef, limit(16)));
+      }
+
+      // אם השאילתה הספציפית חזרה ריקה (או שהנתונים בקולקציית השורש contacts), משוך מדגם קומפקטי של עד 16 בלבד
+      if (!snap || snap.empty) {
+        snap = await getDocs(query(colRef, limit(16)));
+      }
+      if (snap.empty) {
+        try {
+          snap = await getDocs(query(collection(db, 'contacts'), limit(16)));
+        } catch {}
+      }
+
+      if (snap && !snap.empty) {
+        snap.forEach((d) => {
+          fetchedContacts.push(mapDocToLightweightContact(d.id, d.data()));
+        });
+      }
+    } catch (e) {
+      console.warn('[KosCrm OnDemand] Targeted contacts query notice:', e);
+    }
+  }
+
+  // סינון עדין מתוך המדגם הקטן שנמשך (עד 16 רשומות בלבד)
+  let pool = fetchedContacts;
+  const fk = group.filterKey;
+  if (fk && pool.length > 4) {
+    const matching = pool.filter((c) => {
+      if (fk.field === 'is_lead') return Boolean(c.is_lead || c.contact_type === 'lead');
+      if (fk.field === 'vip') return Number(c.total_spent || 0) > 0 || (c.tags || []).some((t) => t.includes('VIP'));
+      if (fk.field === 'has_community') return Boolean(c.community);
+      if (fk.field === 'community') return c.community === fk.value;
+      if (fk.field === 'has_form') return Boolean(c.last_form_name || c.campaign_title);
+      return true;
+    });
+    if (matching.length > 0) {
+      pool = matching;
+    }
+  }
+
+  if (searchQuery && searchQuery.trim()) {
+    const qNorm = searchQuery.trim().toLowerCase();
+    const searched = pool.filter((c) => {
+      const text = `${c.conta_name || ''} ${c.conta_phone || ''} ${c.email || ''} ${c.company_name || ''} ${c.community || ''}`.toLowerCase();
+      return text.includes(qNorm);
+    });
+    if (searched.length > 0) {
+      pool = searched;
+    }
+  }
+
+  // דירוג והחזרת 4 אנשי קשר בלבד! (חוק ה-4 של הבבושקה)
+  const ranked = rankContactsDynamically(pool, usageMetrics, userId, 'combined');
+  return ranked.slice(0, 4);
+}
+
+export interface CrmMinimalSummaryItem {
+  id: string;
+  title: string;
+  summaryLine: string; // שורת הסיכום המעטה בלבד
+  badge: string;
+  icon: string;
+  ctaText: string;
+  phone?: string;
+  email?: string;
+  amount?: number;
+  contactRef?: Contact;
+}
+
+function isBelongingToManagerTenant(docId: string, data: any, activeTenantId: string): boolean {
+  const cleanTenant = (activeTenantId || '_master').toLowerCase().trim();
+  // בטננט של המנג'ר (_master / kosun) מסננים החוצה רשומות סאב-דומיין של טננטים חיצוניים (כמו lea, mlea, rachelgal, turbo_motors)
+  if (cleanTenant === '_master' || cleanTenant === 'kosun') {
+    if (docId.startsWith('tenant_admin_')) return false;
+    if (data.isSubdomainAdmin === true) return false;
+    if (data.subdomain && data.subdomain !== '_master' && data.subdomain !== 'kosun') {
+      return false;
+    }
+    return true;
+  }
+  // בטננט ספציפי - רק רשומות של אותו טננט
+  if (data.subdomain && data.subdomain.toLowerCase() !== cleanTenant) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * שליפת מסמכי הטננט הפעיל בלבד (ללא ערבוב טננטים אחרים וללא משיכת כל המסד!)
+ */
+async function queryManagerTenantDocsLimited(
+  firebaseApp: FirebaseApp | undefined,
+  tenantId: string,
+  contactsCollectionPath?: string,
+  maxDocs: number = 24
+): Promise<Contact[]> {
+  if (!firebaseApp) return [];
+  const cleanTenant = (tenantId || '_master').trim();
+  const primaryPath = contactsCollectionPath || `tenants/${cleanTenant}/contacts`;
+  const results: Contact[] = [];
+  const seenIds = new Set<string>();
+
+  try {
+    const db = getFirestore(firebaseApp);
+    
+    // 1. קריאה מהנתיב הראשי של הטננט
+    try {
+      const colRef = collection(db, primaryPath);
+      const snap = await getDocs(query(colRef, limit(maxDocs)));
+      snap.forEach((d) => {
+        const raw = d.data();
+        if (isBelongingToManagerTenant(d.id, raw, cleanTenant)) {
+          results.push(mapDocToLightweightContact(d.id, raw));
+          seenIds.add(d.id);
+        }
+      });
+    } catch (colErr) {
+      console.warn('[KosCrm TenantQuery] Primary col error:', colErr);
+    }
+
+    // 2. אם אנחנו בטננט מנהל (_master / kosun) והתוצאות דלות, בודקים נתיב contacts שורשי
+    if (results.length < 4 && (cleanTenant === '_master' || cleanTenant === 'kosun')) {
+      try {
+        const rootRef = collection(db, 'contacts');
+        const rootSnap = await getDocs(query(rootRef, limit(maxDocs)));
+        rootSnap.forEach((d) => {
+          if (!seenIds.has(d.id)) {
+            const raw = d.data();
+            if (isBelongingToManagerTenant(d.id, raw, cleanTenant)) {
+              results.push(mapDocToLightweightContact(d.id, raw));
+              seenIds.add(d.id);
+            }
+          }
+        });
+      } catch (rootErr) {
+        console.warn('[KosCrm TenantQuery] Root contacts fallback notice:', rootErr);
+      }
+    }
+  } catch (e) {
+    console.warn('[KosCrm TenantQuery] Scoped fetch notice:', e);
+  }
+
+  return results;
+}
+
+/**
+ * כרטיס 2: משיכת 4 נתוני ההכנסות האחרונות של הטננט בלבד (שורת סיכום מעטה)
+ * בודק גם אנשי קשר משלמים וגם עסקאות מקולקציית kesher_transactions
+ */
+export async function fetchTenantRecentRevenuesOnDemand(params: {
+  firebaseApp?: FirebaseApp;
+  tenantId: string;
+  contactsCollectionPath?: string;
+}): Promise<{ summaryLine: string; items: CrmMinimalSummaryItem[] }> {
+  const { firebaseApp, tenantId, contactsCollectionPath } = params;
+  const cleanTenant = (tenantId || '_master').trim();
+
+  // 1. קודם כל שלוף אנשי קשר של הטננט
+  const docs = await queryManagerTenantDocsLimited(
+    firebaseApp,
+    cleanTenant,
+    contactsCollectionPath,
+    30
+  );
+
+  const payingContacts = docs
+    .filter((c) => Number(c.total_spent || 0) > 0 || Number(c.campaign_amount || 0) > 0)
+    .sort(
+      (a, b) =>
+        Number(b.total_spent || b.campaign_amount || 0) -
+        Number(a.total_spent || a.campaign_amount || 0)
+    );
+
+  const revenueItems: CrmMinimalSummaryItem[] = [];
+
+  // המרת אנשי קשר משלמים
+  payingContacts.forEach((c) => {
+    const amt = Number(c.total_spent || c.campaign_amount || 0);
+    const orders = Number(c.order_count || 1);
+    const name = c.kosun_crm_name || c.conta_name || 'לקוח משלם';
+    revenueItems.push({
+      id: `rev_contact_${c.id}`,
+      title: name,
+      summaryLine: `₪${amt.toLocaleString()} • ${orders} עסקאות • ${c.conta_phone || c.email || 'פעיל'}`,
+      badge: `₪${amt.toLocaleString()}`,
+      icon: 'CreditCard',
+      ctaText: 'כרטיס לקוח ◀',
+      phone: c.conta_phone,
+      email: c.email,
+      amount: amt,
+      contactRef: c,
+    });
+  });
+
+  // 2. בדיקת עסקאות מקולקציית kesher_transactions של הטננט
+  if (firebaseApp) {
+    try {
+      const db = getFirestore(firebaseApp);
+      const txPaths = [
+        `tenants/${cleanTenant}/kesher_transactions`,
+        ...(cleanTenant === '_master' || cleanTenant === 'kosun' ? ['kesher_transactions'] : []),
+      ];
+
+      for (const tPath of txPaths) {
+        try {
+          const txSnap = await getDocs(query(collection(db, tPath), limit(12)));
+          txSnap.forEach((txDoc) => {
+            const tData = txDoc.data();
+            const txAmt = Number(tData.amount || tData.sum || tData.total || 0);
+            if (txAmt > 0) {
+              const payer =
+                tData.payerName ||
+                tData.customerName ||
+                tData.clientName ||
+                tData.fullName ||
+                tData.name ||
+                tData.contactName ||
+                'תקבול / עסקה';
+              const pMethod = tData.paymentMethod || tData.type || 'סליקה';
+              const dateStr = tData.date || tData.createdAt || tData.timestamp || '';
+              const shortDate = typeof dateStr === 'string' ? dateStr.split('T')[0] : '';
+
+              revenueItems.push({
+                id: `tx_${txDoc.id}`,
+                title: payer,
+                summaryLine: `₪${txAmt.toLocaleString()} • ${pMethod} ${shortDate ? `• ${shortDate}` : ''}`,
+                badge: `₪${txAmt.toLocaleString()}`,
+                icon: 'DollarSign',
+                ctaText: 'פרטי עסקה ◀',
+                phone: tData.phone || tData.payerPhone,
+                email: tData.email,
+                amount: txAmt,
+              });
+            }
+          });
+          if (revenueItems.length >= 4) break;
+        } catch {
+          // ignore path error and proceed
+        }
+      }
+    } catch (e) {
+      console.warn('[KosCrm RevenueQuery] Transactions check notice:', e);
+    }
+  }
+
+  // מיון לפי הסכום הגבוה לעליון
+  revenueItems.sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+
+  const topFour = revenueItems.slice(0, 4);
+  const totalRev = revenueItems.reduce((sum, item) => sum + Number(item.amount || 0), 0);
+
+  return {
+    summaryLine:
+      topFour.length > 0
+        ? `סיכום הכנסות אחרונות לטננט: ₪${totalRev.toLocaleString()} (${revenueItems.length} עסקאות/משלמים)`
+        : 'סיכום הכנסות לטננט: טרם נרשמו עסקאות בקולקציית הטננט',
+    items: topFour,
+  };
+}
+
+/**
+ * כרטיס 3: משיכת 4 לידים שדורשים טיפול של הטננט בלבד (שורת סיכום מעטה)
+ */
+export async function fetchTenantLeadsRequiringCareOnDemand(params: {
+  firebaseApp?: FirebaseApp;
+  tenantId: string;
+  contactsCollectionPath?: string;
+}): Promise<{ summaryLine: string; items: CrmMinimalSummaryItem[] }> {
+  const docs = await queryManagerTenantDocsLimited(
+    params.firebaseApp,
+    params.tenantId,
+    params.contactsCollectionPath,
+    20
+  );
+
+  const leads = docs.filter(
+    (c) => Boolean(c.is_lead || c.contact_type === 'lead' || Number(c.total_spent || 0) === 0)
+  );
+
+  const topFour = leads.slice(0, 4).map((c) => {
+    const name = c.kosun_crm_name || c.conta_name || 'ליד חדש';
+    const src = c.lead_source || c.community || 'פנייה ישירה';
+    return {
+      id: `lead_${c.id}`,
+      title: name,
+      summaryLine: `${c.conta_phone || c.email || 'ללא טלפון'} • מקור: ${src}`,
+      badge: 'דורש טיפול',
+      icon: 'Flame',
+      ctaText: c.conta_phone ? 'שלח WhatsApp ◀' : 'טפל בליד ◀',
+      phone: c.conta_phone,
+      email: c.email,
+      contactRef: c,
+    };
+  });
+
+  return {
+    summaryLine:
+      leads.length > 0
+        ? `סיכום לידים לטננט: מוצגים ${topFour.length} לידים דחופים לטיפול מיידי`
+        : 'סיכום לידים לטננט: אין לידים הממתינים לטיפול כעת',
+    items: topFour,
+  };
+}
+
+/**
+ * כרטיס 4: ביצוע פעולת תיוג / מיון רבת-משתתפים בשרת עבור הטננט הפעיל בלבד
+ */
+export async function executeTenantBulkTagActionOnDemand(params: {
+  firebaseApp?: FirebaseApp;
+  tenantId: string;
+  contactsCollectionPath?: string;
+  actionType: 'tag_vip' | 'tag_followup' | 'assign_group' | 'tag_campaign';
+  customValue?: string;
+}): Promise<{ updatedCount: number; summaryMessage: string }> {
+  const { firebaseApp, tenantId, contactsCollectionPath, actionType, customValue } = params;
+  if (!firebaseApp) {
+    return { updatedCount: 0, summaryMessage: 'אין חיבור שרת פעיל' };
+  }
+
+  const cleanTenant = tenantId || '_master';
+  const colPath = contactsCollectionPath || `tenants/${cleanTenant}/contacts`;
+  const docs = await queryManagerTenantDocsLimited(firebaseApp, cleanTenant, colPath, 20);
+
+  let targets: Contact[] = [];
+  let tagToApply = customValue || 'מסומן';
+
+  if (actionType === 'tag_vip') {
+    targets = docs.filter((c) => Number(c.total_spent || 0) > 0);
+    tagToApply = 'לקוח VIP';
+  } else if (actionType === 'tag_followup') {
+    targets = docs.filter((c) => Boolean(c.is_lead || Number(c.total_spent || 0) === 0));
+    tagToApply = 'בטיפול ממוקד';
+  } else if (actionType === 'assign_group') {
+    targets = docs;
+    tagToApply = customValue || 'קהילת המנג׳ר';
+  } else {
+    targets = docs;
+    tagToApply = customValue || 'קמפיין פעיל';
+  }
+
+  const db = getFirestore(firebaseApp);
+  let count = 0;
+
+  for (const c of targets.slice(0, 12)) {
+    if (!c.id) continue;
+    try {
+      const nextTags = Array.from(new Set([...(c.tags || []), tagToApply]));
+      const patch: Record<string, any> = {
+        tags: nextTags,
+        kosun_crm_tags: nextTags,
+        updatedAt: new Date().toISOString(),
+      };
+      if (actionType === 'assign_group') {
+        patch.community = tagToApply;
+      }
+      await setDoc(doc(db, colPath, c.id), patch, { merge: true });
+      count++;
+    } catch {}
+  }
+
+  return {
+    updatedCount: count,
+    summaryMessage:
+      count > 0
+        ? `התיוג "${tagToApply}" הוחל בהצלחה על ${count} אנשי קשר של הטננט!`
+        : `לא נמצאו רשומות מתאימות בטננט לתיוג "${tagToApply}"`,
+  };
+}
+
+/**
+ * היועץ העליון (Top Advisor): מנתח את בקשת המשתמש בשיחה ופורש עד 4 כרטיסים עם נתונים לפי דרישה!
+ */
+export async function queryAdvisorCardsOnDemand(params: {
+  firebaseApp?: FirebaseApp;
+  tenantId: string;
+  queryText: string;
+  contactsCollectionPath?: string;
+}): Promise<{
+  advisorReply: string;
+  modeTrigger?: 'home' | 'add_assets' | 'revenues' | 'leads' | 'bulk_sort' | 'custom_cards';
+  customCards?: CrmMinimalSummaryItem[];
+}> {
+  const clean = params.queryText.trim();
+  const norm = clean.toLowerCase();
+
+  if (norm.includes('הכנס') || norm.includes('כסף') || norm.includes('תשלום') || norm.includes('עסקאות')) {
+    const rev = await fetchTenantRecentRevenuesOnDemand(params);
+    return {
+      advisorReply: rev.summaryLine,
+      modeTrigger: 'revenues',
+      customCards: rev.items,
+    };
+  }
+
+  if (norm.includes('ליד') || norm.includes('טיפול') || norm.includes('מתעניינ')) {
+    const lds = await fetchTenantLeadsRequiringCareOnDemand(params);
+    return {
+      advisorReply: lds.summaryLine,
+      modeTrigger: 'leads',
+      customCards: lds.items,
+    };
+  }
+
+  if (norm.includes('נכס') || norm.includes('הוספ') || norm.includes('ייבוא') || norm.includes('אקסל')) {
+    return {
+      advisorReply: 'פרשתי עבורך 4 הצעות להרחבת הנכסים האנושיים של הטננט:',
+      modeTrigger: 'add_assets',
+    };
+  }
+
+  if (norm.includes('מיון') || norm.includes('תיוג') || norm.includes('תגית') || norm.includes('כפול')) {
+    return {
+      advisorReply: 'פרשתי עבורך 4 פעולות תיוג ומיון רבות-משתתפים לטננט:',
+      modeTrigger: 'bulk_sort',
+    };
+  }
+
+  // חיפוש חופשי של אנשי קשר בטננט של המנג'ר בלבד (מחזיר עד 4 כרטיסי סיכום!)
+  const docs = await queryManagerTenantDocsLimited(
+    params.firebaseApp,
+    params.tenantId,
+    params.contactsCollectionPath,
+    24
+  );
+
+  const matched = docs.filter((c) => {
+    const hay = `${c.conta_name || ''} ${c.conta_phone || ''} ${c.email || ''} ${c.community || ''} ${(c.tags || []).join(' ')}`.toLowerCase();
+    return hay.includes(norm);
+  });
+
+  const finalSlice = (matched.length > 0 ? matched : docs).slice(0, 4).map((c) => {
+    const name = c.kosun_crm_name || c.conta_name || 'איש קשר';
+    const spent = Number(c.total_spent || 0);
+    return {
+      id: `adv_${c.id}`,
+      title: name,
+      summaryLine: `${c.conta_phone || c.email || 'ללא טלפון'} • ${
+        spent > 0 ? `₪${spent.toLocaleString()}` : c.community || 'פעיל בטננט'
+      }`,
+      badge: spent > 0 ? `₪${spent.toLocaleString()}` : c.is_lead ? 'ליד' : 'איש קשר',
+      icon: c.is_lead ? 'Flame' : 'UserCheck',
+      ctaText: c.conta_phone ? 'שלח WhatsApp ◀' : 'פתח כרטיס ◀',
+      phone: c.conta_phone,
+      email: c.email,
+      contactRef: c,
+    };
+  });
+
+  return {
+    advisorReply:
+      matched.length > 0
+        ? `היועץ מצא ${matched.length} תוצאות בטננט עבור "${clean}" (מוצגים עד 4 כרטיסים):`
+        : `לא נמצאה התאמה מדויקת ל-"${clean}" — הנה 4 רשומות מובילות מהטננט:`,
+    modeTrigger: 'custom_cards',
+    customCards: finalSlice,
+  };
+}
+
+

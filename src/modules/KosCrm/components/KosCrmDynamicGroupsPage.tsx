@@ -3,18 +3,14 @@ import * as Icons from 'lucide-react';
 import { useCrmAnalyticsContext } from '../context/CrmAnalyticsContext';
 import { Contact } from '../types';
 import {
-  CrmDynamicGroup,
-  DynamicGroupCategory,
-  DynamicRankingMode,
-  EntityUsageRecord,
-  RankedContactItem,
-  ContactDataSectionGroup,
-  buildDynamicCrmGroupsFromCollection,
-  buildContactDynamicDataSections,
-  fetchCloudUsageMetrics,
-  loadLocalUsageMetrics,
+  CrmMinimalSummaryItem,
+  fetchTenantRecentRevenuesOnDemand,
+  fetchTenantLeadsRequiringCareOnDemand,
+  executeTenantBulkTagActionOnDemand,
+  queryAdvisorCardsOnDemand,
   recordCrmEntityUsage,
-  boostCrmEntityImportance,
+  safeLocalStorageGet,
+  safeLocalStorageSet,
 } from '../services/crmDynamicGroupsEngine';
 import {
   KOSUN_STYLE_PRESETS,
@@ -33,95 +29,61 @@ interface KosCrmDynamicGroupsPageProps {
   onOpenContact360: (contact: Contact) => void;
   onOpenNewContact: () => void;
   onOpenIngestionTools: () => void;
+  onOpenExcelImport?: () => void;
+  onOpenGoogleSheets?: () => void;
+  onSyncSmartForms?: () => void;
+  onMergeDuplicates?: () => void;
+  onScanCard?: () => void;
   onSwitchToLegacyTable: () => void;
   onSwitchToLegacyAnalytics: () => void;
 }
 
-interface VisualCardAdapter {
+type BabushkaStageMode =
+  | 'home'          // מסך הבית: 4 כרטיסי הליבה של המנג'ר
+  | 'add_assets'    // כרטיס 1: 4 הצעות להרחבת הנכסים האנושיים
+  | 'revenues'      // כרטיס 2: 4 כרטיסיות עם נתוני הכנסות אחרונות (מהשרת לטננט בלבד)
+  | 'leads'         // כרטיס 3: 4 כרטיסיות של לידים הדורשים טיפול (מהשרת לטננט בלבד)
+  | 'bulk_sort'     // כרטיס 4: 4 פעולות תיוג ומיון רבות-משתתפים
+  | 'advisor_cards'; // כרטיסים שנפרשו על ידי היועץ העליון לפי דרישת שיחה
+
+interface FocusedBabushkaCard {
   id: string;
-  indexBadge: string;
+  hebrewIndex: string; // א, ב, ג, ד
   title: string;
-  subtitle: string;
+  summaryLine: string; // שורת הסיכום המעטה בלבד
   badge: string;
-  metricsLine: string;
-  importanceScore: number;
-  globalUsageCount: number;
-  userUsageCount: number;
   icon: string;
   bgImage: string;
   ctaText: string;
-  secondaryCtaText?: string;
-  onPrimaryAction: () => void;
-  onSecondaryAction?: (e: React.MouseEvent) => void;
-  onBoostImportance?: (e: React.MouseEvent) => void;
+  onAction: () => void;
 }
 
-const RANKING_MODE_META: Record<
-  DynamicRankingMode,
-  { label: string; shortLabel: string; icon: string; desc: string }
-> = {
-  combined: {
-    label: 'דירוג משוקלל חכם (חשיבות + שימושים + שלי)',
-    shortLabel: 'משוקלל חכם',
-    icon: 'Sparkles',
-    desc: 'שקלול דינמי של חשיבות עסקית, סך השימושים במערכת והשימושים האישיים שלך',
-  },
-  importance: {
-    label: 'לפי חשיבות עסקית (Importance)',
-    shortLabel: 'לפי חשיבות',
-    icon: 'Crown',
-    desc: 'מציג בראש את הקבוצות ואנשי הקשר בעלי הערך הכלכלי והדחיפות הגבוהים ביותר',
-  },
-  global_usage: {
-    label: 'לפי מספר שימושים כללי (Global Usage)',
-    shortLabel: 'לפי מס׳ שימושים',
-    icon: 'Activity',
-    desc: 'מציג בראש את הקבוצות ואנשי הקשר הפעילים ביותר בכלל המערכת והאינטראקציות',
-  },
-  user_usage: {
-    label: 'לפי מספר השימושים של המשתמש (My Usage)',
-    shortLabel: 'השימושים שלי',
-    icon: 'UserCheck',
-    desc: 'לומד כל לחיצה שלך ומקפיץ לראש המסך את הקבוצות ואנשי הקשר שבהם אתה משתמש הכי הרבה',
-  },
-};
-
-const CATEGORY_FILTER_LABELS: Record<DynamicGroupCategory | 'all', { label: string; icon: string }> = {
-  all: { label: 'כל הקבוצות הדינמיות', icon: 'Layers' },
-  priority: { label: 'חשיבות וסטטוס', icon: 'Flame' },
-  community: { label: 'קהילות וקבוצות', icon: 'Users' },
-  tag: { label: 'תגיות וסגמנטים', icon: 'Tag' },
-  source: { label: 'מקורות הגעה', icon: 'Compass' },
-  form: { label: 'טפסים חכמים', icon: 'FileText' },
-  city: { label: 'ערים ואזורים', icon: 'MapPin' },
-  custom: { label: 'שדות דינמיים', icon: 'Database' },
-};
+const HEBREW_LETTERS = ['א', 'ב', 'ג', 'ד'];
 
 export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = ({
   onOpenContact360,
   onOpenNewContact,
   onOpenIngestionTools,
-  onSwitchToLegacyTable,
-  onSwitchToLegacyAnalytics,
+  onOpenExcelImport,
+  onOpenGoogleSheets,
+  onSyncSmartForms,
+  onMergeDuplicates,
+  onScanCard,
 }) => {
-  const { data, loading, refresh, updateField, firebaseApp, ownerId } = useCrmAnalyticsContext();
+  const { firebaseApp, ownerId, resolvedCollections } = useCrmAnalyticsContext();
   const { tenantId: rawTenantId } = useTenantScope();
   const tenantId = rawTenantId || '_master';
 
-  // זיהוי המשתמש הנוכחי לטובת ספירת "מספר השימושים של המשתמש"
   const currentUserId = useMemo(() => {
     if (ownerId) return ownerId;
-    if (typeof window !== 'undefined') {
-      const savedUser = localStorage.getItem('kosun_active_user_id');
-      if (savedUser) return savedUser;
-      const generated = `user_${tenantId}_admin`;
-      localStorage.setItem('kosun_active_user_id', generated);
-      return generated;
-    }
-    return 'owner_default';
+    const saved = safeLocalStorageGet('kosun_active_user_id');
+    if (saved) return saved;
+    const generated = `user_${tenantId}_admin`;
+    safeLocalStorageSet('kosun_active_user_id', generated);
+    return generated;
   }, [ownerId, tenantId]);
 
-  // 1. קונפיגורציית עיצוב ופריסה מתוך הקולקציה (Zero Hardcoded UI)
+  // קונפיגורציית עיצוב ופריסה מתוך הקולקציה
   const [visualConfig, setVisualConfig] = useState<{
     layoutBudget: KosunDiscoveryLayoutMode;
     atmosphereTheme: string;
@@ -132,37 +94,30 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
     colorMode: 'night',
   });
 
-  const [isStyleSelectorOpen, setIsStyleSelectorOpen] = useState(false);
+  const [isStyleDrawerOpen, setIsStyleDrawerOpen] = useState(false);
 
-  // 2. מטריקות שימוש וחשיבות (מסונכרנות מול Firestore + LocalStorage)
-  const [usageMetrics, setUsageMetrics] = useState<Record<string, EntityUsageRecord>>(() =>
-    loadLocalUsageMetrics(tenantId)
+  // מצב ניווט הבבושקה (תמיד מקסימום 4 כרטיסים על המסך!)
+  const [stageMode, setStageMode] = useState<BabushkaStageMode>('home');
+  const [isLoadingServer, setIsLoadingServer] = useState<boolean>(false);
+  const [serverCards, setServerCards] = useState<CrmMinimalSummaryItem[]>([]);
+  const [summaryLineText, setSummaryLineText] = useState<string>(
+    'טננט מנהל פעיל • בחר כרטיס או שוחח עם היועץ העליון לשליפה ממוקדת'
   );
 
-  // 3. מצבי דירוג, סינון וניווט בבושקה (4 כרטיסים במקסימום בכל מסך)
-  const [rankingMode, setRankingMode] = useState<DynamicRankingMode>('combined');
-  const [categoryFilter, setCategoryFilter] = useState<DynamicGroupCategory | 'all'>('all');
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isSearchOpen, setIsSearchOpen] = useState<boolean>(false);
-
-  // בבושקה: רמה 1 (קבוצות) -> רמה 2 (אנשי קשר בקבוצה) -> רמה 3 (קבוצות הנתונים של איש הקשר)
-  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null);
-  const [selectedContactId, setSelectedContactId] = useState<string | null>(null);
-
-  // אינדקס הכרטיס הפעיל בתוך ה-4 + עמוד נוכחי במצפן (4 כרטיסים לעמוד)
   const [activeCardIndex, setActiveCardIndex] = useState<number>(0);
   const [flippedCardId, setFlippedCardId] = useState<string | null>(null);
-  const [groupsPage, setGroupsPage] = useState<number>(0);
-  const [contactsPage, setContactsPage] = useState<number>(0);
 
-  // הקלטה קולית וחיפוש קולי
+  // היועץ העליון (Top Advisor) – שיחה בטקסט או בקול שפורשת כרטיסים לפי דרישה
+  const [isAdvisorChatOpen, setIsAdvisorChatOpen] = useState<boolean>(false);
+  const [advisorInput, setAdvisorInput] = useState<string>('');
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [voiceFeedback, setVoiceFeedback] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
 
-  // טעינת קונפיגורציית העיצוב מהקולקציה + מטריקות השימושים מהענן
+  // בטעינה: קוראים אך ורק את הגדרת העיצוב של העמוד (אפס משיכת אנשי קשר מראש!)
   useEffect(() => {
+    let mounted = true;
     getAreaCollectionSchema('area_crm_dynamic_groups', tenantId, 'saas').then((schema) => {
+      if (!mounted) return;
       const map: Record<string, any> = {};
       schema.parameters.forEach((p) => {
         map[p.key] = p.currentValue;
@@ -173,11 +128,10 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
         colorMode: map.colorMode === 'day' ? 'day' : 'night',
       }));
     });
-
-    fetchCloudUsageMetrics(firebaseApp, tenantId).then((cloudMetrics) => {
-      setUsageMetrics(cloudMetrics);
-    });
-  }, [tenantId, firebaseApp]);
+    return () => {
+      mounted = false;
+    };
+  }, [tenantId]);
 
   const updateVisualConfig = (patch: Partial<typeof visualConfig>) => {
     const next = { ...visualConfig, ...patch };
@@ -185,175 +139,100 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
     saveAreaCollectionConfig('area_crm_dynamic_groups', tenantId, next);
   };
 
-  // בניית כל הקבוצות הדינמיות מתוך קולקציית אנשי הקשר החיה
-  const allDynamicGroups = useMemo<CrmDynamicGroup[]>(() => {
-    const contacts = data?.contacts || [];
-    const customFields = data?.customFields || [];
-    const extraCommunities = data?.communitiesCount ? Object.keys(data.communitiesCount) : [];
+  // =========================================================================
+  // פעולות משיכה לפי דרישה מהשרת (רק לטננט של המנג'ר ורק עד 4 תוצאות סיכום!)
+  // =========================================================================
 
-    return buildDynamicCrmGroupsFromCollection({
-      contacts,
-      customFields,
-      extraCommunities,
-      usageMetrics,
-      userId: currentUserId,
-      rankingMode,
-      categoryFilter,
-      searchQuery,
-    });
-  }, [data?.contacts, data?.customFields, data?.communitiesCount, usageMetrics, currentUserId, rankingMode, categoryFilter, searchQuery]);
+  // 1. פתיחת כרטיס 1: 4 הצעות להוספת נכסים אנושיים
+  const openAddAssetsStage = () => {
+    recordCrmEntityUsage(tenantId, currentUserId, 'card_home_add_assets', firebaseApp, 1);
+    setStageMode('add_assets');
+    setActiveCardIndex(0);
+    setSummaryLineText('4 ערוצים להרחבת הנכסים האנושיים של הטננט:');
+  };
 
-  // קטגוריות שקיימות בפועל בקולקציה (כדי לא להציג טאבים ריקים)
-  const availableCategories = useMemo<Array<DynamicGroupCategory | 'all'>>(() => {
-    const contacts = data?.contacts || [];
-    const allUnfiltered = buildDynamicCrmGroupsFromCollection({
-      contacts,
-      customFields: data?.customFields || [],
-      extraCommunities: data?.communitiesCount ? Object.keys(data.communitiesCount) : [],
-      usageMetrics,
-      userId: currentUserId,
-      rankingMode,
-      categoryFilter: 'all',
-    });
-    const set = new Set<DynamicGroupCategory>();
-    allUnfiltered.forEach((g) => set.add(g.category));
-    return ['all', ...Array.from(set)];
-  }, [data?.contacts, data?.customFields, data?.communitiesCount, usageMetrics, currentUserId, rankingMode]);
+  // 2. פתיחת כרטיס 2: משיכת 4 נתוני הכנסות אחרונות מהשרת (לטננט הנוכחי בלבד)
+  const openRecentRevenuesStage = async () => {
+    recordCrmEntityUsage(tenantId, currentUserId, 'card_home_revenues', firebaseApp, 1);
+    setStageMode('revenues');
+    setActiveCardIndex(0);
+    setIsLoadingServer(true);
+    setSummaryLineText('מושך מהשרת את 4 נתוני ההכנסות האחרונות של הטננט...');
 
-  // הקבוצה הנבחרת (רמה 2) ואיש הקשר הנבחר (רמה 3)
-  const activeGroup = useMemo<CrmDynamicGroup | null>(() => {
-    if (!selectedGroupId) return null;
-    return allDynamicGroups.find((g) => g.id === selectedGroupId) || null;
-  }, [allDynamicGroups, selectedGroupId]);
-
-  const activeRankedContact = useMemo<RankedContactItem | null>(() => {
-    if (!selectedContactId) return null;
-    if (activeGroup) {
-      const found = activeGroup.contacts.find(
-        (rc) => (rc.contact.id || rc.contact.conta_phone) === selectedContactId
-      );
-      if (found) return found;
-    }
-    const allContacts = data?.contacts || [];
-    const raw = allContacts.find((c) => (c.id || c.conta_phone) === selectedContactId);
-    if (!raw) return null;
-    return {
-      contact: raw,
-      importanceScore: 85,
-      globalUsageCount: 1,
-      userUsageCount: 1,
-      totalDynamicScore: 85,
-      primaryBadge: raw.is_lead ? 'ליד פעיל' : 'איש קשר',
-      subtitleSummary: raw.conta_phone || raw.email || '',
-    };
-  }, [selectedContactId, activeGroup, data?.contacts]);
-
-  const activeContactSections = useMemo<ContactDataSectionGroup[]>(() => {
-    if (!activeRankedContact) return [];
-    return buildContactDynamicDataSections(
-      activeRankedContact.contact,
-      usageMetrics,
-      currentUserId
-    );
-  }, [activeRankedContact, usageMetrics, currentUserId]);
-
-  // רישום שימוש בקבוצה / איש קשר / מקטע נתונים (מעלה גם מספר שימושים כללי וגם שימושי משתמש!)
-  const handleRecordUsage = async (entityId: string, importanceDelta: number = 0) => {
-    const updated = await recordCrmEntityUsage(
-      tenantId,
-      currentUserId,
-      entityId,
+    const res = await fetchTenantRecentRevenuesOnDemand({
       firebaseApp,
-      importanceDelta
-    );
-    setUsageMetrics({ ...updated });
+      tenantId,
+      contactsCollectionPath: resolvedCollections?.contacts,
+    });
+
+    setServerCards(res.items);
+    setSummaryLineText(res.summaryLine);
+    setIsLoadingServer(false);
   };
 
-  const handleBoostImportance = async (entityId: string, delta: number, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updated = await boostCrmEntityImportance(tenantId, entityId, delta, firebaseApp);
-    setUsageMetrics({ ...updated });
-    setVoiceFeedback('משקל החשיבות של הקבוצה עודכן ודורג מחדש בזמן אמת!');
-    setTimeout(() => setVoiceFeedback(null), 2800);
+  // 3. פתיחת כרטיס 3: משיכת 4 לידים הדורשים טיפול מהשרת (לטננט הנוכחי בלבד)
+  const openLeadsRequiringCareStage = async () => {
+    recordCrmEntityUsage(tenantId, currentUserId, 'card_home_leads', firebaseApp, 1);
+    setStageMode('leads');
+    setActiveCardIndex(0);
+    setIsLoadingServer(true);
+    setSummaryLineText('מושך מהשרת 4 לידים של הטננט הדורשים טיפול...');
+
+    const res = await fetchTenantLeadsRequiringCareOnDemand({
+      firebaseApp,
+      tenantId,
+      contactsCollectionPath: resolvedCollections?.contacts,
+    });
+
+    setServerCards(res.items);
+    setSummaryLineText(res.summaryLine);
+    setIsLoadingServer(false);
   };
 
-  // פקודות קוליות וניתוב חכם בקפסולת ה-AI
-  const handleVoiceOrAiCommand = (rawText: string) => {
-    const clean = rawText.trim();
+  // 4. פתיחת כרטיס 4: 4 פעולות תיוג ומיון רבות-משתתפים
+  const openBulkSortingStage = () => {
+    recordCrmEntityUsage(tenantId, currentUserId, 'card_home_bulk_sort', firebaseApp, 1);
+    setStageMode('bulk_sort');
+    setActiveCardIndex(0);
+    setSummaryLineText('בחר פעולת תיוג או מיון רבת-משתתפים להחלה על אנשי הקשר של הטננט:');
+  };
+
+  // 5. שיחה עם היועץ העליון -> פורש עד 4 כרטיסים עם נתונים לפי דרישה!
+  const handleSubmitAdvisorQuery = async (rawQuery: string) => {
+    const clean = rawQuery.trim();
     if (!clean) return;
-    const norm = clean.toLowerCase();
 
-    if (norm.includes('שימושים שלי') || norm.includes('אישי') || norm.includes('הכי משתמש')) {
-      setRankingMode('user_usage');
-      setGroupsPage(0);
-      setContactsPage(0);
-      setVoiceFeedback('התצוגה סודרה דינמית לפי מספר השימושים האישיים שלך!');
-      setTimeout(() => setVoiceFeedback(null), 3500);
-      return;
-    }
-    if (norm.includes('מספר שימושים') || norm.includes('שימושים כללי') || norm.includes('פופולר')) {
-      setRankingMode('global_usage');
-      setGroupsPage(0);
-      setContactsPage(0);
-      setVoiceFeedback('התצוגה סודרה דינמית לפי מספר השימושים הכללי במערכת!');
-      setTimeout(() => setVoiceFeedback(null), 3500);
-      return;
-    }
-    if (norm.includes('חשיבות') || norm.includes('חשוב') || norm.includes('vip')) {
-      setRankingMode('importance');
-      setGroupsPage(0);
-      setContactsPage(0);
-      setVoiceFeedback('התצוגה סודרה דינמית לפי ציון חשיבות עסקית!');
-      setTimeout(() => setVoiceFeedback(null), 3500);
-      return;
-    }
-    if (norm.includes('משוקלל') || norm.includes('איפוס')) {
-      setRankingMode('combined');
-      setCategoryFilter('all');
-      setSearchQuery('');
-      setSelectedGroupId(null);
-      setSelectedContactId(null);
-      setGroupsPage(0);
-      setVoiceFeedback('הדירוג הדינמי המשוקלל (חשיבות + שימושים + משתמש) הופעל!');
-      setTimeout(() => setVoiceFeedback(null), 3500);
-      return;
-    }
-    if (norm.includes('מצב יום') || norm.includes('בהיר')) {
-      updateVisualConfig({ colorMode: 'day' });
-      return;
-    }
-    if (norm.includes('מצב לילה') || norm.includes('כהה')) {
-      updateVisualConfig({ colorMode: 'night' });
-      return;
-    }
-    if (norm.includes('זרקור')) {
-      updateVisualConfig({ layoutBudget: 'spotlight_stage' });
-      return;
-    }
-    if (norm.includes('בנטו')) {
-      updateVisualConfig({ layoutBudget: 'bento_asymmetric' });
-      return;
-    }
-    if (norm.includes('זכוכית')) {
-      updateVisualConfig({ layoutBudget: 'glass_flip_overlay' });
-      return;
-    }
-    if (norm.includes('חפיס') || norm.includes('3d')) {
-      updateVisualConfig({ layoutBudget: 'swipe_action_deck' });
-      return;
-    }
-    if (norm.includes('אקורדיון')) {
-      updateVisualConfig({ layoutBudget: 'accordion_morph' });
-      return;
+    setIsAdvisorChatOpen(false);
+    setAdvisorInput('');
+    setIsLoadingServer(true);
+    setSummaryLineText(`היועץ העליון שולף מהשרת תוצאות עבור: "${clean}"...`);
+
+    const res = await queryAdvisorCardsOnDemand({
+      firebaseApp,
+      tenantId,
+      queryText: clean,
+      contactsCollectionPath: resolvedCollections?.contacts,
+    });
+
+    setSummaryLineText(res.advisorReply);
+
+    if (res.modeTrigger === 'add_assets') {
+      setStageMode('add_assets');
+    } else if (res.modeTrigger === 'bulk_sort') {
+      setStageMode('bulk_sort');
+    } else if (res.modeTrigger === 'revenues') {
+      setStageMode('revenues');
+      setServerCards(res.customCards || []);
+    } else if (res.modeTrigger === 'leads') {
+      setStageMode('leads');
+      setServerCards(res.customCards || []);
+    } else {
+      setStageMode('advisor_cards');
+      setServerCards(res.customCards || []);
     }
 
-    // חיפוש קבוצה או איש קשר לפי הטקסט שנאמר
-    setSearchQuery(clean);
-    setSelectedGroupId(null);
-    setSelectedContactId(null);
-    setGroupsPage(0);
-    setVoiceFeedback(`מסנן קבוצות ואנשי קשר עבור: "${clean}"`);
-    setTimeout(() => setVoiceFeedback(null), 4000);
+    setActiveCardIndex(0);
+    setIsLoadingServer(false);
   };
 
   useEffect(() => {
@@ -369,37 +248,298 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
       recog.lang = 'he-IL';
       recog.onresult = (event: any) => {
         const transcript = event.results?.[0]?.[0]?.transcript || '';
-        if (transcript) {
-          handleVoiceOrAiCommand(transcript);
-        }
+        if (transcript) handleSubmitAdvisorQuery(transcript);
       };
       recog.onend = () => setIsRecording(false);
       recog.onerror = () => setIsRecording(false);
       recognitionRef.current = recog;
     }
-  }, []);
+  }, [tenantId, firebaseApp]);
 
-  const toggleVoiceRecording = () => {
+  const handleMicTrigger = () => {
+    if (!recognitionRef.current) {
+      setIsAdvisorChatOpen(true);
+      return;
+    }
     if (isRecording) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {}
+      recognitionRef.current.stop();
       setIsRecording(false);
     } else {
       setIsRecording(true);
-      setVoiceFeedback('מקשיב... אמור למשל: "לפי השימושים שלי", "לפי חשיבות", או שם קבוצה/איש קשר');
-      try {
-        recognitionRef.current?.start();
-      } catch {
-        setIsRecording(false);
-      }
+      recognitionRef.current.start();
     }
   };
 
-  // עיצוב פעיל מתוך קולקציית KOSUN_STYLE_PRESETS
+  // =========================================================================
+  // בניית 4 הכרטיסים הפעילים לפי שלב הבבושקה הנוכחי (לעולם לא יותר מ-4!)
+  // =========================================================================
+  const activeFourCards = useMemo<FocusedBabushkaCard[]>(() => {
+    // -----------------------------------------------------------------------
+    // מסך הבית (שורש הבבושקה): 4 הכרטיסים המדויקים שהוגדרו
+    // -----------------------------------------------------------------------
+    if (stageMode === 'home') {
+      return [
+        {
+          id: 'home_1_add_assets',
+          hebrewIndex: 'א',
+          title: 'הצעות להוספת נכסים',
+          summaryLine: 'פותח 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים של הטננט',
+          badge: 'הרחבת נכסים',
+          icon: 'UserPlus',
+          bgImage:
+            'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+          ctaText: '4 הצעות הרחבה ◀',
+          onAction: openAddAssetsStage,
+        },
+        {
+          id: 'home_2_recent_revenues',
+          hebrewIndex: 'ב',
+          title: 'צפייה בהכנסות האחרונות',
+          summaryLine: 'פותח 4 כרטיסיות עם נתוני ההכנסות והעסקאות האחרונות של הטננט',
+          badge: 'נתוני הכנסות',
+          icon: 'CreditCard',
+          bgImage:
+            'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+          ctaText: '4 כרטיסי הכנסות ◀',
+          onAction: openRecentRevenuesStage,
+        },
+        {
+          id: 'home_3_leads_care',
+          hebrewIndex: 'ג',
+          title: 'לידים שדורשים טיפול',
+          summaryLine: 'פותח 4 כרטיסיות של לידים פעילים בטננט הממתינים למענה',
+          badge: 'דורש טיפול',
+          icon: 'Flame',
+          bgImage:
+            'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
+          ctaText: '4 לידים לטיפול ◀',
+          onAction: openLeadsRequiringCareStage,
+        },
+        {
+          id: 'home_4_bulk_sort',
+          hebrewIndex: 'ד',
+          title: 'מיון אנשי קשר',
+          summaryLine: 'פותח 4 כרטיסים עם פעולות תיוג ומיון רבות-משתתפים בקולקציה',
+          badge: 'תיוג רב-משתתפים',
+          icon: 'Tags',
+          bgImage:
+            'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+          ctaText: '4 פעולות תיוג ◀',
+          onAction: openBulkSortingStage,
+        },
+      ];
+    }
+
+    // -----------------------------------------------------------------------
+    // כרטיס 1 (פנימי): 4 כרטיסים עם הצעות להרחבת הנכסים האנושיים
+    // -----------------------------------------------------------------------
+    if (stageMode === 'add_assets') {
+      return [
+        {
+          id: 'asset_1_excel',
+          hebrewIndex: 'א',
+          title: 'ייבוא רשימת אנשי קשר מאקסל / CSV',
+          summaryLine: 'קליטה מהירה של קובץ לקוחות או מתעניינים ישירות לטננט',
+          badge: 'ייבוא קובץ',
+          icon: 'FileSpreadsheet',
+          bgImage:
+            'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'ייבא מאקסל ◀',
+          onAction: () => {
+            if (onOpenExcelImport) onOpenExcelImport();
+            else onOpenIngestionTools();
+          },
+        },
+        {
+          id: 'asset_2_gsheets',
+          hebrewIndex: 'ב',
+          title: 'סנכרון חי מגיליון Google Sheets',
+          summaryLine: 'חיבור גיליון גוגל להזרמה אוטומטית של נכסים אנושיים חדשים',
+          badge: 'סנכרון חי',
+          icon: 'Database',
+          bgImage:
+            'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'חבר גיליון ◀',
+          onAction: () => {
+            if (onOpenGoogleSheets) onOpenGoogleSheets();
+            else onOpenIngestionTools();
+          },
+        },
+        {
+          id: 'asset_3_forms',
+          hebrewIndex: 'ג',
+          title: 'שאיבת פניות חדשות מטפסים חכמים',
+          summaryLine: 'מיזוג אוטומטי של כל הנרשמים שהגישו טפסים בטננט',
+          badge: 'טפסים חכמים',
+          icon: 'FileText',
+          bgImage:
+            'https://images.unsplash.com/photo-1515187029135-18ee286d815b?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'סנכרן טפסים ◀',
+          onAction: () => {
+            if (onSyncSmartForms) onSyncSmartForms();
+            else onOpenIngestionTools();
+          },
+        },
+        {
+          id: 'asset_4_new_or_scan',
+          hebrewIndex: 'ד',
+          title: 'הקמת נכס אנושי חדש / סריקת כרטיס',
+          summaryLine: 'הוספה ישירה של איש קשר חדש או צילום כרטיס ביקור ב-AI',
+          badge: 'הוספה מהירה',
+          icon: 'UserPlus',
+          bgImage:
+            'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+          ctaText: '+ הוסף נכס ◀',
+          onAction: () => {
+            if (onScanCard) onOpenNewContact();
+            else onOpenNewContact();
+          },
+        },
+      ];
+    }
+
+    // -----------------------------------------------------------------------
+    // כרטיס 4 (פנימי): 4 כרטיסים עם פעולות תיוג ומיון רבות-משתתפים
+    // -----------------------------------------------------------------------
+    if (stageMode === 'bulk_sort') {
+      return [
+        {
+          id: 'bulk_1_vip',
+          hebrewIndex: 'א',
+          title: 'תיוג רב-משתתפים: סמן משלמים כ-"לקוח VIP"',
+          summaryLine: 'מאתר בשרת את כל הלקוחות המשלמים של הטננט ומתייג אותם כ-VIP',
+          badge: 'תיוג אוטומטי',
+          icon: 'Crown',
+          bgImage:
+            'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'החל תיוג VIP ◀',
+          onAction: async () => {
+            setIsLoadingServer(true);
+            const res = await executeTenantBulkTagActionOnDemand({
+              firebaseApp,
+              tenantId,
+              contactsCollectionPath: resolvedCollections?.contacts,
+              actionType: 'tag_vip',
+            });
+            setSummaryLineText(res.summaryMessage);
+            setIsLoadingServer(false);
+          },
+        },
+        {
+          id: 'bulk_2_followup',
+          hebrewIndex: 'ב',
+          title: 'תיוג רב-משתתפים: סמן מתעניינים ל-"בטיפול ממוקד"',
+          summaryLine: 'מתייג באופן מרוכז את הפניות הפתוחות בטננט למעקב מסודר',
+          badge: 'מיקוד לידים',
+          icon: 'Flame',
+          bgImage:
+            'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'תייג למעקב ◀',
+          onAction: async () => {
+            setIsLoadingServer(true);
+            const res = await executeTenantBulkTagActionOnDemand({
+              firebaseApp,
+              tenantId,
+              contactsCollectionPath: resolvedCollections?.contacts,
+              actionType: 'tag_followup',
+            });
+            setSummaryLineText(res.summaryMessage);
+            setIsLoadingServer(false);
+          },
+        },
+        {
+          id: 'bulk_3_group',
+          hebrewIndex: 'ג',
+          title: 'שיוך רב-משתתפים לקהילה או תגית מותאמת',
+          summaryLine: 'הזן שם תגית או קהילה להחלה מרוכזת על אנשי הקשר של הטננט',
+          badge: 'שיוך קבוצתי',
+          icon: 'Users',
+          bgImage:
+            'https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'בחר תגית להחלה ◀',
+          onAction: async () => {
+            const customTag = window.prompt('הזן שם תגית או קהילה להחלה מרובה על אנשי הקשר של הטננט:', 'מועדון לקוחות 2026');
+            if (!customTag) return;
+            setIsLoadingServer(true);
+            const res = await executeTenantBulkTagActionOnDemand({
+              firebaseApp,
+              tenantId,
+              contactsCollectionPath: resolvedCollections?.contacts,
+              actionType: 'assign_group',
+              customValue: customTag,
+            });
+            setSummaryLineText(res.summaryMessage);
+            setIsLoadingServer(false);
+          },
+        },
+        {
+          id: 'bulk_4_dedup',
+          hebrewIndex: 'ד',
+          title: 'מיון ואיחוד רשומות כפולות בטננט',
+          summaryLine: 'מזהה וממזג אוטומטית אנשי קשר בעלי אותו טלפון או אימייל',
+          badge: 'ניקוי קולקציה',
+          icon: 'Sparkles',
+          bgImage:
+            'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+          ctaText: 'מזג כפילויות ◀',
+          onAction: () => {
+            if (onMergeDuplicates) onMergeDuplicates();
+          },
+        },
+      ];
+    }
+
+    // -----------------------------------------------------------------------
+    // כרטיס 2 (הכנסות אחרונות) / כרטיס 3 (לידים לטיפול) / תוצאות היועץ העליון
+    // -----------------------------------------------------------------------
+    if (serverCards.length === 0) {
+      return [
+        {
+          id: 'empty_server_result',
+          hebrewIndex: 'א',
+          title:
+            stageMode === 'revenues'
+              ? 'טרם נרשמו הכנסות בקולקציית הטננט'
+              : 'לא נמצאו רשומות ממתינות בטננט זה',
+          summaryLine: 'לחץ להוספת איש קשר / עסקה חדשה או חזור למסך הבית של ה-CRM',
+          badge: 'טננט נקי',
+          icon: 'PlusCircle',
+          bgImage:
+            'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
+          ctaText: '+ הוסף רשומה ◀',
+          onAction: onOpenNewContact,
+        },
+      ];
+    }
+
+    return serverCards.slice(0, 4).map((item, idx) => ({
+      id: item.id,
+      hebrewIndex: HEBREW_LETTERS[idx] || 'א',
+      title: item.title,
+      summaryLine: item.summaryLine,
+      badge: item.badge,
+      icon: item.icon,
+      bgImage:
+        stageMode === 'revenues'
+          ? 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80'
+          : 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
+      ctaText: item.ctaText,
+      onAction: () => {
+        if (stageMode === 'leads' && item.phone) {
+          const cleanPhone = item.phone.replace(/\D/g, '');
+          const intl = cleanPhone.startsWith('0') ? `972${cleanPhone.slice(1)}` : cleanPhone;
+          window.open(`https://wa.me/${intl}`, '_blank');
+        } else if (item.contactRef) {
+          onOpenContact360(item.contactRef);
+        }
+      },
+    }));
+  }, [stageMode, serverCards, firebaseApp, tenantId]);
+
+  // אסימוני עיצוב מהקולקציה
+  const isDay = visualConfig.colorMode === 'day';
   const styleDef: StylePresetDefinition =
     KOSUN_STYLE_PRESETS[visualConfig.atmosphereTheme] || KOSUN_STYLE_PRESETS.cyber_neon;
-  const isDay = visualConfig.colorMode === 'day';
   const modeColors = isDay ? styleDef.day : styleDef.night;
   const brandPrimary = modeColors.primaryColor || '#00F0FF';
   const cardRadius = styleDef.geometry.cardRadius;
@@ -409,755 +549,137 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
   );
 
   const tenantTheme: TenantThemeColors = useMemo(
-    () => ({
-      primary: brandPrimary,
-      secondary: '#0072FF',
-      accent: brandPrimary,
-      capsuleBg: isDay ? 'rgba(255, 255, 255, 0.96)' : '#090d16',
-      capsuleBorder: brandPrimary,
-      micColor: brandPrimary,
-      micGlow: modeColors.glowColor || `${brandPrimary}40`,
-      pageBg: modeColors.pageBg,
-      titleColor: modeColors.textColor,
-      textColor: modeColors.textColor,
-      colorMode: isDay ? 'day' : 'night',
-      secondaryText: modeColors.secondaryText,
-      cardBg: modeColors.cardBg,
-      borderColor: modeColors.borderColor,
-      stylePresetId: visualConfig.atmosphereTheme,
-    }),
-    [brandPrimary, isDay, modeColors, visualConfig.atmosphereTheme]
+    () =>
+      ({
+        primary: brandPrimary,
+        secondary: modeColors.activeBorder,
+        accent: '#F59E0B',
+        glow: modeColors.glowColor,
+        micColor: brandPrimary,
+        micGlow: modeColors.glowColor,
+        capsuleBg: modeColors.cardBg,
+        capsuleBorder: modeColors.borderColor,
+        colorMode: visualConfig.colorMode,
+        stylePresetId: visualConfig.atmosphereTheme,
+        pageBg: modeColors.pageBg,
+        cardBg: modeColors.cardBg,
+        textColor: modeColors.textColor,
+        secondaryText: modeColors.secondaryText,
+        borderColor: modeColors.borderColor,
+        fontFamily: styleDef.fontFamily,
+        cardRadius,
+      }) as TenantThemeColors,
+    [brandPrimary, modeColors, visualConfig, styleDef, cardRadius]
   );
 
   const tenantProfile: TenantProfile = useMemo(
-    () => ({
-      id: tenantId,
-      name: 'KOSCRM Dynamic Assets',
-      tagline: 'קבוצות דינמיות לפי חשיבות, שימושים כלליים ושימושי המשתמש',
-      category: 'saas',
-      archetypeId: 'saas',
-      phone: '',
-      whatsapp: '',
-      address: '',
-      wazeUrl: '',
-      openingHours: '',
-      agentName: 'סוכן CRM קוגניטיבי',
-      agentAvatarUrl: '',
-      logoUrl: '',
-    }),
+    () =>
+      ({
+        id: tenantId,
+        name: 'KOSCRM',
+        tagline: 'יועץ עליון • 4 כרטיסים מונעים לפעולה',
+        category: 'saas',
+        archetypeId: 'saas',
+      }) as TenantProfile,
     [tenantId]
   );
 
-  // =========================================================================
-  // הכנת 4 הכרטיסים הפעילים למסך הנוכחי (חוק הבבושקה: עד 4 כרטיסים במסך!)
-  // =========================================================================
-  const totalGroupsPages = Math.max(1, Math.ceil(allDynamicGroups.length / 4));
-  const safeGroupsPage = Math.min(groupsPage, totalGroupsPages - 1);
-  const currentFourGroups = allDynamicGroups.slice(safeGroupsPage * 4, safeGroupsPage * 4 + 4);
-
-  const totalContactsInGroup = activeGroup?.contacts.length || 0;
-  const totalContactsPages = Math.max(1, Math.ceil(totalContactsInGroup / 4));
-  const safeContactsPage = Math.min(contactsPage, totalContactsPages - 1);
-  const currentFourContacts = useMemo(() => {
-    if (!activeGroup) return [];
-    return activeGroup.contacts.slice(safeContactsPage * 4, safeContactsPage * 4 + 4);
-  }, [activeGroup, safeContactsPage]);
-
-  // המרת הרמה הנוכחית (קבוצות / אנשי קשר בקבוצה / 4 קבוצות הנתונים של איש הקשר) ל-4 כרטיסים אחידים
-  const activeVisualCards: VisualCardAdapter[] = useMemo(() => {
-    // רמה 3: תצוגת 4 קבוצות הנתונים הדינמיות של איש קשר בודד
-    if (activeRankedContact && activeContactSections.length > 0) {
-      const c = activeRankedContact.contact;
-      return activeContactSections.slice(0, 4).map((sec, idx) => {
-        const itemsPreview = sec.items
-          .map((it) => `${it.label}: ${it.value}`)
-          .join(' • ');
-
-        return {
-          id: sec.id,
-          indexBadge: `0${idx + 1}`,
-          title: sec.title,
-          subtitle: itemsPreview,
-          badge: sec.badge,
-          metricsLine: `חשיבות ${sec.importanceScore}% • ${sec.globalUsageCount} שימושים • ${sec.userUsageCount} שלך`,
-          importanceScore: sec.importanceScore,
-          globalUsageCount: sec.globalUsageCount,
-          userUsageCount: sec.userUsageCount,
-          icon: sec.icon,
-          bgImage:
-            'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
-          ctaText: 'ערוך בתיק 360 ◀',
-          secondaryCtaText: c.conta_phone ? 'שלח WhatsApp' : undefined,
-          onPrimaryAction: () => {
-            handleRecordUsage(sec.id, 1);
-            onOpenContact360(c);
-          },
-          onSecondaryAction: c.conta_phone
-            ? (e: React.MouseEvent) => {
-                e.stopPropagation();
-                handleRecordUsage(sec.id, 1);
-                const cleanPhone = (c.conta_phone || '').replace(/\D/g, '');
-                const intlPhone = cleanPhone.startsWith('0')
-                  ? `972${cleanPhone.slice(1)}`
-                  : cleanPhone;
-                window.open(`https://wa.me/${intlPhone}`, '_blank');
-              }
-            : undefined,
-          onBoostImportance: (e: React.MouseEvent) => handleBoostImportance(sec.id, 5, e),
-        };
-      });
-    }
-
-    // רמה 2: תצוגת 4 אנשי קשר מתוך הקבוצה הדינמית שנבחרה
-    if (activeGroup) {
-      return currentFourContacts.map((rc, idx) => {
-        const c = rc.contact;
-        const cid = `contact_${c.id || c.conta_phone || idx}`;
-        const contactName = c.kosun_crm_name || c.conta_name || 'איש קשר';
-
-        return {
-          id: cid,
-          indexBadge: `0${safeContactsPage * 4 + idx + 1}`,
-          title: contactName,
-          subtitle: rc.subtitleSummary,
-          badge: rc.primaryBadge,
-          metricsLine: `חשיבות ${rc.importanceScore}% • ${rc.globalUsageCount} שימושים • ${rc.userUsageCount} שלך`,
-          importanceScore: rc.importanceScore,
-          globalUsageCount: rc.globalUsageCount,
-          userUsageCount: rc.userUsageCount,
-          icon: c.is_lead ? 'Flame' : c.isSubdomainAdmin ? 'Globe' : 'UserCheck',
-          bgImage: activeGroup.bgImage,
-          ctaText: 'פתח 4 קבוצות נתונים ◀',
-          secondaryCtaText: 'תיק 360 מלא',
-          onPrimaryAction: () => {
-            handleRecordUsage(cid, 1);
-            setSelectedContactId(c.id || c.conta_phone || contactName);
-            setActiveCardIndex(0);
-          },
-          onSecondaryAction: (e: React.MouseEvent) => {
-            e.stopPropagation();
-            handleRecordUsage(cid, 1);
-            onOpenContact360(c);
-          },
-          onBoostImportance: (e: React.MouseEvent) => handleBoostImportance(cid, 6, e),
-        };
-      });
-    }
-
-    // רמה 1 (ברירת מחדל): 4 הקבוצות הדינמיות המובילות מתוך קולקציית אנשי הקשר
-    return currentFourGroups.map((grp, idx) => ({
-      id: grp.id,
-      indexBadge: `0${safeGroupsPage * 4 + idx + 1}`,
-      title: grp.title,
-      subtitle: grp.subtitle,
-      badge: grp.categoryLabel,
-      metricsLine: `חשיבות ${grp.importanceScore}% • ${grp.globalUsageCount} שימושים • ${grp.userUsageCount} שלך`,
-      importanceScore: grp.importanceScore,
-      globalUsageCount: grp.globalUsageCount,
-      userUsageCount: grp.userUsageCount,
-      icon: grp.icon,
-      bgImage: grp.bgImage,
-      ctaText: grp.ctaText,
-      secondaryCtaText: 'העלה חשיבות ★',
-      onPrimaryAction: () => {
-        handleRecordUsage(grp.id, 1);
-        setSelectedGroupId(grp.id);
-        setContactsPage(0);
-        setActiveCardIndex(0);
-      },
-      onSecondaryAction: (e: React.MouseEvent) => handleBoostImportance(grp.id, 5, e),
-      onBoostImportance: (e: React.MouseEvent) => handleBoostImportance(grp.id, 5, e),
-    }));
-  }, [
-    activeRankedContact,
-    activeContactSections,
-    activeGroup,
-    currentFourContacts,
-    currentFourGroups,
-    safeContactsPage,
-    safeGroupsPage,
-  ]);
-
-  // טקסט דינמי לקפסולת ה-AI העליונה המשקף את הקבוצה/איש הקשר המוביל
-  const capsuleQuestionNode = useMemo(() => {
-    if (activeRankedContact) {
-      const name =
-        activeRankedContact.contact.kosun_crm_name ||
-        activeRankedContact.contact.conta_name ||
-        'איש קשר';
-      return {
-        id: 'crm_capsule_contact',
-        questionText: `${name} • חשיבות ${activeRankedContact.importanceScore}% • ${activeRankedContact.userUsageCount} שימושים שלך`,
-      } as any;
-    }
-    if (activeGroup) {
-      return {
-        id: 'crm_capsule_group',
-        questionText: `${activeGroup.title}: ${activeGroup.contactsCount} אנשי קשר (חשיבות ${activeGroup.importanceScore}% • ${activeGroup.userUsageCount} שימושים שלך)`,
-      } as any;
-    }
-    const topGroup = allDynamicGroups[0];
-    if (topGroup) {
-      return {
-        id: 'crm_capsule_root',
-        questionText: `מוביל כעת: ${topGroup.title} (${topGroup.contactsCount} אנשי קשר • חשיבות ${topGroup.importanceScore}% • ${topGroup.globalUsageCount} שימושים)`,
-      } as any;
-    }
-    return {
-      id: 'crm_capsule_empty',
-      questionText: 'אמור שם קבוצה, תגית או פקודת דירוג ("לפי חשיבות" / "השימושים שלי")',
-    } as any;
-  }, [activeRankedContact, activeGroup, allDynamicGroups]);
+  const advisorCapsuleNode = useMemo(
+    () =>
+      ({
+        id: 'top_advisor_node',
+        questionText: isRecording
+          ? 'מקשיב לך... אמור מה לפרוש בכרטיסים'
+          : 'היועץ העליון: לחץ לשיחה או בקש פריסת נתונים לפי דרישה',
+      }) as any,
+    [isRecording]
+  );
 
   // =========================================================================
-  // רנדור 4 הכרטיסים לפי 5 מנגנוני הגילוי מהקולקציה (Zero Hardcoded Layout)
+  // רנדור 4 הכרטיסים בלבד (שורת כותרת + שורת הסיכום המעטה + כפתור פעולה)
   // =========================================================================
-  const renderDynamicStage = () => {
-    if (loading && activeVisualCards.length === 0) {
+  const renderFourCardsStage = () => {
+    if (isLoadingServer) {
       return (
-        <div className="w-full h-full flex flex-col items-center justify-center gap-3 py-12">
-          <Icons.Loader2 size={32} className="animate-spin" style={{ color: brandPrimary }} />
+        <div className="w-full h-full flex flex-col items-center justify-center gap-2">
+          <Icons.Loader2 size={28} className="animate-spin" style={{ color: brandPrimary }} />
           <span className="text-xs font-bold" style={{ color: modeColors.secondaryText }}>
-            שואב ומקבץ דינמית את נתוני אנשי הקשר מהקולקציה...
+            שולף מהשרת את תוצאות הטננט בלבד...
           </span>
         </div>
       );
     }
 
-    if (activeVisualCards.length === 0) {
-      return (
-        <div
-          className="w-full h-full flex flex-col items-center justify-center gap-3 p-6 border rounded-3xl text-center"
-          style={{
-            background: modeColors.cardBg,
-            borderColor: modeColors.borderColor,
-          }}
-        >
-          <Icons.Users size={36} style={{ color: brandPrimary }} />
-          <h3 className="text-sm font-black" style={{ color: modeColors.textColor }}>
-            לא נמצאו קבוצות תואמות לסינון הנוכחי
-          </h3>
-          <p className="text-xs max-w-md" style={{ color: modeColors.secondaryText }}>
-            נסה לאפס את הסינון או להוסיף אנשי קשר חדשים לקולקציה.
-          </p>
-          <div className="flex items-center gap-2 mt-1">
-            <button
-              type="button"
-              onClick={() => {
-                setCategoryFilter('all');
-                setSearchQuery('');
-                setSelectedGroupId(null);
-                setSelectedContactId(null);
-              }}
-              className="px-4 py-1.5 rounded-xl text-xs font-black text-black shadow-md"
-              style={{ backgroundColor: brandPrimary }}
-            >
-              הצג את כל הקבוצות
-            </button>
-            <button
-              type="button"
-              onClick={onOpenNewContact}
-              className="px-4 py-1.5 rounded-xl text-xs font-bold border"
-              style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-            >
-              + איש קשר חדש
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    // תגיות 3 מדדי הדירוג הדינמי (חשיבות, שימושים כלליים, שימושי המשתמש)
-    const renderThreeMetricsPills = (card: VisualCardAdapter) => (
-      <div className="flex flex-wrap items-center gap-1 text-[9px] font-bold">
-        <span
-          className="px-1.5 py-0.5 rounded-md flex items-center gap-1 border"
-          style={{
-            backgroundColor: `${brandPrimary}18`,
-            borderColor: `${brandPrimary}45`,
-            color: brandPrimary,
-          }}
-          title="ציון חשיבות עסקית מחושב מהקולקציה"
-        >
-          <Icons.Crown size={10} />
-          <span>חשיבות {card.importanceScore}%</span>
-        </span>
-
-        <span
-          className="px-1.5 py-0.5 rounded-md flex items-center gap-1 border"
-          style={{
-            backgroundColor: isDay ? 'rgba(15,23,42,0.06)' : 'rgba(255,255,255,0.07)',
-            borderColor: modeColors.borderColor,
-            color: modeColors.textColor,
-          }}
-          title="מספר שימושים כללי במערכת ובאינטראקציות"
-        >
-          <Icons.Activity size={10} />
-          <span>{card.globalUsageCount} שימושים</span>
-        </span>
-
-        <span
-          className="px-1.5 py-0.5 rounded-md flex items-center gap-1 border"
-          style={{
-            backgroundColor:
-              card.userUsageCount > 0 ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255,255,255,0.04)',
-            borderColor:
-              card.userUsageCount > 0 ? 'rgba(245, 158, 11, 0.5)' : modeColors.borderColor,
-            color: card.userUsageCount > 0 ? '#F59E0B' : modeColors.secondaryText,
-          }}
-          title="מספר השימושים האישיים שלך בקבוצה/רשומה זו"
-        >
-          <Icons.UserCheck size={10} />
-          <span>{card.userUsageCount} שימושים שלך</span>
-        </span>
-
-        {card.onBoostImportance && (
-          <button
-            type="button"
-            onClick={card.onBoostImportance}
-            title="העלה עדיפות וחשיבות (+)"
-            className="px-1.5 py-0.5 rounded-md border hover:scale-105 active:scale-95 transition-transform flex items-center gap-0.5"
-            style={{
-              borderColor: `${brandPrimary}50`,
-              color: brandPrimary,
-            }}
-          >
-            <Icons.Star size={9} />
-            <span>+חשיבות</span>
-          </button>
-        )}
-      </div>
-    );
-
-    // -----------------------------------------------------------------------
-    // פריסה 1: ACCORDION MORPH (4 רצועות מתרחבות חכמות)
-    // -----------------------------------------------------------------------
-    if (discoveryMode === 'accordion_morph') {
-      return (
-        <div className={`w-full h-full flex flex-col justify-between gap-2 py-0.5 ${styleDef.fontFamily}`}>
-          {activeVisualCards.map((card, idx) => {
-            const isExpanded = activeCardIndex === idx;
-            const IconComp = (Icons as any)[card.icon] || Icons.Users;
-
-            return (
-              <div
-                key={card.id}
-                onClick={() => {
-                  if (isExpanded) {
-                    card.onPrimaryAction();
-                  } else {
-                    setActiveCardIndex(idx);
-                  }
-                }}
-                className={`relative w-full overflow-hidden border transition-all duration-300 cursor-pointer group flex flex-col justify-between p-3 ${
-                  isExpanded
-                    ? 'flex-[2.3] shadow-2xl'
-                    : 'flex-1 opacity-90 hover:opacity-100'
-                }`}
-                style={{
-                  borderRadius: cardRadius,
-                  borderColor: isExpanded ? brandPrimary : modeColors.borderColor,
-                  boxShadow: isExpanded ? `0 8px 26px -6px ${modeColors.glowColor}` : 'none',
-                  background: modeColors.cardBg,
-                }}
-              >
-                <img
-                  src={card.bgImage}
-                  alt={card.title}
-                  className={`absolute inset-0 w-full h-full object-cover object-center transition-transform duration-500 ${
-                    isExpanded ? 'scale-105 opacity-25' : 'opacity-15 group-hover:scale-105'
-                  }`}
-                />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: isDay
-                      ? 'linear-gradient(to left, rgba(255,255,255,0.96), rgba(240,249,255,0.85))'
-                      : 'linear-gradient(to left, rgba(4,7,17,0.95), rgba(15,23,42,0.82))',
-                  }}
-                />
-
-                {/* שורה עליונה */}
-                <div className="relative z-10 flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-all"
-                      style={{
-                        backgroundColor: isExpanded ? brandPrimary : `${brandPrimary}20`,
-                        borderColor: brandPrimary,
-                        color: isExpanded ? '#000000' : brandPrimary,
-                      }}
-                    >
-                      <IconComp size={15} />
-                    </div>
-                    <div className="min-w-0 text-right">
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded"
-                          style={{
-                            backgroundColor: `${brandPrimary}20`,
-                            color: brandPrimary,
-                          }}
-                        >
-                          #{card.indexBadge}
-                        </span>
-                        <h2
-                          className="text-xs sm:text-sm font-black truncate"
-                          style={{ color: modeColors.textColor }}
-                        >
-                          {card.title}
-                        </h2>
-                      </div>
-                      {!isExpanded && (
-                        <p
-                          className="text-[10px] truncate mt-0.5"
-                          style={{ color: modeColors.secondaryText }}
-                        >
-                          {card.metricsLine}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {renderThreeMetricsPills(card)}
-                </div>
-
-                {/* תוכן מורחב */}
-                {isExpanded && (
-                  <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-2 pt-2 mt-1 border-t border-white/10 animate-fadeIn">
-                    <div className="flex-1 text-right">
-                      <span
-                        className="text-[10px] font-bold block mb-0.5"
-                        style={{ color: brandPrimary }}
-                      >
-                        {card.badge}
-                      </span>
-                      <p
-                        className="text-xs leading-relaxed line-clamp-2"
-                        style={{ color: modeColors.secondaryText }}
-                      >
-                        {card.subtitle}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 shrink-0">
-                      {card.secondaryCtaText && card.onSecondaryAction && (
-                        <button
-                          type="button"
-                          onClick={card.onSecondaryAction}
-                          className="px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all hover:bg-white/10"
-                          style={{
-                            borderColor: modeColors.borderColor,
-                            color: modeColors.textColor,
-                          }}
-                        >
-                          {card.secondaryCtaText}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          card.onPrimaryAction();
-                        }}
-                        className="px-4 py-1.5 rounded-xl text-black font-black text-xs shadow-lg active:scale-95 transition-all"
-                        style={{ backgroundColor: brandPrimary }}
-                      >
-                        {card.ctaText}
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // -----------------------------------------------------------------------
-    // פריסה 2: SPOTLIGHT STAGE (במת זרקור: 1 ראשי + 4 קפסולות בחירה)
-    // -----------------------------------------------------------------------
-    if (discoveryMode === 'spotlight_stage') {
-      const spotlight = activeVisualCards[activeCardIndex] || activeVisualCards[0];
-      const SpotlightIcon = (Icons as any)[spotlight.icon] || Icons.Users;
-
-      return (
-        <div className={`w-full h-full flex flex-col justify-between gap-2.5 py-0.5 ${styleDef.fontFamily}`}>
-          <div
-            onClick={spotlight.onPrimaryAction}
-            className="relative w-full flex-[1.6] overflow-hidden border-2 cursor-pointer group flex flex-col justify-between p-4 shadow-2xl transition-all duration-300"
-            style={{
-              borderRadius: cardRadius,
-              borderColor: brandPrimary,
-              boxShadow: `0 10px 30px -8px ${modeColors.glowColor}`,
-              background: modeColors.cardBg,
-            }}
-          >
-            <img
-              src={spotlight.bgImage}
-              alt={spotlight.title}
-              className="absolute inset-0 w-full h-full object-cover object-center opacity-25 group-hover:scale-105 transition-transform duration-700"
-            />
-            <div
-              className="absolute inset-0"
-              style={{
-                background: isDay
-                  ? 'linear-gradient(to top, rgba(255,255,255,0.96) 15%, rgba(254,252,232,0.82) 100%)'
-                  : 'linear-gradient(to top, rgba(12,10,9,0.96) 15%, rgba(15,23,42,0.82) 100%)',
-              }}
-            />
-
-            <div className="relative z-10 flex items-center justify-between gap-2 flex-wrap">
-              <span
-                className="px-2.5 py-1 rounded-full text-[10px] font-black border backdrop-blur-md flex items-center gap-1.5"
-                style={{
-                  backgroundColor: isDay ? 'rgba(255,255,255,0.9)' : 'rgba(0,0,0,0.75)',
-                  borderColor: brandPrimary,
-                  color: brandPrimary,
-                }}
-              >
-                <SpotlightIcon size={13} />
-                <span>זרקור CRM • {spotlight.badge}</span>
-              </span>
-
-              {renderThreeMetricsPills(spotlight)}
-            </div>
-
-            <div className="relative z-10 my-auto py-2 text-right">
-              <h2
-                className="text-base sm:text-lg font-black leading-tight"
-                style={{ color: modeColors.textColor }}
-              >
-                {spotlight.title}
-              </h2>
-              <p
-                className="text-xs mt-1.5 line-clamp-2 leading-relaxed"
-                style={{ color: modeColors.secondaryText }}
-              >
-                {spotlight.subtitle}
-              </p>
-            </div>
-
-            <div className="relative z-10 flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-              <span className="text-[10px] font-mono" style={{ color: modeColors.secondaryText }}>
-                מדורג #{spotlight.indexBadge} לפי {RANKING_MODE_META[rankingMode].shortLabel}
-              </span>
-              <div className="flex items-center gap-2">
-                {spotlight.secondaryCtaText && spotlight.onSecondaryAction && (
-                  <button
-                    type="button"
-                    onClick={spotlight.onSecondaryAction}
-                    className="px-3 py-1.5 rounded-xl border text-[10px] font-bold"
-                    style={{
-                      borderColor: modeColors.borderColor,
-                      color: modeColors.textColor,
-                    }}
-                  >
-                    {spotlight.secondaryCtaText}
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    spotlight.onPrimaryAction();
-                  }}
-                  className="px-4 py-2 rounded-xl text-black font-black text-xs shadow-lg"
-                  style={{ backgroundColor: brandPrimary }}
-                >
-                  {spotlight.ctaText}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* 4 קפסולות תחתונות */}
-          <div className="w-full flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {activeVisualCards.map((card, idx) => {
-              const isCurr = idx === activeCardIndex;
-              const ItemIcon = (Icons as any)[card.icon] || Icons.Users;
-              return (
-                <div
-                  key={card.id}
-                  onClick={() => setActiveCardIndex(idx)}
-                  className={`p-2.5 border cursor-pointer transition-all flex flex-col justify-between ${
-                    isCurr ? 'scale-[1.02] shadow-lg' : 'opacity-75 hover:opacity-100'
-                  }`}
-                  style={{
-                    borderRadius: cardRadius,
-                    background: modeColors.cardBg,
-                    borderColor: isCurr ? brandPrimary : modeColors.borderColor,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div
-                      className="w-6 h-6 rounded-lg flex items-center justify-center"
-                      style={{
-                        backgroundColor: isCurr ? brandPrimary : `${brandPrimary}20`,
-                        color: isCurr ? '#000' : brandPrimary,
-                      }}
-                    >
-                      <ItemIcon size={12} />
-                    </div>
-                    <span className="text-[9px] font-mono font-bold" style={{ color: brandPrimary }}>
-                      חשיבות {card.importanceScore}%
-                    </span>
-                  </div>
-
-                  <span
-                    className="text-xs font-black line-clamp-2 text-right my-1"
-                    style={{ color: modeColors.textColor }}
-                  >
-                    {card.title}
-                  </span>
-
-                  <div className="flex items-center justify-between text-[9px] pt-1 border-t border-white/10">
-                    <span style={{ color: modeColors.secondaryText }}>
-                      {card.globalUsageCount} שימושים
-                    </span>
-                    <span className="font-bold" style={{ color: '#F59E0B' }}>
-                      {card.userUsageCount} שלך
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      );
-    }
-
-    // -----------------------------------------------------------------------
-    // פריסה 3: GLASS FLIP OVERLAY (רשת 2x2 עם וילון זכוכית צף)
-    // -----------------------------------------------------------------------
+    // פריסת רשת 2x2 (Glass Flip Overlay)
     if (discoveryMode === 'glass_flip_overlay') {
       return (
-        <div className={`w-full h-full grid grid-cols-1 sm:grid-cols-2 grid-rows-2 gap-2.5 py-0.5 ${styleDef.fontFamily}`}>
-          {activeVisualCards.map((card) => {
+        <div className={`w-full h-full grid grid-cols-2 grid-rows-2 gap-2 py-0.5 ${styleDef.fontFamily}`}>
+          {activeFourCards.map((card) => {
             const isFlipped = flippedCardId === card.id;
-            const IconComp = (Icons as any)[card.icon] || Icons.Users;
-
+            const CardIcon = (Icons as any)[card.icon] || Icons.Sparkles;
             return (
               <div
                 key={card.id}
                 onClick={() => {
-                  if (isFlipped) {
-                    card.onPrimaryAction();
-                  } else {
-                    setFlippedCardId(card.id);
-                  }
+                  if (isFlipped) card.onAction();
+                  else setFlippedCardId(card.id);
                 }}
-                className="relative w-full min-h-[150px] overflow-hidden border cursor-pointer group flex flex-col justify-between p-3.5 shadow-lg transition-all duration-300"
+                className="relative w-full h-full overflow-hidden border p-3 flex flex-col justify-between cursor-pointer group shadow-lg"
                 style={{
                   borderRadius: cardRadius,
-                  borderColor: isFlipped ? brandPrimary : modeColors.borderColor,
                   background: modeColors.cardBg,
+                  borderColor: isFlipped ? brandPrimary : modeColors.borderColor,
                 }}
               >
                 <img
                   src={card.bgImage}
                   alt={card.title}
-                  className="absolute inset-0 w-full h-full object-cover object-center opacity-20 group-hover:scale-105 transition-transform duration-500"
+                  className="absolute inset-0 w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-500"
                 />
-                <div
-                  className="absolute inset-0"
-                  style={{
-                    background: isDay
-                      ? 'linear-gradient(to top, rgba(255,255,255,0.95) 25%, rgba(241,245,249,0.7) 100%)'
-                      : 'linear-gradient(to top, rgba(11,17,32,0.95) 25%, rgba(15,23,42,0.65) 100%)',
-                  }}
-                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/65 to-black/35" />
 
-                <div className="relative z-10 flex items-center justify-between gap-2">
-                  <span
-                    className="px-2 py-0.5 rounded-lg text-[9.5px] font-bold border"
+                <div className="relative z-10 flex items-center justify-between">
+                  <div
+                    className="w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs border"
                     style={{
-                      backgroundColor: `${brandPrimary}20`,
-                      borderColor: `${brandPrimary}50`,
+                      backgroundColor: 'rgba(0,0,0,0.6)',
+                      borderColor: brandPrimary,
                       color: brandPrimary,
                     }}
                   >
-                    #{card.indexBadge} • {card.badge}
-                  </span>
-                  <div
-                    className="w-7 h-7 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${brandPrimary}25`, color: brandPrimary }}
-                  >
-                    <IconComp size={14} />
+                    {card.hebrewIndex}
                   </div>
+                  <CardIcon size={14} style={{ color: brandPrimary }} />
                 </div>
 
-                <div className="relative z-10 text-right my-auto py-1">
-                  <h3
-                    className="text-sm font-black leading-snug line-clamp-2"
-                    style={{ color: modeColors.textColor }}
-                  >
+                <div className="relative z-10 text-right mt-auto">
+                  <span className="text-[9px] font-bold block mb-0.5" style={{ color: brandPrimary }}>
+                    {card.badge}
+                  </span>
+                  <h3 className="text-xs font-black text-white line-clamp-2 leading-snug">
                     {card.title}
                   </h3>
                 </div>
 
-                <div className="relative z-10 flex items-center justify-between pt-1">
-                  {renderThreeMetricsPills(card)}
-                </div>
-
                 {isFlipped && (
                   <div
-                    className="absolute inset-0 z-20 p-3.5 flex flex-col justify-between backdrop-blur-xl animate-fadeIn"
-                    style={{
-                      backgroundColor: isDay ? 'rgba(255,255,255,0.96)' : 'rgba(11,17,32,0.96)',
-                    }}
+                    className="absolute inset-0 z-20 p-3 backdrop-blur-xl flex flex-col justify-between text-right animate-fadeIn"
+                    style={{ backgroundColor: 'rgba(4,7,17,0.94)' }}
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-black" style={{ color: brandPrimary }}>
-                        {card.title}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFlippedCardId(null);
-                        }}
-                        className="p-1 rounded-lg hover:bg-white/10"
-                        style={{ color: modeColors.secondaryText }}
-                      >
-                        <Icons.X size={14} />
-                      </button>
-                    </div>
-
-                    <p
-                      className="text-xs leading-relaxed line-clamp-3 my-auto text-right"
-                      style={{ color: modeColors.textColor }}
-                    >
-                      {card.subtitle}
+                    <p className="text-[10.5px] text-slate-200 line-clamp-3 leading-relaxed">
+                      {card.summaryLine}
                     </p>
-
-                    <div className="flex items-center gap-2">
-                      {card.secondaryCtaText && card.onSecondaryAction && (
-                        <button
-                          type="button"
-                          onClick={card.onSecondaryAction}
-                          className="px-3 py-1.5 rounded-xl border text-[10px] font-bold"
-                          style={{
-                            borderColor: modeColors.borderColor,
-                            color: modeColors.textColor,
-                          }}
-                        >
-                          {card.secondaryCtaText}
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          card.onPrimaryAction();
-                        }}
-                        className="flex-1 py-1.5 rounded-xl text-black font-black text-xs shadow-md"
-                        style={{ backgroundColor: brandPrimary }}
-                      >
-                        {card.ctaText}
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        card.onAction();
+                      }}
+                      className="w-full py-1.5 rounded-xl text-black font-black text-[10.5px]"
+                      style={{ backgroundColor: brandPrimary }}
+                    >
+                      {card.ctaText}
+                    </button>
                   </div>
                 )}
               </div>
@@ -1167,718 +689,318 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
       );
     }
 
-    // -----------------------------------------------------------------------
-    // פריסה 4: BENTO ASYMMETRIC (פסיפס בנטו אסימטרי מונחה-משקל: 1 + 2 + 1)
-    // -----------------------------------------------------------------------
-    if (discoveryMode === 'bento_asymmetric') {
-      const hero = activeVisualCards[0];
-      const mids = activeVisualCards.slice(1, 3);
-      const bottom = activeVisualCards[3];
-      const HeroIcon = (Icons as any)[hero.icon] || Icons.Crown;
+    // ברירת מחדל: 4 רצועות בבושקה ממוקדות (א, ב, ג, ד) עם שורת הסיכום המעטה בלבד
+    return (
+      <div className="w-full h-full flex flex-col justify-between gap-2 py-0.5" dir="rtl">
+        {activeFourCards.map((card, idx) => {
+          const isExpanded = discoveryMode === 'accordion_morph' && activeCardIndex === idx;
+          const IconComp = (Icons as any)[card.icon] || Icons.Sparkles;
 
-      return (
-        <div className={`w-full h-full flex flex-col justify-between gap-2.5 py-0.5 ${styleDef.fontFamily}`}>
-          {/* קומה 1: כרטיס גיבור בנטו (הקבוצה החשובה/המשומשת ביותר) */}
-          <div
-            onClick={hero.onPrimaryAction}
-            className="relative w-full p-4 border-2 cursor-pointer group flex flex-col sm:flex-row sm:items-center justify-between gap-3 overflow-hidden shadow-xl"
-            style={{
-              borderRadius: cardRadius,
-              background: modeColors.cardBg,
-              borderColor: brandPrimary,
-            }}
-          >
-            <div className="flex-1 flex flex-col justify-between z-10 text-right gap-1.5">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <span
-                  className="px-2.5 py-0.5 rounded-full text-[10px] font-black"
-                  style={{ backgroundColor: `${brandPrimary}25`, color: brandPrimary }}
-                >
-                  #{hero.indexBadge} • מוקד בנטו ראשי • {hero.badge}
-                </span>
-                {renderThreeMetricsPills(hero)}
-              </div>
-              <div>
-                <h2 className="text-sm sm:text-base font-black" style={{ color: modeColors.textColor }}>
-                  {hero.title}
-                </h2>
-                <p className="text-xs line-clamp-2 mt-0.5" style={{ color: modeColors.secondaryText }}>
-                  {hero.subtitle}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 pt-1">
-                <span
-                  className="px-3.5 py-1 rounded-xl text-black text-xs font-black inline-flex items-center gap-1 shadow"
-                  style={{ backgroundColor: brandPrimary }}
-                >
-                  {hero.ctaText}
-                </span>
-              </div>
-            </div>
-
-            <div className="hidden sm:flex w-24 h-24 rounded-2xl overflow-hidden relative shrink-0 border border-white/10 items-center justify-center">
-              <img
-                src={hero.bgImage}
-                alt={hero.title}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                <HeroIcon size={24} style={{ color: brandPrimary }} />
-              </div>
-            </div>
-          </div>
-
-          {/* קומה 2: זוג קוביות בנטו */}
-          {mids.length > 0 && (
-            <div className="w-full grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-              {mids.map((card) => {
-                const MidIcon = (Icons as any)[card.icon] || Icons.Users;
-                return (
-                  <div
-                    key={card.id}
-                    onClick={card.onPrimaryAction}
-                    className="p-3 border cursor-pointer group flex flex-col justify-between gap-2 relative overflow-hidden shadow-md hover:scale-[1.01] transition-all"
-                    style={{
-                      borderRadius: cardRadius,
-                      background: modeColors.cardBg,
-                      borderColor: modeColors.borderColor,
-                    }}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div
-                        className="w-7 h-7 rounded-xl flex items-center justify-center"
-                        style={{ backgroundColor: `${brandPrimary}20`, color: brandPrimary }}
-                      >
-                        <MidIcon size={14} />
-                      </div>
-                      {renderThreeMetricsPills(card)}
-                    </div>
-                    <div className="text-right">
-                      <h3 className="text-xs sm:text-sm font-black" style={{ color: modeColors.textColor }}>
-                        {card.title}
-                      </h3>
-                      <p className="text-[11px] line-clamp-2 mt-0.5" style={{ color: modeColors.secondaryText }}>
-                        {card.subtitle}
-                      </p>
-                    </div>
-                    <div className="flex items-center justify-between text-[10px] pt-1 border-t border-white/10">
-                      <span className="font-bold" style={{ color: brandPrimary }}>
-                        {card.ctaText}
-                      </span>
-                      <Icons.ArrowLeft size={12} style={{ color: brandPrimary }} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* קומה 3: רצועת בנטו תחתונה */}
-          {bottom && (
+          return (
             <div
-              onClick={bottom.onPrimaryAction}
-              className="w-full px-3.5 py-2.5 border cursor-pointer group flex items-center justify-between gap-3 shadow-md"
+              key={card.id}
+              onClick={() => {
+                if (discoveryMode === 'accordion_morph' && !isExpanded) {
+                  setActiveCardIndex(idx);
+                } else {
+                  card.onAction();
+                }
+              }}
+              className={`relative w-full overflow-hidden border transition-all duration-300 cursor-pointer group shadow-xl flex flex-col justify-between p-2.5 sm:p-3 ${
+                isExpanded ? 'flex-[1.5]' : 'flex-1'
+              }`}
               style={{
+                minHeight: '76px',
                 borderRadius: cardRadius,
+                borderColor: isExpanded ? brandPrimary : modeColors.borderColor,
                 background: modeColors.cardBg,
-                borderColor: modeColors.borderColor,
+                boxShadow: isExpanded ? `0 6px 22px -6px ${modeColors.glowColor}` : undefined,
               }}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                  style={{ backgroundColor: brandPrimary, color: '#000000' }}
-                >
-                  <Icons.Layers size={15} />
-                </div>
-                <div className="min-w-0 text-right">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-xs font-black truncate" style={{ color: modeColors.textColor }}>
-                      {bottom.title}
-                    </h4>
-                    <span className="text-[9px] font-bold" style={{ color: brandPrimary }}>
-                      חשיבות {bottom.importanceScore}% • {bottom.userUsageCount} שלך
-                    </span>
+              <img
+                src={card.bgImage}
+                alt={card.title}
+                className="absolute inset-0 w-full h-full object-cover object-center opacity-25 group-hover:scale-105 transition-transform duration-500"
+              />
+              <div
+                className="absolute inset-0"
+                style={{
+                  background: isDay
+                    ? 'linear-gradient(to left, rgba(255,255,255,0.95), rgba(240,249,255,0.86))'
+                    : 'linear-gradient(to left, rgba(4,7,17,0.94), rgba(15,23,42,0.80))',
+                }}
+              />
+
+              <div className="relative z-10 flex items-center justify-between gap-2 my-auto">
+                <div className="flex items-center gap-2.5 flex-1 overflow-hidden">
+                  <div
+                    className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border shadow-md transition-transform group-hover:scale-110"
+                    style={{
+                      backgroundColor: isExpanded ? brandPrimary : 'rgba(0,0,0,0.6)',
+                      borderColor: brandPrimary,
+                      color: isExpanded ? '#000000' : brandPrimary,
+                    }}
+                  >
+                    <span className="font-black text-xs">{card.hebrewIndex}</span>
                   </div>
-                  <p className="text-[10.5px] truncate" style={{ color: modeColors.secondaryText }}>
-                    {bottom.subtitle}
-                  </p>
+
+                  <div className="flex flex-col text-right overflow-hidden">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span
+                        className="font-black text-xs sm:text-[13px] truncate"
+                        style={{ color: modeColors.textColor }}
+                      >
+                        {card.title}
+                      </span>
+                      <span
+                        className="px-1.5 py-0.5 rounded text-[8px] font-bold border shrink-0"
+                        style={{
+                          backgroundColor: `${brandPrimary}20`,
+                          borderColor: `${brandPrimary}40`,
+                          color: brandPrimary,
+                        }}
+                      >
+                        {card.badge}
+                      </span>
+                    </div>
+
+                    {/* שורת הסיכום המעטה בלבד */}
+                    <p
+                      className="text-[10px] line-clamp-1 font-medium leading-tight"
+                      style={{ color: modeColors.secondaryText }}
+                    >
+                      {card.summaryLine}
+                    </p>
+                  </div>
+                </div>
+
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    card.onAction();
+                  }}
+                  className="flex items-center gap-1 shrink-0 px-2.5 py-1.5 rounded-xl font-black text-[9.5px] transition-transform group-hover:-translate-x-1"
+                  style={{
+                    backgroundColor: isExpanded ? brandPrimary : `${brandPrimary}18`,
+                    color: isExpanded ? '#000000' : brandPrimary,
+                  }}
+                >
+                  <IconComp size={12} className="hidden sm:inline" />
+                  <span>{card.ctaText}</span>
                 </div>
               </div>
-
-              <span
-                className="px-3 py-1.5 rounded-xl text-[10px] font-black text-black shrink-0"
-                style={{ backgroundColor: brandPrimary }}
-              >
-                {bottom.ctaText}
-              </span>
             </div>
-          )}
-        </div>
-      );
-    }
-
-    // -----------------------------------------------------------------------
-    // פריסה 5: SWIPE ACTION DECK (חפיסת כרטיסים תלת-ממדית אינטראקטיבית)
-    // -----------------------------------------------------------------------
-    const deckCard = activeVisualCards[activeCardIndex] || activeVisualCards[0];
-    const DeckIcon = (Icons as any)[deckCard.icon] || Icons.Users;
-
-    return (
-      <div className={`w-full h-full flex flex-col justify-between gap-2.5 py-0.5 ${styleDef.fontFamily}`}>
-        <div className="relative w-full flex-1 flex items-center justify-center min-h-[220px]">
-          <div
-            onClick={deckCard.onPrimaryAction}
-            className="relative w-full h-full overflow-hidden border-2 cursor-pointer group flex flex-col justify-between p-4 shadow-2xl transition-all duration-300"
-            style={{
-              borderRadius: cardRadius,
-              background: modeColors.cardBg,
-              borderColor: brandPrimary,
-              boxShadow: `0 12px 32px -8px ${modeColors.glowColor}`,
-            }}
-          >
-            <div className="flex items-center justify-between gap-2 flex-wrap z-10">
-              <span
-                className="px-2.5 py-0.5 rounded-full text-[10px] font-black text-black"
-                style={{ backgroundColor: brandPrimary }}
-              >
-                כרטיס {activeCardIndex + 1} מתוך {activeVisualCards.length} • {deckCard.badge}
-              </span>
-              {renderThreeMetricsPills(deckCard)}
-            </div>
-
-            <div className="relative z-10 my-auto py-3 text-right">
-              <h2 className="text-base sm:text-lg font-black" style={{ color: modeColors.textColor }}>
-                {deckCard.title}
-              </h2>
-              <p className="text-xs mt-1.5 leading-relaxed" style={{ color: modeColors.secondaryText }}>
-                {deckCard.subtitle}
-              </p>
-            </div>
-
-            <div
-              className="absolute bottom-2 left-2 opacity-10 pointer-events-none"
-              style={{ color: brandPrimary }}
-            >
-              <DeckIcon size={88} />
-            </div>
-
-            <div className="relative z-10 flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveCardIndex((prev) => (prev + 1) % activeVisualCards.length);
-                }}
-                className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5"
-                style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-              >
-                <Icons.RefreshCw size={13} style={{ color: brandPrimary }} />
-                <span>הבא בחפיסה</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  deckCard.onPrimaryAction();
-                }}
-                className="px-4 py-1.5 rounded-xl text-black font-black text-xs shadow-lg"
-                style={{ backgroundColor: brandPrimary }}
-              >
-                {deckCard.ctaText}
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="w-full grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-          {activeVisualCards.map((card, idx) => {
-            const isCurr = idx === activeCardIndex;
-            return (
-              <button
-                key={card.id}
-                type="button"
-                onClick={() => setActiveCardIndex(idx)}
-                className={`px-2.5 py-1.5 rounded-xl border text-[10px] font-bold transition-all flex items-center justify-between gap-1 truncate ${
-                  isCurr ? 'text-black font-black shadow-md' : 'opacity-75 hover:opacity-100'
-                }`}
-                style={{
-                  backgroundColor: isCurr ? brandPrimary : 'transparent',
-                  borderColor: isCurr ? brandPrimary : modeColors.borderColor,
-                  color: isCurr ? '#000000' : modeColors.textColor,
-                }}
-              >
-                <span className="truncate">{card.title}</span>
-                <span className="font-mono text-[9px] shrink-0">{card.importanceScore}%</span>
-              </button>
-            );
-          })}
-        </div>
+          );
+        })}
       </div>
     );
   };
 
   return (
     <div
-      className="w-full min-h-[calc(100vh-3.5rem)] flex flex-col justify-between p-3 sm:p-4 max-w-6xl mx-auto select-none transition-colors duration-300 rounded-3xl"
+      className="w-full min-h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center py-2 px-2 select-none"
       dir="rtl"
-      style={{
-        backgroundColor: tenantTheme.pageBg,
-        color: tenantTheme.textColor,
-      }}
     >
-      {/* =====================================================================
-          1. סרגל עליון נקי: ניווט פירורי לחם (בבושקה) + כלי עיצוב מקולקציה + ייבוא
-         ===================================================================== */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-white/10 z-20">
-        <div className="flex items-center gap-2">
-          {(selectedGroupId || selectedContactId) && (
-            <button
-              type="button"
-              onClick={() => {
-                if (selectedContactId) {
-                  setSelectedContactId(null);
-                  setActiveCardIndex(0);
-                } else {
-                  setSelectedGroupId(null);
-                  setActiveCardIndex(0);
-                }
-              }}
-              className="px-2.5 py-1.5 rounded-xl border text-xs font-black flex items-center gap-1 transition-all active:scale-95"
-              style={{
-                borderColor: brandPrimary,
-                backgroundColor: `${brandPrimary}20`,
-                color: brandPrimary,
-              }}
-            >
-              <Icons.ArrowRight size={14} />
-              <span>חזרה</span>
-            </button>
-          )}
-
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className="px-2 py-0.5 rounded-md text-[9px] font-black text-black"
-                style={{ backgroundColor: brandPrimary }}
-              >
-                KOSCRM 2026
-              </span>
-              <h1 className="text-sm sm:text-base font-black tracking-tight" style={{ color: modeColors.textColor }}>
-                {activeRankedContact
-                  ? `תיק דינמי: ${activeRankedContact.contact.kosun_crm_name || activeRankedContact.contact.conta_name}`
-                  : activeGroup
-                  ? activeGroup.title
-                  : 'קבוצות אנשי קשר דינמיות (לפי חשיבות ושימושים)'}
-              </h1>
-            </div>
-            <p className="text-[10px]" style={{ color: modeColors.secondaryText }}>
-              {activeRankedContact
-                ? '4 קבוצות נתונים מדורגות לפי חשיבות, שימושים כלליים ושימושי המשתמש'
-                : activeGroup
-                ? `${activeGroup.contactsCount} אנשי קשר בקבוצה • מדורגים דינמית בשיטת 4 כרטיסים`
-                : `סה״כ ${data?.totalContacts || 0} אנשי קשר חולקו אוטומטית ל-${allDynamicGroups.length} קבוצות דינמיות`}
-            </p>
-          </div>
-        </div>
-
-        {/* כפתורי פעולה מהירים, חיפוש, עיצוב מהקולקציה ומעבר לטבלה/ייבוא */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            type="button"
-            onClick={() => setIsSearchOpen((prev) => !prev)}
-            className="p-1.5 rounded-xl border transition-all"
-            style={{
-              borderColor: isSearchOpen || searchQuery ? brandPrimary : modeColors.borderColor,
-              color: isSearchOpen || searchQuery ? brandPrimary : modeColors.textColor,
-            }}
-            title="חיפוש מהיר בקולקציה"
-          >
-            <Icons.Search size={14} />
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenNewContact}
-            className="px-2.5 py-1.5 rounded-xl text-[10px] font-black text-black flex items-center gap-1 shadow-sm"
-            style={{ backgroundColor: brandPrimary }}
-          >
-            <Icons.UserPlus size={12} />
-            <span>+ איש קשר</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onOpenIngestionTools}
-            className="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold flex items-center gap-1"
-            style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-            title="ייבוא אקסל, גוגל שיטס, סריקת כרטיס ביקור וסנכרון קשר"
-          >
-            <Icons.Database size={12} style={{ color: brandPrimary }} />
-            <span className="hidden sm:inline">ייבוא וסנכרון</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onSwitchToLegacyAnalytics}
-            className="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold flex items-center gap-1"
-            style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-            title="גרפים ודוחות BI"
-          >
-            <Icons.BarChart3 size={12} style={{ color: brandPrimary }} />
-            <span className="hidden md:inline">דוחות BI</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onSwitchToLegacyTable}
-            className="px-2.5 py-1.5 rounded-xl border text-[10px] font-bold flex items-center gap-1"
-            style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-            title="תצוגת טבלה מלאה"
-          >
-            <Icons.Table size={12} />
-            <span className="hidden md:inline">טבלה</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() =>
-              updateVisualConfig({ colorMode: visualConfig.colorMode === 'day' ? 'night' : 'day' })
-            }
-            className="p-1.5 rounded-xl border transition-all"
-            style={{ borderColor: modeColors.borderColor, color: brandPrimary }}
-            title={visualConfig.colorMode === 'day' ? 'מצב לילה' : 'מצב יום'}
-          >
-            {visualConfig.colorMode === 'day' ? <Icons.Moon size={14} /> : <Icons.Sun size={14} />}
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsStyleSelectorOpen((prev) => !prev)}
-            className="p-1.5 rounded-xl border transition-all"
-            style={{
-              borderColor: isStyleSelectorOpen ? brandPrimary : modeColors.borderColor,
-              color: brandPrimary,
-            }}
-            title="בורר 5 פריסות גילוי ו-5 סגנונות מהקולקציה"
-          >
-            <Icons.SlidersHorizontal size={14} />
-          </button>
-
-          <button
-            type="button"
-            onClick={refresh}
-            className="p-1.5 rounded-xl border transition-all"
-            style={{ borderColor: modeColors.borderColor, color: modeColors.secondaryText }}
-            title="רענן קולקציה"
-          >
-            <Icons.RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </div>
-      </div>
-
-      {/* תיבת חיפוש נפתחת */}
-      {(isSearchOpen || searchQuery) && (
-        <div className="my-1.5 flex items-center gap-2 px-3 py-1.5 rounded-2xl border animate-fadeIn"
-          style={{ background: modeColors.cardBg, borderColor: brandPrimary }}
-        >
-          <Icons.Search size={14} style={{ color: brandPrimary }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setGroupsPage(0);
-              setContactsPage(0);
-            }}
-            placeholder="חפש קבוצה, תגית, קהילה, עיר, שם איש קשר או טלפון..."
-            className="flex-1 bg-transparent text-xs font-bold outline-none"
-            style={{ color: modeColors.textColor }}
+      {/* 📱 מסגרת הפוקוס של KOSUN 2026: יועץ עליון + שורת סיכום מעטה + 4 כרטיסי בבושקה */}
+      <div
+        className="w-full max-w-md h-[720px] max-h-[88vh] rounded-[36px] overflow-hidden border-2 shadow-2xl relative flex flex-col justify-between p-3 transition-colors duration-300"
+        style={{
+          backgroundColor: tenantTheme.pageBg,
+          color: tenantTheme.textColor,
+          borderColor: `${brandPrimary}45`,
+          boxShadow: `0 0 45px ${modeColors.glowColor}`,
+        }}
+      >
+        {/* 1. היועץ העליון (Top Advisor Capsule) – מוצג ישירות בראש המסך ללא שכפול כותרות */}
+        <div className="shrink-0 z-20">
+          <InteractiveCapsule
+            tenantProfile={tenantProfile}
+            tenantTheme={tenantTheme}
+            activeQuestionNode={advisorCapsuleNode}
+            isCatalogActive={stageMode !== 'home'}
+            stylePresetId={visualConfig.atmosphereTheme}
+            onAvatarPlayClick={() => setIsAdvisorChatOpen((prev) => !prev)}
+            onQuestionClick={() => setIsAdvisorChatOpen((prev) => !prev)}
+            onMicClick={handleMicTrigger}
           />
-          {searchQuery && (
+        </div>
+
+        {/* שורת שיחה נפתחת עם היועץ העליון */}
+        {isAdvisorChatOpen && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSubmitAdvisorQuery(advisorInput);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-2xl border animate-fadeIn shrink-0 my-1"
+            style={{ background: modeColors.cardBg, borderColor: brandPrimary }}
+          >
+            <Icons.Sparkles size={14} style={{ color: brandPrimary }} />
+            <input
+              type="text"
+              autoFocus
+              value={advisorInput}
+              onChange={(e) => setAdvisorInput(e.target.value)}
+              placeholder="בקש מהיועץ: הכנסות אחרונות / לידים לטיפול / שם לקוח..."
+              className="flex-1 bg-transparent text-xs font-bold outline-none"
+              style={{ color: modeColors.textColor }}
+            />
             <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              className="text-xs font-bold px-2 py-0.5 rounded-lg"
-              style={{ color: modeColors.secondaryText }}
+              type="submit"
+              className="px-2.5 py-1 rounded-xl text-[10px] font-black text-black shrink-0"
+              style={{ backgroundColor: brandPrimary }}
             >
-              נקה ✕
+              פרוש 4 כרטיסים ◀
             </button>
-          )}
-        </div>
-      )}
+          </form>
+        )}
 
-      {/* בורר פריסות וסגנונות מהקולקציה (נפתח בלחיצה על SlidersHorizontal) */}
-      {isStyleSelectorOpen && (
-        <div
-          className="my-1.5 p-2.5 rounded-2xl border flex flex-col gap-2 animate-fadeIn z-20"
-          style={{ background: modeColors.cardBg, borderColor: brandPrimary }}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black" style={{ color: brandPrimary }}>
-              עיצוב ופריסה מונחי-קולקציה (5 Atmosphere Styles × 5 Discovery Layouts)
-            </span>
-            <button
-              type="button"
-              onClick={() => setIsStyleSelectorOpen(false)}
-              className="text-[10px]"
-              style={{ color: modeColors.secondaryText }}
-            >
-              סגור ✕
-            </button>
-          </div>
-
-          <div className="grid grid-cols-5 gap-1">
-            {Object.values(KOSUN_STYLE_PRESETS).map((preset, idx) => {
-              const active = visualConfig.atmosphereTheme === preset.value;
-              return (
+        {/* מגירת החלפת סגנון קולקציה קומפקטית */}
+        {isStyleDrawerOpen && (
+          <div
+            className="p-2 rounded-2xl border flex flex-col gap-1.5 z-30 animate-fadeIn shrink-0 my-1"
+            style={{ background: modeColors.cardBg, borderColor: brandPrimary }}
+          >
+            <div className="grid grid-cols-5 gap-1">
+              {Object.values(KOSUN_STYLE_PRESETS).map((preset, idx) => {
+                const active = visualConfig.atmosphereTheme === preset.value;
+                return (
+                  <button
+                    key={preset.value}
+                    type="button"
+                    onClick={() =>
+                      updateVisualConfig({
+                        atmosphereTheme: preset.value,
+                        layoutBudget: resolveDiscoveryLayoutMode(
+                          preset.defaultLayout,
+                          preset.discovery.mode
+                        ),
+                      })
+                    }
+                    className="py-1 px-1 rounded-lg border text-[8.5px] font-black truncate"
+                    style={{
+                      backgroundColor: active ? brandPrimary : 'transparent',
+                      borderColor: active ? brandPrimary : modeColors.borderColor,
+                      color: active ? '#000' : modeColors.textColor,
+                    }}
+                  >
+                    {idx + 1}. {preset.shortLabel}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="grid grid-cols-5 gap-1">
+              {(
+                [
+                  { id: 'accordion_morph', label: 'אקורדיון' },
+                  { id: 'spotlight_stage', label: 'זרקור' },
+                  { id: 'glass_flip_overlay', label: 'רשת 2x2' },
+                  { id: 'bento_asymmetric', label: 'בנטו' },
+                  { id: 'swipe_action_deck', label: 'חפיסה' },
+                ] as Array<{ id: KosunDiscoveryLayoutMode; label: string }>
+              ).map((l) => (
                 <button
-                  key={preset.value}
-                  type="button"
-                  onClick={() =>
-                    updateVisualConfig({
-                      atmosphereTheme: preset.value,
-                      layoutBudget: resolveDiscoveryLayoutMode(
-                        preset.defaultLayout,
-                        preset.discovery.mode
-                      ),
-                    })
-                  }
-                  className="py-1 px-1.5 rounded-lg border text-[9.5px] font-bold truncate transition-all"
-                  style={{
-                    backgroundColor: active ? brandPrimary : 'transparent',
-                    borderColor: active ? brandPrimary : modeColors.borderColor,
-                    color: active ? '#000' : modeColors.textColor,
-                  }}
-                >
-                  {idx + 1}. {preset.shortLabel}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="grid grid-cols-5 gap-1">
-            {(
-              [
-                { id: 'accordion_morph', label: '1. אקורדיון (4)' },
-                { id: 'spotlight_stage', label: '2. במת זרקור' },
-                { id: 'glass_flip_overlay', label: '3. וילון זכוכית 2x2' },
-                { id: 'bento_asymmetric', label: '4. פסיפס בנטו' },
-                { id: 'swipe_action_deck', label: '5. חפיסת 3D' },
-              ] as Array<{ id: KosunDiscoveryLayoutMode; label: string }>
-            ).map((layout) => {
-              const active = discoveryMode === layout.id;
-              return (
-                <button
-                  key={layout.id}
-                  type="button"
-                  onClick={() => updateVisualConfig({ layoutBudget: layout.id })}
-                  className="py-1 px-1.5 rounded-lg border text-[9.5px] font-bold truncate transition-all"
-                  style={{
-                    backgroundColor: active ? `${brandPrimary}25` : 'transparent',
-                    borderColor: active ? brandPrimary : modeColors.borderColor,
-                    color: active ? brandPrimary : modeColors.secondaryText,
-                  }}
-                >
-                  {layout.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* =====================================================================
-          2. סרגל 4 עדשות הדירוג הדינמי: משוקלל | לפי חשיבות | לפי מס׳ שימושים | השימושים שלי
-         ===================================================================== */}
-      <div className="flex flex-col gap-1.5 my-1 z-20">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-          {(Object.keys(RANKING_MODE_META) as DynamicRankingMode[]).map((modeKey) => {
-            const meta = RANKING_MODE_META[modeKey];
-            const isActive = rankingMode === modeKey;
-            const ModeIcon = (Icons as any)[meta.icon] || Icons.Sparkles;
-
-            return (
-              <button
-                key={modeKey}
-                type="button"
-                onClick={() => {
-                  setRankingMode(modeKey);
-                  setGroupsPage(0);
-                  setContactsPage(0);
-                  setActiveCardIndex(0);
-                }}
-                title={meta.desc}
-                className={`px-2.5 py-1.5 rounded-xl border text-[10.5px] font-black flex items-center justify-center gap-1.5 transition-all active:scale-95 ${
-                  isActive ? 'shadow-md scale-[1.01]' : 'opacity-75 hover:opacity-100'
-                }`}
-                style={{
-                  backgroundColor: isActive ? brandPrimary : modeColors.cardBg,
-                  borderColor: isActive ? brandPrimary : modeColors.borderColor,
-                  color: isActive ? '#000000' : modeColors.textColor,
-                }}
-              >
-                <ModeIcon size={13} />
-                <span className="truncate">{meta.shortLabel}</span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* סינון ממדי קבוצות (מוצג ברמת הקבוצות הראשית) */}
-        {!selectedGroupId && !selectedContactId && availableCategories.length > 1 && (
-          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 no-scrollbar">
-            {availableCategories.map((cat) => {
-              const meta = CATEGORY_FILTER_LABELS[cat];
-              const isSelected = categoryFilter === cat;
-              const CatIcon = (Icons as any)[meta.icon] || Icons.Layers;
-
-              return (
-                <button
-                  key={cat}
+                  key={l.id}
                   type="button"
                   onClick={() => {
-                    setCategoryFilter(cat);
-                    setGroupsPage(0);
-                    setActiveCardIndex(0);
+                    updateVisualConfig({ layoutBudget: l.id });
+                    setIsStyleDrawerOpen(false);
                   }}
-                  className="px-2.5 py-1 rounded-lg border text-[10px] font-bold flex items-center gap-1 shrink-0 transition-all"
+                  className="py-0.5 px-1 rounded-md border text-[8.5px] font-bold truncate"
                   style={{
-                    backgroundColor: isSelected ? `${brandPrimary}22` : 'transparent',
-                    borderColor: isSelected ? brandPrimary : modeColors.borderColor,
-                    color: isSelected ? brandPrimary : modeColors.secondaryText,
+                    borderColor: discoveryMode === l.id ? brandPrimary : modeColors.borderColor,
+                    color: discoveryMode === l.id ? brandPrimary : modeColors.secondaryText,
                   }}
                 >
-                  <CatIcon size={11} />
-                  <span>{meta.label}</span>
+                  {l.label}
                 </button>
-              );
-            })}
+              ))}
+            </div>
           </div>
         )}
-      </div>
 
-      {/* =====================================================================
-          3. קפסולת ה-AI והקול העליונה (InteractiveCapsule מתוך KOSDESYN)
-         ===================================================================== */}
-      <InteractiveCapsule
-        tenantProfile={tenantProfile}
-        tenantTheme={tenantTheme}
-        activeQuestionNode={capsuleQuestionNode}
-        isCatalogActive={Boolean(selectedGroupId)}
-        stylePresetId={visualConfig.atmosphereTheme}
-        onAvatarPlayClick={() => {
-          const modes: DynamicRankingMode[] = ['combined', 'importance', 'global_usage', 'user_usage'];
-          const next = modes[(modes.indexOf(rankingMode) + 1) % modes.length];
-          setRankingMode(next);
-          setVoiceFeedback(`עדשת הדירוג הוחלפה ל: ${RANKING_MODE_META[next].label}`);
-          setTimeout(() => setVoiceFeedback(null), 3000);
-        }}
-        onQuestionClick={() => {
-          if (!selectedGroupId && allDynamicGroups[0]) {
-            handleRecordUsage(allDynamicGroups[0].id, 1);
-            setSelectedGroupId(allDynamicGroups[0].id);
-          } else if (activeRankedContact) {
-            onOpenContact360(activeRankedContact.contact);
-          }
-        }}
-        onMicClick={toggleVoiceRecording}
-      />
-
-      {voiceFeedback && (
+        {/* 2. כותרת אחת יחידה מעל אזור הכרטיסים עם כפתור אחור מובנה + שורת הסיכום + בקרי תצוגה */}
         <div
-          className="my-1 px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center justify-between animate-fadeIn"
+          className="px-2.5 py-1.5 rounded-2xl border text-[10.5px] font-bold flex items-center justify-between shrink-0 mt-1 shadow-sm"
           style={{
-            backgroundColor: `${brandPrimary}18`,
-            borderColor: brandPrimary,
+            backgroundColor: `${brandPrimary}12`,
+            borderColor: `${brandPrimary}35`,
             color: modeColors.textColor,
           }}
         >
-          <div className="flex items-center gap-2">
-            <Icons.Sparkles size={14} style={{ color: brandPrimary }} />
-            <span>{voiceFeedback}</span>
-          </div>
-          <button type="button" onClick={() => setVoiceFeedback(null)} className="text-xs">
-            ✕
-          </button>
-        </div>
-      )}
+          {/* צד ימין (RTL): כפתור חזור + כותרת יחידה תמציתית */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            {stageMode !== 'home' && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStageMode('home');
+                  setActiveCardIndex(0);
+                  setSummaryLineText(
+                    'טננט מנהל פעיל • בחר כרטיס או שוחח עם היועץ העליון לשליפה ממוקדת'
+                  );
+                }}
+                className="px-2 py-0.5 rounded-lg text-[10px] font-black text-black flex items-center gap-1 shadow-sm active:scale-95 transition-transform shrink-0"
+                style={{ backgroundColor: brandPrimary }}
+              >
+                <Icons.ArrowRight size={12} />
+                <span>חזרה</span>
+              </button>
+            )}
 
-      {/* =====================================================================
-          4. במת ה-60% המרכזית: 4 כרטיסים דינמיים לפי חשיבות ושימושים
-         ===================================================================== */}
-      <div className="relative z-10 w-full flex-1 flex flex-col justify-center my-1 overflow-hidden min-h-[340px]">
-        {renderDynamicStage()}
-      </div>
-
-      {/* =====================================================================
-          5. סרגל ניווט מצפן בין קבוצות של 4 (Compass Pagination) + פוטר KOSUN 2026
-         ===================================================================== */}
-      {!selectedContactId && (
-        <div className="flex items-center justify-between px-2 py-1.5 mt-1 border-t border-white/10 text-xs z-20">
-          <button
-            type="button"
-            disabled={selectedGroupId ? safeContactsPage === 0 : safeGroupsPage === 0}
-            onClick={() => {
-              if (selectedGroupId) {
-                setContactsPage((p) => Math.max(0, p - 1));
-              } else {
-                setGroupsPage((p) => Math.max(0, p - 1));
-              }
-              setActiveCardIndex(0);
-            }}
-            className="px-3 py-1 rounded-xl border font-bold flex items-center gap-1 disabled:opacity-35 transition-all"
-            style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-          >
-            <Icons.ChevronRight size={14} style={{ color: brandPrimary }} />
-            <span>4 הקודמים</span>
-          </button>
-
-          <div className="flex items-center gap-2 text-[10.5px] font-bold" style={{ color: modeColors.secondaryText }}>
-            <span>
-              {selectedGroupId
-                ? `אנשי קשר בקבוצה: עמוד ${safeContactsPage + 1} מתוך ${totalContactsPages} (${totalContactsInGroup} סה״כ)`
-                : `קבוצות דינמיות: עמוד ${safeGroupsPage + 1} מתוך ${totalGroupsPages} (${allDynamicGroups.length} קבוצות)`}
+            <span className="truncate text-[10.5px] font-bold">
+              {summaryLineText}
             </span>
           </div>
 
-          <button
-            type="button"
-            disabled={
-              selectedGroupId
-                ? safeContactsPage >= totalContactsPages - 1
-                : safeGroupsPage >= totalGroupsPages - 1
-            }
-            onClick={() => {
-              if (selectedGroupId) {
-                setContactsPage((p) => Math.min(totalContactsPages - 1, p + 1));
-              } else {
-                setGroupsPage((p) => Math.min(totalGroupsPages - 1, p + 1));
+          {/* צד שמאל: בקרי יום/לילה וסגנון */}
+          <div className="flex items-center gap-1 shrink-0 mr-1.5">
+            <button
+              type="button"
+              onClick={() =>
+                updateVisualConfig({ colorMode: visualConfig.colorMode === 'day' ? 'night' : 'day' })
               }
-              setActiveCardIndex(0);
-            }}
-            className="px-3 py-1 rounded-xl border font-bold flex items-center gap-1 disabled:opacity-35 transition-all"
-            style={{ borderColor: modeColors.borderColor, color: modeColors.textColor }}
-          >
-            <span>4 הבאים</span>
-            <Icons.ChevronLeft size={14} style={{ color: brandPrimary }} />
-          </button>
-        </div>
-      )}
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+              style={{ color: brandPrimary }}
+              title={visualConfig.colorMode === 'day' ? 'מצב לילה' : 'מצב יום'}
+            >
+              {visualConfig.colorMode === 'day' ? <Icons.Moon size={13} /> : <Icons.Sun size={13} />}
+            </button>
 
-      <KosunUniversalFooter
-        tenantProfile={tenantProfile}
-        onHomeClick={() => {
-          setSelectedContactId(null);
-          setSelectedGroupId(null);
-          setGroupsPage(0);
-          setContactsPage(0);
-          setActiveCardIndex(0);
-        }}
-        onOpenSecretOwner={() => setIsStyleSelectorOpen((prev) => !prev)}
-      />
+            <button
+              type="button"
+              onClick={() => setIsStyleDrawerOpen((prev) => !prev)}
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-all"
+              style={{ color: brandPrimary }}
+              title="החלף פריסה / סגנון מהקולקציה"
+            >
+              <Icons.SlidersHorizontal size={13} />
+            </button>
+          </div>
+        </div>
+
+        {/* 3. במת ה-60% המרכזית: 4 כרטיסים מונעים לפעולה בלבד */}
+        <div className="relative z-10 w-full flex-1 flex flex-col justify-center py-1 overflow-hidden my-auto">
+          {renderFourCardsStage()}
+        </div>
+
+        {/* 5. סרגל תחתון אחיד של קושאן */}
+        <div className="shrink-0">
+          <KosunUniversalFooter
+            tenantProfile={tenantProfile}
+            onHomeClick={() => {
+              setStageMode('home');
+              setActiveCardIndex(0);
+              setSummaryLineText(
+                'טננט מנהל פעיל • בחר כרטיס או שוחח עם היועץ העליון לשליפה ממוקדת'
+              );
+            }}
+            onOpenSecretOwner={() => setIsStyleDrawerOpen((prev) => !prev)}
+          />
+        </div>
+      </div>
     </div>
   );
 };
+
 export default KosCrmDynamicGroupsPage;

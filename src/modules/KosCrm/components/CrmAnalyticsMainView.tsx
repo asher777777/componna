@@ -72,8 +72,20 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [isSyncingForms, setIsSyncingForms] = useState(false);
   const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
-  // Subscribe to forms: first try HostCapabilities, or Firestore fallback
+  // Modal states & Main View Tab
+  const { tenantId } = useTenantScope();
+  const [activeMainTab, setActiveMainTab] = useState<'dynamic_groups' | 'table' | 'analytics'>('dynamic_groups');
+  const [isIngestionBarOpen, setIsIngestionBarOpen] = useState(false);
+  const [isGroupsImportOpen, setIsGroupsImportOpen] = useState(false);
+  const [isSyncingKesher, setIsSyncingKesher] = useState(false);
+
+  // משיכת נתונים מלאה וטפסים אך ורק כאשר המשתמש מבקש לעבור לתצוגת טבלה / אנליטיקה מלאה
   React.useEffect(() => {
+    if (activeMainTab === 'dynamic_groups') return;
+    if (!data) {
+      refresh();
+    }
+
     let unsub = () => {};
 
     if (formCapability?.getForms) {
@@ -108,7 +120,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
     }
 
     return () => unsub();
-  }, [formCapability, firebaseApp, ownerId, resolvedCollections.forms]);
+  }, [activeMainTab, data, refresh, formCapability, firebaseApp, ownerId, resolvedCollections.forms]);
 
   const handleSyncAllFormsToCrm = async () => {
     setIsSyncingForms(true);
@@ -124,13 +136,6 @@ export const CrmAnalyticsMainView: React.FC = () => {
       setIsSyncingForms(false);
     }
   };
-
-  // Modal states & Main View Tab
-  const { tenantId } = useTenantScope();
-  const [activeMainTab, setActiveMainTab] = useState<'dynamic_groups' | 'table' | 'analytics'>('dynamic_groups');
-  const [isIngestionBarOpen, setIsIngestionBarOpen] = useState(false);
-  const [isGroupsImportOpen, setIsGroupsImportOpen] = useState(false);
-  const [isSyncingKesher, setIsSyncingKesher] = useState(false);
 
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -648,6 +653,11 @@ export const CrmAnalyticsMainView: React.FC = () => {
             onOpenContact360={handleOpenContact}
             onOpenNewContact={handleOpenNewContact}
             onOpenIngestionTools={() => setIsIngestionBarOpen(prev => !prev)}
+            onOpenExcelImport={() => setIsExcelModalOpen(true)}
+            onOpenGoogleSheets={() => setIsGSheetsModalOpen(true)}
+            onSyncSmartForms={handleSyncAllFormsToCrm}
+            onMergeDuplicates={handleMergeDuplicates}
+            onScanCard={() => setIsCardScannerOpen(true)}
             onSwitchToLegacyTable={() => setActiveMainTab('table')}
             onSwitchToLegacyAnalytics={() => setActiveMainTab('analytics')}
           />

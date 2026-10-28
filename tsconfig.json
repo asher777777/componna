@@ -20,6 +20,33 @@
       "@/*": ["src/*"]
     }
   },
-  "include": ["src"],
+  "include": [
+    "src/vite-env.d.ts",
+    "src/modules",
+    "src/pages",
+    "src/core",
+    "src/workbench",
+    "src/lib",
+    "src/types",
+    "src/App.tsx",
+    "src/main.tsx",
+    "src/KOSDESYN/01-core-engine/areaCollectionManager.ts",
+    "src/KOSDESYN/06-cognitive-web-portal/InteractiveCapsule.tsx",
+    "src/KOSDESYN/06-cognitive-web-portal/KosunUniversalFooter.tsx",
+    "src/KOSDESYN/06-cognitive-web-portal/KosunUserAvatar.tsx",
+    "src/KOSDESYN/06-cognitive-web-portal/types.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "src/KOSDESYN/02-theme-archetypes",
+    "src/KOSDESYN/03-collection-adapters",
+    "src/KOSDESYN/04-navigation-and-vector-ai",
+    "src/KOSDESYN/05-audio-and-sound-engine",
+    "src/KOSDESYN/05-babushka-backoffice",
+    "src/KOSDESYN/07-design-dna-and-tokens",
+    "src/KOSDESYN/07-crm-and-forms-engines",
+    "src/KOSDESYN/08-focus-and-time-screens",
+    "src/KOSDESYN/09-preview-and-showcase"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
