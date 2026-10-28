@@ -297,7 +297,8 @@ export const KOS_CRM_FUNCTIONS_COLLECTION: CrmFunctionItem[] = [
     ctaText: 'הזן איש קשר חדש ◀',
     tags: [
       'איש קשר חדש', 'הזנה ידנית', 'הוספת לקוח', 'יצירת ליד', 
-      'createcontact', 'כרטיס חדש', 'הוספה מהירה'
+      'createcontact', 'כרטיס חדש', 'הוספה מהירה', 'לפתוח כרטיס לקוח', 'פתיחת כרטיס לקוח',
+      'פתיחת לקוח', 'הקמת לקוח', 'טופס לקוח חדש'
     ],
     targetLayout: 'accordion_morph',
   },
@@ -355,7 +356,8 @@ export const KOS_CRM_FUNCTIONS_COLLECTION: CrmFunctionItem[] = [
     ctaText: 'נתח לקוח ב-AI ◀',
     tags: [
       'ניתוח לקוח', 'סיכום לקוח', 'כרטיס 360', 'copilot', 'generatecontactsummary', 
-      'חום ליד', 'סנטימנט', 'המלצה לפעולה', 'next best action', 'תחקור לקוח'
+      'חום ליד', 'סנטימנט', 'המלצה לפעולה', 'next best action', 'תחקור לקוח',
+      'כרטיס לקוח', 'פתיחת כרטיס לקוח', 'לפתוח כרטיס לקוח', 'פתיחת לקוח', 'תיק לקוח'
     ],
     targetLayout: 'spotlight_stage',
   },
@@ -373,7 +375,8 @@ export const KOS_CRM_FUNCTIONS_COLLECTION: CrmFunctionItem[] = [
     ctaText: 'ערוך פרטי לקוח ◀',
     tags: [
       'עריכת לקוח', 'עדכון שדה', 'שמירת כרטיס', 'inline edit', 
-      'updatecontactfield', 'handlesavecontact', 'עדכון פרטים'
+      'updatecontactfield', 'handlesavecontact', 'עדכון פרטים',
+      'כרטיס לקוח', 'פתיחת כרטיס לקוח', 'לפתוח כרטיס לקוח', 'כרטיס 360'
     ],
     targetLayout: 'accordion_morph',
   },

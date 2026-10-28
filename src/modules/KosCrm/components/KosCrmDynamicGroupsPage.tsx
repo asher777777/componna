@@ -706,12 +706,23 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
         }
 
         // פתיחת איש קשר או יצירת קשר
+        if (item.actionKey === 'open_contact_360') {
+          if (item.contactRef) {
+            onOpenContact360(item.contactRef);
+          } else {
+            onOpenNewContact();
+          }
+          return;
+        }
+
         if (item.contactRef) {
           onOpenContact360(item.contactRef);
         } else if (item.phone) {
           const cleanPhone = item.phone.replace(/\D/g, '');
           const intl = cleanPhone.startsWith('0') ? `972${cleanPhone.slice(1)}` : cleanPhone;
           window.open(`https://wa.me/${intl}`, '_blank');
+        } else {
+          onOpenNewContact();
         }
       },
     }));
