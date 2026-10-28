@@ -716,6 +716,117 @@ export async function getAreaCollectionSchema(
     };
   }
 
+  // תמיכה ייעודית לקולקציית כרטיס לקוח 360 (crm_contact_360)
+  if (areaId === 'crm_contact_360' || areaId === 'area_crm_contact_360') {
+    return {
+      areaId,
+      componentName: 'Contact360Modal',
+      pageId: 'contact_360',
+      parameters: [
+        {
+          key: 'atmosphereTheme',
+          label: 'סגנון אטמוספרי ומיתוג כרטיס',
+          currentValue: serverDoc?.atmosphereTheme || 'cyber_neon',
+          options: Object.values(KOSUN_STYLE_PRESETS).map((p) => ({
+            value: p.value,
+            label: p.label,
+            desc: p.desc,
+          })),
+        },
+        {
+          key: 'colorMode',
+          label: 'מצב יום / לילה',
+          currentValue: serverDoc?.colorMode || 'night',
+          options: [
+            { value: 'night', label: 'מצב לילה (Dark Mode)', desc: 'רקע כהה ושקט בעיניים' },
+            { value: 'day', label: 'מצב יום (Light Mode)', desc: 'רקע בהיר וקריאות מקסימלית' },
+          ],
+        },
+        // 4 כרטיסי ליבה של הבבושקה (רמה 0 - שורש)
+        {
+          key: 'root_1_title',
+          label: 'רצועה א - כותרת (פרופיל אישי וקשר)',
+          currentValue: serverDoc?.root_1_title || 'פרופיל אישי וקשר',
+        },
+        {
+          key: 'root_1_badge',
+          label: 'רצועה א - תגית',
+          currentValue: serverDoc?.root_1_badge || 'ליבה',
+        },
+        {
+          key: 'root_1_icon',
+          label: 'רצועה א - אייקון',
+          currentValue: serverDoc?.root_1_icon || 'User',
+        },
+        {
+          key: 'root_1_summary',
+          label: 'רצועה א - שורת סיכום',
+          currentValue: serverDoc?.root_1_summary || 'פרטים כלליים, טלפון, מייל ותגיות שיוך',
+        },
+        {
+          key: 'root_2_title',
+          label: 'רצועה ב - כותרת (עסקי וכספי)',
+          currentValue: serverDoc?.root_2_title || 'פעילות עסקית וכספית',
+        },
+        {
+          key: 'root_2_badge',
+          label: 'רצועה ב - תגית',
+          currentValue: serverDoc?.root_2_badge || 'עסקאות',
+        },
+        {
+          key: 'root_2_icon',
+          label: 'רצועה ב - אייקון',
+          currentValue: serverDoc?.root_2_icon || 'CreditCard',
+        },
+        {
+          key: 'root_2_summary',
+          label: 'רצועה ב - שורת סיכום',
+          currentValue: serverDoc?.root_2_summary || 'פרטי חברה, תשלומים, עסקאות ותקבולים',
+        },
+        {
+          key: 'root_3_title',
+          label: 'רצועה ג - כותרת (תקשורת וגיוס)',
+          currentValue: serverDoc?.root_3_title || 'תקשורת ומעורבות',
+        },
+        {
+          key: 'root_3_badge',
+          label: 'רצועה ג - תגית',
+          currentValue: serverDoc?.root_3_badge || 'אינטראקציה',
+        },
+        {
+          key: 'root_3_icon',
+          label: 'רצועה ג - אייקון',
+          currentValue: serverDoc?.root_3_icon || 'MessageCircle',
+        },
+        {
+          key: 'root_3_summary',
+          label: 'רצועה ג - שורת סיכום',
+          currentValue: serverDoc?.root_3_summary || 'WhatsApp, אימייל, טפסים ותהליכי גיוס',
+        },
+        {
+          key: 'root_4_title',
+          label: 'רצועה ד - כותרת (מנויים וטננט)',
+          currentValue: serverDoc?.root_4_title || 'מנויים וניהול מערכת',
+        },
+        {
+          key: 'root_4_badge',
+          label: 'רצועה ד - תגית',
+          currentValue: serverDoc?.root_4_badge || 'הרשאות',
+        },
+        {
+          key: 'root_4_icon',
+          label: 'רצועה ד - אייקון',
+          currentValue: serverDoc?.root_4_icon || 'ShieldCheck',
+        },
+        {
+          key: 'root_4_summary',
+          label: 'רצועה ד - שורת סיכום',
+          currentValue: serverDoc?.root_4_summary || 'חבילות מנוי פעילות, הרשאות תוכן וסאב-דומיין',
+        },
+      ],
+    };
+  }
+
   return {
     areaId,
     componentName: 'QuestionPageView',

@@ -159,6 +159,98 @@
       "pageId": "crm",
       "systemDefault": "4 פעולות תיוג ◀"
     },
+    "crm_contact_360_root_1_title": {
+      "id": "crm_contact_360_root_1_title",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "פרופיל אישי וקשר",
+      "archetypeOverrides": {
+        "saas": "פרופיל אישי וקשר",
+        "automotive": "פרטי בעל הרכב והתקשרות",
+        "real_estate": "פרטי לקוח ומשקיע"
+      }
+    },
+    "crm_contact_360_root_1_badge": {
+      "id": "crm_contact_360_root_1_badge",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "ליבה"
+    },
+    "crm_contact_360_root_1_summary": {
+      "id": "crm_contact_360_root_1_summary",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "פרטים כלליים, טלפון, מייל ותגיות שיוך"
+    },
+    "crm_contact_360_root_2_title": {
+      "id": "crm_contact_360_root_2_title",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "פעילות עסקית וכספית",
+      "archetypeOverrides": {
+        "saas": "פעילות עסקית וכספית",
+        "automotive": "היסטוריית רכישות וטיפולים",
+        "real_estate": "היסטוריית עסקאות ותשלומים"
+      }
+    },
+    "crm_contact_360_root_2_badge": {
+      "id": "crm_contact_360_root_2_badge",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "עסקאות"
+    },
+    "crm_contact_360_root_2_summary": {
+      "id": "crm_contact_360_root_2_summary",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "פרטי חברה, תשלומים, עסקאות ותקבולים"
+    },
+    "crm_contact_360_root_3_title": {
+      "id": "crm_contact_360_root_3_title",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "תקשורת ומעורבות",
+      "archetypeOverrides": {
+        "saas": "תקשורת ומעורבות",
+        "automotive": "הודעות WhatsApp ותיאומים",
+        "real_estate": "הודעות וסיכומי פגישות"
+      }
+    },
+    "crm_contact_360_root_3_badge": {
+      "id": "crm_contact_360_root_3_badge",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "אינטראקציה"
+    },
+    "crm_contact_360_root_3_summary": {
+      "id": "crm_contact_360_root_3_summary",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "WhatsApp, אימייל, טפסים ותהליכי גיוס"
+    },
+    "crm_contact_360_root_4_title": {
+      "id": "crm_contact_360_root_4_title",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "מנויים וניהול מערכת",
+      "archetypeOverrides": {
+        "saas": "מנויים וניהול מערכת",
+        "automotive": "מנויי שירות ואחריות",
+        "real_estate": "מנויי תוכן ובלעדיות"
+      }
+    },
+    "crm_contact_360_root_4_badge": {
+      "id": "crm_contact_360_root_4_badge",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "הרשאות"
+    },
+    "crm_contact_360_root_4_summary": {
+      "id": "crm_contact_360_root_4_summary",
+      "areaId": "crm_contact_360",
+      "pageId": "contact_360",
+      "systemDefault": "חבילות מנוי פעילות, הרשאות תוכן וסאב-דומיין"
+    },
     "capsule_prompt_hint": {
       "id": "capsule_prompt_hint",
       "areaId": "area_top_ai_capsule",
