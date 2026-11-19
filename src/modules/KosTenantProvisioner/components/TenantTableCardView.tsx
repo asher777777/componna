@@ -399,6 +399,16 @@ export const TenantTableCardView: React.FC = () => {
                                   ראשי (Master)
                                 </span>
                               )}
+                              {!isMaster && tenant.canProvisionSubTenants && (
+                                <span className="px-1.5 py-0.2 rounded-md bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 font-bold text-[10px]">
+                                  טננט-אב (Reseller)
+                                </span>
+                              )}
+                              {!isMaster && tenant.parentTenantId && (
+                                <span className="px-1.5 py-0.2 rounded-md bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 font-bold text-[10px]">
+                                  תחת: {tenant.parentTenantId}
+                                </span>
+                              )}
                             </div>
                             <span className="font-mono text-[10px] text-slate-400 block" dir="ltr">
                               {tenant.fullDomain}

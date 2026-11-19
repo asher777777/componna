@@ -79,8 +79,11 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
       kosun_crm_email: email,
       conta_phone: phone,
       kosun_crm_phone: phone,
-      lead_source: 'סאב-דומיין KOSUN26',
-      tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', cleanSub],
+      lead_source: tenant.parentTenantId ? `טננט-אב ${tenant.parentTenantId}` : 'סאב-דומיין KOSUN26',
+      tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', cleanSub, ...(tenant.parentTenantId ? [`הורה:${tenant.parentTenantId}`] : [])],
+      ...(tenant.parentTenantId ? { parentTenantId: tenant.parentTenantId } : {}),
+      ...(tenant.canProvisionSubTenants !== undefined ? { canProvisionSubTenants: Boolean(tenant.canProvisionSubTenants) } : {}),
+      ...(tenant.useMasterKesherBilling !== undefined ? { useMasterKesherBilling: Boolean(tenant.useMasterKesherBilling) } : {}),
     };
 
     // Keep all local storage registries synced
@@ -145,6 +148,18 @@ export class TenantContactSyncService implements SubdomainTenantContactContract 
           updatedAt: new Date().toISOString(),
         }, { merge: true });
       } catch {}
+
+      // 4. If this tenant belongs to a Reseller / Hub parent tenant (e.g. kesem), also sync to parent's CRM contacts
+      if (tenant.parentTenantId && tenant.parentTenantId !== '_master') {
+        try {
+          await setDoc(doc(db, 'tenants', tenant.parentTenantId, 'contacts', targetDocId), {
+            ...contactPayload,
+            id: targetDocId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          }, { merge: true });
+        } catch {}
+      }
 
       eventBus.emit('tenant:contact_synced', { subdomain: cleanSub, contactId: targetDocId });
       eventBus.emit('crm:contact:updated', { id: targetDocId, conta_name: contactName, email });

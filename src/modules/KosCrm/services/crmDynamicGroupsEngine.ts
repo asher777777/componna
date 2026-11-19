@@ -1485,6 +1485,11 @@ function isBelongingToManagerTenant(docId: string, data: any, activeTenantId: st
   if (cleanTenant === '_master' || cleanTenant === 'kosun') {
     return true;
   }
+  // טננט-אב (Reseller) רשאי לראות את כרטיסי הטננטים-הילדים שנוצרו תחתיו (parentTenantId === cleanTenant)
+  const itemParent = typeof data.parentTenantId === 'string' ? data.parentTenantId.toLowerCase().trim() : '';
+  if (itemParent && itemParent === cleanTenant) {
+    return true;
+  }
   // בשאר הטננטים - הפרדת רשויות מוחלטת: מסננים רשומות ניהול טננט וכל רשומה השייכת לסאב-דומיין אחר
   if (docId.startsWith('tenant_admin_') || data.isSubdomainAdmin === true) {
     return false;

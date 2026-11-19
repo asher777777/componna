@@ -175,8 +175,14 @@ export class TenantProvisionerService {
   /**
    * Load all tenants from Firestore and merge with local cache
    */
-  static async getAllTenants(db?: Firestore): Promise<TenantAccount[]> {
-    const localTenants = this.getLocalTenants();
+  static async getAllTenants(
+    db?: Firestore,
+    options?: { scopeParentTenantId?: string }
+  ): Promise<TenantAccount[]> {
+    const scopeParent = options?.scopeParentTenantId?.trim().toLowerCase();
+    const isScopedReseller = Boolean(scopeParent && scopeParent !== '_master' && scopeParent !== 'kosun');
+
+    const localTenants = isScopedReseller ? [] : this.getLocalTenants();
     const map = new Map<string, TenantAccount>();
     localTenants.forEach((t) => map.set(t.subdomain.toLowerCase(), t));
 
@@ -187,6 +193,9 @@ export class TenantProvisionerService {
           const data = docSnap.data();
           const sub = docSnap.id.toLowerCase();
           if (sub === '_master' || sub === 'www' || sub === 'admin') continue;
+
+          const docParent = typeof data.parentTenantId === 'string' ? data.parentTenantId.trim().toLowerCase() : '';
+          if (isScopedReseller && docParent !== scopeParent) continue;
 
           let adminPassword = data.adminPassword || '';
           if (!adminPassword) {
@@ -214,6 +223,11 @@ export class TenantProvisionerService {
             billingPlan: data.billingPlan || 'monthly',
             monthlyTotal: data.monthlyTotal || 0,
             notes: data.notes || '',
+            parentTenantId: docParent || undefined,
+            canProvisionSubTenants: Boolean(data.canProvisionSubTenants),
+            grantableModules: Array.isArray(data.grantableModules) ? data.grantableModules : undefined,
+            maxSubTenants: typeof data.maxSubTenants === 'number' ? data.maxSubTenants : undefined,
+            useMasterKesherBilling: Boolean(data.useMasterKesherBilling),
           };
           map.set(sub, record);
         }
@@ -221,41 +235,48 @@ export class TenantProvisionerService {
         console.warn('[TenantProvisionerService] Remote fetch warning:', err);
       }
 
-      try {
-        const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
-        const cSnap = await getDocs(masterContactsCol);
-        for (const cDoc of cSnap.docs) {
-          const cd = cDoc.data();
-          if (cd.subdomain && (cd.isSubdomainAdmin || cd.isUser)) {
-            const sub = cd.subdomain.toLowerCase().trim();
-            if (sub === '_master' || sub === 'www' || sub === 'admin') continue;
-            const existing = map.get(sub);
-            map.set(sub, {
-              subdomain: sub,
-              fullDomain: cd.fullDomain || existing?.fullDomain || `${sub}.kosun.pro`,
-              clientName: cd.company_name || cd.kosun_crm_name || cd.conta_name || existing?.clientName || `עסק ${sub}`,
-              adminUsername: cd.adminUsername || cd.email || existing?.adminUsername || `${sub}@kosun.pro`,
-              adminPassword: cd.adminPassword || existing?.adminPassword || 'Ks@1234',
-              ownerEmail: cd.kosun_crm_email || cd.email || existing?.ownerEmail || `${sub}@kosun.pro`,
-              ownerPhone: cd.kosun_crm_phone || cd.conta_phone || existing?.ownerPhone || '050-0000000',
-              activeModules: Array.isArray(cd.activeModules) && cd.activeModules.length > 0 ? cd.activeModules : (existing?.activeModules || DEFAULT_SUBDOMAIN_MODULES),
-              collectionPrefix: existing?.collectionPrefix || `tenant_${sub}_mod_`,
-              status: cd.tenantStatus || cd.status || existing?.status || 'active',
-              createdAt: cd.createdAt || existing?.createdAt || new Date().toISOString(),
-              updatedAt: cd.updatedAt || existing?.updatedAt || new Date().toISOString(),
-              billingPlan: cd.billingPlan || existing?.billingPlan || 'monthly',
-              monthlyTotal: cd.monthlyTotal || existing?.monthlyTotal || 0,
-              notes: cd.subdomainNotes || existing?.notes || '',
-            });
+      if (!isScopedReseller) {
+        try {
+          const masterContactsCol = collection(db, 'tenants', '_master', 'contacts');
+          const cSnap = await getDocs(masterContactsCol);
+          for (const cDoc of cSnap.docs) {
+            const cd = cDoc.data();
+            if (cd.subdomain && (cd.isSubdomainAdmin || cd.isUser)) {
+              const sub = cd.subdomain.toLowerCase().trim();
+              if (sub === '_master' || sub === 'www' || sub === 'admin') continue;
+              const existing = map.get(sub);
+              map.set(sub, {
+                subdomain: sub,
+                fullDomain: cd.fullDomain || existing?.fullDomain || `${sub}.kosun.pro`,
+                clientName: cd.company_name || cd.kosun_crm_name || cd.conta_name || existing?.clientName || `עסק ${sub}`,
+                adminUsername: cd.adminUsername || cd.email || existing?.adminUsername || `${sub}@kosun.pro`,
+                adminPassword: cd.adminPassword || existing?.adminPassword || 'Ks@1234',
+                ownerEmail: cd.kosun_crm_email || cd.email || existing?.ownerEmail || `${sub}@kosun.pro`,
+                ownerPhone: cd.kosun_crm_phone || cd.conta_phone || existing?.ownerPhone || '050-0000000',
+                activeModules: Array.isArray(cd.activeModules) && cd.activeModules.length > 0 ? cd.activeModules : (existing?.activeModules || DEFAULT_SUBDOMAIN_MODULES),
+                collectionPrefix: existing?.collectionPrefix || `tenant_${sub}_mod_`,
+                status: cd.tenantStatus || cd.status || existing?.status || 'active',
+                createdAt: cd.createdAt || existing?.createdAt || new Date().toISOString(),
+                updatedAt: cd.updatedAt || existing?.updatedAt || new Date().toISOString(),
+                billingPlan: cd.billingPlan || existing?.billingPlan || 'monthly',
+                monthlyTotal: cd.monthlyTotal || existing?.monthlyTotal || 0,
+                notes: cd.subdomainNotes || existing?.notes || '',
+                parentTenantId: cd.parentTenantId || existing?.parentTenantId || undefined,
+                canProvisionSubTenants: cd.canProvisionSubTenants !== undefined ? Boolean(cd.canProvisionSubTenants) : existing?.canProvisionSubTenants,
+                grantableModules: Array.isArray(cd.grantableModules) && cd.grantableModules.length > 0 ? cd.grantableModules : existing?.grantableModules,
+                maxSubTenants: typeof cd.maxSubTenants === 'number' ? cd.maxSubTenants : existing?.maxSubTenants,
+                useMasterKesherBilling: cd.useMasterKesherBilling !== undefined ? Boolean(cd.useMasterKesherBilling) : existing?.useMasterKesherBilling,
+              });
+            }
           }
+        } catch (err) {
+          console.warn('[TenantProvisionerService] Master contacts fetch warning:', err);
         }
-      } catch (err) {
-        console.warn('[TenantProvisionerService] Master contacts fetch warning:', err);
       }
     }
 
-    // Include demo tenant if empty
-    if (map.size === 0) {
+    // Include demo tenant if empty ONLY in master mode
+    if (!isScopedReseller && map.size === 0) {
       const demo: TenantAccount = {
         subdomain: 'demo',
         fullDomain: 'demo.kosun.pro',
@@ -290,16 +311,25 @@ export class TenantProvisionerService {
     const result = Array.from(map.values()).sort(
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
-    this.saveLocalTenants(result);
+    if (!isScopedReseller) {
+      this.saveLocalTenants(result);
+    }
     return result;
   }
 
   /**
-   * Provision and save a new tenant with active modules and credentials
+   * Provision and save a new tenant with active modules and credentials.
+   * Supports scoped Reseller provisioning (actorTenantId != _master) with global uniqueness & module ceiling checks.
    */
   static async createTenant(
     db: Firestore | undefined,
-    form: TenantProvisionFormState
+    form: TenantProvisionFormState,
+    options?: {
+      actorTenantId?: string;
+      allowedModules?: string[];
+      maxSubTenants?: number;
+      currentChildCount?: number;
+    }
   ): Promise<TenantAccount> {
     const cleanSub = form.subdomain.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
     if (!cleanSub || cleanSub.length < 3) {
@@ -311,6 +341,51 @@ export class TenantProvisionerService {
       throw new Error('סאב-דומיין זה שמור על ידי המערכת');
     }
 
+    const actor = options?.actorTenantId?.trim().toLowerCase();
+    const isResellerActor = Boolean(actor && actor !== '_master' && actor !== 'kosun');
+
+    // Enforce global uniqueness & quota when creating from a Reseller tenant
+    if (isResellerActor) {
+      if (
+        typeof options?.maxSubTenants === 'number' &&
+        options.maxSubTenants > 0 &&
+        (options.currentChildCount ?? 0) >= options.maxSubTenants
+      ) {
+        throw new Error(`הגעת למכסת הסאב-דומיינים המותרת (${options.maxSubTenants}). פנה למנהל המערכת להגדלת המכסה.`);
+      }
+      if (db) {
+        try {
+          const existingSnap = await getDoc(doc(db, 'tenants', cleanSub));
+          if (existingSnap.exists()) {
+            const existingParent = String(existingSnap.data()?.parentTenantId || '').toLowerCase();
+            if (existingParent !== actor) {
+              throw new Error(`הסאב-דומיין "${cleanSub}.kosun.pro" כבר תפוס במערכת. נא לבחור שם אחר.`);
+            }
+          }
+        } catch (checkErr: any) {
+          if (checkErr?.message?.includes('כבר תפוס')) throw checkErr;
+        }
+      }
+    }
+
+    const rawSelected = form.selectedModules.length > 0 ? form.selectedModules : DEFAULT_SUBDOMAIN_MODULES;
+    const allowedSet = isResellerActor && Array.isArray(options?.allowedModules) && options.allowedModules.length > 0
+      ? new Set(options.allowedModules.map((m) => m.toLowerCase()))
+      : null;
+
+    const enforcedModules = isResellerActor
+      ? rawSelected.filter((m) => {
+          const low = m.toLowerCase();
+          if (low === 'kostenantprovisioner' || low === 'tenant-provisioner') return false;
+          if (allowedSet && !allowedSet.has(low)) return false;
+          return true;
+        })
+      : rawSelected;
+
+    const effectiveParentTenantId = isResellerActor
+      ? actor
+      : (form.parentTenantId?.trim().toLowerCase() || undefined);
+
     const newRecord: TenantAccount = {
       subdomain: cleanSub,
       fullDomain: `${cleanSub}.kosun.pro`,
@@ -319,13 +394,19 @@ export class TenantProvisionerService {
       adminPassword: form.adminPassword.trim() || 'Ks@1234',
       ownerEmail: form.ownerEmail?.trim() || form.adminUsername.trim(),
       ownerPhone: form.ownerPhone?.trim() || '050-0000000',
-      activeModules: form.selectedModules.length > 0 ? form.selectedModules : DEFAULT_SUBDOMAIN_MODULES,
+      activeModules: enforcedModules.length > 0 ? enforcedModules : ['KosBranding', 'KosWebAi'],
       collectionPrefix: `tenant_${cleanSub}_mod_`,
       status: 'active',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       billingPlan: form.billingPlan,
       notes: form.notes || '',
+      parentTenantId: effectiveParentTenantId,
+      // Child tenants provisioned by a reseller NEVER inherit reseller privileges or master Kesher billing
+      canProvisionSubTenants: isResellerActor ? false : Boolean(form.canProvisionSubTenants),
+      grantableModules: isResellerActor ? undefined : form.grantableModules,
+      maxSubTenants: isResellerActor ? undefined : form.maxSubTenants,
+      useMasterKesherBilling: isResellerActor ? false : Boolean(form.useMasterKesherBilling),
     };
 
     // 1. Save locally
@@ -337,10 +418,11 @@ export class TenantProvisionerService {
     if (db) {
       try {
         const tenantDocRef = doc(db, 'tenants', cleanSub);
-        await setDoc(tenantDocRef, {
-          ...newRecord,
-          id: cleanSub,
-        }, { merge: true });
+        const cleanDocPayload: Record<string, any> = { id: cleanSub };
+        Object.entries(newRecord).forEach(([k, v]) => {
+          if (v !== undefined) cleanDocPayload[k] = v;
+        });
+        await setDoc(tenantDocRef, cleanDocPayload, { merge: true });
 
         // Save secure credentials document
         const credRef = doc(db, 'tenants', cleanSub, 'settings', 'auth_credentials');
@@ -376,9 +458,9 @@ export class TenantProvisionerService {
           updatedAt: Date.now(),
         }, { merge: true });
 
-        // 4. Synchronize and create the CRM contact in subdomain contacts AND master contacts
+        // 4. Synchronize and create the CRM contact in subdomain contacts, parent reseller contacts (if any), AND master contacts
         try {
-          const contactPayload = {
+          const contactPayload: Record<string, any> = {
             id: `tenant_admin_${cleanSub}`,
             status: 'active',
             contact_type: 'contact',
@@ -394,23 +476,33 @@ export class TenantProvisionerService {
             monthlyTotal: 0,
             subdomainNotes: newRecord.notes || '',
             company_name: newRecord.clientName,
-            job_title: 'מנהל סאב-דומיין (טננט)',
+            job_title: newRecord.parentTenantId ? `מנהל סאב-דומיין (תחת ${newRecord.parentTenantId})` : 'מנהל סאב-דומיין (טננט)',
             conta_name: newRecord.clientName || `טננט ${cleanSub}`,
             kosun_crm_name: newRecord.clientName || `טננט ${cleanSub}`,
             email: newRecord.ownerEmail || newRecord.adminUsername,
             kosun_crm_email: newRecord.ownerEmail || newRecord.adminUsername,
             conta_phone: newRecord.ownerPhone || '',
             kosun_crm_phone: newRecord.ownerPhone || '',
-            lead_source: 'סאב-דומיין KOSUN26',
-            tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', cleanSub],
+            lead_source: newRecord.parentTenantId ? `טננט-אב ${newRecord.parentTenantId}` : 'סאב-דומיין KOSUN26',
+            tags: ['סאב דומיין', 'משתמש מערכת', 'טננט', cleanSub, ...(newRecord.parentTenantId ? [`הורה:${newRecord.parentTenantId}`] : [])],
+            canProvisionSubTenants: Boolean(newRecord.canProvisionSubTenants),
+            useMasterKesherBilling: Boolean(newRecord.useMasterKesherBilling),
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
           };
+          if (newRecord.parentTenantId) contactPayload.parentTenantId = newRecord.parentTenantId;
+          if (Array.isArray(newRecord.grantableModules)) contactPayload.grantableModules = newRecord.grantableModules;
+          if (typeof newRecord.maxSubTenants === 'number') contactPayload.maxSubTenants = newRecord.maxSubTenants;
 
           // Save under subdomain's own contacts collection
           await setDoc(doc(db, 'tenants', cleanSub, 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
 
-          // Also save under master contacts collection for centralized management
+          // If created under a Reseller / Hub parent tenant (e.g. kesem), also sync to the parent's CRM contacts
+          if (newRecord.parentTenantId && newRecord.parentTenantId !== '_master') {
+            await setDoc(doc(db, 'tenants', newRecord.parentTenantId, 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
+          }
+
+          // Also save under master contacts collection for centralized Master control
           await setDoc(doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`), contactPayload, { merge: true });
         } catch (cErr) {
           console.warn('[TenantProvisionerService] Direct CRM contact write warning:', cErr);
@@ -657,17 +749,53 @@ export class TenantProvisionerService {
     updates: Partial<TenantAccount>
   ): Promise<void> {
     const cleanSub = subdomain.trim().toLowerCase();
+    const cleanUpdates: Record<string, any> = { updatedAt: new Date().toISOString() };
+    Object.entries(updates).forEach(([k, v]) => {
+      if (v !== undefined) cleanUpdates[k] = v;
+    });
+
     if (db && cleanSub !== '_master') {
       try {
         const tenantRef = doc(db, 'tenants', cleanSub);
-        await setDoc(
-          tenantRef,
-          {
-            ...updates,
-            updatedAt: new Date().toISOString(),
-          },
-          { merge: true }
-        );
+        await setDoc(tenantRef, cleanUpdates, { merge: true });
+
+        // Also mirror key reseller / status / profile fields to master contact
+        try {
+          const contactUpdates: Record<string, any> = { updatedAt: cleanUpdates.updatedAt };
+          if (cleanUpdates.clientName) {
+            contactUpdates.company_name = cleanUpdates.clientName;
+            contactUpdates.conta_name = cleanUpdates.clientName;
+            contactUpdates.kosun_crm_name = cleanUpdates.clientName;
+          }
+          if (cleanUpdates.ownerEmail) {
+            contactUpdates.email = cleanUpdates.ownerEmail;
+            contactUpdates.kosun_crm_email = cleanUpdates.ownerEmail;
+          }
+          if (cleanUpdates.ownerPhone) {
+            contactUpdates.conta_phone = cleanUpdates.ownerPhone;
+            contactUpdates.kosun_crm_phone = cleanUpdates.ownerPhone;
+          }
+          if (cleanUpdates.status) {
+            contactUpdates.tenantStatus = cleanUpdates.status;
+            contactUpdates.status = cleanUpdates.status;
+          }
+          if (cleanUpdates.canProvisionSubTenants !== undefined) {
+            contactUpdates.canProvisionSubTenants = cleanUpdates.canProvisionSubTenants;
+          }
+          if (cleanUpdates.grantableModules !== undefined) {
+            contactUpdates.grantableModules = cleanUpdates.grantableModules;
+          }
+          if (cleanUpdates.maxSubTenants !== undefined) {
+            contactUpdates.maxSubTenants = cleanUpdates.maxSubTenants;
+          }
+          if (cleanUpdates.useMasterKesherBilling !== undefined) {
+            contactUpdates.useMasterKesherBilling = cleanUpdates.useMasterKesherBilling;
+          }
+          if (cleanUpdates.parentTenantId !== undefined) {
+            contactUpdates.parentTenantId = cleanUpdates.parentTenantId;
+          }
+          await setDoc(doc(db, 'tenants', '_master', 'contacts', `tenant_admin_${cleanSub}`), contactUpdates, { merge: true });
+        } catch {}
       } catch (err) {
         console.warn(`[TenantProvisionerService] Error updating full details for ${cleanSub}:`, err);
       }
@@ -676,7 +804,7 @@ export class TenantProvisionerService {
     const local = this.getLocalTenants();
     const idx = local.findIndex((t) => t.subdomain.toLowerCase() === cleanSub);
     if (idx >= 0) {
-      local[idx] = { ...local[idx], ...updates, updatedAt: new Date().toISOString() };
+      local[idx] = { ...local[idx], ...updates, updatedAt: cleanUpdates.updatedAt };
       this.saveLocalTenants(local);
     }
   }

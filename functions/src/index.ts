@@ -1320,6 +1320,125 @@ export const kesherProxy = functions.https.onRequest((req, res) => {
 });
 
 /**
+ * Master-Centralized Kesher Billing Endpoint (/api/master-billing)
+ * Routes KOSUN SaaS subscription charges & Master-billed Hub tenants (e.g. kesem with useMasterKesherBilling=true)
+ * directly through Master's Kesher credentials stored in tenants/_master/settings/api_keys (ZERO browser key exposure).
+ * Child tenants (useMasterKesherBilling=false) NEVER access Master keys for their own business transactions.
+ */
+export const kesherMasterBilling = functions.https.onRequest((req, res) => {
+  cors(req, res, async () => {
+    if (req.method === 'OPTIONS') {
+      res.status(204).send('');
+      return;
+    }
+
+    try {
+      const body = req.body || {};
+      const mode = String(body.mode || 'subscription'); // 'subscription' | 'tenant_tx' | 'webhook'
+      const actorTenantId = String(body.actorTenantId || body.parentTenantId || '_master').trim().toLowerCase();
+
+      // 1. Load Master Kesher credentials strictly on the server
+      const masterKeysSnap = await db.collection('tenants').doc('_master').collection('settings').doc('api_keys').get();
+      const masterKeys = masterKeysSnap.exists ? (masterKeysSnap.data() || {}) : {};
+      const masterUserName = String(masterKeys.kesherUserName || '').trim();
+      const masterApiKey = String(masterKeys.kesherApiKey || '').trim();
+      const masterPaymentPageId = String(masterKeys.kesherPaymentPageId || '').trim();
+
+      if (!masterUserName || !masterApiKey) {
+        res.status(400).json({ success: false, error: 'Master Kesher credentials are not configured in tenants/_master/settings/api_keys' });
+        return;
+      }
+
+      // 2. For non-subscription tenant transactions, verify the tenant is explicitly authorized (useMasterKesherBilling === true)
+      if (mode === 'tenant_tx' && actorTenantId !== '_master') {
+        const actorSnap = await db.collection('tenants').doc(actorTenantId).get();
+        const actorData = actorSnap.exists ? (actorSnap.data() || {}) : {};
+        if (actorData.useMasterKesherBilling !== true) {
+          res.status(403).json({
+            success: false,
+            error: `Tenant "${actorTenantId}" is not authorized for Master Kesher billing; use tenant-scoped Kesher keys.`,
+          });
+          return;
+        }
+      }
+
+      // 3. Inject Master credentials server-side into the Kesher Connect payload
+      const kesherPayload = {
+        ...(body.kesherPayload || {}),
+        Json: {
+          ...((body.kesherPayload && body.kesherPayload.Json) || {}),
+          userName: masterUserName,
+          password: masterApiKey,
+          ...(masterPaymentPageId && !body.kesherPayload?.Json?.projectNumber ? { projectNumber: masterPaymentPageId } : {}),
+        },
+      };
+
+      const kesherRes = await fetch('https://kesherhk.info/ConnectToKesher/ConnectToKesher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(kesherPayload),
+      });
+      const rawText = await kesherRes.text();
+      let parsed: any = {};
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        parsed = { raw: rawText };
+      }
+
+      const isSuccess = kesherRes.ok && (parsed?.Error === '' || parsed?.error === '' || parsed?.status === 'ok' || parsed?.Status === 'OK' || Boolean(parsed?.TransactionId || parsed?.NumTransaction));
+      const txId = String(parsed?.TransactionId || parsed?.NumTransaction || `MASTER_TX_${Date.now()}`);
+
+      // 4. Record transaction in Master ledger (and mirror to parent hub if applicable)
+      if (isSuccess) {
+        const txRecord = {
+          id: txId,
+          transactionId: txId,
+          mode,
+          amount: Number(body.amount || 0),
+          clientName: String(body.clientName || ''),
+          ownerEmail: String(body.ownerEmail || ''),
+          ownerPhone: String(body.ownerPhone || ''),
+          attributedParentTenant: actorTenantId,
+          targetSubdomain: body.targetSubdomain ? String(body.targetSubdomain).trim().toLowerCase() : null,
+          billingPlan: String(body.billingPlan || 'monthly'),
+          settledTo: '_master',
+          createdAt: new Date().toISOString(),
+        };
+
+        await db.collection('tenants').doc('_master').collection('kesher_transactions').doc(txId).set(txRecord, { merge: true });
+        if (actorTenantId !== '_master') {
+          await db.collection('tenants').doc(actorTenantId).collection('kesher_transactions').doc(txId).set(txRecord, { merge: true });
+        }
+
+        // 5. If this was a child-tenant subscription payment, activate/mark child tenant as paid
+        if (mode === 'subscription' && body.targetSubdomain) {
+          const childSub = String(body.targetSubdomain).trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+          if (childSub && childSub.length >= 3 && childSub !== '_master') {
+            await db.collection('tenants').doc(childSub).set({
+              status: 'active',
+              parentTenantId: actorTenantId !== '_master' ? actorTenantId : undefined,
+              paymentTransactionId: txId,
+              useMasterKesherBilling: false,
+              updatedAt: new Date().toISOString(),
+            }, { merge: true });
+          }
+        }
+      }
+
+      res.status(200).json({
+        success: isSuccess,
+        transactionId: txId,
+        kesherResponse: parsed,
+      });
+    } catch (err: any) {
+      console.error('[kesherMasterBilling] Error:', err);
+      res.status(500).json({ success: false, error: err?.message || String(err) });
+    }
+  });
+});
+
+/**
  * Helper to process pending reminders from Firestore
  * Supports Anti-Ban Jitter, vCard contact card dispatch, and status updating.
  */

@@ -12,7 +12,7 @@ import {
 } from '../types';
 import { getModuleApiKeys } from '../../../core/connection/tenantApiKeys';
 
-const SETTINGS_STORAGE_KEY = 'kosun_kesher_settings';
+const SETTINGS_STORAGE_KEY_PREFIX = 'kosun_kesher_settings';
 const TRANSACTIONS_STORAGE_KEY = 'kosun_kesher_local_transactions';
 
 export class KesherService {
@@ -20,9 +20,27 @@ export class KesherService {
   private currentDb: any = null;
   private currentTenantId: string = '_master';
 
+  private getScopedSettingsKey(): string {
+    const clean = (this.currentTenantId || '_master').trim().toLowerCase();
+    return `${SETTINGS_STORAGE_KEY_PREFIX}_${clean}`;
+  }
+
   public attachFirestore(db: any, tenantId: string = '_master') {
     if (db) this.currentDb = db;
-    if (tenantId) this.currentTenantId = tenantId;
+    const nextTenant = (tenantId || '_master').trim().toLowerCase();
+    const changed = nextTenant !== this.currentTenantId;
+    this.currentTenantId = nextTenant;
+    if (changed) {
+      // Reset in-memory credentials before reloading tenant-scoped settings to guarantee zero cross-tenant key leakage
+      this.settings = {
+        ...this.settings,
+        userName: '',
+        apiKey: '',
+        paymentPageId: '',
+        ezCountToken: '',
+      };
+      this.loadSettings();
+    }
   }
 
   constructor(initialSettings?: Partial<KesherSettings>) {
@@ -47,7 +65,7 @@ export class KesherService {
   public saveSettings(newSettings: Partial<KesherSettings>): KesherSettings {
     this.settings = { ...this.settings, ...newSettings };
     try {
-      localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(this.settings));
+      localStorage.setItem(this.getScopedSettingsKey(), JSON.stringify(this.settings));
     } catch (e) {
       console.warn('Failed to save Kesher settings to localStorage', e);
     }
@@ -71,7 +89,7 @@ export class KesherService {
       }
 
       // Also check direct settings storage
-      const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
+      const saved = localStorage.getItem(this.getScopedSettingsKey());
       if (saved) {
         const parsed = JSON.parse(saved);
         this.settings = { ...this.settings, ...parsed };

@@ -9,7 +9,15 @@ import { TenantProvisionFormState } from '../types';
 import { buildTenantAdminUrl } from '../../../core/tenant';
 
 export const TenantCreateModal: React.FC = () => {
-  const { isCreateModalOpen, setIsCreateModalOpen, createTenant } = useTenantProvisioner();
+  const { isCreateModalOpen, setIsCreateModalOpen, createTenant, isMasterMode, allowedGrantableModules } = useTenantProvisioner();
+
+  const selectableCatalog = React.useMemo(() => {
+    if (isMasterMode || !allowedGrantableModules || allowedGrantableModules.length === 0) {
+      return AVAILABLE_MODULES_CATALOG;
+    }
+    const allowedSet = new Set(allowedGrantableModules.map((m) => m.toLowerCase()));
+    return AVAILABLE_MODULES_CATALOG.filter((m) => allowedSet.has(m.id.toLowerCase()));
+  }, [isMasterMode, allowedGrantableModules]);
 
   const [form, setForm] = useState<TenantProvisionFormState>({
     subdomain: '',
@@ -69,14 +77,14 @@ export const TenantCreateModal: React.FC = () => {
   const selectAllModules = () => {
     setForm((prev) => ({
       ...prev,
-      selectedModules: AVAILABLE_MODULES_CATALOG.map((m) => m.id),
+      selectedModules: selectableCatalog.map((m) => m.id),
     }));
   };
 
   const resetToDefaultModules = () => {
     setForm((prev) => ({
       ...prev,
-      selectedModules: AVAILABLE_MODULES_CATALOG.filter((m) => m.defaultIncluded).map((m) => m.id),
+      selectedModules: selectableCatalog.filter((m) => m.defaultIncluded).map((m) => m.id),
     }));
   };
 
@@ -424,7 +432,7 @@ export const TenantCreateModal: React.FC = () => {
 
               {/* Modules Grid */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-60 overflow-y-auto p-1">
-                {AVAILABLE_MODULES_CATALOG.map((mod) => {
+                {selectableCatalog.map((mod) => {
                   const isChecked = form.selectedModules.includes(mod.id);
                   return (
                     <div

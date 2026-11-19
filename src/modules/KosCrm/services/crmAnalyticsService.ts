@@ -659,12 +659,20 @@ export async function fetchLiveCrmAnalytics(
     const isMasterContext = activeSubdomain === '_master' || activeSubdomain === 'kosun';
 
     // Master has full control & visibility over all tenant_admin_* / subdomain records.
+    // Reseller / Hub tenants see their own contacts + child tenant_admin_* records where parentTenantId === activeSubdomain.
     // All other tenants enforce strict isolation (no tenant_admin_* or foreign subdomain records).
     if (!isMasterContext) {
       for (let i = contacts.length - 1; i >= 0; i--) {
         const item = contacts[i];
         const isTenantAdminRecord = (item.id && item.id.startsWith('tenant_admin_')) || item.isSubdomainAdmin === true;
         const itemSub = typeof item.subdomain === 'string' ? item.subdomain.toLowerCase().trim() : '';
+        const itemParent = typeof item.parentTenantId === 'string' ? item.parentTenantId.toLowerCase().trim() : '';
+        const isOwnChildTenant = Boolean(itemParent && itemParent === activeSubdomain);
+
+        if (isOwnChildTenant) {
+          // Reseller tenant owns this child tenant contact — keep it visible in Reseller's CRM
+          continue;
+        }
         const isForeignSubdomain = Boolean(itemSub && itemSub !== activeSubdomain);
         if (isTenantAdminRecord || isForeignSubdomain) {
           contacts.splice(i, 1);

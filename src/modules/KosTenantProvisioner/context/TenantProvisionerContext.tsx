@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { useTenantScope } from '../../../core/tenant/TenantScopeContext';
 import { TenantAccount, TenantProvisionFormState, TenantStats } from '../types';
 import { TenantProvisionerService, AVAILABLE_MODULES_CATALOG } from '../services/tenantProvisionerService';
 
@@ -7,11 +9,17 @@ interface TenantProvisionerContextValue {
   tenants: TenantAccount[];
   filteredTenants: TenantAccount[];
   masterTenant: TenantAccount | null;
+  isMasterMode: boolean;
+  actorTenantId: string;
+  allowedGrantableModules: string[] | null;
+  maxSubTenants?: number;
   loading: boolean;
   searchTerm: string;
   setSearchTerm: (s: string) => void;
   selectedModuleFilter: string;
   setSelectedModuleFilter: (m: string) => void;
+  selectedParentFilter: string;
+  setSelectedParentFilter: (p: string) => void;
   stats: TenantStats;
   createTenant: (form: TenantProvisionFormState) => Promise<TenantAccount>;
   updateModules: (subdomain: string, modules: string[]) => Promise<void>;
@@ -35,40 +43,73 @@ const TenantProvisionerContext = createContext<TenantProvisionerContextValue | n
 
 export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { db } = useSystemConnection();
+  const { tenantId: scopeTenantId, isRootTenant } = useTenantScope();
+  const actorTenantId = (scopeTenantId || '_master').toLowerCase().trim();
+  const isMasterMode = isRootTenant || actorTenantId === '_master' || actorTenantId === 'kosun';
+
   const [tenants, setTenants] = useState<TenantAccount[]>([]);
   const [masterTenant, setMasterTenant] = useState<TenantAccount | null>(null);
+  const [allowedGrantableModules, setAllowedGrantableModules] = useState<string[] | null>(null);
+  const [maxSubTenants, setMaxSubTenants] = useState<number | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedModuleFilter, setSelectedModuleFilter] = useState('all');
+  const [selectedParentFilter, setSelectedParentFilter] = useState('all');
 
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<TenantAccount | null>(null);
   const [viewingCredentialsTenant, setViewingCredentialsTenant] = useState<TenantAccount | null>(null);
 
   const refreshMasterTenant = useCallback(async () => {
+    if (!isMasterMode) {
+      setMasterTenant(null);
+      return;
+    }
     try {
       const master = await TenantProvisionerService.getMasterTenant(db);
       setMasterTenant(master);
     } catch (err) {
       console.warn('[TenantProvisionerContext] Error fetching master tenant:', err);
     }
-  }, [db]);
+  }, [db, isMasterMode]);
 
   const refreshTenants = useCallback(async () => {
     setLoading(true);
     try {
-      const [data, master] = await Promise.all([
-        TenantProvisionerService.getAllTenants(db),
-        TenantProvisionerService.getMasterTenant(db),
-      ]);
-      setTenants(data);
-      setMasterTenant(master);
+      if (isMasterMode) {
+        const [data, master] = await Promise.all([
+          TenantProvisionerService.getAllTenants(db),
+          TenantProvisionerService.getMasterTenant(db),
+        ]);
+        setTenants(data);
+        setMasterTenant(master);
+        setAllowedGrantableModules(null);
+        setMaxSubTenants(undefined);
+      } else {
+        // Scoped Reseller / Hub mode: load ONLY children of actorTenantId + reseller's own grantableModules/quota
+        const [data, resellerSnap] = await Promise.all([
+          TenantProvisionerService.getAllTenants(db, { scopeParentTenantId: actorTenantId }),
+          db ? getDoc(doc(db, 'tenants', actorTenantId)).catch(() => null) : Promise.resolve(null),
+        ]);
+        setTenants(data);
+        setMasterTenant(null);
+        if (resellerSnap && resellerSnap.exists()) {
+          const rData = resellerSnap.data();
+          const grantable: string[] = Array.isArray(rData.grantableModules) && rData.grantableModules.length > 0
+            ? rData.grantableModules
+            : (Array.isArray(rData.activeModules) ? rData.activeModules : []);
+          setAllowedGrantableModules(
+            grantable.filter((m) => m.toLowerCase() !== 'kostenantprovisioner' && m.toLowerCase() !== 'tenant-provisioner')
+          );
+          setMaxSubTenants(typeof rData.maxSubTenants === 'number' ? rData.maxSubTenants : undefined);
+        }
+      }
     } catch (e) {
       console.warn('[TenantProvisionerContext] Error fetching tenants:', e);
     } finally {
       setLoading(false);
     }
-  }, [db]);
+  }, [db, isMasterMode, actorTenantId]);
 
   useEffect(() => {
     refreshTenants();
@@ -94,11 +135,16 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
 
   const createTenant = useCallback(
     async (form: TenantProvisionFormState): Promise<TenantAccount> => {
-      const created = await TenantProvisionerService.createTenant(db, form);
+      const created = await TenantProvisionerService.createTenant(db, form, {
+        actorTenantId,
+        allowedModules: allowedGrantableModules || undefined,
+        maxSubTenants,
+        currentChildCount: tenants.length,
+      });
       setTenants((prev) => [created, ...prev.filter((t) => t.subdomain !== created.subdomain)]);
       return created;
     },
-    [db]
+    [db, actorTenantId, allowedGrantableModules, maxSubTenants, tenants.length]
   );
 
   const updateModules = useCallback(
@@ -235,20 +281,30 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
         selectedModuleFilter === 'all' ||
         (t.activeModules && t.activeModules.includes(selectedModuleFilter));
 
-      return matchSearch && matchModule;
+      const matchParent =
+        selectedParentFilter === 'all' ||
+        (selectedParentFilter === '_master' ? !t.parentTenantId : t.parentTenantId?.toLowerCase() === selectedParentFilter.toLowerCase());
+
+      return matchSearch && matchModule && matchParent;
     });
-  }, [tenants, searchTerm, selectedModuleFilter]);
+  }, [tenants, searchTerm, selectedModuleFilter, selectedParentFilter]);
 
   const value = useMemo(
     () => ({
       tenants,
       filteredTenants,
       masterTenant,
+      isMasterMode,
+      actorTenantId,
+      allowedGrantableModules,
+      maxSubTenants,
       loading,
       searchTerm,
       setSearchTerm,
       selectedModuleFilter,
       setSelectedModuleFilter,
+      selectedParentFilter,
+      setSelectedParentFilter,
       stats,
       createTenant,
       updateModules,
@@ -270,9 +326,14 @@ export const TenantProvisionerProvider: React.FC<{ children: React.ReactNode }> 
       tenants,
       filteredTenants,
       masterTenant,
+      isMasterMode,
+      actorTenantId,
+      allowedGrantableModules,
+      maxSubTenants,
       loading,
       searchTerm,
       selectedModuleFilter,
+      selectedParentFilter,
       stats,
       createTenant,
       updateModules,

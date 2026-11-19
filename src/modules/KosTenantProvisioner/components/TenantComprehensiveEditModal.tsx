@@ -21,9 +21,19 @@ export const TenantComprehensiveEditModal: React.FC = () => {
     updateTenantAccount,
     updateTenantKeys,
     getTenantKeys,
-    updateCredentials
+    updateCredentials,
+    isMasterMode,
+    allowedGrantableModules,
   } = useTenantProvisioner();
   const { db } = useSystemConnection();
+
+  const selectableCatalog = useMemo(() => {
+    if (isMasterMode || !allowedGrantableModules || allowedGrantableModules.length === 0) {
+      return AVAILABLE_MODULES_CATALOG;
+    }
+    const allowedSet = new Set(allowedGrantableModules.map((m) => m.toLowerCase()));
+    return AVAILABLE_MODULES_CATALOG.filter((m) => allowedSet.has(m.id.toLowerCase()));
+  }, [isMasterMode, allowedGrantableModules]);
 
   // Collapsible accordion sections (closed by default as per Contact360Modal / Hakel standard)
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -59,6 +69,11 @@ export const TenantComprehensiveEditModal: React.FC = () => {
   const [adminUsername, setAdminUsername] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Reseller / Hub & Billing settings (Master-controlled)
+  const [canProvisionSubTenants, setCanProvisionSubTenants] = useState(false);
+  const [useMasterKesherBilling, setUseMasterKesherBilling] = useState(false);
+  const [maxSubTenants, setMaxSubTenants] = useState<number>(0);
 
   // Keys state
   const [keysData, setKeysData] = useState({
@@ -120,6 +135,9 @@ export const TenantComprehensiveEditModal: React.FC = () => {
       setStatus(initStatus);
       setAdminUsername(initUser);
       setAdminPassword(initPass);
+      setCanProvisionSubTenants(Boolean(editingTenant.canProvisionSubTenants));
+      setUseMasterKesherBilling(Boolean(editingTenant.useMasterKesherBilling));
+      setMaxSubTenants(typeof editingTenant.maxSubTenants === 'number' ? editingTenant.maxSubTenants : 0);
       setShowUnsavedConfirm(false);
 
       // Load keys
@@ -240,6 +258,14 @@ export const TenantComprehensiveEditModal: React.FC = () => {
           ownerEmail,
           ownerPhone,
           status,
+          ...(isMasterMode && !editingTenant.isMaster ? {
+            canProvisionSubTenants,
+            useMasterKesherBilling,
+            maxSubTenants: maxSubTenants > 0 ? maxSubTenants : 0,
+            grantableModules: canProvisionSubTenants
+              ? selectedModules.filter((m) => m.toLowerCase() !== 'kostenantprovisioner' && m.toLowerCase() !== 'tenant-provisioner')
+              : undefined,
+          } : {}),
         }),
         ...(adminUsername && adminPassword ? [
           updateCredentials(editingTenant.subdomain, {
@@ -510,7 +536,7 @@ export const TenantComprehensiveEditModal: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 max-h-[45vh] overflow-y-auto p-0.5">
-                  {AVAILABLE_MODULES_CATALOG.map((mod) => {
+                  {selectableCatalog.map((mod) => {
                     const isChecked = selectedModules.includes(mod.id);
                     return (
                       <div
@@ -1223,6 +1249,69 @@ export const TenantComprehensiveEditModal: React.FC = () => {
                     </div>
                   </div>
                 </div>
+
+                {isMasterMode && !editingTenant.isMaster && (
+                  <div className={`p-3 rounded-xl border space-y-3 ${
+                    isDarkMode ? 'bg-indigo-950/20 border-indigo-500/30' : 'bg-indigo-50/60 border-indigo-200'
+                  }`}>
+                    <div className="flex items-center gap-2 text-xs font-black text-indigo-600 dark:text-indigo-400">
+                      <Crown className="w-3.5 h-3.5" />
+                      <span>הרשאות טננט-אב (Reseller / Hub) וגבייה</span>
+                    </div>
+
+                    <label className="flex items-center justify-between gap-2 cursor-pointer">
+                      <div>
+                        <div className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                          הפעל כטננט-אב (מפיץ סאב-דומיינים)
+                        </div>
+                        <div className="text-[10px] text-zinc-400">
+                          מאפשר לטננט לפתוח ולנהל משתמשי קושן וסאב-דומיינים מבודדים תחתיו
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={canProvisionSubTenants}
+                        onChange={(e) => setCanProvisionSubTenants(e.target.checked)}
+                        className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                      />
+                    </label>
+
+                    <label className="flex items-center justify-between gap-2 cursor-pointer">
+                      <div>
+                        <div className={`text-xs font-bold ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                          סליקת עסקאות טננט זה דרך מסוף המאסטר (קשר)
+                        </div>
+                        <div className="text-[10px] text-zinc-400">
+                          עסקאות טננט זה ומנויים עוברים לחשבון המאסטר; ילדיו סולקים דרך המפתחות שלהם
+                        </div>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={useMasterKesherBilling}
+                        onChange={(e) => setUseMasterKesherBilling(e.target.checked)}
+                        className="w-4 h-4 accent-indigo-600 cursor-pointer"
+                      />
+                    </label>
+
+                    {canProvisionSubTenants && (
+                      <div className="space-y-1">
+                        <label className="text-[10px] font-bold text-indigo-500 block">
+                          מכסת סאב-דומיינים מקסימלית (0 = ללא הגבלה)
+                        </label>
+                        <input
+                          type="number"
+                          min={0}
+                          value={maxSubTenants}
+                          onChange={(e) => setMaxSubTenants(Math.max(0, Number(e.target.value) || 0))}
+                          className={`w-36 px-2.5 py-1.5 rounded-xl border text-xs outline-none font-mono ${
+                            isDarkMode ? 'bg-[#181818] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+                          }`}
+                          dir="ltr"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className={`pt-2.5 border-t flex items-center justify-end ${isDarkMode ? 'border-white/5' : 'border-slate-100'}`}>
                   <button
