@@ -330,6 +330,19 @@ export const DynamicAnalyticsTable: React.FC<Props> = ({
         </div>
 
         <div className="flex items-center gap-2">
+          {/* Main Tab Toggle: Switch back to New KOS 2026 View or Analytics */}
+          {onSelectMainTab && (
+            <button
+              type="button"
+              onClick={() => onSelectMainTab('dynamic_groups')}
+              className="px-2.5 py-1.5 text-xs font-black bg-cyan-500/10 dark:bg-cyan-950/40 text-cyan-700 dark:text-cyan-300 hover:bg-cyan-500/20 border border-cyan-300 dark:border-cyan-800 rounded-lg flex items-center gap-1.5 shadow-xs transition"
+              title="מעבר לתצוגת 4 כרטיסים ויועץ עליון (KOS 2026)"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-600 dark:text-cyan-400" />
+              <span>תצוגה חדשה (2026)</span>
+            </button>
+          )}
+
           {/* Main Tab Toggle: Switch to Analytics View (hides table) */}
           {onSelectMainTab && (
             <button

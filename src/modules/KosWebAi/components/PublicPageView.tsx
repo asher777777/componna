@@ -1118,24 +1118,6 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         }}
       />
 
-      {/* Discrete admin portal entry button on public video / content pages */}
-      {!isAuthorized && (
-        <button
-          type="button"
-          onClick={() => {
-            setLoginUser(tenantId && tenantId !== '_master' ? tenantId : '');
-            setLoginPass('');
-            setLoginError(null);
-            setIsLoginModalOpen(true);
-          }}
-          className="fixed bottom-4 left-4 z-40 px-3.5 py-2 rounded-full bg-slate-900/85 hover:bg-slate-900 text-slate-300 hover:text-white backdrop-blur-md border border-slate-700/70 shadow-xl transition-all opacity-70 hover:opacity-100 cursor-pointer flex items-center gap-2 text-xs font-medium"
-          title="כניסת מנהל טננט לעריכת עמוד"
-          aria-label="כניסת מנהל"
-        >
-          <Lock className="w-3.5 h-3.5 text-indigo-400" />
-          <span>עריכת תוכן</span>
-        </button>
-      )}
 
       {/* Quick In-Page Tenant Admin Login Modal */}
       {isLoginModalOpen && (

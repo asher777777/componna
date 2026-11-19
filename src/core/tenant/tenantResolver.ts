@@ -14,25 +14,149 @@ export const RESERVED_TENANT_SUBDOMAINS = [
 
 /** Standard provisioned modules enabled by default for subdomain tenants */
 export const DEFAULT_SUBDOMAIN_MODULES: string[] = [
+  'KosWebAi',
+  'KosBranding',
+  'KosWhatsUp',
+  'KosAccess',
   'KosSubscribed',
   'KosTube',
-  'kosun-board-composer',
-  'kosun-am',
-  'kosai-engine',
-  'KosBranding',
-  'kesher-payments-hub',
-  'KosWhatsUp',
+  'KosTikTok',
+  'KosBoard',
+  'KosMail',
+  'KosAi',
+  'KosPay',
   'KosTogether',
-  'ksf',
-  'video-producer-studio',
-  'client-platform',
-  'crm-analytics',
-  'KosWebAi',
-  'flow-player-engine',
-  'media-gallery-hub',
+  'KosForms',
+  'KosClientPlatform',
+  'KosCrm',
+  'KosFlowPlayer',
   'KosCloudStore',
-  'ambassador-campaigns-hub',
+  'KosCampaigns',
+  'KoSeoPowerEngin',
+  'KosLive',
 ];
+
+/** Mapping of all legacy route aliases to their canonical KOSUN26 module IDs */
+export const MODULE_ALIAS_MAP: Record<string, string> = {
+  // KosBoard
+  'kosboard': 'KosBoard',
+  'kosun-board-composer': 'KosBoard',
+  'board-composer': 'KosBoard',
+
+  // KosMail
+  'kosmail': 'KosMail',
+  'kosun-am': 'KosMail',
+
+  // KosAi
+  'kosai': 'KosAi',
+  'kosai-engine': 'KosAi',
+
+  // KosPay
+  'kospay': 'KosPay',
+  'kesher-payments-hub': 'KosPay',
+  'kesher-payments': 'KosPay',
+
+  // KosWhatsUp
+  'koswhatsup': 'KosWhatsUp',
+  'whatsapp-green-api-hub': 'KosWhatsUp',
+  'whatsapp-hub': 'KosWhatsUp',
+
+  // KosTogether
+  'kostogether': 'KosTogether',
+  'crm-groups-hub': 'KosTogether',
+  'crm-groups': 'KosTogether',
+
+  // KosForms
+  'kosforms': 'KosForms',
+  'ksf': 'KosForms',
+  'smart-form-builder': 'KosForms',
+  'smart-forms': 'KosForms',
+
+  // KosConnector
+  'kosconnector': 'KosConnector',
+  'db-connector-hub': 'KosConnector',
+  'db-connector': 'KosConnector',
+
+  // KosClientPlatform
+  'kosclientplatform': 'KosClientPlatform',
+  'client-platform': 'KosClientPlatform',
+  'client-receiver-platform': 'KosClientPlatform',
+
+  // KosCrm
+  'koscrm': 'KosCrm',
+  'crm-analytics': 'KosCrm',
+
+  // KosWebAi
+  'koswebai': 'KosWebAi',
+  'koswebbulider': 'KosWebAi',
+  'koswebbuilder': 'KosWebAi',
+  'page-builder': 'KosWebAi',
+  'builder': 'KosWebAi',
+
+  // KosAuth
+  'kosauth': 'KosAuth',
+  'auth-portal': 'KosAuth',
+
+  // KosFlowPlayer
+  'kosflowplayer': 'KosFlowPlayer',
+  'flow-player-engine': 'KosFlowPlayer',
+  'flow-player': 'KosFlowPlayer',
+  'video-producer-studio': 'KosFlowPlayer',
+
+  // KosCloudStore
+  'koscloudstore': 'KosCloudStore',
+  'media-gallery-hub': 'KosCloudStore',
+  'media-gallery': 'KosCloudStore',
+
+  // KosData
+  'kosdata': 'KosData',
+  'db-collections-hub': 'KosData',
+  'db-collections': 'KosData',
+
+  // KosCampaigns
+  'koscampaigns': 'KosCampaigns',
+  'ambassador-campaigns-hub': 'KosCampaigns',
+  'ambassador-campaigns': 'KosCampaigns',
+
+  // KosLive
+  'koslive': 'KosLive',
+  'koslivepage': 'KosLive',
+
+  // KosAccess
+  'kosaccess': 'KosAccess',
+
+  // KosSubscribed
+  'kossubscribed': 'KosSubscribed',
+
+  // KosTikTok
+  'kostiktok': 'KosTikTok',
+
+  // KosTube
+  'kostube': 'KosTube',
+
+  // KoSeoPowerEngin
+  'koseopowerengin': 'KoSeoPowerEngin',
+  'koseo': 'KoSeoPowerEngin',
+
+  // KosBranding
+  'kosbranding': 'KosBranding',
+  'brand-dna': 'KosBranding',
+
+  // KosTemplate
+  'kostemplate': 'KosTemplate',
+  'template': 'KosTemplate',
+  '_template': 'KosTemplate',
+
+  // KosTenantProvisioner
+  'kostenantprovisioner': 'KosTenantProvisioner',
+  'tenant-provisioner': 'KosTenantProvisioner',
+};
+
+export function toCanonicalModuleId(id: string): string {
+  if (!id) return id;
+  const lower = id.toLowerCase().trim();
+  return MODULE_ALIAS_MAP[lower] || id;
+}
 
 /** Hosting hostnames that always represent the main platform path (root tenant) */
 export const ROOT_PLATFORM_HOST_PREFIXES = ['kosun', 'glowmanage', 'compona', 'comona', 'aioffice'];

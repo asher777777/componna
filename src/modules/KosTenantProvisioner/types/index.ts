@@ -20,6 +20,12 @@ export interface TenantAccount {
   monthlyTotal?: number;
   notes?: string;
   isMaster?: boolean;
+  // Hierarchy & Reseller / Hub Tenant capabilities
+  parentTenantId?: string;
+  canProvisionSubTenants?: boolean;
+  grantableModules?: string[];
+  maxSubTenants?: number;
+  useMasterKesherBilling?: boolean;
   tokenUsage?: {
     totalTokens: number;
     galleryTokens: number;
@@ -53,6 +59,11 @@ export interface TenantProvisionFormState {
   selectedModules: string[];
   billingPlan: 'monthly' | 'annual';
   notes?: string;
+  parentTenantId?: string;
+  canProvisionSubTenants?: boolean;
+  grantableModules?: string[];
+  maxSubTenants?: number;
+  useMasterKesherBilling?: boolean;
 }
 
 export interface TenantAuthCredentials {

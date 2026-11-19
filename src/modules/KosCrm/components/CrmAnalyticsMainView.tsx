@@ -74,7 +74,22 @@ export const CrmAnalyticsMainView: React.FC = () => {
 
   // Modal states & Main View Tab
   const { tenantId } = useTenantScope();
-  const [activeMainTab, setActiveMainTab] = useState<'dynamic_groups' | 'table' | 'analytics'>('dynamic_groups');
+  const [activeMainTab, setActiveMainTab] = useState<'dynamic_groups' | 'table' | 'analytics'>(() => {
+    try {
+      const saved = localStorage.getItem('kosun_crm_view_mode');
+      if (saved === 'table' || saved === 'analytics' || saved === 'dynamic_groups') {
+        return saved;
+      }
+    } catch {}
+    return 'dynamic_groups';
+  });
+
+  const handleSwitchMainTab = (tab: 'dynamic_groups' | 'table' | 'analytics') => {
+    setActiveMainTab(tab);
+    try {
+      localStorage.setItem('kosun_crm_view_mode', tab);
+    } catch {}
+  };
   const [isIngestionBarOpen, setIsIngestionBarOpen] = useState(false);
   const [isGroupsImportOpen, setIsGroupsImportOpen] = useState(false);
   const [isSyncingKesher, setIsSyncingKesher] = useState(false);
@@ -660,8 +675,8 @@ export const CrmAnalyticsMainView: React.FC = () => {
             onScanCard={() => setIsCardScannerOpen(true)}
             onOpenGroupsImport={() => setIsGroupsImportOpen(true)}
             onOpenBulkWhatsApp={() => setIsBulkWhatsAppOpen(true)}
-            onSwitchToLegacyTable={() => setActiveMainTab('table')}
-            onSwitchToLegacyAnalytics={() => setActiveMainTab('analytics')}
+            onSwitchToLegacyTable={() => handleSwitchMainTab('table')}
+            onSwitchToLegacyAnalytics={() => handleSwitchMainTab('analytics')}
           />
         </div>
       )}
@@ -687,13 +702,35 @@ export const CrmAnalyticsMainView: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setActiveMainTab('dynamic_groups')}
-              className="px-3.5 py-1.5 text-xs font-black bg-cyan-500 hover:bg-cyan-400 text-black rounded-xl flex items-center gap-1.5 shadow-md transition"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>חזרה לקבוצות דינמיות (KOS 2026)</span>
-            </button>
+            <div className="flex items-center bg-gray-100 dark:bg-gray-800 p-1 rounded-xl border border-gray-200 dark:border-gray-700 shadow-inner">
+              <button
+                type="button"
+                onClick={() => handleSwitchMainTab('dynamic_groups')}
+                className="px-3 py-1.5 rounded-lg text-xs font-black bg-cyan-500 hover:bg-cyan-400 text-black flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                title="מעבר לתצוגה החדשה (KOS 2026)"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>תצוגה חדשה (2026)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchMainTab('table')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${activeMainTab === 'table' ? 'bg-indigo-600 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
+                title="תצוגת טבלה ישנה (ניהול לקוחות ולידים)"
+              >
+                <TableIcon className="w-3.5 h-3.5" />
+                <span>תצוגה ישנה (טבלה)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchMainTab('analytics')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition cursor-pointer ${activeMainTab === 'analytics' ? 'bg-violet-600 text-white shadow-xs' : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white'}`}
+                title="דשבורד אנליטיקה ו-KPI"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                <span>אנליטיקה</span>
+              </button>
+            </div>
 
             {/* Toggle Filter Panel */}
             <button
@@ -751,7 +788,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setActiveMainTab('table')}
+              onClick={() => handleSwitchMainTab('table')}
               className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-sm transition flex items-center gap-2"
               title="סגור אנליטיקה וחזור לתצוגת טבלה"
             >
@@ -932,7 +969,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
             onSelectContact={handleOpenContact}
             loading={loading}
             activeMainTab={activeMainTab}
-            onSelectMainTab={setActiveMainTab}
+            onSelectMainTab={handleSwitchMainTab}
             isIngestionBarOpen={isIngestionBarOpen}
             onToggleIngestionBar={() => setIsIngestionBarOpen(prev => !prev)}
           />

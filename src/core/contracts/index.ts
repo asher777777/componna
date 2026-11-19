@@ -479,6 +479,11 @@ export interface SubdomainTenantContactData {
   billingPlan?: 'monthly' | 'annual' | 'custom';
   monthlyTotal?: number;
   notes?: string;
+  parentTenantId?: string;
+  canProvisionSubTenants?: boolean;
+  grantableModules?: string[];
+  maxSubTenants?: number;
+  useMasterKesherBilling?: boolean;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -500,6 +505,11 @@ export interface TenantRecord {
   adminUsername?: string;
   adminPassword?: string;
   notes?: string;
+  parentTenantId?: string;
+  canProvisionSubTenants?: boolean;
+  grantableModules?: string[];
+  maxSubTenants?: number;
+  useMasterKesherBilling?: boolean;
 }
 
 export interface SubdomainTenantContactContract {

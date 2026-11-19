@@ -1,17 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { Check, X, LucideIcon } from 'lucide-react';
+import React from 'react';
+import { ChevronLeft, LucideIcon } from 'lucide-react';
+
+export interface ActionChip {
+  label: string;
+  icon?: LucideIcon | React.ComponentType<{ className?: string; size?: number }>;
+  onClick: () => void;
+  title?: string;
+}
 
 export interface KosunRowActionProps {
   icon: LucideIcon | React.ComponentType<{ className?: string; size?: number }>;
   title: string;
   subtitle?: string;
   badge?: string;
-  tooltipText: string;
+  tooltipText?: string;
   onExecute: () => void;
   disabled?: boolean;
   variant?: 'cyan' | 'magenta' | 'cobalt' | 'default';
   className?: string;
+  actions?: ActionChip[];
 }
 
 export const KosunRowAction: React.FC<KosunRowActionProps> = ({
@@ -24,101 +31,59 @@ export const KosunRowAction: React.FC<KosunRowActionProps> = ({
   disabled = false,
   variant = 'cyan',
   className = '',
+  actions = [],
 }) => {
-  const [showPopover, setShowPopover] = useState(false);
-  const [coords, setCoords] = useState<{ x: number; y: number; isBelow: boolean } | null>(null);
-  const rowRef = useRef<HTMLButtonElement>(null);
-
-  const updateCoordinates = () => {
-    if (!rowRef.current) return;
-    const rect = rowRef.current.getBoundingClientRect();
-    const isBelow = rect.top < 120;
-    const centerX = rect.left + rect.width / 2;
-    const minX = 140;
-    const maxX = window.innerWidth - 140;
-    const clampedX = Math.max(minX, Math.min(maxX, centerX));
-    const y = isBelow ? rect.bottom + 10 : rect.top - 10;
-    setCoords({ x: clampedX, y, isBelow });
-  };
-
-  useEffect(() => {
-    const handleOutsideClick = (event: MouseEvent | TouchEvent) => {
-      if (rowRef.current && !rowRef.current.contains(event.target as Node)) {
-        setShowPopover(false);
-      }
-    };
-
-    if (showPopover) {
-      updateCoordinates();
-      document.addEventListener('mousedown', handleOutsideClick);
-      document.addEventListener('touchstart', handleOutsideClick);
-      window.addEventListener('resize', updateCoordinates);
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleOutsideClick);
-      document.removeEventListener('touchstart', handleOutsideClick);
-      window.removeEventListener('resize', updateCoordinates);
-    };
-  }, [showPopover]);
-
-  const handleRowClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleRowClick = () => {
     if (disabled) return;
-    if (!showPopover) {
-      updateCoordinates();
-      setShowPopover(true);
-    } else {
-      setShowPopover(false);
-      onExecute();
-    }
-  };
-
-  const handleConfirm = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowPopover(false);
     onExecute();
-  };
-
-  const handleCancel = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setShowPopover(false);
   };
 
   const variantStyles = {
     cyan: {
-      border: 'border-[#1A2B4C] hover:border-[#00F0FF]/60 hover:shadow-[0_0_20px_rgba(0,240,255,0.25)]',
+      border: 'border-[#1A2B4C] hover:border-[#00F0FF]/70 hover:shadow-[0_0_25px_rgba(0,240,255,0.25)]',
       iconBox: 'bg-[#0D1F38] text-[#00F0FF] border-[#00F0FF]/40',
-      activeBorder: 'border-[#00F0FF] shadow-[0_0_25px_rgba(0,240,255,0.35)]',
+      badgeBg: 'bg-[#00F0FF]/15 text-[#00F0FF] border-[#00F0FF]/30',
+      chevron: 'text-[#00F0FF]',
+      actionBtn: 'bg-[#00F0FF]/10 hover:bg-[#00F0FF]/25 text-[#00F0FF] border-[#00F0FF]/30',
     },
     magenta: {
-      border: 'border-[#1A2B4C] hover:border-[#BD00FF]/60 hover:shadow-[0_0_20px_rgba(189,0,255,0.25)]',
+      border: 'border-[#1A2B4C] hover:border-[#BD00FF]/70 hover:shadow-[0_0_25px_rgba(189,0,255,0.25)]',
       iconBox: 'bg-[#1F0D2E] text-[#BD00FF] border-[#BD00FF]/40',
-      activeBorder: 'border-[#BD00FF] shadow-[0_0_25px_rgba(189,0,255,0.35)]',
+      badgeBg: 'bg-[#BD00FF]/15 text-[#BD00FF] border-[#BD00FF]/30',
+      chevron: 'text-[#BD00FF]',
+      actionBtn: 'bg-[#BD00FF]/10 hover:bg-[#BD00FF]/25 text-[#BD00FF] border-[#BD00FF]/30',
     },
     cobalt: {
-      border: 'border-[#1A2B4C] hover:border-[#00A3FF]/60 hover:shadow-[0_0_20px_rgba(0,163,255,0.25)]',
+      border: 'border-[#1A2B4C] hover:border-[#00A3FF]/70 hover:shadow-[0_0_25px_rgba(0,163,255,0.25)]',
       iconBox: 'bg-[#101D36] text-[#00A3FF] border-[#00A3FF]/40',
-      activeBorder: 'border-[#00A3FF] shadow-[0_0_25px_rgba(0,163,255,0.35)]',
+      badgeBg: 'bg-[#00A3FF]/15 text-[#00A3FF] border-[#00A3FF]/30',
+      chevron: 'text-[#00A3FF]',
+      actionBtn: 'bg-[#00A3FF]/10 hover:bg-[#00A3FF]/25 text-[#00A3FF] border-[#00A3FF]/30',
     },
     default: {
-      border: 'border-[#1A2B4C] hover:border-[#00F0FF]/40',
+      border: 'border-[#1A2B4C] hover:border-[#00F0FF]/50 hover:shadow-[0_0_20px_rgba(0,240,255,0.15)]',
       iconBox: 'bg-[#12162B] text-[#F0F4FF] border-[#1A2B4C]',
-      activeBorder: 'border-[#00F0FF]',
+      badgeBg: 'bg-[#1A2B4C] text-[#F0F4FF]/80 border-[#1A2B4C]',
+      chevron: 'text-[#F0F4FF]/70',
+      actionBtn: 'bg-[#1A2B4C] hover:bg-[#1A2B4C]/80 text-[#F0F4FF] border-[#1A2B4C]',
     },
   }[variant];
 
   return (
     <div className="relative w-full">
-      <button
-        ref={rowRef}
-        type="button"
-        disabled={disabled}
+      <div
+        role="button"
+        tabIndex={disabled ? -1 : 0}
         onClick={handleRowClick}
+        onKeyDown={(e) => {
+          if (!disabled && (e.key === 'Enter' || e.key === ' ')) {
+            e.preventDefault();
+            handleRowClick();
+          }
+        }}
         dir="rtl"
-        className={`w-full group relative flex items-center justify-between px-4 py-3 sm:py-3.5 rounded-2xl bg-[#0D0E1F]/90 backdrop-blur-md transition-all duration-200 border cursor-pointer select-none text-right disabled:opacity-40 disabled:cursor-not-allowed ${
-          showPopover ? variantStyles.activeBorder : variantStyles.border
-        } ${className}`}
+        title={tooltipText}
+        className={`w-full group relative flex items-center justify-between px-4 py-3 sm:py-3.5 rounded-2xl bg-[#0D0E1F]/90 backdrop-blur-md transition-all duration-200 border cursor-pointer select-none text-right active:scale-[0.99] disabled:opacity-40 disabled:cursor-not-allowed ${variantStyles.border} ${className}`}
       >
         {/* Right side: Icon + Title & Subtitle */}
         <div className="flex items-center gap-3.5 min-w-0">
@@ -139,76 +104,47 @@ export const KosunRowAction: React.FC<KosunRowActionProps> = ({
           </div>
         </div>
 
-        {/* Left side: Badge & Indicator */}
-        <div className="flex items-center gap-2.5 shrink-0 pl-1">
+        {/* Left side: Action Chips + Badge + Chevron Indicator */}
+        <div className="flex items-center gap-2 shrink-0 pl-1">
+          {/* Quick Action Chips (if provided) */}
+          {actions.length > 0 && (
+            <div className="hidden sm:flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+              {actions.map((act, idx) => {
+                const ActIcon = act.icon;
+                return (
+                  <button
+                    key={idx}
+                    type="button"
+                    title={act.title || act.label}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      act.onClick();
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all flex items-center gap-1 active:scale-95 cursor-pointer ${variantStyles.actionBtn}`}
+                  >
+                    {ActIcon && <ActIcon size={12} />}
+                    <span>{act.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Status Badge */}
           {badge && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#00F0FF]/15 text-[#00F0FF] border border-[#00F0FF]/30 tracking-tight">
+            <span
+              className={`text-[10px] font-bold px-2 py-0.5 rounded-md border tracking-tight ${variantStyles.badgeBg}`}
+            >
               {badge}
             </span>
           )}
-          <div className="w-2 h-2 rounded-full bg-[#1A2B4C] group-hover:bg-[#00F0FF] group-hover:shadow-[0_0_8px_#00F0FF] transition-all" />
+
+          {/* Navigation Chevron (in RTL, left is forward) */}
+          <div className="flex items-center justify-center w-6 h-6 rounded-lg text-[#F0F4FF]/40 group-hover:text-[#00F0FF] transition-colors">
+            <ChevronLeft size={18} className="transform transition-transform duration-200 group-hover:-translate-x-1" />
+          </div>
         </div>
-      </button>
-
-      {/* Floating Modal Tooltip Popover */}
-      {showPopover &&
-        coords &&
-        createPortal(
-          <div
-            className="fixed z-[99999] transition-all duration-150 select-none animate-in fade-in zoom-in-95"
-            style={{
-              left: `${coords.x}px`,
-              top: `${coords.y}px`,
-              transform: coords.isBelow ? 'translate(-50%, 0)' : 'translate(-50%, -100%)',
-            }}
-          >
-            {/* Popover Arrow */}
-            {coords.isBelow && (
-              <div className="w-3 h-3 bg-[#0B0E1A] border-t border-r border-[#00F0FF]/60 rotate-45 mx-auto -mb-1.5 shadow-md" />
-            )}
-
-            <div
-              dir="rtl"
-              className="w-72 sm:w-80 p-3.5 rounded-2xl bg-[#0B0E1A]/98 border border-[#00F0FF]/60 shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_25px_rgba(0,240,255,0.35)] backdrop-blur-xl text-right"
-            >
-              <div className="text-xs font-bold text-[#00F0FF] mb-1 flex items-center gap-1.5">
-                <Icon size={14} />
-                <span>{title}</span>
-              </div>
-              <p className="text-[11px] leading-relaxed text-[#F0F4FF]/80 mb-3">
-                {tooltipText}
-              </p>
-
-              {/* Exact two bottom icons: Checkmark (✓) and Cancel (X) */}
-              <div className="flex items-center justify-between pt-2 border-t border-[#1A2B4C]/80">
-                <button
-                  type="button"
-                  onClick={handleCancel}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#12162B] hover:bg-rose-950/40 text-rose-400 border border-rose-500/30 text-xs font-semibold cursor-pointer transition active:scale-95"
-                  title="ביטול"
-                >
-                  <X size={15} />
-                  <span>ביטול</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={handleConfirm}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#00F0FF] to-[#00A3FF] text-[#070913] font-bold text-xs cursor-pointer shadow-[0_0_15px_rgba(0,240,255,0.4)] hover:brightness-110 transition active:scale-95"
-                  title="אישור והמשך"
-                >
-                  <Check size={15} className="stroke-[3]" />
-                  <span>אישור</span>
-                </button>
-              </div>
-            </div>
-
-            {!coords.isBelow && (
-              <div className="w-3 h-3 bg-[#0B0E1A] border-b border-l border-[#00F0FF]/60 rotate-45 mx-auto -mt-1.5 shadow-md" />
-            )}
-          </div>,
-          document.body
-        )}
+      </div>
     </div>
   );
 };

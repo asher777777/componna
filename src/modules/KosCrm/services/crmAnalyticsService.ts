@@ -653,11 +653,22 @@ export async function fetchLiveCrmAnalytics(
       } as Contact;
     });
 
-    // Filter out external tenant_admin_* records so only the active tenant's own contacts are returned
-    for (let i = contacts.length - 1; i >= 0; i--) {
-      const item = contacts[i];
-      if ((item.id && item.id.startsWith('tenant_admin_')) || item.isSubdomainAdmin === true) {
-        contacts.splice(i, 1);
+    // Determine whether we are in the Master tenant (_master / kosun / root) or an isolated subdomain tenant
+    const tenantPathMatch = collections.contacts.match(/^tenants\/([^/]+)\/contacts$/);
+    const activeSubdomain = tenantPathMatch ? tenantPathMatch[1].toLowerCase().trim() : '_master';
+    const isMasterContext = activeSubdomain === '_master' || activeSubdomain === 'kosun';
+
+    // Master has full control & visibility over all tenant_admin_* / subdomain records.
+    // All other tenants enforce strict isolation (no tenant_admin_* or foreign subdomain records).
+    if (!isMasterContext) {
+      for (let i = contacts.length - 1; i >= 0; i--) {
+        const item = contacts[i];
+        const isTenantAdminRecord = (item.id && item.id.startsWith('tenant_admin_')) || item.isSubdomainAdmin === true;
+        const itemSub = typeof item.subdomain === 'string' ? item.subdomain.toLowerCase().trim() : '';
+        const isForeignSubdomain = Boolean(itemSub && itemSub !== activeSubdomain);
+        if (isTenantAdminRecord || isForeignSubdomain) {
+          contacts.splice(i, 1);
+        }
       }
     }
 

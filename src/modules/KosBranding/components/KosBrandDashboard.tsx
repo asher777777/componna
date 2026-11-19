@@ -77,18 +77,31 @@ export const KosBrandDashboard: React.FC<KosBrandDashboardProps> = ({
 
   const handleVoiceCommand = (command: string) => {
     const lower = command.toLowerCase();
-    if (lower.includes('סריקה') || lower.includes('אתר') || lower.includes('פייסבוק')) {
+    if (lower.includes('סריקה') || lower.includes('אתר') || lower.includes('פייסבוק') || lower.includes('scrape')) {
       onOpenScraper();
-    } else if (lower.includes('אשף') || lower.includes('גילוי') || lower.includes('ai')) {
+    } else if (lower.includes('אשף') || lower.includes('גילוי') || lower.includes('wizard')) {
       onOpenWizard();
-    } else if (lower.includes('אסטרטגיה') || lower.includes('תוכן') || lower.includes('כותרות')) {
+    } else if (lower.includes('אסטרטגיה') || lower.includes('תוכן') || lower.includes('כותרות') || lower.includes('strategy')) {
       onOpenStrategy();
-    } else if (lower.includes('קול') || lower.includes('טון') || lower.includes('סליידר')) {
+    } else if (lower.includes('קול') || lower.includes('טון') || lower.includes('שפה') || lower.includes('voice')) {
+      onSwitchToTab('voice');
+    } else if (lower.includes('עיצוב') || lower.includes('צבע') || lower.includes('פלטה') || lower.includes('design')) {
+      onSwitchToTab('design');
+    } else if (lower.includes('קהל') || lower.includes('פרסונה') || lower.includes('כאב') || lower.includes('audience')) {
+      onSwitchToTab('audience');
+    } else if (lower.includes('מתחר') || lower.includes('שוק') || lower.includes('מודיעין') || lower.includes('market')) {
+      onSwitchToTab('market');
+    } else if (lower.includes('מוצר') || lower.includes('שירות') || lower.includes('אקו') || lower.includes('ecosystem')) {
+      onSwitchToTab('ecosystem');
+    } else if (lower.includes('אבטחה') || lower.includes('אמינות') || lower.includes('סליקה') || lower.includes('ח.פ') || lower.includes('trust')) {
+      onSwitchToTab('trust');
+    } else if (lower.includes('סליידר')) {
       setCurrentWindow(3);
-    } else if (lower.includes('מוצר') || lower.includes('שירות') || lower.includes('אקו')) {
-      setCurrentWindow(4);
-    } else if (lower.includes('שמור') || lower.includes('שמירה')) {
+    } else if (lower.includes('שמור') || lower.includes('שמירה') || lower.includes('save')) {
       handleManualSave();
+    } else {
+      // ברירת מחדל: אם הפקודה כוללת AI או מותג - פתיחת אשף ה-AI
+      onOpenWizard();
     }
   };
 
@@ -130,7 +143,12 @@ export const KosBrandDashboard: React.FC<KosBrandDashboardProps> = ({
               badge="מומלץ להתחלה"
               variant="cyan"
               tooltipText="הפעלת אשף גילוי AI מתקדם וסריקת נכסים דיגיטליים קיימים לגיבוש מיידי של זהות המותג."
-              onExecute={() => setCurrentWindow(2)}
+              onExecute={onOpenWizard}
+              actions={[
+                { label: 'אשף AI', icon: Wand2, onClick: onOpenWizard },
+                { label: 'סריקת אתר', icon: Globe, onClick: onOpenScraper },
+                { label: 'אסטרטגיה', icon: Sparkles, onClick: onOpenStrategy },
+              ]}
             />
 
             {/* Row 2: Brand Voice & Design Tokens */}
@@ -141,7 +159,12 @@ export const KosBrandDashboard: React.FC<KosBrandDashboardProps> = ({
               badge={`${personality.formality}/5 רשמיות`}
               variant="cobalt"
               tooltipText="הגדרת מדדי טון הדיבור, רשמיות, אנרגיה, מילים אסורות וסנכרון ערכות העיצוב."
-              onExecute={() => setCurrentWindow(3)}
+              onExecute={() => onSwitchToTab('voice')}
+              actions={[
+                { label: 'טון ושפה', icon: Sliders, onClick: () => onSwitchToTab('voice') },
+                { label: 'פלטת צבעים', icon: Palette, onClick: () => onSwitchToTab('design') },
+                { label: 'סליידרים מהירים', icon: Zap, onClick: () => setCurrentWindow(3) },
+              ]}
             />
 
             {/* Row 3: Target Audience & Market Research */}
@@ -153,6 +176,10 @@ export const KosBrandDashboard: React.FC<KosBrandDashboardProps> = ({
               variant="magenta"
               tooltipText="צפייה ועריכה של פרסונות המותג, נקודות כאב, והפעלת סוכן מחקר מתחרים ייעודי."
               onExecute={() => onSwitchToTab('audience')}
+              actions={[
+                { label: 'פרסונות וכאבים', icon: Target, onClick: () => onSwitchToTab('audience') },
+                { label: 'סוכן מתחרים (AI)', icon: Bot, onClick: () => onSwitchToTab('market') },
+              ]}
             />
 
             {/* Row 4: Ecosystem & Trust Assets */}
@@ -163,7 +190,11 @@ export const KosBrandDashboard: React.FC<KosBrandDashboardProps> = ({
               badge={`${brandDna.ecosystem?.services?.length || 0} שירותים`}
               variant="default"
               tooltipText="הגדרת שירותי הליבה, מוצרי דגל, שאלות נפוצות, פרטי אבטחה וח.פ עסק."
-              onExecute={() => setCurrentWindow(4)}
+              onExecute={() => onSwitchToTab('ecosystem')}
+              actions={[
+                { label: 'שירותים ומוצרים', icon: Layers, onClick: () => onSwitchToTab('ecosystem') },
+                { label: 'אמינות ואבטחה', icon: ShieldCheck, onClick: () => onSwitchToTab('trust') },
+              ]}
             />
           </>
         )}

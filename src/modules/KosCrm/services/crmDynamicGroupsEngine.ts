@@ -1481,17 +1481,15 @@ export interface CrmMinimalSummaryItem {
 
 function isBelongingToManagerTenant(docId: string, data: any, activeTenantId: string): boolean {
   const cleanTenant = (activeTenantId || '_master').toLowerCase().trim();
-  // בטננט של המנג'ר (_master / kosun) מסננים החוצה רשומות סאב-דומיין של טננטים חיצוניים (כמו lea, mlea, rachelgal, turbo_motors)
+  // בטננט המסטר (_master / kosun) יש שליטה וגישה מלאה כולל כל רשומות הטננטים (tenant_admin_* / isSubdomainAdmin)
   if (cleanTenant === '_master' || cleanTenant === 'kosun') {
-    if (docId.startsWith('tenant_admin_')) return false;
-    if (data.isSubdomainAdmin === true) return false;
-    if (data.subdomain && data.subdomain !== '_master' && data.subdomain !== 'kosun') {
-      return false;
-    }
     return true;
   }
-  // בטננט ספציפי - רק רשומות של אותו טננט
-  if (data.subdomain && data.subdomain.toLowerCase() !== cleanTenant) {
+  // בשאר הטננטים - הפרדת רשויות מוחלטת: מסננים רשומות ניהול טננט וכל רשומה השייכת לסאב-דומיין אחר
+  if (docId.startsWith('tenant_admin_') || data.isSubdomainAdmin === true) {
+    return false;
+  }
+  if (data.subdomain && String(data.subdomain).toLowerCase().trim() !== cleanTenant) {
     return false;
   }
   return true;

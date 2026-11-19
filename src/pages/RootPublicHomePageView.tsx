@@ -10,7 +10,6 @@ import { eventBus } from '../core/bridge/EventBus';
 import { CapabilitySlot } from '../core/bridge/CapabilitySlot';
 import { subscribeToAuth, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../services/firebaseAuth';
 import { TenantAuthService } from '../modules/KosTenantProvisioner/services/tenantAuthService';
-import { Lock } from 'lucide-react';
 import { TenantAdminLoginView } from '../core/tenant/TenantAdminLoginView';
 import { TenantRecord } from '../core/contracts';
 
@@ -541,18 +540,6 @@ export const RootPublicHomePageView: React.FC<RootPublicHomePageViewProps> = ({
         isAuthorized={isAuthorized}
       />
 
-      {/* Discrete admin portal entry button if not authorized */}
-      {!isAuthorized && (
-        <button
-          type="button"
-          onClick={() => setMode('admin')}
-          className="fixed bottom-4 left-4 z-40 p-2.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-slate-400 hover:text-white backdrop-blur-md border border-slate-700/60 shadow-lg transition opacity-50 hover:opacity-100 cursor-pointer"
-          title="כניסת מנהל ועריכת עמוד"
-          aria-label="כניסת מנהל"
-        >
-          <Lock className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 };

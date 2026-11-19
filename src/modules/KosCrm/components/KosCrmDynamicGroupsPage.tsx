@@ -1007,6 +1007,38 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
       className="w-full min-h-[calc(100vh-4.5rem)] flex flex-col items-center justify-center py-2 px-2 select-none"
       dir="rtl"
     >
+      {/* סוויטשר מהיר למעבר בין התצוגה הנוכחית לתצוגה הישנה (טבלה / אנליטיקה) */}
+      <div className="flex items-center justify-center gap-2 mb-2 z-20">
+        <div className="flex items-center bg-white/95 dark:bg-gray-900/95 backdrop-blur-md p-1 rounded-2xl border border-gray-200/90 dark:border-gray-800 shadow-md">
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-xl text-xs font-black bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-xs flex items-center gap-1.5 cursor-default"
+            title="התצוגה הנוכחית (KOS 2026)"
+          >
+            <Icons.Sparkles size={13} />
+            <span>תצוגה נוכחית (2026)</span>
+          </button>
+          <button
+            type="button"
+            onClick={onSwitchToLegacyTable}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1.5 transition-all cursor-pointer"
+            title="חזרה לתצוגה הישנה (טבלת ניהול לקוחות ולידים)"
+          >
+            <Icons.Table size={13} />
+            <span>תצוגה ישנה (טבלה)</span>
+          </button>
+          <button
+            type="button"
+            onClick={onSwitchToLegacyAnalytics}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold text-gray-700 dark:text-gray-300 hover:text-violet-600 dark:hover:text-violet-400 hover:bg-gray-100 dark:hover:bg-gray-800 flex items-center gap-1.5 transition-all cursor-pointer"
+            title="מעבר לתצוגת אנליטיקה ו-KPI"
+          >
+            <Icons.BarChart3 size={13} />
+            <span>אנליטיקה</span>
+          </button>
+        </div>
+      </div>
+
       {/* 📱 מסגרת הפוקוס של KOSUN 2026: יועץ עליון + שורת סיכום מעטה + 4 כרטיסי בבושקה */}
       <div
         className="w-full max-w-md h-[720px] max-h-[88vh] rounded-[36px] overflow-hidden border-2 shadow-2xl relative flex flex-col justify-between p-3 transition-colors duration-300"
@@ -1103,6 +1135,28 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
                 </button>
               ))}
             </div>
+            {/* מעבר לתצוגות קלאסיות */}
+            <div className="flex items-center justify-between pt-1 border-t border-gray-200/20 mt-0.5">
+              <span className="text-[9px] font-bold" style={{ color: modeColors.secondaryText }}>מעבר לתצוגות הישנות:</span>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={onSwitchToLegacyTable}
+                  className="px-2 py-0.5 rounded-lg border text-[9px] font-bold flex items-center gap-1 text-indigo-400 border-indigo-400/40 hover:bg-indigo-400/10 transition-colors"
+                >
+                  <Icons.Table size={10} />
+                  <span>טבלה</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onSwitchToLegacyAnalytics}
+                  className="px-2 py-0.5 rounded-lg border text-[9px] font-bold flex items-center gap-1 text-violet-400 border-violet-400/40 hover:bg-violet-400/10 transition-colors"
+                >
+                  <Icons.BarChart3 size={10} />
+                  <span>אנליטיקה</span>
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -1161,6 +1215,22 @@ export const KosCrmDynamicGroupsPage: React.FC<KosCrmDynamicGroupsPageProps> = (
               title={visualConfig.colorMode === 'day' ? 'מצב לילה' : 'מצב יום'}
             >
               {visualConfig.colorMode === 'day' ? <Icons.Moon size={13} /> : <Icons.Sun size={13} />}
+            </button>
+
+            {/* כפתור סוויטשר ישיר: חזרה לתצוגה הישנה (טבלה) */}
+            <button
+              type="button"
+              onClick={onSwitchToLegacyTable}
+              className="px-2 py-1 rounded-xl border transition-all active:scale-95 flex items-center gap-1 text-[9.5px] font-black shadow-xs hover:brightness-110"
+              style={{
+                backgroundColor: isDay ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.08)",
+                borderColor: `${brandPrimary}55`,
+                color: brandPrimary,
+              }}
+              title="מעבר לתצוגה הישנה (טבלת ניהול לקוחות)"
+            >
+              <Icons.Table size={12} className="shrink-0" />
+              <span>תצוגה ישנה</span>
             </button>
 
             <button

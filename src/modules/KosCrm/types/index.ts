@@ -145,6 +145,11 @@ export interface Contact {
   billingPlan?: 'monthly' | 'annual' | 'custom';
   monthlyTotal?: number;
   subdomainNotes?: string;
+  parentTenantId?: string;
+  canProvisionSubTenants?: boolean;
+  grantableModules?: string[];
+  maxSubTenants?: number;
+  useMasterKesherBilling?: boolean;
 
   // WooCommerce Summary Fields
   total_spent?: number;

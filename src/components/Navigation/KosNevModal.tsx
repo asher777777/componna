@@ -22,12 +22,15 @@ import {
   HardDrive,
   Accessibility,
 } from 'lucide-react';
-import { REGISTERED_MODULES, ModuleDefinition } from '../../workbench/moduleRegistry';
+import { getFirestore, doc, onSnapshot } from 'firebase/firestore';
+import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { subscribeToAuth, AuthState, logoutUser } from '../../services/firebaseAuth';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
+import { TenantCoreService } from '../../core/tenant/tenantService';
+import { toCanonicalModuleId, ROOT_TENANT_ID, resolveCurrentTenantId } from '../../core/tenant/tenantResolver';
 
-// Module metadata: Hebrew label, English prefix/rest, and dedicated Lucide icon
+// Canonical Module Metadata: Hebrew Name, English KOS pill, and Lucide Icon
 export const MODULE_META_CONFIG: Record<string, {
   hebrewName: string;
   englishPrefix: string;
@@ -35,140 +38,202 @@ export const MODULE_META_CONFIG: Record<string, {
   slogan?: string;
   icon: React.ComponentType<{ className?: string }>;
 }> = {
-  'KosAccess': {
+  KosAccess: {
     hebrewName: 'נגישות ת"י 5568 ומשרד התקשורת',
     englishPrefix: 'KOS',
     englishRest: 'Access',
     slogan: 'התאמת נגישות WCAG 2.2 AA וניהול הצהרות',
     icon: Accessibility,
   },
-  'KosSubscribed': {
+  KosSubscribed: {
     hebrewName: 'מנויי תוכן, חבילות ומבחנים',
     englishPrefix: 'KOS',
     englishRest: 'Subscribed',
+    slogan: 'ניהול תוכניות מנויים ובדיקות גישה',
     icon: CreditCard,
   },
-  'KosTube': {
+  KosTube: {
     hebrewName: 'יוטיוב וקידום SEO מבוסס AI',
     englishPrefix: 'KOS',
     englishRest: 'Tube SEO',
+    slogan: 'אופטימיזציית ערוצים ומחולל סרטונים',
     icon: Youtube,
   },
-  'kosun-board-composer': {
+  KosTikTok: {
+    hebrewName: 'טיקטוק ויוצרי תוכן ויראלי',
+    englishPrefix: 'KOS',
+    englishRest: 'TikTok Studio',
+    slogan: 'ניהול קמפיינים ותוכן קצר לרשתות',
+    icon: Film,
+  },
+  KosBoard: {
     hebrewName: 'מחולל מערכות ולוחות בקרה',
     englishPrefix: 'KOS',
     englishRest: 'Board Composer',
+    slogan: 'הרכבה ובניית לוחות מחוונים ודשבורדים',
     icon: Layout,
   },
-  'kosun-am': {
+  KosMail: {
     hebrewName: 'מערכת דיוור ואוטומציה',
     englishPrefix: 'KOS',
     englishRest: 'UN AM Mail',
+    slogan: 'קמפיינים, ניוזלטרים ואוטומציות דוא"ל',
     icon: Mail,
   },
-  'kosai-engine': {
+  KosAi: {
     hebrewName: 'מנוע בינה מלאכותית וסוכנים',
     englishPrefix: 'KOS',
     englishRest: 'AI Engine',
+    slogan: 'סוכנים אוטונומיים ופרומפטים חכמים',
     icon: Bot,
   },
-  'KosBranding': {
+  KosBranding: {
     hebrewName: 'מרכז זהות ומיתוג עסקי',
     englishPrefix: 'KOS',
     englishRest: 'Brand DNA',
+    slogan: 'ניהול צבעים, לוגו, גופנים וערכי מותג',
     icon: Sparkles,
   },
-  'kesher-payments-hub': {
+  KosPay: {
     hebrewName: 'פתרונות סליקה ותשלומים',
     englishPrefix: 'KOS',
     englishRest: 'Pay Terminal',
+    slogan: 'סליקת אשראי, הוראות קבע וחשבוניות',
     icon: CreditCard,
   },
-  'KosWhatsUp': {
+  KosWhatsUp: {
     hebrewName: 'אוטומציות ושירות WhatsApp',
     englishPrefix: 'KOS',
     englishRest: 'WhatsUp',
+    slogan: 'אינטגרציית Green API והודעות תפוצה',
     icon: MessageSquare,
   },
-  'whatsapp-green-api-hub': {
-    hebrewName: 'אוטומציות ושירות WhatsApp',
-    englishPrefix: 'KOS',
-    englishRest: 'WhatsUp',
-    icon: MessageSquare,
-  },
-  'KosTogether': {
+  KosTogether: {
     hebrewName: 'ניהול קהילות וסגמנטים CRM',
     englishPrefix: 'KOS',
     englishRest: 'Together CRM',
+    slogan: 'קבוצות דינמיות וסגמנטציה חכמה',
     icon: Layers,
   },
-  'crm-groups-hub': {
-    hebrewName: 'ניהול קהילות וסגמנטים CRM',
-    englishPrefix: 'KOS',
-    englishRest: 'Together CRM',
-    icon: Layers,
-  },
-  'ksf': {
+  KosForms: {
     hebrewName: 'מחולל טפסים ושאלונים שלביים',
     englishPrefix: 'KOS',
     englishRest: 'Smart Forms (KSF)',
+    slogan: 'טפסים חכמים, סקרים וקליטת מידע',
     icon: BookOpen,
   },
-  'smart-form-builder': {
-    hebrewName: 'טפסים חכמים',
-    englishPrefix: 'KOS',
-    englishRest: 'Forms Studio',
-    icon: BookOpen,
-  },
-  'video-producer-studio': {
-    hebrewName: 'סטודיו הפקות וידאו ואווטאר',
-    englishPrefix: 'KOS',
-    englishRest: 'Video Studio',
-    icon: Film,
-  },
-  'db-connector-hub': {
+  KosConnector: {
     hebrewName: 'מחולל אינטגרציות וחיבורים',
     englishPrefix: 'KOS',
     englishRest: 'Connector Hub',
+    slogan: 'סנכרון בסיסי נתונים ו-Webhooks',
     icon: Database,
   },
-  'client-platform': {
+  KosClientPlatform: {
     hebrewName: 'קליטת לקוחות ואונבורדינג',
     englishPrefix: 'KOS',
     englishRest: 'Client Platform',
+    slogan: 'ניהול תהליכי קליטה וטפסי קבלה',
     icon: User,
   },
-  'crm-analytics': {
+  KosCrm: {
     hebrewName: 'ניהול CRM ואנליטיקה עסקית',
     englishPrefix: 'KOS',
     englishRest: 'CRM Analytics',
-    icon: Layout,
+    slogan: 'דשבורד מכירות, לידים ודוחות מתקדמים',
+    icon: LayoutGrid,
   },
-  'KosCloudStore': {
+  KosCloudStore: {
     hebrewName: 'כספת ענן ומדיה',
     englishPrefix: 'KOS',
     englishRest: 'CloudStore',
+    slogan: 'אחסון קבצים, מסמכים ותמונות מאובטח',
     icon: HardDrive,
   },
-  'media-gallery-hub': {
-    hebrewName: 'כספת ענן ומדיה',
-    englishPrefix: 'KOS',
-    englishRest: 'CloudStore',
-    icon: HardDrive,
-  },
-  'KosTenantProvisioner': {
+  KosTenantProvisioner: {
     hebrewName: 'ניהול סאב-דומיינים והטענת רכיבים',
     englishPrefix: 'KOS',
-    englishRest: 'KosTenantProvisioner',
+    englishRest: 'Tenant Provisioner',
+    slogan: 'הקצאת דיירים והרשאות מודולים',
     icon: Grid,
   },
-  'KosWebAi': {
-    hebrewName: 'KosWebBulider',
+  KosWebAi: {
+    hebrewName: 'KosWebBuilder - מחולל אתרים ודפי נחיתה',
     englishPrefix: 'KOS',
-    englishRest: 'WebBulider',
+    englishRest: 'WebBuilder',
     slogan: 'Building Your Digital Interaction',
     icon: Layout,
   },
+  KosFlowPlayer: {
+    hebrewName: 'סטודיו הפקות וידאו ונגן מדיה',
+    englishPrefix: 'KOS',
+    englishRest: 'Flow Player',
+    slogan: 'הפקות וידאו אינטראקטיביות וסטרימינג',
+    icon: Film,
+  },
+  KoSeoPowerEngin: {
+    hebrewName: 'מנוע קידום ואופטימיזציה SEO',
+    englishPrefix: 'KOS',
+    englishRest: 'SEO Power',
+    slogan: 'ניתוח מילות מפתח ומטא-דאטה',
+    icon: Sparkles,
+  },
+  KosLive: {
+    hebrewName: 'שידורים חיים ואינטראקציה',
+    englishPrefix: 'KOS',
+    englishRest: 'Live Studio',
+    slogan: 'חדרי שידור חי ואירועים וירטואליים',
+    icon: Film,
+  },
+  KosCampaigns: {
+    hebrewName: 'ניהול קמפיינים ושגרירים',
+    englishPrefix: 'KOS',
+    englishRest: 'Campaigns Hub',
+    slogan: 'שיווק שותפים, משפכי המרה ומעקב המרות',
+    icon: Layers,
+  },
+  KosData: {
+    hebrewName: 'ניהול נתונים וקולקציות',
+    englishPrefix: 'KOS',
+    englishRest: 'Data Hub',
+    slogan: 'טבלאות מידע, שאילתות ומאגרי נתונים',
+    icon: Database,
+  },
+  KosAuth: {
+    hebrewName: 'פורטל אימות והרשאות',
+    englishPrefix: 'KOS',
+    englishRest: 'Auth Portal',
+    slogan: 'ניהול משתמשים ורמות אבטחה',
+    icon: Lock,
+  },
+};
+
+// Canonical preferred routes for each canonical module
+export const CANONICAL_MODULE_ROUTES: Record<string, string> = {
+  KosAccess: '/KosAccess',
+  KosSubscribed: '/KosSubscribed',
+  KosTube: '/KosTube',
+  KosTikTok: '/KosTikTok',
+  KosBoard: '/KosBoard',
+  KosMail: '/KosMail',
+  KosAi: '/KosAi',
+  KosBranding: '/brand-dna',
+  KosPay: '/KosPay',
+  KosWhatsUp: '/whatsapp-hub',
+  KosTogether: '/crm-groups',
+  KosForms: '/ksf',
+  KosConnector: '/KosConnector',
+  KosClientPlatform: '/client-platform',
+  KosCrm: '/KosCrm',
+  KosCloudStore: '/KosCloudStore',
+  KosTenantProvisioner: '/tenant-provisioner',
+  KosWebAi: '/KosWebAi',
+  KosFlowPlayer: '/KosFlowPlayer',
+  KoSeoPowerEngin: '/KoSeoPowerEngin',
+  KosLive: '/koslive',
+  KosCampaigns: '/ambassador-campaigns',
+  KosData: '/db-collections',
+  KosAuth: '/auth-portal',
 };
 
 export interface KosNevModalProps {
@@ -184,32 +249,39 @@ export interface KosNevModalProps {
 
 /**
  * Canonical KosNev Modal - Official KOSUN26 Navigation Center
- * Shows Hebrew title, English KOS pill, usage stats, and tenant isolation.
+ * Shows Hebrew title, English KOS pill, usage stats, and strict tenant isolation.
+ * De-duplicates alias routes completely and shows only provisioned modules for tenants.
  */
 export const KosNevModal: React.FC<KosNevModalProps> = ({
   isOpen,
   onClose,
   activeModules,
-  isSubdomain = false,
+  isSubdomain,
   tenantId,
   activeModuleId,
   onSelectModule,
   onOpenAuthModal,
 }) => {
-  const { firebaseApp } = useSystemConnection();
+  const { firebaseApp, purchasedModules } = useSystemConnection();
   const [searchQuery, setSearchQuery] = useState('');
   const [authState, setAuthState] = useState<AuthState | null>(null);
 
-  // System modules that should NEVER appear on a subdomain
+  // System modules that should NEVER appear on a tenant subdomain
   const SYSTEM_MODULES = useMemo(
     () =>
       new Set([
         'auth-portal',
+        'KosAuth',
         'db-collections-hub',
+        'db-collections',
+        'KosData',
         'db-connector-hub',
+        'KosConnector',
         'KosTenantProvisioner',
+        'tenant-provisioner',
         'template',
         '_template',
+        'KosTemplate',
         'control-center-hub',
         'saas-storefront-composer',
       ]),
@@ -225,6 +297,80 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
       return {};
     }
   });
+
+  // Effective Tenant Resolution
+  const resolvedTenantId = useMemo(() => {
+    if (tenantId) return tenantId;
+    return resolveCurrentTenantId();
+  }, [tenantId]);
+
+  const isMasterTenant = !resolvedTenantId || resolvedTenantId === ROOT_TENANT_ID || resolvedTenantId === '_master';
+  const effectiveIsSubdomain = isSubdomain ?? !isMasterTenant;
+
+  // Real-time Firestore activeModules synchronization for this tenant
+  const [liveTenantModules, setLiveTenantModules] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (isMasterTenant || !resolvedTenantId || !firebaseApp) {
+      setLiveTenantModules(null);
+      return;
+    }
+    try {
+      const db = getFirestore(firebaseApp);
+      const tenantRef = doc(db, 'tenants', resolvedTenantId);
+      const unsub = onSnapshot(
+        tenantRef,
+        (snap) => {
+          if (snap.exists()) {
+            const data = snap.data();
+            if (Array.isArray(data.activeModules)) {
+              setLiveTenantModules(data.activeModules);
+            }
+          }
+        },
+        (err) => {
+          console.warn('[KosNevModal] Realtime tenant modules sync note:', err);
+        }
+      );
+      return () => unsub();
+    } catch (e) {
+      console.warn('[KosNevModal] Failed to listen to tenant activeModules:', e);
+    }
+  }, [resolvedTenantId, isMasterTenant, firebaseApp]);
+
+  // Dynamic Tenant Entitlement Set
+  const canonicalAllowedSet = useMemo<Set<string> | null>(() => {
+    // If master tenant on apex domain, they have full access to all modules
+    if (isMasterTenant) {
+      return null;
+    }
+
+    // 1. Live Firestore active modules for this tenant
+    if (liveTenantModules && liveTenantModules.length > 0) {
+      return new Set(liveTenantModules.map(toCanonicalModuleId));
+    }
+
+    // 2. Prop passed from parent dock/view
+    if (activeModules && activeModules.length > 0) {
+      return new Set(activeModules.map(toCanonicalModuleId));
+    }
+
+    // 3. System Connection purchased modules
+    if (purchasedModules && purchasedModules.length > 0) {
+      return new Set(purchasedModules.map(toCanonicalModuleId));
+    }
+
+    // 4. Local storage / mock tenant store
+    const local = (TenantCoreService.getLocalTenants() as any[]).find(
+      (t: any) => t?.subdomain && t.subdomain.toLowerCase() === resolvedTenantId.toLowerCase()
+    );
+    if (local && Array.isArray(local.activeModules) && local.activeModules.length > 0) {
+      return new Set(local.activeModules.map(toCanonicalModuleId));
+    }
+
+    // Tenant exists but has 0 modules provisioned
+    return new Set<string>();
+  }, [isMasterTenant, liveTenantModules, activeModules, purchasedModules, resolvedTenantId]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -250,73 +396,91 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Filtered and sorted modules
+  // Filtered, strictly deduplicated, and sorted modules
   const sortedModules = useMemo(() => {
     if (!isOpen) return [];
 
-    const list = REGISTERED_MODULES.filter((m: ModuleDefinition) => {
-      // 1. Hide system modules on subdomains
-      if (isSubdomain && SYSTEM_MODULES.has(m.id)) {
-        return false;
+    const seenCanonical = new Set<string>();
+    const list: Array<{
+      id: string;
+      canonicalId: string;
+      name: string;
+      route: string;
+      meta: typeof MODULE_META_CONFIG[string];
+      usageCount: number;
+    }> = [];
+
+    for (const m of REGISTERED_MODULES) {
+      const canonicalId = toCanonicalModuleId(m.id);
+
+      // 1. Hide system modules on subdomains/tenants
+      if (effectiveIsSubdomain && SYSTEM_MODULES.has(canonicalId)) {
+        continue;
       }
 
-      // 2. Filter by activeModules collection if provided
-      if (activeModules && activeModules.length > 0) {
-        const lowerList = activeModules.map((x) => x.toLowerCase());
-        const isMatch = lowerList.includes(m.id.toLowerCase()) ||
-          (m.id.toLowerCase() === 'koscloudstore' && lowerList.includes('media-gallery-hub')) ||
-          (m.id.toLowerCase() === 'media-gallery-hub' && lowerList.includes('koscloudstore')) ||
-          (m.id.toLowerCase() === 'kostogether' && lowerList.includes('crm-groups-hub')) ||
-          (m.id.toLowerCase() === 'crm-groups-hub' && lowerList.includes('kostogether')) ||
-          (m.id.toLowerCase() === 'ksf' && lowerList.includes('smart-form-builder')) ||
-          (m.id.toLowerCase() === 'smart-form-builder' && lowerList.includes('ksf')) ||
-          (m.id.toLowerCase() === 'koswhatsup' && lowerList.includes('whatsapp-green-api-hub')) ||
-          (m.id.toLowerCase() === 'whatsapp-green-api-hub' && lowerList.includes('koswhatsup'));
-        if (!isMatch) return false;
+      // 2. Strictly eliminate duplicates by canonical identity
+      if (seenCanonical.has(canonicalId)) {
+        continue;
       }
 
-      // 3. Search query filter
+      // 3. Dynamic tenant isolation: show ONLY provisioned modules for this tenant
+      if (canonicalAllowedSet !== null) {
+        if (!canonicalAllowedSet.has(canonicalId)) {
+          continue; // Module is not unlocked for this tenant
+        }
+      }
+
+      // 4. Resolve official metadata
+      const meta = MODULE_META_CONFIG[canonicalId] || MODULE_META_CONFIG[m.id] || {
+        hebrewName: m.name,
+        englishPrefix: 'KOS',
+        englishRest: canonicalId.replace(/^Kos/, ''),
+        icon: LayoutGrid,
+      };
+
+      // 5. Search query filter
       if (searchQuery.trim()) {
-        const meta = MODULE_META_CONFIG[m.id];
-        const heb = meta?.hebrewName || m.name;
-        const eng = `${meta?.englishPrefix || 'KOS'} ${meta?.englishRest || m.id}`;
-        const slogan = meta?.slogan || '';
-        const query = searchQuery.toLowerCase();
-        return (
+        const heb = meta.hebrewName || m.name;
+        const eng = `${meta.englishPrefix} ${meta.englishRest}`;
+        const slogan = meta.slogan || '';
+        const query = searchQuery.toLowerCase().trim();
+        const matches = 
           heb.toLowerCase().includes(query) ||
           eng.toLowerCase().includes(query) ||
           (m.name || '').toLowerCase().includes(query) ||
           slogan.toLowerCase().includes(query) ||
-          (m.id === 'KosWebAi' && (query === 'kwb' || query.includes('builder') || query.includes('bulider') || query.includes('בונה') || query.includes('אתר')))
-        );
+          canonicalId.toLowerCase().includes(query) ||
+          (canonicalId === 'KosWebAi' && (query === 'kwb' || query.includes('builder') || query.includes('bulider') || query.includes('בונה') || query.includes('אתר')));
+        if (!matches) continue;
       }
 
-      return true;
-    });
+      seenCanonical.add(canonicalId);
 
-    // De-duplicate by canonical route so legacy alias routes don't show twice
-    const seenRoutes = new Set<string>();
-    const uniqueList = list.filter((m) => {
-      if (seenRoutes.has(m.route)) return false;
-      seenRoutes.add(m.route);
-      return true;
-    });
+      const preferredRoute = CANONICAL_MODULE_ROUTES[canonicalId] || m.route;
 
-    // Sort dynamically by usage count (highest first), then alphabetically
-    return uniqueList.sort((a, b) => {
-      const countA = moduleUsageStats[a.id] || 0;
-      const countB = moduleUsageStats[b.id] || 0;
-      if (countB !== countA) return countB - countA;
+      list.push({
+        id: m.id,
+        canonicalId,
+        name: meta.hebrewName,
+        route: preferredRoute,
+        meta,
+        usageCount: moduleUsageStats[canonicalId] || moduleUsageStats[m.id] || 0,
+      });
+    }
+
+    // Sort dynamically by usage count (highest first), then alphabetically in Hebrew
+    return list.sort((a, b) => {
+      if (b.usageCount !== a.usageCount) return b.usageCount - a.usageCount;
       return a.name.localeCompare(b.name, 'he');
     });
-  }, [isOpen, searchQuery, isSubdomain, activeModules, SYSTEM_MODULES, moduleUsageStats]);
+  }, [isOpen, searchQuery, effectiveIsSubdomain, canonicalAllowedSet, SYSTEM_MODULES, moduleUsageStats]);
 
   if (!isOpen) return null;
 
-  const handleNavigateToModule = (moduleId: string, route: string) => {
+  const handleNavigateToModule = (canonicalId: string, preferredRoute: string) => {
     // Record usage dynamically
     setModuleUsageStats((prev) => {
-      const updated = { ...prev, [moduleId]: (prev[moduleId] || 0) + 1 };
+      const updated = { ...prev, [canonicalId]: (prev[canonicalId] || 0) + 1 };
       try {
         localStorage.setItem('kosun_module_usage_stats', JSON.stringify(updated));
       } catch {}
@@ -325,23 +489,34 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
 
     onClose();
 
+    let targetRoute = preferredRoute;
+    const isLocal = typeof window !== 'undefined' && (
+      window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.hostname.endsWith('.local')
+    );
+    if (isLocal && !isMasterTenant && resolvedTenantId) {
+      const separator = targetRoute.includes('?') ? '&' : '?';
+      targetRoute = `${targetRoute}${separator}tenant=${encodeURIComponent(resolvedTenantId)}`;
+    }
+
     if (onSelectModule) {
-      onSelectModule(moduleId, route);
+      onSelectModule(canonicalId, targetRoute);
     } else {
-      window.location.href = route;
+      window.location.href = targetRoute;
     }
   };
 
   const handleLogout = async () => {
     onClose();
-    if (isSubdomain && tenantId) {
-      TenantAuthService.logoutTenant(tenantId);
-      sessionStorage.setItem(`tenant_admin_${tenantId}`, 'false');
+    if (effectiveIsSubdomain && resolvedTenantId) {
+      TenantAuthService.logoutTenant(resolvedTenantId);
+      sessionStorage.setItem(`tenant_admin_${resolvedTenantId}`, 'false');
       const isLocal = window.location.hostname.startsWith('localhost') || window.location.hostname.startsWith('127.0.0.1');
       if (isLocal) {
-        window.location.href = `/?tenant=${tenantId}&mode=public`;
+        window.location.href = `/?tenant=${resolvedTenantId}&mode=public`;
       } else {
-        window.location.href = `https://${tenantId}.kosun.pro/?mode=public`;
+        window.location.href = `https://${resolvedTenantId}.kosun.pro/?mode=public`;
       }
     } else {
       await logoutUser(firebaseApp);
@@ -372,6 +547,11 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
                 <span className="px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/80 border border-indigo-200 dark:border-indigo-800 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 font-sans">
                   תפריט רכיבים
                 </span>
+                {!isMasterTenant && resolvedTenantId && (
+                  <span className="hidden sm:inline-block px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-[10px] font-mono text-slate-600 dark:text-slate-300">
+                    @{resolvedTenantId}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -406,7 +586,8 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
           {sortedModules.length === 0 ? (
             <div className="text-center py-12 text-slate-500 space-y-3">
               <Lock className="w-8 h-8 mx-auto opacity-50" />
-              <p className="font-bold">לא נמצאו רכיבים מורשים</p>
+              <p className="font-bold text-sm">לא נמצאו רכיבים מורשים לטננט זה</p>
+              <p className="text-xs text-slate-400">רכיבים מוצגים בהתאם לחבילה שהוקצתה לחשבונך בלבד</p>
               {onOpenAuthModal && (
                 <button
                   type="button"
@@ -414,7 +595,7 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
                     onClose();
                     onOpenAuthModal();
                   }}
-                  className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-bold text-xs rounded-xl hover:bg-indigo-100 transition cursor-pointer"
+                  className="px-4 py-2 bg-indigo-50 dark:bg-indigo-950/80 text-indigo-600 dark:text-indigo-400 font-bold text-xs rounded-xl hover:bg-indigo-100 transition cursor-pointer mt-2"
                 >
                   התחבר מחדש
                 </button>
@@ -423,21 +604,16 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
           ) : (
             <div className="flex flex-col gap-2">
               {sortedModules.map((module, index) => {
-                const isActive = activeModuleId === module.id;
-                const meta = MODULE_META_CONFIG[module.id] || {
-                  hebrewName: module.name,
-                  englishPrefix: 'KOS',
-                  englishRest: module.id,
-                  icon: (module as any).icon || LayoutGrid,
-                };
+                const isActive = activeModuleId === module.canonicalId || activeModuleId === module.id;
+                const meta = module.meta;
                 const Icon = meta.icon;
-                const usageCount = moduleUsageStats[module.id] || 0;
+                const usageCount = module.usageCount;
 
                 return (
                   <button
-                    key={module.id}
+                    key={module.canonicalId}
                     type="button"
-                    onClick={() => handleNavigateToModule(module.id, module.route)}
+                    onClick={() => handleNavigateToModule(module.canonicalId, module.route)}
                     className={`text-right w-full p-3 sm:p-3.5 rounded-2xl border transition-all duration-200 flex items-center justify-between gap-3 group cursor-pointer ${
                       isActive
                         ? 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-300 dark:border-indigo-700 ring-1 ring-indigo-500/20 shadow-xs'
@@ -500,7 +676,7 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
 
         {/* User Session & Logout Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-900/90 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0">
-          {(authState && authState.isAuthenticated && !authState.isAnonymous) || isSubdomain ? (
+          {(authState && authState.isAuthenticated && !authState.isAnonymous) || effectiveIsSubdomain ? (
             <div className="flex items-center justify-between w-full">
               <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center font-bold text-xs">
@@ -508,10 +684,10 @@ export const KosNevModal: React.FC<KosNevModalProps> = ({
                 </div>
                 <div>
                   <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
-                    {authState?.displayName || authState?.email?.split('@')[0] || (tenantId ? `מנהל ${tenantId}` : 'מנהל מורשה')}
+                    {authState?.displayName || authState?.email?.split('@')[0] || (resolvedTenantId ? `מנהל ${resolvedTenantId}` : 'מנהל מורשה')}
                   </span>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 block">
-                    {authState?.email || (tenantId ? `${tenantId}.kosun.pro` : 'מערכת קושאן')}
+                    {authState?.email || (resolvedTenantId ? `${resolvedTenantId}.kosun.pro` : 'מערכת קושאן')}
                   </span>
                 </div>
               </div>

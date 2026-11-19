@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Routes, Route, useLocation, NavLink, Navigate } from 'react-router-dom';
 import { TenantRecord } from '../contracts';
-import { DEFAULT_SUBDOMAIN_MODULES } from './tenantResolver';
+import { DEFAULT_SUBDOMAIN_MODULES, ROOT_TENANT_ID, toCanonicalModuleId } from './tenantResolver';
 import { PageBuilderConfig, SectionType } from '../../modules/KosWebAi/types/pageBuilder.types';
 import { SECTION_REGISTRY } from '../../modules/KosWebAi/registry/sectionRegistry';
 import { PageBuilderRenderer } from '../../modules/KosWebAi/PageBuilderRenderer';
@@ -13,7 +13,7 @@ import { BrandDnaHubStandaloneView } from '../../modules/KosBranding';
 import { loadBrandDna } from '../../modules/KosBranding/services/brandDnaFirestore';
 import { createDynamicSectionConfig, resolveLiveBrandDna } from '../../modules/KosWebAi/services/brandSectionHydrator';
 import { BrandDna } from '../contracts';
-import { FloatingSystemDock, CashwanDynamicMenu } from '../../components/Navigation/FloatingSystemDock';
+import { FloatingSystemDock, CashwanDynamicMenu, KosNevModal } from '../../components/Navigation/FloatingSystemDock';
 import { CapabilitySlot } from '../bridge/CapabilitySlot';
 import { TenantSyncSettingsModal } from '../../components/Navigation/TenantSyncSettingsModal';
 import { REGISTERED_MODULES } from '../../workbench/moduleRegistry';
@@ -829,11 +829,13 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
 
   // System modules that should NEVER appear on a subdomain
   // System modules reserved exclusively for master platform administrator
+  // Note: KosTenantProvisioner is unlocked in scoped Reseller mode ONLY when tenantRecord.canProvisionSubTenants === true
+  const isResellerTenant = Boolean(tenantRecord.canProvisionSubTenants);
   const SYSTEM_MODULES = new Set([
     'auth-portal',
     'db-collections-hub',
     'db-connector-hub',
-    'KosTenantProvisioner',
+    ...(!isResellerTenant ? ['KosTenantProvisioner'] : []),
     'template',
     '_template',
     'control-center-hub',
@@ -844,26 +846,29 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     .filter((m) => !SYSTEM_MODULES.has(m.id))
     .map((m) => m.id);
 
-  // Active provisioned modules for this tenant - ensures all standard non-system modules are available
-  const activeModuleIds = Array.isArray(tenantRecord.activeModules) && tenantRecord.activeModules.length > 0
-    ? Array.from(new Set([...tenantRecord.activeModules, ...DEFAULT_SUBDOMAIN_MODULES]))
-    : ALL_NON_SYSTEM_MODULES;
+  // Active provisioned modules for this tenant - strictly respects the tenant's provisioned activeModules
+  const isMasterTenant = tenantRecord.subdomain === ROOT_TENANT_ID || tenantRecord.subdomain === '_master';
+  const baseTenantModules = Array.isArray(tenantRecord.activeModules) && tenantRecord.activeModules.length > 0
+    ? tenantRecord.activeModules
+    : (isMasterTenant ? ALL_NON_SYSTEM_MODULES : []);
+  const rawTenantModules = isResellerTenant
+    ? Array.from(new Set([...baseTenantModules, 'KosTenantProvisioner']))
+    : baseTenantModules;
 
+  const activeModuleIds = Array.from(new Set(rawTenantModules.map(toCanonicalModuleId)));
+
+  const seenCanonicalAllowed = new Set<string>();
   const allowedModules = REGISTERED_MODULES.filter((m) => {
     if (SYSTEM_MODULES.has(m.id)) return false;
-    return activeModuleIds.some((id) => {
-      const lowerId = id.toLowerCase();
-      const lowerM = m.id.toLowerCase();
-      return lowerId === lowerM ||
-        (lowerM === 'koscloudstore' && lowerId === 'media-gallery-hub') ||
-        (lowerM === 'media-gallery-hub' && lowerId === 'koscloudstore') ||
-        (lowerM === 'kostogether' && lowerId === 'crm-groups-hub') ||
-        (lowerM === 'crm-groups-hub' && lowerId === 'kostogether') ||
-        (lowerM === 'ksf' && lowerId === 'smart-form-builder') ||
-        (lowerM === 'smart-form-builder' && lowerId === 'ksf') ||
-        (lowerM === 'koswhatsup' && lowerId === 'whatsapp-green-api-hub') ||
-        (lowerM === 'whatsapp-green-api-hub' && lowerId === 'koswhatsup');
-    });
+    const canonicalM = toCanonicalModuleId(m.id);
+    if (seenCanonicalAllowed.has(canonicalM)) return false;
+
+    const isMatch = isMasterTenant || activeModuleIds.some((id) => toCanonicalModuleId(id).toLowerCase() === canonicalM.toLowerCase());
+    if (isMatch) {
+      seenCanonicalAllowed.add(canonicalM);
+      return true;
+    }
+    return false;
   });
 
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
@@ -1015,6 +1020,15 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
           tenantRecord={tenantRecord}
         />
 
+        {/* Global KosNev Modal for Tenant */}
+        <KosNevModal
+          isOpen={isKosNevOpen}
+          onClose={() => setIsKosNevOpen(false)}
+          activeModules={allowedModules.map((m) => m.id)}
+          isSubdomain={true}
+          tenantId={tenantRecord.subdomain}
+        />
+
         {/* Floating System Dock (Cashwan Branding Standard) */}
         <FloatingSystemDock
           isSubdomain={true}
@@ -1121,18 +1135,6 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         isAuthorized={isAuthorizedToEdit}
       />
 
-      {/* Discrete admin portal entry button if not content subscriber and not authorized */}
-      {!isContentSubscriber && !isAuthorizedToEdit && (
-        <button
-          type="button"
-          onClick={() => setMode('admin')}
-          className="fixed bottom-4 left-4 z-40 p-2.5 rounded-full bg-slate-900/70 hover:bg-slate-900 text-slate-400 hover:text-white backdrop-blur-md border border-slate-700/60 shadow-lg transition opacity-50 hover:opacity-100 cursor-pointer"
-          title="כניסת מנהל ועריכת עמוד"
-          aria-label="כניסת מנהל"
-        >
-          <Lock className="w-4 h-4" />
-        </button>
-      )}
 
       {/* Dedicated personal dashboard entry button for content subscriber */}
       {isContentSubscriber && (
@@ -1191,6 +1193,15 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
         tenantRecord={tenantRecord}
+      />
+
+      {/* Global KosNev Modal for Tenant */}
+      <KosNevModal
+        isOpen={isKosNevOpen}
+        onClose={() => setIsKosNevOpen(false)}
+        activeModules={allowedModules.map((m) => m.id)}
+        isSubdomain={true}
+        tenantId={tenantRecord.subdomain}
       />
     </div>
   );

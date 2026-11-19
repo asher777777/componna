@@ -18,7 +18,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 import { subscribeToAuth, AuthState, fetchUserRole, isPlatformAdminEmail, getCachedUserRole } from '../../services/firebaseAuth';
 import { useTenantScope } from '../../core/tenant';
-import { ROOT_TENANT_ID } from '../../core/tenant/tenantResolver';
+import { ROOT_TENANT_ID, toCanonicalModuleId } from '../../core/tenant/tenantResolver';
+import { TenantCoreService } from '../../core/tenant/tenantService';
 import { TenantAuthService } from '../../modules/KosTenantProvisioner/services/tenantAuthService';
 import { useKosai } from '../../modules/KosAi';
 import { KosNevModal } from './KosNevModal';
@@ -72,7 +73,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
 }: KosunUniversalDockProps & { isGlobalFallback?: boolean }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { firebaseApp } = useSystemConnection();
+  const { firebaseApp, purchasedModules } = useSystemConnection();
   const { tenantId: scopeTenantId, isRootTenant } = useTenantScope();
   const { setIsOpen: setKosaiOpen } = useKosai();
 
@@ -106,7 +107,22 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
   );
 
   const effectiveTenantId = propTenantId || (!isRootTenant ? scopeTenantId : (isLocal ? ROOT_TENANT_ID : undefined));
-  const isSubdomain = propIsSubdomain ?? Boolean(effectiveTenantId && !isRootTenant && !isLocal);
+  const isMasterTenant = !effectiveTenantId || effectiveTenantId === ROOT_TENANT_ID || effectiveTenantId === '_master';
+  const isSubdomain = propIsSubdomain ?? !isMasterTenant;
+
+  const effectiveActiveModules = useMemo(() => {
+    if (activeModules && activeModules.length > 0) return activeModules;
+    if (!isMasterTenant && effectiveTenantId) {
+      if (purchasedModules && purchasedModules.length > 0) return purchasedModules;
+      const local = TenantCoreService.getLocalTenants().find(
+        (t) => t.subdomain.toLowerCase() === effectiveTenantId.toLowerCase()
+      );
+      if (local && Array.isArray(local.activeModules) && local.activeModules.length > 0) {
+        return local.activeModules;
+      }
+    }
+    return undefined;
+  }, [activeModules, isMasterTenant, purchasedModules, effectiveTenantId]);
 
   // Authentication State
   const [authState, setAuthState] = useState<AuthState | null>(null);
@@ -216,11 +232,14 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
         setIsDashboardEditing(Boolean(e.detail.isEditMode));
       }
     };
+    const handleOpenModules = () => setIsKosNevOpen(true);
     window.addEventListener('kosun_edit_mode_changed', handleEditChange);
     window.addEventListener('kos_des_builder_edit_mode_changed', handleDashEdit);
+    window.addEventListener('kosun_open_modules_menu', handleOpenModules);
     return () => {
       window.removeEventListener('kosun_edit_mode_changed', handleEditChange);
       window.removeEventListener('kos_des_builder_edit_mode_changed', handleDashEdit);
+      window.removeEventListener('kosun_open_modules_menu', handleOpenModules);
     };
   }, []);
 
@@ -659,7 +678,7 @@ export const KosunUniversalDock: React.FC<KosunUniversalDockProps> = ({
       <KosNevModal
         isOpen={isKosNevOpen}
         onClose={() => setIsKosNevOpen(false)}
-        activeModules={activeModules}
+        activeModules={effectiveActiveModules}
         isSubdomain={isSubdomain}
         tenantId={effectiveTenantId}
         activeModuleId={currentSlug}

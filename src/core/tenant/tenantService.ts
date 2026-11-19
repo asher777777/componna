@@ -62,6 +62,11 @@ export class TenantCoreService {
             adminUsername: d.adminUsername,
             adminPassword: d.adminPassword,
             notes: d.notes,
+            parentTenantId: d.parentTenantId || undefined,
+            canProvisionSubTenants: Boolean(d.canProvisionSubTenants),
+            grantableModules: Array.isArray(d.grantableModules) ? d.grantableModules : undefined,
+            maxSubTenants: typeof d.maxSubTenants === 'number' ? d.maxSubTenants : undefined,
+            useMasterKesherBilling: Boolean(d.useMasterKesherBilling),
           });
         }
       } catch (err) {
@@ -94,6 +99,11 @@ export class TenantCoreService {
               adminUsername: cd.adminUsername || existing?.adminUsername || `${sub}@kosun.pro`,
               adminPassword: cd.adminPassword || existing?.adminPassword || 'Ks@1234',
               notes: cd.subdomainNotes || existing?.notes || '',
+              parentTenantId: cd.parentTenantId || existing?.parentTenantId || undefined,
+              canProvisionSubTenants: cd.canProvisionSubTenants !== undefined ? Boolean(cd.canProvisionSubTenants) : existing?.canProvisionSubTenants,
+              grantableModules: Array.isArray(cd.grantableModules) && cd.grantableModules.length > 0 ? cd.grantableModules : existing?.grantableModules,
+              maxSubTenants: typeof cd.maxSubTenants === 'number' ? cd.maxSubTenants : existing?.maxSubTenants,
+              useMasterKesherBilling: cd.useMasterKesherBilling !== undefined ? Boolean(cd.useMasterKesherBilling) : existing?.useMasterKesherBilling,
             });
           }
         };
