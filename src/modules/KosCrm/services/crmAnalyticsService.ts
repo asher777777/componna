@@ -621,7 +621,6 @@ export async function fetchLiveCrmAnalytics(
         : [data.tg1, data.tg2, data.tg3].filter((t: any) => typeof t === 'string' && t.trim() !== '');
 
       return {
-        id: d.id,
         status: data.kosun_crm_status || data.status || 'active',
         is_lead: data.is_lead ?? (data.kosun_crm_type === 'lead'),
         contact_type: data.kosun_crm_type || data.contact_type || (data.is_lead ? 'lead' : 'contact'),
@@ -650,6 +649,7 @@ export async function fetchLiveCrmAnalytics(
         total_spent: totalSpentVal,
         order_count: Number(data.kosun_crm_order_count || data.order_count || (rawEvents.length > 0 ? rawEvents.length : 0)),
         ...data,
+        id: String(d.id),
       } as Contact;
     });
 
@@ -660,12 +660,12 @@ export async function fetchLiveCrmAnalytics(
 
     // Master has full control & visibility over all tenant_admin_* / subdomain records.
     // Reseller / Hub tenants see their own contacts + child tenant_admin_* records where parentTenantId === activeSubdomain.
-    // All other tenants enforce strict isolation (no tenant_admin_* or foreign subdomain records).
+    // All other tenants enforce strict isolation (no tenant_admin_* / isSubdomainAdmin meta-records).
     if (!isMasterContext) {
       for (let i = contacts.length - 1; i >= 0; i--) {
         const item = contacts[i];
-        const isTenantAdminRecord = (item.id && item.id.startsWith('tenant_admin_')) || item.isSubdomainAdmin === true;
-        const itemSub = typeof item.subdomain === 'string' ? item.subdomain.toLowerCase().trim() : '';
+        const safeId = String(item.id || '');
+        const isTenantAdminRecord = safeId.startsWith('tenant_admin_') || item.isSubdomainAdmin === true;
         const itemParent = typeof item.parentTenantId === 'string' ? item.parentTenantId.toLowerCase().trim() : '';
         const isOwnChildTenant = Boolean(itemParent && itemParent === activeSubdomain);
 
@@ -673,8 +673,7 @@ export async function fetchLiveCrmAnalytics(
           // Reseller tenant owns this child tenant contact — keep it visible in Reseller's CRM
           continue;
         }
-        const isForeignSubdomain = Boolean(itemSub && itemSub !== activeSubdomain);
-        if (isTenantAdminRecord || isForeignSubdomain) {
+        if (isTenantAdminRecord) {
           contacts.splice(i, 1);
         }
       }
@@ -792,10 +791,10 @@ export async function fetchLiveCrmAnalytics(
     const dedupedMap = new Map<string, Contact>();
     
     contacts.forEach(c => {
-      const normPhone = (c.conta_phone || '').replace(/\D/g, '');
+      const normPhone = String(c.conta_phone || '').replace(/\D/g, '');
       const hasValidPhone = normPhone.length >= 7 && normPhone !== '0000000';
-      const cleanEmail = (c.email || '').toLowerCase().trim();
-      const cleanName = (c.conta_name || '').trim();
+      const cleanEmail = String(c.email || '').toLowerCase().trim();
+      const cleanName = String(c.conta_name || '').trim();
       const isMeaningfulName = cleanName && cleanName !== 'NONAME' && cleanName !== 'איש קשר' && cleanName !== 'ליד ללא שם';
 
       let key = '';

@@ -1,7 +1,9 @@
-import { Firestore, doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import { Firestore, doc, getDoc } from 'firebase/firestore';
+import { getAuth, signInWithCustomToken, signOut } from 'firebase/auth';
+import { getApps } from 'firebase/app';
 import { TenantProvisionerService } from './tenantProvisionerService';
 import { TenantAccount } from '../types';
-import { DEFAULT_SUBDOMAIN_MODULES, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
+import { DEFAULT_SUBDOMAIN_MODULES } from '../../../core/tenant/tenantResolver';
 
 export interface TenantLoginResult {
   success: boolean;
@@ -29,6 +31,47 @@ export class TenantAuthService {
   }
 
   /**
+   * Establish a real Firebase Auth session via server-minted Custom Token (/api/tenant-auth).
+   * Guarantees request.auth != null with tenant-scoped custom claims for Firestore rules.
+   */
+  static async signInFirebaseCustomToken(
+    subdomain: string,
+    username: string,
+    password: string
+  ): Promise<boolean> {
+    if (typeof window === 'undefined') return false;
+    const cleanSub = subdomain.trim().toLowerCase();
+    const endpoints = [
+      '/api/tenant-auth',
+      'https://us-central1-glowmanage.cloudfunctions.net/tenantAdminAuth',
+    ];
+
+    for (const url of endpoints) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ subdomain: cleanSub, username, password }),
+        });
+        if (!res.ok) continue;
+        const json = await res.json();
+        if (json?.success && json?.customToken) {
+          const apps = getApps();
+          if (apps.length > 0) {
+            const auth = getAuth(apps[0]);
+            await signInWithCustomToken(auth, json.customToken);
+            sessionStorage.setItem(`tenant_admin_firebase_authed_${cleanSub}`, 'true');
+            return true;
+          }
+        }
+      } catch (err) {
+        console.warn(`[TenantAuthService] Custom token auth attempt via ${url} failed:`, err);
+      }
+    }
+    return false;
+  }
+
+  /**
    * Log out of this subdomain admin session
    */
   static logoutTenant(subdomain: string): void {
@@ -37,9 +80,16 @@ export class TenantAuthService {
     sessionStorage.removeItem(`tenant_admin_auth_${cleanSub}`);
     sessionStorage.removeItem(`tenant_admin_${cleanSub}`);
     sessionStorage.removeItem(`tenant_admin_user_${cleanSub}`);
+    sessionStorage.removeItem(`tenant_admin_firebase_authed_${cleanSub}`);
     localStorage.removeItem(`tenant_admin_auth_${cleanSub}`);
     localStorage.removeItem(`tenant_admin_${cleanSub}`);
     localStorage.removeItem(`tenant_admin_user_${cleanSub}`);
+    try {
+      const apps = getApps();
+      if (apps.length > 0) {
+        signOut(getAuth(apps[0])).catch(() => {});
+      }
+    } catch {}
     window.dispatchEvent(new CustomEvent('kosun_tenant_auth_changed', { detail: { subdomain: cleanSub, authed: false } }));
   }
 
@@ -189,6 +239,9 @@ export class TenantAuthService {
     if (!passwordMatches) {
       return { success: false, error: 'סיסמה שגויה' };
     }
+
+    // Establish real Firebase Auth session via server-minted Custom Token (non-blocking fallback)
+    await this.signInFirebaseCustomToken(cleanSub, cleanUser, cleanPass);
 
     // Authentication succeeded! Store in active session strictly (Gate 5 Compliance: No token persistence in localStorage)
     sessionStorage.setItem(`tenant_admin_auth_${cleanSub}`, 'true');

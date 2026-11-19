@@ -67,6 +67,10 @@
         "function": "kesherMasterBilling"
       },
       {
+        "source": "/api/tenant-auth",
+        "function": "tenantAdminAuth"
+      },
+      {
         "source": "/api/tiktok-webhook",
         "function": "tiktokWebhook"
       },

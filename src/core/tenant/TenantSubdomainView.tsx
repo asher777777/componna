@@ -871,6 +871,20 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
     return false;
   });
 
+  // Include all alias/canonical routes for allowed modules (e.g. /ksf, /KosForms, /smart-forms)
+  // so navigating via any canonical or legacy route matches instead of falling back to defaultRoute (/brand-dna)
+  const seenAllowedRoutes = new Set<string>();
+  const allowedModuleRoutes = REGISTERED_MODULES.filter((m) => {
+    if (SYSTEM_MODULES.has(m.id)) return false;
+    const canonicalM = toCanonicalModuleId(m.id);
+    const isMatch = isMasterTenant || activeModuleIds.some((id) => toCanonicalModuleId(id).toLowerCase() === canonicalM.toLowerCase());
+    if (!isMatch) return false;
+    const routeKey = m.route.toLowerCase();
+    if (seenAllowedRoutes.has(routeKey)) return false;
+    seenAllowedRoutes.add(routeKey);
+    return true;
+  });
+
   // 2. ADMIN MODE (Full Manager Shell - Exact UI Mirror of Workbench with 100% Tenant Isolation)
   if (mode === 'admin') {
     if (isContentSubscriber) {
@@ -960,12 +974,12 @@ export const TenantSubdomainView: React.FC<TenantSubdomainViewProps> = ({ tenant
                   </div>
                 }
               />
-              {/* All provisioned modules with exact same routes as Manager Workbench */}
-              {allowedModules.map((module) => {
+              {/* All provisioned modules with exact same routes as Manager Workbench (including canonical & legacy route aliases) */}
+              {allowedModuleRoutes.map((module) => {
                 const Component = module.component;
                 return (
                   <Route
-                    key={module.id}
+                    key={`${module.id}-${module.route}`}
                     path={`${module.route}/*`}
                     element={
                       <ModuleErrorBoundary moduleName={module.name}>

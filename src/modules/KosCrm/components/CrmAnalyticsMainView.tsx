@@ -94,10 +94,16 @@ export const CrmAnalyticsMainView: React.FC = () => {
   const [isGroupsImportOpen, setIsGroupsImportOpen] = useState(false);
   const [isSyncingKesher, setIsSyncingKesher] = useState(false);
 
+  const lastFetchedScopeRef = React.useRef<string>('');
+
   // משיכת נתונים מלאה וטפסים אך ורק כאשר המשתמש מבקש לעבור לתצוגת טבלה / אנליטיקה מלאה
   React.useEffect(() => {
     if (activeMainTab === 'dynamic_groups') return;
-    if (!data) {
+    const scopeKey = `${tenantId}|${resolvedCollections.contacts}|${firebaseApp?.name || 'noapp'}`;
+    if (!data || (firebaseApp && lastFetchedScopeRef.current !== scopeKey)) {
+      if (firebaseApp) {
+        lastFetchedScopeRef.current = scopeKey;
+      }
       refresh();
     }
 
@@ -135,7 +141,7 @@ export const CrmAnalyticsMainView: React.FC = () => {
     }
 
     return () => unsub();
-  }, [activeMainTab, data, refresh, formCapability, firebaseApp, ownerId, resolvedCollections.forms]);
+  }, [activeMainTab, data, refresh, formCapability, firebaseApp, ownerId, tenantId, resolvedCollections.contacts, resolvedCollections.forms]);
 
   const handleSyncAllFormsToCrm = async () => {
     setIsSyncingForms(true);

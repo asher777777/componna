@@ -2,12 +2,13 @@ import React from 'react';
 import { CrmAnalyticsProvider } from './context/CrmAnalyticsContext';
 import { CrmAnalyticsMainView } from './components/CrmAnalyticsMainView';
 import { getApps, initializeApp } from 'firebase/app';
+import { useSystemConnection } from '../../core/connection/SystemConnectionContext';
 
 // Safe standalone Firebase initialization from environment variables if present
-let standaloneApp = getApps().length > 0 ? getApps()[0] : undefined;
+let fallbackApp = getApps().length > 0 ? getApps()[0] : undefined;
 try {
-  if (!standaloneApp && import.meta.env.VITE_FIREBASE_API_KEY) {
-    standaloneApp = initializeApp({
+  if (!fallbackApp && import.meta.env.VITE_FIREBASE_API_KEY) {
+    fallbackApp = initializeApp({
       apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
       authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
       projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
@@ -21,8 +22,11 @@ try {
 }
 
 export const CrmAnalyticsStandaloneView: React.FC<{ ownerId?: string }> = ({ ownerId }) => {
+  const { firebaseApp: systemApp } = useSystemConnection();
+  const effectiveApp = systemApp || (getApps().length > 0 ? getApps()[0] : undefined) || fallbackApp;
+
   return (
-    <CrmAnalyticsProvider firebaseApp={standaloneApp} ownerId={ownerId}>
+    <CrmAnalyticsProvider firebaseApp={effectiveApp} ownerId={ownerId}>
       <div className="min-h-screen bg-gray-50/50 dark:bg-gray-950 text-gray-900 dark:text-gray-100">
         <CrmAnalyticsMainView />
       </div>
