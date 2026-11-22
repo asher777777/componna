@@ -607,6 +607,7 @@ export const PageBuilderEditor: React.FC<PageBuilderEditorProps> = ({
         onClose={() => setIsAiBuilderModalOpen(false)}
         onComplete={(generated) => {
           setConfig(generated);
+          setActiveTab('preview');
           if (onSaveConfig) {
             onSaveConfig(generated);
           }

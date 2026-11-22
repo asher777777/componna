@@ -8,6 +8,7 @@
  */
 
 import { kosaiWebAiContract, KosaiMarketingIdea } from '../../KosAi/modelsAiService';
+import { executeKosaiAi } from '../../KosAi/modelsAiService/executeKosaiAi';
 
 // ----------------------------------------------------------------------------
 // 1. All Prompt Builders (Preserving Exact Trigger Signatures, Names & IDs)
@@ -265,25 +266,25 @@ export interface StructuredDraftPromptContext {
 
 export const GENERATE_STRUCTURED_DRAFT_PROMPT = (ctx: StructuredDraftPromptContext) => `
 You are an Elite Israeli Brand Copywriter, Conversion Architect, and 2026.4 GEO/SEO Specialist.
-Generate high-converting, idiomatic native Hebrew content for ALL sections of this page, strictly grounded in the user's real data and Brand DNA.
+CRITICAL RULE: You MUST write 100% NEW, ORIGINAL Hebrew copy strictly tailored to the User's Core Topic and Grounding Sources below.
+Use Brand DNA ONLY for: (1) Tone & Style, (2) Target Audience profile & pain points, and (3) Company Name & CTA style.
+NEVER copy, repeat, or substitute copy about OTHER unrelated services or products! Focus 100% on the User's Core Topic.
 
-### 1. PAGE ARCHITECTURE & FLOW:
+### 1. USER'S CORE TOPIC & PAGE ARCHITECTURE (PRIMARY FOCUS):
+- Core Topic & Goal: "${ctx.userTopic}"
 - Page Type: ${ctx.pageTypeTitle}
 - Conversion & UX Flow: ${ctx.pageEssenceAndFlow}
 - Active Sections: ${ctx.selectedSections.join(', ')}
-- Core Topic & Goal: "${ctx.userTopic}"
 
-### 2. BRAND DNA & MINI-COPY (MUST MATCH VOICE & STYLE):
+### 2. TARGET AUDIENCE & BRAND VOICE (STYLE & PERSONA ONLY):
 - Company: "${ctx.companyName}"
 - Slogan: "${ctx.slogan || ''}"
-- UVP: "${ctx.uvp || ''}"
+- Target Audiences: ${ctx.targetAudiences?.slice(0, 4).join(', ') || 'קהל יעד ממוקד'}
 - Tone & Style Preset: "${ctx.voiceTone || 'מקצועי, סמכותי ומניע לפעולה'}" (Style: ${ctx.stylePreset || 'standard'})
 - Power Words to weave naturally: ${ctx.powerWords?.slice(0, 8).join(', ') || 'איכות, תוצאות, ליווי אישי'}
-- Target Audiences: ${ctx.targetAudiences?.slice(0, 3).join(', ') || 'לקוחות איכותיים'}
-- Known Customer Objections (use for FAQ & rebuttals): ${
-  ctx.commonObjections?.slice(0, 4).map((o) => `"${o.objection}" -> "${o.rebuttal}"`).join(' | ') || 'אין'
+- Audience Objections to address (adapt to the Core Topic): ${
+  ctx.commonObjections?.slice(0, 4).map((o) => `"${o.objection}"`).join(' | ') || 'אין'
 }
-- Brand Services / Products: ${ctx.ecosystemServices?.slice(0, 5).join(', ') || 'לא צוינו'}
 - Preferred Brand CTAs: Primary="${ctx.uiVocabulary?.primaryCta || 'השאירו פרטים'}", WhatsApp="${ctx.uiVocabulary?.whatsappCta || 'שיחה בוואטסאפ'}"
 
 ### 3. HARD FACTS & GROUNDING SOURCES (DO NOT HALLUCINATE OR CONTRADICT):
@@ -366,4 +367,138 @@ export async function dispatchStructuredDraftToKosai(
     options
   );
   return result.data;
+}
+
+/**
+ * Ultra-low-token micro-AI helper for single wizard questions (<= 180 output tokens, flash-lite).
+ */
+export async function microAssistWizardStepWithKosai(
+  params: {
+    stepId: 'topic_and_goal' | 'seo_geo_focus';
+    companyName: string;
+    pageTypeTitle: string;
+    currentInput: string;
+    uvp?: string;
+  },
+  options?: { apiKey?: string; tenantId?: string }
+): Promise<string> {
+  const prompt =
+    params.stepId === 'topic_and_goal'
+      ? `שפר וחדד למשפט שיווקי אחד חד בעברית (עד 30 מילים) עבור "${params.companyName}" (${params.pageTypeTitle}). הצעת ערך: ${params.uvp || ''}. טיוטת משתמש: "${params.currentInput || params.pageTypeTitle}". החזר רק את המשפט המשופר ללא מרכאות.`
+      : `הצע שאלת חיפוש אחת קצרה בעברית שגולשים שואלים ב-ChatGPT/Google לגבי "${params.currentInput || params.pageTypeTitle}" של "${params.companyName}". החזר רק את השאלה.`;
+
+  const res = await executeKosaiAi<string>('KosWebAi', prompt, {
+    model: 'gemini-3.8-flash-lite',
+    maxOutputTokens: 180,
+    temperature: 0.6,
+    customApiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+    category: 'content',
+  });
+
+  return typeof res.data === 'string' ? res.data.trim().replace(/^["']|["']$/g, '') : '';
+}
+
+/**
+ * Synthesizes a rich, brand-aligned visual image prompt uniting the user's page goal & Brand DNA.
+ */
+export async function synthesizeHeroImagePromptWithKosai(
+  params: {
+    pageTopic: string;
+    pageTypeTitle: string;
+    companyName: string;
+    targetAudience?: string;
+    voiceTone?: string;
+    primaryColor?: string;
+    secondaryColor?: string;
+    stylePreset?: string;
+    width: number;
+    height: number;
+    aspectRatio: string;
+  },
+  options?: { apiKey?: string; tenantId?: string }
+): Promise<string> {
+  const prompt = `אתה Art Director מומחה. כתוב פרומפט ויזואלי אחד עשיר ומפורט ליצירת תמונת Hero לאתר, המאחד בין מטרת העמוד לבין ה-Brand DNA:
+- מטרת העמוד והמוצר: "${params.pageTopic}" (${params.pageTypeTitle})
+- שם המותג: "${params.companyName}"
+- קהל יעד: "${params.targetAudience || 'קהל עסקי ומקצועי'}"
+- אופי וסגנון מיתוג: "${params.voiceTone || params.stylePreset || 'מודרני ויוקרתי'}"
+- פלטת צבעים: ראשי ${params.primaryColor || '#2563eb'}, משני ${params.secondaryColor || '#0ea5e9'}
+- מידות: ${params.width}x${params.height} (${params.aspectRatio})
+
+דרישות: תאר סצנה ויזואלית קונקרטית, תאורה, קומפוזיציה ואווירה המבטאים את המוצר והמותג. ללא טקסט או אותיות בתמונה. החזר משפט אחד רציף בעברית (עד 55 מילים) בלבד.`;
+
+  const res = await executeKosaiAi<string>('KosWebAi', prompt, {
+    model: 'gemini-3.8-flash-lite',
+    maxOutputTokens: 220,
+    temperature: 0.7,
+    customApiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+    category: 'content',
+  });
+
+  return typeof res.data === 'string' ? res.data.trim().replace(/^["']|["']$/g, '') : '';
+}
+
+/**
+ * Generates 10 GEO/SEO Questions & Answers grounded in all collected wizard materials + Brand DNA.
+ */
+export async function generate10GeoFaqsWithKosai(
+  params: {
+    pageTopic: string;
+    pageTypeTitle: string;
+    groundingFacts?: string;
+    targetQuestion?: string;
+    companyName: string;
+    targetAudience?: string;
+    commonObjections?: Array<{ objection: string; rebuttal: string }>;
+  },
+  options?: { apiKey?: string; tenantId?: string }
+): Promise<Array<{ id: string; question: string; answer: string }>> {
+  const prompt = `אתה מומחה SEO/GEO 2026.4 וקופירייטר בכיר.
+בהתבסס על כל החומרים שנאספו עבור העמוד, צור בדיוק 10 שאלות ותשובות מקיפות בעברית טבעית ומקצועית (Answer-First: כל תשובה נפתחת במענה ישיר וחד, באורך 2-3 משפטים).
+
+נתוני העמוד:
+- נושא העמוד והמוצר: "${params.pageTopic}" (${params.pageTypeTitle})
+- שם המותג: "${params.companyName}"
+- קהל יעד: "${params.targetAudience || 'לקוחות רלוונטיים'}"
+${params.targetQuestion ? `- שאלת ליבה שחובה לכלול ראשונה: "${params.targetQuestion}"` : ''}
+${params.commonObjections?.length ? `- התנגדויות נפוצות של קהל היעד: ${params.commonObjections.slice(0, 4).map((o) => o.objection).join(' | ')}` : ''}
+${params.groundingFacts ? `- מקורות מידע וחומרי גלם:\n"""\n${params.groundingFacts.slice(0, 3500)}\n"""` : ''}
+
+החזר אך ורק מערך JSON תקני של 10 אובייקטים (ללא markdown):
+[
+  { "question": "שאלה 1", "answer": "תשובה חדה ומקצועית 1" },
+  ...
+]`;
+
+  const res = await executeKosaiAi<any>('KosWebAi', prompt, {
+    model: 'gemini-3.8-flash-lite',
+    maxOutputTokens: 2800,
+    responseMimeType: 'application/json',
+    temperature: 0.65,
+    customApiKey: options?.apiKey,
+    tenantId: options?.tenantId,
+    category: 'content',
+  });
+
+  let parsed = res.data;
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim());
+    } catch {
+      const start = parsed.indexOf('[');
+      const end = parsed.lastIndexOf(']');
+      if (start >= 0 && end > start) {
+        parsed = JSON.parse(parsed.slice(start, end + 1));
+      }
+    }
+  }
+
+  const list = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.faqs) ? parsed.faqs : [];
+  return list.slice(0, 10).map((item: any, idx: number) => ({
+    id: `geo_faq_${Date.now()}_${idx + 1}`,
+    question: String(item.question || item.q || '').trim(),
+    answer: String(item.answer || item.a || '').trim(),
+  })).filter((x: any) => x.question && x.answer);
 }

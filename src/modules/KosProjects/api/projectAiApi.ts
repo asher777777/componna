@@ -188,6 +188,100 @@ export async function generateWorkplanFromBrief(
 }
 
 /**
+ * 1B. Generate a full Gantt workplan + marketing landing/form structure directly from a PDF document
+ */
+export async function generateWorkplanFromPdf(
+  pdfBase64: string,
+  projectTitle: string,
+  startDate: string
+): Promise<{ suggestion?: AiWorkplanSuggestion; error?: string }> {
+  const prompt = `קרא את מסמך ה-PDF המצורף עבור הפרויקט "${projectTitle}" (תאריך התחלה: ${startDate}).
+חלץ ממנו את הצד השיווקי (דף נחיתה וטופס הרשמה) ואת הצד התפעולי (שלבים, משימות גאנט, משכי זמן, בעלי תפקידים וספקים).
+החזר אך ורק JSON תקין במבנה:
+{
+  "summary": "תקציר קצר בעברית",
+  "marketing": {
+    "headline": "כותרת ראשית לדף הנחיתה",
+    "subheadline": "תיאור והצעת ערך",
+    "ctaText": "טקסט כפתור הרשמה",
+    "formFields": [
+      { "label": "שם מלא", "type": "text", "required": true, "map_to": "kosun_crm_name" },
+      { "label": "טלפון", "type": "tel", "required": true, "map_to": "kosun_crm_phone" },
+      { "label": "דוא\\"ל", "type": "email", "required": false, "map_to": "kosun_crm_email" }
+    ]
+  },
+  "tasks": [
+    {
+      "phase": "שם השלב",
+      "title": "שם המשימה",
+      "description": "תיאור קצר",
+      "offsetDays": 0,
+      "durationDays": 4,
+      "ownerRole": "תפקיד אחראי",
+      "supplierRole": "ספק נדרש (אופציונלי)",
+      "isMilestone": false,
+      "estimatedCost": 0
+    }
+  ]
+}
+צור 6 עד 10 משימות ריאליות כולל לפחות אבן דרך אחת.`;
+
+  const cloudRes = await executeCloudAi<AiWorkplanSuggestion>({
+    prompt,
+    systemInstruction: WORKPLAN_SYSTEM_PROMPT,
+    model: KOS_PROJECTS_AI_MODEL,
+    apiKey: resolveProjectGeminiKey(),
+    responseMimeType: 'application/json',
+    temperature: 0.35,
+    category: 'content',
+    imageParts: [{ inlineData: { data: pdfBase64, mimeType: 'application/pdf' } }],
+  });
+
+  if (!cloudRes.success) {
+    return { error: cloudRes.error || 'לא ניתן היה לפענח את קובץ ה-PDF באמצעות ה-AI.' };
+  }
+
+  const parsed = cloudRes.data ?? parseJsonSafely<AiWorkplanSuggestion>(cloudRes.text);
+  if (!parsed) {
+    return { error: 'התקבלה תשובה לא תקינה מפענוח ה-PDF. נסה שוב.' };
+  }
+
+  const normalizedTasks = Array.isArray(parsed.tasks)
+    ? parsed.tasks.map((t, idx) => ({
+        phase: t.phase || DEFAULT_PHASES[idx % DEFAULT_PHASES.length],
+        title: t.title || `משימה ${idx + 1}`,
+        description: t.description || '',
+        offsetDays: Number.isFinite(Number(t.offsetDays)) ? Number(t.offsetDays) : idx * 3,
+        durationDays: Math.max(1, Number(t.durationDays) || 3),
+        ownerRole: t.ownerRole || 'מנהל/ת פרויקט',
+        supplierRole: t.supplierRole || undefined,
+        isMilestone: Boolean(t.isMilestone),
+        estimatedCost: Number(t.estimatedCost) || undefined,
+      }))
+    : [];
+
+  return {
+    suggestion: {
+      summary: parsed.summary || '',
+      marketing: {
+        headline: parsed.marketing?.headline || projectTitle,
+        subheadline: parsed.marketing?.subheadline || parsed.summary || '',
+        ctaText: parsed.marketing?.ctaText || 'הרשמה לפרויקט',
+        formFields:
+          Array.isArray(parsed.marketing?.formFields) && parsed.marketing.formFields.length > 0
+            ? parsed.marketing.formFields
+            : [
+                { label: 'שם מלא', type: 'text', required: true, map_to: 'kosun_crm_name' },
+                { label: 'טלפון', type: 'tel', required: true, map_to: 'kosun_crm_phone' },
+                { label: 'דוא"ל', type: 'email', required: false, map_to: 'kosun_crm_email' },
+              ],
+      },
+      tasks: normalizedTasks,
+    },
+  };
+}
+
+/**
  * 2. Analyze Gantt schedule, dependencies, overdue items, and bottlenecks
  */
 export async function analyzeGanttRisks(

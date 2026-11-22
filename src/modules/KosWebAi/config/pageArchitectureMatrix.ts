@@ -1,4 +1,4 @@
-import { SectionType } from '../types/pageBuilder.types';
+import { PageCategory, SectionType } from '../types/pageBuilder.types';
 import { BrandDna, KOSUN_CRM_FIELD_KEYS } from '../../../core/contracts';
 
 export type MatrixPageTypeId =
@@ -331,6 +331,163 @@ export const PAGE_ARCHITECTURE_MATRIX: MatrixPageTypeDefinition[] = [
 
 export function getMatrixPageType(id: MatrixPageTypeId): MatrixPageTypeDefinition {
   return PAGE_ARCHITECTURE_MATRIX.find((p) => p.id === id) || PAGE_ARCHITECTURE_MATRIX[1];
+}
+
+const DEFAULT_COUNTS_STORAGE_KEY = 'kosweb_page_selection_counts_v1';
+
+export function getPageSelectionCounts(storageKey: string = DEFAULT_COUNTS_STORAGE_KEY): Record<string, number> {
+  if (typeof window === 'undefined') return {};
+  try {
+    const raw = window.localStorage?.getItem(storageKey);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+export function recordPageSelectionCount(id: string, storageKey: string = DEFAULT_COUNTS_STORAGE_KEY): Record<string, number> {
+  const counts = getPageSelectionCounts(storageKey);
+  const next = { ...counts, [id]: (counts[id] || 0) + 1 };
+  if (typeof window !== 'undefined') {
+    try {
+      window.localStorage?.setItem(storageKey, JSON.stringify(next));
+    } catch {
+      // ignore storage errors
+    }
+  }
+  return next;
+}
+
+export function getSortedMatrixPageTypes(
+  includeHomepage: boolean = false,
+  storageKey: string = DEFAULT_COUNTS_STORAGE_KEY
+): Array<MatrixPageTypeDefinition & { selectionCount: number }> {
+  const counts = getPageSelectionCounts(storageKey);
+  return PAGE_ARCHITECTURE_MATRIX.filter((pt) => includeHomepage || pt.id !== 'homepage')
+    .map((pt) => ({
+      ...pt,
+      selectionCount: counts[pt.id] || 0,
+    }))
+    .sort((a, b) => {
+      if (b.selectionCount !== a.selectionCount) {
+        return b.selectionCount - a.selectionCount;
+      }
+      return a.orderNumber - b.orderNumber;
+    });
+}
+
+export function mapPageCategoryToMatrixId(category: PageCategory): MatrixPageTypeId {
+  switch (category) {
+    case 'info_content':
+      return 'pillar_article';
+    case 'event':
+      return 'event_webinar';
+    case 'checkout':
+      return 'pricing_plans';
+    case 'community':
+      return 'service_solution';
+    case 'fundraising':
+      return 'crowdfunding_campaign';
+    case 'course':
+      return 'course_academy';
+    case 'youtube_post':
+      return 'pillar_article';
+    case 'home':
+      return 'homepage';
+    default:
+      return 'landing';
+  }
+}
+
+export const WIZARD_PROGRESS_STORAGE_KEY = 'kosweb_ai_wizard_progress_v1';
+export const WIZARD_OPEN_STORAGE_KEY = 'kosweb_ai_wizard_open_v1';
+
+export function setAiWizardOpenState(isOpen: boolean): void {
+  if (typeof window === 'undefined') return;
+  try {
+    if (isOpen) {
+      window.localStorage?.setItem(WIZARD_OPEN_STORAGE_KEY, 'true');
+    } else {
+      window.localStorage?.removeItem(WIZARD_OPEN_STORAGE_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
+export function isAiWizardOpenPersisted(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage?.getItem(WIZARD_OPEN_STORAGE_KEY) === 'true' && !!loadAiWizardProgress();
+  } catch {
+    return false;
+  }
+}
+
+export interface SavedAiWizardProgress {
+  savedAt: string;
+  stage: 'page_type' | 'intake' | 'review';
+  selectedPageTypeId: MatrixPageTypeId;
+  selectedSectionTypes: SectionType[];
+  activeQuestionIdx: number;
+  promptTopic: string;
+  groundingSources: Array<{ id: string; type: 'file' | 'url' | 'text'; label: string; extractedText: string; charCount: number; warning?: string }>;
+  imageMode: 'gallery' | 'ai' | 'unsplash' | 'none';
+  selectedGalleryImageUrl: string;
+  customHeroImagePrompt: string;
+  eventDate: string;
+  eventTime: string;
+  eventEndTime: string;
+  locationName: string;
+  locationAddress: string;
+  wazeQuery: string;
+  targetGoal: number;
+  totalRaised: number;
+  campaignCause: string;
+  kesherDocType: 320 | 400 | 405;
+  enableInstallments: boolean;
+  maxInstallments: number;
+  pricingPlans: Array<{ id: string; name: string; priceMonthly: number; description: string; isFeatured?: boolean }>;
+  geoCity: string;
+  geoAreasText: string;
+  selectedCrmFieldKeys: string[];
+  authorName: string;
+  targetGeoQuestion: string;
+  generatedGeoFaqs?: Array<{ id: string; question: string; answer: string }>;
+  draft: any | null;
+}
+
+export function saveAiWizardProgress(data: SavedAiWizardProgress): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.setItem(WIZARD_PROGRESS_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore quota errors
+  }
+}
+
+export function loadAiWizardProgress(): SavedAiWizardProgress | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage?.getItem(WIZARD_PROGRESS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function clearAiWizardProgress(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    window.localStorage?.removeItem(WIZARD_PROGRESS_STORAGE_KEY);
+    window.localStorage?.removeItem(WIZARD_OPEN_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
 }
 
 // ============================================================================

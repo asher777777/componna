@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
   Loader2,
+  Server,
   ShieldAlert,
   Sparkles,
   Wand2,
 } from 'lucide-react';
+import { BUILT_IN_BLUEPRINTS } from '../config';
 import type {
   AiRiskReport,
   AiWorkplanSuggestion,
@@ -70,6 +72,25 @@ export const ProjectAiCopilotPanel: React.FC<ProjectAiCopilotPanelProps> = ({
     null
   );
 
+  const matchedBlueprint = useMemo(() => {
+    const bpTag = (project.tags || []).find((t) => t.startsWith('bp:'));
+    if (bpTag) {
+      const id = bpTag.slice(3);
+      return BUILT_IN_BLUEPRINTS.find((b) => b.id === id) || null;
+    }
+    return BUILT_IN_BLUEPRINTS.find((b) => (project.tags || []).includes(b.category)) || null;
+  }, [project.tags]);
+
+  const handleQuickTemplatePrompt = async (promptText: string) => {
+    const fullBrief = `${promptText}\nהקשר הפרויקט: ${project.title} — ${project.description || ''}`;
+    setBrief(fullBrief);
+    setFeedback(null);
+    const res = await onRunAiWorkplan(fullBrief, project.title, project.startDate);
+    if (res.error) {
+      setFeedback({ type: 'error', message: res.error });
+    }
+  };
+
   const handleGenerateWorkplan = async () => {
     if (!brief.trim()) {
       setFeedback({ type: 'error', message: 'אנא הזן תיאור או בריף של הפרויקט לפני ההפקה.' });
@@ -126,6 +147,62 @@ export const ProjectAiCopilotPanel: React.FC<ProjectAiCopilotPanelProps> = ({
             <AlertTriangle className="h-4 w-4 shrink-0" />
           )}
           <span>{feedback.message}</span>
+        </div>
+      )}
+
+      {matchedBlueprint && (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50/40 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <div className="text-sm font-bold text-indigo-950">
+                ליווי שרת ו-AI לפי תבנית: {matchedBlueprint.name}
+              </div>
+              <div className="text-xs text-slate-600">
+                בחר פעולת AI ממוקדת להפעלה מיידית על הפרויקט, או עקוב אחר אוטומציות השרת המלוות
+              </div>
+            </div>
+            <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-indigo-700 shadow-sm">
+              {matchedBlueprint.category}
+            </span>
+          </div>
+
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            {matchedBlueprint.aiAssistantPrompts && matchedBlueprint.aiAssistantPrompts.length > 0 && (
+              <div className="space-y-2 rounded-xl bg-white p-3.5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-violet-800">
+                  <Sparkles className="h-4 w-4" />
+                  <span>פעולות AI מומלצות לתבנית זו</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {matchedBlueprint.aiAssistantPrompts.map((act) => (
+                    <button
+                      key={act.id}
+                      type="button"
+                      disabled={aiLoading}
+                      onClick={() => handleQuickTemplatePrompt(act.promptTemplate)}
+                      className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 text-xs font-semibold text-violet-800 transition hover:bg-violet-100 disabled:opacity-50"
+                    >
+                      {act.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {matchedBlueprint.serverActions && matchedBlueprint.serverActions.length > 0 && (
+              <div className="space-y-1.5 rounded-xl bg-white p-3.5 shadow-sm">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800">
+                  <Server className="h-4 w-4" />
+                  <span>בקשות שרת ואוטומציות מלוות</span>
+                </div>
+                <ul className="space-y-1 text-xs text-slate-600">
+                  {matchedBlueprint.serverActions.map((sa, idx) => (
+                    <li key={idx}>• {sa}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

@@ -74,14 +74,33 @@ export interface ProjectTask {
 
 export type ProjectTaskDraft = Omit<ProjectTask, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>;
 
+export type ProjectBlueprintSector = 'hitech' | 'enterprise' | 'nonprofit';
+
+export interface BlueprintGuidedQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  serverImpact: string;
+}
+
+export interface BlueprintAiPromptAction {
+  id: string;
+  label: string;
+  promptTemplate: string;
+}
+
 export interface ProjectBlueprint {
   id: string;
   name: string;
   description: string;
   category: string;
+  sector?: ProjectBlueprintSector;
   defaultPhases: string[];
   sampleTasks: ProjectTaskDraft[];
   marketingTemplate?: Partial<ProjectMarketingConfig>;
+  guidedQuestions?: BlueprintGuidedQuestion[];
+  serverActions?: string[];
+  aiAssistantPrompts?: BlueprintAiPromptAction[];
   createdAt: string;
 }
 

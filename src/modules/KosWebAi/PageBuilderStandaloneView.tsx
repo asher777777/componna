@@ -4,6 +4,7 @@ import { PageBuilderConfig, SectionType, PageCategory, PAGE_CATEGORIES } from '.
 import { SECTION_REGISTRY } from './registry/sectionRegistry';
 import { PageBuilderEditor } from './PageBuilderEditor';
 import { PageBuilderRenderer } from './PageBuilderRenderer';
+import { PublicPageView } from './components/PublicPageView';
 import { PagesDashboardTab } from './components/PagesDashboardTab';
 import { PageCreationOptions } from './components/CreatePageWizardModal';
 import { AiLivePageBuilderModal } from './components/AiLivePageBuilderModal';
@@ -26,6 +27,7 @@ import { getPageBlueprints } from './blueprints/pageBlueprints';
 import { eventBus } from '../../core/bridge/EventBus';
 import { GoogleAnalyticsConsoleHub } from './components/GoogleAnalyticsConsoleHub';
 import { sanitizeSectionConfig } from './utils/sanitizeConfig';
+import { isAiWizardOpenPersisted, setAiWizardOpenState } from './config/pageArchitectureMatrix';
 
 
 const STORAGE_KEY = 'kosun_pagebuilder_current_page';
@@ -115,7 +117,7 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
   const [pages, setPages] = useState<PageBuilderConfig[]>([]);
   const [currentPage, setCurrentPage] = useState<PageBuilderConfig>(() => getInitialCleanPageConfig(brandDna, tenantId));
 
-  const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+  const [isAiModalOpen, setIsAiModalOpen] = useState<boolean>(() => isAiWizardOpenPersisted());
   const [isMarketingDrawerOpen, setIsMarketingDrawerOpen] = useState(false);
   const [isShortenerModalOpen, setIsShortenerModalOpen] = useState(false);
   const [selectedShortPage, setSelectedShortPage] = useState<PageBuilderConfig | null>(null);
@@ -679,6 +681,18 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
         />
       ) : viewMode === 'analytics-hub' ? (
         <GoogleAnalyticsConsoleHub onBackToPages={() => setViewMode('pages')} />
+      ) : viewMode === 'public' ? (
+        <div className="relative min-h-screen">
+          <button
+            type="button"
+            onClick={() => setViewMode('pages')}
+            className="fixed top-4 left-4 z-[95] px-4 py-2 rounded-full bg-slate-900/90 hover:bg-slate-800 text-white text-xs font-bold shadow-xl border border-slate-700 backdrop-blur-md flex items-center gap-2"
+          >
+            <Layers className="w-3.5 h-3.5" />
+            <span>חזור לרשימת העמודים</span>
+          </button>
+          <PublicPageView slug={currentPage.slug} tenantId={tenantId} />
+        </div>
       ) : (
         <PageBuilderEditor
           initialConfig={currentPage}
@@ -693,13 +707,20 @@ const PageBuilderStandaloneViewInner: React.FC = () => {
       {viewMode === 'pages' && (
         <AiLivePageBuilderModal
           isOpen={isAiModalOpen}
-          onClose={() => setIsAiModalOpen(false)}
+          onClose={() => {
+            setAiWizardOpenState(false);
+            setIsAiModalOpen(false);
+          }}
           onComplete={async (generatedConfig) => {
             await pageBuilderFirestore.savePage(generatedConfig, db, tenantId);
             const all = await pageBuilderFirestore.getAllPages(db, tenantId);
             setPages(all);
             setCurrentPage(generatedConfig);
-            setViewMode('editor');
+            try {
+              localStorage.setItem('kosweb_design_mode', 'kosdesyn');
+              window.dispatchEvent(new CustomEvent('kosweb_design_mode_changed', { detail: { mode: 'kosdesyn' } }));
+            } catch {}
+            setViewMode('public');
           }}
           onOpenMarketingDrawer={() => {
             setIsAiModalOpen(false);

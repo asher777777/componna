@@ -812,6 +812,10 @@ export const PagesDashboardTab: React.FC<PagesDashboardTabProps> = ({
         onClose={() => setIsNewPageModalOpen(false)}
         brandDna={brandDna}
         tenantId={tenantId}
+        onHandOffToAiWizard={() => {
+          setIsNewPageModalOpen(false);
+          onOpenAiBuilder();
+        }}
         onConfirm={async (options) => {
           onNewPage(options);
         }}

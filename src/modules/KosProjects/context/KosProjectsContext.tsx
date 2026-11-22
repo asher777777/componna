@@ -123,7 +123,14 @@ export interface KosProjectsContextValue {
   // Blueprints
   cloneFromBlueprint: (
     blueprintId: string,
-    overrides?: { title?: string; clientName?: string; startDate?: string; budget?: number }
+    overrides?: {
+      title?: string;
+      clientName?: string;
+      description?: string;
+      startDate?: string;
+      budget?: number;
+      extraTags?: string[];
+    }
   ) => Promise<ProjectRecord | null>;
   saveCurrentProjectAsBlueprint: (
     name: string,
@@ -488,7 +495,14 @@ export const KosProjectsProvider: React.FC<KosProjectsProviderProps> = ({
   const cloneFromBlueprint = useCallback(
     async (
       blueprintId: string,
-      overrides?: { title?: string; clientName?: string; startDate?: string; budget?: number }
+      overrides?: {
+        title?: string;
+        clientName?: string;
+        description?: string;
+        startDate?: string;
+        budget?: number;
+        extraTags?: string[];
+      }
     ): Promise<ProjectRecord | null> => {
       const bp = blueprints.find((b) => b.id === blueprintId);
       if (!bp) return null;
@@ -502,7 +516,7 @@ export const KosProjectsProvider: React.FC<KosProjectsProviderProps> = ({
 
       const project = await createProject({
         title: overrides?.title || bp.name,
-        description: bp.description,
+        description: overrides?.description || bp.description,
         clientName: overrides?.clientName || '',
         status: 'planning',
         startDate,
@@ -512,7 +526,7 @@ export const KosProjectsProvider: React.FC<KosProjectsProviderProps> = ({
           registrationCount: 0,
           ...bp.marketingTemplate,
         },
-        tags: [bp.category],
+        tags: Array.from(new Set([bp.category, `bp:${bp.id}`, ...(overrides?.extraTags || [])])),
       });
 
       const createdTasks = await batchCreateTasks(shiftedTasks, project.id);

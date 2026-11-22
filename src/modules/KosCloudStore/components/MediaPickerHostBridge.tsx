@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHostCapabilities } from '../../../core/bridge/HostCapabilitiesContext';
-import { MediaPickerContract, MediaPickerOptions } from '../../../core/contracts';
+import { MediaPickerContract, MediaPickerOptions, SaveGeneratedMediaOptions } from '../../../core/contracts';
 import { eventBus } from '../../../core/bridge/EventBus';
 import { MediaPickerModal } from './MediaPickerModal';
 import { MediaItem, MediaType } from '../types';
@@ -8,6 +8,10 @@ import { resolveSafeMediaUrl } from '../utils/mediaUrlSanitizer';
 import { FirebaseApp } from 'firebase/app';
 import { Firestore } from 'firebase/firestore';
 import { useSystemConnection } from '../../../core/connection/SystemConnectionContext';
+import { FirebaseStorageMediaService } from '../services/firebaseStorageMediaService';
+import { FirestoreMediaService } from '../services/firestoreMediaService';
+import { resolveCurrentTenantId } from '../../../core/tenant/tenantResolver';
+import { useTenantScope } from '../../../core/tenant';
 
 export interface MediaPickerHostBridgeProps {
   firebaseApp?: FirebaseApp;
@@ -16,6 +20,7 @@ export interface MediaPickerHostBridgeProps {
 
 export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ firebaseApp: propFirebaseApp, db: propDb }) => {
   const systemConn = useSystemConnection();
+  const { getScopedCollectionPath } = useTenantScope();
   const firebaseApp = propFirebaseApp || systemConn.firebaseApp;
   const db = propDb || systemConn.db;
   const { registerCapability, unregisterCapability } = useHostCapabilities();
@@ -33,9 +38,109 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
     });
   }, []);
 
+  const saveGeneratedImage = useCallback(
+    async (opts: SaveGeneratedMediaOptions): Promise<string | null> => {
+      if (!opts?.imageUrl) return null;
+      const activeTenant =
+        (typeof window !== 'undefined' ? resolveCurrentTenantId() : '_master') || '_master';
+      const safeName = (opts.name || `KosWebAi_${Date.now()}.png`).replace(/[^\u0590-\u05FFa-zA-Z0-9._-]/g, '_');
+      const finalName = safeName.includes('.') ? safeName : `${safeName}.png`;
+
+      let file: File | null = null;
+      let mimeType = 'image/png';
+      if (opts.imageUrl.startsWith('data:')) {
+        try {
+          const [meta, b64] = opts.imageUrl.split(',');
+          const mimeMatch = meta.match(/data:([^;]+)/);
+          mimeType = mimeMatch?.[1] || 'image/png';
+          const byteChars = atob(b64);
+          const byteNums = new Array(byteChars.length);
+          for (let i = 0; i < byteChars.length; i++) {
+            byteNums[i] = byteChars.charCodeAt(i);
+          }
+          const blob = new Blob([new Uint8Array(byteNums)], { type: mimeType });
+          file = new File([blob], finalName, { type: mimeType });
+        } catch (err) {
+          console.warn('[MediaPickerHostBridge] Failed converting dataUrl to File:', err);
+        }
+      }
+
+      let storageUrl = opts.imageUrl;
+      if (firebaseApp && file) {
+        try {
+          storageUrl = await FirebaseStorageMediaService.uploadFileToStorage(
+            firebaseApp,
+            file,
+            finalName,
+            undefined,
+            undefined,
+            activeTenant
+          );
+        } catch (storageErr) {
+          console.warn('[MediaPickerHostBridge] Storage upload fallback:', storageErr);
+        }
+      }
+
+      const newMediaItem: MediaItem = {
+        id: `kosai_img_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: finalName,
+        type: 'image',
+        mimeType,
+        url: storageUrl,
+        thumbnailUrl: storageUrl,
+        sizeBytes: file ? file.size : 250000,
+        width: opts.width || 1600,
+        height: opts.height || 900,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        description: opts.description || '',
+        tags: opts.tags || ['AI', 'KosWebAi'],
+        sourceModule: opts.sourceModule || 'KosWebAi',
+        sourceModuleLabel: opts.sourceModuleLabel || 'יוצר עמודים AI',
+        tenantId: activeTenant,
+        metadata: {
+          model: opts.model || 'gemini-3.1-flash-image',
+          aspectRatio: opts.aspectRatio || '16:9',
+          tenantId: activeTenant,
+        },
+      };
+
+      if (db) {
+        try {
+          const targetCollections = {
+            mediaItems: getScopedCollectionPath('sdo_media_items'),
+            folders: getScopedCollectionPath('sdo_media_folders'),
+          };
+          await FirestoreMediaService.saveMediaItem(db, targetCollections, newMediaItem);
+        } catch (fsErr) {
+          console.warn('[MediaPickerHostBridge] Firestore media save notice:', fsErr);
+        }
+      }
+
+      try {
+        const storageKey =
+          activeTenant === '_master'
+            ? 'kosun_media_gallery_items'
+            : `kosun_${activeTenant}_media_gallery_items`;
+        const existing = localStorage.getItem(storageKey);
+        const parsed: MediaItem[] = existing ? JSON.parse(existing) : [];
+        if (!parsed.some((it) => it.id === newMediaItem.id)) {
+          parsed.unshift(newMediaItem);
+          localStorage.setItem(storageKey, JSON.stringify(parsed));
+        }
+      } catch {
+        // ignore localStorage errors
+      }
+
+      return storageUrl;
+    },
+    [firebaseApp, db]
+  );
+
   useEffect(() => {
     const implementation: MediaPickerContract = {
       openPicker,
+      saveGeneratedImage,
     };
     registerCapability('media-picker', implementation);
     registerCapability('KosCloudStore', implementation);
@@ -48,7 +153,7 @@ export const MediaPickerHostBridge: React.FC<MediaPickerHostBridgeProps> = ({ fi
       unregisterCapability('cloud-store');
       unregisterCapability('community-gallery');
     };
-  }, [openPicker, registerCapability, unregisterCapability]);
+  }, [openPicker, saveGeneratedImage, registerCapability, unregisterCapability]);
 
   useEffect(() => {
     const unsubPicker = eventBus.subscribe('media:request_picker', async (payload: any) => {

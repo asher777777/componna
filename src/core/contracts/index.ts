@@ -12,8 +12,22 @@ export interface MediaPickerOptions {
   maxSizeBytes?: number;
 }
 
+export interface SaveGeneratedMediaOptions {
+  imageUrl: string;
+  name?: string;
+  description?: string;
+  tags?: string[];
+  aspectRatio?: string;
+  width?: number;
+  height?: number;
+  model?: string;
+  sourceModule?: string;
+  sourceModuleLabel?: string;
+}
+
 export interface MediaPickerContract {
   openPicker: (options?: MediaPickerOptions) => Promise<string | string[] | null>;
+  saveGeneratedImage?: (options: SaveGeneratedMediaOptions) => Promise<string | null>;
 }
 
 export type KosCloudStoreContract = MediaPickerContract;

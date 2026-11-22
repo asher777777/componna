@@ -11,7 +11,45 @@ import {
   getMatrixPageType,
 } from '../config/pageArchitectureMatrix';
 import { applyStylePresetToPage } from './pageStylePresetService';
-import { syncSinglePageWithBrandDna } from './pageBrandSyncService';
+import { resolveAiProxyUrl } from '../../../core/ai/cloudAiClient';
+import { resolveCurrentTenantId, ROOT_TENANT_ID } from '../../../core/tenant/tenantResolver';
+
+/**
+ * Generates a real custom Hero image via the server-side AI image proxy (/api/ai/image).
+ */
+export async function generateHeroImageViaProxy(
+  prompt: string,
+  aspectRatio: '16:9' | '4:3' | '1:1' | '9:16' = '16:9'
+): Promise<string | null> {
+  if (!prompt?.trim()) return null;
+  try {
+    const tenantId =
+      (typeof window !== 'undefined' ? resolveCurrentTenantId() : ROOT_TENANT_ID) || ROOT_TENANT_ID;
+    const res = await fetch(resolveAiProxyUrl('image'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'image',
+        prompt: prompt.trim(),
+        aspectRatio,
+        model: 'gemini-3.1-flash-image',
+        tenantId,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data?.imageUrl) return data.imageUrl;
+      if (data?.base64Data) {
+        const mime = data.mimeType || 'image/jpeg';
+        return `data:${mime};base64,${data.base64Data}`;
+      }
+    }
+  } catch (err) {
+    console.warn('[structuredPageAiService] AI image generation failed:', err);
+  }
+  return null;
+}
 
 export interface WizardStepOptions {
   promptTopic: string;
@@ -58,6 +96,7 @@ export interface WizardStepOptions {
     authorName?: string;
     targetQuestion?: string;
   };
+  preGeneratedFaqs?: Array<{ id: string; question: string; answer: string }>;
   newsDetails?: {
     currentAffairsTopic?: string;
     mainPoints?: string;
@@ -361,44 +400,52 @@ export async function generateStructuredPageDraft(
     .map((s) => `[מקור: ${s.label}]\n${s.extractedText}`)
     .join('\n\n');
 
-  const ecosystemServices = [
-    ...(liveDna?.ecosystem?.services?.map((s: any) => s.name || s.title || s).filter(Boolean) || []),
-    ...(liveDna?.ecosystem?.products?.map((p: any) => p.name || p.title || p).filter(Boolean) || []),
-  ];
+  // Generate custom AI Hero image in parallel if requested and no image was picked yet
+  const shouldGenerateAiImage =
+    options.imageSelection.mode === 'ai' && !options.imageSelection.selectedImageUrl;
+  const aiImagePromise = shouldGenerateAiImage
+    ? generateHeroImageViaProxy(options.imageSelection.aiImagePrompt || options.promptTopic, '16:9')
+    : Promise.resolve(null);
 
   try {
-    const rawRes = await dispatchStructuredDraftToKosai(
-      {
-        pageTypeTitle: matrixDef.titleHe,
-        pageEssenceAndFlow: matrixDef.essenceAndFlow,
-        selectedSections: options.selectedSectionTypes,
-        userTopic: options.promptTopic,
-        groundingFacts: groundingFacts || undefined,
-        authorName: options.seoGeoFocus?.authorName || company,
-        targetQuestion: options.seoGeoFocus?.targetQuestion,
-        companyName: company,
-        slogan,
-        uvp: liveDna?.audience?.mainUvp,
-        voiceTone: tone,
-        powerWords: liveDna?.voice?.powerWords,
-        targetAudiences: liveDna?.audience?.targetAudiences,
-        commonObjections: liveDna?.audience?.commonObjections,
-        ecosystemServices,
-        stylePreset: liveDna?.designTokens?.defaultStylePreset || 'standard',
-        uiVocabulary: liveDna?.uiVocabulary
-          ? {
-              primaryCta: liveDna.uiVocabulary.primaryCta,
-              whatsappCta: liveDna.uiVocabulary.whatsappCta,
-              formSubmitText: liveDna.uiVocabulary.formSubmitText,
-            }
-          : undefined,
-        eventDetails: options.eventDetails,
-        campaignDetails: options.campaignDetails,
-        pricingInput: options.pricingDetails?.plans,
-        geoDetails: options.geoDetails,
-      },
-      { apiKey }
-    );
+    const [rawRes, generatedHeroImage] = await Promise.all([
+      dispatchStructuredDraftToKosai(
+        {
+          pageTypeTitle: matrixDef.titleHe,
+          pageEssenceAndFlow: matrixDef.essenceAndFlow,
+          selectedSections: options.selectedSectionTypes,
+          userTopic: options.promptTopic,
+          groundingFacts: groundingFacts || undefined,
+          authorName: options.seoGeoFocus?.authorName || company,
+          targetQuestion: options.seoGeoFocus?.targetQuestion,
+          companyName: company,
+          slogan,
+          uvp: liveDna?.audience?.mainUvp,
+          voiceTone: tone,
+          powerWords: liveDna?.voice?.powerWords,
+          targetAudiences: liveDna?.audience?.targetAudiences,
+          commonObjections: liveDna?.audience?.commonObjections,
+          stylePreset: liveDna?.designTokens?.defaultStylePreset || 'standard',
+          uiVocabulary: liveDna?.uiVocabulary
+            ? {
+                primaryCta: liveDna.uiVocabulary.primaryCta,
+                whatsappCta: liveDna.uiVocabulary.whatsappCta,
+                formSubmitText: liveDna.uiVocabulary.formSubmitText,
+              }
+            : undefined,
+          eventDetails: options.eventDetails,
+          campaignDetails: options.campaignDetails,
+          pricingInput: options.pricingDetails?.plans,
+          geoDetails: options.geoDetails,
+        },
+        { apiKey }
+      ),
+      aiImagePromise,
+    ]);
+
+    if (generatedHeroImage) {
+      fallback.hero.imageUrl = generatedHeroImage;
+    }
 
     if (rawRes) {
       let parsed = rawRes;
@@ -497,7 +544,9 @@ export async function generateStructuredPageDraft(
             plans: resolvedPricingPlans,
           },
           faqs:
-            Array.isArray(parsed.faqs) && parsed.faqs.length > 0
+            options.preGeneratedFaqs && options.preGeneratedFaqs.length > 0
+              ? options.preGeneratedFaqs
+              : Array.isArray(parsed.faqs) && parsed.faqs.length > 0
               ? parsed.faqs.map((f: any, idx: number) => ({
                   id: `f_${idx + 1}`,
                   question: f.question || f.q || '',
@@ -726,13 +775,12 @@ export function buildPageConfigFromStructuredDraft(
     config.sections[secId] = enrichedData;
   });
 
-  // Automatically apply tenant Brand Style Preset & UI Vocabulary mini-copy
+  // Apply tenant Brand Style Preset (colors, radius, button styles) WITHOUT overwriting AI-generated copy
   const preset = liveDna?.designTokens?.defaultStylePreset;
   let finalPage = config;
   if (preset) {
     finalPage = applyStylePresetToPage(finalPage, preset).updatedPage;
   }
-  finalPage = syncSinglePageWithBrandDna(finalPage, liveDna).updatedPage;
 
   return finalPage;
 }

@@ -557,7 +557,6 @@ export const KosProjectsView: React.FC = () => {
       <ProjectUploaderModal
         isOpen={uploaderOpen}
         blueprints={blueprints}
-        crmContacts={crmContacts}
         aiLoading={aiLoading}
         onClose={() => setUploaderOpen(false)}
         onCreateProject={createProject}

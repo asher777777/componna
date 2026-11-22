@@ -35,8 +35,19 @@ import {
   GraduationCap,
   LayoutGrid,
   Zap,
+  Search,
+  ChevronLeft,
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import {
+  getPageSelectionCounts,
+  recordPageSelectionCount,
+  mapPageCategoryToMatrixId,
+  saveAiWizardProgress,
+  getMatrixPageType,
+  STANDARD_CRM_FORM_FIELDS,
+  MatrixPageTypeId,
+} from '../config/pageArchitectureMatrix';
 
 export interface PageCreationOptions {
   category: PageCategory;
@@ -78,6 +89,7 @@ interface CreatePageWizardModalProps {
   isOpen: boolean;
   onClose: () => void;
   onConfirm: (options: PageCreationOptions) => Promise<void>;
+  onHandOffToAiWizard?: (matrixPageTypeId: MatrixPageTypeId) => void;
   brandDna?: any;
   tenantId?: string;
 }
@@ -86,12 +98,17 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  onHandOffToAiWizard,
   brandDna,
   tenantId,
 }) => {
   const effBrand = brandDna || resolveLiveBrandDna(null, tenantId);
   const [step, setStep] = useState<'category' | 'details'>('category');
   const [category, setCategory] = useState<PageCategory>('info_content');
+  const [categorySearch, setCategorySearch] = useState('');
+  const [selectionCounts, setSelectionCounts] = useState<Record<string, number>>(() =>
+    getPageSelectionCounts('kosweb_wizard_cat_counts')
+  );
 
   // Form State
   const [pageTitle, setPageTitle] = useState('');
@@ -138,6 +155,51 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
 
   const handleSelectCategory = (cat: PageCategory) => {
     setCategory(cat);
+    setSelectionCounts(recordPageSelectionCount(cat, 'kosweb_wizard_cat_counts'));
+
+    if (onHandOffToAiWizard) {
+      const matrixId = mapPageCategoryToMatrixId(cat);
+      const matrixDef = getMatrixPageType(matrixId);
+      recordPageSelectionCount(matrixId, 'kosweb_ai_page_type_counts');
+      saveAiWizardProgress({
+        savedAt: new Date().toISOString(),
+        stage: 'intake',
+        selectedPageTypeId: matrixId,
+        selectedSectionTypes: [...matrixDef.sections],
+        activeQuestionIdx: 0,
+        promptTopic: '',
+        groundingSources: [],
+        imageMode: 'gallery',
+        selectedGalleryImageUrl: '',
+        customHeroImagePrompt: '',
+        eventDate: '2026-12-01',
+        eventTime: '19:30',
+        eventEndTime: '22:00',
+        locationName: 'מרכז הכנסים והאירועים',
+        locationAddress: effBrand?.trust?.officeAddress || 'דרך מנחם בגין 144, תל אביב',
+        wazeQuery: effBrand?.trust?.officeAddress || 'דרך מנחם בגין 144 תל אביב',
+        targetGoal: 100000,
+        totalRaised: 45000,
+        campaignCause: '',
+        kesherDocType: cat === 'fundraising' ? 405 : 320,
+        enableInstallments: true,
+        maxInstallments: 12,
+        pricingPlans: [
+          { id: 'p1', name: 'מסלול בסיסי', priceMonthly: 490, description: 'פתרון ממוקד להתחלה מהירה', isFeatured: false },
+          { id: 'p2', name: 'מסלול פרימיום', priceMonthly: 990, description: 'המסלול המלא והמבוקש ביותר', isFeatured: true },
+        ],
+        geoCity: 'תל אביב והמרכז',
+        geoAreasText: 'תל אביב, רמת גן, גבעתיים, הרצליה',
+        selectedCrmFieldKeys: STANDARD_CRM_FORM_FIELDS.filter((f) => f.defaultSelected).map((f) => f.crmFieldKey),
+        authorName: effBrand?.identity?.companyName || '',
+        targetGeoQuestion: '',
+        draft: null,
+      });
+      onClose();
+      onHandOffToAiWizard(matrixId);
+      return;
+    }
+
     // Apply smart default titles based on category
     if (cat === 'home') {
       const company = effBrand?.identity?.companyName || (tenantId && tenantId !== '_master' ? tenantId : 'המותג שלנו');
@@ -257,255 +319,157 @@ export const CreatePageWizardModal: React.FC<CreatePageWizardModalProps> = ({
             </div>
           </div>
 
-          {/* STEP 1: CATEGORY SELECTION */}
-          {step === 'category' && (
-            <div className="py-5 flex flex-col gap-4">
-              {/* FEATURED: Living Ecosystem Master Homepage */}
-              <button
-                type="button"
-                onClick={() => handleSelectCategory('home')}
-                className="group p-4 sm:p-5 rounded-2xl border-2 border-indigo-500/40 hover:border-indigo-500 bg-gradient-to-r from-indigo-50/80 via-purple-50/40 to-pink-50/40 dark:from-indigo-950/40 dark:via-purple-950/30 dark:to-slate-900 text-right transition-all flex items-start gap-4 cursor-pointer hover:shadow-lg shadow-indigo-500/10"
-              >
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 text-white flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform shadow-md shadow-indigo-500/20">
-                  <LayoutGrid className="w-6 h-6" />
+          {/* STEP 1: CATEGORY SELECTION (KosNev Navigation-Style Dynamic List, Homepage Hidden) */}
+          {step === 'category' && (() => {
+            const categoryItems: Array<{
+              id: PageCategory;
+              title: string;
+              subtitle: string;
+              badge: string;
+              icon: React.ReactNode;
+              iconBg: string;
+            }> = [
+              {
+                id: 'info_content',
+                title: 'עמודי תוכן ומאמרים',
+                subtitle: '7 אזורים: Hero מאמר, RichContent, מדדי עומק, שאלות נפוצות, ביקורות, קהילה והורדת PDF',
+                badge: 'KOSINFO',
+                icon: <BookOpen className="w-5 h-5" />,
+                iconBg: 'bg-emerald-50 text-emerald-600 dark:bg-emerald-950/60 dark:text-emerald-400',
+              },
+              {
+                id: 'event',
+                title: 'עמודי אירועים וכנסים',
+                subtitle: '7 אזורים: Hero אירוע, ספירה לאחור, אישור RSVP ו-Waze, אג\'נדה, מדדים, שאלות נפוצות ומוקד',
+                badge: 'KOSEVENT',
+                icon: <Calendar className="w-5 h-5" />,
+                iconBg: 'bg-amber-50 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400',
+              },
+              {
+                id: 'checkout',
+                title: 'דפי סליקה ותשלום',
+                subtitle: '7 אזורים: Hero הצעת ערך, מחירון, טופס סליקה מאובטח, טיימר דחיפות, המלצות, FAQ ותמיכה',
+                badge: 'KOSCHECKOUT',
+                icon: <CreditCard className="w-5 h-5" />,
+                iconBg: 'bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400',
+              },
+              {
+                id: 'community',
+                title: 'דפי קהילה ומועדון',
+                subtitle: '7 אזורים: Hero קהילתי, כרטיסי הטבות, מדדי קהילה, פוסטים חיים, סיפורי חברים, FAQ והרשמה',
+                badge: 'KOSCOMMUNITY',
+                icon: <Users className="w-5 h-5" />,
+                iconBg: 'bg-purple-50 text-purple-600 dark:bg-purple-950/60 dark:text-purple-400',
+              },
+              {
+                id: 'fundraising',
+                title: 'דפי קמפיין לגיוס',
+                subtitle: '7 אזורים: מד יעד חי, סיפור קמפיין, מדרגות תרומה, קיר תורמים, נתוני השפעה, סעיף 46 ומוקד',
+                badge: 'KOSFUNRISE',
+                icon: <HeartHandshake className="w-5 h-5" />,
+                iconBg: 'bg-rose-50 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400',
+              },
+              {
+                id: 'course',
+                title: 'דפי קורסים והכשרות',
+                subtitle: '7 אזורים: Hero קורס, באנר תוכן וסילבוס, נתוני הצלחה, מסלולי לימוד, ביקורות בוגרים, FAQ ו-WhatsApp',
+                badge: 'KOSCOURSE',
+                icon: <GraduationCap className="w-5 h-5" />,
+                iconBg: 'bg-indigo-50 text-indigo-600 dark:bg-indigo-950/60 dark:text-indigo-400',
+              },
+              {
+                id: 'youtube_post',
+                title: 'פוסט וידאו יוטיוב',
+                subtitle: 'הטמעת וידאו ממוקדת עם תקציר, הערות צפייה והנעה לפעולה',
+                badge: 'KOSTUBE',
+                icon: <Youtube className="w-5 h-5" />,
+                iconBg: 'bg-red-50 text-red-600 dark:bg-red-950/60 dark:text-red-400',
+              },
+              {
+                id: 'general',
+                title: 'עמוד נחיתה כללי',
+                subtitle: 'עמוד גמיש בהתאמה אישית לכל מטרה, שירות או קמפיין',
+                badge: 'KOS PAGE',
+                icon: <Globe className="w-5 h-5" />,
+                iconBg: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+              },
+            ];
+
+            const q = categorySearch.trim().toLowerCase();
+            const dynamicSortedItems = categoryItems
+              .filter(
+                (item) =>
+                  !q ||
+                  item.title.toLowerCase().includes(q) ||
+                  item.subtitle.toLowerCase().includes(q) ||
+                  item.badge.toLowerCase().includes(q)
+              )
+              .sort((a, b) => (selectionCounts[b.id] || 0) - (selectionCounts[a.id] || 0));
+
+            return (
+              <div className="py-4 flex flex-col gap-3">
+                {/* KosNev-style Search Bar */}
+                <div className="relative">
+                  <Search className="w-4 h-4 text-slate-400 absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    value={categorySearch}
+                    onChange={(e) => setCategorySearch(e.target.value)}
+                    placeholder="חיפוש מהיר בסוגי העמודים..."
+                    className="w-full bg-white dark:bg-slate-950 border-2 border-indigo-500/70 focus:border-indigo-600 rounded-2xl pr-11 pl-4 py-2.5 text-sm text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none shadow-sm transition-all"
+                  />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1 flex-wrap">
-                    <span className="font-black text-sm sm:text-base text-slate-900 dark:text-white">
-                      עמוד בית חי ומערכתי (Master Homepage Ecosystem)
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white text-[10px] font-bold shadow-sm">
-                      מומלץ • 10 אזורים מחוברים
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 leading-relaxed">
-                    שער כניסה חי ונושם המחבר בזמן אמת את כל 6 הארכיונים (תוכן, אירועים, קורסים, סליקה, קהילה, קמפיינים) לצד מוצרי דגל ושירותים – עם בחירה בין 5 ארכיטיפי עימוד ייחודיים ללא שבלונה קבועה!
-                  </p>
-                  <div className="flex items-center gap-2 mt-2.5 flex-wrap">
-                    <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-100 dark:bg-indigo-900/50 px-2.5 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-                      5 ארכיטיפי פריסה (Bento, Luxury, Community, Academy, Sales)
-                    </span>
-                    <span className="text-[10px] font-mono text-slate-500 dark:text-slate-400">
-                      נתיב ראשי /
-                    </span>
-                  </div>
+
+                {/* KosNev-style Single-Column Dynamic Rows */}
+                <div className="flex flex-col gap-2.5 max-h-[55vh] overflow-y-auto pr-0.5">
+                  {dynamicSortedItems.map((item) => {
+                    const count = selectionCounts[item.id] || 0;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        onClick={() => handleSelectCategory(item.id)}
+                        className="group w-full p-3.5 sm:px-4 sm:py-3.5 rounded-2xl border border-slate-200/90 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 bg-white dark:bg-slate-900/70 hover:bg-slate-50/70 dark:hover:bg-slate-900 text-right transition-all flex items-center justify-between gap-3 cursor-pointer shadow-[0_1px_2px_rgba(0,0,0,0.03)] hover:shadow-md"
+                      >
+                        {/* Right side (RTL start): Icon + Title + Subtitle */}
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          <div
+                            className={clsx(
+                              'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105',
+                              item.iconBg
+                            )}
+                          >
+                            {item.icon}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-bold text-sm text-slate-900 dark:text-white truncate">
+                              {item.title}
+                            </div>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                              {item.subtitle}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Left side (RTL end): Pill Badge + Selection Count + Chevron */}
+                        <div className="flex items-center gap-2.5 shrink-0">
+                          {count > 0 && (
+                            <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 text-[10px] font-bold border border-emerald-200/70 dark:border-emerald-800/60">
+                              {count} בחירות
+                            </span>
+                          )}
+                          <span className="px-3 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-[11px] font-bold tracking-tight">
+                            {item.badge}
+                          </span>
+                          <ChevronLeft className="w-4 h-4 text-slate-400 group-hover:text-indigo-600 group-hover:-translate-x-0.5 transition-all" />
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
-              </button>
-
-              <div className="flex items-center justify-between px-1">
-                <span className="text-xs font-black text-slate-700 dark:text-slate-300">
-                  תבניות ארכיון מובנות (7 אזורים לכל ארכיון)
-                </span>
-                <span className="text-[11px] text-indigo-600 dark:text-indigo-400 font-bold">
-                  הצמדה ישירה לנתיב הארכיון
-                </span>
               </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* 1. Content Pages Archive (KOSINFO) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('info_content')}
-                  className="group p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20 text-right transition-all flex items-start gap-3.5 cursor-pointer hover:shadow-md"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <BookOpen className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">
-                        עמודי תוכן ומאמרים
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 text-[10px] font-mono font-bold">
-                        KOSINFO
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      7 אזורים: Hero מאמר, RichContent, מדדי עומק, שאלות נפוצות, ביקורות, קהילה והורדת PDF
-                    </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                      7 אזורים מובנים
-                    </span>
-                  </div>
-                </button>
-
-                {/* 2. Events Archive (KOSEVENT) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('event')}
-                  className="group p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-amber-500 dark:hover:border-amber-500 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-amber-50/40 dark:hover:bg-amber-950/20 text-right transition-all flex items-start gap-3.5 cursor-pointer hover:shadow-md"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">
-                        עמודי אירועים וכנסים
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-[10px] font-mono font-bold">
-                        KOSEVENT
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      7 אזורים: Hero אירוע, ספירה לאחור, אישור RSVP ו-Waze, אג'נדה, מדדים, שאלות נפוצות ומוקד
-                    </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800">
-                      7 אזורים מובנים
-                    </span>
-                  </div>
-                </button>
-
-                {/* 3. Checkout Pages Archive (KOSCHECKOUT) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('checkout')}
-                  className="group p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-blue-500 dark:hover:border-blue-500 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-blue-50/40 dark:hover:bg-blue-950/20 text-right transition-all flex items-start gap-3.5 cursor-pointer hover:shadow-md"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <CreditCard className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">
-                        דפי סליקה ותשלום
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[10px] font-mono font-bold">
-                        KOSCHECKOUT
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      7 אזורים: Hero הצעת ערך, מחירון, טופס סליקה מאובטח, טיימר דחיפות, המלצות, FAQ ותמיכה
-                    </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 rounded-full border border-blue-200 dark:border-blue-800">
-                      7 אזורים מובנים
-                    </span>
-                  </div>
-                </button>
-
-                {/* 4. Community Pages Archive (KOSCOMMUNITY) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('community')}
-                  className="group p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-purple-500 dark:hover:border-purple-500 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-purple-50/40 dark:hover:bg-purple-950/20 text-right transition-all flex items-start gap-3.5 cursor-pointer hover:shadow-md"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <Users className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">
-                        דפי קהילה ומועדון
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 text-[10px] font-mono font-bold">
-                        KOSCOMMUNITY
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      7 אזורים: Hero קהילתי, כרטיסי הטבות, מדדי קהילה, פוסטים חיים, סיפורי חברים, FAQ והרשמה
-                    </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-full border border-purple-200 dark:border-purple-800">
-                      7 אזורים מובנים
-                    </span>
-                  </div>
-                </button>
-
-                {/* 5. Campaign & Fundraising (KOSFUNRISE) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('fundraising')}
-                  className="group p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-rose-500 dark:hover:border-rose-500 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-rose-50/40 dark:hover:bg-rose-950/20 text-right transition-all flex items-start gap-3.5 cursor-pointer hover:shadow-md"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-rose-500/10 text-rose-600 dark:text-rose-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <HeartHandshake className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">
-                        דפי קמפיין לגיוס
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 text-[10px] font-mono font-bold">
-                        KOSFUNRISE
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      7 אזורים: מד יעד חי, סיפור קמפיין, מדרגות תרומה, קיר תורמים, נתוני השפעה, סעיף 46 ומוקד
-                    </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/30 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800">
-                      7 אזורים מובנים
-                    </span>
-                  </div>
-                </button>
-
-                {/* 6. Courses Archive (KOSCOURSE) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('course')}
-                  className="group p-4 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-indigo-500 dark:hover:border-indigo-500 bg-slate-50/50 dark:bg-slate-950/50 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/20 text-right transition-all flex items-start gap-3.5 cursor-pointer hover:shadow-md"
-                >
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="font-bold text-sm text-slate-900 dark:text-white">
-                        דפי קורסים והכשרות
-                      </span>
-                      <span className="px-1.5 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 text-[10px] font-mono font-bold">
-                        KOSCOURSE
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
-                      7 אזורים: Hero קורס, באנר תוכן וסילבוס, נתוני הצלחה, מסלולי לימוד, ביקורות בוגרים, FAQ ו-WhatsApp
-                    </p>
-                    <span className="inline-block mt-1.5 text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-full border border-indigo-200 dark:border-indigo-800">
-                      7 אזורים מובנים
-                    </span>
-                  </div>
-                </button>
-              </div>
-
-              {/* Optional & General Categories */}
-              <div className="pt-2 border-t border-slate-200/60 dark:border-slate-800 flex items-center justify-between px-1">
-                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                  עמודים נוספים וכלליים:
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {/* YouTube Video Post (KOSTUBE) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('youtube_post')}
-                  className="group p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-red-500 dark:hover:border-red-500 bg-slate-50/50 dark:bg-slate-950/50 text-right transition-all flex items-center gap-3 cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center shrink-0">
-                    <Youtube className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-bold text-xs text-slate-900 dark:text-white">
-                      פוסט וידאו יוטיוב (KOSTUBE)
-                    </span>
-                  </div>
-                </button>
-
-                {/* General Page (P) */}
-                <button
-                  type="button"
-                  onClick={() => handleSelectCategory('general')}
-                  className="group p-3 rounded-2xl border border-slate-200 dark:border-slate-800 hover:border-slate-500 dark:hover:border-slate-500 bg-slate-50/50 dark:bg-slate-950/50 text-right transition-all flex items-center gap-3 cursor-pointer"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-slate-500/10 text-slate-600 dark:text-slate-400 flex items-center justify-center shrink-0">
-                    <Globe className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <span className="font-bold text-xs text-slate-900 dark:text-white">
-                      עמוד נחיתה כללי (P)
-                    </span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* STEP 2: RELEVANT QUESTIONS & PROPOSALS */}
           {step === 'details' && (
